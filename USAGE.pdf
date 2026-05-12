@@ -1,0 +1,1108 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+2 0 obj
+<< /Length 2635 >>
+stream
+BT
+/F1 9 Tf
+54 740 Td
+(Bywaf Usage Guide) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Overview) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Bywaf is a Python 3 commandlet framework for authorized web application and) Tj
+0 -11 Td
+(network testing workflows. It presents a Metasploit-like interactive shell,) Tj
+0 -11 Td
+(loads commandlets from plugins, and connects commandlets through a SQLite-backed) Tj
+0 -11 Td
+(event bus.) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(The core idea is simple: one commandlet discovers something and publishes it as) Tj
+0 -11 Td
+(an event; another commandlet consumes that event and publishes the next result.) Tj
+0 -11 Td
+(For example, hostscanner can publish live hosts, portscanner can consume) Tj
+0 -11 Td
+(those hosts and publish open ports, and HTTP commandlets can consume open ports) Tj
+0 -11 Td
+(and probe web services.) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Use Bywaf only on systems and networks where you have explicit authorization.) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Installation) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(During development, run Bywaf from the repository root:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    cd bywaf) Tj
+0 -11 Td
+(    python3 -m bywaf --help) Tj
+0 -11 Td
+(    python3 -m bywaf repl) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(For an editable local install:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    python3 -m pip install -e .) Tj
+0 -11 Td
+(    bywaf --help) Tj
+0 -11 Td
+(    bywaf repl) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(The project metadata defines a console script named bywaf, so packaged) Tj
+0 -11 Td
+(installations can expose Bywaf as a normal command instead of requiring) Tj
+0 -11 Td
+(python3 -m bywaf.) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(The host and port scanner commandlets use nmap through a Python adapter. A) Tj
+0 -11 Td
+(local nmap binary is required for real scans. The adapter prefers nmaplib,) Tj
+0 -11 Td
+(then python-nmap, then nmapthon, then libnmap.) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Starting Bywaf) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Start the interactive shell:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(or, from a source checkout:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    python3 -m bywaf) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Run one command non-interactively:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf run ls) Tj
+0 -11 Td
+(    bywaf run cat README.md) Tj
+0 -11 Td
+(    bywaf run 'hostscanner 127.0.0.1 | portscanner') Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Simple run commands do not need quotes. Use quotes when the command contains) Tj
+0 -11 Td
+(shell metacharacters such as |, &, >, or spaces that must be preserved) Tj
+0 -11 Td
+(inside a single argument.) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(REPL Basics) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(The REPL prompt is:) Tj
+0 -11 Td
+() Tj
+ET
+endstream
+endobj
+3 0 obj
+<< /Type /Page /Parent 18 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 2 0 R >>
+endobj
+4 0 obj
+<< /Length 2204 >>
+stream
+BT
+/F1 9 Tf
+54 740 Td
+(    bywaf>) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Commandlets can be run directly:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> ls) Tj
+0 -11 Td
+(    bywaf> cat README.md) Tj
+0 -11 Td
+(    bywaf> hostscanner 127.0.0.1) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Built-in commands manage the shell and the event database:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    help) Tj
+0 -11 Td
+(    help <command>) Tj
+0 -11 Td
+(    plugins) Tj
+0 -11 Td
+(    cmds) Tj
+0 -11 Td
+(    vars) Tj
+0 -11 Td
+(    history) Tj
+0 -11 Td
+(    jobs) Tj
+0 -11 Td
+(    runs) Tj
+0 -11 Td
+(    topics) Tj
+0 -11 Td
+(    show <topic|job=id|run=id|pipeline=id>) Tj
+0 -11 Td
+(    load <resource>) Tj
+0 -11 Td
+(    save <resource>) Tj
+0 -11 Td
+(    exit) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(help <command> shows the same help as <command> --help for commandlets.) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Commandlets) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(A commandlet is an executable unit exposed by a plugin. Each commandlet declares) Tj
+0 -11 Td
+(its name, description, arguments, consumed topics, and emitted topics.) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Examples:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> help hostscanner) Tj
+0 -11 Td
+(    bywaf> hostscanner --help) Tj
+0 -11 Td
+(    bywaf> portscanner --help) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Many scanning commandlets support -s or --silent to suppress console alerts.) Tj
+0 -11 Td
+(Without silent mode, commandlets print discovery alerts such as:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    hostscanner <hostscanner-...>: discovered host 127.0.0.1) Tj
+0 -11 Td
+(    portscanner <portscanner-...>: discovered port 127.0.0.1:80/tcp) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Plugins) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(A plugin provider groups related commandlets. The plugins command lists loaded) Tj
+0 -11 Td
+(providers:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> plugins) Tj
+0 -11 Td
+(    discovery) Tj
+0 -11 Td
+(    http) Tj
+0 -11 Td
+(    network) Tj
+0 -11 Td
+(    os) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(The cmds command lists commandlets grouped by provider:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> cmds) Tj
+0 -11 Td
+(    discovery) Tj
+0 -11 Td
+(      hostscanner) Tj
+0 -11 Td
+(    http) Tj
+0 -11 Td
+(      http_headers) Tj
+0 -11 Td
+(      http_probe) Tj
+0 -11 Td
+(    network) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Page /Parent 18 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 4 0 R >>
+endobj
+6 0 obj
+<< /Length 2617 >>
+stream
+BT
+/F1 9 Tf
+54 740 Td
+(      portscanner) Tj
+0 -11 Td
+(    os) Tj
+0 -11 Td
+(      cat) Tj
+0 -11 Td
+(      less) Tj
+0 -11 Td
+(      ls) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Bundled plugins are listed in bywaf/plugins/plugins.json. Adding a plugin file) Tj
+0 -11 Td
+(is not enough to load it by default; add its dotted path to that config.) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Load an additional plugin by name from .bywaf/plugins:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> load plugin=myplugin) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Load a plugin from an explicit filesystem path:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> load plugin=./plugins/myplugin) Tj
+0 -11 Td
+(    bywaf> load plugin=~/bywaf-plugins/myplugin) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Pipelines) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Pipelines connect commandlets with |:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> hostscanner 127.0.0.1 | portscanner) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(The runner executes each stage in order. Events emitted by one stage are passed) Tj
+0 -11 Td
+(to the next stage as input. Events are also stored in SQLite with a pipeline ID) Tj
+0 -11 Td
+(and command run ID.) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(This model allows downstream commandlets to consume only the output relevant to) Tj
+0 -11 Td
+(the current pipeline, rather than every historical event in the database.) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Background Execution) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Append & to background a commandlet or pipeline:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> hostscanner 192.168.0.1-255 &) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Stage-level backgrounding works inside pipelines:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> hostscanner 192.168.0.1-255 & | portscanner &) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(In that example, portscanner listens for host.found rows created by the) Tj
+0 -11 Td
+(immediately upstream hostscanner run in the same pipeline. It does not consume) Tj
+0 -11 Td
+(unrelated host.found rows from older scans.) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(List jobs:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> jobs) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Show one job:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> show job=<id>) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Database and Event Model) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Bywaf stores events in SQLite. The default database is:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    .bywaf/bywaf.sqlite3) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(SQLite is used in WAL mode. Inserts are committed immediately; there is no) Tj
+0 -11 Td
+(separate document-style save step. On shutdown, Bywaf checkpoints the WAL using) Tj
+0 -11 Td
+(PRAGMA wal_checkpoint\(TRUNCATE\) so WAL contents are folded back into the main) Tj
+0 -11 Td
+(database file.) Tj
+ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 18 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 6 0 R >>
+endobj
+8 0 obj
+<< /Length 2081 >>
+stream
+BT
+/F1 9 Tf
+54 740 Td
+() Tj
+0 -11 Td
+(List known event topics:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> topics) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Show recent events for a topic:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> show host.found) Tj
+0 -11 Td
+(    bywaf> show port.open) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(List command runs:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> runs) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Show events by command run or pipeline:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> show run=<command-run-id>) Tj
+0 -11 Td
+(    bywaf> show pipeline=<pipeline-id>) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Save a database snapshot:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> save db=snapshot.sqlite3) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Switch to another database:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> load db=snapshot.sqlite3) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Resource Files) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Bywaf keeps default state in:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    .bywaf/) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Important files:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    .bywaf/bywaf.sqlite3) Tj
+0 -11 Td
+(    .bywaf/config.json) Tj
+0 -11 Td
+(    .bywaf/history.bywaf) Tj
+0 -11 Td
+(    .bywaf/plugins/) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Resource resolution rules are consistent:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    plugin=<name>   -> .bywaf/plugins/<name>) Tj
+0 -11 Td
+(    script=<name>   -> ./<name>) Tj
+0 -11 Td
+(    db=<name>       -> ./<name>) Tj
+0 -11 Td
+(    config=<name>   -> ./<name>) Tj
+0 -11 Td
+(    history=<name>  -> ./<name>) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Explicit paths are used as filesystem paths for every resource type:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    ./name) Tj
+0 -11 Td
+(    ../name) Tj
+0 -11 Td
+(    ~/name) Tj
+0 -11 Td
+(    /absolute/name) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Examples:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> load script=scan.bywaf) Tj
+0 -11 Td
+(    bywaf> load script=./scripts/scan.bywaf) Tj
+0 -11 Td
+(    bywaf> save config=session.json) Tj
+0 -11 Td
+(    bywaf> load config=session.json) Tj
+0 -11 Td
+(    bywaf> save history=session-history.bywaf) Tj
+0 -11 Td
+(    bywaf> load history=session-history.bywaf) Tj
+ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 18 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 8 0 R >>
+endobj
+10 0 obj
+<< /Length 2218 >>
+stream
+BT
+/F1 9 Tf
+54 740 Td
+() Tj
+0 -11 Td
+(Variables) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(List variables:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> vars) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Set a variable:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> vars name=value) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Common examples:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> vars http_probe.cookie-file=/tmp/cookies.txt) Tj
+0 -11 Td
+(    bywaf> vars history.timestamp-format=%Y-%m-%d %H:%M:%S %Z) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Save variables:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> save config=config.json) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Load variables:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> load config=config.json) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Config files are JSON objects containing session variables.) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(History) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Every non-empty REPL command is appended to:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    .bywaf/history.bywaf) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(History lines are stored as commands followed by a timestamp comment:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    hostscanner 127.0.0.1  # 2026-05-12 10:15:30 EDT) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(The history command shows only commands from the current REPL invocation:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> history) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(The persistent history file can be viewed with the OS commandlets:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> cat .bywaf/history.bywaf) Tj
+0 -11 Td
+(    bywaf> less .bywaf/history.bywaf) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Because timestamps are comments, history lines can be copied into a script file.) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Change the timestamp format:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> vars history.timestamp-format=%Y/%m/%d %H:%M:%S %Z) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Scripts) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Scripts are text files with one command expression per line:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    # scan local host) Tj
+0 -11 Td
+(    hostscanner 127.0.0.1) Tj
+0 -11 Td
+(    portscanner --from-topic host.found) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Blank lines and lines beginning with # are ignored. Inline comments are also) Tj
+0 -11 Td
+(allowed after whitespace:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    plugins  # list loaded plugin providers) Tj
+ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 18 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 10 0 R >>
+endobj
+12 0 obj
+<< /Length 2175 >>
+stream
+BT
+/F1 9 Tf
+54 740 Td
+() Tj
+0 -11 Td
+(Run a script:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> load script=scan.bywaf) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Bundled Commandlets) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(os) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(ls lists local files:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> ls) Tj
+0 -11 Td
+(    bywaf> ls bywaf/plugins) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(cat prints a local text file:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> cat README.md) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(less opens the system less pager when running interactively:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> less README.md) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Use / to search inside less, arrow keys or paging keys to scroll, and q to) Tj
+0 -11 Td
+(quit.) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(discovery) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(hostscanner discovers live hosts with nmap:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> hostscanner 127.0.0.1) Tj
+0 -11 Td
+(    bywaf> hostscanner 192.168.0.1-255) Tj
+0 -11 Td
+(    bywaf> hostscanner 192.168.1-3.1-255) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(It emits host.found events.) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(network) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(portscanner scans hosts for open ports:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> portscanner 127.0.0.1) Tj
+0 -11 Td
+(    bywaf> portscanner --ports 22,80,443 127.0.0.1) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(If --ports is omitted, nmap uses its normal default top-port behavior. It) Tj
+0 -11 Td
+(emits port.open events.) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Use listen mode to consume newly inserted hosts:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> portscanner --listen) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(http) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(http_headers performs HTTP HEAD requests and emits http.headers events:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> http_headers example.com) Tj
+0 -11 Td
+(    bywaf> http_headers --ssl true example.com) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(http_probe probes HTTP endpoints and emits http.endpoint events:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> http_probe https://example.com/) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(For authorized session-aware testing, it can use cookies:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> vars http_probe.cookie-file=/path/to/cookies.txt) Tj
+ET
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 18 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 12 0 R >>
+endobj
+14 0 obj
+<< /Length 2518 >>
+stream
+BT
+/F1 9 Tf
+54 740 Td
+(    bywaf> http_probe https://example.com/) Tj
+0 -11 Td
+(    bywaf> http_probe --firefox-profile ~/.mozilla/firefox/<profile>) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Common Workflows) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Scan one host for live status:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> hostscanner 127.0.0.1) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Scan one host for ports:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> portscanner 127.0.0.1) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Discover hosts and scan their ports:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> hostscanner 192.168.0.1-255 | portscanner) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Run discovery and port scanning in the background:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> hostscanner 192.168.0.1-255 & | portscanner &) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Probe HTTP services after port scanning:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> hostscanner 127.0.0.1 | portscanner --ports 80,443 | http_probe) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Save the current database:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> save db=scan-results.sqlite3) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Save variables and session history:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> save config=session.json) Tj
+0 -11 Td
+(    bywaf> save history=session.bywaf) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Troubleshooting) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(If python is not available, use python3:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    python3 -m bywaf) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(If scanning fails with an nmap error, verify that nmap is installed and that) Tj
+0 -11 Td
+(the selected Python nmap binding is available.) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(If socket creation is denied, the process may be running inside a sandbox or) Tj
+0 -11 Td
+(without the privileges needed by the selected scan type.) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(If a command is unknown, check loaded commandlets:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf> cmds) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(If a plugin does not load, verify its directory structure and that it defines a) Tj
+0 -11 Td
+(plugin\(\) factory returning a commandlet.) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(SQLite WAL files such as .sqlite3-wal and .sqlite3-shm are normal. Bywaf) Tj
+0 -11 Td
+(checkpoints the WAL on shutdown.) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Developer Notes) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(The main package layout is:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    bywaf/app.py          REPL and built-in commands) Tj
+0 -11 Td
+(    bywaf/runner.py       parsing, pipelines, foreground/background execution) Tj
+0 -11 Td
+(    bywaf/db.py           SQLite event store) Tj
+ET
+endstream
+endobj
+15 0 obj
+<< /Type /Page /Parent 18 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 14 0 R >>
+endobj
+16 0 obj
+<< /Length 1812 >>
+stream
+BT
+/F1 9 Tf
+54 740 Td
+(    bywaf/plugin.py       commandlet protocol and specs) Tj
+0 -11 Td
+(    bywaf/registry.py     plugin discovery and loading) Tj
+0 -11 Td
+(    bywaf/completion.py   readline completion) Tj
+0 -11 Td
+(    bywaf/plugins/        bundled plugin providers) Tj
+0 -11 Td
+(    tests/                unit tests) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Run tests:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    python3 -m unittest discover -s tests) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Add a commandlet by defining a class with a CommandSpec and a run\(\) method,) Tj
+0 -11 Td
+(then expose it through a plugin\(\) factory. Add bundled commandlets to) Tj
+0 -11 Td
+(bywaf/plugins/plugins.json when they should load by default.) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Reference) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Useful built-ins:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    help [command]) Tj
+0 -11 Td
+(    plugins) Tj
+0 -11 Td
+(    cmds) Tj
+0 -11 Td
+(    vars [name=value]) Tj
+0 -11 Td
+(    history) Tj
+0 -11 Td
+(    jobs) Tj
+0 -11 Td
+(    runs) Tj
+0 -11 Td
+(    topics) Tj
+0 -11 Td
+(    show <topic>) Tj
+0 -11 Td
+(    show job=<id>) Tj
+0 -11 Td
+(    show run=<id>) Tj
+0 -11 Td
+(    show pipeline=<id>) Tj
+0 -11 Td
+(    load plugin=<resource>) Tj
+0 -11 Td
+(    load script=<resource>) Tj
+0 -11 Td
+(    load db=<resource>) Tj
+0 -11 Td
+(    load config=<resource>) Tj
+0 -11 Td
+(    load history=<resource>) Tj
+0 -11 Td
+(    save db=<resource>) Tj
+0 -11 Td
+(    save config=<resource>) Tj
+0 -11 Td
+(    save history=<resource>) Tj
+0 -11 Td
+(    prompt [pattern]) Tj
+0 -11 Td
+(    exit) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Common event topics:) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(    host.found) Tj
+0 -11 Td
+(    port.open) Tj
+0 -11 Td
+(    http.headers) Tj
+0 -11 Td
+(    http.endpoint) Tj
+0 -11 Td
+(    job.started) Tj
+0 -11 Td
+(    job.finished) Tj
+0 -11 Td
+(    job.failed) Tj
+ET
+endstream
+endobj
+17 0 obj
+<< /Type /Page /Parent 18 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 16 0 R >>
+endobj
+18 0 obj
+<< /Type /Pages /Count 8 /Kids [ 3 0 R 5 0 R 7 0 R 9 0 R 11 0 R 13 0 R 15 0 R 17 0 R ] >>
+endobj
+19 0 obj
+<< /Type /Catalog /Pages 18 0 R >>
+endobj
+xref
+0 20
+0000000000 65535 f 
+0000000015 00000 n 
+0000000085 00000 n 
+0000002772 00000 n 
+0000002899 00000 n 
+0000005155 00000 n 
+0000005282 00000 n 
+0000007951 00000 n 
+0000008078 00000 n 
+0000010211 00000 n 
+0000010338 00000 n 
+0000012609 00000 n 
+0000012738 00000 n 
+0000014966 00000 n 
+0000015095 00000 n 
+0000017666 00000 n 
+0000017795 00000 n 
+0000019660 00000 n 
+0000019789 00000 n 
+0000019895 00000 n 
+trailer
+<< /Size 20 /Root 19 0 R >>
+startxref
+19946
+%%EOF
