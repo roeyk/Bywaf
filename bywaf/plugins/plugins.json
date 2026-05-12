@@ -1,0 +1,11 @@
+{
+  "default_plugins": [
+    "discovery.hostscanner",
+    "network.portscanner",
+    "http.http_headers",
+    "http.http_probe",
+    "os.ls",
+    "os.cat",
+    "os.less"
+  ]
+}
