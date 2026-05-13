@@ -18,10 +18,6 @@ from bywaf.app import (
     shutdown_runner,
 )
 from bywaf.events import Event
-from bywaf.plugins.os.less import page_file
-
-
-
 class AppDispatchTests(unittest.TestCase):
     def test_build_parser_accepts_run(self):
         parser = build_parser()
@@ -150,13 +146,14 @@ class AppDispatchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "file.txt")
             path.write_text("hello\n")
+            runner = make_runner(Path(tmp, "db.sqlite3"))
             with (
-                patch("bywaf.plugins.os.less.shutil.which", return_value="/usr/bin/less"),
-                patch("bywaf.plugins.os.less.sys.stdin.isatty", return_value=True),
-                patch("bywaf.plugins.os.less.sys.stdout.isatty", return_value=True),
-                patch("bywaf.plugins.os.less.subprocess.run") as run,
+                patch("bywaf.app.shutil.which", return_value="/usr/bin/less"),
+                patch("bywaf.app.sys.stdin.isatty", return_value=True),
+                patch("bywaf.app.sys.stdout.isatty", return_value=True),
+                patch("bywaf.app.subprocess.run") as run,
             ):
-                page_file(path)
+                dispatch_repl_line(runner, f"less {path}")
             run.assert_called_once_with(["/usr/bin/less", str(path)], check=False)
 
     def test_dispatch_unknown_command_prints_error(self):

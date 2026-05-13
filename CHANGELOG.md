@@ -5,7 +5,16 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-No unreleased changes yet.
+### Added
+
+- Added framework-owned file paging requests through `context.page_file()` and
+  `framework.file.page.requested` events.
+- Added roadmap candidates to `TODO.md`.
+
+### Changed
+
+- Changed the `less` commandlet to request paging from the framework instead of
+  launching terminal paging directly.
 
 ## [0.9.0] - 2026-05-13
 

@@ -7,8 +7,11 @@ import getpass
 import json
 import os
 import platform
+import shutil
 import shlex
 import socket
+import subprocess
+import sys
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -260,6 +263,7 @@ def process_framework_requests(runner: Runner, state: ShellState) -> None:
                 "shell.prompt.requested",
                 "framework.console.alert.requested",
                 "framework.console.output.requested",
+                "framework.file.page.requested",
             ),
             after_id=state.framework_request_after_id,
             limit=1000,
@@ -373,10 +377,48 @@ def handle_console_output_request(runner: Runner, state: ShellState, event) -> N
     emit_console_output(runner, event)
 
 
+def handle_file_page_request(runner: Runner, state: ShellState, event) -> None:
+    """Validate, audit, and display a plugin-requested local file page."""
+    del state
+    raw_path = event.payload.get("path")
+    if not isinstance(raw_path, str) or not raw_path:
+        deny_framework_request(runner, event, "page path must be a non-empty string")
+        return
+    path = Path(raw_path).expanduser()
+    if not path.exists():
+        deny_framework_request(runner, event, f"{path} does not exist")
+        return
+    if path.is_dir():
+        deny_framework_request(runner, event, f"{path} is a directory")
+        return
+    if bool(event.payload.get("background")):
+        deny_framework_request(runner, event, "file paging requires a foreground commandlet")
+        return
+    runner.db.publish(
+        "console.page",
+        {
+            "path": str(path),
+            "source": event.payload.get("source", event.source),
+            "job_id": event.payload.get("job_id"),
+            "request_event_id": event.id,
+        },
+        "framework",
+        pipeline_id=event.pipeline_id,
+        command_run_id=event.command_run_id,
+        parent_command_run_id=event.parent_command_run_id,
+    )
+    pager = shutil.which("less")
+    if pager and sys.stdin.isatty() and sys.stdout.isatty():
+        subprocess.run([pager, str(path)], check=False)
+        return
+    print(path.read_text(errors="replace"), end="", flush=True)
+
+
 FRAMEWORK_REQUEST_HANDLERS = {
     "shell.prompt.requested": handle_prompt_request,
     "framework.console.alert.requested": handle_console_alert_request,
     "framework.console.output.requested": handle_console_output_request,
+    "framework.file.page.requested": handle_file_page_request,
 }
 
 

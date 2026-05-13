@@ -4,9 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from pathlib import Path
-import shutil
-import subprocess
-import sys
 
 from bywaf.events import Event
 from bywaf.plugin import ArgumentSpec, CommandContext, Commandlet, CommandletBase, CommandSpec, CompletionSpec
@@ -14,11 +11,11 @@ from bywaf.plugins.os.files import read_text_file
 
 
 class Less(CommandletBase):
-    """Commandlet wrapper around the system pager."""
+    """Commandlet wrapper around framework-owned file paging."""
 
     spec = CommandSpec(
         name="less",
-        description="View a local text file in the system pager.",
+        description="View a local text file through the framework pager.",
         usage="less <path>",
         examples=("less README.md",),
         arguments=(
@@ -42,21 +39,16 @@ class Less(CommandletBase):
 
 
 def page_file(path: Path, context: CommandContext | None = None) -> None:
-    """Use `less` interactively, falling back to plain output when needed."""
+    """Request framework-owned paging, falling back to plain output without DB."""
 
     if not path.exists():
         raise ValueError(f"{path} does not exist")
     if path.is_dir():
         raise ValueError(f"{path} is a directory")
-    pager = shutil.which("less")
-    if pager and sys.stdin.isatty() and sys.stdout.isatty():
-        subprocess.run([pager, str(path)], check=False)
+    if context is not None:
+        context.page_file(path)
         return
-    text = read_text_file(path)
-    if context is None:
-        print(text, end="")
-    else:
-        context.output(text, end="")
+    print(read_text_file(path), end="")
 
 
 def plugin() -> Commandlet:

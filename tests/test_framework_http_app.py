@@ -80,6 +80,40 @@ class FrameworkHttpAppTests(unittest.TestCase):
             self.assertEqual(event.payload["request_event_id"], request.id)
             self.assertEqual(output.getvalue(), "hello")
 
+    def test_framework_request_pages_file_without_tty(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp, "file.txt")
+            path.write_text("hello\n")
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            request = runner.db.publish(
+                "framework.file.page.requested",
+                {"path": str(path), "source": "less"},
+                "less",
+                command_run_id="run-1",
+            )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                process_framework_requests(runner, state)
+            event = runner.db.events_for_topic("console.page")[0]
+            self.assertEqual(event.payload["request_event_id"], request.id)
+            self.assertEqual(output.getvalue(), "hello\n")
+
+    def test_framework_request_denies_background_file_page(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp, "file.txt")
+            path.write_text("hello\n")
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            request = runner.db.publish(
+                "framework.file.page.requested",
+                {"path": str(path), "background": True},
+                "less",
+            )
+            process_framework_requests(runner, state)
+            denied = runner.db.events_for_topic("framework.request.denied")[0]
+            self.assertEqual(denied.payload["request_event_id"], request.id)
+
     def test_framework_request_is_processed_once_per_shell_state(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

@@ -315,6 +315,7 @@ At execution time, commandlets receive a `CommandContext`:
 - `context.output(text)`: request normal console output from the framework
 - `context.alert(message)`: request an operator alert from the framework
 - `context.table(rows, columns)`: print small tabular command output
+- `context.page_file(path)`: request frontend-owned paging for a local file
 - `context.request(topic, payload)`: advanced escape hatch for framework requests
 - `context.cancelled()`: whether a soft-cancellation request is pending
 - `context.raise_if_cancelled()`: raise if cancellation is pending
@@ -324,6 +325,7 @@ For beginner plugins, the core loop is usually:
 ```python
 context.output("starting scan")
 context.alert("discovered host 127.0.0.1")
+context.page_file("report.txt")
 yield {"host": "127.0.0.1", "status": "up"}
 ```
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Protocol
 
 from .db import EventStore
@@ -196,6 +197,20 @@ class CommandContext:
         }
         if self.request("framework.console.alert.requested", payload) is None and not silent:
             print(f"{self.source} <{command_run_id(self)}>: {message}", flush=True)
+
+    def page_file(self, path: str | Path) -> None:
+        """Request framework-owned file paging for terminal and GUI frontends."""
+        file_path = Path(path).expanduser()
+        payload = {
+            "path": str(file_path),
+            "source": self.source,
+            "command_run_id": self.command_run_id,
+            "pipeline_id": self.pipeline_id,
+            "job_id": self.job_id,
+            "background": self.background,
+        }
+        if self.request("framework.file.page.requested", payload) is None:
+            print(file_path.read_text(errors="replace"), end="", flush=True)
 
 
 @dataclass(slots=True)
