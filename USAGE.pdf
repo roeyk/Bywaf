@@ -141,7 +141,7 @@ endobj
 << /Type /Page /Parent 18 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 2 0 R >>
 endobj
 4 0 obj
-<< /Length 2204 >>
+<< /Length 2492 >>
 stream
 BT
 /F1 9 Tf
@@ -232,6 +232,20 @@ BT
 0 -11 Td
 () Tj
 0 -11 Td
+(Commandlets can also declare tab-completion behavior for their arguments and) Tj
+0 -11 Td
+(options. For example, ls [path], cat <path>, and less <path> get filename) Tj
+0 -11 Td
+(completion because those commandlets declare path/file completion in their) Tj
+0 -11 Td
+(plugin specs. Other completion specs include topic, run, pipeline, job,) Tj
+0 -11 Td
+(and plugin, so plugin authors can make hand-typed commands much easier to) Tj
+0 -11 Td
+(complete correctly.) Tj
+0 -11 Td
+() Tj
+0 -11 Td
 (Plugins) Tj
 0 -11 Td
 () Tj
@@ -257,7 +271,18 @@ BT
 (The cmds command lists commandlets grouped by provider:) Tj
 0 -11 Td
 () Tj
-0 -11 Td
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Page /Parent 18 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 4 0 R >>
+endobj
+6 0 obj
+<< /Length 2445 >>
+stream
+BT
+/F1 9 Tf
+54 740 Td
 (    bywaf> cmds) Tj
 0 -11 Td
 (    discovery) Tj
@@ -271,18 +296,7 @@ BT
 (      http_probe) Tj
 0 -11 Td
 (    network) Tj
-ET
-endstream
-endobj
-5 0 obj
-<< /Type /Page /Parent 18 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 4 0 R >>
-endobj
-6 0 obj
-<< /Length 2617 >>
-stream
-BT
-/F1 9 Tf
-54 740 Td
+0 -11 Td
 (      portscanner) Tj
 0 -11 Td
 (    os) Tj
@@ -394,7 +408,18 @@ BT
 () Tj
 0 -11 Td
 (Bywaf stores events in SQLite. The default database is:) Tj
-0 -11 Td
+ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 18 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 6 0 R >>
+endobj
+8 0 obj
+<< /Length 2115 >>
+stream
+BT
+/F1 9 Tf
+54 740 Td
 () Tj
 0 -11 Td
 (    .bywaf/bywaf.sqlite3) Tj
@@ -408,18 +433,7 @@ BT
 (PRAGMA wal_checkpoint\(TRUNCATE\) so WAL contents are folded back into the main) Tj
 0 -11 Td
 (database file.) Tj
-ET
-endstream
-endobj
-7 0 obj
-<< /Type /Page /Parent 18 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 6 0 R >>
-endobj
-8 0 obj
-<< /Length 2081 >>
-stream
-BT
-/F1 9 Tf
-54 740 Td
+0 -11 Td
 () Tj
 0 -11 Td
 (List known event topics:) Tj
@@ -531,7 +545,18 @@ BT
 () Tj
 0 -11 Td
 (Examples:) Tj
-0 -11 Td
+ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 18 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 8 0 R >>
+endobj
+10 0 obj
+<< /Length 2246 >>
+stream
+BT
+/F1 9 Tf
+54 740 Td
 () Tj
 0 -11 Td
 (    bywaf> load script=scan.bywaf) Tj
@@ -545,18 +570,7 @@ BT
 (    bywaf> save history=session-history.bywaf) Tj
 0 -11 Td
 (    bywaf> load history=session-history.bywaf) Tj
-ET
-endstream
-endobj
-9 0 obj
-<< /Type /Page /Parent 18 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 8 0 R >>
-endobj
-10 0 obj
-<< /Length 2218 >>
-stream
-BT
-/F1 9 Tf
-54 740 Td
+0 -11 Td
 () Tj
 0 -11 Td
 (Variables) Tj
@@ -668,7 +682,18 @@ BT
 () Tj
 0 -11 Td
 (    # scan local host) Tj
-0 -11 Td
+ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 18 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 10 0 R >>
+endobj
+12 0 obj
+<< /Length 2161 >>
+stream
+BT
+/F1 9 Tf
+54 740 Td
 (    hostscanner 127.0.0.1) Tj
 0 -11 Td
 (    portscanner --from-topic host.found) Tj
@@ -682,18 +707,7 @@ BT
 () Tj
 0 -11 Td
 (    plugins  # list loaded plugin providers) Tj
-ET
-endstream
-endobj
-11 0 obj
-<< /Type /Page /Parent 18 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 10 0 R >>
-endobj
-12 0 obj
-<< /Length 2175 >>
-stream
-BT
-/F1 9 Tf
-54 740 Td
+0 -11 Td
 () Tj
 0 -11 Td
 (Run a script:) Tj
@@ -805,7 +819,18 @@ BT
 (    bywaf> http_headers --ssl true example.com) Tj
 0 -11 Td
 () Tj
-0 -11 Td
+ET
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 18 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 12 0 R >>
+endobj
+14 0 obj
+<< /Length 2525 >>
+stream
+BT
+/F1 9 Tf
+54 740 Td
 (http_probe probes HTTP endpoints and emits http.endpoint events:) Tj
 0 -11 Td
 () Tj
@@ -819,18 +844,7 @@ BT
 () Tj
 0 -11 Td
 (    bywaf> vars http_probe.cookie-file=/path/to/cookies.txt) Tj
-ET
-endstream
-endobj
-13 0 obj
-<< /Type /Page /Parent 18 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 12 0 R >>
-endobj
-14 0 obj
-<< /Length 2518 >>
-stream
-BT
-/F1 9 Tf
-54 740 Td
+0 -11 Td
 (    bywaf> http_probe https://example.com/) Tj
 0 -11 Td
 (    bywaf> http_probe --firefox-profile ~/.mozilla/firefox/<profile>) Tj
@@ -942,7 +956,18 @@ BT
 (checkpoints the WAL on shutdown.) Tj
 0 -11 Td
 () Tj
-0 -11 Td
+ET
+endstream
+endobj
+15 0 obj
+<< /Type /Page /Parent 18 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 14 0 R >>
+endobj
+16 0 obj
+<< /Length 2457 >>
+stream
+BT
+/F1 9 Tf
+54 740 Td
 (Developer Notes) Tj
 0 -11 Td
 () Tj
@@ -956,18 +981,7 @@ BT
 (    bywaf/runner.py       parsing, pipelines, foreground/background execution) Tj
 0 -11 Td
 (    bywaf/db.py           SQLite event store) Tj
-ET
-endstream
-endobj
-15 0 obj
-<< /Type /Page /Parent 18 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 14 0 R >>
-endobj
-16 0 obj
-<< /Length 1812 >>
-stream
-BT
-/F1 9 Tf
-54 740 Td
+0 -11 Td
 (    bywaf/plugin.py       commandlet protocol and specs) Tj
 0 -11 Td
 (    bywaf/registry.py     plugin discovery and loading) Tj
@@ -993,6 +1007,16 @@ BT
 (then expose it through a plugin\(\) factory. Add bundled commandlets to) Tj
 0 -11 Td
 (bywaf/plugins/plugins.json when they should load by default.) Tj
+0 -11 Td
+() Tj
+0 -11 Td
+(Commandlets can declare completion metadata with ArgumentSpec,) Tj
+0 -11 Td
+(OptionSpec\(..., completion=CompletionSpec\(...\)\), or an optional custom) Tj
+0 -11 Td
+(complete\(context, args, prefix\) method. See PLUGIN_AUTHOR_GUIDE.md for a) Tj
+0 -11 Td
+(walkthrough and a small working example.) Tj
 0 -11 Td
 () Tj
 0 -11 Td
@@ -1086,23 +1110,23 @@ xref
 0000000085 00000 n 
 0000002772 00000 n 
 0000002899 00000 n 
-0000005155 00000 n 
-0000005282 00000 n 
-0000007951 00000 n 
-0000008078 00000 n 
-0000010211 00000 n 
-0000010338 00000 n 
-0000012609 00000 n 
-0000012738 00000 n 
-0000014966 00000 n 
-0000015095 00000 n 
-0000017666 00000 n 
-0000017795 00000 n 
-0000019660 00000 n 
-0000019789 00000 n 
-0000019895 00000 n 
+0000005443 00000 n 
+0000005570 00000 n 
+0000008067 00000 n 
+0000008194 00000 n 
+0000010361 00000 n 
+0000010488 00000 n 
+0000012787 00000 n 
+0000012916 00000 n 
+0000015130 00000 n 
+0000015259 00000 n 
+0000017837 00000 n 
+0000017966 00000 n 
+0000020476 00000 n 
+0000020605 00000 n 
+0000020711 00000 n 
 trailer
 << /Size 20 /Root 19 0 R >>
 startxref
-19946
+20762
 %%EOF

@@ -124,6 +124,13 @@ hostscanner <hostscanner-...>: discovered host 127.0.0.1
 portscanner <portscanner-...>: discovered port 127.0.0.1:80/tcp
 ```
 
+Commandlets can also declare tab-completion behavior for their arguments and
+options. For example, `ls [path]`, `cat <path>`, and `less <path>` get filename
+completion because those commandlets declare path/file completion in their
+plugin specs. Other completion specs include `topic`, `run`, `pipeline`, `job`,
+and `plugin`, so plugin authors can make hand-typed commands much easier to
+complete correctly.
+
 # Plugins
 
 A plugin provider groups related commandlets. The `plugins` command lists loaded
@@ -580,6 +587,11 @@ python3 -m unittest discover -s tests
 Add a commandlet by defining a class with a `CommandSpec` and a `run()` method,
 then expose it through a `plugin()` factory. Add bundled commandlets to
 `bywaf/plugins/plugins.json` when they should load by default.
+
+Commandlets can declare completion metadata with `ArgumentSpec`,
+`OptionSpec(..., completion=CompletionSpec(...))`, or an optional custom
+`complete(context, args, prefix)` method. See `PLUGIN_AUTHOR_GUIDE.md` for a
+walkthrough and a small working example.
 
 # Reference
 
