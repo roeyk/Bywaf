@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 import time
+import json
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -131,25 +132,27 @@ class EventStore:
     def fetch(self, subscription: Subscription) -> list[Event]:
         if not subscription.topics:
             return []
-        placeholders = ",".join("?" for _ in subscription.topics)
-        filters = [f"id > ? AND topic IN ({placeholders})"]
-        params: list[Any] = [subscription.after_id, *subscription.topics]
-        if subscription.pipeline_id is not None:
-            filters.append("pipeline_id = ?")
-            params.append(subscription.pipeline_id)
-        if subscription.command_run_id is not None:
-            filters.append("command_run_id = ?")
-            params.append(subscription.command_run_id)
-        if subscription.parent_command_run_id is not None:
-            filters.append("parent_command_run_id = ?")
-            params.append(subscription.parent_command_run_id)
-        sql = f"""
+        sql = """
             SELECT * FROM events
-            WHERE {" AND ".join(filters)}
+            WHERE id > ?
+              AND topic IN (SELECT value FROM json_each(?))
+              AND (? IS NULL OR pipeline_id = ?)
+              AND (? IS NULL OR command_run_id = ?)
+              AND (? IS NULL OR parent_command_run_id = ?)
             ORDER BY id ASC
             LIMIT ?
         """
-        params.append(subscription.limit)
+        params: list[Any] = [
+            subscription.after_id,
+            json.dumps(subscription.topics),
+            subscription.pipeline_id,
+            subscription.pipeline_id,
+            subscription.command_run_id,
+            subscription.command_run_id,
+            subscription.parent_command_run_id,
+            subscription.parent_command_run_id,
+            subscription.limit,
+        ]
         with self.connect() as conn:
             return [Event.from_row(row) for row in conn.execute(sql, tuple(params))]
 
@@ -209,21 +212,18 @@ class EventStore:
         pipeline_id: str | None = None,
         limit: int = 1000,
     ) -> list[Event]:
-        filters: list[str] = []
-        params: list[Any] = []
-        if topic:
-            filters.append("topic = ?")
-            params.append(topic)
-        if command_run_id:
-            filters.append("command_run_id = ?")
-            params.append(command_run_id)
-        if pipeline_id:
-            filters.append("pipeline_id = ?")
-            params.append(pipeline_id)
-        where = f"WHERE {' AND '.join(filters)}" if filters else ""
-        params.append(limit)
         with self.connect() as conn:
-            rows = conn.execute(f"SELECT * FROM events {where} ORDER BY id ASC LIMIT ?", tuple(params))
+            rows = conn.execute(
+                """
+                SELECT * FROM events
+                WHERE (? IS NULL OR topic = ?)
+                  AND (? IS NULL OR command_run_id = ?)
+                  AND (? IS NULL OR pipeline_id = ?)
+                ORDER BY id ASC
+                LIMIT ?
+                """,
+                (topic, topic, command_run_id, command_run_id, pipeline_id, pipeline_id, limit),
+            )
             return [Event.from_row(row) for row in rows]
 
     def runs(self) -> list[sqlite3.Row]:

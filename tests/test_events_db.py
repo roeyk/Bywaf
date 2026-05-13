@@ -74,6 +74,15 @@ class EventDbTests(unittest.TestCase):
             events = db.events_matching(topic="a", pipeline_id="pipe-1", command_run_id="run-1")
             self.assertEqual([event.payload["n"] for event in events], [1])
 
+    def test_sql_like_filter_values_are_bound_as_data(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "events.sqlite3"))
+            topic = "x' OR 1=1 --"
+            db.publish(topic, {"n": 1}, "one", pipeline_id="pipe", command_run_id="run")
+            db.publish("safe", {"n": 2}, "one", pipeline_id="pipe", command_run_id="run")
+            events = db.events_matching(topic=topic)
+            self.assertEqual([event.payload["n"] for event in events], [1])
+
     def test_runs_summarizes_command_runs(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "events.sqlite3"))
