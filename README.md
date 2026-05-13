@@ -15,6 +15,8 @@ and probe web services.
 
 Use Bywaf only on systems and networks where you have explicit authorization.
 
+Project changes are summarized in [CHANGELOG.md](CHANGELOG.md).
+
 # Installation
 
 During development, run Bywaf from the repository root:
