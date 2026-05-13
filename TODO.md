@@ -15,6 +15,8 @@ Planning dates are release planning markers, not compatibility commitments.
 - Add request/response documentation for frontend authors implementing terminal,
   GUI, or web clients.
 - Refine the request and outcome conventions in `DESIGN.md`.
+- Add framework-mediated process execution, such as `context.process.run()`,
+  so plugins do not call `subprocess`, `os.system`, or `os.spawn*` directly.
 
 ### Plugin Capability Model
 
@@ -22,6 +24,8 @@ Planning dates are release planning markers, not compatibility commitments.
   third-party plugins.
 - Add enforcement modes for missing capabilities after audit-only mode has been
   exercised with real plugins.
+- Add policy checks for direct process execution and require `process.run` for
+  mediated external tool wrappers.
 
 ### External Tool Wrappers
 

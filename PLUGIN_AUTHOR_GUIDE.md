@@ -386,6 +386,11 @@ usage. Raw `context.db` remains available for privileged/internal framework
 commandlets during the transition; accessing it records `db.raw`, and
 third-party plugins should avoid it.
 
+Plugins should also avoid direct process execution with `subprocess`,
+`os.system`, or `os.spawn*`. External tool wrappers should go through the
+framework process API once implemented, declare `process.run`, and let Bywaf
+record the request and outcome for auditability.
+
 Use `require_db()` and `require_foreground()` instead of hand-writing common
 guards:
 

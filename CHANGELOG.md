@@ -18,6 +18,9 @@ so compatibility may change between testing releases.
   control with completion-friendly selectors.
 - Added class-based commandlet metadata decorators: `@commandlet`,
   `@argument`, and `@option`.
+- Documented the policy that external process execution should be routed
+  through a future framework-mediated process API instead of direct plugin
+  subprocess calls.
 - Added framework-owned file paging requests through `context.page_file()` and
   `framework.file.page.requested` events.
 - Added `DESIGN.md` with initial framework request IPC and plugin capability

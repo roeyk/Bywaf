@@ -7,15 +7,17 @@ more specific than `TODO.md`, but less stable than the public usage guide.
 
 Plugins should not directly control interpreter-owned behavior such as terminal
 output, paging, prompt changes, password prompts, job control, or future GUI/web
-actions. Instead, a plugin writes a framework request event to the SQLite event
-store. The active frontend validates the request, performs or denies it, and
-writes an auditable outcome event.
+actions. Plugins also should not directly launch local OS processes with
+`subprocess`, `os.system`, or `os.spawn*`. Instead, a plugin writes a framework
+request event to the SQLite event store. The active frontend/framework validates
+the request, performs or denies it, and writes an auditable outcome event.
 
 The current request helpers are:
 
 - `context.output(text)`: writes `framework.console.output.requested`
 - `context.alert(message)`: writes `framework.console.alert.requested`
 - `context.page_file(path)`: writes `framework.file.page.requested`
+- future `context.process.run(argv)`: writes `framework.process.run.requested`
 - `context.request(topic, payload)`: advanced low-level request escape hatch
 - `context.events`: mediated event-bus reads and writes for plugin code
 
@@ -24,6 +26,7 @@ Current framework-owned outcomes include:
 - `console.output`
 - `console.alert`
 - `console.page`
+- `process.run`
 - `shell.prompt.updated`
 - `framework.request.denied`
 
@@ -82,6 +85,7 @@ Examples:
 - `framework.confirm.requested`
 - `framework.job.cancel.requested`
 - `framework.pipeline.kill.requested`
+- `framework.process.run.requested`
 
 Outcome topics should describe what happened, not that it was requested:
 
@@ -91,6 +95,7 @@ Outcome topics should describe what happened, not that it was requested:
 - `secret.provided`
 - `job.cancelled`
 - `pipeline.killed`
+- `process.run`
 - `framework.request.denied`
 
 ### Frontend Contract
@@ -161,6 +166,7 @@ where useful:
 - `filesystem.write`
 - `network.connect`
 - `network.listen`
+- `process.run`
 - `process.spawn`
 
 Topic capabilities are implied from `CommandSpec.consumes` and
@@ -173,6 +179,52 @@ Normal plugins should use `context.events` instead of raw `context.db`.
 Raw `context.db` remains available for privileged/internal framework
 commandlets while the API transitions. Accessing it records `db.raw`, and
 commandlets that intentionally need it should declare `db.raw`.
+
+Plugins that need to execute external tools should declare `process.run` and
+use the framework process API once it exists. `process.spawn` is reserved for
+long-lived detached processes and should be treated as higher risk.
+
+### Framework-Mediated Process Execution
+
+External tool wrappers are useful, but direct subprocess use makes plugin
+behavior harder to audit and eventually enforce. The intended plugin-facing API
+is:
+
+```python
+result = context.process.run(
+    ["nmap", "-sn", "127.0.0.1"],
+    timeout=30,
+    capture_output=True,
+)
+```
+
+The framework should translate that into:
+
+```text
+framework.process.run.requested
+process.run
+framework.request.denied
+```
+
+Request payloads should include at least:
+
+- `argv`
+- `cwd`
+- `timeout`
+- `capture_output`
+- `source`, `job_id`, `pipeline_id`, and `command_run_id`
+
+Outcome payloads should include at least:
+
+- `request_event_id`
+- `argv`
+- `cwd`
+- `exit_code`
+- output sizes or hashes
+- optionally bounded stdout/stderr text when capture is requested
+
+Plugins should not use a shell string by default. Shell execution, if supported
+at all, should require a separate higher-risk capability.
 
 ### Audit Events
 
