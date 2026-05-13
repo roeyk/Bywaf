@@ -160,6 +160,9 @@ cmds
 vars
 history
 job <list|show|cancel|kill>
+pipeline <list|show|cancel|kill>
+cancel <job=id|pipeline=id>
+kill [--force] <job=id|pipeline=id>
 jobs
 runs
 topics
@@ -321,6 +324,24 @@ Hard-stop a job process:
 ```text
 bywaf> job kill <id>
 bywaf> job kill --force <id>
+```
+
+Pipelines can be inspected and controlled the same way:
+
+```text
+bywaf> pipeline list
+bywaf> pipeline show <id>
+bywaf> pipeline cancel <id>
+bywaf> pipeline kill <id>
+```
+
+For hand-typed control, `cancel` and `kill` also accept selector syntax:
+
+```text
+bywaf> cancel job=<id>
+bywaf> cancel pipeline=<id>
+bywaf> kill job=<id>
+bywaf> kill --force pipeline=<id>
 ```
 
 `jobs` remains as a convenience alias for `job list`.
@@ -763,6 +784,9 @@ cmds
 vars [name=value]
 history
 job <list|show|cancel|kill>
+pipeline <list|show|cancel|kill>
+cancel <job=id|pipeline=id>
+kill [--force] <job=id|pipeline=id>
 jobs
 runs
 topics

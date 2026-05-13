@@ -65,11 +65,12 @@ class PluginRegistry:
     def load_package_entry(self, package_name: str, entry: str) -> Commandlet:
         """Load one bundled plugin module by dotted entry name."""
         module = importlib.import_module(f"{package_name}.{entry}")
-        plugin = load_plugin(module)
-        self.plugins[plugin.spec.name] = plugin
-        self.providers.setdefault(provider_name(entry), []).append(plugin.spec.name)
-        load_module_defaults(module, plugin, self.varstore)
-        return plugin
+        plugins = load_plugins(module)
+        for plugin in plugins:
+            self.plugins[plugin.spec.name] = plugin
+            self.providers.setdefault(provider_name(entry), []).append(plugin.spec.name)
+            load_module_defaults(module, plugin, self.varstore)
+        return plugins[0]
 
     def get(self, name: str) -> Commandlet:
         """Return a commandlet by user-facing command name."""
@@ -93,10 +94,21 @@ class PluginRegistry:
 
 def load_plugin(module: ModuleType) -> Commandlet:
     """Instantiate a plugin module via its required `plugin()` factory."""
+    return load_plugins(module)[0]
+
+
+def load_plugins(module: ModuleType) -> tuple[Commandlet, ...]:
+    """Instantiate one or more commandlets from a plugin module."""
+    multi_factory = getattr(module, "plugins", None)
+    if multi_factory is not None:
+        plugins = tuple(multi_factory())
+        if not plugins:
+            raise ValueError(f"{module.__name__}.plugins() returned no commandlets")
+        return plugins
     factory = getattr(module, "plugin", None)
     if factory is None:
         raise AttributeError(f"{module.__name__} does not define plugin()")
-    return factory()
+    return (factory(),)
 
 
 def load_plugin_path(path: Path) -> Commandlet:

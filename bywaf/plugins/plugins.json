@@ -5,6 +5,8 @@
     "http.http_headers",
     "http.http_probe",
     "runtime.job",
+    "runtime.pipeline",
+    "runtime.control",
     "storage.db",
     "os.ls",
     "os.cat",

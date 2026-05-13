@@ -30,6 +30,9 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn("http_probe", self.registry.names())
         self.assertIn("db", self.registry.names())
         self.assertIn("job", self.registry.names())
+        self.assertIn("pipeline", self.registry.names())
+        self.assertIn("kill", self.registry.names())
+        self.assertIn("cancel", self.registry.names())
 
     def test_bundled_plugins_are_loaded_from_config_list(self):
         self.assertEqual(
@@ -40,6 +43,8 @@ class RegistryCompletionTests(unittest.TestCase):
                 "http.http_headers",
                 "http.http_probe",
                 "runtime.job",
+                "runtime.pipeline",
+                "runtime.control",
                 "storage.db",
                 "os.ls",
                 "os.cat",
@@ -50,7 +55,7 @@ class RegistryCompletionTests(unittest.TestCase):
     def test_registry_tracks_provider_groups(self):
         self.assertIn("os", self.registry.provider_names())
         self.assertEqual(self.registry.grouped_names()["os"], ["cat", "less", "ls"])
-        self.assertEqual(self.registry.grouped_names()["runtime"], ["job"])
+        self.assertEqual(self.registry.grouped_names()["runtime"], ["cancel", "job", "kill", "pipeline"])
         self.assertEqual(self.registry.grouped_names()["storage"], ["db"])
 
     def test_loads_package_defaults_into_varstore(self):
@@ -335,6 +340,24 @@ class RegistryCompletionTests(unittest.TestCase):
             self.assertIn("kill", completer.candidates("job k"))
             self.assertEqual(completer.candidates("job show "), ["1"])
             self.assertEqual(completer.candidates("job cancel "), ["1"])
+
+    def test_pipeline_and_control_complete_ids(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "db.sqlite3"))
+            job_id = db.record_job("hostscanner 127.0.0.1", 123, "running")
+            db.record_command_run_vars(
+                job_id=job_id,
+                pipeline_id="pipe-1",
+                command_run_id="run-1",
+                commandlet="hostscanner",
+                values={"test.marker": "1"},
+            )
+            completer = Completer(self.registry, db)
+            self.assertIn("kill", completer.candidates("pipeline k"))
+            self.assertEqual(completer.candidates("pipeline show "), ["pipe-1"])
+            self.assertEqual(completer.candidates("kill job="), ["job=1"])
+            self.assertEqual(completer.candidates("kill pipeline="), ["pipeline=pipe-1"])
+            self.assertEqual(completer.candidates("cancel pipeline="), ["pipeline=pipe-1"])
 
     def test_readline_delimiters_keep_hyphen_and_equals_in_completion_word(self):
         with (

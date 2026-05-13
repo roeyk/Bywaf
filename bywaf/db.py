@@ -275,6 +275,23 @@ class EventStore:
         with self.connect() as conn:
             return conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
 
+    def jobs_for_pipeline(self, pipeline_id: str) -> list[sqlite3.Row]:
+        """Return jobs associated with a command-run variable snapshot pipeline."""
+        with self.connect() as conn:
+            return list(
+                conn.execute(
+                    """
+                    SELECT DISTINCT jobs.*
+                    FROM command_run_vars
+                    JOIN jobs ON jobs.id = command_run_vars.job_id
+                    WHERE command_run_vars.pipeline_id = ?
+                      AND command_run_vars.job_id IS NOT NULL
+                    ORDER BY jobs.id
+                    """,
+                    (pipeline_id,),
+                )
+            )
+
     def request_cancellation(self, target_type: str, target_id: str, reason: str | None = None) -> None:
         """Record a soft-cancellation request for a job, pipeline, or run."""
         now = datetime.now(timezone.utc).isoformat()
@@ -440,6 +457,35 @@ class EventStore:
                     WHERE command_run_id IS NOT NULL
                     GROUP BY command_run_id, pipeline_id, source
                     ORDER BY MAX(id) DESC
+                    """
+                )
+            )
+
+    def pipelines(self) -> list[sqlite3.Row]:
+        """Summarize known pipeline IDs from events and run-variable snapshots."""
+        with self.connect() as conn:
+            return list(
+                conn.execute(
+                    """
+                    WITH known_pipelines AS (
+                        SELECT pipeline_id FROM events WHERE pipeline_id IS NOT NULL
+                        UNION
+                        SELECT pipeline_id FROM command_run_vars WHERE pipeline_id IS NOT NULL
+                    )
+                    SELECT
+                        known_pipelines.pipeline_id,
+                        MIN(command_run_vars.job_id) AS job_id,
+                        COUNT(DISTINCT command_run_vars.command_run_id) AS runs,
+                        COUNT(DISTINCT events.id) AS events,
+                        MIN(COALESCE(command_run_vars.created_at, events.created_at)) AS first_seen,
+                        MAX(COALESCE(command_run_vars.created_at, events.created_at)) AS last_seen
+                    FROM known_pipelines
+                    LEFT JOIN command_run_vars
+                      ON command_run_vars.pipeline_id = known_pipelines.pipeline_id
+                    LEFT JOIN events
+                      ON events.pipeline_id = known_pipelines.pipeline_id
+                    GROUP BY known_pipelines.pipeline_id
+                    ORDER BY last_seen DESC
                     """
                 )
             )

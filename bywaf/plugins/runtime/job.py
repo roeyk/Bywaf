@@ -39,7 +39,7 @@ class Job(CommandletBase):
         parser.add_argument("id", nargs="?")
         parser.add_argument("--force", action="store_true")
         parsed = parser.parse_args(args)
-        db = context.require_db()
+        context.require_db()
         context.require_foreground("job management commands")
         match parsed.action:
             case "list":
@@ -49,10 +49,7 @@ class Job(CommandletBase):
                 context.output(format_job(row))
             case "cancel":
                 row = require_job(context, parsed.id)
-                context.audit_capability("framework.job.control")
-                db.request_cancellation("job", str(row["id"]))
-                db.update_job_status(int(row["id"]), "cancelling")
-                context.output(f"cancel requested for job {row['id']}")
+                cancel_job(context, row)
             case "kill":
                 row = require_job(context, parsed.id)
                 context.audit_capability("framework.job.control")
@@ -120,6 +117,15 @@ def job_ids(context: CompletionContext) -> list[str]:
     if context.db is None:
         return []
     return [str(row["id"]) for row in context.db.jobs()]
+
+
+def cancel_job(context: CommandContext, row) -> None:
+    """Request cooperative cancellation for one job row."""
+    db = context.require_db()
+    context.audit_capability("framework.job.control")
+    db.request_cancellation("job", str(row["id"]))
+    db.update_job_status(int(row["id"]), "cancelling")
+    context.output(f"cancel requested for job {row['id']}")
 
 
 def plugin() -> Commandlet:

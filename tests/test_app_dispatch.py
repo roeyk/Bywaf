@@ -234,6 +234,56 @@ class AppDispatchTests(unittest.TestCase):
             assert job is not None
             self.assertEqual(job["status"], "killed")
 
+    def test_pipeline_cancel_records_soft_cancellation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("pipeline", 123, "running")
+            runner.db.record_command_run_vars(
+                job_id=job_id,
+                pipeline_id="pipe-1",
+                command_run_id="run-1",
+                commandlet="hostscanner",
+                values={"test.marker": "1"},
+            )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("pipeline cancel pipe-1")
+                process_framework_requests(runner, ShellState())
+            self.assertTrue(runner.db.cancellation_requested(pipeline_id="pipe-1"))
+            self.assertIn("cancel requested for pipeline pipe-1", output.getvalue())
+
+    def test_pipeline_kill_sends_term_to_pipeline_jobs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("pipeline", 99999, "running")
+            runner.db.record_command_run_vars(
+                job_id=job_id,
+                pipeline_id="pipe-1",
+                command_run_id="run-1",
+                commandlet="hostscanner",
+                values={"test.marker": "1"},
+            )
+            with patch("bywaf.plugins.runtime.job.os.kill") as kill:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    runner.execute("pipeline kill pipe-1")
+            self.assertEqual(kill.call_args.args[0], 99999)
+            job = runner.db.job(job_id)
+            self.assertIsNotNone(job)
+            assert job is not None
+            self.assertEqual(job["status"], "terminated")
+
+    def test_convenience_kill_and_cancel_selectors(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("sleep", 99999, "running")
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute(f"cancel job={job_id}")
+            self.assertTrue(runner.db.cancellation_requested(job_id=job_id))
+            with patch("bywaf.plugins.runtime.job.os.kill") as kill:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    runner.execute(f"kill --force job={job_id}")
+            self.assertEqual(kill.call_args.args[1].name, "SIGKILL")
+
 
 
 class FakeHostResult:
