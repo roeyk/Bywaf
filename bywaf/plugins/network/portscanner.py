@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections.abc import Iterable
 from time import monotonic, sleep
 
-from bywaf.db import Subscription
 from bywaf.events import Event
 from bywaf.nmap_backend import scan_open_ports
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CommandSpec, OptionSpec
@@ -116,19 +115,16 @@ def listen_for_upstream_hosts(context: CommandContext, parsed, seen_hosts: set[s
     pipeline_id = context.pipeline_id
     if not upstream_id or not pipeline_id:
         raise ValueError("portscanner --listen must be used after an upstream commandlet in a pipeline")
-    db = context.require_db("portscanner --listen")
     after_id = context.input_high_watermark
     deadline = monotonic() + parsed.listen_timeout if parsed.listen_timeout > 0 else None
     while deadline is None or monotonic() < deadline:
         if context.cancelled():
             return
-        events = db.fetch(
-            Subscription(
-                topics=("host.found",),
-                after_id=after_id,
-                pipeline_id=pipeline_id,
-                command_run_id=upstream_id,
-            )
+        events = context.events.fetch(
+            ("host.found",),
+            after_id=after_id,
+            pipeline_id=pipeline_id,
+            command_run_id=upstream_id,
         )
         if events:
             after_id = max(event.id or after_id for event in events)

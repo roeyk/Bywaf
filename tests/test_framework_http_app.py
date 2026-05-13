@@ -104,6 +104,40 @@ class FrameworkHttpAppTests(unittest.TestCase):
             self.assertEqual(missing.payload["capability"], "framework.console.output")
             self.assertFalse(missing.payload["declared"])
 
+    def test_context_events_publish_uses_scope_and_audits_write(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            context = CommandContext(
+                runner.db,
+                source="plugin",
+                metadata={
+                    "pipeline_id": "pipeline-1",
+                    "command_run_id": "run-1",
+                    "capabilities": ("db.write:test.topic",),
+                },
+            )
+            event = context.events.publish("test.topic", {"ok": True})
+            self.assertEqual(event.pipeline_id, "pipeline-1")
+            self.assertEqual(event.command_run_id, "run-1")
+            used = runner.db.events_for_topic("plugin.capability.used")[0]
+            self.assertEqual(used.payload["capability"], "db.write:test.topic")
+            self.assertTrue(used.payload["declared"])
+
+    def test_context_events_fetch_audits_read(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish("test.topic", {"ok": True}, "test")
+            context = CommandContext(
+                runner.db,
+                source="plugin",
+                metadata={"capabilities": ("db.read:test.topic",)},
+            )
+            events = context.events.fetch(("test.topic",))
+            self.assertEqual(events[0].payload["ok"], True)
+            used = runner.db.events_for_topic("plugin.capability.used")[0]
+            self.assertEqual(used.payload["capability"], "db.read:test.topic")
+            self.assertTrue(used.payload["declared"])
+
     def test_framework_request_pages_file_without_tty(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "file.txt")

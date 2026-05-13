@@ -312,7 +312,8 @@ Return a list or any iterable of candidate strings.
 
 At execution time, commandlets receive a `CommandContext`:
 
-- `context.db`: the active event database, if available
+- `context.events`: mediated event publishing/query API for plugin code
+- `context.db`: legacy/internal raw event database access, if available
 - `context.vars`: scoped variables for the current commandlet
 - `context.pipeline_id`, `context.command_run_id`, `context.job_id`: run scope
 - `context.parent_command_run_id`: upstream pipeline stage, if any
@@ -339,6 +340,17 @@ yield {"host": "127.0.0.1", "status": "up"}
 
 Those helpers keep plugin code simple while still routing display and audit
 state through the framework-owned event bus.
+
+Use `context.events` instead of raw `context.db` for event-bus work:
+
+```python
+for event in context.events.fetch(("host.found",), after_id=context.input_high_watermark):
+    context.events.publish("example.seen_host", {"host": event.payload["host"]})
+```
+
+`context.events` records `db.read:<topic>` and `db.write:<topic>` capability
+usage. Raw `context.db` remains available for internal framework commandlets
+during the transition, but third-party plugins should avoid it.
 
 Use `require_db()` and `require_foreground()` instead of hand-writing common
 guards:
@@ -404,14 +416,10 @@ it if allowed, and writes a follow-up event so the action is auditable.
 For example, to request a prompt change:
 
 ```python
-if context.db is not None:
-    context.db.publish(
-        "shell.prompt.requested",
-        {"prompt": "%u@%h %T > ", "reason": "operator context changed"},
-        context.source,
-        pipeline_id=context.metadata.get("pipeline_id"),
-        command_run_id=context.metadata.get("command_run_id"),
-    )
+context.request(
+    "shell.prompt.requested",
+    {"prompt": "%u@%h %T > ", "reason": "operator context changed"},
+)
 ```
 
 When the foreground REPL processes the request, it records one of:

@@ -17,6 +17,7 @@ The current request helpers are:
 - `context.alert(message)`: writes `framework.console.alert.requested`
 - `context.page_file(path)`: writes `framework.file.page.requested`
 - `context.request(topic, payload)`: advanced low-level request escape hatch
+- `context.events`: mediated event-bus reads and writes for plugin code
 
 Current framework-owned outcomes include:
 
@@ -165,6 +166,12 @@ Topic capabilities are implied from `CommandSpec.consumes` and
 `CommandSpec.emits`. Framework request capabilities align with the helper
 methods and request topics used by the commandlet.
 
+Normal plugins should use `context.events` instead of raw `context.db`.
+`context.events.publish()` records `db.write:<topic>`, and
+`context.events.fetch()` / `context.events.query()` record `db.read:<topic>`.
+Raw `context.db` remains available for internal framework commandlets while the
+API transitions, but it is not the preferred third-party plugin surface.
+
 ### Audit Events
 
 Audit mode produces capability events without blocking execution:
@@ -210,14 +217,15 @@ Recommended progression:
 4. `enforce`: deny undeclared framework requests and eventually restrict DB
    reads/writes through framework-owned APIs.
 
-Start with `audit` as the default once capability tracking exists.
+Audit-only capability tracking is the current behavior.
 
 ### Practical Limits
 
-Capabilities do not secure arbitrary trusted Python code by themselves. A
-plugin that receives raw `context.db` can still call database methods directly,
-and Python cannot reliably sandbox hostile in-process code. Strong enforcement
-requires a stricter plugin API, subprocess isolation, or both.
+Capabilities do not secure arbitrary trusted Python code by themselves. Raw
+`context.db` access is still available during the transition for internal
+framework commandlets, and Python cannot reliably sandbox hostile in-process
+code. Strong enforcement requires normal plugins to use `context.events`, a
+stricter plugin API, subprocess isolation, or both.
 
 The near-term goal is therefore:
 

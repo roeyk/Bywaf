@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
 
-from .db import EventStore
+from .db import EventStore, Subscription
 from .events import Event
 from .varstore import ScopedVarStore, VarStore
 
@@ -78,6 +78,11 @@ class CommandContext:
             self.source,
             self.metadata.get("run_vars", {}),
         )
+
+    @property
+    def events(self) -> "ContextEvents":
+        """Return the mediated event-bus API for plugin code."""
+        return ContextEvents(self)
 
     @property
     def pipeline_id(self) -> str | None:
@@ -261,6 +266,80 @@ class CompletionContext:
     db: EventStore | None = None
     varstore: VarStore = field(default_factory=VarStore)
     metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class ContextEvents:
+    """Capability-aware event API exposed to commandlets.
+
+    This is the preferred plugin-facing abstraction over raw `EventStore`.
+    It keeps event reads/writes scoped and auditable while leaving the storage
+    implementation free to change behind the API.
+    """
+
+    context: CommandContext
+
+    def publish(self, topic: str, payload: dict[str, Any]) -> Event:
+        """Publish one event in the current commandlet scope."""
+        db = self.context.require_db(f"{self.context.source} event publish")
+        self.context.audit_capability(f"db.write:{topic}")
+        return db.publish(
+            topic,
+            payload,
+            self.context.source,
+            pipeline_id=self.context.pipeline_id,
+            command_run_id=self.context.command_run_id,
+            parent_command_run_id=self.context.parent_command_run_id,
+        )
+
+    def fetch(
+        self,
+        topics: tuple[str, ...],
+        *,
+        after_id: int = 0,
+        limit: int = 100,
+        pipeline_id: str | None = None,
+        command_run_id: str | None = None,
+        parent_command_run_id: str | None = None,
+    ) -> list[Event]:
+        """Fetch events by topic with optional run/pipeline scoping."""
+        db = self.context.require_db(f"{self.context.source} event fetch")
+        for topic in topics:
+            self.context.audit_capability(f"db.read:{topic}")
+        return db.fetch(
+            Subscription(
+                topics=topics,
+                after_id=after_id,
+                limit=limit,
+                pipeline_id=pipeline_id,
+                command_run_id=command_run_id,
+                parent_command_run_id=parent_command_run_id,
+            )
+        )
+
+    def query(
+        self,
+        *,
+        topic: str | None = None,
+        run: str | None = None,
+        pipeline: str | None = None,
+        limit: int = 1000,
+    ) -> list[Event]:
+        """Query events with optional topic, run, and pipeline filters."""
+        db = self.context.require_db(f"{self.context.source} event query")
+        self.context.audit_capability(f"db.read:{topic}" if topic else "db.read:*")
+        return db.events_matching(
+            topic=topic,
+            command_run_id=run,
+            pipeline_id=pipeline,
+            limit=limit,
+        )
+
+    def topics(self) -> list[str]:
+        """Return known event topics after auditing broad DB read access."""
+        db = self.context.require_db(f"{self.context.source} event topics")
+        self.context.audit_capability("db.read:*")
+        return db.topics()
 
 
 class Commandlet(Protocol):
