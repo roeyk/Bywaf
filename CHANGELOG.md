@@ -48,6 +48,8 @@ so entries are grouped under `Unreleased` until versioned releases begin.
   events for plugin console output.
 - Added `context.request()`, `context.output()`, and `context.table()` helpers
   so plugin authors can use framework-mediated output without direct `print()`.
+- Added `CommandContext` metadata accessors plus `require_db()` and
+  `require_foreground()` helpers for cleaner plugin guard code.
 - Added `db encrypt`, `db decrypt`, and `db rekey` for active database
   encryption management.
 - Added `db new`, `db new --file=<path>`, `db new --encrypt`, and

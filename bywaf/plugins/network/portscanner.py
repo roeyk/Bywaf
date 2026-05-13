@@ -55,8 +55,8 @@ class PortScanner:
         seen_hosts: set[str] = set()
         yield from scan_events_or_hosts(context, parsed, input_events, seen_hosts)
         should_listen = parsed.listen or (
-            bool(context.metadata.get("background"))
-            and bool(context.metadata.get("parent_command_run_id"))
+            context.background
+            and bool(context.parent_command_run_id)
             and not parsed.hosts
         )
         if should_listen:
@@ -111,18 +111,17 @@ def listen_for_upstream_hosts(context: CommandContext, parsed, seen_hosts: set[s
     This is what makes `hostscanner ... & | portscanner &` scoped: the port
     scanner ignores global `host.found` events from unrelated runs.
     """
-    upstream_id = context.metadata.get("parent_command_run_id")
-    pipeline_id = context.metadata.get("pipeline_id")
+    upstream_id = context.parent_command_run_id
+    pipeline_id = context.pipeline_id
     if not upstream_id or not pipeline_id:
         raise ValueError("portscanner --listen must be used after an upstream commandlet in a pipeline")
-    if context.db is None:
-        raise ValueError("portscanner --listen requires an active event database")
-    after_id = context.metadata.get("input_high_watermark", 0)
+    db = context.require_db("portscanner --listen")
+    after_id = context.input_high_watermark
     deadline = monotonic() + parsed.listen_timeout if parsed.listen_timeout > 0 else None
     while deadline is None or monotonic() < deadline:
         if context.cancelled():
             return
-        events = context.db.fetch(
+        events = db.fetch(
             Subscription(
                 topics=("host.found",),
                 after_id=after_id,

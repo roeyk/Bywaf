@@ -48,13 +48,11 @@ class Db:
         parser.add_argument("--encrypt", action="store_true")
         parser.add_argument("--force", action="store_true")
         parsed = parser.parse_args(args)
-        if context.db is None:
-            raise ValueError("db command requires an active database")
-        if context.metadata.get("background"):
-            raise ValueError("database management commands must run in the foreground")
+        db = context.require_db()
+        context.require_foreground("database management commands")
         match parsed.action:
             case "checkpoint":
-                context.db.checkpoint()
+                db.checkpoint()
                 context.output("checkpoint complete")
             case "decrypt":
                 decrypt_active_database(context)
@@ -69,27 +67,26 @@ class Db:
                     encrypt=parsed.encrypt,
                     force=parsed.force,
                 )
-                context.output(f"created db={context.db.path}")
+                context.output(f"created db={context.require_db().path}")
             case "path":
-                context.output(context.db.path)
+                context.output(db.path)
             case "rekey":
                 rekey_active_database(context)
                 context.output("database rekeyed")
             case "status":
                 print_database_status(context)
             case "vacuum":
-                context.db.vacuum()
+                db.vacuum()
                 context.output("vacuum complete")
         return ()
 
 
 def print_database_status(context: CommandContext) -> None:
     """Print a concise status summary for the active database."""
-    if context.db is None:
-        raise ValueError("db command requires an active database")
-    counts = context.db.table_counts()
-    mode = "encrypted" if context.db.encrypted else "plaintext"
-    context.output(f"path={context.db.path}")
+    db = context.require_db()
+    counts = db.table_counts()
+    mode = "encrypted" if db.encrypted else "plaintext"
+    context.output(f"path={db.path}")
     context.output(f"mode={mode}")
     context.output(f"events={counts['events']}")
     context.output(f"jobs={counts['jobs']}")
@@ -97,48 +94,45 @@ def print_database_status(context: CommandContext) -> None:
 
 def encrypt_active_database(context: CommandContext) -> None:
     """Convert the active plaintext database file to SQLCipher encryption."""
-    if context.db is None:
-        raise ValueError("db command requires an active database")
+    db = context.require_db()
     require_foreground_conversion(context, "db encrypt")
-    if context.db.encrypted:
+    if db.encrypted:
         raise ValueError("active database is already encrypted")
     passphrase = prompt_new_passphrase("New database passphrase: ", "Confirm database passphrase: ")
-    temp_path = temporary_database_path(context.db.path, "encrypt")
-    context.db.checkpoint()
-    export_encrypted_database(context.db.path, temp_path, passphrase)
+    temp_path = temporary_database_path(db.path, "encrypt")
+    db.checkpoint()
+    export_encrypted_database(db.path, temp_path, passphrase)
     EventStore(temp_path, passphrase=passphrase).table_counts()
-    replace_database_file(context.db.path, temp_path)
-    replace_active_store(context, EventStore(context.db.path, passphrase=passphrase))
+    replace_database_file(db.path, temp_path)
+    replace_active_store(context, EventStore(db.path, passphrase=passphrase))
 
 
 def decrypt_active_database(context: CommandContext) -> None:
     """Convert the active encrypted database file to plaintext SQLite."""
-    if context.db is None:
-        raise ValueError("db command requires an active database")
+    db = context.require_db()
     require_foreground_conversion(context, "db decrypt")
-    if not context.db.encrypted or context.db.passphrase is None:
+    if not db.encrypted or db.passphrase is None:
         raise ValueError("active database is already plaintext")
     confirmation = input("Decrypt active database and remove at-rest protection? type YES: ")
     if confirmation != "YES":
         raise ValueError("decryption cancelled")
-    temp_path = temporary_database_path(context.db.path, "decrypt")
-    context.db.checkpoint()
-    export_plaintext_database(context.db.path, temp_path, source_passphrase=context.db.passphrase)
+    temp_path = temporary_database_path(db.path, "decrypt")
+    db.checkpoint()
+    export_plaintext_database(db.path, temp_path, source_passphrase=db.passphrase)
     EventStore(temp_path).table_counts()
-    replace_database_file(context.db.path, temp_path)
-    replace_active_store(context, EventStore(context.db.path))
+    replace_database_file(db.path, temp_path)
+    replace_active_store(context, EventStore(db.path))
 
 
 def rekey_active_database(context: CommandContext) -> None:
     """Change the passphrase for the active encrypted database."""
-    if context.db is None:
-        raise ValueError("db command requires an active database")
+    db = context.require_db()
     require_foreground_conversion(context, "db rekey")
-    if not context.db.encrypted:
+    if not db.encrypted:
         raise ValueError("db rekey requires an encrypted database")
     passphrase = prompt_new_passphrase("New database passphrase: ", "Confirm database passphrase: ")
-    context.db.rekey(passphrase)
-    replace_active_store(context, EventStore(context.db.path, passphrase=passphrase))
+    db.rekey(passphrase)
+    replace_active_store(context, EventStore(db.path, passphrase=passphrase))
 
 
 def new_active_database(
@@ -149,12 +143,11 @@ def new_active_database(
     force: bool,
 ) -> None:
     """Create a fresh database file and switch the active session to it."""
-    if context.db is None:
-        raise ValueError("db command requires an active database")
+    db = context.require_db()
     require_foreground_conversion(context, "db new")
     path = file or default_new_database_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    if is_same_path(path, context.db.path):
+    if is_same_path(path, db.path):
         raise ValueError("db new cannot replace the active database file")
     if database_files_exist(path):
         if not force:
@@ -229,8 +222,7 @@ def prompt_new_passphrase(prompt: str, confirmation_prompt: str) -> str:
 
 def require_foreground_conversion(context: CommandContext, command: str) -> None:
     """Reject DB file conversion from background jobs that cannot update the parent."""
-    if context.metadata.get("background"):
-        raise ValueError(f"{command} must run in the foreground")
+    context.require_foreground(command)
 
 
 def temporary_database_path(path: Path, operation: str) -> Path:

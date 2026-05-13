@@ -39,10 +39,8 @@ class Job:
         parser.add_argument("id", nargs="?")
         parser.add_argument("--force", action="store_true")
         parsed = parser.parse_args(args)
-        if context.db is None:
-            raise ValueError("job command requires an active database")
-        if context.metadata.get("background"):
-            raise ValueError("job management commands must run in the foreground")
+        db = context.require_db()
+        context.require_foreground("job management commands")
         match parsed.action:
             case "list":
                 print_jobs(context)
@@ -51,8 +49,8 @@ class Job:
                 context.output(format_job(row))
             case "cancel":
                 row = require_job(context, parsed.id)
-                context.db.request_cancellation("job", str(row["id"]))
-                context.db.update_job_status(int(row["id"]), "cancelling")
+                db.request_cancellation("job", str(row["id"]))
+                db.update_job_status(int(row["id"]), "cancelling")
                 context.output(f"cancel requested for job {row['id']}")
             case "kill":
                 row = require_job(context, parsed.id)
@@ -74,9 +72,7 @@ class Job:
 
 def print_jobs(context: CommandContext) -> None:
     """Print all known jobs with newest first."""
-    if context.db is None:
-        raise ValueError("job command requires an active database")
-    for row in context.db.jobs():
+    for row in context.require_db().jobs():
         context.output(format_job(row))
 
 
@@ -87,15 +83,14 @@ def format_job(row) -> str:
 
 def require_job(context: CommandContext, job_id: str | None):
     """Return a job row or raise a user-facing error."""
-    if context.db is None:
-        raise ValueError("job command requires an active database")
+    db = context.require_db()
     if not job_id:
         raise ValueError("job id is required")
     try:
         numeric_id = int(job_id)
     except ValueError as exc:
         raise ValueError(f"invalid job id: {job_id}") from exc
-    row = context.db.job(numeric_id)
+    row = db.job(numeric_id)
     if row is None:
         raise ValueError(f"unknown job: {job_id}")
     return row
@@ -103,8 +98,7 @@ def require_job(context: CommandContext, job_id: str | None):
 
 def kill_job(context: CommandContext, row, *, force: bool) -> None:
     """Send SIGTERM or SIGKILL to a job process and update its status."""
-    if context.db is None:
-        raise ValueError("job command requires an active database")
+    db = context.require_db()
     pid = row["pid"]
     if pid is None:
         raise ValueError(f"job {row['id']} has no pid")
@@ -112,10 +106,10 @@ def kill_job(context: CommandContext, row, *, force: bool) -> None:
     try:
         os.kill(int(pid), sig)
     except ProcessLookupError:
-        context.db.finish_job(int(row["id"]), "missing")
+        db.finish_job(int(row["id"]), "missing")
         raise ValueError(f"job {row['id']} process is not running") from None
     status = "killed" if force else "terminated"
-    context.db.finish_job(int(row["id"]), status)
+    db.finish_job(int(row["id"]), status)
     context.output(f"{status} job {row['id']}")
 
 

@@ -288,7 +288,12 @@ At execution time, commandlets receive a `CommandContext`:
 
 - `context.db`: the active event database, if available
 - `context.vars`: scoped variables for the current commandlet
-- `context.metadata`: framework metadata such as pipeline, run, and job IDs
+- `context.pipeline_id`, `context.command_run_id`, `context.job_id`: run scope
+- `context.parent_command_run_id`: upstream pipeline stage, if any
+- `context.background`: whether the commandlet is running in the background
+- `context.input_high_watermark`: highest upstream event ID already consumed
+- `context.require_db()`: return the active DB or raise a clear error
+- `context.require_foreground()`: reject background execution for unsafe actions
 - `context.output(text)`: request normal console output from the framework
 - `context.alert(message)`: request an operator alert from the framework
 - `context.table(rows, columns)`: print small tabular command output
@@ -306,6 +311,22 @@ yield {"host": "127.0.0.1", "status": "up"}
 
 Those helpers keep plugin code simple while still routing display and audit
 state through the framework-owned event bus.
+
+Use `require_db()` and `require_foreground()` instead of hand-writing common
+guards:
+
+```python
+db = context.require_db()
+context.require_foreground()
+```
+
+Those calls produce consistent errors such as `job requires an active database`
+or `job must run in the foreground`. Pass a label when a submode needs a more
+specific message:
+
+```python
+db = context.require_db("portscanner --listen")
+```
 
 Plugin variables are scoped. If `http_probe` calls:
 

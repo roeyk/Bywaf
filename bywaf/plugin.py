@@ -76,14 +76,59 @@ class CommandContext:
             self.metadata.get("run_vars", {}),
         )
 
+    @property
+    def pipeline_id(self) -> str | None:
+        """Return the current pipeline ID, if this commandlet has one."""
+        value = self.metadata.get("pipeline_id")
+        return str(value) if value is not None else None
+
+    @property
+    def command_run_id(self) -> str | None:
+        """Return the current command-run ID, if this commandlet has one."""
+        value = self.metadata.get("command_run_id")
+        return str(value) if value is not None else None
+
+    @property
+    def parent_command_run_id(self) -> str | None:
+        """Return the upstream command-run ID for a pipeline stage, if present."""
+        value = self.metadata.get("parent_command_run_id")
+        return str(value) if value is not None else None
+
+    @property
+    def job_id(self) -> int | str | None:
+        """Return the active job ID, if this commandlet is job-scoped."""
+        return self.metadata.get("job_id")
+
+    @property
+    def background(self) -> bool:
+        """Return whether this commandlet is running as a background stage."""
+        return bool(self.metadata.get("background"))
+
+    @property
+    def input_high_watermark(self) -> int:
+        """Return the highest upstream event ID already consumed."""
+        value = self.metadata.get("input_high_watermark", 0)
+        return int(value) if value is not None else 0
+
+    def require_db(self, label: str | None = None) -> EventStore:
+        """Return the active DB or raise a consistent user-facing error."""
+        if self.db is None:
+            raise ValueError(f"{label or self.source} requires an active database")
+        return self.db
+
+    def require_foreground(self, label: str | None = None) -> None:
+        """Raise if a foreground-only commandlet is running in the background."""
+        if self.background:
+            raise ValueError(f"{label or self.source} must run in the foreground")
+
     def cancelled(self) -> bool:
         """Return whether this job, pipeline, or command run was cancelled."""
         if self.db is None:
             return False
         return self.db.cancellation_requested(
-            job_id=self.metadata.get("job_id"),
-            pipeline_id=self.metadata.get("pipeline_id"),
-            command_run_id=self.metadata.get("command_run_id"),
+            job_id=self.job_id,
+            pipeline_id=self.pipeline_id,
+            command_run_id=self.command_run_id,
         )
 
     def raise_if_cancelled(self) -> None:
@@ -99,9 +144,9 @@ class CommandContext:
             topic,
             payload,
             self.source,
-            pipeline_id=self.metadata.get("pipeline_id"),
-            command_run_id=self.metadata.get("command_run_id"),
-            parent_command_run_id=self.metadata.get("parent_command_run_id"),
+            pipeline_id=self.pipeline_id,
+            command_run_id=self.command_run_id,
+            parent_command_run_id=self.parent_command_run_id,
         )
 
     def output(self, text: object = "", *, end: str = "\n") -> None:
@@ -110,9 +155,9 @@ class CommandContext:
             "text": str(text),
             "end": end,
             "source": self.source,
-            "command_run_id": self.metadata.get("command_run_id"),
-            "pipeline_id": self.metadata.get("pipeline_id"),
-            "job_id": self.metadata.get("job_id"),
+            "command_run_id": self.command_run_id,
+            "pipeline_id": self.pipeline_id,
+            "job_id": self.job_id,
         }
         if self.request("framework.console.output.requested", payload) is None:
             print(str(text), end=end, flush=True)
@@ -144,9 +189,9 @@ class CommandContext:
             "level": level,
             "silent": silent,
             "source": self.source,
-            "command_run_id": self.metadata.get("command_run_id"),
-            "pipeline_id": self.metadata.get("pipeline_id"),
-            "job_id": self.metadata.get("job_id"),
+            "command_run_id": self.command_run_id,
+            "pipeline_id": self.pipeline_id,
+            "job_id": self.job_id,
         }
         if self.request("framework.console.alert.requested", payload) is None and not silent:
             print(f"{self.source} <{command_run_id(self)}>: {message}", flush=True)
@@ -176,7 +221,7 @@ class Commandlet(Protocol):
 
 def command_run_id(context: CommandContext) -> str:
     """Return the current command run ID or a stable interactive fallback."""
-    return str(context.metadata.get("command_run_id") or "interactive")
+    return context.command_run_id or "interactive"
 
 
 def emit_alert(context: CommandContext, message: str, *, silent: bool = False) -> None:
