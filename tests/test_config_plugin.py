@@ -56,17 +56,18 @@ class ConfigPluginTests(unittest.TestCase):
             context.alert("hello")
         self.assertEqual(output.getvalue(), "test <run-1>: hello\n")
 
-    def test_command_context_alert_records_event_when_silent(self):
+    def test_command_context_alert_requests_framework_event_when_silent(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(db=db, source="test", metadata={"command_run_id": "run-1"})
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 context.alert("hello", silent=True)
-            alerts = db.events_for_topic("console.alert")
+            requests = db.events_for_topic("framework.console.alert.requested")
         self.assertEqual(output.getvalue(), "")
-        self.assertEqual(alerts[0].payload["message"], "hello")
-        self.assertEqual(alerts[0].command_run_id, "run-1")
+        self.assertEqual(requests[0].payload["message"], "hello")
+        self.assertTrue(requests[0].payload["silent"])
+        self.assertEqual(requests[0].command_run_id, "run-1")
 
     def test_scoped_varstore_reads_only_its_namespace(self):
         store = VarStore()

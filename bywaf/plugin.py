@@ -88,10 +88,16 @@ class CommandContext:
             raise RuntimeError("commandlet cancelled")
 
     def alert(self, message: str, *, level: str = "alert", silent: bool = False) -> None:
-        """Emit a structured console alert and optionally mirror it to stdout."""
+        """Request a framework-owned console alert.
+
+        Commandlets should not write operator alerts directly to stdout. They
+        request the alert through the event database so the interpreter can
+        validate, display, suppress, or route it consistently.
+        """
         payload = {
             "message": message,
             "level": level,
+            "silent": silent,
             "source": self.source,
             "command_run_id": self.metadata.get("command_run_id"),
             "pipeline_id": self.metadata.get("pipeline_id"),
@@ -99,14 +105,14 @@ class CommandContext:
         }
         if self.db is not None:
             self.db.publish(
-                "console.alert",
+                "framework.console.alert.requested",
                 payload,
                 self.source,
                 pipeline_id=self.metadata.get("pipeline_id"),
                 command_run_id=self.metadata.get("command_run_id"),
                 parent_command_run_id=self.metadata.get("parent_command_run_id"),
             )
-        if not silent:
+        elif not silent:
             print(f"{self.source} <{command_run_id(self)}>: {message}", flush=True)
 
 

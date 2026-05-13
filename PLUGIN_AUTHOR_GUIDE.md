@@ -559,7 +559,11 @@ context.alert("discovered host 127.0.0.1", silent=parsed.silent)
 ```
 
 This writes a structured `console.alert` event for GUI/audit consumers and
-mirrors the alert to stdout unless `silent` is true.
+mirrors the alert to stdout unless `silent` is true. Internally,
+`context.alert()` first records `framework.console.alert.requested`; the
+interpreter then validates that request, writes `console.alert`, and owns the
+actual terminal output. This keeps multiprocessing output ordered and gives GUI
+or web frontends a clean event stream to render.
 
 Prefer completion specs for common cases and custom completion only when the
 generic specs are not expressive enough.

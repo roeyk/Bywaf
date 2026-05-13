@@ -42,8 +42,8 @@ so entries are grouped under `Unreleased` until versioned releases begin.
 - Added audited framework request handling for prompt-change requests.
 - Added `BywafSession` as the public Python facade for GUI, web, and automation
   clients.
-- Added `context.alert()` and structured `console.alert` events for plugin
-  console output.
+- Added `context.alert()` framework requests and structured `console.alert`
+  events for plugin console output.
 - Added `db encrypt`, `db decrypt`, and `db rekey` for active database
   encryption management.
 - Added `db new`, `db new --file=<path>`, `db new --encrypt`, and

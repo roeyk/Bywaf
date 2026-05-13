@@ -17,7 +17,7 @@ from pathlib import Path
 from . import __version__
 from .completion import Completer, install_readline
 from .config import Settings
-from .db import EventStore, database_appears_encrypted, export_encrypted_database, export_plaintext_database
+from .db import EventStore, Subscription, database_appears_encrypted, export_encrypted_database, export_plaintext_database
 from .nmap_backend import NmapScanError, NmapUnavailableError
 from .plugin import CommandContext
 from .registry import PluginRegistry
@@ -77,6 +77,7 @@ class ShellState:
     history_path: Path = field(default_factory=lambda: DEFAULT_HISTORY)
     session_history: list[str] = field(default_factory=list)
     handled_request_ids: set[int] = field(default_factory=set)
+    framework_request_after_id: int = 0
 
     def prompt(self) -> str:
         return render_prompt(self.prompt_pattern)
@@ -226,9 +227,13 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
             case ["save", spec]:
                 save_repl_resource(runner, spec, state)
             case ["run", command]:
-                print_events(runner.execute(command))
+                events = runner.execute(command)
+                process_framework_requests(runner, state)
+                print_events(events)
             case [name, *_] if name in runner.registry.plugins:
-                print_events(runner.execute(line))
+                events = runner.execute(line)
+                process_framework_requests(runner, state)
+                print_events(events)
             case [name, *_]:
                 print(f"error: unknown command or commandlet: {name}")
     except SystemExit as exc:
@@ -245,7 +250,15 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
 
 def process_framework_requests(runner: Runner, state: ShellState) -> None:
     """Apply interpreter-owned requests that plugins wrote to the event bus."""
-    for event in runner.db.events_matching(topic="shell.prompt.requested"):
+    for event in runner.db.fetch(
+        Subscription(
+            topics=("shell.prompt.requested", "framework.console.alert.requested"),
+            after_id=state.framework_request_after_id,
+            limit=1000,
+        )
+    ):
+        if event.id is not None:
+            state.framework_request_after_id = max(state.framework_request_after_id, event.id)
         if event.id is None or event.id in state.handled_request_ids:
             continue
         state.handled_request_ids.add(event.id)
@@ -271,8 +284,43 @@ def handle_framework_request(runner: Runner, state: ShellState, event) -> None:
                 )
                 return
             deny_framework_request(runner, event, "prompt must be a non-empty string")
+        case "framework.console.alert.requested":
+            emit_console_alert(runner, event)
         case _:
             deny_framework_request(runner, event, f"unsupported request topic: {event.topic}")
+
+
+def emit_console_alert(runner: Runner, event) -> None:
+    """Validate, audit, and display a plugin-requested console alert."""
+    message = event.payload.get("message")
+    if not isinstance(message, str) or not message:
+        deny_framework_request(runner, event, "alert message must be a non-empty string")
+        return
+    level = event.payload.get("level", "alert")
+    if not isinstance(level, str) or not level:
+        deny_framework_request(runner, event, "alert level must be a non-empty string")
+        return
+    source = event.payload.get("source")
+    if not isinstance(source, str) or not source:
+        source = event.source
+    command_id = event.command_run_id or event.payload.get("command_run_id") or "interactive"
+    payload = {
+        "message": message,
+        "level": level,
+        "source": source,
+        "job_id": event.payload.get("job_id"),
+        "request_event_id": event.id,
+    }
+    runner.db.publish(
+        "console.alert",
+        payload,
+        "framework",
+        pipeline_id=event.pipeline_id,
+        command_run_id=event.command_run_id,
+        parent_command_run_id=event.parent_command_run_id,
+    )
+    if not bool(event.payload.get("silent")):
+        print(f"{source} <{command_id}>: {message}", flush=True)
 
 
 def deny_framework_request(runner: Runner, event, reason: str) -> None:
@@ -321,7 +369,9 @@ def print_history(entries: Sequence[str] = ()) -> None:
 def execute_and_print(runner: Runner, command: str) -> int:
     """Execute one command line for top-level `bywaf run` callers."""
     try:
-        print_events(runner.execute(command))
+        events = runner.execute(command)
+        process_framework_requests(runner, ShellState())
+        print_events(events)
     except SystemExit as exc:
         if exc.code in (0, None):
             return 0

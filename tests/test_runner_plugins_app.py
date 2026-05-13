@@ -211,6 +211,7 @@ class RunnerPluginAppTests(unittest.TestCase):
                 output = io.StringIO()
                 with contextlib.redirect_stdout(output):
                     events = runner.execute("hostscanner 127.0.0.1")
+                    process_framework_requests(runner, ShellState())
             self.assertEqual(events[0].topic, "host.found")
             self.assertEqual(events[0].payload["host"], "127.0.0.1")
             self.assertEqual(events[0].payload["scanner"], "nmap")
@@ -279,6 +280,7 @@ class RunnerPluginAppTests(unittest.TestCase):
                 output = io.StringIO()
                 with contextlib.redirect_stdout(output):
                     events = runner.execute("hostscanner 127.0.0.1 | portscanner --ports 8080")
+                    process_framework_requests(runner, ShellState())
                 self.assertEqual(events[-1].topic, "port.open")
                 self.assertEqual(events[-1].payload["port"], 8080)
                 self.assertEqual(events[-1].payload["scanner"], "nmap")
@@ -960,6 +962,32 @@ class RunnerPluginAppTests(unittest.TestCase):
             request = runner.db.publish("shell.prompt.requested", {"prompt": ""}, "test")
             process_framework_requests(runner, state)
             self.assertEqual(state.prompt_pattern, "bywaf> ")
+            denied = runner.db.events_for_topic("framework.request.denied")[0]
+            self.assertEqual(denied.payload["request_event_id"], request.id)
+
+    def test_framework_request_emits_console_alert(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            request = runner.db.publish(
+                "framework.console.alert.requested",
+                {"message": "hello", "source": "plugin"},
+                "plugin",
+                command_run_id="run-1",
+            )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                process_framework_requests(runner, state)
+            alert = runner.db.events_for_topic("console.alert")[0]
+            self.assertEqual(alert.payload["request_event_id"], request.id)
+            self.assertEqual(output.getvalue(), "plugin <run-1>: hello\n")
+
+    def test_framework_request_denies_invalid_console_alert(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            request = runner.db.publish("framework.console.alert.requested", {"message": ""}, "plugin")
+            process_framework_requests(runner, state)
             denied = runner.db.events_for_topic("framework.request.denied")[0]
             self.assertEqual(denied.payload["request_event_id"], request.id)
 
