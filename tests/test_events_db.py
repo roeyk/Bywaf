@@ -70,6 +70,18 @@ class EventDbTests(unittest.TestCase):
             self.assertTrue(db.cancellation_requested(job_id=7))
             self.assertFalse(db.cancellation_requested(job_id=8))
 
+    def test_claim_job_is_atomic_for_queued_jobs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "events.sqlite3"))
+            job_id = db.record_job("hostscanner 127.0.0.1", None, "queued")
+            self.assertTrue(db.claim_job(job_id, 123))
+            self.assertFalse(db.claim_job(job_id, 456))
+            job = db.job(job_id)
+            self.assertIsNotNone(job)
+            assert job is not None
+            self.assertEqual(job["status"], "claimed")
+            self.assertEqual(job["pid"], 123)
+
     def test_checkpoint_runs_without_losing_events(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "events.sqlite3"))

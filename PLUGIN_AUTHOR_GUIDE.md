@@ -353,6 +353,13 @@ This pattern is preferred over direct method calls because it works across
 processes and leaves a database audit trail of what was requested and what the
 interpreter did.
 
+Background jobs use the same database-first style. The framework creates a
+queued job row and publishes `job.requested`; the worker claims the job, records
+`job.claimed` and `job.started`, then records `job.finished` or `job.failed`.
+Long-running commandlets should call `context.cancelled()` or
+`context.raise_if_cancelled()` periodically so `job cancel <id>` can stop them
+cooperatively.
+
 # A Complete Example With Completion
 
 This commandlet reads a file and emits one event containing its path and size:

@@ -389,7 +389,7 @@ class RunnerPluginAppTests(unittest.TestCase):
             with patch("bywaf.nmap_backend.load_backend", return_value=("fake", FakeNmapModule())):
                 with contextlib.redirect_stdout(io.StringIO()):
                     events = runner.execute("hostscanner 127.0.0.1 &")
-            self.assertEqual(events[0].topic, "job.started")
+            self.assertEqual(events[0].topic, "job.requested")
             db = EventStore(db_path)
             deadline = time.time() + 5
             found = []
@@ -399,6 +399,10 @@ class RunnerPluginAppTests(unittest.TestCase):
                     break
                 time.sleep(0.1)
             self.assertEqual(found[0].payload["host"], "127.0.0.1")
+            topics = db.topics()
+            self.assertIn("job.claimed", topics)
+            self.assertIn("job.started", topics)
+            self.assertIn("job.finished", topics)
 
     def test_background_job_preserves_attached_stage_markers(self):
         with tempfile.TemporaryDirectory() as tmp:

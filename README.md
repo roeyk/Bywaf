@@ -251,6 +251,11 @@ Append `&` to background a commandlet or pipeline:
 bywaf> hostscanner 192.168.0.1-255 &
 ```
 
+Background execution is DB-first. The framework creates a queued job row,
+publishes `job.requested`, starts a worker process, and the worker must claim
+the job before it runs. Successful workers publish `job.claimed`, `job.started`,
+and `job.finished`; failures publish `job.failed`.
+
 Stage-level backgrounding works inside pipelines:
 
 ```text
@@ -754,6 +759,8 @@ host.found
 port.open
 http.headers
 http.endpoint
+job.requested
+job.claimed
 job.started
 job.finished
 job.failed

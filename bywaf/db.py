@@ -271,6 +271,19 @@ class EventStore:
         with self.connect() as conn:
             conn.execute("UPDATE jobs SET pid = ? WHERE id = ?", (pid, job_id))
 
+    def claim_job(self, job_id: int, pid: int | None) -> bool:
+        """Atomically claim a queued job for one worker process."""
+        with self.connect() as conn:
+            cursor = conn.execute(
+                """
+                UPDATE jobs
+                SET status = 'claimed', pid = ?
+                WHERE id = ? AND status = 'queued'
+                """,
+                (pid, job_id),
+            )
+            return cursor.rowcount == 1
+
     def finish_job(self, job_id: int, status: str) -> None:
         """Mark a recorded background job as finished or failed."""
         now = datetime.now(timezone.utc).isoformat()

@@ -188,7 +188,12 @@ class Runner:
     def start_background(self, command_line: str) -> Event:
         """Start an entire command line in a child process and record a job."""
         foreground = command_line.strip()
-        job_id = self.db.record_job(foreground, None, "starting")
+        job_id = self.db.record_job(foreground, None, "queued")
+        requested = self.db.publish(
+            "job.requested",
+            {"job_id": job_id, "command": foreground},
+            "runner",
+        )
         process = mp.Process(
             target=run_background_job,
             args=(str(self.db.path), self.db.passphrase, job_id, foreground),
@@ -196,11 +201,7 @@ class Runner:
         )
         process.start()
         self.db.update_job_pid(job_id, process.pid)
-        return self.db.publish(
-            "job.started",
-            {"job_id": job_id, "pid": process.pid, "command": foreground},
-            "runner",
-        )
+        return requested
 
     def subscribe_once(self, topics: tuple[str, ...], after_id: int = 0) -> list[Event]:
         """Small convenience wrapper used by tests and simple callers."""
@@ -219,7 +220,14 @@ def run_background_job(
     inheriting live connection/plugin objects from the parent process.
     """
     db = EventStore(Path(db_path), passphrase=db_passphrase)
+    pid = mp.current_process().pid
+    if not db.claim_job(job_id, pid):
+        db.publish("job.claim.denied", {"job_id": job_id, "pid": pid}, "runner")
+        return
+    db.publish("job.claimed", {"job_id": job_id, "pid": pid}, "runner")
     try:
+        db.update_job_status(job_id, "running")
+        db.publish("job.started", {"job_id": job_id, "pid": pid, "command": command_line}, "runner")
         runner = Runner(db, PluginRegistry.discover(), job_id=job_id)
         pipeline = parse_pipeline(command_line)
         if pipeline.background:

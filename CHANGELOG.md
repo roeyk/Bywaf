@@ -33,6 +33,8 @@ so entries are grouped under `Unreleased` until versioned releases begin.
   `vacuum`.
 - Added the runtime `job` commandlet with `list`, `show`, `cancel`, and `kill`.
 - Added `jobs` as an alias for `job list`.
+- Added DB-first background job invocation with `job.requested`, `job.claimed`,
+  `job.started`, `job.finished`, and `job.failed` audit events.
 - Added soft-cancellation records and plugin-visible cancellation checks.
 - Added scoped plugin variable access through `context.vars`.
 - Added audited framework request handling for prompt-change requests.
