@@ -1,9 +1,15 @@
 # Changelog
 
-All notable project changes are tracked here. The project is still pre-release,
-so entries are grouped under `Unreleased` until versioned releases begin.
+All notable project changes are tracked here. Bywaf is still pre-1.0 software,
+so compatibility may change between testing releases.
 
 ## Unreleased
+
+No unreleased changes yet.
+
+## [0.9.0] - 2026-05-13
+
+Initial testing release for the rewritten Bywaf framework.
 
 ### Added
 

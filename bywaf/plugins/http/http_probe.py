@@ -20,7 +20,7 @@ DEFAULTS = {
     "method": "HEAD",
     "path": "/",
     "timeout": 5,
-    "user-agent": "Bywaf/0.1",
+    "user-agent": "Bywaf/0.9",
 }
 
 
@@ -43,7 +43,7 @@ class HttpProbe(CommandletBase):
             OptionSpec("scheme", "scheme override", "auto", ("auto", "http", "https")),
             OptionSpec("silent", "suppress probe alerts", "false"),
             OptionSpec("timeout", "request timeout seconds", "5"),
-            OptionSpec("user-agent", "HTTP User-Agent", "Bywaf/0.1"),
+            OptionSpec("user-agent", "HTTP User-Agent", "Bywaf/0.9"),
         ),
         consumes=("port.open",),
         emits=("http.endpoint",),
@@ -66,7 +66,7 @@ class HttpProbe(CommandletBase):
         parser.add_argument("--path", default="/")
         parser.add_argument("--scheme", choices=("auto", "http", "https"), default="auto")
         parser.add_argument("--timeout", type=float, default=5)
-        parser.add_argument("--user-agent", default="Bywaf/0.1")
+        parser.add_argument("--user-agent", default="Bywaf/0.9")
         parsed = parser.parse_args(args)
         cookie_file = option_or_var(context, "cookie-file", parsed.cookie_file)
         firefox_profile = option_or_var(context, "firefox-profile", parsed.firefox_profile)
