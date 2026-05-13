@@ -150,6 +150,7 @@ where useful:
 
 - `db.read:<topic>`
 - `db.write:<topic>`
+- `db.raw`
 - `framework.console.output`
 - `framework.console.alert`
 - `framework.file.page`
@@ -169,8 +170,9 @@ methods and request topics used by the commandlet.
 Normal plugins should use `context.events` instead of raw `context.db`.
 `context.events.publish()` records `db.write:<topic>`, and
 `context.events.fetch()` / `context.events.query()` record `db.read:<topic>`.
-Raw `context.db` remains available for internal framework commandlets while the
-API transitions, but it is not the preferred third-party plugin surface.
+Raw `context.db` remains available for privileged/internal framework
+commandlets while the API transitions. Accessing it records `db.raw`, and
+commandlets that intentionally need it should declare `db.raw`.
 
 ### Audit Events
 
@@ -222,7 +224,7 @@ Audit-only capability tracking is the current behavior.
 ### Practical Limits
 
 Capabilities do not secure arbitrary trusted Python code by themselves. Raw
-`context.db` access is still available during the transition for internal
+`context.db` access is still available during the transition for privileged
 framework commandlets, and Python cannot reliably sandbox hostile in-process
 code. Strong enforcement requires normal plugins to use `context.events`, a
 stricter plugin API, subprocess isolation, or both.

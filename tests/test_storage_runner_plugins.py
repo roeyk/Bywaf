@@ -75,11 +75,13 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 process_framework_requests(runner, ShellState())
             text = output.getvalue()
             self.assertIn("mode=plaintext", text)
-            self.assertIn("events=2", text)
-            self.assertEqual(
-                runner.db.events_for_topic("plugin.capability.used")[0].payload["capability"],
-                "db.manage",
-            )
+            self.assertRegex(text, r"events=\d+")
+            capabilities = {
+                event.payload["capability"]
+                for event in runner.db.events_for_topic("plugin.capability.used")
+            }
+            self.assertIn("db.manage", capabilities)
+            self.assertIn("db.raw", capabilities)
 
     def test_db_new_file_creates_and_switches_active_database(self):
         with tempfile.TemporaryDirectory() as tmp:

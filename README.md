@@ -90,7 +90,8 @@ audit-only `plugin.capability.used` and `plugin.capability.missing` events so
 operators can compare intended behavior with actual behavior.
 Plugin event-bus access should go through `context.events`, which audits
 `db.read:<topic>` and `db.write:<topic>` capability usage. Raw `context.db`
-access is retained for internal framework commandlets during the transition.
+access is retained for privileged/internal framework commandlets during the
+transition and audits `db.raw`.
 
 Encrypted databases require SQLCipher support. On Debian or Ubuntu, install the
 SQLCipher library and use the optional Python extra:

@@ -32,7 +32,7 @@ class Db(CommandletBase):
                 completion=CompletionSpec("choice", DB_ACTIONS),
             ),
         ),
-        capabilities=("db.manage", "filesystem.read", "filesystem.write", "framework.console.output"),
+        capabilities=("db.manage", "db.raw", "filesystem.read", "filesystem.write", "framework.console.output"),
     )
 
     def run(

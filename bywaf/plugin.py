@@ -61,14 +61,44 @@ class CommandSpec:
     capabilities: tuple[str, ...] = ()
 
 
-@dataclass(slots=True)
+@dataclass(init=False, slots=True)
 class CommandContext:
     """Runtime context passed into commandlets."""
 
-    db: EventStore | None
+    _db: EventStore | None
     source: str
-    _varstore: VarStore = field(default_factory=VarStore, repr=False)
-    metadata: dict[str, Any] = field(default_factory=dict)
+    _varstore: VarStore
+    metadata: dict[str, Any]
+
+    def __init__(
+        self,
+        db: EventStore | None,
+        source: str,
+        _varstore: VarStore | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        """Create a command context while preserving the public `db=` keyword."""
+        self._db = db
+        self.source = source
+        self._varstore = _varstore or VarStore()
+        self.metadata = metadata or {}
+
+    @property
+    def db(self) -> EventStore | None:
+        """Return raw database access for privileged/internal commandlets.
+
+        Normal plugins should use `context.events`. Raw DB access is audited as
+        `db.raw` so future enforcement can distinguish privileged commandlets
+        from normal event-bus users.
+        """
+        if self._db is not None:
+            self.audit_capability("db.raw")
+        return self._db
+
+    @db.setter
+    def db(self, value: EventStore | None) -> None:
+        """Replace the raw database handle for internal DB-management code."""
+        self._db = value
 
     @property
     def vars(self) -> ScopedVarStore:
@@ -120,9 +150,10 @@ class CommandContext:
 
     def require_db(self, label: str | None = None) -> EventStore:
         """Return the active DB or raise a consistent user-facing error."""
-        if self.db is None:
+        if self._db is None:
             raise ValueError(f"{label or self.source} requires an active database")
-        return self.db
+        self.audit_capability("db.raw")
+        return self._db
 
     def require_foreground(self, label: str | None = None) -> None:
         """Raise if a foreground-only commandlet is running in the background."""
@@ -131,9 +162,9 @@ class CommandContext:
 
     def cancelled(self) -> bool:
         """Return whether this job, pipeline, or command run was cancelled."""
-        if self.db is None:
+        if self._db is None:
             return False
-        return self.db.cancellation_requested(
+        return self._db.cancellation_requested(
             job_id=self.job_id,
             pipeline_id=self.pipeline_id,
             command_run_id=self.command_run_id,
@@ -146,9 +177,9 @@ class CommandContext:
 
     def request(self, topic: str, payload: dict[str, Any]) -> Event | None:
         """Write a framework request event with this commandlet's run scope."""
-        if self.db is None:
+        if self._db is None:
             return None
-        event = self.db.publish(
+        event = self._db.publish(
             topic,
             payload,
             self.source,
@@ -163,7 +194,7 @@ class CommandContext:
 
     def audit_capability(self, capability: str, *, request_event_id: int | None = None) -> None:
         """Record audit-only capability usage for this commandlet run."""
-        if self.db is None:
+        if self._db is None:
             return
         declared = capability_declared(capability, self.declared_capabilities)
         payload = {
@@ -173,7 +204,7 @@ class CommandContext:
             "request_event_id": request_event_id,
             "job_id": self.job_id,
         }
-        self.db.publish(
+        self._db.publish(
             "plugin.capability.used",
             payload,
             self.source,
@@ -182,7 +213,7 @@ class CommandContext:
             parent_command_run_id=self.parent_command_run_id,
         )
         if not declared:
-            self.db.publish(
+            self._db.publish(
                 "plugin.capability.missing",
                 payload,
                 self.source,
@@ -281,7 +312,7 @@ class ContextEvents:
 
     def publish(self, topic: str, payload: dict[str, Any]) -> Event:
         """Publish one event in the current commandlet scope."""
-        db = self.context.require_db(f"{self.context.source} event publish")
+        db = self.require_event_store(f"{self.context.source} event publish")
         self.context.audit_capability(f"db.write:{topic}")
         return db.publish(
             topic,
@@ -303,7 +334,7 @@ class ContextEvents:
         parent_command_run_id: str | None = None,
     ) -> list[Event]:
         """Fetch events by topic with optional run/pipeline scoping."""
-        db = self.context.require_db(f"{self.context.source} event fetch")
+        db = self.require_event_store(f"{self.context.source} event fetch")
         for topic in topics:
             self.context.audit_capability(f"db.read:{topic}")
         return db.fetch(
@@ -326,7 +357,7 @@ class ContextEvents:
         limit: int = 1000,
     ) -> list[Event]:
         """Query events with optional topic, run, and pipeline filters."""
-        db = self.context.require_db(f"{self.context.source} event query")
+        db = self.require_event_store(f"{self.context.source} event query")
         self.context.audit_capability(f"db.read:{topic}" if topic else "db.read:*")
         return db.events_matching(
             topic=topic,
@@ -337,9 +368,15 @@ class ContextEvents:
 
     def topics(self) -> list[str]:
         """Return known event topics after auditing broad DB read access."""
-        db = self.context.require_db(f"{self.context.source} event topics")
+        db = self.require_event_store(f"{self.context.source} event topics")
         self.context.audit_capability("db.read:*")
         return db.topics()
+
+    def require_event_store(self, label: str) -> EventStore:
+        """Return the backing event store without auditing raw DB access."""
+        if self.context._db is None:
+            raise ValueError(f"{label} requires an active database")
+        return self.context._db
 
 
 class Commandlet(Protocol):

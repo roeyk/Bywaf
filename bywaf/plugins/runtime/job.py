@@ -24,7 +24,7 @@ class Job(CommandletBase):
             ArgumentSpec("action", "job operation", completion=CompletionSpec("choice", JOB_ACTIONS)),
             ArgumentSpec("id", "job id", required=False, completion=CompletionSpec("job")),
         ),
-        capabilities=("framework.console.output", "framework.job.control"),
+        capabilities=("db.raw", "framework.console.output", "framework.job.control"),
     )
 
     def run(

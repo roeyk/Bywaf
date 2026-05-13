@@ -13,6 +13,7 @@ so compatibility may change between testing releases.
   filesystem/network/job/database actions.
 - Added `context.events` as the mediated plugin-facing event-bus API for
   audited event publishing, fetching, querying, and topic listing.
+- Added `db.raw` capability auditing for privileged raw `context.db` access.
 - Added framework-owned file paging requests through `context.page_file()` and
   `framework.file.page.requested` events.
 - Added `DESIGN.md` with initial framework request IPC and plugin capability

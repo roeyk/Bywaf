@@ -349,8 +349,9 @@ for event in context.events.fetch(("host.found",), after_id=context.input_high_w
 ```
 
 `context.events` records `db.read:<topic>` and `db.write:<topic>` capability
-usage. Raw `context.db` remains available for internal framework commandlets
-during the transition, but third-party plugins should avoid it.
+usage. Raw `context.db` remains available for privileged/internal framework
+commandlets during the transition; accessing it records `db.raw`, and
+third-party plugins should avoid it.
 
 Use `require_db()` and `require_foreground()` instead of hand-writing common
 guards:

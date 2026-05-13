@@ -138,6 +138,34 @@ class FrameworkHttpAppTests(unittest.TestCase):
             self.assertEqual(used.payload["capability"], "db.read:test.topic")
             self.assertTrue(used.payload["declared"])
 
+    def test_context_events_does_not_audit_raw_db_access(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            context = CommandContext(
+                runner.db,
+                source="plugin",
+                metadata={"capabilities": ("db.write:test.topic",)},
+            )
+            context.events.publish("test.topic", {"ok": True})
+            capabilities = [
+                event.payload["capability"]
+                for event in runner.db.events_for_topic("plugin.capability.used")
+            ]
+            self.assertEqual(capabilities, ["db.write:test.topic"])
+
+    def test_raw_context_db_access_audits_db_raw(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            context = CommandContext(
+                runner.db,
+                source="plugin",
+                metadata={"capabilities": ("db.raw",)},
+            )
+            self.assertIsNotNone(context.db)
+            used = runner.db.events_for_topic("plugin.capability.used")[0]
+            self.assertEqual(used.payload["capability"], "db.raw")
+            self.assertTrue(used.payload["declared"])
+
     def test_framework_request_pages_file_without_tty(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "file.txt")
