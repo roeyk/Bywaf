@@ -12,7 +12,7 @@ from pathlib import Path
 
 from .db import EventStore, Subscription
 from .events import Event
-from .plugin import CommandContext
+from .plugin import CommandContext, implied_capabilities
 from .registry import PluginRegistry
 from .varstore import VarStore
 from .utils import split_pipeline
@@ -481,6 +481,7 @@ def build_context(
             "replace_db": replace_db,
             "job_id": job_id,
             "run_vars": run_vars,
+            "capabilities": implied_capabilities(plugin.spec),
         },
     )
 
@@ -510,18 +511,20 @@ def execute_stage(
         replace_db=replace_db,
     )
     context.raise_if_cancelled()
+    for input_topic in sorted({event.topic for event in selected_input_events}):
+        context.audit_capability(f"db.read:{input_topic}")
     topic = plugin.spec.emits[0] if plugin.spec.emits else plugin.spec.name
-    events = [
-        db.publish(
+    events = []
+    for payload in plugin.run(context, invocation.args, selected_input_events):
+        context.audit_capability(f"db.write:{topic}")
+        events.append(db.publish(
             topic,
             payload,
             plugin.spec.name,
             pipeline_id=pipeline_id,
             command_run_id=stage.command_run_id,
             parent_command_run_id=stage.parent_command_run_id,
-        )
-        for payload in plugin.run(context, invocation.args, selected_input_events)
-    ]
+        ))
     return StageResult(events)
 
 

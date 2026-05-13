@@ -12,6 +12,7 @@ from bywaf.app import (
     render_prompt,
 )
 from bywaf.events import Event
+from bywaf.plugin import CommandContext
 from bywaf.plugins.http.http_headers import HttpHeaders
 
 
@@ -79,6 +80,29 @@ class FrameworkHttpAppTests(unittest.TestCase):
             event = runner.db.events_for_topic("console.output")[0]
             self.assertEqual(event.payload["request_event_id"], request.id)
             self.assertEqual(output.getvalue(), "hello")
+
+    def test_context_records_declared_capability_use(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            context = CommandContext(
+                runner.db,
+                source="plugin",
+                metadata={"capabilities": ("framework.console.output",)},
+            )
+            context.output("hello")
+            used = runner.db.events_for_topic("plugin.capability.used")[0]
+            self.assertEqual(used.payload["capability"], "framework.console.output")
+            self.assertTrue(used.payload["declared"])
+            self.assertEqual(runner.db.events_for_topic("plugin.capability.missing"), [])
+
+    def test_context_records_missing_capability_use(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            context = CommandContext(runner.db, source="plugin")
+            context.output("hello")
+            missing = runner.db.events_for_topic("plugin.capability.missing")[0]
+            self.assertEqual(missing.payload["capability"], "framework.console.output")
+            self.assertFalse(missing.payload["declared"])
 
     def test_framework_request_pages_file_without_tty(self):
         with tempfile.TemporaryDirectory() as tmp:

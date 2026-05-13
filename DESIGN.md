@@ -110,17 +110,18 @@ Bywaf plugins are local Python code, so capability declarations are not a
 sandbox by themselves. They are still useful because they make plugin behavior
 auditable, reviewable, and eventually enforceable.
 
-The first implementation should be audit-first:
+The current implementation is audit-first:
 
 - Plugins declare intended capabilities.
-- The framework records capability use and missing declarations.
+- The framework records capability use and missing declarations as
+  `plugin.capability.used` and `plugin.capability.missing`.
 - Operators can inspect what a plugin did.
 - Enforcement can be added later without redesigning the plugin API.
 
 ### Capability Declaration
 
-Capabilities should be declared on `CommandSpec` or provider metadata. A
-commandlet-level declaration is the most precise starting point:
+Capabilities are declared on `CommandSpec`. A commandlet-level declaration is
+the most precise starting point:
 
 ```python
 CommandSpec(
@@ -160,13 +161,13 @@ where useful:
 - `network.listen`
 - `process.spawn`
 
-Topic capabilities should align with `CommandSpec.consumes` and
-`CommandSpec.emits`. Framework request capabilities should align with the
-helper methods and request topics used by the commandlet.
+Topic capabilities are implied from `CommandSpec.consumes` and
+`CommandSpec.emits`. Framework request capabilities align with the helper
+methods and request topics used by the commandlet.
 
 ### Audit Events
 
-Audit mode should produce capability events without blocking execution:
+Audit mode produces capability events without blocking execution:
 
 ```text
 plugin.capability.used

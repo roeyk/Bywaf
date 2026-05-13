@@ -27,6 +27,7 @@ class HttpHeaders(CommandletBase):
         ),
         consumes=("port.open",),
         emits=("http.headers",),
+        capabilities=("network.connect",),
     )
 
     def run(
@@ -44,6 +45,7 @@ class HttpHeaders(CommandletBase):
         parsed = parser.parse_args(args)
         targets = self.targets(parsed.target, parsed.port, parsed.ssl == "true", input_events)
         for host, port, use_ssl in targets:
+            context.audit_capability("network.connect")
             connection_cls = http.client.HTTPSConnection if use_ssl else http.client.HTTPConnection
             conn = connection_cls(host, port=port, timeout=parsed.timeout)
             try:

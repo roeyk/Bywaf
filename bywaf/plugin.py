@@ -58,6 +58,7 @@ class CommandSpec:
     arguments: tuple[ArgumentSpec, ...] = ()
     consumes: tuple[str, ...] = ()
     emits: tuple[str, ...] = ()
+    capabilities: tuple[str, ...] = ()
 
 
 @dataclass(slots=True)
@@ -142,7 +143,7 @@ class CommandContext:
         """Write a framework request event with this commandlet's run scope."""
         if self.db is None:
             return None
-        return self.db.publish(
+        event = self.db.publish(
             topic,
             payload,
             self.source,
@@ -150,6 +151,46 @@ class CommandContext:
             command_run_id=self.command_run_id,
             parent_command_run_id=self.parent_command_run_id,
         )
+        capability = framework_request_capability(topic)
+        if capability is not None:
+            self.audit_capability(capability, request_event_id=event.id)
+        return event
+
+    def audit_capability(self, capability: str, *, request_event_id: int | None = None) -> None:
+        """Record audit-only capability usage for this commandlet run."""
+        if self.db is None:
+            return
+        declared = capability_declared(capability, self.declared_capabilities)
+        payload = {
+            "commandlet": self.source,
+            "capability": capability,
+            "declared": declared,
+            "request_event_id": request_event_id,
+            "job_id": self.job_id,
+        }
+        self.db.publish(
+            "plugin.capability.used",
+            payload,
+            self.source,
+            pipeline_id=self.pipeline_id,
+            command_run_id=self.command_run_id,
+            parent_command_run_id=self.parent_command_run_id,
+        )
+        if not declared:
+            self.db.publish(
+                "plugin.capability.missing",
+                payload,
+                self.source,
+                pipeline_id=self.pipeline_id,
+                command_run_id=self.command_run_id,
+                parent_command_run_id=self.parent_command_run_id,
+            )
+
+    @property
+    def declared_capabilities(self) -> tuple[str, ...]:
+        """Return capabilities declared or implied for this commandlet."""
+        value = self.metadata.get("capabilities", ())
+        return tuple(str(capability) for capability in value)
 
     def output(self, text: object = "", *, end: str = "\n") -> None:
         """Request normal command output from the framework console."""
@@ -257,6 +298,45 @@ def command_run_id(context: CommandContext) -> str:
 def emit_alert(context: CommandContext, message: str, *, silent: bool = False) -> None:
     """Backward-compatible wrapper around CommandContext.alert()."""
     context.alert(message, silent=silent)
+
+
+def framework_request_capability(topic: str) -> str | None:
+    """Map a framework request topic to the capability it uses."""
+    match topic:
+        case "framework.console.output.requested":
+            return "framework.console.output"
+        case "framework.console.alert.requested":
+            return "framework.console.alert"
+        case "framework.file.page.requested":
+            return "framework.file.page"
+        case "shell.prompt.requested":
+            return "framework.prompt.change"
+        case topic if topic.startswith("framework.job."):
+            return "framework.job.control"
+        case topic if topic.startswith("framework.pipeline."):
+            return "framework.pipeline.control"
+        case topic if topic.startswith("framework.") and topic.endswith(".requested"):
+            return "framework.request"
+        case _:
+            return None
+
+
+def capability_declared(capability: str, declarations: Iterable[str]) -> bool:
+    """Return whether a capability is exactly declared or covered by a wildcard."""
+    for declaration in declarations:
+        if capability == declaration:
+            return True
+        if declaration.endswith(":*") and capability.startswith(declaration[:-1]):
+            return True
+    return False
+
+
+def implied_capabilities(spec: CommandSpec) -> tuple[str, ...]:
+    """Return capabilities implied by commandlet metadata."""
+    capabilities = set(spec.capabilities)
+    capabilities.update(f"db.read:{topic}" for topic in spec.consumes)
+    capabilities.update(f"db.write:{topic}" for topic in spec.emits)
+    return tuple(sorted(capabilities))
 
 
 def format_table(rows: Sequence[Mapping[str, object] | Sequence[object]], columns: Sequence[str]) -> list[str]:

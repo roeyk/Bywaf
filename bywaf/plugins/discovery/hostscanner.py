@@ -28,6 +28,7 @@ class HostScanner(CommandletBase):
             OptionSpec("silent", "suppress discovery alerts", "false"),
         ),
         emits=("host.found",),
+        capabilities=("framework.console.alert", "network.connect"),
     )
 
     def run(
@@ -45,6 +46,7 @@ class HostScanner(CommandletBase):
         parsed = parser.parse_args(args)
         targets = expand_targets(parsed.targets, parsed.limit)
         context.raise_if_cancelled()
+        context.audit_capability("network.connect")
         for host in discover_live_hosts(" ".join(targets), parsed.arguments)[: parsed.limit]:
             context.raise_if_cancelled()
             context.alert(f"discovered host {host}", silent=parsed.silent)

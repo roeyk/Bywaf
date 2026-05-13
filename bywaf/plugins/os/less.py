@@ -21,6 +21,7 @@ class Less(CommandletBase):
         arguments=(
             ArgumentSpec("path", "file to view", completion=CompletionSpec("file")),
         ),
+        capabilities=("filesystem.read", "framework.file.page"),
     )
 
     def run(
@@ -34,6 +35,7 @@ class Less(CommandletBase):
         parser = self.parser()
         parser.add_argument("path")
         parsed = parser.parse_args(args)
+        context.audit_capability("filesystem.read")
         page_file(Path(parsed.path), context)
         return ()
 

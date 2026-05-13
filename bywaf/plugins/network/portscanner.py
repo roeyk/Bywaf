@@ -33,6 +33,7 @@ class PortScanner(CommandletBase):
         ),
         consumes=("host.found",),
         emits=("port.open",),
+        capabilities=("framework.console.alert", "network.connect"),
     )
 
     def run(
@@ -87,6 +88,7 @@ def scan_hosts(
         return
     context.raise_if_cancelled()
     seen_hosts.update(new_hosts)
+    context.audit_capability("network.connect")
     for port in scan_open_ports(new_hosts, ports, arguments):
         context.raise_if_cancelled()
         context.alert(

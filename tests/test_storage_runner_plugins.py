@@ -75,7 +75,11 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 process_framework_requests(runner, ShellState())
             text = output.getvalue()
             self.assertIn("mode=plaintext", text)
-            self.assertIn("events=1", text)
+            self.assertIn("events=2", text)
+            self.assertEqual(
+                runner.db.events_for_topic("plugin.capability.used")[0].payload["capability"],
+                "db.manage",
+            )
 
     def test_db_new_file_creates_and_switches_active_database(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -86,9 +90,9 @@ class StorageRunnerPluginTests(unittest.TestCase):
             with contextlib.redirect_stdout(io.StringIO()):
                 runner.execute(f"db new --file={second}")
             self.assertEqual(runner.db.path, second)
-            self.assertEqual(runner.db.table_counts()["events"], 1)
+            self.assertGreaterEqual(runner.db.table_counts()["events"], 2)
             self.assertEqual(runner.db.events_for_topic("framework.console.output.requested")[0].source, "db")
-            self.assertEqual(EventStore(first).table_counts()["events"], 1)
+            self.assertEqual(EventStore(first).events_for_topic("topic")[0].payload["value"], 1)
 
     def test_db_new_refuses_existing_file_without_force(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -110,7 +114,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
             with contextlib.redirect_stdout(io.StringIO()):
                 runner.execute(f"db new --force --file={second}")
             self.assertEqual(runner.db.path, second)
-            self.assertEqual(runner.db.table_counts()["events"], 1)
+            self.assertGreaterEqual(runner.db.table_counts()["events"], 2)
             self.assertEqual(runner.db.events_for_topic("framework.console.output.requested")[0].source, "db")
             backups = list(Path(tmp).glob("second.sqlite3.bak-*"))
             self.assertEqual(len(backups), 1)
@@ -205,6 +209,14 @@ class StorageRunnerPluginTests(unittest.TestCase):
             alerts = runner.db.events_for_topic("console.alert")
             self.assertEqual(alerts[0].payload["message"], "discovered host 127.0.0.1")
             self.assertEqual(alerts[0].payload["source"], "hostscanner")
+            capabilities = {
+                event.payload["capability"]: event.payload["declared"]
+                for event in runner.db.events_for_topic("plugin.capability.used")
+                if event.source == "hostscanner"
+            }
+            self.assertTrue(capabilities["network.connect"])
+            self.assertTrue(capabilities["framework.console.alert"])
+            self.assertTrue(capabilities["db.write:host.found"])
 
     def test_foreground_command_records_job_lifecycle(self):
         with tempfile.TemporaryDirectory() as tmp:

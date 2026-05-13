@@ -18,12 +18,10 @@ Planning dates are release planning markers, not compatibility commitments.
 
 ### Plugin Capability Model
 
-- Add plugin-declared capabilities for sensitive actions such as filesystem
-  access, network access, framework requests, and database topic read/write
-  access.
 - Decide how strict enforcement should be for trusted local plugins versus
   third-party plugins.
-- Start with audit-only capability events before enforcing policy.
+- Add enforcement modes for missing capabilities after audit-only mode has been
+  exercised with real plugins.
 
 ### External Tool Wrappers
 
@@ -51,5 +49,7 @@ Planning dates are release planning markers, not compatibility commitments.
 
 ## Completed After 0.9.0
 
+- 2026-05-13: Added audit-only plugin capability declarations and
+  `plugin.capability.used` / `plugin.capability.missing` events.
 - 2026-05-13: Added framework-owned paging through `context.page_file()` and
   `framework.file.page.requested`.

@@ -7,6 +7,10 @@ so compatibility may change between testing releases.
 
 ### Added
 
+- Added audit-only plugin capability declarations on `CommandSpec`.
+- Added `plugin.capability.used` and `plugin.capability.missing` audit events
+  for framework requests, selected input topics, emitted DB topics, and selected
+  filesystem/network/job/database actions.
 - Added framework-owned file paging requests through `context.page_file()` and
   `framework.file.page.requested` events.
 - Added `DESIGN.md` with initial framework request IPC and plugin capability

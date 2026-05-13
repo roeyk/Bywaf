@@ -24,6 +24,7 @@ class Job(CommandletBase):
             ArgumentSpec("action", "job operation", completion=CompletionSpec("choice", JOB_ACTIONS)),
             ArgumentSpec("id", "job id", required=False, completion=CompletionSpec("job")),
         ),
+        capabilities=("framework.console.output", "framework.job.control"),
     )
 
     def run(
@@ -48,11 +49,13 @@ class Job(CommandletBase):
                 context.output(format_job(row))
             case "cancel":
                 row = require_job(context, parsed.id)
+                context.audit_capability("framework.job.control")
                 db.request_cancellation("job", str(row["id"]))
                 db.update_job_status(int(row["id"]), "cancelling")
                 context.output(f"cancel requested for job {row['id']}")
             case "kill":
                 row = require_job(context, parsed.id)
+                context.audit_capability("framework.job.control")
                 kill_job(context, row, force=parsed.force)
         return ()
 

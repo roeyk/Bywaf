@@ -32,6 +32,7 @@ class Db(CommandletBase):
                 completion=CompletionSpec("choice", DB_ACTIONS),
             ),
         ),
+        capabilities=("db.manage", "filesystem.read", "filesystem.write", "framework.console.output"),
     )
 
     def run(
@@ -49,6 +50,7 @@ class Db(CommandletBase):
         parsed = parser.parse_args(args)
         db = context.require_db()
         context.require_foreground("database management commands")
+        context.audit_capability("db.manage")
         match parsed.action:
             case "checkpoint":
                 db.checkpoint()

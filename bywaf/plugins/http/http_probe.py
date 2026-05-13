@@ -47,6 +47,7 @@ class HttpProbe(CommandletBase):
         ),
         consumes=("port.open",),
         emits=("http.endpoint",),
+        capabilities=("filesystem.read", "framework.console.alert", "network.connect"),
     )
 
     def run(
@@ -72,8 +73,11 @@ class HttpProbe(CommandletBase):
         firefox_profile = option_or_var(context, "firefox-profile", parsed.firefox_profile)
         remember_option(context, "cookie-file", parsed.cookie_file)
         remember_option(context, "firefox-profile", parsed.firefox_profile)
+        if cookie_file or firefox_profile:
+            context.audit_capability("filesystem.read")
         opener = build_opener(cookie_file, firefox_profile, parsed.follow_redirects == "true")
         for target in probe_targets(parsed.targets, input_events, parsed.scheme, parsed.path):
+            context.audit_capability("network.connect")
             result = probe_url(opener, target.url, parsed.method, parsed.timeout, parsed.user_agent)
             payload = {
                 "url": target.url,

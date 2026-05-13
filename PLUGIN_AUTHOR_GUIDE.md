@@ -102,6 +102,7 @@ CommandSpec(
     arguments=(),
     consumes=(),
     emits=("hello.greeting",),
+    capabilities=("framework.console.output",),
 )
 ```
 
@@ -115,6 +116,13 @@ Important fields:
 - `arguments`: positional argument metadata for completion
 - `consumes`: event topics this commandlet expects as input
 - `emits`: event topics this commandlet publishes
+- `capabilities`: audit declarations for sensitive behavior
+
+Bywaf currently treats capabilities as audit metadata, not hard sandboxing.
+`consumes` and `emits` imply `db.read:<topic>` and `db.write:<topic>` for the
+listed topics. Declare other behavior explicitly, such as
+`framework.console.output`, `framework.console.alert`, `framework.file.page`,
+`filesystem.read`, or `network.connect`.
 
 # Parsing Arguments
 

@@ -21,6 +21,7 @@ class Cat(CommandletBase):
         arguments=(
             ArgumentSpec("path", "file to print", completion=CompletionSpec("file")),
         ),
+        capabilities=("filesystem.read", "framework.console.output"),
     )
 
     def run(
@@ -34,6 +35,7 @@ class Cat(CommandletBase):
         parser = self.parser()
         parser.add_argument("path")
         parsed = parser.parse_args(args)
+        context.audit_capability("filesystem.read")
         context.output(read_text_file(Path(parsed.path)), end="")
         return ()
 

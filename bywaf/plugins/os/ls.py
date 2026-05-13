@@ -26,6 +26,7 @@ class Ls(CommandletBase):
                 completion=CompletionSpec("path"),
             ),
         ),
+        capabilities=("filesystem.read", "framework.console.output"),
     )
 
     def run(
@@ -39,6 +40,7 @@ class Ls(CommandletBase):
         parser = self.parser()
         parser.add_argument("path", nargs="?", default=".")
         parsed = parser.parse_args(args)
+        context.audit_capability("filesystem.read")
         for line in list_path(Path(parsed.path)):
             context.output(line)
         return ()
