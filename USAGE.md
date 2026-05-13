@@ -37,6 +37,19 @@ The project metadata defines a console script named `bywaf`, so packaged
 installations can expose Bywaf as a normal command instead of requiring
 `python3 -m bywaf`.
 
+Bywaf can also be embedded as a Python library. A local GUI or web service
+should use the public session facade instead of scraping REPL output:
+
+```python
+from pathlib import Path
+from bywaf import BywafSession
+
+session = BywafSession.open(Path(".bywaf/bywaf.sqlite3"))
+session.run("hostscanner 127.0.0.1")
+hosts = session.events(topic="host.found")
+jobs = session.jobs()
+```
+
 The host and port scanner commandlets use `nmap` through a Python adapter. A
 local `nmap` binary is required for real scans. The adapter prefers `nmaplib`,
 then `python-nmap`, then `nmapthon`, then `libnmap`.

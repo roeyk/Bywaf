@@ -40,6 +40,8 @@ so entries are grouped under `Unreleased` until versioned releases begin.
 - Added soft-cancellation records and plugin-visible cancellation checks.
 - Added scoped plugin variable access through `context.vars`.
 - Added audited framework request handling for prompt-change requests.
+- Added `BywafSession` as the public Python facade for GUI, web, and automation
+  clients.
 - Added `db encrypt`, `db decrypt`, and `db rekey` for active database
   encryption management.
 - Added `db new`, `db new --file=<path>`, `db new --encrypt`, and

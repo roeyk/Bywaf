@@ -360,6 +360,23 @@ job lifecycle, but a worker process claims and runs the queued job. Long-running
 commandlets should call `context.cancelled()` or `context.raise_if_cancelled()`
 periodically so `job cancel <id>` can stop them cooperatively.
 
+# Embedding Bywaf
+
+Applications should use `BywafSession` as the public library entry point:
+
+```python
+from pathlib import Path
+from bywaf import BywafSession
+
+session = BywafSession.open(Path(".bywaf/bywaf.sqlite3"))
+session.run("hostscanner 127.0.0.1")
+for event in session.events(topic="host.found"):
+    print(event.payload)
+```
+
+This is the preferred route for local GUIs, web frontends, and automation
+because they can render jobs and events directly from the database-backed API.
+
 # A Complete Example With Completion
 
 This commandlet reads a file and emits one event containing its path and size:
