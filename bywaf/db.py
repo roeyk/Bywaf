@@ -362,6 +362,11 @@ class EventStore:
             )
             return [Event.from_row(row) for row in rows]
 
+    def latest_event_id(self) -> int:
+        """Return the current highest event id, or zero for an empty DB."""
+        with self.connect() as conn:
+            return int(conn.execute("SELECT COALESCE(MAX(id), 0) FROM events").fetchone()[0])
+
     def events_matching(
         self,
         *,

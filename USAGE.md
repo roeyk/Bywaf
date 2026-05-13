@@ -189,6 +189,11 @@ plugin specs. Other completion specs include `topic`, `run`, `pipeline`, `job`,
 and `plugin`, so plugin authors can make hand-typed commands much easier to
 complete correctly.
 
+Plugin authors should use `context.output()`, `context.table()`, and
+`context.alert()` instead of direct `print()` calls. These helpers keep terminal
+output auditable and make the same commandlets usable from a future GUI or web
+frontend.
+
 # Plugins
 
 A plugin provider groups related commandlets. The `plugins` command lists loaded

@@ -6,7 +6,7 @@ import unittest
 
 from bywaf.config import Settings, default_settings
 from bywaf.db import EventStore
-from bywaf.plugin import ArgumentSpec, CommandContext, CommandSpec, CompletionSpec, OptionSpec
+from bywaf.plugin import ArgumentSpec, CommandContext, CommandSpec, CompletionSpec, OptionSpec, format_table
 from bywaf.messages import Host, Progress
 from bywaf.varstore import ScopedVarStore, VarStore
 
@@ -68,6 +68,20 @@ class ConfigPluginTests(unittest.TestCase):
         self.assertEqual(requests[0].payload["message"], "hello")
         self.assertTrue(requests[0].payload["silent"])
         self.assertEqual(requests[0].command_run_id, "run-1")
+
+    def test_command_context_output_requests_framework_event(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(db=db, source="test", metadata={"command_run_id": "run-1"})
+            context.output("hello", end="")
+            requests = db.events_for_topic("framework.console.output.requested")
+        self.assertEqual(requests[0].payload["text"], "hello")
+        self.assertEqual(requests[0].payload["end"], "")
+        self.assertEqual(requests[0].command_run_id, "run-1")
+
+    def test_format_table_aligns_mapping_rows(self):
+        lines = format_table([{"name": "one", "value": 1}], ("name", "value"))
+        self.assertEqual(lines, ["name  value", "----  -----", "one   1    "])
 
     def test_scoped_varstore_reads_only_its_namespace(self):
         store = VarStore()

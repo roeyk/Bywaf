@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -87,6 +87,47 @@ class CommandContext:
         if self.cancelled():
             raise RuntimeError("commandlet cancelled")
 
+    def request(self, topic: str, payload: dict[str, Any]) -> Event | None:
+        """Write a framework request event with this commandlet's run scope."""
+        if self.db is None:
+            return None
+        return self.db.publish(
+            topic,
+            payload,
+            self.source,
+            pipeline_id=self.metadata.get("pipeline_id"),
+            command_run_id=self.metadata.get("command_run_id"),
+            parent_command_run_id=self.metadata.get("parent_command_run_id"),
+        )
+
+    def output(self, text: object = "", *, end: str = "\n") -> None:
+        """Request normal command output from the framework console."""
+        payload = {
+            "text": str(text),
+            "end": end,
+            "source": self.source,
+            "command_run_id": self.metadata.get("command_run_id"),
+            "pipeline_id": self.metadata.get("pipeline_id"),
+            "job_id": self.metadata.get("job_id"),
+        }
+        if self.request("framework.console.output.requested", payload) is None:
+            print(str(text), end=end, flush=True)
+
+    def table(self, rows: Iterable[Mapping[str, object] | Sequence[object]], columns: Sequence[str] | None = None) -> None:
+        """Render a small text table through the framework output path."""
+        normalized = list(rows)
+        if not normalized:
+            return
+        if columns is None:
+            first = normalized[0]
+            if isinstance(first, Mapping):
+                columns = tuple(str(column) for column in first.keys())
+            else:
+                columns = tuple(str(index) for index in range(len(first)))
+        lines = format_table(normalized, columns)
+        if lines:
+            self.output("\n".join(lines))
+
     def alert(self, message: str, *, level: str = "alert", silent: bool = False) -> None:
         """Request a framework-owned console alert.
 
@@ -103,16 +144,7 @@ class CommandContext:
             "pipeline_id": self.metadata.get("pipeline_id"),
             "job_id": self.metadata.get("job_id"),
         }
-        if self.db is not None:
-            self.db.publish(
-                "framework.console.alert.requested",
-                payload,
-                self.source,
-                pipeline_id=self.metadata.get("pipeline_id"),
-                command_run_id=self.metadata.get("command_run_id"),
-                parent_command_run_id=self.metadata.get("parent_command_run_id"),
-            )
-        elif not silent:
+        if self.request("framework.console.alert.requested", payload) is None and not silent:
             print(f"{self.source} <{command_run_id(self)}>: {message}", flush=True)
 
 
@@ -146,3 +178,21 @@ def command_run_id(context: CommandContext) -> str:
 def emit_alert(context: CommandContext, message: str, *, silent: bool = False) -> None:
     """Backward-compatible wrapper around CommandContext.alert()."""
     context.alert(message, silent=silent)
+
+
+def format_table(rows: Sequence[Mapping[str, object] | Sequence[object]], columns: Sequence[str]) -> list[str]:
+    """Return aligned text rows for small commandlet tables."""
+    values: list[list[str]] = []
+    for row in rows:
+        if isinstance(row, Mapping):
+            values.append([str(row.get(column, "")) for column in columns])
+        else:
+            values.append([str(row[index]) if index < len(row) else "" for index, _column in enumerate(columns)])
+    widths = [
+        max(len(column), *(len(row[index]) for row in values))
+        for index, column in enumerate(columns)
+    ]
+    header = "  ".join(column.ljust(widths[index]) for index, column in enumerate(columns))
+    divider = "  ".join("-" * width for width in widths)
+    body = ["  ".join(value.ljust(widths[index]) for index, value in enumerate(row)) for row in values]
+    return [header, divider, *body]

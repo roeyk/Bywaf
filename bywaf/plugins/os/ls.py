@@ -40,7 +40,8 @@ class Ls:
         parser = argparse.ArgumentParser(prog=self.spec.name)
         parser.add_argument("path", nargs="?", default=".")
         parsed = parser.parse_args(args)
-        list_path(Path(parsed.path))
+        for line in list_path(Path(parsed.path)):
+            context.output(line)
         return ()
 
 

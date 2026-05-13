@@ -8,7 +8,7 @@ from pathlib import Path
 
 from bywaf.events import Event
 from bywaf.plugin import ArgumentSpec, CommandContext, CommandSpec, Commandlet, CompletionSpec
-from bywaf.plugins.os.files import print_file
+from bywaf.plugins.os.files import read_text_file
 
 
 class Cat:
@@ -35,7 +35,7 @@ class Cat:
         parser = argparse.ArgumentParser(prog=self.spec.name)
         parser.add_argument("path")
         parsed = parser.parse_args(args)
-        print_file(Path(parsed.path))
+        context.output(read_text_file(Path(parsed.path)), end="")
         return ()
 
 

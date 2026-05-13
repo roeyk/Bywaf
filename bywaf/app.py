@@ -174,7 +174,7 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
     Built-ins are handled here; commandlets fall through to the generic runner
     so plugin commands such as `ls` are not hard-coded into the shell.
     """
-    state = state or ShellState()
+    state = state or ShellState(framework_request_after_id=runner.db.latest_event_id())
     try:
         match line.split(maxsplit=1):
             case []:
@@ -192,7 +192,9 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
             case ["history"]:
                 print_history(state.session_history)
             case ["jobs"]:
-                print_events(runner.execute("job list"))
+                events = runner.execute("job list")
+                process_framework_requests(runner, state)
+                print_events(events)
             case ["runs"]:
                 print_runs(runner)
             case ["vars"]:
@@ -252,7 +254,11 @@ def process_framework_requests(runner: Runner, state: ShellState) -> None:
     """Apply interpreter-owned requests that plugins wrote to the event bus."""
     for event in runner.db.fetch(
         Subscription(
-            topics=("shell.prompt.requested", "framework.console.alert.requested"),
+            topics=(
+                "shell.prompt.requested",
+                "framework.console.alert.requested",
+                "framework.console.output.requested",
+            ),
             after_id=state.framework_request_after_id,
             limit=1000,
         )
@@ -286,6 +292,8 @@ def handle_framework_request(runner: Runner, state: ShellState, event) -> None:
             deny_framework_request(runner, event, "prompt must be a non-empty string")
         case "framework.console.alert.requested":
             emit_console_alert(runner, event)
+        case "framework.console.output.requested":
+            emit_console_output(runner, event)
         case _:
             deny_framework_request(runner, event, f"unsupported request topic: {event.topic}")
 
@@ -321,6 +329,33 @@ def emit_console_alert(runner: Runner, event) -> None:
     )
     if not bool(event.payload.get("silent")):
         print(f"{source} <{command_id}>: {message}", flush=True)
+
+
+def emit_console_output(runner: Runner, event) -> None:
+    """Validate, audit, and display plugin-requested command output."""
+    text = event.payload.get("text", "")
+    end = event.payload.get("end", "\n")
+    if not isinstance(text, str):
+        deny_framework_request(runner, event, "console output text must be a string")
+        return
+    if not isinstance(end, str):
+        deny_framework_request(runner, event, "console output end must be a string")
+        return
+    runner.db.publish(
+        "console.output",
+        {
+            "text": text,
+            "end": end,
+            "source": event.payload.get("source", event.source),
+            "job_id": event.payload.get("job_id"),
+            "request_event_id": event.id,
+        },
+        "framework",
+        pipeline_id=event.pipeline_id,
+        command_run_id=event.command_run_id,
+        parent_command_run_id=event.parent_command_run_id,
+    )
+    print(text, end=end, flush=True)
 
 
 def deny_framework_request(runner: Runner, event, reason: str) -> None:

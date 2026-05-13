@@ -44,6 +44,8 @@ so entries are grouped under `Unreleased` until versioned releases begin.
   clients.
 - Added `context.alert()` framework requests and structured `console.alert`
   events for plugin console output.
+- Added `context.request()`, `context.output()`, and `context.table()` helpers
+  so plugin authors can use framework-mediated output without direct `print()`.
 - Added `db encrypt`, `db decrypt`, and `db rekey` for active database
   encryption management.
 - Added `db new`, `db new --file=<path>`, `db new --encrypt`, and

@@ -46,7 +46,7 @@ class Hello:
         input_events: Iterable[Event],
     ):
         name = args[0] if args else "world"
-        print(f"hello, {name}")
+        context.output(f"hello, {name}")
         yield {"name": name, "message": f"hello, {name}"}
 
 
@@ -289,8 +289,23 @@ At execution time, commandlets receive a `CommandContext`:
 - `context.db`: the active event database, if available
 - `context.vars`: scoped variables for the current commandlet
 - `context.metadata`: framework metadata such as pipeline, run, and job IDs
+- `context.output(text)`: request normal console output from the framework
+- `context.alert(message)`: request an operator alert from the framework
+- `context.table(rows, columns)`: print small tabular command output
+- `context.request(topic, payload)`: advanced escape hatch for framework requests
 - `context.cancelled()`: whether a soft-cancellation request is pending
 - `context.raise_if_cancelled()`: raise if cancellation is pending
+
+For beginner plugins, the core loop is usually:
+
+```python
+context.output("starting scan")
+context.alert("discovered host 127.0.0.1")
+yield {"host": "127.0.0.1", "status": "up"}
+```
+
+Those helpers keep plugin code simple while still routing display and audit
+state through the framework-owned event bus.
 
 Plugin variables are scoped. If `http_probe` calls:
 
@@ -564,6 +579,22 @@ mirrors the alert to stdout unless `silent` is true. Internally,
 interpreter then validates that request, writes `console.alert`, and owns the
 actual terminal output. This keeps multiprocessing output ordered and gives GUI
 or web frontends a clean event stream to render.
+
+Use `context.output()` for normal command output, such as listing rows or
+printing a status message:
+
+```python
+context.output("scan complete")
+context.table(
+    [{"host": "127.0.0.1", "ports": 3}],
+    ("host", "ports"),
+)
+```
+
+`context.output()` records `framework.console.output.requested`; the interpreter
+then writes a `console.output` event and owns the actual print. Advanced plugins
+can call `context.request(topic, payload)` directly when Bywaf grows new
+framework request types.
 
 Prefer completion specs for common cases and custom completion only when the
 generic specs are not expressive enough.

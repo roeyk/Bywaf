@@ -11,7 +11,7 @@ import sys
 
 from bywaf.events import Event
 from bywaf.plugin import ArgumentSpec, CommandContext, CommandSpec, Commandlet, CompletionSpec
-from bywaf.plugins.os.files import print_file
+from bywaf.plugins.os.files import read_text_file
 
 
 class Less:
@@ -38,11 +38,11 @@ class Less:
         parser = argparse.ArgumentParser(prog=self.spec.name)
         parser.add_argument("path")
         parsed = parser.parse_args(args)
-        page_file(Path(parsed.path))
+        page_file(Path(parsed.path), context)
         return ()
 
 
-def page_file(path: Path) -> None:
+def page_file(path: Path, context: CommandContext | None = None) -> None:
     """Use `less` interactively, falling back to plain output when needed."""
 
     if not path.exists():
@@ -53,7 +53,11 @@ def page_file(path: Path) -> None:
     if pager and sys.stdin.isatty() and sys.stdout.isatty():
         subprocess.run([pager, str(path)], check=False)
         return
-    print_file(path)
+    text = read_text_file(path)
+    if context is None:
+        print(text, end="")
+    else:
+        context.output(text, end="")
 
 
 def plugin() -> Commandlet:

@@ -55,13 +55,13 @@ class Db:
         match parsed.action:
             case "checkpoint":
                 context.db.checkpoint()
-                print("checkpoint complete")
+                context.output("checkpoint complete")
             case "decrypt":
                 decrypt_active_database(context)
-                print("database decrypted")
+                context.output("database decrypted")
             case "encrypt":
                 encrypt_active_database(context)
-                print("database encrypted")
+                context.output("database encrypted")
             case "new":
                 new_active_database(
                     context,
@@ -69,17 +69,17 @@ class Db:
                     encrypt=parsed.encrypt,
                     force=parsed.force,
                 )
-                print(f"created db={context.db.path}")
+                context.output(f"created db={context.db.path}")
             case "path":
-                print(context.db.path)
+                context.output(context.db.path)
             case "rekey":
                 rekey_active_database(context)
-                print("database rekeyed")
+                context.output("database rekeyed")
             case "status":
                 print_database_status(context)
             case "vacuum":
                 context.db.vacuum()
-                print("vacuum complete")
+                context.output("vacuum complete")
         return ()
 
 
@@ -89,10 +89,10 @@ def print_database_status(context: CommandContext) -> None:
         raise ValueError("db command requires an active database")
     counts = context.db.table_counts()
     mode = "encrypted" if context.db.encrypted else "plaintext"
-    print(f"path={context.db.path}")
-    print(f"mode={mode}")
-    print(f"events={counts['events']}")
-    print(f"jobs={counts['jobs']}")
+    context.output(f"path={context.db.path}")
+    context.output(f"mode={mode}")
+    context.output(f"events={counts['events']}")
+    context.output(f"jobs={counts['jobs']}")
 
 
 def encrypt_active_database(context: CommandContext) -> None:

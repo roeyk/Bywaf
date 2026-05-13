@@ -91,6 +91,7 @@ class RunnerPluginAppTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 runner.execute("db status")
+                process_framework_requests(runner, ShellState())
             text = output.getvalue()
             self.assertIn("mode=plaintext", text)
             self.assertIn("events=1", text)
@@ -104,7 +105,8 @@ class RunnerPluginAppTests(unittest.TestCase):
             with contextlib.redirect_stdout(io.StringIO()):
                 runner.execute(f"db new --file={second}")
             self.assertEqual(runner.db.path, second)
-            self.assertEqual(runner.db.table_counts()["events"], 0)
+            self.assertEqual(runner.db.table_counts()["events"], 1)
+            self.assertEqual(runner.db.events_for_topic("framework.console.output.requested")[0].source, "db")
             self.assertEqual(EventStore(first).table_counts()["events"], 1)
 
     def test_db_new_refuses_existing_file_without_force(self):
@@ -127,7 +129,8 @@ class RunnerPluginAppTests(unittest.TestCase):
             with contextlib.redirect_stdout(io.StringIO()):
                 runner.execute(f"db new --force --file={second}")
             self.assertEqual(runner.db.path, second)
-            self.assertEqual(runner.db.table_counts()["events"], 0)
+            self.assertEqual(runner.db.table_counts()["events"], 1)
+            self.assertEqual(runner.db.events_for_topic("framework.console.output.requested")[0].source, "db")
             backups = list(Path(tmp).glob("second.sqlite3.bak-*"))
             self.assertEqual(len(backups), 1)
             self.assertEqual(EventStore(backups[0]).table_counts()["events"], 1)
@@ -617,6 +620,7 @@ class RunnerPluginAppTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 runner.execute(f"job cancel {job_id}")
+                process_framework_requests(runner, ShellState())
             self.assertIn(f"cancel requested for job {job_id}", output.getvalue())
             self.assertTrue(runner.db.cancellation_requested(job_id=job_id))
             job = runner.db.job(job_id)
@@ -990,6 +994,23 @@ class RunnerPluginAppTests(unittest.TestCase):
             process_framework_requests(runner, state)
             denied = runner.db.events_for_topic("framework.request.denied")[0]
             self.assertEqual(denied.payload["request_event_id"], request.id)
+
+    def test_framework_request_emits_console_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            request = runner.db.publish(
+                "framework.console.output.requested",
+                {"text": "hello", "end": ""},
+                "plugin",
+                command_run_id="run-1",
+            )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                process_framework_requests(runner, state)
+            event = runner.db.events_for_topic("console.output")[0]
+            self.assertEqual(event.payload["request_event_id"], request.id)
+            self.assertEqual(output.getvalue(), "hello")
 
     def test_framework_request_is_processed_once_per_shell_state(self):
         with tempfile.TemporaryDirectory() as tmp:

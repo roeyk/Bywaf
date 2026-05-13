@@ -48,12 +48,12 @@ class Job:
                 print_jobs(context)
             case "show":
                 row = require_job(context, parsed.id)
-                print_job(row)
+                context.output(format_job(row))
             case "cancel":
                 row = require_job(context, parsed.id)
                 context.db.request_cancellation("job", str(row["id"]))
                 context.db.update_job_status(int(row["id"]), "cancelling")
-                print(f"cancel requested for job {row['id']}")
+                context.output(f"cancel requested for job {row['id']}")
             case "kill":
                 row = require_job(context, parsed.id)
                 kill_job(context, row, force=parsed.force)
@@ -77,12 +77,12 @@ def print_jobs(context: CommandContext) -> None:
     if context.db is None:
         raise ValueError("job command requires an active database")
     for row in context.db.jobs():
-        print_job(row)
+        context.output(format_job(row))
 
 
-def print_job(row) -> None:
-    """Print one job row in the same compact format used by the old `jobs`."""
-    print(f"#{row['id']} pid={row['pid']} status={row['status']} {row['command_line']}")
+def format_job(row) -> str:
+    """Format one job row in the same compact format used by the old `jobs`."""
+    return f"#{row['id']} pid={row['pid']} status={row['status']} {row['command_line']}"
 
 
 def require_job(context: CommandContext, job_id: str | None):
@@ -116,7 +116,7 @@ def kill_job(context: CommandContext, row, *, force: bool) -> None:
         raise ValueError(f"job {row['id']} process is not running") from None
     status = "killed" if force else "terminated"
     context.db.finish_job(int(row["id"]), status)
-    print(f"{status} job {row['id']}")
+    context.output(f"{status} job {row['id']}")
 
 
 def job_ids(context: CompletionContext) -> list[str]:
