@@ -12,6 +12,8 @@ from bywaf.plugins.os.files import print_file
 
 
 class Cat:
+    """Commandlet wrapper around local text-file output."""
+
     spec = CommandSpec(
         name="cat",
         description="Print a local text file.",
@@ -28,6 +30,8 @@ class Cat:
         args: list[str],
         input_events: Iterable[Event],
     ):
+        """Parse `cat <path>` and write the file contents to stdout."""
+
         parser = argparse.ArgumentParser(prog=self.spec.name)
         parser.add_argument("path")
         parsed = parser.parse_args(args)
@@ -36,4 +40,6 @@ class Cat:
 
 
 def plugin() -> Commandlet:
+    """Return the commandlet instance discovered by the plugin registry."""
+
     return Cat()

@@ -36,6 +36,7 @@ class HttpHeaders:
         args: list[str],
         input_events: Iterable[Event],
     ):
+        """Fetch HEAD response metadata for explicit or pipeline targets."""
         parser = argparse.ArgumentParser(prog=self.spec.name)
         parser.add_argument("target", nargs="?")
         parser.add_argument("--port", type=int)
@@ -54,6 +55,7 @@ class HttpHeaders:
                 conn.close()
 
     def targets(self, target, port, use_ssl, input_events):
+        """Resolve an explicit target or derive targets from `port.open` events."""
         if target:
             return [(target, port or (443 if use_ssl else 80), use_ssl)]
         return [
@@ -64,4 +66,5 @@ class HttpHeaders:
 
 
 def plugin() -> Commandlet:
+    """Factory used by PluginRegistry."""
     return HttpHeaders()

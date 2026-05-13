@@ -11,6 +11,7 @@ def load_cookie_jar(
     cookie_file: str | None = None,
     firefox_profile: str | None = None,
 ) -> http.cookiejar.CookieJar:
+    """Load cookies from optional Netscape and Firefox sources."""
     jar = http.cookiejar.CookieJar()
     if cookie_file:
         load_netscape_cookie_file(Path(cookie_file), jar)
@@ -20,6 +21,7 @@ def load_cookie_jar(
 
 
 def load_netscape_cookie_file(path: Path, jar: http.cookiejar.CookieJar) -> None:
+    """Merge a Netscape-format cookie file into an existing jar."""
     mozilla = http.cookiejar.MozillaCookieJar(str(path))
     mozilla.load(ignore_discard=True, ignore_expires=True)
     for cookie in mozilla:
@@ -27,7 +29,10 @@ def load_netscape_cookie_file(path: Path, jar: http.cookiejar.CookieJar) -> None
 
 
 def load_firefox_cookies(profile: Path, jar: http.cookiejar.CookieJar) -> None:
+    """Read Firefox cookies.sqlite without mutating the browser profile."""
     db_path = profile / "cookies.sqlite" if profile.is_dir() else profile
+    # immutable=1 tells SQLite this is a read-only snapshot-style open; Firefox
+    # remains the owner of the real profile database.
     uri = f"file:{db_path}?mode=ro&immutable=1"
     conn = sqlite3.connect(uri, uri=True)
     try:

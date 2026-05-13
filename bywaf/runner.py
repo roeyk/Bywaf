@@ -18,6 +18,8 @@ from .utils import split_pipeline
 
 @dataclass(frozen=True, slots=True)
 class CommandInvocation:
+    """Parsed commandlet invocation plus framework-owned execution selectors."""
+
     name: str
     args: list[str]
     background: bool = False
@@ -28,11 +30,18 @@ class CommandInvocation:
 
 @dataclass(frozen=True, slots=True)
 class Pipeline:
+    """A sequence of commandlets connected by pipe syntax."""
+
     commands: tuple[CommandInvocation, ...]
     background: bool = False
 
 
 def parse_invocation(text: str) -> CommandInvocation:
+    """Parse one commandlet expression.
+
+    This function strips Bywaf framework selectors such as `--from-run` before
+    plugin argparse sees the remaining plugin-owned arguments.
+    """
     tokens = shlex.split(text)
     background = False
     if tokens:
@@ -45,6 +54,7 @@ def parse_invocation(text: str) -> CommandInvocation:
 
 
 def parse_pipeline(command_line: str) -> Pipeline:
+    """Parse a full pipeline and detect foreground/background execution."""
     parts, background = split_pipeline(command_line)
     if not parts:
         raise ValueError("empty pipeline")
@@ -57,17 +67,22 @@ def parse_pipeline(command_line: str) -> Pipeline:
 
 @dataclass(frozen=True, slots=True)
 class StageRun:
+    """Execution identity assigned to one pipeline stage."""
+
     invocation: CommandInvocation
     command_run_id: str
     parent_command_run_id: str | None
 
 
 class Runner:
+    """Execute parsed commandlet pipelines against an EventStore."""
+
     def __init__(self, db: EventStore, registry: PluginRegistry):
         self.db = db
         self.registry = registry
 
     def execute(self, command_line: str) -> list[Event]:
+        """Run a command line immediately or start it as a background job."""
         pipeline = parse_pipeline(command_line)
         match pipeline:
             case Pipeline(background=True):
@@ -81,6 +96,12 @@ class Runner:
         *,
         pipeline_id: str | None = None,
     ) -> list[Event]:
+        """Run all stages in-process and return produced events.
+
+        Foreground pipelines pass events from one stage directly into the next,
+        while every yielded payload is also persisted to SQLite with pipeline
+        and command-run scope IDs.
+        """
         pipeline_id = pipeline_id or new_run_id("pipeline")
         input_events: list[Event] = []
         produced: list[Event] = []
@@ -107,6 +128,9 @@ class Runner:
             topic = plugin.spec.emits[0] if plugin.spec.emits else plugin.spec.name
             output_payloads = plugin.run(context, invocation.args, selected_input_events)
             input_events = [
+                # The framework stores all plugin output under the commandlet's
+                # first declared topic. Plugins that do not declare topics use
+                # their command name as a conservative fallback.
                 self.db.publish(
                     topic,
                     payload,
@@ -126,6 +150,7 @@ class Runner:
         *,
         pipeline_id: str | None = None,
     ) -> None:
+        """Run each stage in its own process for stage-level background jobs."""
         pipeline_id = pipeline_id or new_run_id("pipeline")
         processes: list[mp.Process] = []
         for stage in prepare_stage_runs(commands):
@@ -151,6 +176,7 @@ class Runner:
             process.join()
 
     def start_background(self, command_line: str) -> Event:
+        """Start an entire command line in a child process and record a job."""
         foreground = command_line.strip()
         process = mp.Process(target=run_background_job, args=(str(self.db.path), foreground), daemon=False)
         process.start()
@@ -162,10 +188,16 @@ class Runner:
         )
 
     def subscribe_once(self, topics: tuple[str, ...], after_id: int = 0) -> list[Event]:
+        """Small convenience wrapper used by tests and simple callers."""
         return self.db.fetch(Subscription(topics=topics, after_id=after_id))
 
 
 def run_background_job(db_path: str, command_line: str) -> None:
+    """Child-process entry point for a background pipeline.
+
+    The child reopens the database and rediscovers bundled plugins instead of
+    inheriting live connection/plugin objects from the parent process.
+    """
     db = EventStore(Path(db_path))
     job_id = db.record_job(command_line, None, "child-running")
     try:
@@ -185,6 +217,7 @@ def run_background_job(db_path: str, command_line: str) -> None:
 
 
 def add_runner_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add `bywaf run ...` arguments without requiring quotes for simple cases."""
     parser.add_argument(
         "command",
         nargs=argparse.REMAINDER,
@@ -193,11 +226,13 @@ def add_runner_arguments(parser: argparse.ArgumentParser) -> None:
 
 
 def new_run_id(prefix: str) -> str:
+    """Return a readable unique ID suitable for DB scope fields."""
     safe_prefix = "".join(char if char.isalnum() else "-" for char in prefix).strip("-")
     return f"{safe_prefix}-{uuid.uuid4().hex}"
 
 
 def peel_background_marker(tokens: list[str]) -> tuple[list[str], bool]:
+    """Remove a trailing shell-style `&` marker from a token list."""
     last = tokens[-1]
     if last == "&":
         return tokens[:-1], True
@@ -210,6 +245,7 @@ def peel_background_marker(tokens: list[str]) -> tuple[list[str], bool]:
 
 
 def peel_context_selectors(args: list[str]) -> tuple[list[str], dict[str, str | None]]:
+    """Remove framework-owned selector flags from plugin arguments."""
     selectors: dict[str, str | None] = {"from_run": None, "from_pipeline": None, "from_topic": None}
     cleaned: list[str] = []
     index = 0
@@ -232,6 +268,7 @@ def peel_context_selectors(args: list[str]) -> tuple[list[str], dict[str, str | 
 
 
 def require_selector_value(args: list[str], index: int, token: str) -> str:
+    """Return the value after a selector flag or raise a friendly parse error."""
     try:
         return args[index + 1]
     except IndexError as exc:
@@ -243,6 +280,7 @@ def select_input_events(
     invocation: CommandInvocation,
     fallback_events: list[Event],
 ) -> list[Event]:
+    """Choose pipeline input events or DB-selected events for one invocation."""
     if not any((invocation.from_run, invocation.from_pipeline, invocation.from_topic)):
         return fallback_events
     return db.events_matching(
@@ -253,6 +291,7 @@ def select_input_events(
 
 
 def prepare_stage_runs(commands: tuple[CommandInvocation, ...]) -> tuple[StageRun, ...]:
+    """Assign stable run IDs and upstream parent IDs to pipeline stages."""
     stages: list[StageRun] = []
     parent_id: str | None = None
     for invocation in commands:
@@ -274,6 +313,7 @@ def run_stage_process(
     from_pipeline: str | None,
     from_topic: str | None,
 ) -> None:
+    """Child-process entry point for one background pipeline stage."""
     db = EventStore(Path(db_path))
     registry = PluginRegistry.discover()
     plugin = registry.get(name)

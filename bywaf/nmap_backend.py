@@ -23,6 +23,8 @@ class NmapScanError(RuntimeError):
 
 @dataclass(frozen=True, slots=True)
 class NmapPort:
+    """Normalized representation of one open port from any nmap binding."""
+
     host: str
     port: int
     protocol: str
@@ -32,6 +34,7 @@ class NmapPort:
 
 
 def discover_live_hosts(target: str, arguments: str = "-sn") -> list[str]:
+    """Discover live hosts using the first available nmap binding."""
     backend_name, backend = load_backend()
     match backend_name:
         case "libnmap":
@@ -53,6 +56,7 @@ def scan_open_ports(
     ports: str | None = None,
     arguments: str = "-sT",
 ) -> list[NmapPort]:
+    """Scan targets for open ports using the first available nmap binding."""
     if not targets:
         return []
     backend_name, backend = load_backend()
@@ -71,6 +75,11 @@ def scan_open_ports(
 
 
 def load_backend() -> tuple[str, Any]:
+    """Select an installed nmap Python binding.
+
+    The supported libraries expose different APIs, so callers receive both a
+    backend name and an opaque backend object for the adapter-specific helpers.
+    """
     for name in ("nmaplib", "nmap", "nmapthon", "libnmap"):
         try:
             module = importlib.import_module(name)
@@ -94,12 +103,14 @@ def load_backend() -> tuple[str, Any]:
 
 
 def host_state(scanner: Any, host: str) -> str:
+    """Normalize host state retrieval from python-nmap style objects."""
     host_result = scanner[host]
     state = getattr(host_result, "state", None)
     return str(state()) if callable(state) else ""
 
 
 def collect_open_ports(scanner: Any) -> list[NmapPort]:
+    """Collect open ports from python-nmap/nmaplib-style scanner output."""
     ports: list[NmapPort] = []
     for host in scanner.all_hosts():
         host_result = scanner[host]
@@ -121,6 +132,7 @@ def collect_open_ports(scanner: Any) -> list[NmapPort]:
 
 
 def discover_live_hosts_libnmap(backend: dict[str, Any], target: str, arguments: str) -> list[str]:
+    """Discover live hosts through libnmap's XML report model."""
     report = run_libnmap_scan(backend, target, arguments)
     return [
         host.address
@@ -135,6 +147,7 @@ def scan_open_ports_libnmap(
     ports: str | None,
     arguments: str,
 ) -> list[NmapPort]:
+    """Scan open ports through libnmap."""
     options = f"{arguments} -p {ports}".strip() if ports else arguments
     report = run_libnmap_scan(backend, " ".join(targets), options)
     results: list[NmapPort] = []
@@ -156,6 +169,7 @@ def scan_open_ports_libnmap(
 
 
 def run_libnmap_scan(backend: dict[str, Any], targets: str, options: str) -> Any:
+    """Run libnmap and parse its XML output into a report object."""
     scanner = backend["process"].NmapProcess(targets=targets, options=options)
     scanner.run()
     if scanner.has_failed():
@@ -164,6 +178,7 @@ def run_libnmap_scan(backend: dict[str, Any], targets: str, options: str) -> Any
 
 
 def discover_live_hosts_nmapthon(backend: Any, target: str, arguments: str) -> list[str]:
+    """Discover live hosts through nmapthon."""
     scanner = backend.NmapScanner([target], arguments=arguments)
     scanner.run()
     return [
@@ -179,6 +194,7 @@ def scan_open_ports_nmapthon(
     ports: str | None,
     arguments: str,
 ) -> list[NmapPort]:
+    """Scan open ports through nmapthon."""
     parsed_ports = [int(port) for port in ports.replace("-", ",").split(",") if port] if ports else None
     kwargs: dict[str, Any] = {"arguments": arguments}
     if parsed_ports:

@@ -42,6 +42,7 @@ class PortScanner:
         args: list[str],
         input_events: Iterable[Event],
     ):
+        """Scan explicit/pipeline hosts, then optionally listen for new hosts."""
         parser = argparse.ArgumentParser(prog=self.spec.name)
         parser.add_argument("hosts", nargs="*")
         parser.add_argument("-s", "--silent", action="store_true")
@@ -68,6 +69,7 @@ def scan_events_or_hosts(
     input_events: Iterable[Event],
     seen_hosts: set[str],
 ):
+    """Choose explicit hosts first, otherwise consume upstream host events."""
     hosts = parsed.hosts or [event.payload["host"] for event in input_events if "host" in event.payload]
     yield from scan_hosts(context, hosts, parsed.ports, parsed.arguments, seen_hosts, parsed.silent)
 
@@ -80,6 +82,7 @@ def scan_hosts(
     seen_hosts: set[str],
     silent: bool,
 ):
+    """Scan hosts once and emit normalized open-port payloads."""
     new_hosts = [host for host in hosts if host and host not in seen_hosts]
     if not new_hosts:
         return
@@ -102,6 +105,11 @@ def scan_hosts(
 
 
 def listen_for_upstream_hosts(context: CommandContext, parsed, seen_hosts: set[str]):
+    """Poll only the upstream command run from the same pipeline.
+
+    This is what makes `hostscanner ... & | portscanner &` scoped: the port
+    scanner ignores global `host.found` events from unrelated runs.
+    """
     upstream_id = context.metadata.get("parent_command_run_id")
     pipeline_id = context.metadata.get("pipeline_id")
     if not upstream_id or not pipeline_id:
@@ -137,4 +145,5 @@ def listen_for_upstream_hosts(context: CommandContext, parsed, seen_hosts: set[s
 
 
 def plugin() -> Commandlet:
+    """Factory used by PluginRegistry."""
     return PortScanner()

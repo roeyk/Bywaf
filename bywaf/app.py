@@ -24,6 +24,8 @@ from .runner import Runner, add_runner_arguments
 
 @dataclass(frozen=True, slots=True)
 class HelpEntry:
+    """Help text for REPL built-ins that are not backed by commandlets."""
+
     command: str
     description: str
     usage: str
@@ -68,6 +70,8 @@ HISTORY_TIMESTAMP_FORMAT_VAR = "history.timestamp-format"
 
 @dataclass(slots=True)
 class ShellState:
+    """Mutable REPL-only state that should not live in the database."""
+
     prompt_pattern: str = "bywaf> "
     history_path: Path = field(default_factory=lambda: DEFAULT_HISTORY)
     session_history: list[str] = field(default_factory=list)
@@ -77,6 +81,8 @@ class ShellState:
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Build the non-interactive command-line interface."""
+
     parser = argparse.ArgumentParser(prog="bywaf")
     parser.add_argument("--database", default=str(DEFAULT_DATABASE), help="SQLite database path")
     parser.add_argument("--plugin-root", help="directory containing filesystem plugins")
@@ -98,6 +104,8 @@ def make_runner(
     plugin_root: str | Path | None = None,
     plugin_config: str | Path | None = None,
 ) -> Runner:
+    """Create a runner with stock plugins plus optional filesystem plugins."""
+
     registry = PluginRegistry.discover()
     if plugin_root and plugin_config:
         filesystem = PluginRegistry.from_config(
@@ -110,14 +118,20 @@ def make_runner(
 
 
 def format_event(event) -> str:
+    """Render one event row for human-readable console output."""
+
     return f"#{event.id} {event.topic} {event.payload}"
 
 
 def shutdown_runner(runner: Runner) -> None:
+    """Flush SQLite WAL state before the process exits."""
+
     runner.db.checkpoint()
 
 
 def repl(runner: Runner) -> None:
+    """Run the interactive shell until EOF, interrupt, or an exit command."""
+
     state = ShellState()
     install_readline(Completer(runner.registry, runner.db))
     try:
@@ -143,6 +157,11 @@ def repl(runner: Runner) -> None:
 
 
 def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = None) -> str | None:
+    """Dispatch one REPL line and keep errors user-facing.
+
+    Built-ins are handled here; commandlets fall through to the generic runner
+    so plugin commands such as `ls` are not hard-coded into the shell.
+    """
     state = state or ShellState()
     try:
         match line.split(maxsplit=1):
@@ -214,22 +233,26 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
 
 
 def friendly_error(exc: Exception) -> str:
+    """Normalize exception text for REPL display."""
     if isinstance(exc, KeyError):
         return str(exc).strip("'")
     return str(exc)
 
 
 def print_events(events) -> None:
+    """Print persisted events in a compact inspectable form."""
     for event in events:
         print(format_event(event))
 
 
 def print_history(entries: Sequence[str] = ()) -> None:
+    """Print the current session history, not the full persistent history file."""
     for entry in entries:
         print(entry)
 
 
 def execute_and_print(runner: Runner, command: str) -> int:
+    """Execute one command line for top-level `bywaf run` callers."""
     try:
         print_events(runner.execute(command))
     except SystemExit as exc:
@@ -247,6 +270,11 @@ def execute_and_print(runner: Runner, command: str) -> int:
 
 
 def command_from_remainder(tokens: list[str]) -> str:
+    """Build a command string from argparse REMAINDER tokens.
+
+    A single token is already a shell-preserved command string, which matters
+    for quoted pipelines such as `bywaf run 'a | b'`.
+    """
     if not tokens:
         raise ValueError("run requires a command")
     if len(tokens) == 1:
@@ -255,6 +283,7 @@ def command_from_remainder(tokens: list[str]) -> str:
 
 
 def run_remainder(runner: Runner, tokens: list[str]) -> int:
+    """Validate and run the token remainder from `bywaf run ...`."""
     try:
         command = command_from_remainder(tokens)
     except ValueError as exc:
@@ -264,6 +293,7 @@ def run_remainder(runner: Runner, tokens: list[str]) -> int:
 
 
 def print_help(runner: Runner, command: str | None = None) -> None:
+    """Print built-in help or delegate commandlet help."""
     if command:
         print_command_help(runner, command)
         return
@@ -273,6 +303,7 @@ def print_help(runner: Runner, command: str | None = None) -> None:
 
 
 def print_command_help(runner: Runner, command: str) -> None:
+    """Show help for either a plugin commandlet or shell built-in."""
     plugin = runner.registry.plugins.get(command)
     if plugin:
         print_plugin_argparse_help(runner, plugin)
@@ -285,6 +316,7 @@ def print_command_help(runner: Runner, command: str) -> None:
 
 
 def find_help_entry(command: str) -> HelpEntry | None:
+    """Find built-in help by command name or alias."""
     for entry in HELP_COMMANDS:
         aliases = [part.strip().split()[0] for part in entry.command.split(",")]
         if command in aliases:
@@ -293,6 +325,7 @@ def find_help_entry(command: str) -> HelpEntry | None:
 
 
 def print_help_entry(entry: HelpEntry) -> None:
+    """Render one built-in help entry."""
     print(f"Command: {entry.command}")
     print(f"Usage:   {entry.usage}")
     if entry.examples:
@@ -304,6 +337,7 @@ def print_help_entry(entry: HelpEntry) -> None:
 
 
 def print_plugin_argparse_help(runner: Runner, plugin) -> None:
+    """Ask a commandlet's argparse parser to print its native help."""
     context = CommandContext(runner.db, source=plugin.spec.name, varstore=runner.registry.varstore)
     try:
         list(plugin.run(context, ["--help"], []))
@@ -313,11 +347,13 @@ def print_plugin_argparse_help(runner: Runner, plugin) -> None:
 
 
 def print_jobs(runner: Runner) -> None:
+    """Print known background jobs."""
     for row in runner.db.jobs():
         print(f"#{row['id']} pid={row['pid']} status={row['status']} {row['command_line']}")
 
 
 def print_runs(runner: Runner) -> None:
+    """Print command run summaries."""
     for row in runner.db.runs():
         print(
             f"{row['command_run_id']} pipeline={row['pipeline_id']} "
@@ -326,6 +362,7 @@ def print_runs(runner: Runner) -> None:
 
 
 def print_job(runner: Runner, job_id: str) -> None:
+    """Print one job row by ID."""
     for row in runner.db.jobs():
         if str(row["id"]) == job_id:
             print(f"#{row['id']} pid={row['pid']} status={row['status']} {row['command_line']}")
@@ -334,16 +371,19 @@ def print_job(runner: Runner, job_id: str) -> None:
 
 
 def print_vars(runner: Runner) -> None:
+    """Print session variables in stable key order."""
     for key, value in runner.registry.varstore.items():
         print(f"{key}={value}")
 
 
 def print_topics(runner: Runner) -> None:
+    """Print event topics known to the active database."""
     for topic in runner.db.topics():
         print(topic)
 
 
 def print_commandlets(runner: Runner) -> None:
+    """Print commandlets grouped under their plugin providers."""
     for provider, commandlets in runner.registry.grouped_names().items():
         print(provider)
         for commandlet in commandlets:
@@ -351,6 +391,7 @@ def print_commandlets(runner: Runner) -> None:
 
 
 def load_repl_resource(runner: Runner, spec: str, state: ShellState | None = None) -> None:
+    """Handle `load key=value` resources from the REPL."""
     state = state or ShellState()
     match spec.split("=", 1):
         case ["db", value]:
@@ -370,6 +411,7 @@ def load_repl_resource(runner: Runner, spec: str, state: ShellState | None = Non
 
 
 def save_repl_resource(runner: Runner, spec: str, state: ShellState | None = None) -> None:
+    """Handle `save key=value` resources from the REPL."""
     state = state or ShellState()
     match spec.split("=", 1):
         case ["db", value]:
@@ -383,16 +425,19 @@ def save_repl_resource(runner: Runner, spec: str, state: ShellState | None = Non
 
 
 def save_database(runner: Runner, path: Path) -> None:
+    """Copy the active SQLite database to a snapshot file."""
     copy_sqlite_database(runner.db.path, path)
     print(f"saved db={path}")
 
 
 def load_database(runner: Runner, path: Path) -> None:
+    """Switch the runner to a different SQLite database file."""
     runner.db = EventStore(path)
     print(f"loaded db={path}")
 
 
 def copy_sqlite_database(source: Path, destination: Path) -> None:
+    """Use SQLite backup API instead of copying files around WAL state."""
     destination.parent.mkdir(parents=True, exist_ok=True)
     with EventStore(source).connect() as source_conn:
         with EventStore(destination).connect() as dest_conn:
@@ -400,12 +445,14 @@ def copy_sqlite_database(source: Path, destination: Path) -> None:
 
 
 def save_config(runner: Runner, path: Path) -> None:
+    """Persist session variables as JSON."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(runner.registry.varstore.values, indent=2, sort_keys=True) + "\n")
     print(f"saved config={path}")
 
 
 def load_config(runner: Runner, path: Path) -> None:
+    """Replace session variables from a JSON object."""
     values = json.loads(path.read_text())
     if not isinstance(values, dict):
         raise ValueError(f"{path} must contain a JSON object")
@@ -416,6 +463,7 @@ def load_config(runner: Runner, path: Path) -> None:
 
 
 def save_history(state: ShellState, path: Path) -> None:
+    """Save current-session history lines to a script-friendly file."""
     path.parent.mkdir(parents=True, exist_ok=True)
     text = "\n".join(state.session_history)
     path.write_text(f"{text}\n" if text else "")
@@ -423,12 +471,14 @@ def save_history(state: ShellState, path: Path) -> None:
 
 
 def load_history(state: ShellState, path: Path) -> None:
+    """Load a history file as the current session history and append target."""
     state.history_path = path
     state.session_history = path.read_text().splitlines() if path.exists() else []
     print(f"loaded history={path}")
 
 
 def is_explicit_path(value: str) -> bool:
+    """Return True when resource resolution should not prepend a root."""
     return (
         value.startswith(("./", "../", "~/"))
         or Path(value).is_absolute()
@@ -436,6 +486,11 @@ def is_explicit_path(value: str) -> bool:
 
 
 def resolve_resource_path(value: str, root: Path, default: Path | None = None) -> Path:
+    """Resolve load/save resource names consistently.
+
+    Plain plugin names use the plugin root; most other resource roots are `.`.
+    Explicit paths such as `./x`, `../x`, `~/x`, and `/x` are used directly.
+    """
     if not value:
         if default is None:
             raise ValueError("resource path is required")
@@ -447,6 +502,7 @@ def resolve_resource_path(value: str, root: Path, default: Path | None = None) -
 
 
 def run_script(runner: Runner, path: Path, state: ShellState | None = None) -> None:
+    """Run one command expression per non-comment script line."""
     state = state or ShellState()
     for line_number, command in script_commands(path):
         print(f"{path}:{line_number}: {command}")
@@ -455,6 +511,7 @@ def run_script(runner: Runner, path: Path, state: ShellState | None = None) -> N
 
 
 def script_commands(path: Path) -> list[tuple[int, str]]:
+    """Parse a Bywaf script file into `(line_number, command)` tuples."""
     commands: list[tuple[int, str]] = []
     for line_number, raw_line in enumerate(path.read_text().splitlines(), start=1):
         line = strip_inline_comment(raw_line).strip()
@@ -465,6 +522,7 @@ def script_commands(path: Path) -> list[tuple[int, str]]:
 
 
 def strip_inline_comment(line: str) -> str:
+    """Remove shell-style `#` comments while preserving quoted hashes."""
     quote: str | None = None
     escaped = False
     for index, char in enumerate(line):
@@ -488,6 +546,7 @@ def record_command_history(
     session_history: list[str] | None = None,
     timestamp_format: str = DEFAULT_HISTORY_TIMESTAMP_FORMAT,
 ) -> str | None:
+    """Append a command to persistent history and the in-memory session list."""
     if not command.strip():
         return None
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -501,6 +560,7 @@ def record_command_history(
 
 
 def render_prompt(pattern: str) -> str:
+    """Render prompt placeholders using local process and host metadata."""
     user = os.getenv("USER", "")
     host_full = socket.gethostname()
     replacements = {
@@ -517,6 +577,7 @@ def render_prompt(pattern: str) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """CLI entry point used by `python -m bywaf` and the console script."""
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.version:

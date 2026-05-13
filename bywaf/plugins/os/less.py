@@ -15,6 +15,8 @@ from bywaf.plugins.os.files import print_file
 
 
 class Less:
+    """Commandlet wrapper around the system pager."""
+
     spec = CommandSpec(
         name="less",
         description="View a local text file in the system pager.",
@@ -31,6 +33,8 @@ class Less:
         args: list[str],
         input_events: Iterable[Event],
     ):
+        """Parse `less <path>` and open the file in a pager when possible."""
+
         parser = argparse.ArgumentParser(prog=self.spec.name)
         parser.add_argument("path")
         parsed = parser.parse_args(args)
@@ -39,6 +43,8 @@ class Less:
 
 
 def page_file(path: Path) -> None:
+    """Use `less` interactively, falling back to plain output when needed."""
+
     if not path.exists():
         raise ValueError(f"{path} does not exist")
     if path.is_dir():
@@ -51,4 +57,6 @@ def page_file(path: Path) -> None:
 
 
 def plugin() -> Commandlet:
+    """Return the commandlet instance discovered by the plugin registry."""
+
     return Less()

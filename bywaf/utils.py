@@ -26,6 +26,7 @@ def split_pipeline(command_line: str) -> tuple[list[str], bool]:
 
 
 def parse_ports(value: str) -> tuple[int, ...]:
+    """Parse comma/range port syntax such as `22,80,8000-8010`."""
     ports: list[int] = []
     for chunk in value.split(","):
         if "-" in chunk:
@@ -40,6 +41,7 @@ def parse_ports(value: str) -> tuple[int, ...]:
 
 
 def host_candidates(value: str) -> tuple[str, ...]:
+    """Expand CIDR and IPv4 range expressions into concrete host strings."""
     if is_ipv4_range(value):
         return expand_ipv4_range(value)
     try:
@@ -50,11 +52,13 @@ def host_candidates(value: str) -> tuple[str, ...]:
 
 
 def is_ipv4_range(value: str) -> bool:
+    """Return True for dotted IPv4 expressions containing dash ranges."""
     parts = value.split(".")
     return len(parts) == 4 and any("-" in part for part in parts)
 
 
 def expand_ipv4_range(value: str) -> tuple[str, ...]:
+    """Expand forms like `192.168.1-3.1-255`."""
     parts = value.split(".")
     if len(parts) != 4:
         raise ValueError(f"invalid IPv4 range: {value}")
@@ -63,6 +67,7 @@ def expand_ipv4_range(value: str) -> tuple[str, ...]:
 
 
 def parse_octet_range(value: str) -> tuple[int, ...]:
+    """Parse one IPv4 octet or inclusive octet range."""
     if "-" in value:
         start_text, end_text = value.split("-", 1)
         start = parse_octet(start_text)
@@ -74,6 +79,7 @@ def parse_octet_range(value: str) -> tuple[int, ...]:
 
 
 def parse_octet(value: str) -> int:
+    """Validate and return one IPv4 octet."""
     if not value.isdigit():
         raise ValueError(f"invalid IPv4 octet: {value}")
     octet = int(value)
@@ -83,12 +89,14 @@ def parse_octet(value: str) -> int:
 
 
 def can_connect(host: str, port: int, timeout: float = 1.0) -> bool:
+    """Best-effort TCP connect helper used by fallback checks/tests."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.settimeout(timeout)
         return sock.connect_ex((host, port)) == 0
 
 
 def complete_path(prefix: str, root: Path | str = ".") -> list[str]:
+    """Return filesystem completion candidates relative to a root."""
     root_path = Path(root)
     path = Path(prefix)
     directory = root_path / path.parent if str(path.parent) != "." else root_path

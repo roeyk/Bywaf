@@ -17,6 +17,8 @@ from .varstore import VarStore
 
 @dataclass(slots=True)
 class PluginRegistry:
+    """Loaded commandlets plus their provider grouping and shared variables."""
+
     plugins: dict[str, Commandlet]
     varstore: VarStore = field(default_factory=VarStore)
     providers: dict[str, list[str]] = field(default_factory=dict)
@@ -29,6 +31,7 @@ class PluginRegistry:
         config_name: str = "plugins.json",
         varstore: VarStore | None = None,
     ) -> "PluginRegistry":
+        """Load bundled plugins from a package-level config file."""
         entries = parse_package_plugin_config(package_name, config_name)
         store = varstore or VarStore()
         registry = cls({}, store)
@@ -44,12 +47,14 @@ class PluginRegistry:
         *,
         varstore: VarStore | None = None,
     ) -> "PluginRegistry":
+        """Load plugins from an explicit filesystem config file."""
         registry = cls({}, varstore or VarStore())
         for entry in parse_plugin_config(Path(config_file)):
             registry.load_filesystem_entry(Path(plugin_root), entry)
         return registry
 
     def load_filesystem_entry(self, plugin_root: Path, entry: str) -> Commandlet:
+        """Load `.plugin()` from `<plugin_root>/<entry>/plugin.py`."""
         plugin_dir = plugin_root / entry
         plugin = load_plugin_path(plugin_dir / "plugin.py")
         self.plugins[plugin.spec.name] = plugin
@@ -58,6 +63,7 @@ class PluginRegistry:
         return plugin
 
     def load_package_entry(self, package_name: str, entry: str) -> Commandlet:
+        """Load one bundled plugin module by dotted entry name."""
         module = importlib.import_module(f"{package_name}.{entry}")
         plugin = load_plugin(module)
         self.plugins[plugin.spec.name] = plugin
@@ -66,22 +72,27 @@ class PluginRegistry:
         return plugin
 
     def get(self, name: str) -> Commandlet:
+        """Return a commandlet by user-facing command name."""
         try:
             return self.plugins[name]
         except KeyError as exc:
             raise KeyError(f"unknown commandlet: {name}") from exc
 
     def names(self) -> list[str]:
+        """Return commandlet names for command completion."""
         return sorted(self.plugins)
 
     def provider_names(self) -> list[str]:
+        """Return provider names for the `plugins` command."""
         return sorted(self.providers)
 
     def grouped_names(self) -> dict[str, list[str]]:
+        """Return commandlets grouped by provider for the `cmds` command."""
         return {provider: sorted(set(names)) for provider, names in sorted(self.providers.items())}
 
 
 def load_plugin(module: ModuleType) -> Commandlet:
+    """Instantiate a plugin module via its required `plugin()` factory."""
     factory = getattr(module, "plugin", None)
     if factory is None:
         raise AttributeError(f"{module.__name__} does not define plugin()")
@@ -89,6 +100,7 @@ def load_plugin(module: ModuleType) -> Commandlet:
 
 
 def load_plugin_path(path: Path) -> Commandlet:
+    """Load an external plugin module from a concrete Python file path."""
     if not path.exists():
         raise FileNotFoundError(f"{path} not found")
     module_name = f"bywaf_external_{path.parent.name}_{abs(hash(path))}"
@@ -101,12 +113,14 @@ def load_plugin_path(path: Path) -> Commandlet:
 
 
 def load_module_defaults(module: ModuleType, plugin: Commandlet, varstore: VarStore) -> None:
+    """Import module-level DEFAULTS into the shared VarStore."""
     defaults = getattr(module, "DEFAULTS", None)
     if isinstance(defaults, dict):
         varstore.update_prefixed(plugin.spec.name, defaults)
 
 
 def load_defaults_file(path: Path, plugin: Commandlet, varstore: VarStore) -> None:
+    """Load filesystem plugin defaults from JSON when present."""
     if path.exists():
         values = json.loads(path.read_text())
         if not isinstance(values, dict):
@@ -115,6 +129,7 @@ def load_defaults_file(path: Path, plugin: Commandlet, varstore: VarStore) -> No
 
 
 def parse_plugin_config(path: Path) -> list[str]:
+    """Parse JSON or minimal YAML-style plugin config files."""
     text = path.read_text()
     if path.suffix == ".json":
         data: Any = json.loads(text)
@@ -136,6 +151,7 @@ def parse_plugin_config(path: Path) -> list[str]:
 
 
 def parse_package_plugin_config(package_name: str, config_name: str) -> list[str]:
+    """Read the bundled plugin config from package resources."""
     config = resources.files(package_name).joinpath(config_name)
     text = config.read_text()
     data: Any = json.loads(text)
@@ -143,4 +159,5 @@ def parse_package_plugin_config(package_name: str, config_name: str) -> list[str
 
 
 def provider_name(entry: str) -> str:
+    """Derive provider name from a dotted plugin config entry."""
     return entry.split(".", 1)[0] if "." in entry else entry

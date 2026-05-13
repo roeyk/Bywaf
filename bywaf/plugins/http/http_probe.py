@@ -56,6 +56,7 @@ class HttpProbe:
         args: list[str],
         input_events: Iterable[Event],
     ):
+        """Probe explicit URLs/hosts or HTTP-looking pipeline ports."""
         parser = argparse.ArgumentParser(prog=self.spec.name)
         parser.add_argument("targets", nargs="*")
         parser.add_argument("-s", "--silent", action="store_true")
@@ -92,6 +93,8 @@ class HttpProbe:
 
 @dataclass(frozen=True, slots=True)
 class ProbeTarget:
+    """Normalized HTTP target derived from text or a `port.open` event."""
+
     url: str
     host: str
     port: int
@@ -99,6 +102,7 @@ class ProbeTarget:
 
 
 def build_opener(cookie_file: str | None, firefox_profile: str | None, follow_redirects: bool):
+    """Build a urllib opener with optional cookies and redirect policy."""
     handlers = []
     if cookie_file or firefox_profile:
         handlers.append(urllib.request.HTTPCookieProcessor(load_cookie_jar(cookie_file, firefox_profile)))
@@ -108,12 +112,14 @@ def build_opener(cookie_file: str | None, firefox_profile: str | None, follow_re
 
 
 def option_or_var(context: CommandContext, name: str, explicit: str | None) -> str | None:
+    """Prefer a CLI option, then fall back to the plugin variable namespace."""
     if explicit:
         return explicit
     return context.varstore.get(f"{context.source}.{name}") or None
 
 
 def remember_option(context: CommandContext, name: str, explicit: str | None) -> None:
+    """Persist explicitly supplied options into the session varstore."""
     if explicit:
         context.varstore.set(f"{context.source}.{name}", explicit)
 
@@ -124,6 +130,7 @@ def probe_targets(
     scheme: str,
     path: str,
 ) -> list[ProbeTarget]:
+    """Resolve probe targets from args or upstream `port.open` events."""
     if targets:
         return [target_from_text(target, scheme, path) for target in targets]
     return [
@@ -134,6 +141,7 @@ def probe_targets(
 
 
 def target_from_port_event(event: Event, scheme: str, path: str) -> ProbeTarget:
+    """Convert one `port.open` event into an HTTP probe target."""
     host = str(event.payload["host"])
     port = int(event.payload["port"])
     selected_scheme = choose_scheme(port, scheme)
@@ -141,6 +149,7 @@ def target_from_port_event(event: Event, scheme: str, path: str) -> ProbeTarget:
 
 
 def target_from_text(target: str, scheme: str, path: str) -> ProbeTarget:
+    """Parse URL, host, or host:port text into a ProbeTarget."""
     if target.startswith(("http://", "https://")):
         parsed = urllib.parse.urlparse(target)
         selected_scheme = parsed.scheme
@@ -152,6 +161,7 @@ def target_from_text(target: str, scheme: str, path: str) -> ProbeTarget:
 
 
 def split_host_port(target: str) -> tuple[str, int]:
+    """Parse host[:port], defaulting to port 80."""
     if ":" in target:
         host, port = target.rsplit(":", 1)
         return host, int(port)
@@ -159,12 +169,14 @@ def split_host_port(target: str) -> tuple[str, int]:
 
 
 def choose_scheme(port: int, scheme: str) -> str:
+    """Choose HTTP/HTTPS from a user override or common port convention."""
     if scheme != "auto":
         return scheme
     return "https" if port == 443 else "http"
 
 
 def build_url(scheme: str, host: str, port: int, path: str) -> str:
+    """Build a normalized URL, omitting default ports."""
     normalized_path = path if path.startswith("/") else f"/{path}"
     default_port = 443 if scheme == "https" else 80
     netloc = host if port == default_port else f"{host}:{port}"
@@ -172,6 +184,7 @@ def build_url(scheme: str, host: str, port: int, path: str) -> str:
 
 
 def probe_url(opener, url: str, method: str, timeout: float, user_agent: str) -> dict:
+    """Perform one HTTP request and return success or error metadata."""
     request = urllib.request.Request(url, method=method, headers={"User-Agent": user_agent})
     start = time.monotonic()
     try:
@@ -186,6 +199,7 @@ def probe_url(opener, url: str, method: str, timeout: float, user_agent: str) ->
 
 
 def response_payload(response, body: bytes, elapsed: float) -> dict:
+    """Extract stable response fields from urllib response-like objects."""
     headers = dict(response.headers)
     return {
         "ok": True,
@@ -201,6 +215,7 @@ def response_payload(response, body: bytes, elapsed: float) -> dict:
 
 
 def extract_title(body: bytes) -> str:
+    """Extract and normalize an HTML title from a bounded response body."""
     if not body:
         return ""
     match = re.search(rb"<title[^>]*>(.*?)</title>", body, re.IGNORECASE | re.DOTALL)
@@ -211,8 +226,10 @@ def extract_title(body: bytes) -> str:
 
 class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
+        """Tell urllib not to follow redirects by returning None."""
         return None
 
 
 def plugin() -> Commandlet:
+    """Factory used by PluginRegistry."""
     return HttpProbe()

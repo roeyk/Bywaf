@@ -12,6 +12,8 @@ from bywaf.plugins.os.files import list_path
 
 
 class Ls:
+    """Commandlet wrapper around a local filesystem directory listing."""
+
     spec = CommandSpec(
         name="ls",
         description="List files in a local directory.",
@@ -33,6 +35,8 @@ class Ls:
         args: list[str],
         input_events: Iterable[Event],
     ):
+        """Parse `ls [path]` and print the target directory or file name."""
+
         parser = argparse.ArgumentParser(prog=self.spec.name)
         parser.add_argument("path", nargs="?", default=".")
         parsed = parser.parse_args(args)
@@ -41,4 +45,6 @@ class Ls:
 
 
 def plugin() -> Commandlet:
+    """Return the commandlet instance discovered by the plugin registry."""
+
     return Ls()

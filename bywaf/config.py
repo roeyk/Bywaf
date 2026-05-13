@@ -8,6 +8,13 @@ from pathlib import Path
 
 @dataclass(frozen=True, slots=True)
 class Settings:
+    """Filesystem defaults for one Bywaf invocation.
+
+    The project keeps user-writable state under `.bywaf/` so packaged code can
+    live elsewhere while databases, configs, plugin overrides, and history stay
+    local to the working directory unless the user passes explicit paths.
+    """
+
     state_dir: Path = Path(".bywaf")
     database: Path = Path(".bywaf/bywaf.sqlite3")
     config: Path = Path(".bywaf/config.json")

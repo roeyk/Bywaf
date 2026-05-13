@@ -6,6 +6,8 @@ from pathlib import Path
 
 
 def list_path(path: Path) -> None:
+    """Print one directory listing or one file name."""
+
     if not path.exists():
         raise ValueError(f"{path} does not exist")
     if path.is_file():
@@ -17,6 +19,8 @@ def list_path(path: Path) -> None:
 
 
 def print_file(path: Path) -> None:
+    """Print a text file and reject directories with a clear error."""
+
     if not path.exists():
         raise ValueError(f"{path} does not exist")
     if path.is_dir():

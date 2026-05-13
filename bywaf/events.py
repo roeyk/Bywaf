@@ -10,6 +10,8 @@ from typing import Any
 
 @dataclass(frozen=True, slots=True)
 class Event:
+    """One immutable message on the SQLite event bus."""
+
     id: int | None
     topic: str
     payload: dict[str, Any]
@@ -30,6 +32,7 @@ class Event:
         command_run_id: str | None = None,
         parent_command_run_id: str | None = None,
     ) -> "Event":
+        """Create a new unsaved event with a UTC timestamp."""
         return cls(
             None,
             topic,
@@ -43,6 +46,7 @@ class Event:
 
     @classmethod
     def from_row(cls, row: Any) -> "Event":
+        """Rehydrate an Event from a sqlite3.Row."""
         return cls(
             id=row["id"],
             topic=row["topic"],
@@ -57,4 +61,5 @@ class Event:
         )
 
     def payload_json(self) -> str:
+        """Serialize payloads deterministically for storage and tests."""
         return json.dumps(self.payload, sort_keys=True, separators=(",", ":"))

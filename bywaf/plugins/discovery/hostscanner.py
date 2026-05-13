@@ -37,6 +37,7 @@ class HostScanner:
         args: list[str],
         input_events: Iterable[Event],
     ):
+        """Expand target expressions, run nmap discovery, and emit live hosts."""
         parser = argparse.ArgumentParser(prog=self.spec.name)
         parser.add_argument("targets", nargs="+")
         parser.add_argument("-s", "--silent", action="store_true")
@@ -50,6 +51,7 @@ class HostScanner:
 
 
 def expand_targets(targets: list[str], limit: int) -> tuple[str, ...]:
+    """Expand user-friendly IPv4 ranges while enforcing a safety limit."""
     expanded: list[str] = []
     for target in targets:
         expanded.extend(host_candidates(target))
@@ -59,4 +61,5 @@ def expand_targets(targets: list[str], limit: int) -> tuple[str, ...]:
 
 
 def plugin() -> Commandlet:
+    """Factory used by PluginRegistry."""
     return HostScanner()

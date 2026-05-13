@@ -24,6 +24,8 @@ FRAMEWORK_OPTION_COMPLETIONS = {
 
 @dataclass(slots=True)
 class Completer:
+    """Readline completer backed by command specs and runtime state."""
+
     registry: PluginRegistry
     db: EventStore | None = None
     builtins: tuple[str, ...] = (
@@ -48,6 +50,7 @@ class Completer:
     )
 
     def candidates(self, line: str) -> list[str]:
+        """Return raw completion candidates for a full input line."""
         try:
             tokens = shlex.split(line)
         except ValueError:
@@ -80,6 +83,12 @@ class Completer:
         ]
 
     def plugin_candidates(self, name: str, prefix: str, args: list[str]) -> list[str]:
+        """Return candidates owned by a plugin commandlet.
+
+        Completion is intentionally layered: custom plugin hook, option values,
+        positional argument specs, then generic framework/plugin metadata. This
+        keeps command-specific behavior out of the core completer.
+        """
         plugin = self.registry.get(name)
         if not prefix.startswith("--"):
             custom_candidates = self.plugin_custom_candidates(name, prefix, args)
@@ -101,6 +110,7 @@ class Completer:
         return [*options, *plugin.spec.consumes, *plugin.spec.emits]
 
     def plugin_option_value_candidates(self, plugin_name: str, option_token: str, prefix: str) -> list[str]:
+        """Complete a value for a plugin option or framework selector."""
         if option_token in FRAMEWORK_OPTION_COMPLETIONS:
             return self.complete_by_spec(FRAMEWORK_OPTION_COMPLETIONS[option_token], prefix)
         if not option_token.startswith("--"):
@@ -123,6 +133,7 @@ class Completer:
         return []
 
     def plugin_custom_candidates(self, plugin_name: str, prefix: str, args: list[str]) -> list[str]:
+        """Ask a plugin's optional `complete()` hook for candidates."""
         plugin = self.registry.get(plugin_name)
         completer = getattr(plugin, "complete", None)
         if completer is None:
@@ -132,6 +143,7 @@ class Completer:
         return list(candidates) if candidates else []
 
     def plugin_positional_candidates(self, plugin_name: str, prefix: str, args: list[str]) -> list[str]:
+        """Complete the current positional argument from CommandSpec metadata."""
         plugin = self.registry.get(plugin_name)
         position = positional_index(args, prefix)
         if position >= len(plugin.spec.arguments):
@@ -139,12 +151,14 @@ class Completer:
         return self.complete_by_spec(plugin.spec.arguments[position].completion, prefix)
 
     def topic_candidates(self) -> list[str]:
+        """Return topic-like candidates from plugin specs and the active DB."""
         plugin_topics = {topic for plugin in self.registry.plugins.values() for topic in plugin.spec.emits}
         db_topics = set(self.db.topics()) if self.db else set()
         job_candidates = [f"job={row['id']}" for row in self.db.jobs()] if self.db else []
         return [*plugin_topics, *db_topics, *job_candidates]
 
     def show_candidates(self, prefix: str) -> list[str]:
+        """Complete `show` selectors and selector values."""
         selectors = ("job=", "run=", "pipeline=", "topic=")
         for selector in selectors:
             if prefix.startswith(selector):
@@ -158,21 +172,25 @@ class Completer:
         return [*self.topic_candidates(), *selectors]
 
     def run_candidates(self) -> list[str]:
+        """Complete command run IDs from the active database."""
         if not self.db:
             return []
         return [row["command_run_id"] for row in self.db.runs()]
 
     def pipeline_candidates(self) -> list[str]:
+        """Complete pipeline IDs from the active database."""
         if not self.db:
             return []
         return sorted({row["pipeline_id"] for row in self.db.runs() if row["pipeline_id"]})
 
     def job_candidates(self) -> list[str]:
+        """Complete job IDs from the active database."""
         if not self.db:
             return []
         return [str(row["id"]) for row in self.db.jobs()]
 
     def complete_by_spec(self, spec: CompletionSpec, prefix: str) -> list[str]:
+        """Resolve a CompletionSpec into concrete candidates."""
         match spec.kind:
             case "path" | "file" | "directory":
                 return complete_path(prefix or ".")
@@ -194,12 +212,15 @@ class Completer:
                 return []
 
     def load_candidates(self, prefix: str) -> list[str]:
+        """Complete `load` resource keys and values."""
         return resource_candidates(prefix, ("config=", "db=", "history=", "plugin=", "script="))
 
     def save_candidates(self, prefix: str) -> list[str]:
+        """Complete `save` resource keys and values."""
         return resource_candidates(prefix, ("config=", "db=", "history="))
 
     def complete(self, text: str, state: int) -> str | None:
+        """Readline callback: return one candidate per requested state."""
         line = readline.get_line_buffer()
         candidates = self.candidates(line)
         common = common_completion_prefix(line, candidates)
@@ -221,6 +242,7 @@ class Completer:
 
 
 def resource_candidates(prefix: str, keywords: tuple[str, ...]) -> list[str]:
+    """Complete key=value resource expressions used by load/save."""
     for keyword in keywords:
         if prefix.startswith(keyword):
             value = prefix.split("=", 1)[1]
@@ -234,6 +256,7 @@ def resource_candidates(prefix: str, keywords: tuple[str, ...]) -> list[str]:
 
 
 def complete_resource_value(kind: str, value: str) -> list[str]:
+    """Complete the value side of a load/save resource expression."""
     if is_explicit_path(value):
         return preserve_explicit_prefix(value, complete_path(value or "."))
     match kind:
@@ -246,6 +269,7 @@ def complete_resource_value(kind: str, value: str) -> list[str]:
 
 
 def positional_index(args: list[str], prefix: str) -> int:
+    """Return the positional argument index currently being completed."""
     if not args:
         return 0
     positional = [
@@ -258,27 +282,32 @@ def positional_index(args: list[str], prefix: str) -> int:
 
 
 def is_explicit_path(value: str) -> bool:
+    """Return True when a resource value should be treated as a path."""
     return value.startswith(("./", "../", "~/", "/"))
 
 
 def preserve_explicit_prefix(value: str, candidates: list[str]) -> list[str]:
+    """Keep leading `./` visible so readline replaces the token correctly."""
     if value.startswith("./"):
         return [candidate if candidate.startswith("./") else f"./{candidate}" for candidate in candidates]
     return candidates
 
 
 def install_readline(completer: Completer) -> None:
+    """Install a Completer into Python readline."""
     configure_readline_delimiters()
     readline.set_completer(completer.complete)
     readline.parse_and_bind("tab: complete")
 
 
 def configure_readline_delimiters() -> None:
+    """Keep option dashes and key/value equals signs inside completion tokens."""
     delimiters = readline.get_completer_delims()
     readline.set_completer_delims(delimiters.replace("-", "").replace("=", ""))
 
 
 def tokens_after_last_pipe(tokens: list[str]) -> list[str]:
+    """Return tokens belonging to the command after the last pipeline marker."""
     if "|" not in tokens:
         return tokens
     last_pipe = len(tokens) - 1 - tokens[::-1].index("|")
@@ -286,6 +315,7 @@ def tokens_after_last_pipe(tokens: list[str]) -> list[str]:
 
 
 def should_print_completion_menu(line: str, candidates: Sequence[str]) -> bool:
+    """Use a custom menu for key=value completions so labels stay readable."""
     prefix = completion_prefix(line)
     return (
         len(candidates) > 1
@@ -295,6 +325,7 @@ def should_print_completion_menu(line: str, candidates: Sequence[str]) -> bool:
 
 
 def print_completion_menu(line: str, candidates: Sequence[str]) -> None:
+    """Print value-only labels for key=value completion candidates."""
     labels = [display_label(candidate) for candidate in candidates]
     print()
     print("  " + "   ".join(labels))
@@ -302,12 +333,14 @@ def print_completion_menu(line: str, candidates: Sequence[str]) -> None:
 
 
 def display_label(candidate: str) -> str:
+    """Strip key prefixes from key=value candidates for display."""
     if "=" in candidate:
         return candidate.split("=", 1)[1]
     return candidate
 
 
 def completion_prefix(line: str) -> str:
+    """Return the current token prefix from a readline buffer."""
     try:
         tokens = shlex.split(line)
     except ValueError:
@@ -317,6 +350,7 @@ def completion_prefix(line: str) -> str:
 
 
 def completion_results(line: str, candidates: Sequence[str]) -> list[str]:
+    """Return readline-formatted completion results."""
     common = common_completion_prefix(line, candidates)
     if common:
         return [common, *[format_candidate(candidate) for candidate in candidates]]
@@ -324,6 +358,7 @@ def completion_results(line: str, candidates: Sequence[str]) -> list[str]:
 
 
 def common_completion_prefix(line: str, candidates: Sequence[str]) -> str | None:
+    """Return a shared candidate prefix that extends the current token."""
     prefix = completion_prefix(line)
     if len(candidates) < 2:
         return None
@@ -340,6 +375,7 @@ def common_completion_prefix(line: str, candidates: Sequence[str]) -> str | None
 
 
 def format_candidate(candidate: str) -> str:
+    """Append spaces only to complete word-like candidates."""
     if candidate.startswith("--") or candidate.endswith("=") or candidate.endswith("/"):
         return candidate
     return candidate + " "

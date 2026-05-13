@@ -13,12 +13,20 @@ from .varstore import VarStore
 
 @dataclass(frozen=True, slots=True)
 class CompletionSpec:
+    """Declarative completion behavior for an option or argument."""
+
     kind: str = "none"
     values: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
 class ArgumentSpec:
+    """Metadata for one positional argument.
+
+    Runtime validation still belongs to the commandlet's parser; this metadata
+    is for help, introspection, and shell completion.
+    """
+
     name: str
     description: str = ""
     required: bool = True
@@ -27,6 +35,8 @@ class ArgumentSpec:
 
 @dataclass(frozen=True, slots=True)
 class OptionSpec:
+    """Metadata for one long option exposed by a commandlet."""
+
     name: str
     description: str
     default: str | None = None
@@ -36,6 +46,8 @@ class OptionSpec:
 
 @dataclass(frozen=True, slots=True)
 class CommandSpec:
+    """Public commandlet contract consumed by help and completion."""
+
     name: str
     description: str
     usage: str = ""
@@ -48,6 +60,8 @@ class CommandSpec:
 
 @dataclass(slots=True)
 class CommandContext:
+    """Runtime context passed into commandlets."""
+
     db: EventStore | None
     source: str
     varstore: VarStore = field(default_factory=VarStore)
@@ -56,6 +70,8 @@ class CommandContext:
 
 @dataclass(slots=True)
 class CompletionContext:
+    """Lightweight context passed into optional plugin completion hooks."""
+
     db: EventStore | None = None
     varstore: VarStore = field(default_factory=VarStore)
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -75,9 +91,11 @@ class Commandlet(Protocol):
 
 
 def command_run_id(context: CommandContext) -> str:
+    """Return the current command run ID or a stable interactive fallback."""
     return str(context.metadata.get("command_run_id") or "interactive")
 
 
 def emit_alert(context: CommandContext, message: str, *, silent: bool = False) -> None:
+    """Print a standardized discovery alert unless the commandlet is silent."""
     if not silent:
         print(f"{context.source} <{command_run_id(context)}>: {message}", flush=True)
