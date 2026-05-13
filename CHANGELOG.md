@@ -17,6 +17,8 @@ so compatibility may change between testing releases.
 
 - Changed the `less` commandlet to request paging from the framework instead of
   launching terminal paging directly.
+- Changed background job child-process failures to record `job.failed` when
+  possible and exit without dumping raw multiprocessing tracebacks.
 
 ## [0.9.0] - 2026-05-13
 

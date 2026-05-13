@@ -295,10 +295,16 @@ def run_background_job(
     The child reopens the database and rediscovers bundled plugins instead of
     inheriting live connection/plugin objects from the parent process.
     """
-    db = EventStore(Path(db_path), passphrase=db_passphrase)
-    pid = mp.current_process().pid
-    lifecycle = JobLifecycle(db, job_id, command_line)
-    if not lifecycle.claim(pid):
+    try:
+        db = EventStore(Path(db_path), passphrase=db_passphrase)
+        pid = mp.current_process().pid
+        lifecycle = JobLifecycle(db, job_id, command_line)
+        if not lifecycle.claim(pid):
+            return
+    except Exception:
+        # The parent may have exited or removed a temporary database before the
+        # child starts. There is nowhere reliable to record that failure, so the
+        # child exits quietly instead of printing a multiprocessing traceback.
         return
     try:
         lifecycle.start(pid)
@@ -308,9 +314,8 @@ def run_background_job(
             runner.run_pipeline_processes(pipeline.commands, pipeline_id=pipeline_id, stages=stages)
         else:
             runner.run_pipeline(pipeline.commands, pipeline_id=pipeline_id, stages=stages)
-    except Exception as exc:  # pragma: no cover - defensive child-process boundary
+    except Exception as exc:
         lifecycle.fail(str(exc))
-        raise
     else:
         lifecycle.finish()
 

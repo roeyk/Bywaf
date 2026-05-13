@@ -21,7 +21,7 @@ from bywaf.plugins.discovery.hostscanner import expand_targets
 from bywaf.plugins.network.portscanner import PortScanner
 from bywaf.plugins.storage.db import encrypt_active_database
 from bywaf.plugin import CommandContext
-from bywaf.runner import parse_invocation, parse_pipeline
+from bywaf.runner import parse_invocation, parse_pipeline, run_background_job
 
 
 
@@ -421,6 +421,23 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 "hostscanner 127.0.0.1& | portscanner&",
             )
             self.assertIsNone(process_cls.call_args.kwargs["args"][1])
+
+    def test_background_job_exits_quietly_when_database_is_gone(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            missing_path = Path(tmp, "deleted", "db.sqlite3")
+        run_background_job(str(missing_path), None, 1, "job list", "pipeline-test", ())
+
+    def test_background_job_records_failure_without_reraising(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "db.sqlite3"))
+            job_id = db.record_job("missing", None, "queued")
+            run_background_job(str(db.path), None, job_id, "missing", "pipeline-test", ())
+            job = db.job(job_id)
+            self.assertIsNotNone(job)
+            assert job is not None
+            self.assertEqual(job["status"], "failed")
+            failure = db.events_for_topic("job.failed")[0]
+            self.assertEqual(failure.payload["job_id"], job_id)
 
 
 
