@@ -209,7 +209,9 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
             case ["show", target] if target.startswith("job="):
                 print_job(runner, target.split("=", 1)[1])
             case ["show", target] if target.startswith("run="):
-                print_events(runner.db.events_matching(command_run_id=target.split("=", 1)[1]))
+                run_id = target.split("=", 1)[1]
+                print_run_variables(runner, run_id)
+                print_events(runner.db.events_matching(command_run_id=run_id))
             case ["show", target] if target.startswith("pipeline="):
                 print_events(runner.db.events_matching(pipeline_id=target.split("=", 1)[1]))
             case ["show", target] if target.startswith("topic="):
@@ -393,6 +395,16 @@ def print_events(events) -> None:
     """Print persisted events in a compact inspectable form."""
     for event in events:
         print(format_event(event))
+
+
+def print_run_variables(runner: Runner, command_run_id: str) -> None:
+    """Print the variable snapshot captured for a command run."""
+    rows = runner.db.command_run_var_rows(command_run_id)
+    if not rows:
+        return
+    print("Variables:")
+    for row in rows:
+        print(f"  {row['name']}={row['value']}")
 
 
 def print_history(entries: Sequence[str] = ()) -> None:

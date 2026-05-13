@@ -39,6 +39,8 @@ so entries are grouped under `Unreleased` until versioned releases begin.
   keeping `db` and `job` management commands direct.
 - Added soft-cancellation records and plugin-visible cancellation checks.
 - Added scoped plugin variable access through `context.vars`.
+- Added per-command-run variable snapshots in SQLite for auditable,
+  deterministic background jobs.
 - Added audited framework request handling for prompt-change requests.
 - Added `BywafSession` as the public Python facade for GUI, web, and automation
   clients.

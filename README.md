@@ -75,7 +75,10 @@ workflow from the same stored data.
 Execution-time plugin variables are scoped by commandlet. A plugin uses
 `context.vars.get("name")` for its own variables and cannot enumerate another
 plugin's variables through that API. Explicit global variables use
-`context.vars.get_global("name")`.
+`context.vars.get_global("name")`. When a commandlet run starts, Bywaf snapshots
+the effective commandlet and global variables into SQLite under that
+`command_run_id`; `show run=<id>` displays the captured variables so runs remain
+auditable and reproducible even when session variables change later.
 
 Plugins that need interpreter-owned actions use request events instead of
 direct method calls. For example, a plugin can publish

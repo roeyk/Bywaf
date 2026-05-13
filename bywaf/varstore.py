@@ -46,10 +46,14 @@ class ScopedVarStore:
 
     store: VarStore
     scope: str
+    run_values: dict[str, str] = field(default_factory=dict)
 
     def get(self, key: str, default: str | None = None) -> str | None:
         """Return a scoped variable value."""
-        return self.store.get(self.scoped_key(key), default)
+        scoped = self.scoped_key(key)
+        if scoped in self.run_values:
+            return self.run_values[scoped]
+        return self.store.get(scoped, default)
 
     def set(self, key: str, value: Any) -> None:
         """Set a scoped variable value."""
@@ -57,7 +61,10 @@ class ScopedVarStore:
 
     def get_global(self, key: str, default: str | None = None) -> str | None:
         """Read an explicitly global variable such as `global.proxy`."""
-        return self.store.get(f"global.{key}", default)
+        scoped = f"global.{key}"
+        if scoped in self.run_values:
+            return self.run_values[scoped]
+        return self.store.get(scoped, default)
 
     def scoped_key(self, key: str) -> str:
         """Convert a local variable name to its fully-qualified storage key."""

@@ -14,6 +14,7 @@ from .db import EventStore, Subscription
 from .events import Event
 from .plugin import CommandContext
 from .registry import PluginRegistry
+from .varstore import VarStore
 from .utils import split_pipeline
 
 
@@ -127,6 +128,7 @@ class Runner:
         commands: tuple[CommandInvocation, ...],
         *,
         pipeline_id: str | None = None,
+        stages: tuple[StageRun, ...] | None = None,
     ) -> list[Event]:
         """Run all stages in-process and return produced events.
 
@@ -135,11 +137,20 @@ class Runner:
         and command-run scope IDs.
         """
         pipeline_id = pipeline_id or new_run_id("pipeline")
+        stages = stages or prepare_stage_runs(commands)
         input_events: list[Event] = []
         produced: list[Event] = []
-        for stage in prepare_stage_runs(commands):
+        for stage in stages:
             invocation = stage.invocation
             plugin = self.registry.get(invocation.name)
+            run_vars = ensure_run_var_snapshot(
+                self.db,
+                self.registry.varstore,
+                job_id=self.job_id,
+                pipeline_id=pipeline_id,
+                command_run_id=stage.command_run_id,
+                commandlet=plugin.spec.name,
+            )
             selected_input_events = select_input_events(self.db, invocation, input_events)
             input_high_watermark = max((event.id or 0 for event in selected_input_events), default=0)
             context = CommandContext(
@@ -157,6 +168,7 @@ class Runner:
                     "from_topic": invocation.from_topic,
                     "replace_db": self.replace_db,
                     "job_id": self.job_id,
+                    "run_vars": run_vars,
                 },
             )
             context.raise_if_cancelled()
@@ -188,11 +200,22 @@ class Runner:
         commands: tuple[CommandInvocation, ...],
         *,
         pipeline_id: str | None = None,
+        stages: tuple[StageRun, ...] | None = None,
     ) -> None:
         """Run each stage in its own process for stage-level background jobs."""
         pipeline_id = pipeline_id or new_run_id("pipeline")
+        stages = stages or prepare_stage_runs(commands)
         processes: list[mp.Process] = []
-        for stage in prepare_stage_runs(commands):
+        for stage in stages:
+            plugin = self.registry.get(stage.invocation.name)
+            ensure_run_var_snapshot(
+                self.db,
+                self.registry.varstore,
+                job_id=self.job_id,
+                pipeline_id=pipeline_id,
+                command_run_id=stage.command_run_id,
+                commandlet=plugin.spec.name,
+            )
             process = mp.Process(
                 target=run_stage_process,
                 args=(
@@ -219,7 +242,20 @@ class Runner:
     def start_background(self, command_line: str) -> Event:
         """Start an entire command line in a child process and record a job."""
         foreground = command_line.strip()
+        pipeline = parse_pipeline(foreground)
+        pipeline_id = new_run_id("pipeline")
+        stages = prepare_stage_runs(pipeline.commands)
         job_id = self.db.record_job(foreground, None, "queued")
+        for stage in stages:
+            plugin = self.registry.get(stage.invocation.name)
+            ensure_run_var_snapshot(
+                self.db,
+                self.registry.varstore,
+                job_id=job_id,
+                pipeline_id=pipeline_id,
+                command_run_id=stage.command_run_id,
+                commandlet=plugin.spec.name,
+            )
         requested = self.db.publish(
             "job.requested",
             {"job_id": job_id, "command": foreground},
@@ -227,7 +263,7 @@ class Runner:
         )
         process = mp.Process(
             target=run_background_job,
-            args=(str(self.db.path), self.db.passphrase, job_id, foreground),
+            args=(str(self.db.path), self.db.passphrase, job_id, foreground, pipeline_id, stages),
             daemon=False,
         )
         process.start()
@@ -244,6 +280,8 @@ def run_background_job(
     db_passphrase: str | None,
     job_id: int,
     command_line: str,
+    pipeline_id: str,
+    stages: tuple[StageRun, ...],
 ) -> None:
     """Child-process entry point for a background pipeline.
 
@@ -262,9 +300,9 @@ def run_background_job(
         runner = Runner(db, PluginRegistry.discover(), job_id=job_id)
         pipeline = parse_pipeline(command_line)
         if pipeline.background:
-            runner.run_pipeline_processes(pipeline.commands)
+            runner.run_pipeline_processes(pipeline.commands, pipeline_id=pipeline_id, stages=stages)
         else:
-            runner.run_pipeline(pipeline.commands)
+            runner.run_pipeline(pipeline.commands, pipeline_id=pipeline_id, stages=stages)
     except Exception as exc:  # pragma: no cover - defensive child-process boundary
         db.publish("job.failed", {"job_id": job_id, "error": str(exc)}, "runner")
         db.finish_job(job_id, "failed")
@@ -364,6 +402,40 @@ def is_management_pipeline(commands: tuple[CommandInvocation, ...]) -> bool:
     return len(commands) == 1 and commands[0].name in {"db", "job"}
 
 
+def effective_run_vars(varstore: VarStore, commandlet: str) -> dict[str, str]:
+    """Return the session variables visible to one commandlet at launch time."""
+    prefix = f"{commandlet}."
+    return {
+        key: value
+        for key, value in varstore.items()
+        if key.startswith(prefix) or key.startswith("global.")
+    }
+
+
+def ensure_run_var_snapshot(
+    db: EventStore,
+    varstore: VarStore,
+    *,
+    job_id: int | None,
+    pipeline_id: str,
+    command_run_id: str,
+    commandlet: str,
+) -> dict[str, str]:
+    """Load or create the immutable variable snapshot for one command run."""
+    existing = db.command_run_vars(command_run_id)
+    if existing:
+        return existing
+    values = effective_run_vars(varstore, commandlet)
+    db.record_command_run_vars(
+        job_id=job_id,
+        pipeline_id=pipeline_id,
+        command_run_id=command_run_id,
+        commandlet=commandlet,
+        values=values,
+    )
+    return values
+
+
 def run_stage_process(
     db_path: str,
     db_passphrase: str | None,
@@ -382,6 +454,14 @@ def run_stage_process(
     db = EventStore(Path(db_path), passphrase=db_passphrase)
     registry = PluginRegistry.discover()
     plugin = registry.get(name)
+    run_vars = ensure_run_var_snapshot(
+        db,
+        registry.varstore,
+        job_id=job_id,
+        pipeline_id=pipeline_id,
+        command_run_id=command_run_id,
+        commandlet=plugin.spec.name,
+    )
     context = CommandContext(
         db,
         source=plugin.spec.name,
@@ -396,6 +476,7 @@ def run_stage_process(
             "from_pipeline": from_pipeline,
             "from_topic": from_topic,
             "job_id": job_id,
+            "run_vars": run_vars,
         },
     )
     context.raise_if_cancelled()

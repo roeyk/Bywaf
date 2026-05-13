@@ -49,6 +49,24 @@ class ConfigPluginTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unqualified"):
             context.vars.get("other.value")
 
+    def test_command_context_vars_prefer_run_snapshot(self):
+        store = VarStore()
+        store.set("test.value", "session")
+        store.set("global.proxy", "session-proxy")
+        context = CommandContext(
+            db=None,
+            source="test",
+            _varstore=store,
+            metadata={
+                "run_vars": {
+                    "test.value": "run",
+                    "global.proxy": "run-proxy",
+                }
+            },
+        )
+        self.assertEqual(context.vars.get("value"), "run")
+        self.assertEqual(context.vars.get_global("proxy"), "run-proxy")
+
     def test_command_context_alert_prints_without_database(self):
         context = CommandContext(db=None, source="test", metadata={"command_run_id": "run-1"})
         output = io.StringIO()

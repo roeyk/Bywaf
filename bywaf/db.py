@@ -57,6 +57,20 @@ CREATE TABLE IF NOT EXISTS cancellations (
     requested_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_cancellations_target ON cancellations(target_type, target_id);
+
+CREATE TABLE IF NOT EXISTS command_run_vars (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id INTEGER,
+    pipeline_id TEXT NOT NULL,
+    command_run_id TEXT NOT NULL,
+    commandlet TEXT NOT NULL,
+    name TEXT NOT NULL,
+    value TEXT NOT NULL,
+    source TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE(command_run_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_command_run_vars_run ON command_run_vars(command_run_id, name);
 """
 
 SQLITE_HEADER = b"SQLite format 3\x00"
@@ -347,6 +361,68 @@ class EventStore:
                     return True
         return False
 
+    def record_command_run_vars(
+        self,
+        *,
+        job_id: int | None,
+        pipeline_id: str,
+        command_run_id: str,
+        commandlet: str,
+        values: dict[str, str],
+        source: str = "snapshot",
+    ) -> None:
+        """Persist the effective variables captured for one command run."""
+        now = datetime.now(timezone.utc).isoformat()
+        with self.connect() as conn:
+            conn.executemany(
+                """
+                INSERT OR REPLACE INTO command_run_vars(
+                    job_id,
+                    pipeline_id,
+                    command_run_id,
+                    commandlet,
+                    name,
+                    value,
+                    source,
+                    created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (job_id, pipeline_id, command_run_id, commandlet, name, value, source, now)
+                    for name, value in sorted(values.items())
+                ],
+            )
+
+    def command_run_vars(self, command_run_id: str) -> dict[str, str]:
+        """Return the persisted variable snapshot for one command run."""
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT name, value
+                FROM command_run_vars
+                WHERE command_run_id = ?
+                ORDER BY name
+                """,
+                (command_run_id,),
+            )
+            return {row["name"]: row["value"] for row in rows}
+
+    def command_run_var_rows(self, command_run_id: str) -> list[sqlite3.Row]:
+        """Return variable snapshot rows for display/audit output."""
+        with self.connect() as conn:
+            return list(
+                conn.execute(
+                    """
+                    SELECT *
+                    FROM command_run_vars
+                    WHERE command_run_id = ?
+                    ORDER BY name
+                    """,
+                    (command_run_id,),
+                )
+            )
+
     def topics(self) -> list[str]:
         """Return distinct event topics currently present in the database."""
         with self.connect() as conn:
@@ -435,6 +511,25 @@ def ensure_event_columns(conn: sqlite3.Connection) -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_cancellations_target
             ON cancellations(target_type, target_id);
+            """
+        )
+    if "command_run_vars" not in tables:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS command_run_vars (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                job_id INTEGER,
+                pipeline_id TEXT NOT NULL,
+                command_run_id TEXT NOT NULL,
+                commandlet TEXT NOT NULL,
+                name TEXT NOT NULL,
+                value TEXT NOT NULL,
+                source TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                UNIQUE(command_run_id, name)
+            );
+            CREATE INDEX IF NOT EXISTS idx_command_run_vars_run
+            ON command_run_vars(command_run_id, name);
             """
         )
 

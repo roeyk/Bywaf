@@ -70,7 +70,11 @@ class CommandContext:
     @property
     def vars(self) -> ScopedVarStore:
         """Return this commandlet's scoped variable view."""
-        return ScopedVarStore(self._varstore, self.source)
+        return ScopedVarStore(
+            self._varstore,
+            self.source,
+            self.metadata.get("run_vars", {}),
+        )
 
     def cancelled(self) -> bool:
         """Return whether this job, pipeline, or command run was cancelled."""

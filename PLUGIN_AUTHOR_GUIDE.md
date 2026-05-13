@@ -332,6 +332,14 @@ which reads:
 global.proxy
 ```
 
+At launch time, Bywaf captures the effective commandlet and global variables
+for each `command_run_id` and stores that snapshot in SQLite. During execution,
+`context.vars.get()` checks the run snapshot first, then falls back to the
+session variable store. This lets two background runs of the same commandlet
+keep different values even if the operator changes session variables after the
+first job starts. It also means `show run=<id>` can report the variables that
+were actually supplied to that run.
+
 Plugins should treat interpreter behavior, such as the prompt, as framework
 owned. A plugin running in a background process cannot directly call a method on
 the parent REPL process. For cross-process requests, plugins should publish

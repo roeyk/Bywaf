@@ -659,6 +659,13 @@ class RunnerPluginAppTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", pipeline_id="p", command_run_id="r")
+            runner.db.record_command_run_vars(
+                job_id=None,
+                pipeline_id="p",
+                command_run_id="r",
+                commandlet="hostscanner",
+                values={"hostscanner.arguments": "-sn", "global.proxy": "http://127.0.0.1:8080"},
+            )
             run_output = io.StringIO()
             pipe_output = io.StringIO()
             with contextlib.redirect_stdout(run_output):
@@ -666,7 +673,36 @@ class RunnerPluginAppTests(unittest.TestCase):
             with contextlib.redirect_stdout(pipe_output):
                 dispatch_repl_line(runner, "show pipeline=p")
             self.assertIn("127.0.0.1", run_output.getvalue())
+            self.assertIn("Variables:", run_output.getvalue())
+            self.assertIn("hostscanner.arguments=-sn", run_output.getvalue())
+            self.assertIn("global.proxy=http://127.0.0.1:8080", run_output.getvalue())
             self.assertIn("127.0.0.1", pipe_output.getvalue())
+
+    def test_runner_snapshots_command_run_vars(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.registry.varstore.set("hostscanner.arguments", "-PE")
+            runner.registry.varstore.set("global.proxy", "http://127.0.0.1:8080")
+            with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    events = runner.execute("hostscanner 127.0.0.1")
+            snapshot = runner.db.command_run_vars(events[0].command_run_id or "")
+            self.assertEqual(snapshot["hostscanner.arguments"], "-PE")
+            self.assertEqual(snapshot["global.proxy"], "http://127.0.0.1:8080")
+
+    def test_background_job_uses_parent_var_snapshot(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.registry.varstore.set("hostscanner.arguments", "-PE")
+            with patch("bywaf.runner.mp.Process") as process_cls:
+                process_cls.return_value.pid = 123
+                event = runner.execute("hostscanner 127.0.0.1 &")[0]
+            self.assertEqual(event.topic, "job.requested")
+            process_cls.return_value.start.assert_called_once()
+            with runner.db.connect() as conn:
+                rows = list(conn.execute("SELECT name, value FROM command_run_vars WHERE commandlet = 'hostscanner'"))
+            snapshot = {row["name"]: row["value"] for row in rows}
+            self.assertEqual(snapshot["hostscanner.arguments"], "-PE")
 
     def test_dispatch_help_for_plugin(self):
         with tempfile.TemporaryDirectory() as tmp:
