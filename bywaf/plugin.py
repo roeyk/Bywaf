@@ -67,6 +67,21 @@ class CommandContext:
     varstore: VarStore = field(default_factory=VarStore)
     metadata: dict[str, Any] = field(default_factory=dict)
 
+    def cancelled(self) -> bool:
+        """Return whether this job, pipeline, or command run was cancelled."""
+        if self.db is None:
+            return False
+        return self.db.cancellation_requested(
+            job_id=self.metadata.get("job_id"),
+            pipeline_id=self.metadata.get("pipeline_id"),
+            command_run_id=self.metadata.get("command_run_id"),
+        )
+
+    def raise_if_cancelled(self) -> None:
+        """Raise a clear exception when a soft-cancellation request is pending."""
+        if self.cancelled():
+            raise RuntimeError("commandlet cancelled")
+
 
 @dataclass(slots=True)
 class CompletionContext:

@@ -4,6 +4,7 @@
     "network.portscanner",
     "http.http_headers",
     "http.http_probe",
+    "runtime.job",
     "storage.db",
     "os.ls",
     "os.cat",

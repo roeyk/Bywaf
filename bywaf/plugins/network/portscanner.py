@@ -86,8 +86,10 @@ def scan_hosts(
     new_hosts = [host for host in hosts if host and host not in seen_hosts]
     if not new_hosts:
         return
+    context.raise_if_cancelled()
     seen_hosts.update(new_hosts)
     for port in scan_open_ports(new_hosts, ports, arguments):
+        context.raise_if_cancelled()
         emit_alert(
             context,
             f"discovered port {port.port}/{port.protocol} on host {port.host}",
@@ -119,6 +121,8 @@ def listen_for_upstream_hosts(context: CommandContext, parsed, seen_hosts: set[s
     after_id = context.metadata.get("input_high_watermark", 0)
     deadline = monotonic() + parsed.listen_timeout if parsed.listen_timeout > 0 else None
     while deadline is None or monotonic() < deadline:
+        if context.cancelled():
+            return
         events = context.db.fetch(
             Subscription(
                 topics=("host.found",),

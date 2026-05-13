@@ -43,6 +43,22 @@ The host and port scanner commandlets use `nmap` through a Python adapter. A
 local `nmap` binary is required for real scans. The adapter prefers `nmaplib`,
 then `python-nmap`, then `nmapthon`, then `libnmap`.
 
+Dependency summary:
+
+```text
+nmap                       required for hostscanner and portscanner
+nmaplib/python-nmap/etc.   Python nmap adapter; Bywaf tries supported adapters
+sqlcipher3-binary          optional Python SQLCipher driver for encrypted DBs
+sqlcipher                  optional system SQLCipher tooling/library
+scapy                      optional helper library for future packet plugins
+```
+
+Bywaf plugins are intended to wrap useful external tools and normalize their
+results into the central event database. That removes manual handoffs such as
+copying hosts to notes or intermediate files: one plugin can discover hosts,
+another can consume those host events, and later plugins can continue the
+workflow from the same stored data.
+
 Encrypted databases require SQLCipher support. On Debian or Ubuntu, install the
 SQLCipher library and use the optional Python extra:
 
@@ -109,6 +125,7 @@ plugins
 cmds
 vars
 history
+job <list|show|cancel|kill>
 jobs
 runs
 topics
@@ -160,6 +177,7 @@ discovery
 http
 network
 os
+runtime
 storage
 ```
 
@@ -178,6 +196,8 @@ os
   cat
   less
   ls
+runtime
+  job
 storage
   db
 ```
@@ -234,14 +254,29 @@ unrelated `host.found` rows from older scans.
 List jobs:
 
 ```text
-bywaf> jobs
+bywaf> job list
 ```
 
 Show one job:
 
 ```text
-bywaf> show job=<id>
+bywaf> job show <id>
 ```
+
+Soft-cancel a job so commandlets that check cancellation can exit cleanly:
+
+```text
+bywaf> job cancel <id>
+```
+
+Hard-stop a job process:
+
+```text
+bywaf> job kill <id>
+bywaf> job kill --force <id>
+```
+
+`jobs` remains as a convenience alias for `job list`.
 
 # Database and Event Model
 
@@ -680,6 +715,7 @@ plugins
 cmds
 vars [name=value]
 history
+job <list|show|cancel|kill>
 jobs
 runs
 topics

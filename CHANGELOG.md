@@ -31,6 +31,9 @@ so entries are grouped under `Unreleased` until versioned releases begin.
 - Added encrypted database snapshots with `save --encrypt db=<path>`.
 - Added the storage `db` commandlet with `status`, `path`, `checkpoint`, and
   `vacuum`.
+- Added the runtime `job` commandlet with `list`, `show`, `cancel`, and `kill`.
+- Added `jobs` as an alias for `job list`.
+- Added soft-cancellation records and plugin-visible cancellation checks.
 - Added `db encrypt`, `db decrypt`, and `db rekey` for active database
   encryption management.
 - Added `db new`, `db new --file=<path>`, `db new --encrypt`, and

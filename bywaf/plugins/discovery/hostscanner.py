@@ -45,7 +45,9 @@ class HostScanner:
         parser.add_argument("--limit", type=int, default=256)
         parsed = parser.parse_args(args)
         targets = expand_targets(parsed.targets, parsed.limit)
+        context.raise_if_cancelled()
         for host in discover_live_hosts(" ".join(targets), parsed.arguments)[: parsed.limit]:
+            context.raise_if_cancelled()
             emit_alert(context, f"discovered host {host}", silent=parsed.silent)
             yield {"host": host, "status": "up", "scanner": "nmap"}
 

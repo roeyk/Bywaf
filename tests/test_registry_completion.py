@@ -29,6 +29,7 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn("http_headers", self.registry.names())
         self.assertIn("http_probe", self.registry.names())
         self.assertIn("db", self.registry.names())
+        self.assertIn("job", self.registry.names())
 
     def test_bundled_plugins_are_loaded_from_config_list(self):
         self.assertEqual(
@@ -38,6 +39,7 @@ class RegistryCompletionTests(unittest.TestCase):
                 "network.portscanner",
                 "http.http_headers",
                 "http.http_probe",
+                "runtime.job",
                 "storage.db",
                 "os.ls",
                 "os.cat",
@@ -48,6 +50,7 @@ class RegistryCompletionTests(unittest.TestCase):
     def test_registry_tracks_provider_groups(self):
         self.assertIn("os", self.registry.provider_names())
         self.assertEqual(self.registry.grouped_names()["os"], ["cat", "less", "ls"])
+        self.assertEqual(self.registry.grouped_names()["runtime"], ["job"])
         self.assertEqual(self.registry.grouped_names()["storage"], ["db"])
 
     def test_loads_package_defaults_into_varstore(self):
@@ -322,6 +325,16 @@ class RegistryCompletionTests(unittest.TestCase):
             candidates = completer.candidates("show ")
             self.assertIn("custom.topic", candidates)
             self.assertIn("job=1", candidates)
+
+    def test_job_completes_actions_and_job_ids(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "db.sqlite3"))
+            db.record_job("hostscanner 127.0.0.1", 123, "running")
+            completer = Completer(self.registry, db)
+            self.assertIn("cancel", completer.candidates("job "))
+            self.assertIn("kill", completer.candidates("job k"))
+            self.assertEqual(completer.candidates("job show "), ["1"])
+            self.assertEqual(completer.candidates("job cancel "), ["1"])
 
     def test_readline_delimiters_keep_hyphen_and_equals_in_completion_word(self):
         with (

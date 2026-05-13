@@ -77,9 +77,10 @@ class StageRun:
 class Runner:
     """Execute parsed commandlet pipelines against an EventStore."""
 
-    def __init__(self, db: EventStore, registry: PluginRegistry):
+    def __init__(self, db: EventStore, registry: PluginRegistry, *, job_id: int | None = None):
         self.db = db
         self.registry = registry
+        self.job_id = job_id
 
     def execute(self, command_line: str) -> list[Event]:
         """Run a command line immediately or start it as a background job."""
@@ -124,8 +125,10 @@ class Runner:
                     "from_pipeline": invocation.from_pipeline,
                     "from_topic": invocation.from_topic,
                     "replace_db": self.replace_db,
+                    "job_id": self.job_id,
                 },
             )
+            context.raise_if_cancelled()
             topic = plugin.spec.emits[0] if plugin.spec.emits else plugin.spec.name
             output_payloads = plugin.run(context, invocation.args, selected_input_events)
             input_events = [
@@ -164,6 +167,7 @@ class Runner:
                 args=(
                     str(self.db.path),
                     self.db.passphrase,
+                    self.job_id,
                     stage.invocation.name,
                     stage.invocation.args,
                     pipeline_id,
@@ -184,13 +188,14 @@ class Runner:
     def start_background(self, command_line: str) -> Event:
         """Start an entire command line in a child process and record a job."""
         foreground = command_line.strip()
+        job_id = self.db.record_job(foreground, None, "starting")
         process = mp.Process(
             target=run_background_job,
-            args=(str(self.db.path), self.db.passphrase, foreground),
+            args=(str(self.db.path), self.db.passphrase, job_id, foreground),
             daemon=False,
         )
         process.start()
-        job_id = self.db.record_job(foreground, process.pid, "running")
+        self.db.update_job_pid(job_id, process.pid)
         return self.db.publish(
             "job.started",
             {"job_id": job_id, "pid": process.pid, "command": foreground},
@@ -202,16 +207,20 @@ class Runner:
         return self.db.fetch(Subscription(topics=topics, after_id=after_id))
 
 
-def run_background_job(db_path: str, db_passphrase: str | None, command_line: str) -> None:
+def run_background_job(
+    db_path: str,
+    db_passphrase: str | None,
+    job_id: int,
+    command_line: str,
+) -> None:
     """Child-process entry point for a background pipeline.
 
     The child reopens the database and rediscovers bundled plugins instead of
     inheriting live connection/plugin objects from the parent process.
     """
     db = EventStore(Path(db_path), passphrase=db_passphrase)
-    job_id = db.record_job(command_line, None, "child-running")
     try:
-        runner = Runner(db, PluginRegistry.discover())
+        runner = Runner(db, PluginRegistry.discover(), job_id=job_id)
         pipeline = parse_pipeline(command_line)
         if pipeline.background:
             runner.run_pipeline_processes(pipeline.commands)
@@ -314,6 +323,7 @@ def prepare_stage_runs(commands: tuple[CommandInvocation, ...]) -> tuple[StageRu
 def run_stage_process(
     db_path: str,
     db_passphrase: str | None,
+    job_id: int | None,
     name: str,
     args: list[str],
     pipeline_id: str,
@@ -341,8 +351,10 @@ def run_stage_process(
             "from_run": from_run,
             "from_pipeline": from_pipeline,
             "from_topic": from_topic,
+            "job_id": job_id,
         },
     )
+    context.raise_if_cancelled()
     topic = plugin.spec.emits[0] if plugin.spec.emits else plugin.spec.name
     invocation = CommandInvocation(
         name,

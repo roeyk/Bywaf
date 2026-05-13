@@ -50,6 +50,8 @@ class Db:
         parsed = parser.parse_args(args)
         if context.db is None:
             raise ValueError("db command requires an active database")
+        if context.metadata.get("background"):
+            raise ValueError("database management commands must run in the foreground")
         match parsed.action:
             case "checkpoint":
                 context.db.checkpoint()

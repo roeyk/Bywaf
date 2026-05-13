@@ -54,9 +54,21 @@ class EventDbTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "events.sqlite3"))
             job_id = db.record_job("list", 123, "running")
+            db.update_job_pid(job_id, 456)
+            job = db.job(job_id)
+            self.assertIsNotNone(job)
+            assert job is not None
+            self.assertEqual(job["pid"], 456)
             db.finish_job(job_id, "finished")
             rows = db.jobs()
             self.assertEqual(rows[0]["status"], "finished")
+
+    def test_cancellation_records_match_targets(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "events.sqlite3"))
+            db.request_cancellation("job", "7")
+            self.assertTrue(db.cancellation_requested(job_id=7))
+            self.assertFalse(db.cancellation_requested(job_id=8))
 
     def test_checkpoint_runs_without_losing_events(self):
         with tempfile.TemporaryDirectory() as tmp:

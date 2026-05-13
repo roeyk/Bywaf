@@ -1,0 +1,131 @@
+"""Background job management commandlet."""
+
+from __future__ import annotations
+
+import argparse
+import os
+import signal
+from collections.abc import Iterable
+
+from bywaf.events import Event
+from bywaf.plugin import ArgumentSpec, CommandContext, CommandSpec, Commandlet, CompletionContext, CompletionSpec
+
+JOB_ACTIONS = ("cancel", "kill", "list", "show")
+
+
+class Job:
+    """List, inspect, softly cancel, and hard-kill background jobs."""
+
+    spec = CommandSpec(
+        name="job",
+        description="Manage background jobs.",
+        usage="job <list|show|cancel|kill> [options] [id]",
+        examples=("job list", "job show 1", "job cancel 1", "job kill --force 1"),
+        arguments=(
+            ArgumentSpec("action", "job operation", completion=CompletionSpec("choice", JOB_ACTIONS)),
+            ArgumentSpec("id", "job id", required=False, completion=CompletionSpec("job")),
+        ),
+    )
+
+    def run(
+        self,
+        context: CommandContext,
+        args: list[str],
+        input_events: Iterable[Event],
+    ):
+        """Parse and execute one job-management operation."""
+        parser = argparse.ArgumentParser(prog=self.spec.name)
+        parser.add_argument("action", choices=JOB_ACTIONS)
+        parser.add_argument("id", nargs="?")
+        parser.add_argument("--force", action="store_true")
+        parsed = parser.parse_args(args)
+        if context.db is None:
+            raise ValueError("job command requires an active database")
+        if context.metadata.get("background"):
+            raise ValueError("job management commands must run in the foreground")
+        match parsed.action:
+            case "list":
+                print_jobs(context)
+            case "show":
+                row = require_job(context, parsed.id)
+                print_job(row)
+            case "cancel":
+                row = require_job(context, parsed.id)
+                context.db.request_cancellation("job", str(row["id"]))
+                context.db.update_job_status(int(row["id"]), "cancelling")
+                print(f"cancel requested for job {row['id']}")
+            case "kill":
+                row = require_job(context, parsed.id)
+                kill_job(context, row, force=parsed.force)
+        return ()
+
+    def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
+        """Complete subcommands and job IDs from the active database."""
+        if not args:
+            return list(JOB_ACTIONS)
+        if len(args) == 1 and args[0] in {"show", "cancel", "kill"}:
+            return job_ids(context)
+        if len(args) == 1 and args[0] not in JOB_ACTIONS:
+            return list(JOB_ACTIONS)
+        if len(args) >= 2 and args[0] in {"show", "cancel", "kill"}:
+            return job_ids(context)
+        return []
+
+
+def print_jobs(context: CommandContext) -> None:
+    """Print all known jobs with newest first."""
+    if context.db is None:
+        raise ValueError("job command requires an active database")
+    for row in context.db.jobs():
+        print_job(row)
+
+
+def print_job(row) -> None:
+    """Print one job row in the same compact format used by the old `jobs`."""
+    print(f"#{row['id']} pid={row['pid']} status={row['status']} {row['command_line']}")
+
+
+def require_job(context: CommandContext, job_id: str | None):
+    """Return a job row or raise a user-facing error."""
+    if context.db is None:
+        raise ValueError("job command requires an active database")
+    if not job_id:
+        raise ValueError("job id is required")
+    try:
+        numeric_id = int(job_id)
+    except ValueError as exc:
+        raise ValueError(f"invalid job id: {job_id}") from exc
+    row = context.db.job(numeric_id)
+    if row is None:
+        raise ValueError(f"unknown job: {job_id}")
+    return row
+
+
+def kill_job(context: CommandContext, row, *, force: bool) -> None:
+    """Send SIGTERM or SIGKILL to a job process and update its status."""
+    if context.db is None:
+        raise ValueError("job command requires an active database")
+    pid = row["pid"]
+    if pid is None:
+        raise ValueError(f"job {row['id']} has no pid")
+    sig = signal.SIGKILL if force else signal.SIGTERM
+    try:
+        os.kill(int(pid), sig)
+    except ProcessLookupError:
+        context.db.finish_job(int(row["id"]), "missing")
+        raise ValueError(f"job {row['id']} process is not running") from None
+    status = "killed" if force else "terminated"
+    context.db.finish_job(int(row["id"]), status)
+    print(f"{status} job {row['id']}")
+
+
+def job_ids(context: CompletionContext) -> list[str]:
+    """Return job IDs for completion."""
+    if context.db is None:
+        return []
+    return [str(row["id"]) for row in context.db.jobs()]
+
+
+def plugin() -> Commandlet:
+    """Return the commandlet instance discovered by the plugin registry."""
+    return Job()

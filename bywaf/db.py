@@ -48,6 +48,15 @@ CREATE TABLE IF NOT EXISTS jobs (
     started_at TEXT NOT NULL,
     finished_at TEXT
 );
+
+CREATE TABLE IF NOT EXISTS cancellations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    target_type TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    reason TEXT,
+    requested_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_cancellations_target ON cancellations(target_type, target_id);
 """
 
 SQLITE_HEADER = b"SQLite format 3\x00"
@@ -257,6 +266,11 @@ class EventStore:
                 raise RuntimeError("SQLite did not return a job row id")
             return int(cursor.lastrowid)
 
+    def update_job_pid(self, job_id: int, pid: int | None) -> None:
+        """Attach a child PID to an already-created job row."""
+        with self.connect() as conn:
+            conn.execute("UPDATE jobs SET pid = ? WHERE id = ?", (pid, job_id))
+
     def finish_job(self, job_id: int, status: str) -> None:
         """Mark a recorded background job as finished or failed."""
         now = datetime.now(timezone.utc).isoformat()
@@ -266,10 +280,59 @@ class EventStore:
                 (status, now, job_id),
             )
 
+    def update_job_status(self, job_id: int, status: str) -> None:
+        """Update a job status without marking it finished."""
+        with self.connect() as conn:
+            conn.execute("UPDATE jobs SET status = ? WHERE id = ?", (status, job_id))
+
     def jobs(self) -> list[sqlite3.Row]:
         """Return known jobs with newest jobs first."""
         with self.connect() as conn:
             return list(conn.execute("SELECT * FROM jobs ORDER BY id DESC"))
+
+    def job(self, job_id: int) -> sqlite3.Row | None:
+        """Return one job row by ID."""
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
+
+    def request_cancellation(self, target_type: str, target_id: str, reason: str | None = None) -> None:
+        """Record a soft-cancellation request for a job, pipeline, or run."""
+        now = datetime.now(timezone.utc).isoformat()
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO cancellations(target_type, target_id, reason, requested_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (target_type, target_id, reason, now),
+            )
+
+    def cancellation_requested(
+        self,
+        *,
+        job_id: int | str | None = None,
+        pipeline_id: str | None = None,
+        command_run_id: str | None = None,
+    ) -> bool:
+        """Return whether any matching soft-cancellation request exists."""
+        targets: list[tuple[str, str]] = []
+        if job_id is not None:
+            targets.append(("job", str(job_id)))
+        if pipeline_id:
+            targets.append(("pipeline", pipeline_id))
+        if command_run_id:
+            targets.append(("run", command_run_id))
+        if not targets:
+            return False
+        with self.connect() as conn:
+            for target_type, target_id in targets:
+                row = conn.execute(
+                    "SELECT 1 FROM cancellations WHERE target_type = ? AND target_id = ? LIMIT 1",
+                    (target_type, target_id),
+                ).fetchone()
+                if row is not None:
+                    return True
+        return False
 
     def topics(self) -> list[str]:
         """Return distinct event topics currently present in the database."""
@@ -341,6 +404,21 @@ def ensure_event_columns(conn: sqlite3.Connection) -> None:
     for name in ("pipeline_id", "command_run_id", "parent_command_run_id"):
         if name not in columns:
             conn.execute(f"ALTER TABLE events ADD COLUMN {name} TEXT")
+    tables = {row["name"] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    if "cancellations" not in tables:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS cancellations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                target_type TEXT NOT NULL,
+                target_id TEXT NOT NULL,
+                reason TEXT,
+                requested_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_cancellations_target
+            ON cancellations(target_type, target_id);
+            """
+        )
 
 
 def set_sqlcipher_key(conn: Any, passphrase: str) -> None:

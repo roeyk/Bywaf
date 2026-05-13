@@ -406,7 +406,7 @@ class RunnerPluginAppTests(unittest.TestCase):
                 process.pid = 123
                 runner.execute("hostscanner 127.0.0.1& | portscanner&")
             self.assertEqual(
-                process_cls.call_args.kwargs["args"][2],
+                process_cls.call_args.kwargs["args"][3],
                 "hostscanner 127.0.0.1& | portscanner&",
             )
             self.assertIsNone(process_cls.call_args.kwargs["args"][1])
@@ -573,6 +573,56 @@ class RunnerPluginAppTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "runs")
             self.assertIn("r pipeline=p source=hostscanner events=1", output.getvalue())
+
+    def test_jobs_alias_runs_job_list(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.record_job("hostscanner 127.0.0.1", 123, "running")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "jobs")
+            self.assertIn("#1 pid=123 status=running hostscanner 127.0.0.1", output.getvalue())
+
+    def test_job_cancel_records_soft_cancellation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("portscanner --listen", 123, "running")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute(f"job cancel {job_id}")
+            self.assertIn(f"cancel requested for job {job_id}", output.getvalue())
+            self.assertTrue(runner.db.cancellation_requested(job_id=job_id))
+            job = runner.db.job(job_id)
+            self.assertIsNotNone(job)
+            assert job is not None
+            self.assertEqual(job["status"], "cancelling")
+
+    def test_job_kill_sends_term_by_default(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("sleep", 99999, "running")
+            with patch("bywaf.plugins.runtime.job.os.kill") as kill:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    runner.execute(f"job kill {job_id}")
+            self.assertEqual(kill.call_args.args[0], 99999)
+            self.assertEqual(kill.call_args.args[1].name, "SIGTERM")
+            job = runner.db.job(job_id)
+            self.assertIsNotNone(job)
+            assert job is not None
+            self.assertEqual(job["status"], "terminated")
+
+    def test_job_kill_force_sends_kill(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("sleep", 99999, "running")
+            with patch("bywaf.plugins.runtime.job.os.kill") as kill:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    runner.execute(f"job kill --force {job_id}")
+            self.assertEqual(kill.call_args.args[1].name, "SIGKILL")
+            job = runner.db.job(job_id)
+            self.assertIsNotNone(job)
+            assert job is not None
+            self.assertEqual(job["status"], "killed")
 
     def test_dispatch_show_run_and_pipeline(self):
         with tempfile.TemporaryDirectory() as tmp:

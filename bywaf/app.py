@@ -38,7 +38,7 @@ HELP_COMMANDS = (
     HelpEntry("plugins", "list loaded plugin providers", "plugins"),
     HelpEntry("cmds", "show commandlets grouped by plugin provider", "cmds"),
     HelpEntry("history", "show command history", "history"),
-    HelpEntry("jobs", "show background jobs", "jobs"),
+    HelpEntry("jobs", "alias for job list", "jobs"),
     HelpEntry("runs", "show commandlet run IDs", "runs"),
     HelpEntry("vars [name=value]", "list or set session variables", "vars [name=value]", ("vars http_probe.cookie-file=/tmp/cookies.txt",)),
     HelpEntry("topics", "list event topics in the active database", "topics"),
@@ -188,7 +188,7 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
             case ["history"]:
                 print_history(state.session_history)
             case ["jobs"]:
-                print_jobs(runner)
+                print_events(runner.execute("job list"))
             case ["runs"]:
                 print_runs(runner)
             case ["vars"]:
@@ -651,7 +651,7 @@ def main(argv: list[str] | None = None) -> int:
             case "history":
                 print_history()
             case "jobs":
-                print_jobs(runner)
+                print_events(runner.execute("job list"))
             case _:
                 parser.error(f"unknown subcommand: {args.subcommand}")
         return 0
