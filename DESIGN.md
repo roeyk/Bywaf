@@ -1,0 +1,237 @@
+# Bywaf Design Notes
+
+These notes describe framework decisions that are still being refined. They are
+more specific than `TODO.md`, but less stable than the public usage guide.
+
+## Framework Request IPC
+
+Plugins should not directly control interpreter-owned behavior such as terminal
+output, paging, prompt changes, password prompts, job control, or future GUI/web
+actions. Instead, a plugin writes a framework request event to the SQLite event
+store. The active frontend validates the request, performs or denies it, and
+writes an auditable outcome event.
+
+The current request helpers are:
+
+- `context.output(text)`: writes `framework.console.output.requested`
+- `context.alert(message)`: writes `framework.console.alert.requested`
+- `context.page_file(path)`: writes `framework.file.page.requested`
+- `context.request(topic, payload)`: advanced low-level request escape hatch
+
+Current framework-owned outcomes include:
+
+- `console.output`
+- `console.alert`
+- `console.page`
+- `shell.prompt.updated`
+- `framework.request.denied`
+
+### Request Shape
+
+Framework requests should use a predictable payload shape:
+
+```text
+{
+  "source": "commandlet-name",
+  "job_id": 1,
+  "pipeline_id": "pipeline-...",
+  "command_run_id": "command-...",
+  "...": "request-specific fields"
+}
+```
+
+The event row already carries `source`, `pipeline_id`, `command_run_id`, and
+`parent_command_run_id`, so payload copies are convenience fields for frontend
+handlers and human inspection. The event row remains the authoritative scope.
+
+Every successful framework action should include the request event ID:
+
+```text
+{
+  "request_event_id": 123,
+  "...": "outcome-specific fields"
+}
+```
+
+Denied requests should always become:
+
+```text
+framework.request.denied
+{
+  "request_event_id": 123,
+  "request_topic": "framework.file.page.requested",
+  "reason": "file paging requires a foreground commandlet"
+}
+```
+
+### Naming Convention
+
+Use this convention for new request topics:
+
+```text
+framework.<domain>.<action>.requested
+```
+
+Examples:
+
+- `framework.console.output.requested`
+- `framework.console.alert.requested`
+- `framework.file.page.requested`
+- `framework.secret.prompt.requested`
+- `framework.confirm.requested`
+- `framework.job.cancel.requested`
+- `framework.pipeline.kill.requested`
+
+Outcome topics should describe what happened, not that it was requested:
+
+- `console.output`
+- `console.alert`
+- `console.page`
+- `secret.provided`
+- `job.cancelled`
+- `pipeline.killed`
+- `framework.request.denied`
+
+### Frontend Contract
+
+The terminal REPL, a future GUI, and a future web frontend should all consume
+the same request topics. Each frontend can render the same request differently:
+
+- Terminal `framework.file.page.requested`: run `less` when interactive, print
+  text when noninteractive.
+- GUI `framework.file.page.requested`: open a file viewer panel.
+- Web `framework.file.page.requested`: render a paged text view in the browser.
+
+This lets commandlet code stay frontend-neutral.
+
+## Plugin Capability Model
+
+Bywaf plugins are local Python code, so capability declarations are not a
+sandbox by themselves. They are still useful because they make plugin behavior
+auditable, reviewable, and eventually enforceable.
+
+The first implementation should be audit-first:
+
+- Plugins declare intended capabilities.
+- The framework records capability use and missing declarations.
+- Operators can inspect what a plugin did.
+- Enforcement can be added later without redesigning the plugin API.
+
+### Capability Declaration
+
+Capabilities should be declared on `CommandSpec` or provider metadata. A
+commandlet-level declaration is the most precise starting point:
+
+```python
+CommandSpec(
+    name="http_probe",
+    description="Probe HTTP endpoints.",
+    consumes=("port.open",),
+    emits=("http.endpoint",),
+    capabilities=(
+        "db.read:port.open",
+        "db.write:http.endpoint",
+        "network.connect",
+        "framework.console.alert",
+        "framework.console.output",
+    ),
+)
+```
+
+Provider-level capabilities can come later when a plugin package needs shared
+declarations for many commandlets.
+
+### Capability Names
+
+Use coarse names for implementation simplicity, with optional resource suffixes
+where useful:
+
+- `db.read:<topic>`
+- `db.write:<topic>`
+- `framework.console.output`
+- `framework.console.alert`
+- `framework.file.page`
+- `framework.prompt.change`
+- `framework.secret.prompt`
+- `framework.job.control`
+- `filesystem.read`
+- `filesystem.write`
+- `network.connect`
+- `network.listen`
+- `process.spawn`
+
+Topic capabilities should align with `CommandSpec.consumes` and
+`CommandSpec.emits`. Framework request capabilities should align with the
+helper methods and request topics used by the commandlet.
+
+### Audit Events
+
+Audit mode should produce capability events without blocking execution:
+
+```text
+plugin.capability.used
+{
+  "commandlet": "http_probe",
+  "capability": "network.connect",
+  "declared": true,
+  "request_event_id": null
+}
+```
+
+```text
+plugin.capability.missing
+{
+  "commandlet": "less",
+  "capability": "framework.file.page",
+  "request_event_id": 123
+}
+```
+
+This gives the operator a clear path to review whether a plugin is behaving as
+advertised.
+
+### Enforcement Modes
+
+Capability enforcement should be configurable:
+
+```text
+capabilities.mode=off
+capabilities.mode=audit
+capabilities.mode=warn
+capabilities.mode=enforce
+```
+
+Recommended progression:
+
+1. `off`: no checks.
+2. `audit`: record capability use and missing declarations.
+3. `warn`: record and print warnings for missing declarations.
+4. `enforce`: deny undeclared framework requests and eventually restrict DB
+   reads/writes through framework-owned APIs.
+
+Start with `audit` as the default once capability tracking exists.
+
+### Practical Limits
+
+Capabilities do not secure arbitrary trusted Python code by themselves. A
+plugin that receives raw `context.db` can still call database methods directly,
+and Python cannot reliably sandbox hostile in-process code. Strong enforcement
+requires a stricter plugin API, subprocess isolation, or both.
+
+The near-term goal is therefore:
+
+- make intended behavior explicit,
+- make actual behavior visible,
+- route sensitive framework actions through auditable request handlers,
+- move toward narrower APIs before promising hard isolation.
+
+## Open Design Questions
+
+- Should `CommandSpec.consumes` and `CommandSpec.emits` automatically imply
+  `db.read:<topic>` and `db.write:<topic>` capabilities?
+- Should missing capabilities warn by default during development?
+- Should third-party plugins be loaded in a separate process with a narrower
+  context object?
+- Which request topics should be foreground-only?
+- Should operator approval be required when a plugin first uses a sensitive
+  undeclared capability?

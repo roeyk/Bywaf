@@ -14,6 +14,7 @@ Planning dates are release planning markers, not compatibility commitments.
   file paging when a commandlet needs interpreter-owned behavior.
 - Add request/response documentation for frontend authors implementing terminal,
   GUI, or web clients.
+- Refine the request and outcome conventions in `DESIGN.md`.
 
 ### Plugin Capability Model
 
@@ -22,6 +23,7 @@ Planning dates are release planning markers, not compatibility commitments.
   access.
 - Decide how strict enforcement should be for trusted local plugins versus
   third-party plugins.
+- Start with audit-only capability events before enforcing policy.
 
 ### External Tool Wrappers
 
