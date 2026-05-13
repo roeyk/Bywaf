@@ -120,6 +120,15 @@ class EventStore:
         with self.connect() as conn:
             conn.execute("VACUUM")
 
+    def rekey(self, new_passphrase: str) -> None:
+        """Change the SQLCipher passphrase for the active encrypted database."""
+        if self.passphrase is None:
+            raise ValueError("db rekey requires an encrypted database")
+        with self.connect() as conn:
+            conn.execute(f"PRAGMA rekey = {sql_literal(new_passphrase)}")
+        EventStore(self.path, passphrase=new_passphrase).table_counts()
+        self.passphrase = new_passphrase
+
     @property
     def encrypted(self) -> bool:
         """Return whether this store uses a SQLCipher passphrase."""

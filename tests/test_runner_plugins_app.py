@@ -29,6 +29,7 @@ from bywaf.app import (
     strip_inline_comment,
 )
 from bywaf.db import EventStore, Subscription
+from bywaf.db import database_appears_encrypted, sqlcipher_available
 from bywaf.events import Event
 from bywaf.nmap_backend import NmapPort, NmapScanError, NmapUnavailableError
 from bywaf.plugins.http.http_headers import HttpHeaders
@@ -36,6 +37,7 @@ from bywaf.plugins.discovery.hostscanner import HostScanner
 from bywaf.plugins.discovery.hostscanner import expand_targets
 from bywaf.plugins.os.less import page_file
 from bywaf.plugins.network.portscanner import PortScanner
+from bywaf.plugins.storage.db import encrypt_active_database
 from bywaf.plugin import CommandContext
 from bywaf.runner import parse_invocation, parse_pipeline
 
@@ -90,6 +92,37 @@ class RunnerPluginAppTests(unittest.TestCase):
             text = output.getvalue()
             self.assertIn("mode=plaintext", text)
             self.assertIn("events=1", text)
+
+    @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
+    def test_db_commandlet_encrypt_decrypts_and_rekeys_active_database(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp, "db.sqlite3")
+            runner = make_runner(path)
+            runner.db.publish("topic", {"value": 1}, "test")
+            with patch("getpass.getpass", side_effect=["secret", "secret"]):
+                runner.execute("db encrypt")
+            self.assertTrue(runner.db.encrypted)
+            self.assertTrue(database_appears_encrypted(path))
+            self.assertEqual(runner.db.events_for_topic("topic")[0].payload["value"], 1)
+            with patch("getpass.getpass", side_effect=["newsecret", "newsecret"]):
+                runner.execute("db rekey")
+            self.assertEqual(EventStore(path, passphrase="newsecret").table_counts()["events"], 1)
+            with patch("builtins.input", return_value="YES"):
+                runner.execute("db decrypt")
+            self.assertFalse(runner.db.encrypted)
+            self.assertFalse(database_appears_encrypted(path))
+            self.assertEqual(runner.db.events_for_topic("topic")[0].payload["value"], 1)
+
+    @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
+    def test_db_encrypt_rejects_background_conversion(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            context = CommandContext(
+                EventStore(Path(tmp, "db.sqlite3")),
+                source="db",
+                metadata={"background": True},
+            )
+            with self.assertRaisesRegex(ValueError, "foreground"):
+                encrypt_active_database(context)
 
     def test_parse_empty_invocation_fails(self):
         with self.assertRaises(ValueError):
@@ -299,9 +332,10 @@ class RunnerPluginAppTests(unittest.TestCase):
                 process.pid = 123
                 runner.execute("hostscanner 127.0.0.1& | portscanner&")
             self.assertEqual(
-                process_cls.call_args.kwargs["args"][1],
+                process_cls.call_args.kwargs["args"][2],
                 "hostscanner 127.0.0.1& | portscanner&",
             )
+            self.assertIsNone(process_cls.call_args.kwargs["args"][1])
 
     def test_build_parser_accepts_run(self):
         parser = build_parser()

@@ -110,7 +110,7 @@ history
 jobs
 runs
 topics
-db <status|path|checkpoint|vacuum>
+db <status|path|checkpoint|vacuum|encrypt|decrypt|rekey>
 show <topic|job=id|run=id|pipeline=id>
 load <resource>
 save <resource>
@@ -300,6 +300,19 @@ bywaf> db path
 bywaf> db checkpoint
 bywaf> db vacuum
 ```
+
+Convert the active database in place:
+
+```text
+bywaf> db encrypt
+bywaf> db rekey
+bywaf> db decrypt
+```
+
+`db encrypt` converts the active plaintext database to SQLCipher and prompts
+twice for a new passphrase. `db rekey` changes the passphrase for an encrypted
+database. `db decrypt` exports the active encrypted database back to plaintext
+SQLite after an explicit `YES` confirmation.
 
 Switch to another database:
 
@@ -649,7 +662,7 @@ show <topic>
 show job=<id>
 show run=<id>
 show pipeline=<id>
-db <status|path|checkpoint|vacuum>
+db <status|path|checkpoint|vacuum|encrypt|decrypt|rekey>
 load plugin=<resource>
 load script=<resource>
 load db=<resource>

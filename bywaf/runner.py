@@ -123,6 +123,7 @@ class Runner:
                     "from_run": invocation.from_run,
                     "from_pipeline": invocation.from_pipeline,
                     "from_topic": invocation.from_topic,
+                    "replace_db": self.replace_db,
                 },
             )
             topic = plugin.spec.emits[0] if plugin.spec.emits else plugin.spec.name
@@ -144,6 +145,10 @@ class Runner:
             produced.extend(input_events)
         return produced
 
+    def replace_db(self, db: EventStore) -> None:
+        """Replace the active database after an in-process management command."""
+        self.db = db
+
     def run_pipeline_processes(
         self,
         commands: tuple[CommandInvocation, ...],
@@ -158,6 +163,7 @@ class Runner:
                 target=run_stage_process,
                 args=(
                     str(self.db.path),
+                    self.db.passphrase,
                     stage.invocation.name,
                     stage.invocation.args,
                     pipeline_id,
@@ -178,7 +184,11 @@ class Runner:
     def start_background(self, command_line: str) -> Event:
         """Start an entire command line in a child process and record a job."""
         foreground = command_line.strip()
-        process = mp.Process(target=run_background_job, args=(str(self.db.path), foreground), daemon=False)
+        process = mp.Process(
+            target=run_background_job,
+            args=(str(self.db.path), self.db.passphrase, foreground),
+            daemon=False,
+        )
         process.start()
         job_id = self.db.record_job(foreground, process.pid, "running")
         return self.db.publish(
@@ -192,13 +202,13 @@ class Runner:
         return self.db.fetch(Subscription(topics=topics, after_id=after_id))
 
 
-def run_background_job(db_path: str, command_line: str) -> None:
+def run_background_job(db_path: str, db_passphrase: str | None, command_line: str) -> None:
     """Child-process entry point for a background pipeline.
 
     The child reopens the database and rediscovers bundled plugins instead of
     inheriting live connection/plugin objects from the parent process.
     """
-    db = EventStore(Path(db_path))
+    db = EventStore(Path(db_path), passphrase=db_passphrase)
     job_id = db.record_job(command_line, None, "child-running")
     try:
         runner = Runner(db, PluginRegistry.discover())
@@ -303,6 +313,7 @@ def prepare_stage_runs(commands: tuple[CommandInvocation, ...]) -> tuple[StageRu
 
 def run_stage_process(
     db_path: str,
+    db_passphrase: str | None,
     name: str,
     args: list[str],
     pipeline_id: str,
@@ -314,7 +325,7 @@ def run_stage_process(
     from_topic: str | None,
 ) -> None:
     """Child-process entry point for one background pipeline stage."""
-    db = EventStore(Path(db_path))
+    db = EventStore(Path(db_path), passphrase=db_passphrase)
     registry = PluginRegistry.discover()
     plugin = registry.get(name)
     context = CommandContext(
