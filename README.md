@@ -175,7 +175,8 @@ bywaf> portscanner --help
 ```
 
 Many scanning commandlets support `-s` or `--silent` to suppress console alerts.
-Without silent mode, commandlets print discovery alerts such as:
+Without silent mode, commandlets print discovery alerts and also store them as
+structured `console.alert` events:
 
 ```text
 hostscanner <hostscanner-...>: discovered host 127.0.0.1

@@ -9,7 +9,7 @@ from time import monotonic, sleep
 from bywaf.db import Subscription
 from bywaf.events import Event
 from bywaf.nmap_backend import scan_open_ports
-from bywaf.plugin import CommandContext, CommandSpec, Commandlet, OptionSpec, emit_alert
+from bywaf.plugin import CommandContext, CommandSpec, Commandlet, OptionSpec
 
 DEFAULTS = {"arguments": "-sT", "ports": ""}
 
@@ -90,8 +90,7 @@ def scan_hosts(
     seen_hosts.update(new_hosts)
     for port in scan_open_ports(new_hosts, ports, arguments):
         context.raise_if_cancelled()
-        emit_alert(
-            context,
+        context.alert(
             f"discovered port {port.port}/{port.protocol} on host {port.host}",
             silent=silent,
         )

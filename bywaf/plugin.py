@@ -87,6 +87,28 @@ class CommandContext:
         if self.cancelled():
             raise RuntimeError("commandlet cancelled")
 
+    def alert(self, message: str, *, level: str = "alert", silent: bool = False) -> None:
+        """Emit a structured console alert and optionally mirror it to stdout."""
+        payload = {
+            "message": message,
+            "level": level,
+            "source": self.source,
+            "command_run_id": self.metadata.get("command_run_id"),
+            "pipeline_id": self.metadata.get("pipeline_id"),
+            "job_id": self.metadata.get("job_id"),
+        }
+        if self.db is not None:
+            self.db.publish(
+                "console.alert",
+                payload,
+                self.source,
+                pipeline_id=self.metadata.get("pipeline_id"),
+                command_run_id=self.metadata.get("command_run_id"),
+                parent_command_run_id=self.metadata.get("parent_command_run_id"),
+            )
+        if not silent:
+            print(f"{self.source} <{command_run_id(self)}>: {message}", flush=True)
+
 
 @dataclass(slots=True)
 class CompletionContext:
@@ -116,6 +138,5 @@ def command_run_id(context: CommandContext) -> str:
 
 
 def emit_alert(context: CommandContext, message: str, *, silent: bool = False) -> None:
-    """Print a standardized discovery alert unless the commandlet is silent."""
-    if not silent:
-        print(f"{context.source} <{command_run_id(context)}>: {message}", flush=True)
+    """Backward-compatible wrapper around CommandContext.alert()."""
+    context.alert(message, silent=silent)

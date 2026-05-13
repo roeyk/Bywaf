@@ -217,6 +217,9 @@ class RunnerPluginAppTests(unittest.TestCase):
             discover.assert_called_once_with("127.0.0.1", "-sn")
             self.assertIn("hostscanner <", output.getvalue())
             self.assertIn(">: discovered host 127.0.0.1", output.getvalue())
+            alerts = runner.db.events_for_topic("console.alert")
+            self.assertEqual(alerts[0].payload["message"], "discovered host 127.0.0.1")
+            self.assertEqual(alerts[0].payload["source"], "hostscanner")
 
     def test_foreground_command_records_job_lifecycle(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -283,6 +286,8 @@ class RunnerPluginAppTests(unittest.TestCase):
                 self.assertEqual(events[-1].parent_command_run_id, events[0].command_run_id)
                 self.assertIn("portscanner <", output.getvalue())
                 self.assertIn(">: discovered port 8080/tcp on host 127.0.0.1", output.getvalue())
+                alerts = runner.db.events_for_topic("console.alert")
+                self.assertTrue(any("discovered port 8080/tcp" in event.payload["message"] for event in alerts))
 
     def test_commandlet_can_use_events_from_prior_run(self):
         with tempfile.TemporaryDirectory() as tmp:

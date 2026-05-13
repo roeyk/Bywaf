@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 from bywaf.events import Event
 from bywaf.http_cookies import load_cookie_jar
-from bywaf.plugin import CommandContext, CommandSpec, Commandlet, OptionSpec, emit_alert
+from bywaf.plugin import CommandContext, CommandSpec, Commandlet, OptionSpec
 
 DEFAULTS = {
     "cookie-file": "",
@@ -83,8 +83,7 @@ class HttpProbe:
                 "scheme": target.scheme,
                 **result,
             }
-            emit_alert(
-                context,
+            context.alert(
                 f"discovered HTTP endpoint {target.url} status={payload.get('status')}",
                 silent=parsed.silent,
             )

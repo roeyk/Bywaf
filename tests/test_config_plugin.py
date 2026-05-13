@@ -1,6 +1,11 @@
+import contextlib
+import io
+from pathlib import Path
+import tempfile
 import unittest
 
 from bywaf.config import Settings, default_settings
+from bywaf.db import EventStore
 from bywaf.plugin import ArgumentSpec, CommandContext, CommandSpec, CompletionSpec, OptionSpec
 from bywaf.messages import Host, Progress
 from bywaf.varstore import ScopedVarStore, VarStore
@@ -43,6 +48,25 @@ class ConfigPluginTests(unittest.TestCase):
         self.assertEqual(context.vars.get("value"), "abc")
         with self.assertRaisesRegex(ValueError, "unqualified"):
             context.vars.get("other.value")
+
+    def test_command_context_alert_prints_without_database(self):
+        context = CommandContext(db=None, source="test", metadata={"command_run_id": "run-1"})
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            context.alert("hello")
+        self.assertEqual(output.getvalue(), "test <run-1>: hello\n")
+
+    def test_command_context_alert_records_event_when_silent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(db=db, source="test", metadata={"command_run_id": "run-1"})
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                context.alert("hello", silent=True)
+            alerts = db.events_for_topic("console.alert")
+        self.assertEqual(output.getvalue(), "")
+        self.assertEqual(alerts[0].payload["message"], "hello")
+        self.assertEqual(alerts[0].command_run_id, "run-1")
 
     def test_scoped_varstore_reads_only_its_namespace(self):
         store = VarStore()

@@ -7,7 +7,7 @@ from collections.abc import Iterable
 
 from bywaf.events import Event
 from bywaf.nmap_backend import discover_live_hosts
-from bywaf.plugin import CommandContext, CommandSpec, Commandlet, OptionSpec, emit_alert
+from bywaf.plugin import CommandContext, CommandSpec, Commandlet, OptionSpec
 from bywaf.utils import host_candidates
 
 DEFAULTS = {"arguments": "-sn", "limit": 256}
@@ -48,7 +48,7 @@ class HostScanner:
         context.raise_if_cancelled()
         for host in discover_live_hosts(" ".join(targets), parsed.arguments)[: parsed.limit]:
             context.raise_if_cancelled()
-            emit_alert(context, f"discovered host {host}", silent=parsed.silent)
+            context.alert(f"discovered host {host}", silent=parsed.silent)
             yield {"host": host, "status": "up", "scanner": "nmap"}
 
 

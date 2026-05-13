@@ -551,7 +551,15 @@ Put expensive or long-running work behind clear options. Add `--timeout`,
 `--limit`, or similar controls where appropriate.
 
 Use `-s` or `--silent` for commandlets that print discovery alerts. The bundled
-scanner commandlets use that convention.
+scanner commandlets use that convention. Plugins should emit console alerts
+through the context instead of calling `print()` directly:
+
+```python
+context.alert("discovered host 127.0.0.1", silent=parsed.silent)
+```
+
+This writes a structured `console.alert` event for GUI/audit consumers and
+mirrors the alert to stdout unless `silent` is true.
 
 Prefer completion specs for common cases and custom completion only when the
 generic specs are not expressive enough.
