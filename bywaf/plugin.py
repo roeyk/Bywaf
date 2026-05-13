@@ -6,7 +6,7 @@ import argparse
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from .db import EventStore, Subscription
 from .events import Event
@@ -59,6 +59,96 @@ class CommandSpec:
     consumes: tuple[str, ...] = ()
     emits: tuple[str, ...] = ()
     capabilities: tuple[str, ...] = ()
+
+
+def commandlet(
+    *,
+    name: str,
+    description: str,
+    usage: str = "",
+    examples: Sequence[str] = (),
+    consumes: Sequence[str] = (),
+    emits: Sequence[str] = (),
+    capabilities: Sequence[str] = (),
+):
+    """Decorate a commandlet class with a `CommandSpec`.
+
+    Use this with `@argument` and `@option` to keep plugin metadata readable
+    without hand-writing a full `CommandSpec` block.
+    """
+    def decorate(cls):
+        cls.spec = CommandSpec(
+            name=name,
+            description=description,
+            usage=usage,
+            examples=tuple(examples),
+            options=tuple(getattr(cls, "_bywaf_options", ())),
+            arguments=tuple(getattr(cls, "_bywaf_arguments", ())),
+            consumes=tuple(consumes),
+            emits=tuple(emits),
+            capabilities=tuple(capabilities),
+        )
+        return cls
+
+    return decorate
+
+
+def option(
+    name: str,
+    description: str,
+    default: str | None = None,
+    choices: Sequence[str] = (),
+    completion: CompletionSpec | str | None = None,
+):
+    """Decorate a commandlet class with one option metadata entry."""
+    def decorate(cls):
+        options = list(cast(tuple[OptionSpec, ...], getattr(cls, "_bywaf_options", ())))
+        options.append(
+            OptionSpec(
+                name,
+                description,
+                default,
+                tuple(choices),
+                normalize_completion(completion),
+            )
+        )
+        cls._bywaf_options = tuple(options)
+        return cls
+
+    return decorate
+
+
+def argument(
+    name: str,
+    description: str = "",
+    *,
+    required: bool = True,
+    completion: CompletionSpec | str | None = None,
+):
+    """Decorate a commandlet class with one positional argument metadata entry."""
+    def decorate(cls):
+        arguments = list(cast(tuple[ArgumentSpec, ...], getattr(cls, "_bywaf_arguments", ())))
+        arguments.append(
+            ArgumentSpec(
+                name,
+                description,
+                required=required,
+                completion=normalize_completion(completion),
+            )
+        )
+        cls._bywaf_arguments = tuple(arguments)
+        return cls
+
+    return decorate
+
+
+def normalize_completion(completion: CompletionSpec | str | None) -> CompletionSpec:
+    """Convert decorator completion shorthand into a `CompletionSpec`."""
+    if completion is None:
+        return CompletionSpec()
+    if isinstance(completion, CompletionSpec):
+        return completion
+    return CompletionSpec(completion)
 
 
 @dataclass(init=False, slots=True)

@@ -6,7 +6,17 @@ import unittest
 
 from bywaf.config import Settings, default_settings
 from bywaf.db import EventStore
-from bywaf.plugin import ArgumentSpec, CommandContext, CommandSpec, CompletionSpec, OptionSpec, format_table
+from bywaf.plugin import (
+    ArgumentSpec,
+    CommandContext,
+    CommandSpec,
+    CompletionSpec,
+    OptionSpec,
+    argument,
+    commandlet,
+    format_table,
+    option,
+)
 from bywaf.messages import Host, Progress
 from bywaf.varstore import ScopedVarStore, VarStore
 
@@ -37,6 +47,30 @@ class ConfigPluginTests(unittest.TestCase):
         argument = ArgumentSpec("path")
         self.assertTrue(argument.required)
         self.assertEqual(argument.completion, CompletionSpec())
+
+    def test_commandlet_decorators_build_spec(self):
+        @commandlet(
+            name="hello",
+            description="say hello",
+            usage="hello [name]",
+            examples=("hello world",),
+            emits=("hello.greeting",),
+            capabilities=("framework.console.output",),
+        )
+        @option("uppercase", "uppercase output", default="false", choices=("true", "false"))
+        @argument("name", "name to greet", required=False, completion="plugin")
+        class Hello:
+            pass
+
+        spec = getattr(Hello, "spec")
+        self.assertEqual(spec.name, "hello")
+        self.assertEqual(spec.arguments[0].name, "name")
+        self.assertFalse(spec.arguments[0].required)
+        self.assertEqual(spec.arguments[0].completion, CompletionSpec("plugin"))
+        self.assertEqual(spec.options[0].name, "uppercase")
+        self.assertEqual(spec.options[0].choices, ("true", "false"))
+        self.assertEqual(spec.emits, ("hello.greeting",))
+        self.assertEqual(spec.capabilities, ("framework.console.output",))
 
     def test_command_context_metadata_default(self):
         context = CommandContext(db=None, source="test")

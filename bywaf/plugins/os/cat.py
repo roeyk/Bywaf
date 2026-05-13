@@ -6,23 +6,20 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from bywaf.events import Event
-from bywaf.plugin import ArgumentSpec, CommandContext, Commandlet, CommandletBase, CommandSpec, CompletionSpec
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, argument, commandlet
 from bywaf.plugins.os.files import read_text_file
 
 
+@commandlet(
+    name="cat",
+    description="Print a local text file.",
+    usage="cat <path>",
+    examples=("cat README.md",),
+    capabilities=("filesystem.read", "framework.console.output"),
+)
+@argument("path", "file to print", completion="file")
 class Cat(CommandletBase):
     """Commandlet wrapper around local text-file output."""
-
-    spec = CommandSpec(
-        name="cat",
-        description="Print a local text file.",
-        usage="cat <path>",
-        examples=("cat README.md",),
-        arguments=(
-            ArgumentSpec("path", "file to print", completion=CompletionSpec("file")),
-        ),
-        capabilities=("filesystem.read", "framework.console.output"),
-    )
 
     def run(
         self,

@@ -53,5 +53,7 @@ Planning dates are release planning markers, not compatibility commitments.
   `plugin.capability.used` / `plugin.capability.missing` events.
 - 2026-05-13: Added pipeline control plus `kill` / `cancel` selector
   commandlets for jobs and pipelines.
+- 2026-05-13: Added class-based commandlet metadata decorators for plugin
+  authors.
 - 2026-05-13: Added framework-owned paging through `context.page_file()` and
   `framework.file.page.requested`.

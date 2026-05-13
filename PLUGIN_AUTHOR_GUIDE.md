@@ -124,6 +124,39 @@ listed topics. Declare other behavior explicitly, such as
 `framework.console.output`, `framework.console.alert`, `framework.file.page`,
 `filesystem.read`, or `network.connect`.
 
+For class-based commandlets, decorators can remove most of that metadata
+boilerplate:
+
+```python
+from bywaf.plugin import CommandletBase, argument, commandlet, option
+
+@commandlet(
+    name="hello",
+    description="Say hello and emit a greeting event.",
+    usage="hello [name]",
+    examples=("hello", "hello world"),
+    emits=("hello.greeting",),
+    capabilities=("framework.console.output",),
+)
+@option("uppercase", "uppercase the greeting", default="false", choices=("true", "false"))
+@argument("name", "name to greet", required=False)
+class Hello(CommandletBase):
+    def run(self, context, args, input_events):
+        parser = self.parser()
+        parser.add_argument("name", nargs="?", default="world")
+        parser.add_argument("--uppercase", choices=("true", "false"), default="false")
+        parsed = parser.parse_args(args)
+        greeting = f"hello, {parsed.name}"
+        if parsed.uppercase == "true":
+            greeting = greeting.upper()
+        context.output(greeting)
+        yield {"name": parsed.name, "greeting": greeting}
+```
+
+Decorator order is intentional: Python applies decorators from bottom to top, so
+`@argument` and `@option` collect metadata before `@commandlet` builds the final
+`CommandSpec`.
+
 # Parsing Arguments
 
 Use `argparse` inside `run()` when the command has real options:
