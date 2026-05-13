@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
-import argparse
 from collections.abc import Iterable
 
 from bywaf.events import Event
 from bywaf.nmap_backend import discover_live_hosts
-from bywaf.plugin import CommandContext, CommandSpec, Commandlet, OptionSpec
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CommandSpec, OptionSpec
 from bywaf.utils import host_candidates
 
 DEFAULTS = {"arguments": "-sn", "limit": 256}
 
 
-class HostScanner:
+class HostScanner(CommandletBase):
     spec = CommandSpec(
         name="hostscanner",
         description="Discover live hosts with nmap.",
@@ -38,7 +37,7 @@ class HostScanner:
         input_events: Iterable[Event],
     ):
         """Expand target expressions, run nmap discovery, and emit live hosts."""
-        parser = argparse.ArgumentParser(prog=self.spec.name)
+        parser = self.parser()
         parser.add_argument("targets", nargs="+")
         parser.add_argument("-s", "--silent", action="store_true")
         parser.add_argument("--arguments", default="-sn")

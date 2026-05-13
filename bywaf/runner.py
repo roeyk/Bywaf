@@ -76,6 +76,58 @@ class StageRun:
     parent_command_run_id: str | None
 
 
+@dataclass(frozen=True, slots=True)
+class StageResult:
+    """Events produced by one executed pipeline stage."""
+
+    events: list[Event]
+
+
+@dataclass(slots=True)
+class JobLifecycle:
+    """Small helper for publishing consistent job lifecycle events."""
+
+    db: EventStore
+    job_id: int
+    command_line: str
+    request_event: Event | None = None
+
+    @classmethod
+    def create(cls, db: EventStore, command_line: str, pid: int | None, status: str = "queued") -> "JobLifecycle":
+        """Record a new job and its requested event."""
+        job_id = db.record_job(command_line.strip(), pid, status)
+        lifecycle = cls(db, job_id, command_line.strip())
+        lifecycle.request_event = lifecycle.requested()
+        return lifecycle
+
+    def requested(self) -> Event:
+        """Publish that the framework accepted a job request."""
+        return self.db.publish("job.requested", {"job_id": self.job_id, "command": self.command_line}, "runner")
+
+    def claim(self, pid: int | None) -> bool:
+        """Try to claim the job for one process and audit the result."""
+        if not self.db.claim_job(self.job_id, pid):
+            self.db.publish("job.claim.denied", {"job_id": self.job_id, "pid": pid}, "runner")
+            return False
+        self.db.publish("job.claimed", {"job_id": self.job_id, "pid": pid}, "runner")
+        return True
+
+    def start(self, pid: int | None) -> None:
+        """Mark the job running and publish the start event."""
+        self.db.update_job_status(self.job_id, "running")
+        self.db.publish("job.started", {"job_id": self.job_id, "pid": pid, "command": self.command_line}, "runner")
+
+    def fail(self, error: str) -> None:
+        """Mark the job failed and publish the failure event."""
+        self.db.publish("job.failed", {"job_id": self.job_id, "error": error}, "runner")
+        self.db.finish_job(self.job_id, "failed")
+
+    def finish(self) -> None:
+        """Mark the job finished and publish the completion event."""
+        self.db.publish("job.finished", {"job_id": self.job_id, "command": self.command_line}, "runner")
+        self.db.finish_job(self.job_id, "finished")
+
+
 class Runner:
     """Execute parsed commandlet pipelines against an EventStore."""
 
@@ -101,26 +153,21 @@ class Runner:
         commands: tuple[CommandInvocation, ...],
     ) -> list[Event]:
         """Run a foreground pipeline through the same job lifecycle."""
-        job_id = self.db.record_job(command_line.strip(), os.getpid(), "queued")
-        self.db.publish("job.requested", {"job_id": job_id, "command": command_line.strip()}, "runner")
-        if not self.db.claim_job(job_id, os.getpid()):
-            self.db.publish("job.claim.denied", {"job_id": job_id, "pid": os.getpid()}, "runner")
-            raise RuntimeError(f"could not claim foreground job {job_id}")
-        self.db.publish("job.claimed", {"job_id": job_id, "pid": os.getpid()}, "runner")
-        self.db.update_job_status(job_id, "running")
-        self.db.publish("job.started", {"job_id": job_id, "pid": os.getpid(), "command": command_line.strip()}, "runner")
+        pid = os.getpid()
+        lifecycle = JobLifecycle.create(self.db, command_line, pid)
+        if not lifecycle.claim(pid):
+            raise RuntimeError(f"could not claim foreground job {lifecycle.job_id}")
+        lifecycle.start(pid)
         previous_job_id = self.job_id
-        self.job_id = job_id
+        self.job_id = lifecycle.job_id
         try:
             events = self.run_pipeline(commands)
         except Exception as exc:
-            self.db.publish("job.failed", {"job_id": job_id, "error": str(exc)}, "runner")
-            self.db.finish_job(job_id, "failed")
+            lifecycle.fail(str(exc))
             raise
         finally:
             self.job_id = previous_job_id
-        self.db.publish("job.finished", {"job_id": job_id, "command": command_line.strip()}, "runner")
-        self.db.finish_job(job_id, "finished")
+        lifecycle.finish()
         return events
 
     def run_pipeline(
@@ -141,54 +188,17 @@ class Runner:
         input_events: list[Event] = []
         produced: list[Event] = []
         for stage in stages:
-            invocation = stage.invocation
-            plugin = self.registry.get(invocation.name)
-            run_vars = ensure_run_var_snapshot(
+            result = execute_stage(
                 self.db,
-                self.registry.varstore,
-                job_id=self.job_id,
+                self.registry,
+                stage,
                 pipeline_id=pipeline_id,
-                command_run_id=stage.command_run_id,
-                commandlet=plugin.spec.name,
+                job_id=self.job_id,
+                input_events=input_events,
+                replace_db=self.replace_db,
             )
-            selected_input_events = select_input_events(self.db, invocation, input_events)
-            input_high_watermark = max((event.id or 0 for event in selected_input_events), default=0)
-            context = CommandContext(
-                self.db,
-                source=plugin.spec.name,
-                _varstore=self.registry.varstore,
-                metadata={
-                    "pipeline_id": pipeline_id,
-                    "command_run_id": stage.command_run_id,
-                    "parent_command_run_id": stage.parent_command_run_id,
-                    "input_high_watermark": input_high_watermark,
-                    "background": invocation.background,
-                    "from_run": invocation.from_run,
-                    "from_pipeline": invocation.from_pipeline,
-                    "from_topic": invocation.from_topic,
-                    "replace_db": self.replace_db,
-                    "job_id": self.job_id,
-                    "run_vars": run_vars,
-                },
-            )
-            context.raise_if_cancelled()
-            topic = plugin.spec.emits[0] if plugin.spec.emits else plugin.spec.name
-            output_payloads = plugin.run(context, invocation.args, selected_input_events)
-            input_events = [
-                # The framework stores all plugin output under the commandlet's
-                # first declared topic. Plugins that do not declare topics use
-                # their command name as a conservative fallback.
-                self.db.publish(
-                    topic,
-                    payload,
-                    plugin.spec.name,
-                    pipeline_id=pipeline_id,
-                    command_run_id=stage.command_run_id,
-                    parent_command_run_id=stage.parent_command_run_id,
-                )
-                for payload in output_payloads
-            ]
-            produced.extend(input_events)
+            input_events = result.events
+            produced.extend(result.events)
         return produced
 
     def replace_db(self, db: EventStore) -> None:
@@ -245,30 +255,27 @@ class Runner:
         pipeline = parse_pipeline(foreground)
         pipeline_id = new_run_id("pipeline")
         stages = prepare_stage_runs(pipeline.commands)
-        job_id = self.db.record_job(foreground, None, "queued")
+        lifecycle = JobLifecycle.create(self.db, foreground, None)
         for stage in stages:
             plugin = self.registry.get(stage.invocation.name)
             ensure_run_var_snapshot(
                 self.db,
                 self.registry.varstore,
-                job_id=job_id,
+                job_id=lifecycle.job_id,
                 pipeline_id=pipeline_id,
                 command_run_id=stage.command_run_id,
                 commandlet=plugin.spec.name,
             )
-        requested = self.db.publish(
-            "job.requested",
-            {"job_id": job_id, "command": foreground},
-            "runner",
-        )
         process = mp.Process(
             target=run_background_job,
-            args=(str(self.db.path), self.db.passphrase, job_id, foreground, pipeline_id, stages),
+            args=(str(self.db.path), self.db.passphrase, lifecycle.job_id, foreground, pipeline_id, stages),
             daemon=False,
         )
         process.start()
-        self.db.update_job_pid(job_id, process.pid)
-        return requested
+        self.db.update_job_pid(lifecycle.job_id, process.pid)
+        if lifecycle.request_event is None:
+            raise RuntimeError("job request event was not recorded")
+        return lifecycle.request_event
 
     def subscribe_once(self, topics: tuple[str, ...], after_id: int = 0) -> list[Event]:
         """Small convenience wrapper used by tests and simple callers."""
@@ -290,13 +297,11 @@ def run_background_job(
     """
     db = EventStore(Path(db_path), passphrase=db_passphrase)
     pid = mp.current_process().pid
-    if not db.claim_job(job_id, pid):
-        db.publish("job.claim.denied", {"job_id": job_id, "pid": pid}, "runner")
+    lifecycle = JobLifecycle(db, job_id, command_line)
+    if not lifecycle.claim(pid):
         return
-    db.publish("job.claimed", {"job_id": job_id, "pid": pid}, "runner")
     try:
-        db.update_job_status(job_id, "running")
-        db.publish("job.started", {"job_id": job_id, "pid": pid, "command": command_line}, "runner")
+        lifecycle.start(pid)
         runner = Runner(db, PluginRegistry.discover(), job_id=job_id)
         pipeline = parse_pipeline(command_line)
         if pipeline.background:
@@ -304,12 +309,10 @@ def run_background_job(
         else:
             runner.run_pipeline(pipeline.commands, pipeline_id=pipeline_id, stages=stages)
     except Exception as exc:  # pragma: no cover - defensive child-process boundary
-        db.publish("job.failed", {"job_id": job_id, "error": str(exc)}, "runner")
-        db.finish_job(job_id, "failed")
+        lifecycle.fail(str(exc))
         raise
     else:
-        db.publish("job.finished", {"job_id": job_id, "command": command_line}, "runner")
-        db.finish_job(job_id, "finished")
+        lifecycle.finish()
 
 
 def add_runner_arguments(parser: argparse.ArgumentParser) -> None:
@@ -436,6 +439,87 @@ def ensure_run_var_snapshot(
     return values
 
 
+def build_context(
+    db: EventStore,
+    registry: PluginRegistry,
+    stage: StageRun,
+    *,
+    pipeline_id: str,
+    job_id: int | None,
+    input_high_watermark: int,
+    replace_db,
+) -> CommandContext:
+    """Build the runtime context for one commandlet stage."""
+    invocation = stage.invocation
+    plugin = registry.get(invocation.name)
+    run_vars = ensure_run_var_snapshot(
+        db,
+        registry.varstore,
+        job_id=job_id,
+        pipeline_id=pipeline_id,
+        command_run_id=stage.command_run_id,
+        commandlet=plugin.spec.name,
+    )
+    return CommandContext(
+        db,
+        source=plugin.spec.name,
+        _varstore=registry.varstore,
+        metadata={
+            "pipeline_id": pipeline_id,
+            "command_run_id": stage.command_run_id,
+            "parent_command_run_id": stage.parent_command_run_id,
+            "input_high_watermark": input_high_watermark,
+            "background": invocation.background,
+            "from_run": invocation.from_run,
+            "from_pipeline": invocation.from_pipeline,
+            "from_topic": invocation.from_topic,
+            "replace_db": replace_db,
+            "job_id": job_id,
+            "run_vars": run_vars,
+        },
+    )
+
+
+def execute_stage(
+    db: EventStore,
+    registry: PluginRegistry,
+    stage: StageRun,
+    *,
+    pipeline_id: str,
+    job_id: int | None,
+    input_events: list[Event],
+    replace_db=None,
+) -> StageResult:
+    """Execute one pipeline stage and persist yielded payloads as events."""
+    invocation = stage.invocation
+    plugin = registry.get(invocation.name)
+    selected_input_events = select_input_events(db, invocation, input_events)
+    input_high_watermark = max((event.id or 0 for event in selected_input_events), default=0)
+    context = build_context(
+        db,
+        registry,
+        stage,
+        pipeline_id=pipeline_id,
+        job_id=job_id,
+        input_high_watermark=input_high_watermark,
+        replace_db=replace_db,
+    )
+    context.raise_if_cancelled()
+    topic = plugin.spec.emits[0] if plugin.spec.emits else plugin.spec.name
+    events = [
+        db.publish(
+            topic,
+            payload,
+            plugin.spec.name,
+            pipeline_id=pipeline_id,
+            command_run_id=stage.command_run_id,
+            parent_command_run_id=stage.parent_command_run_id,
+        )
+        for payload in plugin.run(context, invocation.args, selected_input_events)
+    ]
+    return StageResult(events)
+
+
 def run_stage_process(
     db_path: str,
     db_passphrase: str | None,
@@ -453,49 +537,16 @@ def run_stage_process(
     """Child-process entry point for one background pipeline stage."""
     db = EventStore(Path(db_path), passphrase=db_passphrase)
     registry = PluginRegistry.discover()
-    plugin = registry.get(name)
-    run_vars = ensure_run_var_snapshot(
-        db,
-        registry.varstore,
-        job_id=job_id,
-        pipeline_id=pipeline_id,
-        command_run_id=command_run_id,
-        commandlet=plugin.spec.name,
+    stage = StageRun(
+        CommandInvocation(
+            name,
+            args,
+            background=background,
+            from_run=from_run,
+            from_pipeline=from_pipeline,
+            from_topic=from_topic,
+        ),
+        command_run_id,
+        parent_command_run_id,
     )
-    context = CommandContext(
-        db,
-        source=plugin.spec.name,
-        _varstore=registry.varstore,
-        metadata={
-            "pipeline_id": pipeline_id,
-            "command_run_id": command_run_id,
-            "parent_command_run_id": parent_command_run_id,
-            "input_high_watermark": 0,
-            "background": background,
-            "from_run": from_run,
-            "from_pipeline": from_pipeline,
-            "from_topic": from_topic,
-            "job_id": job_id,
-            "run_vars": run_vars,
-        },
-    )
-    context.raise_if_cancelled()
-    topic = plugin.spec.emits[0] if plugin.spec.emits else plugin.spec.name
-    invocation = CommandInvocation(
-        name,
-        args,
-        background=background,
-        from_run=from_run,
-        from_pipeline=from_pipeline,
-        from_topic=from_topic,
-    )
-    input_events = select_input_events(db, invocation, [])
-    for payload in plugin.run(context, args, input_events):
-        db.publish(
-            topic,
-            payload,
-            plugin.spec.name,
-            pipeline_id=pipeline_id,
-            command_run_id=command_run_id,
-            parent_command_run_id=parent_command_run_id,
-        )
+    execute_stage(db, registry, stage, pipeline_id=pipeline_id, job_id=job_id, input_events=[])

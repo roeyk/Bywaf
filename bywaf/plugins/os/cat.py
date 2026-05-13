@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-import argparse
 from collections.abc import Iterable
 from pathlib import Path
 
 from bywaf.events import Event
-from bywaf.plugin import ArgumentSpec, CommandContext, CommandSpec, Commandlet, CompletionSpec
+from bywaf.plugin import ArgumentSpec, CommandContext, Commandlet, CommandletBase, CommandSpec, CompletionSpec
 from bywaf.plugins.os.files import read_text_file
 
 
-class Cat:
+class Cat(CommandletBase):
     """Commandlet wrapper around local text-file output."""
 
     spec = CommandSpec(
@@ -32,7 +31,7 @@ class Cat:
     ):
         """Parse `cat <path>` and write the file contents to stdout."""
 
-        parser = argparse.ArgumentParser(prog=self.spec.name)
+        parser = self.parser()
         parser.add_argument("path")
         parsed = parser.parse_args(args)
         context.output(read_text_file(Path(parsed.path)), end="")

@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-import argparse
 import http.client
 from collections.abc import Iterable
 
 from bywaf.events import Event
-from bywaf.plugin import CommandContext, CommandSpec, Commandlet, OptionSpec
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CommandSpec, OptionSpec
 
 DEFAULTS = {"ssl": "false", "timeout": 5}
 
 
-class HttpHeaders:
+class HttpHeaders(CommandletBase):
     spec = CommandSpec(
         name="http_headers",
         description="Fetch HTTP response headers for a target.",
@@ -37,7 +36,7 @@ class HttpHeaders:
         input_events: Iterable[Event],
     ):
         """Fetch HEAD response metadata for explicit or pipeline targets."""
-        parser = argparse.ArgumentParser(prog=self.spec.name)
+        parser = self.parser()
         parser.add_argument("target", nargs="?")
         parser.add_argument("--port", type=int)
         parser.add_argument("--ssl", choices=("true", "false"), default="false")

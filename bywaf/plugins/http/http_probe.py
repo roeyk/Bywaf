@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
 import re
 import time
 import urllib.error
@@ -13,7 +12,7 @@ from dataclasses import dataclass
 
 from bywaf.events import Event
 from bywaf.http_cookies import load_cookie_jar
-from bywaf.plugin import CommandContext, CommandSpec, Commandlet, OptionSpec
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CommandSpec, OptionSpec
 
 DEFAULTS = {
     "cookie-file": "",
@@ -25,7 +24,7 @@ DEFAULTS = {
 }
 
 
-class HttpProbe:
+class HttpProbe(CommandletBase):
     spec = CommandSpec(
         name="http_probe",
         description="Probe HTTP/HTTPS endpoints and emit response metadata.",
@@ -57,7 +56,7 @@ class HttpProbe:
         input_events: Iterable[Event],
     ):
         """Probe explicit URLs/hosts or HTTP-looking pipeline ports."""
-        parser = argparse.ArgumentParser(prog=self.spec.name)
+        parser = self.parser()
         parser.add_argument("targets", nargs="*")
         parser.add_argument("-s", "--silent", action="store_true")
         parser.add_argument("--cookie-file")

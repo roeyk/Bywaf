@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-import argparse
 from collections.abc import Iterable
 from pathlib import Path
 
 from bywaf.events import Event
-from bywaf.plugin import ArgumentSpec, CommandContext, CommandSpec, Commandlet, CompletionSpec
+from bywaf.plugin import ArgumentSpec, CommandContext, Commandlet, CommandletBase, CommandSpec, CompletionSpec
 from bywaf.plugins.os.files import list_path
 
 
-class Ls:
+class Ls(CommandletBase):
     """Commandlet wrapper around a local filesystem directory listing."""
 
     spec = CommandSpec(
@@ -37,7 +36,7 @@ class Ls:
     ):
         """Parse `ls [path]` and print the target directory or file name."""
 
-        parser = argparse.ArgumentParser(prog=self.spec.name)
+        parser = self.parser()
         parser.add_argument("path", nargs="?", default=".")
         parsed = parser.parse_args(args)
         for line in list_path(Path(parsed.path)):

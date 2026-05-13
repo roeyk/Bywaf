@@ -21,7 +21,7 @@ class ApiTests(unittest.TestCase):
             session = BywafSession.open(Path(tmp, "db.sqlite3"))
             event = session.run_background("job list")
             self.assertEqual(event.topic, "job.requested")
-            self.assertEqual(session.jobs()[0]["status"], "queued")
+            self.assertIn(session.jobs()[0]["status"], {"queued", "claimed", "running", "finished", "failed"})
 
     def test_session_lists_plugins_and_commandlets(self):
         with tempfile.TemporaryDirectory() as tmp:

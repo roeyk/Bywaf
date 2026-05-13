@@ -54,6 +54,24 @@ def plugin() -> Commandlet:
     return Hello()
 ```
 
+If your commandlet uses `argparse`, inherit from `CommandletBase` and call
+`self.parser()` so the parser name stays consistent with the commandlet spec:
+
+```python
+from bywaf.plugin import CommandletBase
+
+
+class Hello(CommandletBase):
+    spec = CommandSpec(...)
+
+    def run(self, context, args, input_events):
+        parser = self.parser()
+        parser.add_argument("name", nargs="?", default="world")
+        parsed = parser.parse_args(args)
+        context.output(f"hello, {parsed.name}")
+        yield {"name": parsed.name}
+```
+
 Load and run it:
 
 ```text

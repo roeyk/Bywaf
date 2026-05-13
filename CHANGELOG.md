@@ -50,6 +50,7 @@ so entries are grouped under `Unreleased` until versioned releases begin.
   so plugin authors can use framework-mediated output without direct `print()`.
 - Added `CommandContext` metadata accessors plus `require_db()` and
   `require_foreground()` helpers for cleaner plugin guard code.
+- Added `CommandletBase` for shared argparse parser setup in commandlets.
 - Added `db encrypt`, `db decrypt`, and `db rekey` for active database
   encryption management.
 - Added `db new`, `db new --file=<path>`, `db new --encrypt`, and
@@ -70,6 +71,11 @@ so entries are grouped under `Unreleased` until versioned releases begin.
   built-ins.
 - Changed `help <command>` to delegate to commandlet argparse help where
   possible.
+- Refactored runner stage execution and job lifecycle auditing into shared
+  helpers.
+- Refactored framework request dispatch to use a handler table.
+- Split SQLite schema and compatibility migrations into `bywaf.db_schema`.
+- Split the large runner/app test module into focused test modules.
 - Changed `save db=<path>` to be an export/copy operation that does not switch
   the active database.
 - Changed database shutdown to checkpoint SQLite WAL state cleanly.

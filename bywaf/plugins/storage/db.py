@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
 import getpass
 import os
 from collections.abc import Iterable
@@ -12,13 +11,13 @@ from pathlib import Path
 from bywaf.config import Settings
 from bywaf.db import EventStore, export_encrypted_database, export_plaintext_database
 from bywaf.events import Event
-from bywaf.plugin import ArgumentSpec, CommandContext, CommandSpec, Commandlet, CompletionSpec
+from bywaf.plugin import ArgumentSpec, CommandContext, Commandlet, CommandletBase, CommandSpec, CompletionSpec
 
 DB_ACTIONS = ("checkpoint", "decrypt", "encrypt", "new", "path", "rekey", "status", "vacuum")
 ENCRYPTION_VAR = "encryption"
 
 
-class Db:
+class Db(CommandletBase):
     """Expose safe operational controls for the active SQLite database."""
 
     spec = CommandSpec(
@@ -42,7 +41,7 @@ class Db:
         input_events: Iterable[Event],
     ):
         """Parse the database action and run it against the active store."""
-        parser = argparse.ArgumentParser(prog=self.spec.name)
+        parser = self.parser()
         parser.add_argument("action", choices=DB_ACTIONS)
         parser.add_argument("--file")
         parser.add_argument("--encrypt", action="store_true")

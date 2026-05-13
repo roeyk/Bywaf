@@ -275,29 +275,30 @@ def process_framework_requests(runner: Runner, state: ShellState) -> None:
 
 def handle_framework_request(runner: Runner, state: ShellState, event) -> None:
     """Validate and apply one framework request event."""
-    match event.topic:
-        case "shell.prompt.requested":
-            requested_prompt = event.payload.get("prompt")
-            if isinstance(requested_prompt, str) and requested_prompt:
-                old_prompt = state.prompt_pattern
-                state.prompt_pattern = requested_prompt
-                runner.db.publish(
-                    "shell.prompt.updated",
-                    {
-                        "old_prompt": old_prompt,
-                        "new_prompt": requested_prompt,
-                        "request_event_id": event.id,
-                    },
-                    "framework",
-                )
-                return
-            deny_framework_request(runner, event, "prompt must be a non-empty string")
-        case "framework.console.alert.requested":
-            emit_console_alert(runner, event)
-        case "framework.console.output.requested":
-            emit_console_output(runner, event)
-        case _:
-            deny_framework_request(runner, event, f"unsupported request topic: {event.topic}")
+    handler = FRAMEWORK_REQUEST_HANDLERS.get(event.topic)
+    if handler is None:
+        deny_framework_request(runner, event, f"unsupported request topic: {event.topic}")
+        return
+    handler(runner, state, event)
+
+
+def handle_prompt_request(runner: Runner, state: ShellState, event) -> None:
+    """Validate and apply a prompt-change request."""
+    requested_prompt = event.payload.get("prompt")
+    if isinstance(requested_prompt, str) and requested_prompt:
+        old_prompt = state.prompt_pattern
+        state.prompt_pattern = requested_prompt
+        runner.db.publish(
+            "shell.prompt.updated",
+            {
+                "old_prompt": old_prompt,
+                "new_prompt": requested_prompt,
+                "request_event_id": event.id,
+            },
+            "framework",
+        )
+        return
+    deny_framework_request(runner, event, "prompt must be a non-empty string")
 
 
 def emit_console_alert(runner: Runner, event) -> None:
@@ -333,6 +334,12 @@ def emit_console_alert(runner: Runner, event) -> None:
         print(f"{source} <{command_id}>: {message}", flush=True)
 
 
+def handle_console_alert_request(runner: Runner, state: ShellState, event) -> None:
+    """Handle a console-alert framework request."""
+    del state
+    emit_console_alert(runner, event)
+
+
 def emit_console_output(runner: Runner, event) -> None:
     """Validate, audit, and display plugin-requested command output."""
     text = event.payload.get("text", "")
@@ -358,6 +365,19 @@ def emit_console_output(runner: Runner, event) -> None:
         parent_command_run_id=event.parent_command_run_id,
     )
     print(text, end=end, flush=True)
+
+
+def handle_console_output_request(runner: Runner, state: ShellState, event) -> None:
+    """Handle a console-output framework request."""
+    del state
+    emit_console_output(runner, event)
+
+
+FRAMEWORK_REQUEST_HANDLERS = {
+    "shell.prompt.requested": handle_prompt_request,
+    "framework.console.alert.requested": handle_console_alert_request,
+    "framework.console.output.requested": handle_console_output_request,
+}
 
 
 def deny_framework_request(runner: Runner, event, reason: str) -> None:

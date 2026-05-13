@@ -2,19 +2,18 @@
 
 from __future__ import annotations
 
-import argparse
 from collections.abc import Iterable
 from time import monotonic, sleep
 
 from bywaf.db import Subscription
 from bywaf.events import Event
 from bywaf.nmap_backend import scan_open_ports
-from bywaf.plugin import CommandContext, CommandSpec, Commandlet, OptionSpec
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CommandSpec, OptionSpec
 
 DEFAULTS = {"arguments": "-sT", "ports": ""}
 
 
-class PortScanner:
+class PortScanner(CommandletBase):
     spec = CommandSpec(
         name="portscanner",
         description="Scan TCP ports with nmap for hosts from args or pipeline input.",
@@ -43,7 +42,7 @@ class PortScanner:
         input_events: Iterable[Event],
     ):
         """Scan explicit/pipeline hosts, then optionally listen for new hosts."""
-        parser = argparse.ArgumentParser(prog=self.spec.name)
+        parser = self.parser()
         parser.add_argument("hosts", nargs="*")
         parser.add_argument("-s", "--silent", action="store_true")
         parser.add_argument("--arguments", default="-sT")

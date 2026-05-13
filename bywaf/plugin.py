@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
@@ -217,6 +218,20 @@ class Commandlet(Protocol):
     ) -> Iterable[dict[str, Any]]:
         """Execute the commandlet and yield payload dictionaries."""
         ...
+
+
+class CommandletBase:
+    """Convenience base class for commandlets that use argparse."""
+
+    spec: CommandSpec
+
+    def parser(self) -> argparse.ArgumentParser:
+        """Return an argparse parser named after this commandlet."""
+        return argparse.ArgumentParser(prog=self.spec.name)
+
+    def parse_args(self, args: list[str]) -> argparse.Namespace:
+        """Parse commandlet arguments with the commandlet parser."""
+        return self.parser().parse_args(args)
 
 
 def command_run_id(context: CommandContext) -> str:

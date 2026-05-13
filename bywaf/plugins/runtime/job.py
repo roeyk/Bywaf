@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
-import argparse
 import os
 import signal
 from collections.abc import Iterable
 
 from bywaf.events import Event
-from bywaf.plugin import ArgumentSpec, CommandContext, CommandSpec, Commandlet, CompletionContext, CompletionSpec
+from bywaf.plugin import ArgumentSpec, CommandContext, Commandlet, CommandletBase, CommandSpec, CompletionContext, CompletionSpec
 
 JOB_ACTIONS = ("cancel", "kill", "list", "show")
 
 
-class Job:
+class Job(CommandletBase):
     """List, inspect, softly cancel, and hard-kill background jobs."""
 
     spec = CommandSpec(
@@ -34,7 +33,7 @@ class Job:
         input_events: Iterable[Event],
     ):
         """Parse and execute one job-management operation."""
-        parser = argparse.ArgumentParser(prog=self.spec.name)
+        parser = self.parser()
         parser.add_argument("action", choices=JOB_ACTIONS)
         parser.add_argument("id", nargs="?")
         parser.add_argument("--force", action="store_true")
