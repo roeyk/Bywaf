@@ -2,10 +2,10 @@
 
 # Overview
 
-Bywaf is a Python 3 commandlet framework for authorized web application and
-network testing workflows. It presents a Metasploit-like interactive shell,
-loads commandlets from plugins, and connects commandlets through a SQLite-backed
-event bus.
+Bywaf is a highly-auditable Python 3 commandlet framework for authorized web
+application and network testing workflows. It presents a Metasploit-like
+interactive shell, loads commandlets from plugins, and connects commandlets
+through a SQLite-backed event bus.
 
 The core idea is simple: one commandlet discovers something and publishes it as
 an event; another commandlet consumes that event and publishes the next result.

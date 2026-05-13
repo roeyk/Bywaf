@@ -35,7 +35,7 @@ class Hello:
         name="hello",
         description="Say hello and emit a greeting event.",
         usage="hello [name]",
-        examples=("hello", "hello roey"),
+        examples=("hello", "hello world"),
         emits=("hello.greeting",),
     )
 
@@ -59,9 +59,9 @@ Load and run it:
 ```text
 bywaf> load plugin=hello
 loaded hello
-bywaf> hello roey
-hello, roey
-#1 hello.greeting {'name': 'roey', 'message': 'hello, roey'}
+bywaf> hello world
+hello, world
+#1 hello.greeting {'name': 'world', 'message': 'hello, world'}
 ```
 
 Show the events:
@@ -79,7 +79,7 @@ CommandSpec(
     name="hello",
     description="Say hello and emit a greeting event.",
     usage="hello [name]",
-    examples=("hello", "hello roey"),
+    examples=("hello", "hello world"),
     options=(),
     arguments=(),
     consumes=(),
