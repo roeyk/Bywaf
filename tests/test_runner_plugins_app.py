@@ -93,6 +93,56 @@ class RunnerPluginAppTests(unittest.TestCase):
             self.assertIn("mode=plaintext", text)
             self.assertIn("events=1", text)
 
+    def test_db_new_file_creates_and_switches_active_database(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            first = Path(tmp, "first.sqlite3")
+            second = Path(tmp, "second.sqlite3")
+            runner = make_runner(first)
+            runner.db.publish("topic", {"value": 1}, "test")
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute(f"db new --file={second}")
+            self.assertEqual(runner.db.path, second)
+            self.assertEqual(runner.db.table_counts()["events"], 0)
+            self.assertEqual(EventStore(first).table_counts()["events"], 1)
+
+    def test_db_new_refuses_existing_file_without_force(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            first = Path(tmp, "first.sqlite3")
+            second = Path(tmp, "second.sqlite3")
+            EventStore(second).publish("topic", {"value": 1}, "test")
+            runner = make_runner(first)
+            with self.assertRaisesRegex(ValueError, "already exists"):
+                runner.execute(f"db new --file={second}")
+            self.assertEqual(runner.db.path, first)
+            self.assertEqual(EventStore(second).table_counts()["events"], 1)
+
+    def test_db_new_force_backs_up_existing_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            first = Path(tmp, "first.sqlite3")
+            second = Path(tmp, "second.sqlite3")
+            EventStore(second).publish("topic", {"value": 1}, "test")
+            runner = make_runner(first)
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute(f"db new --force --file={second}")
+            self.assertEqual(runner.db.path, second)
+            self.assertEqual(runner.db.table_counts()["events"], 0)
+            backups = list(Path(tmp).glob("second.sqlite3.bak-*"))
+            self.assertEqual(len(backups), 1)
+            self.assertEqual(EventStore(backups[0]).table_counts()["events"], 1)
+
+    def test_db_new_default_path_uses_bywaf_db_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path.cwd()
+            try:
+                os.chdir(tmp)
+                runner = make_runner(Path("current.sqlite3"))
+                with contextlib.redirect_stdout(io.StringIO()):
+                    runner.execute("db new")
+                self.assertEqual(runner.db.path.parent, Path(".bywaf/db"))
+                self.assertTrue(runner.db.path.name.startswith("bywaf-"))
+            finally:
+                os.chdir(cwd)
+
     @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
     def test_db_commandlet_encrypt_decrypts_and_rekeys_active_database(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -112,6 +162,30 @@ class RunnerPluginAppTests(unittest.TestCase):
             self.assertFalse(runner.db.encrypted)
             self.assertFalse(database_appears_encrypted(path))
             self.assertEqual(runner.db.events_for_topic("topic")[0].payload["value"], 1)
+
+    @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
+    def test_db_new_encrypt_creates_encrypted_active_database(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            first = Path(tmp, "first.sqlite3")
+            second = Path(tmp, "second.sqlite3")
+            runner = make_runner(first)
+            with patch("getpass.getpass", side_effect=["secret", "secret"]):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    runner.execute(f"db new --encrypt --file={second}")
+            self.assertTrue(runner.db.encrypted)
+            self.assertTrue(database_appears_encrypted(second))
+
+    @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
+    def test_db_new_uses_encryption_variable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            first = Path(tmp, "first.sqlite3")
+            second = Path(tmp, "second.sqlite3")
+            runner = make_runner(first)
+            runner.registry.varstore.set("db.encryption", "sqlcipher")
+            with patch("getpass.getpass", side_effect=["secret", "secret"]):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    runner.execute(f"db new --file={second}")
+            self.assertTrue(runner.db.encrypted)
 
     @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
     def test_db_encrypt_rejects_background_conversion(self):

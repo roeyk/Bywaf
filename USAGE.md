@@ -110,7 +110,7 @@ history
 jobs
 runs
 topics
-db <status|path|checkpoint|vacuum|encrypt|decrypt|rekey>
+db <status|path|checkpoint|vacuum|new|encrypt|decrypt|rekey>
 show <topic|job=id|run=id|pipeline=id>
 load <resource>
 save <resource>
@@ -299,6 +299,29 @@ bywaf> db status
 bywaf> db path
 bywaf> db checkpoint
 bywaf> db vacuum
+```
+
+Create a fresh database and switch the active session to it:
+
+```text
+bywaf> db new
+bywaf> db new --file=client.sqlite3
+bywaf> db new --encrypt --file=client.sqlite3
+bywaf> db new --force --file=client.sqlite3
+```
+
+Without `--file`, `db new` creates a timestamped database under `.bywaf/db/`.
+With `--file`, it refuses to overwrite an existing file. Add `--force` to move
+the existing database and SQLite sidecar files to timestamped `.bak-*` names
+before creating the new DB. `--encrypt` forces SQLCipher encryption and prompts
+twice for a passphrase.
+
+The session variable `db.encryption=sqlcipher` makes `db new` encrypted by
+default:
+
+```text
+bywaf> vars db.encryption=sqlcipher
+bywaf> db new
 ```
 
 Convert the active database in place:
@@ -662,7 +685,7 @@ show <topic>
 show job=<id>
 show run=<id>
 show pipeline=<id>
-db <status|path|checkpoint|vacuum|encrypt|decrypt|rekey>
+db <status|path|checkpoint|vacuum|new|encrypt|decrypt|rekey>
 load plugin=<resource>
 load script=<resource>
 load db=<resource>

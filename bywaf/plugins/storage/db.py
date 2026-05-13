@@ -6,13 +6,16 @@ import argparse
 import getpass
 import os
 from collections.abc import Iterable
+from datetime import datetime
 from pathlib import Path
 
+from bywaf.config import Settings
 from bywaf.db import EventStore, export_encrypted_database, export_plaintext_database
 from bywaf.events import Event
 from bywaf.plugin import ArgumentSpec, CommandContext, CommandSpec, Commandlet, CompletionSpec
 
-DB_ACTIONS = ("checkpoint", "decrypt", "encrypt", "path", "rekey", "status", "vacuum")
+DB_ACTIONS = ("checkpoint", "decrypt", "encrypt", "new", "path", "rekey", "status", "vacuum")
+ENCRYPTION_VAR = "db.encryption"
 
 
 class Db:
@@ -21,8 +24,8 @@ class Db:
     spec = CommandSpec(
         name="db",
         description="Manage the active Bywaf SQLite database.",
-        usage="db <status|path|checkpoint|vacuum|encrypt|decrypt|rekey>",
-        examples=("db status", "db checkpoint", "db encrypt", "db rekey"),
+        usage="db <status|path|checkpoint|vacuum|new|encrypt|decrypt|rekey>",
+        examples=("db status", "db new --file=client.sqlite3", "db encrypt", "db rekey"),
         arguments=(
             ArgumentSpec(
                 "action",
@@ -41,6 +44,9 @@ class Db:
         """Parse the database action and run it against the active store."""
         parser = argparse.ArgumentParser(prog=self.spec.name)
         parser.add_argument("action", choices=DB_ACTIONS)
+        parser.add_argument("--file")
+        parser.add_argument("--encrypt", action="store_true")
+        parser.add_argument("--force", action="store_true")
         parsed = parser.parse_args(args)
         if context.db is None:
             raise ValueError("db command requires an active database")
@@ -54,6 +60,14 @@ class Db:
             case "encrypt":
                 encrypt_active_database(context)
                 print("database encrypted")
+            case "new":
+                new_active_database(
+                    context,
+                    file=Path(parsed.file) if parsed.file else None,
+                    encrypt=parsed.encrypt,
+                    force=parsed.force,
+                )
+                print(f"created db={context.db.path}")
             case "path":
                 print(context.db.path)
             case "rekey":
@@ -123,6 +137,81 @@ def rekey_active_database(context: CommandContext) -> None:
     passphrase = prompt_new_passphrase("New database passphrase: ", "Confirm database passphrase: ")
     context.db.rekey(passphrase)
     replace_active_store(context, EventStore(context.db.path, passphrase=passphrase))
+
+
+def new_active_database(
+    context: CommandContext,
+    *,
+    file: Path | None,
+    encrypt: bool,
+    force: bool,
+) -> None:
+    """Create a fresh database file and switch the active session to it."""
+    if context.db is None:
+        raise ValueError("db command requires an active database")
+    require_foreground_conversion(context, "db new")
+    path = file or default_new_database_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if is_same_path(path, context.db.path):
+        raise ValueError("db new cannot replace the active database file")
+    if database_files_exist(path):
+        if not force:
+            raise ValueError(f"{path} already exists")
+        backup_existing_database(path)
+    passphrase = None
+    if encrypt or default_encryption_enabled(context):
+        passphrase = prompt_new_passphrase("New database passphrase: ", "Confirm database passphrase: ")
+    new_db = EventStore(path, passphrase=passphrase)
+    new_db.table_counts()
+    replace_active_store(context, new_db)
+
+
+def default_new_database_path() -> Path:
+    """Return a timestamped DB path under the default Bywaf DB directory."""
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    base = Settings().database_dir / f"bywaf-{stamp}.sqlite3"
+    if not database_files_exist(base):
+        return base
+    counter = 1
+    while True:
+        candidate = Settings().database_dir / f"bywaf-{stamp}-{counter}.sqlite3"
+        if not database_files_exist(candidate):
+            return candidate
+        counter += 1
+
+
+def default_encryption_enabled(context: CommandContext) -> bool:
+    """Return whether session variables request encrypted new databases."""
+    value = (context.varstore.get(ENCRYPTION_VAR, "") or "").strip().lower()
+    return value in {"1", "true", "yes", "on", "encrypted", "sqlcipher"}
+
+
+def is_same_path(left: Path, right: Path) -> bool:
+    """Compare paths after resolving lexical relative components."""
+    return left.expanduser().resolve(strict=False) == right.expanduser().resolve(strict=False)
+
+
+def database_files_exist(path: Path) -> bool:
+    """Return True if the main DB or SQLite sidecar files exist."""
+    return any(database_related_paths(path))
+
+
+def database_related_paths(path: Path) -> list[Path]:
+    """Return existing main/WAL/shared-memory files for a database path."""
+    paths = [path, Path(f"{path}-wal"), Path(f"{path}-shm")]
+    return [candidate for candidate in paths if candidate.exists()]
+
+
+def backup_existing_database(path: Path) -> None:
+    """Move an existing database and sidecars to timestamped backup names."""
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    for source in database_related_paths(path):
+        backup = source.with_name(f"{source.name}.bak-{stamp}")
+        counter = 1
+        while backup.exists():
+            backup = source.with_name(f"{source.name}.bak-{stamp}-{counter}")
+            counter += 1
+        os.replace(source, backup)
 
 
 def prompt_new_passphrase(prompt: str, confirmation_prompt: str) -> str:
