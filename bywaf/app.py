@@ -346,7 +346,7 @@ def print_help_entry(entry: HelpEntry) -> None:
 
 def print_plugin_argparse_help(runner: Runner, plugin) -> None:
     """Ask a commandlet's argparse parser to print its native help."""
-    context = CommandContext(runner.db, source=plugin.spec.name, varstore=runner.registry.varstore)
+    context = CommandContext(runner.db, source=plugin.spec.name, _varstore=runner.registry.varstore)
     try:
         list(plugin.run(context, ["--help"], []))
     except SystemExit as exc:

@@ -3,7 +3,7 @@ import unittest
 from bywaf.config import Settings, default_settings
 from bywaf.plugin import ArgumentSpec, CommandContext, CommandSpec, CompletionSpec, OptionSpec
 from bywaf.messages import Host, Progress
-from bywaf.varstore import VarStore
+from bywaf.varstore import ScopedVarStore, VarStore
 
 
 class ConfigPluginTests(unittest.TestCase):
@@ -36,6 +36,21 @@ class ConfigPluginTests(unittest.TestCase):
     def test_command_context_metadata_default(self):
         context = CommandContext(db=None, source="test")
         self.assertEqual(context.metadata, {})
+
+    def test_command_context_exposes_scoped_vars(self):
+        context = CommandContext(db=None, source="test")
+        context.vars.set("value", "abc")
+        self.assertEqual(context.vars.get("value"), "abc")
+        with self.assertRaisesRegex(ValueError, "unqualified"):
+            context.vars.get("other.value")
+
+    def test_scoped_varstore_reads_only_its_namespace(self):
+        store = VarStore()
+        store.set("one.secret", "a")
+        store.set("two.secret", "b")
+        one = ScopedVarStore(store, "one")
+        self.assertEqual(one.get("secret"), "a")
+        self.assertNotEqual(one.get("secret"), "b")
 
     def test_varstore_items_sorted(self):
         store = VarStore()

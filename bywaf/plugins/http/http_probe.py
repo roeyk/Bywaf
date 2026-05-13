@@ -115,13 +115,13 @@ def option_or_var(context: CommandContext, name: str, explicit: str | None) -> s
     """Prefer a CLI option, then fall back to the plugin variable namespace."""
     if explicit:
         return explicit
-    return context.varstore.get(f"{context.source}.{name}") or None
+    return context.vars.get(name) or None
 
 
 def remember_option(context: CommandContext, name: str, explicit: str | None) -> None:
     """Persist explicitly supplied options into the session varstore."""
     if explicit:
-        context.varstore.set(f"{context.source}.{name}", explicit)
+        context.vars.set(name, explicit)
 
 
 def probe_targets(

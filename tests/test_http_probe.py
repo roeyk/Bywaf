@@ -69,7 +69,7 @@ class HttpProbeTests(unittest.TestCase):
 
     def test_http_probe_uses_cookie_file_var(self):
         context = CommandContext(db=None, source="http_probe")
-        context.varstore.set("http_probe.cookie-file", "/tmp/cookies.txt")
+        context.vars.set("cookie-file", "/tmp/cookies.txt")
         with (
             patch("bywaf.plugins.http.http_probe.build_opener") as build_opener,
             patch("bywaf.plugins.http.http_probe.probe_url", return_value={"ok": True, "status": 200}),
@@ -86,7 +86,7 @@ class HttpProbeTests(unittest.TestCase):
             contextlib.redirect_stdout(io.StringIO()),
         ):
             list(HttpProbe().run(context, ["--cookie-file", "/tmp/cookies.txt", "127.0.0.1"], []))
-        self.assertEqual(context.varstore.get("http_probe.cookie-file"), "/tmp/cookies.txt")
+        self.assertEqual(context.vars.get("cookie-file"), "/tmp/cookies.txt")
 
     def test_load_firefox_cookies_reads_sqlite(self):
         with tempfile.TemporaryDirectory() as tmp:

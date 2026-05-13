@@ -15,7 +15,7 @@ from bywaf.events import Event
 from bywaf.plugin import ArgumentSpec, CommandContext, CommandSpec, Commandlet, CompletionSpec
 
 DB_ACTIONS = ("checkpoint", "decrypt", "encrypt", "new", "path", "rekey", "status", "vacuum")
-ENCRYPTION_VAR = "db.encryption"
+ENCRYPTION_VAR = "encryption"
 
 
 class Db:
@@ -184,7 +184,7 @@ def default_new_database_path() -> Path:
 
 def default_encryption_enabled(context: CommandContext) -> bool:
     """Return whether session variables request encrypted new databases."""
-    value = (context.varstore.get(ENCRYPTION_VAR, "") or "").strip().lower()
+    value = (context.vars.get(ENCRYPTION_VAR, "") or "").strip().lower()
     return value in {"1", "true", "yes", "on", "encrypted", "sqlcipher"}
 
 

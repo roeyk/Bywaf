@@ -8,7 +8,7 @@ from typing import Any, Protocol
 
 from .db import EventStore
 from .events import Event
-from .varstore import VarStore
+from .varstore import ScopedVarStore, VarStore
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,8 +64,13 @@ class CommandContext:
 
     db: EventStore | None
     source: str
-    varstore: VarStore = field(default_factory=VarStore)
+    _varstore: VarStore = field(default_factory=VarStore, repr=False)
     metadata: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def vars(self) -> ScopedVarStore:
+        """Return this commandlet's scoped variable view."""
+        return ScopedVarStore(self._varstore, self.source)
 
     def cancelled(self) -> bool:
         """Return whether this job, pipeline, or command run was cancelled."""

@@ -32,3 +32,35 @@ class VarStore:
     def items(self) -> list[tuple[str, str]]:
         """Return sorted key/value pairs for stable display and tests."""
         return sorted(self.values.items())
+
+
+@dataclass(frozen=True, slots=True)
+class ScopedVarStore:
+    """Namespace-limited view of VarStore exposed to plugins.
+
+    Plugins read and write unqualified local names such as `timeout`; the
+    wrapper stores them as `<scope>.timeout` in the underlying VarStore. Global
+    variables are intentionally opt-in by name and cannot be enumerated through
+    this API.
+    """
+
+    store: VarStore
+    scope: str
+
+    def get(self, key: str, default: str | None = None) -> str | None:
+        """Return a scoped variable value."""
+        return self.store.get(self.scoped_key(key), default)
+
+    def set(self, key: str, value: Any) -> None:
+        """Set a scoped variable value."""
+        self.store.set(self.scoped_key(key), value)
+
+    def get_global(self, key: str, default: str | None = None) -> str | None:
+        """Read an explicitly global variable such as `global.proxy`."""
+        return self.store.get(f"global.{key}", default)
+
+    def scoped_key(self, key: str) -> str:
+        """Convert a local variable name to its fully-qualified storage key."""
+        if "." in key:
+            raise ValueError("plugin variables must use unqualified names")
+        return f"{self.scope}.{key}"

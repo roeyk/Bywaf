@@ -34,6 +34,7 @@ so entries are grouped under `Unreleased` until versioned releases begin.
 - Added the runtime `job` commandlet with `list`, `show`, `cancel`, and `kill`.
 - Added `jobs` as an alias for `job list`.
 - Added soft-cancellation records and plugin-visible cancellation checks.
+- Added scoped plugin variable access through `context.vars`.
 - Added `db encrypt`, `db decrypt`, and `db rekey` for active database
   encryption management.
 - Added `db new`, `db new --file=<path>`, `db new --encrypt`, and

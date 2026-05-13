@@ -114,7 +114,7 @@ class Runner:
             context = CommandContext(
                 self.db,
                 source=plugin.spec.name,
-                varstore=self.registry.varstore,
+                _varstore=self.registry.varstore,
                 metadata={
                     "pipeline_id": pipeline_id,
                     "command_run_id": stage.command_run_id,
@@ -341,7 +341,7 @@ def run_stage_process(
     context = CommandContext(
         db,
         source=plugin.spec.name,
-        varstore=registry.varstore,
+        _varstore=registry.varstore,
         metadata={
             "pipeline_id": pipeline_id,
             "command_run_id": command_run_id,

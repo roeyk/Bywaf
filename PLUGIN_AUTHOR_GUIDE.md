@@ -276,11 +276,52 @@ class PickTarget:
 The completion hook receives:
 
 - `context.db`: the active event database, if available
-- `context.varstore`: session variables
+- `context.varstore`: session variables for completion-time suggestions
 - `args`: tokens already typed after the commandlet name
 - `prefix`: the current token being completed
 
 Return a list or any iterable of candidate strings.
+
+# Runtime Context
+
+At execution time, commandlets receive a `CommandContext`:
+
+- `context.db`: the active event database, if available
+- `context.vars`: scoped variables for the current commandlet
+- `context.metadata`: framework metadata such as pipeline, run, and job IDs
+- `context.cancelled()`: whether a soft-cancellation request is pending
+- `context.raise_if_cancelled()`: raise if cancellation is pending
+
+Plugin variables are scoped. If `http_probe` calls:
+
+```python
+context.vars.get("cookie-file")
+```
+
+the framework reads:
+
+```text
+http_probe.cookie-file
+```
+
+Plugins cannot enumerate or directly read another plugin's variables through
+`context.vars`. Global variables are explicit:
+
+```python
+context.vars.get_global("proxy")
+```
+
+which reads:
+
+```text
+global.proxy
+```
+
+Plugins should treat interpreter behavior, such as the prompt, as framework
+owned. A plugin running in a background process cannot directly call a method on
+the parent REPL process. For cross-process requests, plugins should publish
+events to the database and let the foreground interpreter decide whether to
+apply them.
 
 # A Complete Example With Completion
 

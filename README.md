@@ -59,6 +59,11 @@ copying hosts to notes or intermediate files: one plugin can discover hosts,
 another can consume those host events, and later plugins can continue the
 workflow from the same stored data.
 
+Execution-time plugin variables are scoped by commandlet. A plugin uses
+`context.vars.get("name")` for its own variables and cannot enumerate another
+plugin's variables through that API. Explicit global variables use
+`context.vars.get_global("name")`.
+
 Encrypted databases require SQLCipher support. On Debian or Ubuntu, install the
 SQLCipher library and use the optional Python extra:
 
