@@ -16,12 +16,14 @@ from bywaf.app import (
     main,
     make_runner,
     command_from_remainder,
+    process_framework_requests,
     render_prompt,
     record_command_history,
     resolve_resource_path,
     repl,
     run_script,
     save_history,
+    set_prompt_pattern,
     parse_save_spec,
     shutdown_runner,
     load_history,
@@ -907,6 +909,45 @@ class RunnerPluginAppTests(unittest.TestCase):
             state = ShellState()
             dispatch_repl_line(runner, "prompt %u@%h> ", state)
             self.assertEqual(state.prompt_pattern, "%u@%h> ")
+            self.assertEqual(runner.db.events_for_topic("shell.prompt.updated")[0].payload["source"], "user")
+
+    def test_set_prompt_pattern_records_audit_event(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            set_prompt_pattern(runner, state, "new> ", source="test")
+            event = runner.db.events_for_topic("shell.prompt.updated")[0]
+            self.assertEqual(event.payload["old_prompt"], "bywaf> ")
+            self.assertEqual(event.payload["new_prompt"], "new> ")
+
+    def test_framework_request_updates_prompt_and_records_audit_event(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            request = runner.db.publish("shell.prompt.requested", {"prompt": "requested> "}, "test")
+            process_framework_requests(runner, state)
+            self.assertEqual(state.prompt_pattern, "requested> ")
+            updated = runner.db.events_for_topic("shell.prompt.updated")[0]
+            self.assertEqual(updated.payload["request_event_id"], request.id)
+
+    def test_framework_request_denies_invalid_prompt_request(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            request = runner.db.publish("shell.prompt.requested", {"prompt": ""}, "test")
+            process_framework_requests(runner, state)
+            self.assertEqual(state.prompt_pattern, "bywaf> ")
+            denied = runner.db.events_for_topic("framework.request.denied")[0]
+            self.assertEqual(denied.payload["request_event_id"], request.id)
+
+    def test_framework_request_is_processed_once_per_shell_state(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            runner.db.publish("shell.prompt.requested", {"prompt": "once> "}, "test")
+            process_framework_requests(runner, state)
+            process_framework_requests(runner, state)
+            self.assertEqual(len(runner.db.events_for_topic("shell.prompt.updated")), 1)
 
     def test_render_prompt_replaces_time_placeholder(self):
         self.assertNotIn("%T", render_prompt("%T> "))

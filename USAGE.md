@@ -62,6 +62,11 @@ Execution-time plugin variables are scoped by commandlet. A plugin uses
 plugin's variables through that API. Explicit global variables use
 `context.vars.get_global("name")`.
 
+Plugins that need interpreter-owned actions use request events instead of
+direct method calls. For example, a plugin can publish
+`shell.prompt.requested`; the foreground REPL validates the request and records
+either `shell.prompt.updated` or `framework.request.denied` for auditability.
+
 Encrypted databases require SQLCipher support. On Debian or Ubuntu, install the
 SQLCipher library and use the optional Python extra:
 

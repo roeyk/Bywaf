@@ -323,6 +323,36 @@ the parent REPL process. For cross-process requests, plugins should publish
 events to the database and let the foreground interpreter decide whether to
 apply them.
 
+# Framework Requests and Audit Events
+
+Plugins can request interpreter-owned actions by publishing structured request
+events. The interpreter remains the authority: it validates the request, applies
+it if allowed, and writes a follow-up event so the action is auditable.
+
+For example, to request a prompt change:
+
+```python
+if context.db is not None:
+    context.db.publish(
+        "shell.prompt.requested",
+        {"prompt": "%u@%h %T > ", "reason": "operator context changed"},
+        context.source,
+        pipeline_id=context.metadata.get("pipeline_id"),
+        command_run_id=context.metadata.get("command_run_id"),
+    )
+```
+
+When the foreground REPL processes the request, it records one of:
+
+```text
+shell.prompt.updated
+framework.request.denied
+```
+
+This pattern is preferred over direct method calls because it works across
+processes and leaves a database audit trail of what was requested and what the
+interpreter did.
+
 # A Complete Example With Completion
 
 This commandlet reads a file and emits one event containing its path and size:

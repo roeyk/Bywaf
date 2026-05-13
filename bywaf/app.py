@@ -76,6 +76,7 @@ class ShellState:
     prompt_pattern: str = "bywaf> "
     history_path: Path = field(default_factory=lambda: DEFAULT_HISTORY)
     session_history: list[str] = field(default_factory=list)
+    handled_request_ids: set[int] = field(default_factory=set)
 
     def prompt(self) -> str:
         return render_prompt(self.prompt_pattern)
@@ -144,6 +145,7 @@ def repl(runner: Runner) -> None:
     install_readline(Completer(runner.registry, runner.db))
     try:
         while True:
+            process_framework_requests(runner, state)
             try:
                 line = input(state.prompt()).strip()
             except (EOFError, KeyboardInterrupt):
@@ -160,6 +162,7 @@ def repl(runner: Runner) -> None:
             )
             if dispatch_repl_line(runner, line, state) == "exit":
                 return
+            process_framework_requests(runner, state)
     finally:
         shutdown_runner(runner)
 
@@ -215,7 +218,7 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
             case ["prompt"]:
                 print(state.prompt_pattern)
             case ["prompt", pattern]:
-                state.prompt_pattern = pattern
+                set_prompt_pattern(runner, state, pattern, source="user")
             case ["load", spec]:
                 load_repl_resource(runner, spec, state)
             case ["save"]:
@@ -238,6 +241,62 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
     except Exception as exc:
         print(f"error: {exc}")
     return None
+
+
+def process_framework_requests(runner: Runner, state: ShellState) -> None:
+    """Apply interpreter-owned requests that plugins wrote to the event bus."""
+    for event in runner.db.events_matching(topic="shell.prompt.requested"):
+        if event.id is None or event.id in state.handled_request_ids:
+            continue
+        state.handled_request_ids.add(event.id)
+        handle_framework_request(runner, state, event)
+
+
+def handle_framework_request(runner: Runner, state: ShellState, event) -> None:
+    """Validate and apply one framework request event."""
+    match event.topic:
+        case "shell.prompt.requested":
+            requested_prompt = event.payload.get("prompt")
+            if isinstance(requested_prompt, str) and requested_prompt:
+                old_prompt = state.prompt_pattern
+                state.prompt_pattern = requested_prompt
+                runner.db.publish(
+                    "shell.prompt.updated",
+                    {
+                        "old_prompt": old_prompt,
+                        "new_prompt": requested_prompt,
+                        "request_event_id": event.id,
+                    },
+                    "framework",
+                )
+                return
+            deny_framework_request(runner, event, "prompt must be a non-empty string")
+        case _:
+            deny_framework_request(runner, event, f"unsupported request topic: {event.topic}")
+
+
+def deny_framework_request(runner: Runner, event, reason: str) -> None:
+    """Record a denied framework request for auditability."""
+    runner.db.publish(
+        "framework.request.denied",
+        {
+            "request_event_id": event.id,
+            "request_topic": event.topic,
+            "reason": reason,
+        },
+        "framework",
+    )
+
+
+def set_prompt_pattern(runner: Runner, state: ShellState, pattern: str, *, source: str) -> None:
+    """Set the REPL prompt and record the change as an auditable event."""
+    old_prompt = state.prompt_pattern
+    state.prompt_pattern = pattern
+    runner.db.publish(
+        "shell.prompt.updated",
+        {"old_prompt": old_prompt, "new_prompt": pattern, "source": source},
+        "framework",
+    )
 
 
 def friendly_error(exc: Exception) -> str:
