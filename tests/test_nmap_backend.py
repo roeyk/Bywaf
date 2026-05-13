@@ -1,4 +1,3 @@
-import sys
 import types
 import unittest
 from unittest.mock import patch
@@ -140,6 +139,8 @@ class FakeReport:
 
 def fake_libnmap_backend(report, failed=False, stderr=""):
     class ProcessModule:
+        last_options = ""
+
         class NmapProcess:
             def __init__(self, targets, options):
                 ProcessModule.last_options = options

@@ -42,7 +42,7 @@ class EventDbTests(unittest.TestCase):
             db = EventStore(Path(tmp, "events.sqlite3"))
             first = db.publish("a", {"n": 1}, "test")
             db.publish("b", {"n": 2}, "test")
-            self.assertEqual(db.fetch(Subscription(("a",), after_id=first.id)), [])
+            self.assertEqual(db.fetch(Subscription(("a",), after_id=first.id or 0)), [])
 
     def test_poll_returns_without_timeout_when_event_exists(self):
         with tempfile.TemporaryDirectory() as tmp:

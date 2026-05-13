@@ -177,6 +177,8 @@ class EventStore:
                 "INSERT INTO jobs(command_line, pid, status, started_at) VALUES (?, ?, ?, ?)",
                 (command_line, pid, status, now),
             )
+            if cursor.lastrowid is None:
+                raise RuntimeError("SQLite did not return a job row id")
             return int(cursor.lastrowid)
 
     def finish_job(self, job_id: int, status: str) -> None:

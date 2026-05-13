@@ -37,12 +37,11 @@ def parse_invocation(text: str) -> CommandInvocation:
     background = False
     if tokens:
         tokens, background = peel_background_marker(tokens)
-    match tokens:
-        case []:
-            raise ValueError("empty command")
-        case [name, *args]:
-            args, selectors = peel_context_selectors(args)
-            return CommandInvocation(name=name, args=args, background=background, **selectors)
+    if not tokens:
+        raise ValueError("empty command")
+    name, *args = tokens
+    args, selectors = peel_context_selectors(args)
+    return CommandInvocation(name=name, args=args, background=background, **selectors)
 
 
 def parse_pipeline(command_line: str) -> Pipeline:
@@ -211,7 +210,7 @@ def peel_background_marker(tokens: list[str]) -> tuple[list[str], bool]:
 
 
 def peel_context_selectors(args: list[str]) -> tuple[list[str], dict[str, str | None]]:
-    selectors = {"from_run": None, "from_pipeline": None, "from_topic": None}
+    selectors: dict[str, str | None] = {"from_run": None, "from_pipeline": None, "from_topic": None}
     cleaned: list[str] = []
     index = 0
     while index < len(args):

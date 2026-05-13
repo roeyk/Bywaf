@@ -63,7 +63,7 @@ def scan_open_ports(
             return scan_open_ports_nmapthon(backend, targets, ports, arguments)
         case _:
             scanner = backend.PortScanner()
-            kwargs = {"hosts": " ".join(targets), "arguments": arguments}
+            kwargs: dict[str, Any] = {"hosts": " ".join(targets), "arguments": arguments}
             if ports:
                 kwargs["ports"] = ports
             scanner.scan(**kwargs)
@@ -96,7 +96,7 @@ def load_backend() -> tuple[str, Any]:
 def host_state(scanner: Any, host: str) -> str:
     host_result = scanner[host]
     state = getattr(host_result, "state", None)
-    return state() if callable(state) else ""
+    return str(state()) if callable(state) else ""
 
 
 def collect_open_ports(scanner: Any) -> list[NmapPort]:
@@ -180,7 +180,7 @@ def scan_open_ports_nmapthon(
     arguments: str,
 ) -> list[NmapPort]:
     parsed_ports = [int(port) for port in ports.replace("-", ",").split(",") if port] if ports else None
-    kwargs = {"arguments": arguments}
+    kwargs: dict[str, Any] = {"arguments": arguments}
     if parsed_ports:
         kwargs["ports"] = parsed_ports
     scanner = backend.NmapScanner(targets, **kwargs)

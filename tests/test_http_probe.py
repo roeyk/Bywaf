@@ -9,7 +9,6 @@ from unittest.mock import patch
 
 from bywaf.events import Event
 from bywaf.http_cookies import load_firefox_cookies
-from bywaf.nmap_backend import NmapPort
 from bywaf.plugin import CommandContext
 from bywaf.plugins.http.http_probe import (
     HttpProbe,

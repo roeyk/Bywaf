@@ -57,7 +57,7 @@ class Completer:
         match tokens:
             case []:
                 base = [*self.builtins, *self.registry.names()]
-            case [first] if not line.endswith(" "):
+            case [_] if not line.endswith(" "):
                 base = [*self.builtins, *self.registry.names()]
             case ["show", *_]:
                 base = self.show_candidates(prefix)

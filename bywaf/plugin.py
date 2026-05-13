@@ -48,7 +48,7 @@ class CommandSpec:
 
 @dataclass(slots=True)
 class CommandContext:
-    db: EventStore
+    db: EventStore | None
     source: str
     varstore: VarStore = field(default_factory=VarStore)
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -71,6 +71,7 @@ class Commandlet(Protocol):
         input_events: Iterable[Event],
     ) -> Iterable[dict[str, Any]]:
         """Execute the commandlet and yield payload dictionaries."""
+        ...
 
 
 def command_run_id(context: CommandContext) -> str:

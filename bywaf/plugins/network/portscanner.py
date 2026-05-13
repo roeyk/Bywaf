@@ -106,6 +106,8 @@ def listen_for_upstream_hosts(context: CommandContext, parsed, seen_hosts: set[s
     pipeline_id = context.metadata.get("pipeline_id")
     if not upstream_id or not pipeline_id:
         raise ValueError("portscanner --listen must be used after an upstream commandlet in a pipeline")
+    if context.db is None:
+        raise ValueError("portscanner --listen requires an active event database")
     after_id = context.metadata.get("input_high_watermark", 0)
     deadline = monotonic() + parsed.listen_timeout if parsed.listen_timeout > 0 else None
     while deadline is None or monotonic() < deadline:
@@ -128,7 +130,7 @@ def listen_for_upstream_hosts(context: CommandContext, parsed, seen_hosts: set[s
                 seen_hosts,
                 parsed.silent,
             )
-        elif parsed.listen_timeout > 0:
+        elif deadline is not None:
             sleep(min(parsed.listen_interval, max(0, deadline - monotonic())))
         else:
             sleep(parsed.listen_interval)

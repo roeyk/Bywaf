@@ -6,7 +6,6 @@ import argparse
 import json
 import os
 import platform
-import shutil
 import shlex
 import socket
 from collections.abc import Sequence
@@ -132,7 +131,10 @@ def repl(runner: Runner) -> None:
                 line,
                 state.history_path,
                 state.session_history,
-                runner.registry.varstore.get(HISTORY_TIMESTAMP_FORMAT_VAR, DEFAULT_HISTORY_TIMESTAMP_FORMAT),
+                runner.registry.varstore.get(
+                    HISTORY_TIMESTAMP_FORMAT_VAR,
+                    DEFAULT_HISTORY_TIMESTAMP_FORMAT,
+                ) or DEFAULT_HISTORY_TIMESTAMP_FORMAT,
             )
             if dispatch_repl_line(runner, line, state) == "exit":
                 return
