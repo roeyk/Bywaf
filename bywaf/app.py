@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import os
 import platform
@@ -16,7 +17,7 @@ from pathlib import Path
 from . import __version__
 from .completion import Completer, install_readline
 from .config import Settings
-from .db import EventStore
+from .db import EventStore, database_appears_encrypted, export_encrypted_database, export_plaintext_database
 from .nmap_backend import NmapScanError, NmapUnavailableError
 from .plugin import CommandContext
 from .registry import PluginRegistry
@@ -48,7 +49,7 @@ HELP_COMMANDS = (
     HelpEntry("load db=<path>", "switch active SQLite database", "load db=<path>"),
     HelpEntry("load config=<path>", "load session variables from JSON", "load config=<path>"),
     HelpEntry("load history=<path>", "load command history for this session", "load history=<path>"),
-    HelpEntry("save db=<path>", "save active SQLite database", "save db=<path>"),
+    HelpEntry("save [--encrypt] db=<path>", "save active SQLite database", "save [--encrypt] db=<path>"),
     HelpEntry("save config=<path>", "save session variables to JSON", "save config=<path>"),
     HelpEntry("save history=<path>", "save this session's command history", "save history=<path>"),
     HelpEntry("run <pipeline>", "run a commandlet pipeline", "run <pipeline>", ("run 'hostscanner 127.0.0.1 | portscanner'",)),
@@ -85,6 +86,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser(prog="bywaf")
     parser.add_argument("--database", default=str(DEFAULT_DATABASE), help="SQLite database path")
+    parser.add_argument("--encrypted", action="store_true", help="open or create the database with SQLCipher encryption")
     parser.add_argument("--plugin-root", help="directory containing filesystem plugins")
     parser.add_argument("--plugin-config", help="JSON or simple YAML plugin config")
     parser.add_argument("--version", action="store_true", help="print version and exit")
@@ -103,9 +105,15 @@ def make_runner(
     *,
     plugin_root: str | Path | None = None,
     plugin_config: str | Path | None = None,
+    encrypted: bool = False,
+    passphrase: str | None = None,
 ) -> Runner:
     """Create a runner with stock plugins plus optional filesystem plugins."""
 
+    database_path = Path(database)
+    db_passphrase = passphrase
+    if db_passphrase is None and (encrypted or database_appears_encrypted(database_path)):
+        db_passphrase = prompt_database_passphrase(database_path, creating=encrypted)
     registry = PluginRegistry.discover()
     if plugin_root and plugin_config:
         filesystem = PluginRegistry.from_config(
@@ -114,7 +122,7 @@ def make_runner(
             varstore=registry.varstore,
         )
         registry.plugins.update(filesystem.plugins)
-    return Runner(EventStore(Path(database)), registry)
+    return Runner(EventStore(database_path, passphrase=db_passphrase), registry)
 
 
 def format_event(event) -> str:
@@ -211,7 +219,7 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
             case ["load", spec]:
                 load_repl_resource(runner, spec, state)
             case ["save"]:
-                print("usage: save db=<path>, save config=<path>, or save history=<path>")
+                print("usage: save [--encrypt] db=<path>, save config=<path>, or save history=<path>")
             case ["save", spec]:
                 save_repl_resource(runner, spec, state)
             case ["run", command]:
@@ -413,26 +421,59 @@ def load_repl_resource(runner: Runner, spec: str, state: ShellState | None = Non
 def save_repl_resource(runner: Runner, spec: str, state: ShellState | None = None) -> None:
     """Handle `save key=value` resources from the REPL."""
     state = state or ShellState()
-    match spec.split("=", 1):
+    encrypt, resource = parse_save_spec(spec)
+    match resource.split("=", 1):
         case ["db", value]:
-            save_database(runner, resolve_resource_path(value, Path("."), DEFAULT_DATABASE))
+            save_database(runner, resolve_resource_path(value, Path("."), DEFAULT_DATABASE), encrypt=encrypt)
         case ["config", value]:
             save_config(runner, resolve_resource_path(value, Path("."), DEFAULT_CONFIG))
         case ["history", value]:
             save_history(state, resolve_resource_path(value, Path("."), DEFAULT_HISTORY))
         case _:
-            print("usage: save db=<path>, save config=<path>, or save history=<path>")
+            print("usage: save [--encrypt] db=<path>, save config=<path>, or save history=<path>")
 
 
-def save_database(runner: Runner, path: Path) -> None:
+def parse_save_spec(spec: str) -> tuple[bool, str]:
+    """Parse built-in save options while keeping the resource syntax simple."""
+    tokens = shlex.split(spec)
+    encrypt = False
+    resource_tokens: list[str] = []
+    for token in tokens:
+        match token:
+            case "--encrypt":
+                encrypt = True
+            case _:
+                resource_tokens.append(token)
+    if len(resource_tokens) != 1:
+        raise ValueError("usage: save [--encrypt] db=<path>, save config=<path>, or save history=<path>")
+    return encrypt, resource_tokens[0]
+
+
+def save_database(runner: Runner, path: Path, *, encrypt: bool = False) -> None:
     """Copy the active SQLite database to a snapshot file."""
-    copy_sqlite_database(runner.db.path, path)
+    if encrypt:
+        passphrase = prompt_database_passphrase(path, creating=True)
+        export_encrypted_database(
+            runner.db.path,
+            path,
+            passphrase,
+            source_passphrase=runner.db.passphrase,
+        )
+    elif runner.db.encrypted:
+        if runner.db.passphrase is None:
+            raise RuntimeError("encrypted database is missing its in-memory passphrase")
+        export_plaintext_database(runner.db.path, path, source_passphrase=runner.db.passphrase)
+    else:
+        copy_sqlite_database(runner.db.path, path)
     print(f"saved db={path}")
 
 
 def load_database(runner: Runner, path: Path) -> None:
     """Switch the runner to a different SQLite database file."""
-    runner.db = EventStore(path)
+    passphrase = None
+    if database_appears_encrypted(path):
+        passphrase = prompt_database_passphrase(path, creating=False)
+    runner.db = EventStore(path, passphrase=passphrase)
     print(f"loaded db={path}")
 
 
@@ -442,6 +483,12 @@ def copy_sqlite_database(source: Path, destination: Path) -> None:
     with EventStore(source).connect() as source_conn:
         with EventStore(destination).connect() as dest_conn:
             source_conn.backup(dest_conn)
+
+
+def prompt_database_passphrase(path: Path, *, creating: bool) -> str:
+    """Prompt for a database passphrase without ever storing it on disk."""
+    action = "Create passphrase for encrypted database" if creating else "Passphrase for encrypted database"
+    return getpass.getpass(f"{action} {path}: ")
 
 
 def save_config(runner: Runner, path: Path) -> None:
@@ -588,6 +635,7 @@ def main(argv: list[str] | None = None) -> int:
         settings.database,
         plugin_root=args.plugin_root,
         plugin_config=args.plugin_config,
+        encrypted=args.encrypted,
     )
     if args.subcommand in ("repl", None):
         repl(runner)

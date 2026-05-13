@@ -28,6 +28,7 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn("portscanner", self.registry.names())
         self.assertIn("http_headers", self.registry.names())
         self.assertIn("http_probe", self.registry.names())
+        self.assertIn("db", self.registry.names())
 
     def test_bundled_plugins_are_loaded_from_config_list(self):
         self.assertEqual(
@@ -37,6 +38,7 @@ class RegistryCompletionTests(unittest.TestCase):
                 "network.portscanner",
                 "http.http_headers",
                 "http.http_probe",
+                "storage.db",
                 "os.ls",
                 "os.cat",
                 "os.less",
@@ -46,6 +48,7 @@ class RegistryCompletionTests(unittest.TestCase):
     def test_registry_tracks_provider_groups(self):
         self.assertIn("os", self.registry.provider_names())
         self.assertEqual(self.registry.grouped_names()["os"], ["cat", "less", "ls"])
+        self.assertEqual(self.registry.grouped_names()["storage"], ["db"])
 
     def test_loads_package_defaults_into_varstore(self):
         self.assertEqual(self.registry.varstore.get("portscanner.ports"), "")

@@ -22,6 +22,7 @@ from bywaf.app import (
     repl,
     run_script,
     save_history,
+    parse_save_spec,
     shutdown_runner,
     load_history,
     script_commands,
@@ -73,6 +74,22 @@ class RunnerPluginAppTests(unittest.TestCase):
         self.assertEqual(invocation.from_pipeline, "pipe")
         self.assertEqual(invocation.from_topic, "host.found")
         self.assertEqual(invocation.args, ["--ports", "80"])
+
+    def test_parse_save_spec_accepts_encrypt_before_resource(self):
+        encrypt, resource = parse_save_spec("--encrypt db=client.sqlite3")
+        self.assertTrue(encrypt)
+        self.assertEqual(resource, "db=client.sqlite3")
+
+    def test_db_commandlet_reports_status(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish("topic", {"value": 1}, "test")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("db status")
+            text = output.getvalue()
+            self.assertIn("mode=plaintext", text)
+            self.assertIn("events=1", text)
 
     def test_parse_empty_invocation_fails(self):
         with self.assertRaises(ValueError):

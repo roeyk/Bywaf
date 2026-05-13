@@ -4,6 +4,7 @@
     "network.portscanner",
     "http.http_headers",
     "http.http_probe",
+    "storage.db",
     "os.ls",
     "os.cat",
     "os.less"

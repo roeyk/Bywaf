@@ -2,7 +2,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from bywaf.db import EventStore, Subscription
+from bywaf.db import EventStore, Subscription, database_appears_encrypted, sqlcipher_available
 from bywaf.events import Event
 
 
@@ -91,6 +91,16 @@ class EventDbTests(unittest.TestCase):
             rows = db.runs()
             self.assertEqual(rows[0]["command_run_id"], "r")
             self.assertEqual(rows[0]["events"], 2)
+
+    @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
+    def test_encrypted_database_round_trip(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp, "encrypted.sqlite3")
+            db = EventStore(path, passphrase="secret")
+            db.publish("topic", {"value": 1}, "test")
+            self.assertTrue(database_appears_encrypted(path))
+            reopened = EventStore(path, passphrase="secret")
+            self.assertEqual(reopened.events_for_topic("topic")[0].payload["value"], 1)
 
 
 if __name__ == "__main__":

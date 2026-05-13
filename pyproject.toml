@@ -5,6 +5,9 @@ description = "Python 3 commandlet framework with SQLite pub/sub for Bywaf-style
 requires-python = ">=3.11"
 dependencies = []
 
+[project.optional-dependencies]
+sqlcipher = ["sqlcipher3-binary>=0.6.0"]
+
 [project.scripts]
 bywaf = "bywaf.__main__:main"
 

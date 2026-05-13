@@ -19,6 +19,12 @@ from typing import Any
 
 from .events import Event
 
+sqlcipher: Any
+try:
+    from sqlcipher3 import dbapi2 as sqlcipher  # type: ignore[import-not-found]
+except ImportError:  # pragma: no cover - exercised on systems without the optional extra.
+    sqlcipher = None
+
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS events (
@@ -44,6 +50,8 @@ CREATE TABLE IF NOT EXISTS jobs (
 );
 """
 
+SQLITE_HEADER = b"SQLite format 3\x00"
+
 
 @dataclass(frozen=True, slots=True)
 class Subscription:
@@ -65,8 +73,9 @@ class EventStore:
     sharing SQLite connection objects across process boundaries.
     """
 
-    def __init__(self, path: Path | str):
+    def __init__(self, path: Path | str, *, passphrase: str | None = None):
         self.path = Path(path)
+        self.passphrase = passphrase
         self.initialize()
 
     @contextmanager
@@ -78,8 +87,15 @@ class EventStore:
         writers time to finish instead of failing immediately with "database is
         locked".
         """
-        conn = sqlite3.connect(self.path, timeout=30, isolation_level=None)
-        conn.row_factory = sqlite3.Row
+        driver: Any = sqlite3
+        if self.passphrase is not None:
+            if sqlcipher is None:
+                raise RuntimeError("encrypted databases require the sqlcipher3-binary package")
+            driver = sqlcipher
+        conn = driver.connect(str(self.path), timeout=30, isolation_level=None)
+        conn.row_factory = driver.Row
+        if self.passphrase is not None:
+            set_sqlcipher_key(conn, self.passphrase)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA busy_timeout=30000")
         try:
@@ -98,6 +114,24 @@ class EventStore:
         """Fold WAL contents into the main DB file during clean shutdown."""
         with self.connect() as conn:
             conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+
+    def vacuum(self) -> None:
+        """Rebuild the active database to reclaim free pages."""
+        with self.connect() as conn:
+            conn.execute("VACUUM")
+
+    @property
+    def encrypted(self) -> bool:
+        """Return whether this store uses a SQLCipher passphrase."""
+        return self.passphrase is not None
+
+    def table_counts(self) -> dict[str, int]:
+        """Return row counts for core tables used by `db status`."""
+        with self.connect() as conn:
+            return {
+                "events": int(conn.execute("SELECT COUNT(*) FROM events").fetchone()[0]),
+                "jobs": int(conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]),
+            }
 
     def publish(
         self,
@@ -298,3 +332,83 @@ def ensure_event_columns(conn: sqlite3.Connection) -> None:
     for name in ("pipeline_id", "command_run_id", "parent_command_run_id"):
         if name not in columns:
             conn.execute(f"ALTER TABLE events ADD COLUMN {name} TEXT")
+
+
+def set_sqlcipher_key(conn: Any, passphrase: str) -> None:
+    """Apply a SQLCipher key to a new connection.
+
+    SQLCipher's PRAGMA syntax does not accept DB-API placeholders on all builds,
+    so the passphrase is escaped as a SQL string literal before being embedded.
+    """
+    conn.execute(f"PRAGMA key = {sql_literal(passphrase)}")
+    conn.execute("SELECT count(*) FROM sqlite_master")
+
+
+def sql_literal(value: str) -> str:
+    """Return `value` as a single-quoted SQL literal."""
+    return "'" + value.replace("'", "''") + "'"
+
+
+def database_appears_encrypted(path: Path | str) -> bool:
+    """Return True when an existing DB does not have the plaintext SQLite header."""
+    db_path = Path(path)
+    if not db_path.exists() or db_path.stat().st_size == 0:
+        return False
+    with db_path.open("rb") as handle:
+        return handle.read(len(SQLITE_HEADER)) != SQLITE_HEADER
+
+
+def sqlcipher_available() -> bool:
+    """Return whether the optional SQLCipher DB-API driver is importable."""
+    return sqlcipher is not None
+
+
+def export_encrypted_database(
+    source: Path | str,
+    destination: Path | str,
+    passphrase: str,
+    *,
+    source_passphrase: str | None = None,
+) -> None:
+    """Export a SQLite database to an encrypted SQLCipher database."""
+    if sqlcipher is None:
+        raise RuntimeError("encrypted database export requires the sqlcipher3-binary package")
+    export_sqlcipher_database(source, destination, passphrase, source_passphrase=source_passphrase)
+
+
+def export_plaintext_database(
+    source: Path | str,
+    destination: Path | str,
+    *,
+    source_passphrase: str,
+) -> None:
+    """Export an encrypted SQLCipher database to plaintext SQLite."""
+    if sqlcipher is None:
+        raise RuntimeError("plaintext database export requires the sqlcipher3-binary package")
+    export_sqlcipher_database(source, destination, "", source_passphrase=source_passphrase)
+
+
+def export_sqlcipher_database(
+    source: Path | str,
+    destination: Path | str,
+    destination_passphrase: str,
+    *,
+    source_passphrase: str | None = None,
+) -> None:
+    """Export from a SQLCipher-readable source to a destination database."""
+    if sqlcipher is None:
+        raise RuntimeError("database export requires the sqlcipher3-binary package")
+    source_path = Path(source)
+    destination_path = Path(destination)
+    destination_path.parent.mkdir(parents=True, exist_ok=True)
+    if destination_path.exists():
+        destination_path.unlink()
+    with sqlcipher.connect(str(source_path), isolation_level=None) as conn:
+        if source_passphrase is not None:
+            set_sqlcipher_key(conn, source_passphrase)
+        conn.execute(
+            f"ATTACH DATABASE {sql_literal(str(destination_path))} AS exported "
+            f"KEY {sql_literal(destination_passphrase)}"
+        )
+        conn.execute("SELECT sqlcipher_export('exported')")
+        conn.execute("DETACH DATABASE exported")

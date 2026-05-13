@@ -41,6 +41,14 @@ The host and port scanner commandlets use `nmap` through a Python adapter. A
 local `nmap` binary is required for real scans. The adapter prefers `nmaplib`,
 then `python-nmap`, then `nmapthon`, then `libnmap`.
 
+Encrypted databases require SQLCipher support. On Debian or Ubuntu, install the
+SQLCipher library and use the optional Python extra:
+
+```bash
+sudo apt install sqlcipher libsqlcipher-dev
+python3 -m pip install -e '.[sqlcipher]'
+```
+
 # Starting Bywaf
 
 Start the interactive shell:
@@ -53,6 +61,13 @@ or, from a source checkout:
 
 ```bash
 python3 -m bywaf
+```
+
+Create or open the default database with SQLCipher encryption:
+
+```bash
+bywaf --encrypted
+bywaf --database client.sqlite3 --encrypted
 ```
 
 Run one command non-interactively:
@@ -95,6 +110,7 @@ history
 jobs
 runs
 topics
+db <status|path|checkpoint|vacuum>
 show <topic|job=id|run=id|pipeline=id>
 load <resource>
 save <resource>
@@ -142,6 +158,7 @@ discovery
 http
 network
 os
+storage
 ```
 
 The `cmds` command lists commandlets grouped by provider:
@@ -159,6 +176,8 @@ os
   cat
   less
   ls
+storage
+  db
 ```
 
 Bundled plugins are listed in `bywaf/plugins/plugins.json`. Adding a plugin file
@@ -267,11 +286,30 @@ Save a database snapshot:
 bywaf> save db=snapshot.sqlite3
 ```
 
+Save an encrypted snapshot:
+
+```text
+bywaf> save --encrypt db=snapshot.sqlite3
+```
+
+Inspect or maintain the active database:
+
+```text
+bywaf> db status
+bywaf> db path
+bywaf> db checkpoint
+bywaf> db vacuum
+```
+
 Switch to another database:
 
 ```text
 bywaf> load db=snapshot.sqlite3
 ```
+
+If the database is encrypted, Bywaf prompts for its passphrase when loading it.
+Passphrases are kept in process memory only and are not written to config or
+history files.
 
 # Resource Files
 
@@ -528,6 +566,7 @@ Save the current database:
 
 ```text
 bywaf> save db=scan-results.sqlite3
+bywaf> save --encrypt db=scan-results.sqlite3
 ```
 
 Save variables and session history:
@@ -610,12 +649,14 @@ show <topic>
 show job=<id>
 show run=<id>
 show pipeline=<id>
+db <status|path|checkpoint|vacuum>
 load plugin=<resource>
 load script=<resource>
 load db=<resource>
 load config=<resource>
 load history=<resource>
 save db=<resource>
+save --encrypt db=<resource>
 save config=<resource>
 save history=<resource>
 prompt [pattern]
