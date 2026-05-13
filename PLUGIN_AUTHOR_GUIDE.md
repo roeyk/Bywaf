@@ -353,12 +353,12 @@ This pattern is preferred over direct method calls because it works across
 processes and leaves a database audit trail of what was requested and what the
 interpreter did.
 
-Background jobs use the same database-first style. The framework creates a
-queued job row and publishes `job.requested`; the worker claims the job, records
-`job.claimed` and `job.started`, then records `job.finished` or `job.failed`.
-Long-running commandlets should call `context.cancelled()` or
-`context.raise_if_cancelled()` periodically so `job cancel <id>` can stop them
-cooperatively.
+Normal commandlet execution is job-audited through the database. Foreground
+commandlets run in-process but still record `job.requested`, `job.claimed`,
+`job.started`, and `job.finished` or `job.failed`. Background jobs use the same
+job lifecycle, but a worker process claims and runs the queued job. Long-running
+commandlets should call `context.cancelled()` or `context.raise_if_cancelled()`
+periodically so `job cancel <id>` can stop them cooperatively.
 
 # A Complete Example With Completion
 

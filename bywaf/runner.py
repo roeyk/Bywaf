@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import multiprocessing as mp
+import os
 import shlex
 import uuid
 from dataclasses import dataclass
@@ -89,7 +90,37 @@ class Runner:
             case Pipeline(background=True):
                 return [self.start_background(command_line)]
             case Pipeline(commands=commands):
-                return self.run_pipeline(commands)
+                if is_management_pipeline(commands):
+                    return self.run_pipeline(commands)
+                return self.execute_foreground_job(command_line, commands)
+
+    def execute_foreground_job(
+        self,
+        command_line: str,
+        commands: tuple[CommandInvocation, ...],
+    ) -> list[Event]:
+        """Run a foreground pipeline through the same job lifecycle."""
+        job_id = self.db.record_job(command_line.strip(), os.getpid(), "queued")
+        self.db.publish("job.requested", {"job_id": job_id, "command": command_line.strip()}, "runner")
+        if not self.db.claim_job(job_id, os.getpid()):
+            self.db.publish("job.claim.denied", {"job_id": job_id, "pid": os.getpid()}, "runner")
+            raise RuntimeError(f"could not claim foreground job {job_id}")
+        self.db.publish("job.claimed", {"job_id": job_id, "pid": os.getpid()}, "runner")
+        self.db.update_job_status(job_id, "running")
+        self.db.publish("job.started", {"job_id": job_id, "pid": os.getpid(), "command": command_line.strip()}, "runner")
+        previous_job_id = self.job_id
+        self.job_id = job_id
+        try:
+            events = self.run_pipeline(commands)
+        except Exception as exc:
+            self.db.publish("job.failed", {"job_id": job_id, "error": str(exc)}, "runner")
+            self.db.finish_job(job_id, "failed")
+            raise
+        finally:
+            self.job_id = previous_job_id
+        self.db.publish("job.finished", {"job_id": job_id, "command": command_line.strip()}, "runner")
+        self.db.finish_job(job_id, "finished")
+        return events
 
     def run_pipeline(
         self,
@@ -326,6 +357,11 @@ def prepare_stage_runs(commands: tuple[CommandInvocation, ...]) -> tuple[StageRu
         stages.append(StageRun(invocation, command_run_id, parent_id))
         parent_id = command_run_id
     return tuple(stages)
+
+
+def is_management_pipeline(commands: tuple[CommandInvocation, ...]) -> bool:
+    """Return True for foreground management commands that should run directly."""
+    return len(commands) == 1 and commands[0].name in {"db", "job"}
 
 
 def run_stage_process(

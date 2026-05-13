@@ -249,10 +249,11 @@ Append `&` to background a commandlet or pipeline:
 bywaf> hostscanner 192.168.0.1-255 &
 ```
 
-Background execution is DB-first. The framework creates a queued job row,
-publishes `job.requested`, starts a worker process, and the worker must claim
-the job before it runs. Successful workers publish `job.claimed`, `job.started`,
-and `job.finished`; failures publish `job.failed`.
+Normal commandlet execution is job-audited through the database. Foreground
+commandlets run in-process but still record `job.requested`, `job.claimed`,
+`job.started`, and `job.finished` or `job.failed`. Background jobs use the same
+job lifecycle, but a worker process claims and runs the queued job. Foreground
+management commands such as `db ...` and `job ...` run directly.
 
 Stage-level backgrounding works inside pipelines:
 

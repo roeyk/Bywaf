@@ -218,6 +218,20 @@ class RunnerPluginAppTests(unittest.TestCase):
             self.assertIn("hostscanner <", output.getvalue())
             self.assertIn(">: discovered host 127.0.0.1", output.getvalue())
 
+    def test_foreground_command_records_job_lifecycle(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]):
+                runner = make_runner(Path(tmp, "db.sqlite3"))
+                with contextlib.redirect_stdout(io.StringIO()):
+                    events = runner.execute("hostscanner 127.0.0.1")
+            self.assertEqual([event.topic for event in events], ["host.found"])
+            topics = runner.db.topics()
+            self.assertIn("job.requested", topics)
+            self.assertIn("job.claimed", topics)
+            self.assertIn("job.started", topics)
+            self.assertIn("job.finished", topics)
+            self.assertEqual(runner.db.jobs()[0]["status"], "finished")
+
     def test_hostscanner_silent_suppresses_alert(self):
         context = CommandContext(db=None, source="hostscanner", metadata={"command_run_id": "run-1"})
         output = io.StringIO()

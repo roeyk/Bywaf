@@ -35,6 +35,8 @@ so entries are grouped under `Unreleased` until versioned releases begin.
 - Added `jobs` as an alias for `job list`.
 - Added DB-first background job invocation with `job.requested`, `job.claimed`,
   `job.started`, `job.finished`, and `job.failed` audit events.
+- Added foreground job lifecycle auditing for normal commandlet execution while
+  keeping `db` and `job` management commands direct.
 - Added soft-cancellation records and plugin-visible cancellation checks.
 - Added scoped plugin variable access through `context.vars`.
 - Added audited framework request handling for prompt-change requests.
