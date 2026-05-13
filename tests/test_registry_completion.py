@@ -15,6 +15,7 @@ from bywaf.completion import (
     tokens_after_last_pipe,
 )
 from bywaf.db import EventStore
+from bywaf.plugin import ArgumentSpec, CommandSpec, CompletionSpec
 from bywaf.registry import PluginRegistry, load_plugin, parse_package_plugin_config, parse_plugin_config
 
 
@@ -74,8 +75,75 @@ class RegistryCompletionTests(unittest.TestCase):
                 self.assertEqual(completer.candidates("cat fi"), ["file.txt"])
                 self.assertEqual(completer.candidates("less fi"), ["file.txt"])
                 self.assertEqual(completer.candidates("ls fi"), ["file.txt"])
+                self.assertIn("file.txt", completer.candidates("ls "))
             finally:
                 os.chdir(cwd)
+
+    def test_file_command_completion_is_declared_by_plugin_specs(self):
+        for name in ("cat", "less", "ls"):
+            commandlet = self.registry.get(name)
+            self.assertEqual(commandlet.spec.arguments[0].completion.kind, "file" if name in ("cat", "less") else "path")
+
+    def test_completes_from_custom_plugin_completer(self):
+        class Custom:
+            spec = CommandSpec("custom", "custom completion")
+
+            def run(self, context, args, input_events):
+                return ()
+
+            def complete(self, context, args, prefix):
+                return ["alpha", "beta"]
+
+        self.registry.plugins["custom"] = Custom()
+        completer = Completer(self.registry)
+        self.assertEqual(completer.candidates("custom a"), ["alpha"])
+
+    def test_completion_spec_can_complete_loaded_plugins(self):
+        class UsesPlugin:
+            spec = CommandSpec(
+                "uses_plugin",
+                "plugin completion",
+                arguments=(ArgumentSpec("plugin", completion=CompletionSpec("plugin")),),
+            )
+
+            def run(self, context, args, input_events):
+                return ()
+
+        self.registry.plugins["uses_plugin"] = UsesPlugin()
+        completer = Completer(self.registry)
+        self.assertIn("hostscanner", completer.candidates("uses_plugin host"))
+
+    def test_completes_framework_context_values(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "db.sqlite3"))
+            db.publish(
+                "host.found",
+                {"host": "127.0.0.1"},
+                "hostscanner",
+                pipeline_id="pipeline-1",
+                command_run_id="run-1",
+            )
+            completer = Completer(self.registry, db)
+            self.assertEqual(completer.candidates("portscanner --from-run "), ["run-1"])
+            self.assertEqual(completer.candidates("portscanner --from-pipeline "), ["pipeline-1"])
+            self.assertIn("host.found", completer.candidates("portscanner --from-topic "))
+
+    def test_show_completes_selector_values(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "db.sqlite3"))
+            db.publish(
+                "host.found",
+                {"host": "127.0.0.1"},
+                "hostscanner",
+                pipeline_id="pipeline-1",
+                command_run_id="run-1",
+            )
+            job_id = db.record_job("hostscanner 127.0.0.1", 123, "running")
+            completer = Completer(self.registry, db)
+            self.assertEqual(completer.candidates("show run="), ["run=run-1"])
+            self.assertEqual(completer.candidates("show pipeline="), ["pipeline=pipeline-1"])
+            self.assertEqual(completer.candidates("show job="), [f"job={job_id}"])
+            self.assertIn("topic=host.found", completer.candidates("show topic="))
 
     def test_tokens_after_last_pipe(self):
         self.assertEqual(tokens_after_last_pipe(["hostscanner", "x", "|", "por"]), ["por"])

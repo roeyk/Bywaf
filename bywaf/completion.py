@@ -10,10 +10,16 @@ from dataclasses import dataclass
 
 from .config import Settings
 from .db import EventStore
+from .plugin import CompletionContext, CompletionSpec
 from .registry import PluginRegistry
 from .utils import complete_path
 
 DEFAULT_SETTINGS = Settings()
+FRAMEWORK_OPTION_COMPLETIONS = {
+    "--from-run": CompletionSpec("run"),
+    "--from-pipeline": CompletionSpec("pipeline"),
+    "--from-topic": CompletionSpec("topic"),
+}
 
 
 @dataclass(slots=True)
@@ -54,9 +60,7 @@ class Completer:
             case [first] if not line.endswith(" "):
                 base = [*self.builtins, *self.registry.names()]
             case ["show", *_]:
-                base = self.topic_candidates()
-            case ["cat", *_] | ["less", *_] | ["ls", *_]:
-                base = complete_path(prefix or ".")
+                base = self.show_candidates(prefix)
             case [name, *rest] if name in self.registry.plugins:
                 base = self.plugin_candidates(name, prefix, rest)
             case ["load", *_]:
@@ -77,18 +81,28 @@ class Completer:
 
     def plugin_candidates(self, name: str, prefix: str, args: list[str]) -> list[str]:
         plugin = self.registry.get(name)
+        if not prefix.startswith("--"):
+            custom_candidates = self.plugin_custom_candidates(name, prefix, args)
+            if custom_candidates:
+                return custom_candidates
         if args and not prefix.startswith("--"):
             previous = args[-2] if prefix and args[-1] == prefix and len(args) >= 2 else args[-1]
-            value_candidates = self.plugin_option_value_candidates(name, previous)
+            value_candidates = self.plugin_option_value_candidates(name, previous, prefix)
             if value_candidates:
                 return value_candidates
+        if not prefix.startswith("--"):
+            positional_candidates = self.plugin_positional_candidates(name, prefix, args)
+            if positional_candidates:
+                return positional_candidates
         options = ["-h", "--help", *[f"--{option.name}" for option in plugin.spec.options]]
         options.extend(("--from-run", "--from-pipeline", "--from-topic"))
         if prefix.startswith(".") or "/" in prefix:
             return complete_path(prefix)
         return [*options, *plugin.spec.consumes, *plugin.spec.emits]
 
-    def plugin_option_value_candidates(self, plugin_name: str, option_token: str) -> list[str]:
+    def plugin_option_value_candidates(self, plugin_name: str, option_token: str, prefix: str) -> list[str]:
+        if option_token in FRAMEWORK_OPTION_COMPLETIONS:
+            return self.complete_by_spec(FRAMEWORK_OPTION_COMPLETIONS[option_token], prefix)
         if not option_token.startswith("--"):
             return []
         option_name = option_token[2:]
@@ -96,6 +110,9 @@ class Completer:
         for option in plugin.spec.options:
             if option.name != option_name:
                 continue
+            completion_candidates = self.complete_by_spec(option.completion, prefix)
+            if completion_candidates:
+                return completion_candidates
             candidates = [*option.choices]
             stored = self.registry.varstore.get(f"{plugin_name}.{option.name}")
             if stored:
@@ -105,11 +122,76 @@ class Completer:
             return candidates
         return []
 
+    def plugin_custom_candidates(self, plugin_name: str, prefix: str, args: list[str]) -> list[str]:
+        plugin = self.registry.get(plugin_name)
+        completer = getattr(plugin, "complete", None)
+        if completer is None:
+            return []
+        context = CompletionContext(db=self.db, varstore=self.registry.varstore)
+        candidates = completer(context, args, prefix)
+        return list(candidates) if candidates else []
+
+    def plugin_positional_candidates(self, plugin_name: str, prefix: str, args: list[str]) -> list[str]:
+        plugin = self.registry.get(plugin_name)
+        position = positional_index(args, prefix)
+        if position >= len(plugin.spec.arguments):
+            return []
+        return self.complete_by_spec(plugin.spec.arguments[position].completion, prefix)
+
     def topic_candidates(self) -> list[str]:
         plugin_topics = {topic for plugin in self.registry.plugins.values() for topic in plugin.spec.emits}
         db_topics = set(self.db.topics()) if self.db else set()
         job_candidates = [f"job={row['id']}" for row in self.db.jobs()] if self.db else []
         return [*plugin_topics, *db_topics, *job_candidates]
+
+    def show_candidates(self, prefix: str) -> list[str]:
+        selectors = ("job=", "run=", "pipeline=", "topic=")
+        for selector in selectors:
+            if prefix.startswith(selector):
+                value_prefix = prefix.split("=", 1)[1]
+                kind = selector[:-1]
+                return [f"{selector}{value}" for value in self.complete_by_spec(CompletionSpec(kind), value_prefix)]
+        if prefix:
+            selector_matches = [selector for selector in selectors if selector.startswith(prefix)]
+            if selector_matches:
+                return selector_matches
+        return [*self.topic_candidates(), *selectors]
+
+    def run_candidates(self) -> list[str]:
+        if not self.db:
+            return []
+        return [row["command_run_id"] for row in self.db.runs()]
+
+    def pipeline_candidates(self) -> list[str]:
+        if not self.db:
+            return []
+        return sorted({row["pipeline_id"] for row in self.db.runs() if row["pipeline_id"]})
+
+    def job_candidates(self) -> list[str]:
+        if not self.db:
+            return []
+        return [str(row["id"]) for row in self.db.jobs()]
+
+    def complete_by_spec(self, spec: CompletionSpec, prefix: str) -> list[str]:
+        match spec.kind:
+            case "path" | "file" | "directory":
+                return complete_path(prefix or ".")
+            case "choice":
+                return list(spec.values)
+            case "topic":
+                plugin_topics = {topic for plugin in self.registry.plugins.values() for topic in plugin.spec.emits}
+                db_topics = set(self.db.topics()) if self.db else set()
+                return [*plugin_topics, *db_topics]
+            case "run":
+                return self.run_candidates()
+            case "pipeline":
+                return self.pipeline_candidates()
+            case "job":
+                return self.job_candidates()
+            case "plugin":
+                return self.registry.names()
+            case _:
+                return []
 
     def load_candidates(self, prefix: str) -> list[str]:
         return resource_candidates(prefix, ("config=", "db=", "history=", "plugin=", "script="))
@@ -161,6 +243,18 @@ def complete_resource_value(kind: str, value: str) -> list[str]:
             return complete_path(value)
         case _:
             return complete_path(value)
+
+
+def positional_index(args: list[str], prefix: str) -> int:
+    if not args:
+        return 0
+    positional = [
+        arg for arg in args
+        if not arg.startswith("-") and arg not in {"|", "&"}
+    ]
+    if prefix and positional and positional[-1] == prefix:
+        return len(positional) - 1
+    return len(positional)
 
 
 def is_explicit_path(value: str) -> bool:

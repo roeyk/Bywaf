@@ -1,7 +1,7 @@
 import unittest
 
 from bywaf.config import Settings, default_settings
-from bywaf.plugin import CommandContext, CommandSpec, OptionSpec
+from bywaf.plugin import ArgumentSpec, CommandContext, CommandSpec, CompletionSpec, OptionSpec
 from bywaf.messages import Host, Progress
 from bywaf.varstore import VarStore
 
@@ -25,7 +25,13 @@ class ConfigPluginTests(unittest.TestCase):
     def test_command_spec_defaults(self):
         spec = CommandSpec("name", "description")
         self.assertEqual(spec.options, ())
+        self.assertEqual(spec.arguments, ())
         self.assertEqual(spec.emits, ())
+
+    def test_argument_spec_defaults(self):
+        argument = ArgumentSpec("path")
+        self.assertTrue(argument.required)
+        self.assertEqual(argument.completion, CompletionSpec())
 
     def test_command_context_metadata_default(self):
         context = CommandContext(db=None, source="test")

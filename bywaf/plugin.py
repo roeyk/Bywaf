@@ -12,11 +12,26 @@ from .varstore import VarStore
 
 
 @dataclass(frozen=True, slots=True)
+class CompletionSpec:
+    kind: str = "none"
+    values: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class ArgumentSpec:
+    name: str
+    description: str = ""
+    required: bool = True
+    completion: CompletionSpec = field(default_factory=CompletionSpec)
+
+
+@dataclass(frozen=True, slots=True)
 class OptionSpec:
     name: str
     description: str
     default: str | None = None
     choices: tuple[str, ...] = ()
+    completion: CompletionSpec = field(default_factory=CompletionSpec)
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,6 +41,7 @@ class CommandSpec:
     usage: str = ""
     examples: tuple[str, ...] = ()
     options: tuple[OptionSpec, ...] = ()
+    arguments: tuple[ArgumentSpec, ...] = ()
     consumes: tuple[str, ...] = ()
     emits: tuple[str, ...] = ()
 
@@ -34,6 +50,13 @@ class CommandSpec:
 class CommandContext:
     db: EventStore
     source: str
+    varstore: VarStore = field(default_factory=VarStore)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(slots=True)
+class CompletionContext:
+    db: EventStore | None = None
     varstore: VarStore = field(default_factory=VarStore)
     metadata: dict[str, Any] = field(default_factory=dict)
 

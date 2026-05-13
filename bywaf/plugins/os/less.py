@@ -10,7 +10,7 @@ import subprocess
 import sys
 
 from bywaf.events import Event
-from bywaf.plugin import CommandContext, CommandSpec, Commandlet
+from bywaf.plugin import ArgumentSpec, CommandContext, CommandSpec, Commandlet, CompletionSpec
 from bywaf.plugins.os.files import print_file
 
 
@@ -20,6 +20,9 @@ class Less:
         description="View a local text file in the system pager.",
         usage="less <path>",
         examples=("less README.md",),
+        arguments=(
+            ArgumentSpec("path", "file to view", completion=CompletionSpec("file")),
+        ),
     )
 
     def run(
