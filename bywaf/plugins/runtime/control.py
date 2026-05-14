@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from bywaf.events import Event
-from bywaf.plugin import ArgumentSpec, CommandContext, Commandlet, CommandletBase, CommandSpec, CompletionContext, CompletionSpec
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
 from bywaf.plugins.runtime.job import cancel_job, job_ids, kill_job, require_job
 from bywaf.plugins.runtime.pipeline import cancel_pipeline, kill_pipeline, pipeline_ids
 
@@ -59,32 +59,32 @@ class Control(CommandletBase):
         return list(selectors)
 
 
+@commandlet(
+    name="kill",
+    description="Hard-terminate a job or pipeline.",
+    usage="kill [--force] <job=id|pipeline=id>",
+    examples=("kill job=1", "kill --force pipeline=pipeline-..."),
+    capabilities=("db.raw", "framework.console.output", "framework.job.control", "framework.pipeline.control"),
+)
+@argument("target", "job=<id> or pipeline=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=")))
 class Kill(Control):
     """Hard-terminate a job or pipeline."""
 
     action = "kill"
-    spec = CommandSpec(
-        name="kill",
-        description="Hard-terminate a job or pipeline.",
-        usage="kill [--force] <job=id|pipeline=id>",
-        examples=("kill job=1", "kill --force pipeline=pipeline-..."),
-        arguments=(ArgumentSpec("target", "job=<id> or pipeline=<id>", completion=CompletionSpec("choice", ("job=", "pipeline="))),),
-        capabilities=("db.raw", "framework.console.output", "framework.job.control", "framework.pipeline.control"),
-    )
 
 
+@commandlet(
+    name="cancel",
+    description="Request cooperative cancellation for a job or pipeline.",
+    usage="cancel <job=id|pipeline=id>",
+    examples=("cancel job=1", "cancel pipeline=pipeline-..."),
+    capabilities=("db.raw", "framework.console.output", "framework.job.control", "framework.pipeline.control"),
+)
+@argument("target", "job=<id> or pipeline=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=")))
 class Cancel(Control):
     """Request cooperative cancellation for a job or pipeline."""
 
     action = "cancel"
-    spec = CommandSpec(
-        name="cancel",
-        description="Request cooperative cancellation for a job or pipeline.",
-        usage="cancel <job=id|pipeline=id>",
-        examples=("cancel job=1", "cancel pipeline=pipeline-..."),
-        arguments=(ArgumentSpec("target", "job=<id> or pipeline=<id>", completion=CompletionSpec("choice", ("job=", "pipeline="))),),
-        capabilities=("db.raw", "framework.console.output", "framework.job.control", "framework.pipeline.control"),
-    )
 
 
 def parse_target(target: str) -> tuple[str, str]:

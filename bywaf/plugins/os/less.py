@@ -6,23 +6,20 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from bywaf.events import Event
-from bywaf.plugin import ArgumentSpec, CommandContext, Commandlet, CommandletBase, CommandSpec, CompletionSpec
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, argument, commandlet
 from bywaf.plugins.os.files import read_text_file
 
 
+@commandlet(
+    name="less",
+    description="View a local text file through the framework pager.",
+    usage="less <path>",
+    examples=("less README.md",),
+    capabilities=("filesystem.read", "framework.file.page"),
+)
+@argument("path", "file to view", completion="file")
 class Less(CommandletBase):
     """Commandlet wrapper around framework-owned file paging."""
-
-    spec = CommandSpec(
-        name="less",
-        description="View a local text file through the framework pager.",
-        usage="less <path>",
-        examples=("less README.md",),
-        arguments=(
-            ArgumentSpec("path", "file to view", completion=CompletionSpec("file")),
-        ),
-        capabilities=("filesystem.read", "framework.file.page"),
-    )
 
     def run(
         self,

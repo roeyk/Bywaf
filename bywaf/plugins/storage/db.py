@@ -11,29 +11,22 @@ from pathlib import Path
 from bywaf.config import Settings
 from bywaf.db import EventStore, export_encrypted_database, export_plaintext_database
 from bywaf.events import Event
-from bywaf.plugin import ArgumentSpec, CommandContext, Commandlet, CommandletBase, CommandSpec, CompletionSpec
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionSpec, argument, commandlet
 
 DB_ACTIONS = ("checkpoint", "decrypt", "encrypt", "new", "path", "rekey", "status", "vacuum")
 ENCRYPTION_VAR = "encryption"
 
 
+@commandlet(
+    name="db",
+    description="Manage the active Bywaf SQLite database.",
+    usage="db <status|path|checkpoint|vacuum|new|encrypt|decrypt|rekey>",
+    examples=("db status", "db new --file=client.sqlite3", "db encrypt", "db rekey"),
+    capabilities=("db.manage", "db.raw", "filesystem.read", "filesystem.write", "framework.console.output"),
+)
+@argument("action", "database operation", completion=CompletionSpec("choice", DB_ACTIONS))
 class Db(CommandletBase):
     """Expose safe operational controls for the active SQLite database."""
-
-    spec = CommandSpec(
-        name="db",
-        description="Manage the active Bywaf SQLite database.",
-        usage="db <status|path|checkpoint|vacuum|new|encrypt|decrypt|rekey>",
-        examples=("db status", "db new --file=client.sqlite3", "db encrypt", "db rekey"),
-        arguments=(
-            ArgumentSpec(
-                "action",
-                "database operation",
-                completion=CompletionSpec("choice", DB_ACTIONS),
-            ),
-        ),
-        capabilities=("db.manage", "db.raw", "filesystem.read", "filesystem.write", "framework.console.output"),
-    )
 
     def run(
         self,

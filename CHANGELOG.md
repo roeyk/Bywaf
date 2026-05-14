@@ -21,6 +21,7 @@ so compatibility may change between testing releases.
 - Documented the policy that external process execution should be routed
   through a future framework-mediated process API instead of direct plugin
   subprocess calls.
+- Converted bundled commandlets to class-based metadata decorators.
 - Added framework-owned file paging requests through `context.page_file()` and
   `framework.file.page.requested` events.
 - Added `DESIGN.md` with initial framework request IPC and plugin capability

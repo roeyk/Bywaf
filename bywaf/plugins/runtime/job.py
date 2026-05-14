@@ -7,25 +7,22 @@ import signal
 from collections.abc import Iterable
 
 from bywaf.events import Event
-from bywaf.plugin import ArgumentSpec, CommandContext, Commandlet, CommandletBase, CommandSpec, CompletionContext, CompletionSpec
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
 
 JOB_ACTIONS = ("cancel", "kill", "list", "show")
 
 
+@commandlet(
+    name="job",
+    description="Manage background jobs.",
+    usage="job <list|show|cancel|kill> [options] [id]",
+    examples=("job list", "job show 1", "job cancel 1", "job kill --force 1"),
+    capabilities=("db.raw", "framework.console.output", "framework.job.control"),
+)
+@argument("action", "job operation", completion=CompletionSpec("choice", JOB_ACTIONS))
+@argument("id", "job id", required=False, completion="job")
 class Job(CommandletBase):
     """List, inspect, softly cancel, and hard-kill background jobs."""
-
-    spec = CommandSpec(
-        name="job",
-        description="Manage background jobs.",
-        usage="job <list|show|cancel|kill> [options] [id]",
-        examples=("job list", "job show 1", "job cancel 1", "job kill --force 1"),
-        arguments=(
-            ArgumentSpec("action", "job operation", completion=CompletionSpec("choice", JOB_ACTIONS)),
-            ArgumentSpec("id", "job id", required=False, completion=CompletionSpec("job")),
-        ),
-        capabilities=("db.raw", "framework.console.output", "framework.job.control"),
-    )
 
     def run(
         self,

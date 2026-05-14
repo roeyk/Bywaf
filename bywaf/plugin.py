@@ -103,7 +103,8 @@ def option(
     """Decorate a commandlet class with one option metadata entry."""
     def decorate(cls):
         options = list(cast(tuple[OptionSpec, ...], getattr(cls, "_bywaf_options", ())))
-        options.append(
+        options.insert(
+            0,
             OptionSpec(
                 name,
                 description,
@@ -128,7 +129,8 @@ def argument(
     """Decorate a commandlet class with one positional argument metadata entry."""
     def decorate(cls):
         arguments = list(cast(tuple[ArgumentSpec, ...], getattr(cls, "_bywaf_arguments", ())))
-        arguments.append(
+        arguments.insert(
+            0,
             ArgumentSpec(
                 name,
                 description,

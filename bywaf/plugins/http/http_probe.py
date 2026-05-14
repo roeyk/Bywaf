@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 from bywaf.events import Event
 from bywaf.http_cookies import load_cookie_jar
-from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CommandSpec, OptionSpec
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
 
 DEFAULTS = {
     "cookie-file": "",
@@ -24,32 +24,29 @@ DEFAULTS = {
 }
 
 
+@commandlet(
+    name="http_probe",
+    description="Probe HTTP/HTTPS endpoints and emit response metadata.",
+    usage="http_probe [options] [target ...]",
+    examples=(
+        "http_probe https://example.test/",
+        "vars http_probe.cookie-file=/tmp/cookies.txt",
+        "hostscanner 127.0.0.1 | portscanner | http_probe --method GET",
+    ),
+    consumes=("port.open",),
+    emits=("http.endpoint",),
+    capabilities=("filesystem.read", "framework.console.alert", "network.connect"),
+)
+@option("cookie-file", "Netscape-format cookie file")
+@option("firefox-profile", "Firefox profile directory or cookies.sqlite")
+@option("follow-redirects", "follow redirects", "true", ("true", "false"))
+@option("method", "HTTP method", "HEAD", ("HEAD", "GET"))
+@option("path", "request path", "/")
+@option("scheme", "scheme override", "auto", ("auto", "http", "https"))
+@option("silent", "suppress probe alerts", "false")
+@option("timeout", "request timeout seconds", "5")
+@option("user-agent", "HTTP User-Agent", "Bywaf/0.9")
 class HttpProbe(CommandletBase):
-    spec = CommandSpec(
-        name="http_probe",
-        description="Probe HTTP/HTTPS endpoints and emit response metadata.",
-        usage="http_probe [options] [target ...]",
-        examples=(
-            "http_probe https://example.test/",
-            "vars http_probe.cookie-file=/tmp/cookies.txt",
-            "hostscanner 127.0.0.1 | portscanner | http_probe --method GET",
-        ),
-        options=(
-            OptionSpec("cookie-file", "Netscape-format cookie file"),
-            OptionSpec("firefox-profile", "Firefox profile directory or cookies.sqlite"),
-            OptionSpec("follow-redirects", "follow redirects", "true", ("true", "false")),
-            OptionSpec("method", "HTTP method", "HEAD", ("HEAD", "GET")),
-            OptionSpec("path", "request path", "/"),
-            OptionSpec("scheme", "scheme override", "auto", ("auto", "http", "https")),
-            OptionSpec("silent", "suppress probe alerts", "false"),
-            OptionSpec("timeout", "request timeout seconds", "5"),
-            OptionSpec("user-agent", "HTTP User-Agent", "Bywaf/0.9"),
-        ),
-        consumes=("port.open",),
-        emits=("http.endpoint",),
-        capabilities=("filesystem.read", "framework.console.alert", "network.connect"),
-    )
-
     def run(
         self,
         context: CommandContext,

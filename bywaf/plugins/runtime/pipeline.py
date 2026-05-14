@@ -5,26 +5,23 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from bywaf.events import Event
-from bywaf.plugin import ArgumentSpec, CommandContext, Commandlet, CommandletBase, CommandSpec, CompletionContext, CompletionSpec
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
 from bywaf.plugins.runtime.job import cancel_job, kill_job
 
 PIPELINE_ACTIONS = ("cancel", "kill", "list", "show")
 
 
+@commandlet(
+    name="pipeline",
+    description="Manage pipelines.",
+    usage="pipeline <list|show|cancel|kill> [options] [id]",
+    examples=("pipeline list", "pipeline show pipeline-...", "pipeline cancel pipeline-..."),
+    capabilities=("db.raw", "framework.console.output", "framework.pipeline.control", "framework.job.control"),
+)
+@argument("action", "pipeline operation", completion=CompletionSpec("choice", PIPELINE_ACTIONS))
+@argument("id", "pipeline id", required=False, completion="pipeline")
 class Pipeline(CommandletBase):
     """List, inspect, softly cancel, and hard-kill pipelines."""
-
-    spec = CommandSpec(
-        name="pipeline",
-        description="Manage pipelines.",
-        usage="pipeline <list|show|cancel|kill> [options] [id]",
-        examples=("pipeline list", "pipeline show pipeline-...", "pipeline cancel pipeline-..."),
-        arguments=(
-            ArgumentSpec("action", "pipeline operation", completion=CompletionSpec("choice", PIPELINE_ACTIONS)),
-            ArgumentSpec("id", "pipeline id", required=False, completion=CompletionSpec("pipeline")),
-        ),
-        capabilities=("db.raw", "framework.console.output", "framework.pipeline.control", "framework.job.control"),
-    )
 
     def run(
         self,

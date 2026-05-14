@@ -7,34 +7,31 @@ from time import monotonic, sleep
 
 from bywaf.events import Event
 from bywaf.nmap_backend import scan_open_ports
-from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CommandSpec, OptionSpec
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
 
 DEFAULTS = {"arguments": "-sT", "ports": ""}
 
 
+@commandlet(
+    name="portscanner",
+    description="Scan TCP ports with nmap for hosts from args or pipeline input.",
+    usage="portscanner [options] [host ...]",
+    examples=(
+        "hostscanner 127.0.0.1 | portscanner",
+        "portscanner --ports 22,80,443 127.0.0.1",
+        "hostscanner 192.168.0.1-255& | portscanner&",
+    ),
+    consumes=("host.found",),
+    emits=("port.open",),
+    capabilities=("framework.console.alert", "network.connect"),
+)
+@option("arguments", "nmap port scan arguments", "-sT")
+@option("listen", "poll scoped upstream host.found events", "false")
+@option("listen-interval", "poll interval in seconds", "1.0")
+@option("listen-timeout", "seconds to listen; 0 means forever", "0")
+@option("ports", "optional comma/range port list; omit for nmap top ports")
+@option("silent", "suppress discovery alerts", "false")
 class PortScanner(CommandletBase):
-    spec = CommandSpec(
-        name="portscanner",
-        description="Scan TCP ports with nmap for hosts from args or pipeline input.",
-        usage="portscanner [options] [host ...]",
-        examples=(
-            "hostscanner 127.0.0.1 | portscanner",
-            "portscanner --ports 22,80,443 127.0.0.1",
-            "hostscanner 192.168.0.1-255& | portscanner&",
-        ),
-        options=(
-            OptionSpec("arguments", "nmap port scan arguments", "-sT"),
-            OptionSpec("listen", "poll scoped upstream host.found events", "false"),
-            OptionSpec("listen-interval", "poll interval in seconds", "1.0"),
-            OptionSpec("listen-timeout", "seconds to listen; 0 means forever", "0"),
-            OptionSpec("ports", "optional comma/range port list; omit for nmap top ports"),
-            OptionSpec("silent", "suppress discovery alerts", "false"),
-        ),
-        consumes=("host.found",),
-        emits=("port.open",),
-        capabilities=("framework.console.alert", "network.connect"),
-    )
-
     def run(
         self,
         context: CommandContext,

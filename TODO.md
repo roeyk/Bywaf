@@ -59,5 +59,6 @@ Planning dates are release planning markers, not compatibility commitments.
   commandlets for jobs and pipelines.
 - 2026-05-13: Added class-based commandlet metadata decorators for plugin
   authors.
+- 2026-05-14: Converted bundled commandlets to class-based metadata decorators.
 - 2026-05-13: Added framework-owned paging through `context.page_file()` and
   `framework.file.page.requested`.

@@ -6,30 +6,27 @@ import http.client
 from collections.abc import Iterable
 
 from bywaf.events import Event
-from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CommandSpec, OptionSpec
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
 
 DEFAULTS = {"ssl": "false", "timeout": 5}
 
 
+@commandlet(
+    name="http_headers",
+    description="Fetch HTTP response headers for a target.",
+    usage="http_headers [options] [target]",
+    examples=(
+        "http_headers --ssl true example.test",
+        "hostscanner 127.0.0.1 | portscanner --ports 80,443 | http_headers",
+    ),
+    consumes=("port.open",),
+    emits=("http.headers",),
+    capabilities=("network.connect",),
+)
+@option("port", "target port")
+@option("ssl", "use HTTPS", "false", ("true", "false"))
+@option("timeout", "connection timeout", "5")
 class HttpHeaders(CommandletBase):
-    spec = CommandSpec(
-        name="http_headers",
-        description="Fetch HTTP response headers for a target.",
-        usage="http_headers [options] [target]",
-        examples=(
-            "http_headers --ssl true example.test",
-            "hostscanner 127.0.0.1 | portscanner --ports 80,443 | http_headers",
-        ),
-        options=(
-            OptionSpec("port", "target port"),
-            OptionSpec("ssl", "use HTTPS", "false", ("true", "false")),
-            OptionSpec("timeout", "connection timeout", "5"),
-        ),
-        consumes=("port.open",),
-        emits=("http.headers",),
-        capabilities=("network.connect",),
-    )
-
     def run(
         self,
         context: CommandContext,

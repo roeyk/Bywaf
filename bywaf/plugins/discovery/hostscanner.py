@@ -6,31 +6,28 @@ from collections.abc import Iterable
 
 from bywaf.events import Event
 from bywaf.nmap_backend import discover_live_hosts
-from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CommandSpec, OptionSpec
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
 from bywaf.utils import host_candidates
 
 DEFAULTS = {"arguments": "-sn", "limit": 256}
 
 
+@commandlet(
+    name="hostscanner",
+    description="Discover live hosts with nmap.",
+    usage="hostscanner [options] <target> [target ...]",
+    examples=(
+        "hostscanner 127.0.0.1",
+        "hostscanner 192.168.0.1-255",
+        "hostscanner 192.168.0.1& | portscanner&",
+    ),
+    emits=("host.found",),
+    capabilities=("framework.console.alert", "network.connect"),
+)
+@option("arguments", "nmap host discovery arguments", "-sn")
+@option("limit", "maximum live hosts to emit", "256")
+@option("silent", "suppress discovery alerts", "false")
 class HostScanner(CommandletBase):
-    spec = CommandSpec(
-        name="hostscanner",
-        description="Discover live hosts with nmap.",
-        usage="hostscanner [options] <target> [target ...]",
-        examples=(
-            "hostscanner 127.0.0.1",
-            "hostscanner 192.168.0.1-255",
-            "hostscanner 192.168.0.1& | portscanner&",
-        ),
-        options=(
-            OptionSpec("arguments", "nmap host discovery arguments", "-sn"),
-            OptionSpec("limit", "maximum live hosts to emit", "256"),
-            OptionSpec("silent", "suppress discovery alerts", "false"),
-        ),
-        emits=("host.found",),
-        capabilities=("framework.console.alert", "network.connect"),
-    )
-
     def run(
         self,
         context: CommandContext,

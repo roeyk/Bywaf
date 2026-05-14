@@ -6,28 +6,20 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from bywaf.events import Event
-from bywaf.plugin import ArgumentSpec, CommandContext, Commandlet, CommandletBase, CommandSpec, CompletionSpec
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, argument, commandlet
 from bywaf.plugins.os.files import list_path
 
 
+@commandlet(
+    name="ls",
+    description="List files in a local directory.",
+    usage="ls [path]",
+    examples=("ls", "ls bywaf/plugins"),
+    capabilities=("filesystem.read", "framework.console.output"),
+)
+@argument("path", "directory or file to list", required=False, completion="path")
 class Ls(CommandletBase):
     """Commandlet wrapper around a local filesystem directory listing."""
-
-    spec = CommandSpec(
-        name="ls",
-        description="List files in a local directory.",
-        usage="ls [path]",
-        examples=("ls", "ls bywaf/plugins"),
-        arguments=(
-            ArgumentSpec(
-                "path",
-                "directory or file to list",
-                required=False,
-                completion=CompletionSpec("path"),
-            ),
-        ),
-        capabilities=("filesystem.read", "framework.console.output"),
-    )
 
     def run(
         self,

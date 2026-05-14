@@ -57,18 +57,22 @@ class ConfigPluginTests(unittest.TestCase):
             emits=("hello.greeting",),
             capabilities=("framework.console.output",),
         )
+        @option("timeout", "timeout seconds", default="5")
         @option("uppercase", "uppercase output", default="false", choices=("true", "false"))
+        @argument("suffix", "suffix", required=False)
         @argument("name", "name to greet", required=False, completion="plugin")
         class Hello:
             pass
 
         spec = getattr(Hello, "spec")
         self.assertEqual(spec.name, "hello")
-        self.assertEqual(spec.arguments[0].name, "name")
-        self.assertFalse(spec.arguments[0].required)
-        self.assertEqual(spec.arguments[0].completion, CompletionSpec("plugin"))
-        self.assertEqual(spec.options[0].name, "uppercase")
-        self.assertEqual(spec.options[0].choices, ("true", "false"))
+        self.assertEqual(spec.arguments[0].name, "suffix")
+        self.assertEqual(spec.arguments[1].name, "name")
+        self.assertFalse(spec.arguments[1].required)
+        self.assertEqual(spec.arguments[1].completion, CompletionSpec("plugin"))
+        self.assertEqual(spec.options[0].name, "timeout")
+        self.assertEqual(spec.options[1].name, "uppercase")
+        self.assertEqual(spec.options[1].choices, ("true", "false"))
         self.assertEqual(spec.emits, ("hello.greeting",))
         self.assertEqual(spec.capabilities, ("framework.console.output",))
 
