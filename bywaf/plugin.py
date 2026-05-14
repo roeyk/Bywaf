@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import selectors
+import subprocess
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -207,6 +209,11 @@ class CommandContext:
         return ContextEvents(self)
 
     @property
+    def process(self) -> "ContextProcess":
+        """Return the mediated process-execution API for plugin code."""
+        return ContextProcess(self)
+
+    @property
     def pipeline_id(self) -> str | None:
         """Return the current pipeline ID, if this commandlet has one."""
         value = self.metadata.get("pipeline_id")
@@ -382,6 +389,293 @@ class CommandContext:
             print(file_path.read_text(errors="replace"), end="", flush=True)
 
 
+@dataclass(frozen=True, slots=True)
+class ProcessResult:
+    """Normalized result from a framework-mediated process run."""
+
+    argv: tuple[str, ...]
+    returncode: int
+    stdout: str
+    stderr: str
+    request_event_id: int | None = None
+
+    @property
+    def ok(self) -> bool:
+        """Return whether the process exited successfully."""
+        return self.returncode == 0
+
+    def check_returncode(self) -> None:
+        """Raise `CalledProcessError` when the process failed."""
+        if self.returncode != 0:
+            raise subprocess.CalledProcessError(
+                self.returncode,
+                list(self.argv),
+                output=self.stdout,
+                stderr=self.stderr,
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class ProcessChunk:
+    """One streamed stdout/stderr chunk from a framework-mediated process."""
+
+    argv: tuple[str, ...]
+    stream: str
+    text: str
+    request_event_id: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ContextProcess:
+    """Framework-mediated process API exposed to commandlets.
+
+    Plugins should use this instead of importing `subprocess` directly. The API
+    records the request, audits the `process.run` capability, executes an argv
+    vector with `shell=False`, and records the result for later inspection.
+    """
+
+    context: CommandContext
+
+    def run(
+        self,
+        argv: Sequence[str],
+        *,
+        cwd: str | Path | None = None,
+        timeout: float | None = None,
+        check: bool = False,
+        env: Mapping[str, str] | None = None,
+    ) -> ProcessResult:
+        """Run an external command through the framework audit path."""
+        normalized = normalize_argv(argv)
+        payload: dict[str, Any] = {
+            "argv": list(normalized),
+            "cwd": str(Path(cwd).expanduser()) if cwd is not None else None,
+            "timeout": timeout,
+            "source": self.context.source,
+            "command_run_id": self.context.command_run_id,
+            "pipeline_id": self.context.pipeline_id,
+            "job_id": self.context.job_id,
+            "handled": True,
+        }
+        request = self.context.request("framework.process.run.requested", payload)
+        completed = run_process_argv(normalized, cwd=payload["cwd"], env=env, timeout=timeout)
+        result = ProcessResult(
+            argv=normalized,
+            returncode=completed.returncode,
+            stdout=completed.stdout,
+            stderr=completed.stderr,
+            request_event_id=request.id if request is not None else None,
+        )
+        self.publish_result(result)
+        if check:
+            result.check_returncode()
+        return result
+
+    def stream(
+        self,
+        argv: Sequence[str],
+        *,
+        cwd: str | Path | None = None,
+        timeout: float | None = None,
+        env: Mapping[str, str] | None = None,
+    ) -> Iterable[ProcessChunk]:
+        """Stream stdout/stderr line chunks while recording process events."""
+        normalized = normalize_argv(argv)
+        payload: dict[str, Any] = {
+            "argv": list(normalized),
+            "cwd": str(Path(cwd).expanduser()) if cwd is not None else None,
+            "timeout": timeout,
+            "source": self.context.source,
+            "command_run_id": self.context.command_run_id,
+            "pipeline_id": self.context.pipeline_id,
+            "job_id": self.context.job_id,
+            "handled": True,
+            "mode": "stream",
+        }
+        request = self.context.request("framework.process.stream.requested", payload)
+        request_id = request.id if request is not None else None
+        self.publish_started(normalized, request_id)
+        process = popen_process_argv(normalized, cwd=payload["cwd"], env=env)
+        selector = selectors.DefaultSelector()
+        if process.stdout is not None:
+            selector.register(process.stdout, selectors.EVENT_READ, "stdout")
+        if process.stderr is not None:
+            selector.register(process.stderr, selectors.EVENT_READ, "stderr")
+        timeout_value = float(timeout) if timeout is not None else None
+        deadline = None if timeout_value is None else timeout_deadline(timeout_value)
+        try:
+            while selector.get_map():
+                self.context.raise_if_cancelled()
+                if deadline is not None and timeout_expired(deadline):
+                    if timeout_value is None:
+                        raise RuntimeError("process timeout deadline set without timeout value")
+                    process.kill()
+                    raise subprocess.TimeoutExpired(list(normalized), timeout_value)
+                for key, _mask in selector.select(timeout=0.1):
+                    pipe = cast(Any, key.fileobj)
+                    line = pipe.readline()
+                    if line:
+                        stream = str(key.data)
+                        chunk = ProcessChunk(normalized, stream, line, request_id)
+                        self.publish_chunk(chunk)
+                        yield chunk
+                    else:
+                        selector.unregister(key.fileobj)
+            returncode = process.wait(timeout=0)
+        finally:
+            for pipe in (process.stdout, process.stderr):
+                if pipe is not None and not pipe.closed:
+                    pipe.close()
+            selector.close()
+            if process.poll() is None:
+                process.terminate()
+                process.wait(timeout=5)
+        self.publish_exit(normalized, returncode, request_id)
+
+    def publish_result(self, result: ProcessResult) -> None:
+        """Record the process outcome without exposing raw DB operations."""
+        if self.context._db is None:
+            return
+        self.context._db.publish(
+            "process.run",
+            {
+                "argv": list(result.argv),
+                "returncode": result.returncode,
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+                "ok": result.ok,
+                "request_event_id": result.request_event_id,
+                "job_id": self.context.job_id,
+            },
+            "framework",
+            pipeline_id=self.context.pipeline_id,
+            command_run_id=self.context.command_run_id,
+            parent_command_run_id=self.context.parent_command_run_id,
+        )
+
+    def publish_started(self, argv: tuple[str, ...], request_event_id: int | None) -> None:
+        """Record that a streamed process was started."""
+        if self.context._db is None:
+            return
+        self.context._db.publish(
+            "process.started",
+            {
+                "argv": list(argv),
+                "request_event_id": request_event_id,
+                "job_id": self.context.job_id,
+            },
+            "framework",
+            pipeline_id=self.context.pipeline_id,
+            command_run_id=self.context.command_run_id,
+            parent_command_run_id=self.context.parent_command_run_id,
+        )
+
+    def publish_chunk(self, chunk: ProcessChunk) -> None:
+        """Record one streamed process-output chunk."""
+        if self.context._db is None:
+            return
+        self.context._db.publish(
+            f"process.{chunk.stream}",
+            {
+                "argv": list(chunk.argv),
+                "stream": chunk.stream,
+                "text": chunk.text,
+                "request_event_id": chunk.request_event_id,
+                "job_id": self.context.job_id,
+            },
+            "framework",
+            pipeline_id=self.context.pipeline_id,
+            command_run_id=self.context.command_run_id,
+            parent_command_run_id=self.context.parent_command_run_id,
+        )
+
+    def publish_exit(self, argv: tuple[str, ...], returncode: int, request_event_id: int | None) -> None:
+        """Record that a streamed process exited."""
+        if self.context._db is None:
+            return
+        self.context._db.publish(
+            "process.exited",
+            {
+                "argv": list(argv),
+                "returncode": returncode,
+                "ok": returncode == 0,
+                "request_event_id": request_event_id,
+                "job_id": self.context.job_id,
+            },
+            "framework",
+            pipeline_id=self.context.pipeline_id,
+            command_run_id=self.context.command_run_id,
+            parent_command_run_id=self.context.parent_command_run_id,
+        )
+
+
+def normalize_argv(argv: Sequence[str]) -> tuple[str, ...]:
+    """Validate and normalize an argv sequence for safe process execution."""
+    if isinstance(argv, str):
+        raise TypeError("process argv must be a sequence of strings, not a shell string")
+    normalized = tuple(str(part) for part in argv)
+    if not normalized:
+        raise ValueError("process argv cannot be empty")
+    if any(part == "" for part in normalized):
+        raise ValueError("process argv cannot contain empty arguments")
+    return normalized
+
+
+def run_process_argv(
+    argv: Sequence[str],
+    *,
+    cwd: str | Path | None = None,
+    env: Mapping[str, str] | None = None,
+    timeout: float | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """Run an argv vector with shell execution explicitly disabled."""
+    # Framework-mediated argv execution; shell is explicitly disabled.
+    return subprocess.run(  # nosec B603
+        list(normalize_argv(argv)),
+        cwd=str(Path(cwd).expanduser()) if cwd is not None else None,
+        env=dict(env) if env is not None else None,
+        timeout=timeout,
+        capture_output=True,
+        text=True,
+        shell=False,
+        check=False,
+    )
+
+
+def popen_process_argv(
+    argv: Sequence[str],
+    *,
+    cwd: str | Path | None = None,
+    env: Mapping[str, str] | None = None,
+) -> subprocess.Popen[str]:
+    """Start an argv-vector process for line-oriented streaming."""
+    # Framework-mediated argv execution; shell is explicitly disabled.
+    return subprocess.Popen(  # nosec B603
+        list(normalize_argv(argv)),
+        cwd=str(Path(cwd).expanduser()) if cwd is not None else None,
+        env=dict(env) if env is not None else None,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        bufsize=1,
+        shell=False,
+    )
+
+
+def timeout_deadline(timeout: float) -> float:
+    """Return a monotonic deadline for process streaming timeouts."""
+    import time
+
+    return time.monotonic() + timeout
+
+
+def timeout_expired(deadline: float) -> bool:
+    """Return whether a monotonic deadline has passed."""
+    import time
+
+    return time.monotonic() >= deadline
+
+
 @dataclass(slots=True)
 class CompletionContext:
     """Lightweight context passed into optional plugin completion hooks."""
@@ -517,6 +811,10 @@ def framework_request_capability(topic: str) -> str | None:
             return "framework.console.alert"
         case "framework.file.page.requested":
             return "framework.file.page"
+        case "framework.process.run.requested":
+            return "process.run"
+        case "framework.process.stream.requested":
+            return "process.run"
         case "shell.prompt.requested":
             return "framework.prompt.change"
         case topic if topic.startswith("framework.job."):

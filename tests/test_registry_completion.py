@@ -33,6 +33,7 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn("pipeline", self.registry.names())
         self.assertIn("kill", self.registry.names())
         self.assertIn("cancel", self.registry.names())
+        self.assertIn("audit", self.registry.names())
 
     def test_bundled_plugins_are_loaded_from_config_list(self):
         self.assertEqual(
@@ -45,6 +46,7 @@ class RegistryCompletionTests(unittest.TestCase):
                 "runtime.job",
                 "runtime.pipeline",
                 "runtime.control",
+                "runtime.audit",
                 "storage.db",
                 "os.ls",
                 "os.cat",
@@ -55,7 +57,7 @@ class RegistryCompletionTests(unittest.TestCase):
     def test_registry_tracks_provider_groups(self):
         self.assertIn("os", self.registry.provider_names())
         self.assertEqual(self.registry.grouped_names()["os"], ["cat", "less", "ls"])
-        self.assertEqual(self.registry.grouped_names()["runtime"], ["cancel", "job", "kill", "pipeline"])
+        self.assertEqual(self.registry.grouped_names()["runtime"], ["audit", "cancel", "job", "kill", "pipeline"])
         self.assertEqual(self.registry.grouped_names()["storage"], ["db"])
 
     def test_loads_package_defaults_into_varstore(self):

@@ -181,24 +181,23 @@ commandlets while the API transitions. Accessing it records `db.raw`, and
 commandlets that intentionally need it should declare `db.raw`.
 
 Plugins that need to execute external tools should declare `process.run` and
-use the framework process API once it exists. `process.spawn` is reserved for
-long-lived detached processes and should be treated as higher risk.
+use `context.process`. `process.spawn` is reserved for long-lived detached
+processes and should be treated as higher risk.
 
 ### Framework-Mediated Process Execution
 
 External tool wrappers are useful, but direct subprocess use makes plugin
-behavior harder to audit and eventually enforce. The intended plugin-facing API
+behavior harder to audit and eventually enforce. The plugin-facing blocking API
 is:
 
 ```python
 result = context.process.run(
     ["nmap", "-sn", "127.0.0.1"],
     timeout=30,
-    capture_output=True,
 )
 ```
 
-The framework should translate that into:
+The framework translates that into:
 
 ```text
 framework.process.run.requested
@@ -211,13 +210,36 @@ Request payloads should include at least:
 - `argv`
 - `cwd`
 - `timeout`
-- `capture_output`
 - `source`, `job_id`, `pipeline_id`, and `command_run_id`
 
 Outcome payloads should include at least:
 
 - `request_event_id`
 - `argv`
+- `returncode`
+- `stdout`
+- `stderr`
+- `ok`
+
+Long-running tools can use the streaming API:
+
+```python
+for chunk in context.process.stream(["tool", "--verbose"]):
+    if chunk.stream == "stdout":
+        parse_or_buffer(chunk.text)
+    else:
+        context.output(chunk.text)
+```
+
+The framework records:
+
+```text
+framework.process.stream.requested
+process.started
+process.stdout
+process.stderr
+process.exited
+```
 - `cwd`
 - `exit_code`
 - output sizes or hashes

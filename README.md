@@ -206,9 +206,14 @@ and `plugin`, so plugin authors can make hand-typed commands much easier to
 complete correctly.
 
 Plugin authors should use `context.output()`, `context.table()`,
-`context.alert()`, and `context.page_file()` instead of direct `print()` calls
-or direct terminal control. These helpers keep terminal output auditable and
+`context.alert()`, `context.page_file()`, and `context.process` instead of
+direct `print()` calls, direct terminal control, or direct subprocess calls.
+These helpers keep terminal output and external tool execution auditable and
 make the same commandlets usable from a future GUI or web frontend.
+
+Audit logs are stored as SQLite events. Use `audit show ...` to inspect them
+and `audit export file=audit.jsonl` or `audit export file=audit.sqlite3` to
+hand off a copy.
 
 # Plugins
 

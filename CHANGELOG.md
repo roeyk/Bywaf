@@ -22,6 +22,10 @@ so compatibility may change between testing releases.
   through a future framework-mediated process API instead of direct plugin
   subprocess calls.
 - Converted bundled commandlets to class-based metadata decorators.
+- Added the `audit` runtime commandlet with `show` and `export` support for
+  JSON, JSONL, and SQLite audit handoff.
+- Added framework-mediated external process execution through
+  `context.process.run()` and line-oriented `context.process.stream()`.
 - Added framework-owned file paging requests through `context.page_file()` and
   `framework.file.page.requested` events.
 - Added `DESIGN.md` with initial framework request IPC and plugin capability

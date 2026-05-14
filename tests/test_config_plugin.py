@@ -1,6 +1,7 @@
 import contextlib
 import io
 from pathlib import Path
+import sys
 import tempfile
 import unittest
 
@@ -15,6 +16,7 @@ from bywaf.plugin import (
     argument,
     commandlet,
     format_table,
+    normalize_argv,
     option,
 )
 from bywaf.messages import Host, Progress
@@ -134,6 +136,70 @@ class ConfigPluginTests(unittest.TestCase):
         self.assertEqual(requests[0].payload["text"], "hello")
         self.assertEqual(requests[0].payload["end"], "")
         self.assertEqual(requests[0].command_run_id, "run-1")
+
+    def test_command_context_process_run_records_request_and_result(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="test",
+                metadata={
+                    "command_run_id": "run-1",
+                    "capabilities": ("process.run",),
+                },
+            )
+            result = context.process.run([sys.executable, "-c", "print('hello')"])
+            requests = db.events_for_topic("framework.process.run.requested")
+            results = db.events_for_topic("process.run")
+        self.assertTrue(result.ok)
+        self.assertEqual(result.stdout, "hello\n")
+        self.assertEqual(requests[0].payload["argv"], [sys.executable, "-c", "print('hello')"])
+        self.assertEqual(results[0].payload["returncode"], 0)
+        self.assertEqual(results[0].payload["request_event_id"], requests[0].id)
+
+    def test_command_context_process_run_audits_missing_capability(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(db=db, source="test")
+            context.process.run([sys.executable, "-c", "print('hello')"])
+            missing = db.events_for_topic("plugin.capability.missing")
+        self.assertEqual(missing[0].payload["capability"], "process.run")
+
+    def test_command_context_process_stream_records_incremental_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="test",
+                metadata={"capabilities": ("process.run",)},
+            )
+            chunks = list(
+                context.process.stream(
+                    [
+                        sys.executable,
+                        "-u",
+                        "-c",
+                        "import sys; print('out'); print('err', file=sys.stderr)",
+                    ]
+                )
+            )
+            started = db.events_for_topic("process.started")
+            stdout = db.events_for_topic("process.stdout")
+            stderr = db.events_for_topic("process.stderr")
+            exited = db.events_for_topic("process.exited")
+        self.assertEqual([chunk.stream for chunk in chunks], ["stdout", "stderr"])
+        self.assertEqual(started[0].payload["argv"][0], sys.executable)
+        self.assertEqual(stdout[0].payload["text"], "out\n")
+        self.assertEqual(stderr[0].payload["text"], "err\n")
+        self.assertEqual(exited[0].payload["returncode"], 0)
+
+    def test_normalize_argv_rejects_shell_string(self):
+        with self.assertRaisesRegex(TypeError, "sequence of strings"):
+            normalize_argv("echo hello")
+
+    def test_normalize_argv_rejects_empty_argv(self):
+        with self.assertRaisesRegex(ValueError, "cannot be empty"):
+            normalize_argv([])
 
     def test_format_table_aligns_mapping_rows(self):
         lines = format_table([{"name": "one", "value": 1}], ("name", "value"))

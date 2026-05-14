@@ -1,6 +1,7 @@
 from pathlib import Path
 import contextlib
 import io
+import sys
 import tempfile
 import unittest
 
@@ -199,6 +200,60 @@ class FrameworkHttpAppTests(unittest.TestCase):
             process_framework_requests(runner, state)
             denied = runner.db.events_for_topic("framework.request.denied")[0]
             self.assertEqual(denied.payload["request_event_id"], request.id)
+
+    def test_framework_request_runs_external_process(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            request = runner.db.publish(
+                "framework.process.run.requested",
+                {"argv": [sys.executable, "-c", "print('hello')"], "source": "plugin"},
+                "plugin",
+                command_run_id="run-1",
+            )
+            process_framework_requests(runner, state)
+            event = runner.db.events_for_topic("process.run")[0]
+            self.assertEqual(event.payload["request_event_id"], request.id)
+            self.assertEqual(event.payload["stdout"], "hello\n")
+            self.assertEqual(event.payload["returncode"], 0)
+
+    def test_framework_request_denies_invalid_process_argv(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            request = runner.db.publish(
+                "framework.process.run.requested",
+                {"argv": "echo hello"},
+                "plugin",
+            )
+            process_framework_requests(runner, state)
+            denied = runner.db.events_for_topic("framework.request.denied")[0]
+            self.assertEqual(denied.payload["request_event_id"], request.id)
+
+    def test_framework_request_skips_already_handled_process_request(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            runner.db.publish(
+                "framework.process.run.requested",
+                {"argv": [sys.executable, "-c", "print('hello')"], "handled": True},
+                "plugin",
+            )
+            process_framework_requests(runner, state)
+            self.assertEqual(runner.db.events_for_topic("process.run"), [])
+
+    def test_framework_request_denies_unhandled_process_stream_request(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            request = runner.db.publish(
+                "framework.process.stream.requested",
+                {"argv": [sys.executable, "-c", "print('hello')"]},
+                "plugin",
+            )
+            process_framework_requests(runner, state)
+            denied = runner.db.events_for_topic("framework.request.denied")[0]
+        self.assertEqual(denied.payload["request_event_id"], request.id)
 
     def test_framework_request_is_processed_once_per_shell_state(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -358,6 +358,8 @@ At execution time, commandlets receive a `CommandContext`:
 - `context.alert(message)`: request an operator alert from the framework
 - `context.table(rows, columns)`: print small tabular command output
 - `context.page_file(path)`: request frontend-owned paging for a local file
+- `context.process.run(argv)`: run an external process and capture output
+- `context.process.stream(argv)`: stream stdout/stderr chunks incrementally
 - `context.request(topic, payload)`: advanced escape hatch for framework requests
 - `context.cancelled()`: whether a soft-cancellation request is pending
 - `context.raise_if_cancelled()`: raise if cancellation is pending
@@ -387,9 +389,29 @@ commandlets during the transition; accessing it records `db.raw`, and
 third-party plugins should avoid it.
 
 Plugins should also avoid direct process execution with `subprocess`,
-`os.system`, or `os.spawn*`. External tool wrappers should go through the
-framework process API once implemented, declare `process.run`, and let Bywaf
-record the request and outcome for auditability.
+`os.system`, or `os.spawn*`. External tool wrappers should declare
+`process.run`, go through `context.process`, and let Bywaf record the request
+and outcome for auditability.
+
+For short commands, use the blocking API:
+
+```python
+result = context.process.run(["tool", "--json"], timeout=30)
+if result.ok:
+    context.output(result.stdout)
+```
+
+For long-running commands whose output arrives over time, use the streaming API:
+
+```python
+for chunk in context.process.stream(["tool", "--verbose"]):
+    if chunk.stream == "stdout":
+        context.output(chunk.text, end="")
+```
+
+The blocking API records `framework.process.run.requested` and `process.run`.
+The streaming API records `framework.process.stream.requested`,
+`process.started`, `process.stdout`, `process.stderr`, and `process.exited`.
 
 Use `require_db()` and `require_foreground()` instead of hand-writing common
 guards:

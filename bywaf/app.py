@@ -22,7 +22,7 @@ from .completion import Completer, install_readline
 from .config import Settings
 from .db import EventStore, Subscription, database_appears_encrypted, export_encrypted_database, export_plaintext_database
 from .nmap_backend import NmapScanError, NmapUnavailableError
-from .plugin import CommandContext
+from .plugin import CommandContext, normalize_argv, run_process_argv
 from .registry import PluginRegistry
 from .runner import Runner, add_runner_arguments
 
@@ -264,6 +264,8 @@ def process_framework_requests(runner: Runner, state: ShellState) -> None:
                 "framework.console.alert.requested",
                 "framework.console.output.requested",
                 "framework.file.page.requested",
+                "framework.process.run.requested",
+                "framework.process.stream.requested",
             ),
             after_id=state.framework_request_after_id,
             limit=1000,
@@ -414,11 +416,71 @@ def handle_file_page_request(runner: Runner, state: ShellState, event) -> None:
     print(path.read_text(errors="replace"), end="", flush=True)
 
 
+def handle_process_run_request(runner: Runner, state: ShellState, event) -> None:
+    """Validate, execute, and audit a framework-mediated process request."""
+    del state
+    if bool(event.payload.get("handled")):
+        return
+    raw_argv = event.payload.get("argv")
+    if not isinstance(raw_argv, list) or not all(isinstance(part, str) for part in raw_argv):
+        deny_framework_request(runner, event, "process argv must be a list of strings")
+        return
+    try:
+        argv = normalize_argv(raw_argv)
+    except (TypeError, ValueError) as exc:
+        deny_framework_request(runner, event, str(exc))
+        return
+    raw_cwd = event.payload.get("cwd")
+    if raw_cwd is not None and not isinstance(raw_cwd, str):
+        deny_framework_request(runner, event, "process cwd must be a string")
+        return
+    raw_timeout = event.payload.get("timeout")
+    if raw_timeout is not None and not isinstance(raw_timeout, int | float):
+        deny_framework_request(runner, event, "process timeout must be numeric")
+        return
+    try:
+        completed = run_process_argv(argv, cwd=raw_cwd, timeout=raw_timeout)
+    except Exception as exc:
+        deny_framework_request(runner, event, str(exc))
+        return
+    runner.db.publish(
+        "process.run",
+        {
+            "argv": list(argv),
+            "returncode": completed.returncode,
+            "stdout": completed.stdout,
+            "stderr": completed.stderr,
+            "ok": completed.returncode == 0,
+            "source": event.payload.get("source", event.source),
+            "job_id": event.payload.get("job_id"),
+            "request_event_id": event.id,
+        },
+        "framework",
+        pipeline_id=event.pipeline_id,
+        command_run_id=event.command_run_id,
+        parent_command_run_id=event.parent_command_run_id,
+    )
+
+
+def handle_process_stream_request(runner: Runner, state: ShellState, event) -> None:
+    """Handle or deny externally inserted process-stream requests."""
+    del state
+    if bool(event.payload.get("handled")):
+        return
+    deny_framework_request(
+        runner,
+        event,
+        "process streaming requests must be handled by context.process.stream",
+    )
+
+
 FRAMEWORK_REQUEST_HANDLERS = {
     "shell.prompt.requested": handle_prompt_request,
     "framework.console.alert.requested": handle_console_alert_request,
     "framework.console.output.requested": handle_console_output_request,
     "framework.file.page.requested": handle_file_page_request,
+    "framework.process.run.requested": handle_process_run_request,
+    "framework.process.stream.requested": handle_process_stream_request,
 }
 
 

@@ -10,13 +10,14 @@ Planning dates are release planning markers, not compatibility commitments.
 
 ### Framework Request IPC
 
-- Expand framework-owned request helpers beyond prompt, output, alerts, and
-  file paging when a commandlet needs interpreter-owned behavior.
+- Expand framework-owned request helpers beyond prompt, output, alerts, file
+  paging, and process execution when a commandlet needs interpreter-owned
+  behavior.
 - Add request/response documentation for frontend authors implementing terminal,
   GUI, or web clients.
 - Refine the request and outcome conventions in `DESIGN.md`.
-- Add framework-mediated process execution, such as `context.process.run()`,
-  so plugins do not call `subprocess`, `os.system`, or `os.spawn*` directly.
+- Add request/response helpers for any future long-running framework-owned
+  operations that need asynchronous frontend handling.
 
 ### Plugin Capability Model
 
@@ -43,6 +44,8 @@ Planning dates are release planning markers, not compatibility commitments.
 
 - Add richer cooperative job control such as pause/resume if commandlets can
   support it cleanly.
+- Define pause/resume semantics separately from cancel/kill. Current job
+  control supports cooperative cancellation and signal-based termination only.
 - Improve cancellation tests so background child-process failures do not print
   noisy tracebacks during otherwise passing test runs.
 
@@ -62,3 +65,7 @@ Planning dates are release planning markers, not compatibility commitments.
 - 2026-05-14: Converted bundled commandlets to class-based metadata decorators.
 - 2026-05-13: Added framework-owned paging through `context.page_file()` and
   `framework.file.page.requested`.
+- 2026-05-14: Added `audit show` / `audit export` for JSON, JSONL, and SQLite
+  audit handoff.
+- 2026-05-14: Added framework-mediated process execution through
+  `context.process.run()` and line-oriented `context.process.stream()`.

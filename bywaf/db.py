@@ -440,6 +440,25 @@ class EventStore:
             )
             return [Event.from_row(row) for row in rows]
 
+    def events_for_job(self, job_id: int, *, limit: int = 1000) -> list[Event]:
+        """Return events associated with a job id through scope or payload."""
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT DISTINCT events.*
+                FROM events
+                LEFT JOIN command_run_vars
+                  ON command_run_vars.command_run_id = events.command_run_id
+                  OR command_run_vars.pipeline_id = events.pipeline_id
+                WHERE command_run_vars.job_id = ?
+                   OR json_extract(events.payload_json, '$.job_id') = ?
+                ORDER BY events.id ASC
+                LIMIT ?
+                """,
+                (job_id, job_id, limit),
+            )
+            return [Event.from_row(row) for row in rows]
+
     def runs(self) -> list[sqlite3.Row]:
         """Summarize commandlet executions that produced events."""
         with self.connect() as conn:

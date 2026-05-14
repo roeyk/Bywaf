@@ -1,6 +1,7 @@
 from pathlib import Path
 import contextlib
 import io
+import json
 import os
 import tempfile
 import time
@@ -82,6 +83,39 @@ class StorageRunnerPluginTests(unittest.TestCase):
             }
             self.assertIn("db.manage", capabilities)
             self.assertIn("db.raw", capabilities)
+
+    def test_audit_show_prints_matching_events(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish("topic", {"value": 1}, "test")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("audit show topic=topic")
+                process_framework_requests(runner, ShellState())
+            self.assertIn('"topic": "topic"', output.getvalue())
+            self.assertIn('"value": 1', output.getvalue())
+
+    def test_audit_export_writes_jsonl(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp, "audit.jsonl")
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish("topic", {"value": 1}, "test")
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute(f"audit export file={path} topic=topic")
+                process_framework_requests(runner, ShellState())
+            records = [json.loads(line) for line in path.read_text().splitlines()]
+            self.assertEqual(records[0]["topic"], "topic")
+            self.assertEqual(records[0]["payload"]["value"], 1)
+
+    def test_audit_export_writes_sqlite_copy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp, "audit.sqlite3")
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish("topic", {"value": 1}, "test")
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute(f"audit export file={path}")
+                process_framework_requests(runner, ShellState())
+            self.assertEqual(EventStore(path).events_for_topic("topic")[0].payload["value"], 1)
 
     def test_db_new_file_creates_and_switches_active_database(self):
         with tempfile.TemporaryDirectory() as tmp:
