@@ -34,6 +34,11 @@ class AppDispatchTests(unittest.TestCase):
         self.assertEqual(parser.parse_args(["history"]).subcommand, "history")
         self.assertEqual(parser.parse_args(["pipelines"]).subcommand, "pipelines")
 
+    def test_build_parser_prefers_encrypt_flag(self):
+        parser = build_parser()
+        self.assertTrue(parser.parse_args(["--encrypt"]).encrypt)
+        self.assertTrue(parser.parse_args(["--encrypted"]).encrypted)
+
     def test_build_parser_rejects_direct_os_commandlets(self):
         parser = build_parser()
         with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):

@@ -117,8 +117,8 @@ python3 -m bywaf
 Create or open the default database with SQLCipher encryption:
 
 ```bash
-bywaf --encrypted
-bywaf --database client.sqlite3 --encrypted
+bywaf --encrypt
+bywaf --database client.sqlite3 --encrypt
 ```
 
 Run one command non-interactively:
@@ -371,7 +371,7 @@ database stores timestamped provenance events such as `artifact.attached` and
 Start Bywaf with an encrypted database before attaching artifacts:
 
 ```text
-bywaf --encrypted
+bywaf --encrypt
 ```
 
 Attach one or more files:

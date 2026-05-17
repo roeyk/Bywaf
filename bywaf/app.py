@@ -95,7 +95,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser(prog="bywaf")
     parser.add_argument("--database", default=str(DEFAULT_DATABASE), help="SQLite database path")
-    parser.add_argument("--encrypted", action="store_true", help="open or create the database with SQLCipher encryption")
+    parser.add_argument("--encrypt", action="store_true", help="open or create the database with SQLCipher encryption")
+    parser.add_argument("--encrypted", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--plugin-root", help="directory containing filesystem plugins")
     parser.add_argument("--plugin-config", help="JSON or simple YAML plugin config")
     parser.add_argument("--version", action="store_true", help="print version and exit")
@@ -1117,7 +1118,7 @@ def main(argv: list[str] | None = None) -> int:
         settings.database,
         plugin_root=args.plugin_root,
         plugin_config=args.plugin_config,
-        encrypted=args.encrypted,
+        encrypted=args.encrypt or args.encrypted,
     )
     if args.subcommand in ("repl", None):
         repl(runner)

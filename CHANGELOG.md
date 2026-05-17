@@ -116,7 +116,7 @@ Initial testing release for the rewritten Bywaf framework.
   local plugins.
 - Added save/load support for databases, config, and history.
 - Added optional SQLCipher database support through `sqlcipher3-binary`.
-- Added `bywaf --encrypted` and `bywaf --database <path> --encrypted`.
+- Added `bywaf --encrypt` and `bywaf --database <path> --encrypt`.
 - Added encrypted database snapshots with `save --encrypt db=<path>`.
 - Added the storage `db` commandlet with `status`, `path`, `checkpoint`, and
   `vacuum`.
