@@ -206,10 +206,29 @@ and `plugin`, so plugin authors can make hand-typed commands much easier to
 complete correctly.
 
 Plugin authors should use `context.output()`, `context.table()`,
-`context.alert()`, `context.page_file()`, and `context.process` instead of
-direct `print()` calls, direct terminal control, or direct subprocess calls.
-These helpers keep terminal output and external tool execution auditable and
-make the same commandlets usable from a future GUI or web frontend.
+`context.alert()`, `context.progress()`, `context.page_file()`, and
+`context.process` instead of direct `print()` calls, direct terminal control,
+or direct subprocess calls. These helpers keep terminal output, progress, and
+external tool execution auditable and make the same commandlets usable from a
+future GUI or web frontend.
+
+Progress is separate from findings. A finding is durable evidence such as
+`host.found` or `port.open`; progress is operational state such as "42% through
+the TCP scan." Commandlets report progress through structured events:
+
+```python
+context.progress_started(phase="tcp_scan", total=1000, unit="ports")
+context.progress(phase="tcp_scan", current=420, total=1000, unit="ports")
+context.progress_completed(phase="tcp_scan", current=1000, total=1000, unit="ports")
+```
+
+Bywaf enforces progress throttling in the framework. Configure it with global
+session variables:
+
+```text
+bywaf> vars global.progress.min-interval-ms=250
+bywaf> vars global.progress.min-percent-delta=1
+```
 
 Audit logs are stored as SQLite events. Use `audit show ...` to inspect them
 and `audit export file=audit.jsonl` or `audit export file=audit.sqlite3` to

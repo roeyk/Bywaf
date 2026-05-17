@@ -46,6 +46,10 @@ Planning dates are release planning markers, not compatibility commitments.
   support it cleanly.
 - Define pause/resume semantics separately from cancel/kill. Current job
   control supports cooperative cancellation and signal-based termination only.
+- For future target-removal or target-skip requests, prefer structured control
+  signals to commandlets instead of framework mutation of plugin-owned queues.
+  Soft-paused commandlets can react immediately; hard-paused OS processes must
+  persist the request and check it immediately after resume.
 - Improve cancellation tests so background child-process failures do not print
   noisy tracebacks during otherwise passing test runs.
 

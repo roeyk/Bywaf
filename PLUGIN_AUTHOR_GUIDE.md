@@ -393,6 +393,10 @@ At execution time, commandlets receive a `CommandContext`:
 - `context.require_foreground()`: reject background execution for unsafe actions
 - `context.output(text)`: request normal console output from the framework
 - `context.alert(message)`: request an operator alert from the framework
+- `context.progress(...)`: report throttled structured progress
+- `context.progress_started(...)`: report progress start
+- `context.progress_completed(...)`: report progress completion
+- `context.progress_failed(...)`: report progress failure
 - `context.table(rows, columns)`: print small tabular command output
 - `context.page_file(path)`: request frontend-owned paging for a local file
 - `context.process.run(argv)`: run an external process and capture output
@@ -408,6 +412,7 @@ For beginner plugins, the core loop is usually:
 ```python
 context.output("starting scan")
 context.alert("discovered host 127.0.0.1")
+context.progress(phase="scan", current=10, total=100, unit="hosts")
 context.page_file("report.txt")
 yield {"host": "127.0.0.1", "status": "up"}
 ```
@@ -443,6 +448,37 @@ records `artifact.attached` provenance events containing the artifact id, hash,
 timestamp, job, pipeline, and command-run IDs. A commandlet can attach multiple
 artifacts to the same run; that is the expected model for screenshots, raw
 responses, parsed reports, and notes produced by one action.
+
+Use structured progress events for in-flight status. Progress is for UI/runtime
+state; findings are still durable evidence events such as `host.found` or
+`port.open`.
+
+```python
+context.progress_started(phase="tcp_scan", total=1000, unit="ports")
+
+for index, port in enumerate(ports, start=1):
+    context.progress(
+        phase="tcp_scan",
+        current=index,
+        total=len(ports),
+        unit="ports",
+        target=host,
+        message="Scanning TCP ports",
+    )
+
+context.progress_completed(phase="tcp_scan", current=len(ports), total=len(ports), unit="ports")
+```
+
+The framework emits `plugin.progress.started`, `plugin.progress.updated`,
+`plugin.progress.completed`, and `plugin.progress.failed` events. `started`,
+`completed`, and `failed` always emit. `updated` is throttled by the framework
+unless the phase changes, enough time has passed, or the percent changed enough.
+Users configure that policy with:
+
+```text
+vars global.progress.min-interval-ms=250
+vars global.progress.min-percent-delta=1
+```
 
 Use `context.events` instead of raw `context.db` for event-bus work:
 

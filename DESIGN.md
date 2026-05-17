@@ -110,6 +110,28 @@ the same request topics. Each frontend can render the same request differently:
 
 This lets commandlet code stay frontend-neutral.
 
+## Cooperative Runtime Control
+
+Runtime mutation should be commandlet-mediated. If an operator asks to remove a
+host or target from an in-flight scanner, the framework should not reach into a
+plugin-owned list and edit it directly. Instead, the framework should persist a
+structured control request scoped to the job, pipeline, or command run. The
+commandlet is responsible for applying that request to pending work and for
+emitting an outcome event describing what it skipped, removed, or ignored.
+
+This matters for pause semantics:
+
+- A soft-paused commandlet is still running cooperatively, so it can observe
+  target-removal requests immediately and update its pending queue.
+- A hard-paused commandlet is suspended at the OS/process level, so it cannot
+  observe anything until it resumes. The framework should persist control
+  requests while the process is suspended, and the commandlet should check for
+  pending requests before taking more work after resume.
+
+Already-emitted findings remain append-only audit evidence. Runtime mutation
+changes future work only; it should not rewrite prior host, port, artifact, or
+finding events.
+
 ## Plugin Capability Model
 
 Bywaf plugins are local Python code, so capability declarations are not a
