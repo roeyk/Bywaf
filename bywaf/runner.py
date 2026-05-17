@@ -29,6 +29,7 @@ class CommandInvocation:
     from_run: str | None = None
     from_pipeline: str | None = None
     from_topic: str | None = None
+    replay_after_id: int = 0
     note: str | None = None
 
 
@@ -55,7 +56,15 @@ def parse_invocation(text: str) -> CommandInvocation:
         raise ValueError("empty command")
     name, *args = tokens
     args, selectors = peel_context_selectors(args)
-    return CommandInvocation(name=name, args=args, background=background, note=note, **selectors)
+    return CommandInvocation(
+        name=name,
+        args=args,
+        background=background,
+        from_run=selectors["from_run"],
+        from_pipeline=selectors["from_pipeline"],
+        from_topic=selectors["from_topic"],
+        note=note,
+    )
 
 
 def parse_pipeline(command_line: str) -> Pipeline:
@@ -73,6 +82,7 @@ def parse_pipeline(command_line: str) -> Pipeline:
             from_run=last.from_run,
             from_pipeline=last.from_pipeline,
             from_topic=last.from_topic,
+            replay_after_id=last.replay_after_id,
             note=last.note,
         )
     return Pipeline(tuple(commands), any(command.background for command in commands))
@@ -217,6 +227,7 @@ class Runner:
                 job_id=self.job_id,
                 input_events=input_events,
                 replace_db=self.replace_db,
+                runner=self,
             )
             input_events = result.events
             produced.extend(result.events)
@@ -262,6 +273,7 @@ class Runner:
                     stage.invocation.from_run,
                     stage.invocation.from_pipeline,
                     stage.invocation.from_topic,
+                    stage.invocation.replay_after_id,
                     stage.invocation.note,
                 ),
                 daemon=False,
@@ -291,6 +303,74 @@ class Runner:
         process = mp.Process(
             target=run_background_job,
             args=(str(self.db.path), self.db.passphrase, lifecycle.job_id, foreground, pipeline_id, stages),
+            daemon=False,
+        )
+        process.start()
+        self.db.update_job_pid(lifecycle.job_id, process.pid)
+        if lifecycle.request_event is None:
+            raise RuntimeError("job request event was not recorded")
+        return lifecycle.request_event
+
+    def start_attached_pipeline(
+        self,
+        pipeline_id: str,
+        command_line: str,
+        *,
+        upstream_run_id: str | None = None,
+        from_cursor: str = "beginning",
+    ) -> Event:
+        """Attach one background commandlet to an existing pipeline."""
+        if not pipeline_exists(self.db, pipeline_id):
+            raise ValueError(f"unknown pipeline: {pipeline_id}")
+        after_id = attach_cursor_event_id(self.db, from_cursor)
+        parsed = parse_pipeline(command_line)
+        if len(parsed.commands) != 1:
+            raise ValueError("pipeline attach accepts exactly one commandlet")
+        original = parsed.commands[0]
+        invocation = CommandInvocation(
+            original.name,
+            original.args,
+            background=True,
+            from_run=upstream_run_id,
+            from_pipeline=pipeline_id,
+            from_topic=original.from_topic,
+            replay_after_id=after_id,
+            note=original.note,
+        )
+        stage = StageRun(invocation, new_run_id(invocation.name), upstream_run_id)
+        lifecycle = JobLifecycle.create(
+            self.db,
+            f"pipeline attach {pipeline_id} {command_line} run={upstream_run_id or ''} from={from_cursor}".strip(),
+            None,
+        )
+        plugin = self.registry.get(invocation.name)
+        ensure_run_var_snapshot(
+            self.db,
+            self.registry.varstore,
+            job_id=lifecycle.job_id,
+            pipeline_id=pipeline_id,
+            command_run_id=stage.command_run_id,
+            commandlet=plugin.spec.name,
+        )
+        self.db.publish(
+            "pipeline.attached",
+            {
+                "job_id": lifecycle.job_id,
+                "pipeline_id": pipeline_id,
+                "command": command_line,
+                "command_run_id": stage.command_run_id,
+                "parent_command_run_id": upstream_run_id,
+                "from": from_cursor,
+                "after_id": after_id,
+            },
+            "runner",
+            pipeline_id=pipeline_id,
+            command_run_id=stage.command_run_id,
+            parent_command_run_id=upstream_run_id,
+        )
+        process = mp.Process(
+            target=run_attached_pipeline_job,
+            args=(str(self.db.path), self.db.passphrase, lifecycle.job_id, command_line, pipeline_id, stage),
             daemon=False,
         )
         process.start()
@@ -336,6 +416,33 @@ def run_background_job(
             runner.run_pipeline_processes(pipeline.commands, pipeline_id=pipeline_id, stages=stages)
         else:
             runner.run_pipeline(pipeline.commands, pipeline_id=pipeline_id, stages=stages)
+    except Exception as exc:
+        lifecycle.fail(str(exc))
+    else:
+        lifecycle.finish()
+
+
+def run_attached_pipeline_job(
+    db_path: str,
+    db_passphrase: str | None,
+    job_id: int,
+    command_line: str,
+    pipeline_id: str,
+    stage: StageRun,
+) -> None:
+    """Child-process entry point for a commandlet attached to a live pipeline."""
+    try:
+        db = EventStore(Path(db_path), passphrase=db_passphrase)
+        pid = mp.current_process().pid
+        lifecycle = JobLifecycle(db, job_id, command_line)
+        if not lifecycle.claim(pid):
+            return
+    except Exception:
+        return
+    try:
+        lifecycle.start(pid)
+        runner = Runner(db, PluginRegistry.discover(), job_id=job_id)
+        runner.run_pipeline((stage.invocation,), pipeline_id=pipeline_id, stages=(stage,))
     except Exception as exc:
         lifecycle.fail(str(exc))
     else:
@@ -465,6 +572,7 @@ def select_input_events(
         command_run_id=invocation.from_run,
         pipeline_id=invocation.from_pipeline,
         topic=invocation.from_topic,
+        after_id=invocation.replay_after_id,
     )
 
 
@@ -527,6 +635,7 @@ def build_context(
     job_id: int | None,
     input_high_watermark: int,
     replace_db,
+    runner=None,
 ) -> CommandContext:
     """Build the runtime context for one commandlet stage."""
     invocation = stage.invocation
@@ -554,6 +663,7 @@ def build_context(
             "from_topic": invocation.from_topic,
             "note": invocation.note,
             "replace_db": replace_db,
+            "runner": runner,
             "job_id": job_id,
             "run_vars": run_vars,
             "capabilities": implied_capabilities(plugin.spec),
@@ -570,12 +680,16 @@ def execute_stage(
     job_id: int | None,
     input_events: list[Event],
     replace_db=None,
+    runner=None,
 ) -> StageResult:
     """Execute one pipeline stage and persist yielded payloads as events."""
     invocation = stage.invocation
     plugin = registry.get(invocation.name)
     selected_input_events = select_input_events(db, invocation, input_events)
-    input_high_watermark = max((event.id or 0 for event in selected_input_events), default=0)
+    input_high_watermark = max(
+        (event.id or 0 for event in selected_input_events),
+        default=invocation.replay_after_id,
+    )
     context = build_context(
         db,
         registry,
@@ -584,6 +698,7 @@ def execute_stage(
         job_id=job_id,
         input_high_watermark=input_high_watermark,
         replace_db=replace_db,
+        runner=runner,
     )
     context.raise_if_cancelled()
     publish_note_if_present(db, context, invocation.note)
@@ -705,6 +820,7 @@ def run_stage_process(
     from_run: str | None,
     from_pipeline: str | None,
     from_topic: str | None,
+    replay_after_id: int,
     note: str | None,
 ) -> None:
     """Child-process entry point for one background pipeline stage."""
@@ -718,9 +834,26 @@ def run_stage_process(
             from_run=from_run,
             from_pipeline=from_pipeline,
             from_topic=from_topic,
+            replay_after_id=replay_after_id,
             note=note,
         ),
         command_run_id,
         parent_command_run_id,
     )
     execute_stage(db, registry, stage, pipeline_id=pipeline_id, job_id=job_id, input_events=[])
+
+
+def pipeline_exists(db: EventStore, pipeline_id: str) -> bool:
+    """Return whether the DB knows this pipeline id."""
+    return any(row["pipeline_id"] == pipeline_id for row in db.pipelines())
+
+
+def attach_cursor_event_id(db: EventStore, cursor: str) -> int:
+    """Convert an attach `from=` cursor into an event high-water mark."""
+    match cursor:
+        case "beginning":
+            return 0
+        case "now":
+            return db.latest_event_id()
+        case _:
+            raise ValueError("from= must be beginning or now")

@@ -203,6 +203,26 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn("file=", completer.candidates("artifact attach "))
         self.assertIn("dir=", completer.candidates("artifact save "))
 
+    def test_pipeline_attach_completion_prefers_action_then_scope(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "db.sqlite3"))
+            db.publish(
+                "host.found",
+                {"host": "127.0.0.1"},
+                "hostscanner",
+                pipeline_id="pipe-1",
+                command_run_id="host-run-1",
+            )
+            completer = Completer(self.registry, db)
+            self.assertIn("attach", completer.candidates("pipeline "))
+            self.assertEqual(completer.candidates("pipeline attach "), ["pipe-1"])
+            self.assertIn("portscanner", completer.candidates("pipeline attach pipe-1 por"))
+            self.assertIn("run=host-run-1", completer.candidates("pipeline attach pipe-1 portscanner run="))
+            self.assertEqual(
+                completer.candidates("pipeline attach pipe-1 portscanner from="),
+                ["from=beginning", "from=now"],
+            )
+
     def test_does_not_complete_exact_option_to_itself(self):
         completer = Completer(self.registry)
         self.assertNotIn("--ports", completer.candidates("portscanner --ports"))

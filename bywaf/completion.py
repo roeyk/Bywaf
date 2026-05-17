@@ -141,7 +141,11 @@ class Completer:
         completer = getattr(plugin, "complete", None)
         if completer is None:
             return []
-        context = CompletionContext(db=self.db, varstore=self.registry.varstore)
+        context = CompletionContext(
+            db=self.db,
+            varstore=self.registry.varstore,
+            metadata={"commandlets": tuple(self.registry.names())},
+        )
         candidates = completer(context, args, prefix)
         return list(candidates) if candidates else []
 

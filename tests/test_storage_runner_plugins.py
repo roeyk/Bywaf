@@ -602,7 +602,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
     def test_portscanner_listen_requires_upstream_pipeline_scope(self):
         with tempfile.TemporaryDirectory() as tmp:
             context = CommandContext(EventStore(Path(tmp, "db.sqlite3")), source="portscanner")
-            with self.assertRaisesRegex(ValueError, "must be used after an upstream"):
+            with self.assertRaisesRegex(ValueError, "pipeline scope"):
                 list(PortScanner().run(context, ["--listen", "--listen-timeout", "0.01"], []))
 
     def test_background_portscanner_auto_listens_to_upstream_scope(self):
@@ -633,6 +633,36 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 with contextlib.redirect_stdout(io.StringIO()):
                     events = list(PortScanner().run(context, ["--listen-timeout", "0.01"], []))
             self.assertEqual(events[0]["host"], "203.0.113.1")
+
+    def test_pipeline_attach_starts_scoped_background_job(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish(
+                "host.found",
+                {"host": "127.0.0.1"},
+                "hostscanner",
+                pipeline_id="pipe-1",
+                command_run_id="host-run-1",
+            )
+            latest_id = runner.db.latest_event_id()
+            with patch("bywaf.runner.mp.Process") as process_cls:
+                process_cls.return_value.pid = 123
+                with contextlib.redirect_stdout(io.StringIO()):
+                    runner.execute("pipeline attach pipe-1 portscanner run=host-run-1 from=now --listen-timeout 1")
+            process_cls.return_value.start.assert_called_once()
+            process_args = process_cls.call_args.kwargs["args"]
+            self.assertEqual(process_args[4], "pipe-1")
+            stage = process_args[5]
+            self.assertEqual(stage.parent_command_run_id, "host-run-1")
+            self.assertEqual(stage.invocation.name, "portscanner")
+            self.assertEqual(stage.invocation.args, ["--listen-timeout", "1"])
+            self.assertEqual(stage.invocation.from_pipeline, "pipe-1")
+            self.assertEqual(stage.invocation.from_run, "host-run-1")
+            self.assertEqual(stage.invocation.replay_after_id, latest_id)
+            attached = runner.db.events_for_topic("pipeline.attached")[0]
+            self.assertEqual(attached.payload["pipeline_id"], "pipe-1")
+            self.assertEqual(attached.payload["parent_command_run_id"], "host-run-1")
+            self.assertEqual(attached.payload["from"], "now")
 
     def test_background_command_records_job_and_event(self):
         with tempfile.TemporaryDirectory() as tmp:

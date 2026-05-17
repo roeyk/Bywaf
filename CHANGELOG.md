@@ -41,6 +41,9 @@ so compatibility may change between testing releases.
 - Added backslash command continuation for REPL and script input.
 - Added semicolon-separated command sequences.
 - Added `pipelines` as a convenience alias for `pipeline list`.
+- Added `pipeline attach <pipeline-id> <commandlet> [run=<id>] [from=beginning|now]`
+  to attach a background commandlet to an existing pipeline with explicit replay
+  semantics.
 - Added framework-owned file paging requests through `context.page_file()` and
   `framework.file.page.requested` events.
 - Added `DESIGN.md` with initial framework request IPC and plugin capability

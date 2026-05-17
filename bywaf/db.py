@@ -419,6 +419,7 @@ class EventStore:
         topic: str | None = None,
         command_run_id: str | None = None,
         pipeline_id: str | None = None,
+        after_id: int = 0,
         limit: int = 1000,
     ) -> list[Event]:
         """Return events filtered by optional topic/run/pipeline scope.
@@ -430,13 +431,14 @@ class EventStore:
             rows = conn.execute(
                 """
                 SELECT * FROM events
-                WHERE (? IS NULL OR topic = ?)
+                WHERE id > ?
+                  AND (? IS NULL OR topic = ?)
                   AND (? IS NULL OR command_run_id = ?)
                   AND (? IS NULL OR pipeline_id = ?)
                 ORDER BY id ASC
                 LIMIT ?
                 """,
-                (topic, topic, command_run_id, command_run_id, pipeline_id, pipeline_id, limit),
+                (after_id, topic, topic, command_run_id, command_run_id, pipeline_id, pipeline_id, limit),
             )
             return [Event.from_row(row) for row in rows]
 

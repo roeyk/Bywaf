@@ -282,6 +282,25 @@ and command run ID.
 This model allows downstream commandlets to consume only the output relevant to
 the current pipeline, rather than every historical event in the database.
 
+Attach a new background commandlet to an existing pipeline:
+
+```text
+bywaf> pipeline attach <pipeline-id> portscanner run=<producer-run-id> from=beginning
+bywaf> pipeline attach <pipeline-id> http_probe from=now
+```
+
+The attach selectors are orthogonal:
+
+- `<pipeline-id>` chooses the pipeline the new command run joins.
+- `run=<producer-run-id>` optionally narrows input to one upstream producer run.
+- `from=beginning` replays matching historical events, then listens for new
+  events.
+- `from=now` ignores historical events and starts from the current event
+  high-water mark.
+
+If `run=` is omitted, the attached commandlet reads matching events from the
+whole pipeline.
+
 # Framework Notes
 
 Any commandlet stage can include a framework-level `note=` selector. The runner
@@ -896,7 +915,7 @@ cmds
 vars [name=value]
 history
 job <list|show|cancel|kill>
-pipeline <list|show|cancel|kill>
+pipeline <list|show|cancel|kill|attach>
 cancel <job=id|pipeline=id>
 kill [--force] <job=id|pipeline=id>
 note [add] <run=id|pipeline=id|job=id> [text=note|file=path]
