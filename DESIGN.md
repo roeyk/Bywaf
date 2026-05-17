@@ -257,6 +257,17 @@ The `note` runtime commandlet reads `note.attached` events by `run=`,
 timestamp-first text lines so notes can be reviewed or copied into reports.
 Notes are append-only; `note add ... text=...` creates another event rather
 than modifying earlier context.
+
+## At-File Argument Expansion
+
+At-file expansion is framework-level command syntax, not plugin-specific
+parsing. The runner expands `@file`, `@raw:file`, and `@lines:file` after
+pipeline parsing and before commandlet `run()` receives arguments. `@@value`
+escapes a literal leading `@`.
+
+The framework records `framework.argument.expanded` with the command-run scope,
+path, expansion mode, and number of produced arguments. File reads are audited
+through the normal capability audit path.
 - `cwd`
 - `exit_code`
 - output sizes or hashes

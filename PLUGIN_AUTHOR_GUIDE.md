@@ -419,6 +419,11 @@ can review those notes with `note run=<id>`, `note pipeline=<id>`, or
 `note job=<id> file=notes.txt`. Users can add post-hoc notes with
 `note add run=<id> text=...`; notes are append-only events.
 
+Commandlets also do not need to implement at-file expansion. The framework
+expands `@file`, `@raw:file`, `@lines:file`, and `@@literal` before calling
+plugin `run()`. Use `@lines:file` when a file should become multiple arguments,
+such as a target list for a scanner.
+
 Use `context.events` instead of raw `context.db` for event-bus work:
 
 ```python

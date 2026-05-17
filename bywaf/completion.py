@@ -89,6 +89,8 @@ class Completer:
         positional argument specs, then generic framework/plugin metadata. This
         keeps command-specific behavior out of the core completer.
         """
+        if prefix.startswith("@"):
+            return complete_at_file_prefix(prefix)
         plugin = self.registry.get(name)
         if not prefix.startswith("--"):
             custom_candidates = self.plugin_custom_candidates(name, prefix, args)
@@ -253,6 +255,19 @@ def resource_candidates(prefix: str, keywords: tuple[str, ...]) -> list[str]:
     if prefix:
         return complete_path(prefix)
     return list(keywords)
+
+
+def complete_at_file_prefix(prefix: str) -> list[str]:
+    """Complete framework at-file path prefixes while preserving operators."""
+    if prefix.startswith("@@"):
+        value = prefix[2:]
+        return [f"@@{candidate}" for candidate in complete_path(value)]
+    for operator in ("@lines:", "@raw:"):
+        if prefix.startswith(operator):
+            value = prefix.removeprefix(operator)
+            return [f"{operator}{candidate}" for candidate in complete_path(value)]
+    value = prefix.removeprefix("@")
+    return [f"@{candidate}" for candidate in complete_path(value)]
 
 
 def complete_resource_value(kind: str, value: str) -> list[str]:

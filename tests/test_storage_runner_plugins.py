@@ -22,7 +22,7 @@ from bywaf.plugins.discovery.hostscanner import expand_targets
 from bywaf.plugins.network.portscanner import PortScanner
 from bywaf.plugins.storage.db import encrypt_active_database
 from bywaf.plugin import CommandContext
-from bywaf.runner import parse_invocation, parse_pipeline, run_background_job
+from bywaf.runner import expand_at_file_arg, parse_invocation, parse_pipeline, run_background_job
 
 
 
@@ -309,6 +309,34 @@ class StorageRunnerPluginTests(unittest.TestCase):
             self.assertEqual([note.payload["note"] for note in notes], ["scope approved", "top ports"])
             self.assertEqual(notes[0].command_run_id, events[0].command_run_id)
             self.assertEqual(notes[1].command_run_id, events[-1].command_run_id)
+
+    def test_at_file_lines_expands_before_commandlet_args(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            targets = Path(tmp, "targets.txt")
+            targets.write_text("127.0.0.1\n127.0.0.2\n\n")
+            with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]) as discover:
+                runner = make_runner(Path(tmp, "db.sqlite3"))
+                with contextlib.redirect_stdout(io.StringIO()):
+                    runner.execute(f"hostscanner @lines:{targets}")
+            discover.assert_called_once_with("127.0.0.1 127.0.0.2", "-sn")
+            expansion = runner.db.events_for_topic("framework.argument.expanded")[0]
+            self.assertEqual(expansion.payload["mode"], "lines")
+            self.assertEqual(expansion.payload["produced"], 2)
+
+    def test_at_file_double_at_escapes_literal_at(self):
+        values, expansion = expand_at_file_arg("@@literal")
+        self.assertEqual(values, ["@literal"])
+        self.assertIsNone(expansion)
+
+    def test_at_file_text_expands_as_one_argument(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp, "value.txt")
+            path.write_text("one\ntwo\n")
+            values, expansion = expand_at_file_arg(f"@{path}")
+        self.assertEqual(values, ["one\ntwo\n"])
+        if expansion is None:
+            self.fail("expected at-file expansion metadata")
+        self.assertEqual(expansion.produced, 1)
 
     def test_note_command_shows_run_notes_with_timestamp_first(self):
         with tempfile.TemporaryDirectory() as tmp:

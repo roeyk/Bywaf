@@ -74,3 +74,5 @@ Planning dates are release planning markers, not compatibility commitments.
 - 2026-05-17: Added `note` commandlet for timestamped note review and
   `file=` export by run, pipeline, or job.
 - 2026-05-17: Added append-only post-hoc notes with `note add`.
+- 2026-05-17: Added framework-level at-file expansion and filename completion
+  for `@`, `@@`, `@raw:`, and `@lines:`.

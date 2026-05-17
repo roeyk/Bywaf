@@ -9,6 +9,7 @@ import shlex
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 from .db import EventStore, Subscription
 from .events import Event
@@ -91,6 +92,16 @@ class StageResult:
     """Events produced by one executed pipeline stage."""
 
     events: list[Event]
+
+
+@dataclass(frozen=True, slots=True)
+class AtFileExpansion:
+    """One framework-level at-file expansion applied to commandlet args."""
+
+    token: str
+    mode: Literal["text", "lines", "raw"]
+    path: Path
+    produced: int
 
 
 @dataclass(slots=True)
@@ -576,11 +587,12 @@ def execute_stage(
     )
     context.raise_if_cancelled()
     publish_note_if_present(db, context, invocation.note)
+    expanded_args = expand_at_file_args(context, invocation.args)
     for input_topic in sorted({event.topic for event in selected_input_events}):
         context.audit_capability(f"db.read:{input_topic}")
     topic = plugin.spec.emits[0] if plugin.spec.emits else plugin.spec.name
     events = []
-    for payload in plugin.run(context, invocation.args, selected_input_events):
+    for payload in plugin.run(context, expanded_args, selected_input_events):
         context.audit_capability(f"db.write:{topic}")
         events.append(db.publish(
             topic,
@@ -591,6 +603,72 @@ def execute_stage(
             parent_command_run_id=stage.parent_command_run_id,
         ))
     return StageResult(events)
+
+
+def expand_at_file_args(context: CommandContext, args: list[str]) -> list[str]:
+    """Expand framework-level at-file arguments before plugin parsing."""
+    expanded: list[str] = []
+    for arg in args:
+        values, expansion = expand_at_file_arg(arg)
+        expanded.extend(values)
+        if expansion is not None:
+            context.audit_capability("filesystem.read")
+            publish_at_file_expansion(context, expansion)
+    return expanded
+
+
+def expand_at_file_arg(arg: str) -> tuple[list[str], AtFileExpansion | None]:
+    """Expand one `@` argument or return it unchanged."""
+    if not arg.startswith("@"):
+        return [arg], None
+    if arg.startswith("@@"):
+        return [arg[1:]], None
+    mode, raw_path = parse_at_file_token(arg)
+    path = Path(raw_path).expanduser()
+    if not path.exists():
+        raise ValueError(f"at-file path does not exist: {path}")
+    if path.is_dir():
+        raise ValueError(f"at-file path is a directory: {path}")
+    text = path.read_text(errors="replace")
+    match mode:
+        case "lines":
+            values = [line.strip() for line in text.splitlines() if line.strip()]
+        case "text" | "raw":
+            values = [text]
+    return values, AtFileExpansion(arg, mode, path, len(values))
+
+
+def parse_at_file_token(arg: str) -> tuple[Literal["text", "lines", "raw"], str]:
+    """Return expansion mode and path for one at-file token."""
+    if arg.startswith("@lines:"):
+        return "lines", arg.removeprefix("@lines:")
+    if arg.startswith("@raw:"):
+        return "raw", arg.removeprefix("@raw:")
+    return "text", arg.removeprefix("@")
+
+
+def publish_at_file_expansion(context: CommandContext, expansion: AtFileExpansion) -> Event | None:
+    """Record one framework-owned at-file expansion."""
+    if context._db is None:
+        return None
+    return context._db.publish(
+        "framework.argument.expanded",
+        {
+            "operator": "@",
+            "token": expansion.token,
+            "mode": expansion.mode,
+            "path": str(expansion.path),
+            "produced": expansion.produced,
+            "job_id": context.job_id,
+            "pipeline_id": context.pipeline_id,
+            "command_run_id": context.command_run_id,
+            "commandlet": context.source,
+        },
+        "framework",
+        pipeline_id=context.pipeline_id,
+        command_run_id=context.command_run_id,
+        parent_command_run_id=context.parent_command_run_id,
+    )
 
 
 def publish_note_if_present(db: EventStore, context: CommandContext, note: str | None) -> Event | None:

@@ -94,6 +94,20 @@ class RegistryCompletionTests(unittest.TestCase):
             finally:
                 os.chdir(cwd)
 
+    def test_at_file_completion_preserves_operator_prefixes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "targets.txt").write_text("127.0.0.1\n")
+            cwd = Path.cwd()
+            try:
+                os.chdir(tmp)
+                completer = Completer(self.registry)
+                self.assertEqual(completer.candidates("hostscanner @tar"), ["@targets.txt"])
+                self.assertEqual(completer.candidates("hostscanner @@tar"), ["@@targets.txt"])
+                self.assertEqual(completer.candidates("hostscanner @lines:tar"), ["@lines:targets.txt"])
+                self.assertEqual(completer.candidates("hostscanner @raw:tar"), ["@raw:targets.txt"])
+            finally:
+                os.chdir(cwd)
+
     def test_file_command_completion_is_declared_by_plugin_specs(self):
         for name in ("cat", "less", "ls"):
             commandlet = self.registry.get(name)

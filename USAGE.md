@@ -311,6 +311,27 @@ bywaf> note add run=<command-run-id> text=follow-up note
 Notes are append-only. Adding another note creates another timestamped
 `note.attached` event instead of replacing earlier notes.
 
+# At-File Arguments
+
+Any commandlet argument can use framework-level at-file expansion. Expansion
+happens before the commandlet receives its argument list and is audited as a
+framework argument expansion.
+
+```text
+bywaf> hostscanner @lines:targets.txt
+bywaf> http_probe @target.txt
+bywaf> echo @@literal-at-sign
+```
+
+Supported forms:
+
+- `@file`: read the file as one text argument
+- `@raw:file`: read the file as one text argument
+- `@lines:file`: expand each non-empty line into a separate argument
+- `@@value`: pass `@value` literally
+
+Tab completion preserves these prefixes while completing filesystem paths.
+
 # Background Execution
 
 Append `&` to background a commandlet or pipeline:

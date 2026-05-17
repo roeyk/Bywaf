@@ -32,6 +32,8 @@ so compatibility may change between testing releases.
   `run=`, `pipeline=`, or `job=` selector.
 - Added append-only post-hoc notes with `note add ... text=...` and
   `note add ... file=...`.
+- Added framework-level at-file argument expansion with `@file`, `@raw:file`,
+  `@lines:file`, and `@@literal`.
 - Added framework-owned file paging requests through `context.page_file()` and
   `framework.file.page.requested` events.
 - Added `DESIGN.md` with initial framework request IPC and plugin capability
