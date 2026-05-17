@@ -434,6 +434,11 @@ such as a target list for a scanner. When the active database is encrypted and
 artifact storage is available, the framework also stores expanded input files as
 encrypted provenance artifacts.
 
+Commandlets also do not need to expand `$variables`. The framework expands
+unquoted and double-quoted variables before plugin parsing, leaves
+single-quoted variables literal, and audits expansion as
+`framework.variable.expanded`.
+
 Plugins that produce evidence files should attach them through
 `context.artifacts` instead of leaving them as loose plaintext files:
 

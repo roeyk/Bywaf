@@ -446,6 +446,25 @@ separated or file-backed through `@lines:`.
 
 Tab completion preserves these prefixes while completing filesystem paths.
 
+# Variable Expansion
+
+Bywaf expands `$variables` before commandlets receive their argument list.
+Unquoted and double-quoted variables expand; single-quoted variables are passed
+literally.
+
+```text
+bywaf> use hostscanner
+bywaf> vars targets=192.168.1.1 192.168.1.2
+bywaf> hostscanner $targets
+bywaf> hostscanner "$targets"
+bywaf> hostscanner '$targets'
+```
+
+Resolution checks the exact variable name first, then the active commandlet
+scope, then `global.`. For example, `$targets` in `hostscanner` checks
+`targets`, `hostscanner.targets`, and `global.targets`. Variable expansion is
+audited as `framework.variable.expanded`.
+
 # Command Continuation And Sequences
 
 Use a trailing backslash to continue a command across physical lines in the

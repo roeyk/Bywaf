@@ -279,6 +279,20 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
                 dispatch_repl_line(runner, f"load script={script}")
             self.assertEqual(runner.registry.varstore.get("loaded.value"), "yes")
 
+    def test_regression_script_smoke_variables(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            script = Path(__file__).parent / "scripts" / "smoke_variables.bywaf"
+            output = io.StringIO()
+            with (
+                patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]) as discover,
+                contextlib.redirect_stdout(output),
+            ):
+                dispatch_repl_line(runner, f"load script={script}")
+            discover.assert_called_once_with("127.0.0.1", "-sn")
+            self.assertIn("script variable expansion", output.getvalue())
+            self.assertEqual(runner.db.events_for_topic("framework.variable.expanded")[0].payload["variables"], ["hostscanner.targets"])
+
     def test_save_and_load_config(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

@@ -24,6 +24,7 @@ from bywaf.plugins.network.portscanner import PortScanner
 from bywaf.plugins.storage.db import encrypt_active_database
 from bywaf.plugin import CommandContext
 from bywaf.runner import expand_at_file_arg, parse_invocation, parse_pipeline, run_background_job
+from bywaf.varstore import VarStore
 
 
 
@@ -101,6 +102,25 @@ class StorageRunnerPluginTests(unittest.TestCase):
         self.assertTrue(invocation.background)
         self.assertEqual(invocation.args, ["127.0.0.1"])
         self.assertEqual(invocation.note, "background scan")
+
+    def test_parse_invocation_expands_variables_outside_single_quotes(self):
+        store = VarStore()
+        store.set("hostscanner.targets", "127.0.0.1 127.0.0.2")
+        store.set("global.target", "example.test")
+        unquoted = parse_invocation("hostscanner $targets", varstore=store)
+        double_quoted = parse_invocation('hostscanner "$targets"', varstore=store)
+        single_quoted = parse_invocation("hostscanner '$targets'", varstore=store)
+        global_value = parse_invocation("hostscanner $target", varstore=store)
+        self.assertEqual(unquoted.args, ["127.0.0.1", "127.0.0.2"])
+        self.assertEqual(double_quoted.args, ["127.0.0.1 127.0.0.2"])
+        self.assertEqual(single_quoted.args, ["$targets"])
+        self.assertEqual(global_value.args, ["example.test"])
+        self.assertEqual(unquoted.variable_expansions, ("hostscanner.targets",))
+        self.assertEqual(single_quoted.variable_expansions, ())
+
+    def test_parse_invocation_rejects_unknown_variable(self):
+        with self.assertRaisesRegex(ValueError, "unknown variable"):
+            parse_invocation("hostscanner $missing", varstore=VarStore())
 
     def test_parse_save_spec_accepts_encrypt_before_resource(self):
         encrypt, resource = parse_save_spec("--encrypt db=client.sqlite3")
@@ -450,6 +470,18 @@ class StorageRunnerPluginTests(unittest.TestCase):
                     events = runner.execute("hostscanner")
             self.assertEqual(events[0].payload["host"], "127.0.0.1")
             discover.assert_called_once_with("127.0.0.1", "-sn")
+
+    def test_framework_expands_and_audits_dollar_variables(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]) as discover:
+                runner = make_runner(Path(tmp, "db.sqlite3"))
+                runner.registry.varstore.set("hostscanner.targets", "127.0.0.1 127.0.0.2")
+                with contextlib.redirect_stdout(io.StringIO()):
+                    events = runner.execute("hostscanner $targets")
+            discover.assert_called_once_with("127.0.0.1 127.0.0.2", "-sn")
+            expansions = runner.db.events_for_topic("framework.variable.expanded")
+            self.assertEqual(expansions[0].payload["variables"], ["hostscanner.targets"])
+            self.assertEqual(expansions[0].command_run_id, events[0].command_run_id)
 
     def test_hostscanner_cli_target_overrides_targets_variable(self):
         with tempfile.TemporaryDirectory() as tmp:

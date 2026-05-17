@@ -16,7 +16,6 @@ from .events import Event
 from .plugin import CommandContext, implied_capabilities
 from .registry import PluginRegistry
 from .varstore import VarStore
-from .utils import split_pipeline
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,6 +31,7 @@ class CommandInvocation:
     replay_after_id: int = 0
     note: str | None = None
     display_name: str | None = None
+    variable_expansions: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,7 +43,7 @@ class Pipeline:
     display_name: str | None = None
 
 
-def parse_invocation(text: str) -> CommandInvocation:
+def parse_invocation(text: str, varstore: VarStore | None = None) -> CommandInvocation:
     """Parse one commandlet expression.
 
     This function strips Bywaf framework selectors such as `--from-run` before
@@ -51,6 +51,10 @@ def parse_invocation(text: str) -> CommandInvocation:
     """
     text, display_name = peel_final_text_selector(text, "name")
     text, note = peel_final_text_selector(text, "note")
+    commandlet = provisional_command_name(text)
+    variable_expansions: tuple[str, ...] = ()
+    if varstore is not None and commandlet is not None:
+        text, variable_expansions = expand_variables_in_text(text, varstore, commandlet)
     tokens = shlex.split(text)
     background = False
     if tokens:
@@ -68,16 +72,17 @@ def parse_invocation(text: str) -> CommandInvocation:
         from_topic=selectors["from_topic"],
         note=note,
         display_name=display_name,
+        variable_expansions=variable_expansions,
     )
 
 
-def parse_pipeline(command_line: str) -> Pipeline:
+def parse_pipeline(command_line: str, varstore: VarStore | None = None) -> Pipeline:
     """Parse a full pipeline and detect foreground/background execution."""
     command_line, display_name = peel_pipeline_name_prefix(command_line)
-    parts, background = split_pipeline(command_line)
+    parts, background = split_pipeline_raw(command_line)
     if not parts:
         raise ValueError("empty pipeline")
-    commands = list(parse_invocation(part) for part in parts)
+    commands = list(parse_invocation(part, varstore=varstore) for part in parts)
     if background and commands:
         last = commands[-1]
         commands[-1] = CommandInvocation(
@@ -90,8 +95,76 @@ def parse_pipeline(command_line: str) -> Pipeline:
             replay_after_id=last.replay_after_id,
             note=last.note,
             display_name=last.display_name,
+            variable_expansions=last.variable_expansions,
         )
     return Pipeline(tuple(commands), any(command.background for command in commands), display_name)
+
+
+def split_pipeline_raw(command_line: str) -> tuple[list[str], bool]:
+    """Split a pipeline without changing quote context inside each stage."""
+    command_line, background = peel_pipeline_background(command_line)
+    parts: list[str] = []
+    start = 0
+    quote: str | None = None
+    escaped = False
+    for index, char in enumerate(command_line):
+        if escaped:
+            escaped = False
+            continue
+        if char == "\\":
+            escaped = True
+            continue
+        if quote is not None:
+            if char == quote:
+                quote = None
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            continue
+        if char == "|":
+            part = command_line[start:index].strip()
+            if part:
+                parts.append(part)
+            start = index + 1
+    final = command_line[start:].strip()
+    if final:
+        parts.append(final)
+    return parts, background
+
+
+def peel_pipeline_background(command_line: str) -> tuple[str, bool]:
+    """Remove a trailing standalone `&` from a full pipeline expression."""
+    stripped = command_line.rstrip()
+    if not stripped.endswith("&"):
+        return command_line, False
+    amp_index = len(stripped) - 1
+    if amp_index == 0 or not stripped[amp_index - 1].isspace():
+        return command_line, False
+    if is_quoted_position(stripped, amp_index):
+        return command_line, False
+    return stripped[:amp_index].rstrip(), True
+
+
+def is_quoted_position(text: str, position: int) -> bool:
+    """Return whether one character index is inside shell-style quotes."""
+    quote: str | None = None
+    escaped = False
+    for index, char in enumerate(text):
+        if index == position:
+            return quote is not None
+        if escaped:
+            escaped = False
+            continue
+        if char == "\\":
+            escaped = True
+            continue
+        if quote is not None:
+            if char == quote:
+                quote = None
+            continue
+        if char in {"'", '"'}:
+            quote = char
+    return False
 
 
 @dataclass(frozen=True, slots=True)
@@ -175,7 +248,7 @@ class Runner:
 
     def execute(self, command_line: str) -> list[Event]:
         """Run a command line immediately or start it as a background job."""
-        pipeline = parse_pipeline(command_line)
+        pipeline = parse_pipeline(command_line, varstore=self.registry.varstore)
         match pipeline:
             case Pipeline(background=True):
                 return [self.start_background(command_line, pipeline=pipeline)]
@@ -287,6 +360,7 @@ class Runner:
                     stage.invocation.replay_after_id,
                     stage.invocation.note,
                     stage.invocation.display_name,
+                    stage.invocation.variable_expansions,
                 ),
                 daemon=False,
             )
@@ -298,7 +372,7 @@ class Runner:
     def start_background(self, command_line: str, *, pipeline: Pipeline | None = None) -> Event:
         """Start an entire command line in a child process and record a job."""
         foreground = command_line.strip()
-        pipeline = pipeline or parse_pipeline(foreground)
+        pipeline = pipeline or parse_pipeline(foreground, varstore=self.registry.varstore)
         pipeline_id = new_run_id("pipeline")
         if pipeline.display_name:
             publish_runtime_name(self.db, "pipeline", pipeline_id, pipeline.display_name, pipeline_id=pipeline_id)
@@ -337,7 +411,7 @@ class Runner:
         if not pipeline_exists(self.db, pipeline_id):
             raise ValueError(f"unknown pipeline: {pipeline_id}")
         after_id = attach_cursor_event_id(self.db, since_cursor)
-        parsed = parse_pipeline(command_line)
+        parsed = parse_pipeline(command_line, varstore=self.registry.varstore)
         if len(parsed.commands) != 1:
             raise ValueError("pipeline attach accepts exactly one commandlet")
         original = parsed.commands[0]
@@ -351,6 +425,7 @@ class Runner:
             replay_after_id=after_id,
             note=original.note,
             display_name=original.display_name,
+            variable_expansions=original.variable_expansions,
         )
         stage = StageRun(invocation, new_run_id(invocation.name), upstream_run_id)
         lifecycle = JobLifecycle.create(
@@ -543,6 +618,106 @@ def normalize_final_text(raw_value: str) -> str:
     except ValueError:
         return stripped
     return " ".join(tokens)
+
+
+def provisional_command_name(text: str) -> str | None:
+    """Return the first command token before variable expansion."""
+    try:
+        tokens = shlex.split(text)
+    except ValueError:
+        return None
+    return tokens[0] if tokens else None
+
+
+def expand_variables_in_text(text: str, varstore: VarStore, commandlet: str) -> tuple[str, tuple[str, ...]]:
+    """Expand `$variables` outside single quotes before shell tokenization."""
+    output: list[str] = []
+    expanded: list[str] = []
+    quote: str | None = None
+    escaped = False
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if escaped:
+            output.append(char)
+            escaped = False
+            index += 1
+            continue
+        if char == "\\":
+            output.append(char)
+            escaped = True
+            index += 1
+            continue
+        if quote == "'":
+            output.append(char)
+            if char == "'":
+                quote = None
+            index += 1
+            continue
+        if char == '"':
+            output.append(char)
+            quote = None if quote == '"' else '"'
+            index += 1
+            continue
+        if char == "'":
+            output.append(char)
+            quote = "'"
+            index += 1
+            continue
+        if char != "$":
+            output.append(char)
+            index += 1
+            continue
+        parsed = parse_variable_reference(text, index)
+        if parsed is None:
+            output.append(char)
+            index += 1
+            continue
+        name, end = parsed
+        value, resolved_name = resolve_variable_reference(varstore, commandlet, name)
+        replacement = escape_double_quoted_value(value) if quote == '"' else value
+        output.append(replacement)
+        expanded.append(resolved_name)
+        index = end
+    return "".join(output), tuple(dict.fromkeys(expanded))
+
+
+def parse_variable_reference(text: str, dollar_index: int) -> tuple[str, int] | None:
+    """Return a variable name and end index for `$name` or `${name}`."""
+    start = dollar_index + 1
+    if start >= len(text):
+        return None
+    if text[start] == "{":
+        end = text.find("}", start + 1)
+        if end == -1:
+            raise ValueError("unterminated variable reference")
+        name = text[start + 1:end]
+        if not name:
+            raise ValueError("empty variable reference")
+        return name, end + 1
+    if not (text[start].isalpha() or text[start] == "_"):
+        return None
+    end = start + 1
+    while end < len(text) and (text[end].isalnum() or text[end] == "_"):
+        end += 1
+    return text[start:end], end
+
+
+def resolve_variable_reference(varstore: VarStore, commandlet: str, name: str) -> tuple[str, str]:
+    """Resolve a `$variable` against exact, commandlet, then global scopes."""
+    candidates = [name]
+    if "." not in name:
+        candidates.extend((f"{commandlet}.{name}", f"global.{name}"))
+    for candidate in candidates:
+        value = varstore.get(candidate)
+        if value is not None:
+            return value, candidate
+    raise ValueError(f"unknown variable: ${name}")
+
+
+def escape_double_quoted_value(value: str) -> str:
+    """Escape replacement text that is inserted inside double quotes."""
+    return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
 def peel_pipeline_name_prefix(command_line: str) -> tuple[str, str | None]:
@@ -766,6 +941,7 @@ def execute_stage(
             command_run_id=stage.command_run_id,
             parent_command_run_id=stage.parent_command_run_id,
         )
+    publish_variable_expansion(context, invocation.variable_expansions)
     expanded_args = expand_at_file_args(context, invocation.args)
     for input_topic in sorted({event.topic for event in selected_input_events}):
         context.audit_capability(f"db.read:{input_topic}")
@@ -876,6 +1052,29 @@ def publish_at_file_expansion(
     )
 
 
+def publish_variable_expansion(context: CommandContext, variable_names: tuple[str, ...]) -> Event | None:
+    """Record framework-owned `$variable` expansion for this command run."""
+    if not variable_names or context._db is None:
+        return None
+    context.audit_capability("variable.read")
+    return context._db.publish(
+        "framework.variable.expanded",
+        {
+            "operator": "$",
+            "variables": list(variable_names),
+            "count": len(variable_names),
+            "job_id": context.job_id,
+            "pipeline_id": context.pipeline_id,
+            "command_run_id": context.command_run_id,
+            "commandlet": context.source,
+        },
+        "framework",
+        pipeline_id=context.pipeline_id,
+        command_run_id=context.command_run_id,
+        parent_command_run_id=context.parent_command_run_id,
+    )
+
+
 def publish_note_if_present(db: EventStore, context: CommandContext, note: str | None) -> Event | None:
     """Persist a framework-owned note attached to this command run."""
     if note is None:
@@ -943,6 +1142,7 @@ def run_stage_process(
     replay_after_id: int,
     note: str | None,
     display_name: str | None,
+    variable_expansions: tuple[str, ...],
 ) -> None:
     """Child-process entry point for one background pipeline stage."""
     db = EventStore(Path(db_path), passphrase=db_passphrase)
@@ -958,6 +1158,7 @@ def run_stage_process(
             replay_after_id=replay_after_id,
             note=note,
             display_name=display_name,
+            variable_expansions=variable_expansions,
         ),
         command_run_id,
         parent_command_run_id,

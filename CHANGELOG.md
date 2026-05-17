@@ -5,7 +5,15 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-17 07:56:14 EDT
+Last updated: 2026-05-17 08:06:47 EDT
+
+### 2026-05-17 08:06:47 EDT
+
+#### Added
+
+- Added framework-level `$variable` expansion before commandlet parsing, with
+  double-quote expansion, single-quote literal preservation, scoped/global
+  variable resolution, and `framework.variable.expanded` audit events.
 
 ### 2026-05-17 07:56:14 EDT
 
