@@ -9,14 +9,17 @@ from unittest.mock import patch
 from bywaf.app import (
     ShellState,
     dispatch_repl_line,
+    line_has_continuation,
     make_runner,
     record_command_history,
+    remove_line_continuation,
     resolve_resource_path,
     run_script,
     save_history,
     set_prompt_pattern,
     load_history,
     script_commands,
+    split_command_sequence,
     strip_inline_comment,
 )
 from bywaf.nmap_backend import NmapScanError, NmapUnavailableError
@@ -133,6 +136,30 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
     def test_script_commands_preserves_quoted_hashes(self):
         self.assertEqual(strip_inline_comment("vars name='a # b' # later").strip(), "vars name='a # b'")
 
+    def test_split_command_sequence_respects_quoted_semicolons(self):
+        self.assertEqual(
+            split_command_sequence("vars a=1; vars b='two; still two'; topics"),
+            ["vars a=1", "vars b='two; still two'", "topics"],
+        )
+
+    def test_line_continuation_helpers(self):
+        self.assertTrue(line_has_continuation("hostscanner \\"))
+        self.assertFalse(line_has_continuation(r"echo two\\"))
+        self.assertEqual(remove_line_continuation("hostscanner \\"), "hostscanner ")
+
+    def test_script_commands_joins_continuations_and_splits_semicolons(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp, "script.bywaf")
+            path.write_text("vars first=one; vars second=two\nhostscanner \\\n  127.0.0.1\n")
+            self.assertEqual(
+                script_commands(path),
+                [
+                    (1, "vars first=one"),
+                    (1, "vars second=two"),
+                    (2, "hostscanner \n  127.0.0.1"),
+                ],
+            )
+
     def test_record_command_history_writes_script_friendly_lines(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, ".bywaf", "history.bywaf")
@@ -199,6 +226,16 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
                 run_script(runner, script)
             self.assertEqual(runner.registry.varstore.get("test.value"), "abc")
             self.assertIn("test.value=abc", output.getvalue())
+
+    def test_load_script_executes_semicolon_commands(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            script = Path(tmp, "script.bywaf")
+            script.write_text("vars one.value=1; vars two.value=2\n")
+            with contextlib.redirect_stdout(io.StringIO()):
+                run_script(runner, script)
+            self.assertEqual(runner.registry.varstore.get("one.value"), "1")
+            self.assertEqual(runner.registry.varstore.get("two.value"), "2")
 
     def test_dispatch_load_script(self):
         with tempfile.TemporaryDirectory() as tmp:

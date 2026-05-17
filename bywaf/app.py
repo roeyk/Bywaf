@@ -151,7 +151,7 @@ def repl(runner: Runner) -> None:
         while True:
             process_framework_requests(runner, state)
             try:
-                line = input(state.prompt()).strip()
+                line = read_logical_input(state).strip()
             except (EOFError, KeyboardInterrupt):
                 print()
                 return
@@ -171,6 +171,20 @@ def repl(runner: Runner) -> None:
         shutdown_runner(runner)
 
 
+def read_logical_input(state: ShellState) -> str:
+    """Read one logical REPL command, joining backslash continuations."""
+    lines: list[str] = []
+    prompt = state.prompt()
+    while True:
+        line = input(prompt)
+        if line_has_continuation(line):
+            lines.append(remove_line_continuation(line))
+            prompt = "... "
+            continue
+        lines.append(line)
+        return "\n".join(lines)
+
+
 def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = None) -> str | None:
     """Dispatch one REPL line and keep errors user-facing.
 
@@ -178,6 +192,12 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
     so plugin commands such as `ls` are not hard-coded into the shell.
     """
     state = state or ShellState(framework_request_after_id=runner.db.latest_event_id())
+    commands = split_command_sequence(line)
+    if len(commands) > 1:
+        for command in commands:
+            if dispatch_repl_line(runner, command, state) == "exit":
+                return "exit"
+        return None
     try:
         match line.split(maxsplit=1):
             case []:
@@ -577,7 +597,12 @@ def run_remainder(runner: Runner, tokens: list[str]) -> int:
     except ValueError as exc:
         print(f"error: {exc}")
         return 1
-    return execute_and_print(runner, command)
+    status = 0
+    for one_command in split_command_sequence(command) or [command]:
+        status = execute_and_print(runner, one_command)
+        if status != 0:
+            return status
+    return status
 
 
 def print_help(runner: Runner, command: str | None = None) -> None:
@@ -840,12 +865,77 @@ def run_script(runner: Runner, path: Path, state: ShellState | None = None) -> N
 def script_commands(path: Path) -> list[tuple[int, str]]:
     """Parse a Bywaf script file into `(line_number, command)` tuples."""
     commands: list[tuple[int, str]] = []
+    buffer: list[str] = []
+    start_line = 0
     for line_number, raw_line in enumerate(path.read_text().splitlines(), start=1):
-        line = strip_inline_comment(raw_line).strip()
-        if not line or line.startswith("#"):
+        line = strip_inline_comment(raw_line).rstrip()
+        if not buffer and not line.strip():
             continue
-        commands.append((line_number, line))
+        if not buffer:
+            start_line = line_number
+        if line_has_continuation(line):
+            buffer.append(remove_line_continuation(line))
+            continue
+        buffer.append(line)
+        logical_line = "\n".join(buffer).strip()
+        for command in split_command_sequence(logical_line):
+            commands.append((start_line, command))
+        buffer = []
+    if buffer:
+        logical_line = "\n".join(buffer).strip()
+        for command in split_command_sequence(logical_line):
+            commands.append((start_line, command))
     return commands
+
+
+def split_command_sequence(line: str) -> list[str]:
+    """Split semicolon-separated commands while preserving quoted semicolons."""
+    commands: list[str] = []
+    quote: str | None = None
+    escaped = False
+    current: list[str] = []
+    for char in line:
+        if escaped:
+            current.append(char)
+            escaped = False
+            continue
+        if char == "\\":
+            current.append(char)
+            escaped = True
+            continue
+        if quote is not None:
+            current.append(char)
+            if char == quote:
+                quote = None
+            continue
+        if char in {"'", '"'}:
+            current.append(char)
+            quote = char
+            continue
+        if char == ";":
+            command = "".join(current).strip()
+            if command:
+                commands.append(command)
+            current = []
+            continue
+        current.append(char)
+    command = "".join(current).strip()
+    if command:
+        commands.append(command)
+    return commands
+
+
+def line_has_continuation(line: str) -> bool:
+    """Return whether a physical line ends with an unescaped continuation slash."""
+    stripped = line.rstrip()
+    backslashes = len(stripped) - len(stripped.rstrip("\\"))
+    return backslashes % 2 == 1
+
+
+def remove_line_continuation(line: str) -> str:
+    """Remove one trailing continuation slash from a physical line."""
+    stripped = line.rstrip()
+    return stripped[:-1]
 
 
 def strip_inline_comment(line: str) -> str:

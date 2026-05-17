@@ -14,6 +14,7 @@ from bywaf.app import (
     make_runner,
     command_from_remainder,
     process_framework_requests,
+    read_logical_input,
     repl,
     shutdown_runner,
 )
@@ -81,6 +82,11 @@ class AppDispatchTests(unittest.TestCase):
             ):
                 repl(runner)
             checkpoint.assert_called_once_with()
+
+    def test_read_logical_input_joins_backslash_continuations(self):
+        state = ShellState()
+        with patch("builtins.input", side_effect=["hostscanner \\", "127.0.0.1"]):
+            self.assertEqual(read_logical_input(state), "hostscanner \n127.0.0.1")
 
     def test_dispatch_plugins_lists_plugins(self):
         with tempfile.TemporaryDirectory() as tmp:

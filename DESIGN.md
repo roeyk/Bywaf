@@ -268,6 +268,14 @@ escapes a literal leading `@`.
 The framework records `framework.argument.expanded` with the command-run scope,
 path, expansion mode, and number of produced arguments. File reads are audited
 through the normal capability audit path.
+
+## Command Input Normalization
+
+The shell and script loader normalize physical input into logical commands
+before dispatch. A physical line ending with an unescaped trailing backslash is
+joined with the next line. After continuation joining, unquoted semicolons split
+the logical line into sequential commands. Quoted semicolons remain part of the
+argument text.
 - `cwd`
 - `exit_code`
 - output sizes or hashes

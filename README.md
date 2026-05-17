@@ -333,6 +333,24 @@ Supported forms:
 
 Tab completion preserves these prefixes while completing filesystem paths.
 
+# Command Continuation And Sequences
+
+Use a trailing backslash to continue a command across physical lines in the
+interactive shell or in scripts:
+
+```text
+bywaf> hostscanner \
+... 192.168.0.0/24
+```
+
+Separate multiple commands with semicolons when they should run sequentially:
+
+```text
+bywaf> vars target=127.0.0.1; vars; topics
+```
+
+Semicolons inside quotes are preserved as part of the argument text.
+
 # Background Execution
 
 Append `&` to background a commandlet or pipeline:

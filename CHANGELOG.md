@@ -34,6 +34,8 @@ so compatibility may change between testing releases.
   `note add ... file=...`.
 - Added framework-level at-file argument expansion with `@file`, `@raw:file`,
   `@lines:file`, and `@@literal`.
+- Added backslash command continuation for REPL and script input.
+- Added semicolon-separated command sequences.
 - Added framework-owned file paging requests through `context.page_file()` and
   `framework.file.page.requested` events.
 - Added `DESIGN.md` with initial framework request IPC and plugin capability
