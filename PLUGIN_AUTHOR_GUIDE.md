@@ -12,6 +12,42 @@ Bywaf plugins provide commandlets. A commandlet is a small class with:
 Commandlets can publish events by yielding dictionaries. The runner inserts
 those dictionaries into SQLite under the first topic listed in `spec.emits`.
 
+# Plugin Types
+
+Bywaf plugins can be described along two separate axes: how they integrate with
+other code, and what role they play in a workflow. Keeping those separate makes
+capabilities, dependencies, and failure behavior easier to reason about.
+
+Common integration types:
+
+- **Framework-native plugins** use Bywaf APIs plus Python standard-library code.
+  These are the easiest to audit and package. Examples include filters,
+  correlation commandlets, and simple renderers.
+- **Library-backed plugins** call a Python library or binding in-process, such
+  as an HTTP client, Scapy, or an nmap binding. They can expose richer objects
+  than command-line tools, but failures happen inside the Bywaf process.
+- **External-process wrapper plugins** run a mature external program through
+  `context.process.run()` or `context.process.stream()`. They should declare
+  `process.run` and let the framework capture stdout, stderr, return codes, and
+  audit events.
+- **Native or FFI plugins** load compiled code or talk to a native component.
+  Treat these as higher-risk because crashes, ABI mismatches, or memory-safety
+  bugs can affect the framework process unless they are isolated.
+
+Common workflow roles:
+
+- **Scanner** commandlets discover hosts, ports, services, or findings.
+- **Listener** commandlets watch event streams and react to new data.
+- **Renderer/exporter** commandlets turn normalized events into tables, charts,
+  documents, or handoff files.
+- **Correlator/analyzer** commandlets combine prior events into new conclusions.
+- **Runtime/storage** commandlets manage jobs, pipelines, audit logs, notes, or
+  databases.
+
+These categories are intentionally orthogonal. For example, an nmap commandlet
+could be a library-backed scanner or an external-process scanner, while a report
+generator could be a framework-native renderer.
+
 # A Minimal Commandlet
 
 Create a plugin directory:

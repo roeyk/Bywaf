@@ -36,6 +36,7 @@ so compatibility may change between testing releases.
   `framework.file.page.requested` events.
 - Added `DESIGN.md` with initial framework request IPC and plugin capability
   model notes.
+- Added plugin type taxonomy guidance to the plugin author guide.
 - Added roadmap candidates to `TODO.md`.
 
 ### Changed
