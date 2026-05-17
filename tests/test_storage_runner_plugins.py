@@ -511,12 +511,21 @@ class StorageRunnerPluginTests(unittest.TestCase):
             runner.db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", pipeline_id="pipe-1", command_run_id="run-1")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                runner.execute("name run=run-1 value=localhost sweep")
+                runner.execute("name run=run-1 localhost sweep")
                 process_framework_requests(runner, ShellState())
                 runner.execute("name run=run-1")
                 process_framework_requests(runner, ShellState())
             self.assertEqual(runner.db.runtime_names()[("run", "run-1")], "localhost sweep")
             self.assertIn("run=run-1 name=localhost sweep", output.getvalue())
+
+    def test_name_command_accepts_text_keyed_name(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", pipeline_id="pipe-1", command_run_id="run-1")
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute("name run=run-1 text=localhost sweep")
+                process_framework_requests(runner, ShellState())
+            self.assertEqual(runner.db.runtime_names()[("run", "run-1")], "localhost sweep")
 
     def test_at_file_lines_expands_before_commandlet_args(self):
         with tempfile.TemporaryDirectory() as tmp:

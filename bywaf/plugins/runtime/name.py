@@ -11,16 +11,16 @@ from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionC
 @commandlet(
     name="name",
     description="Show or assign names for jobs, pipelines, and command runs.",
-    usage="name <run=id|pipeline=id|job=id> [value=name]",
+    usage="name <run=id|pipeline=id|job=id> [name text|text=name]",
     examples=(
-        "name run=hostscanner-... value=localhost sweep",
-        "name pipeline=pipeline-... value=client subnet scan",
-        "name job=12 value=background listener",
+        "name run=hostscanner-... localhost sweep",
+        "name pipeline=pipeline-... client subnet scan",
+        "name job=12 background listener",
     ),
     capabilities=("db.raw", "framework.console.output"),
 )
 @argument("selector", "run=, pipeline=, or job= selector", completion=CompletionSpec("choice", ("run=", "pipeline=", "job=")))
-@argument("value", "optional value= name", required=False)
+@argument("value", "optional name text", required=False)
 class Name(CommandletBase):
     """Display or assign user-facing runtime entity names."""
 
@@ -56,39 +56,38 @@ class Name(CommandletBase):
         return ()
 
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
-        """Complete runtime selectors and value=."""
+        """Complete runtime selectors."""
         if prefix.startswith("run="):
             return [f"run={row['command_run_id']}" for row in context.db.runs()] if context.db else []
         if prefix.startswith("pipeline="):
             return [f"pipeline={row['pipeline_id']}" for row in context.db.pipelines()] if context.db else []
         if prefix.startswith("job="):
             return [f"job={row['id']}" for row in context.db.jobs()] if context.db else []
-        if prefix.startswith("value="):
-            return []
         if not args:
             return ["run=", "pipeline=", "job="]
-        return ["value="]
+        return []
 
 
 def parse_name_selectors(args: list[str]) -> dict[str, str]:
-    """Parse name command selectors, allowing final value= to consume the rest."""
+    """Parse target selectors and optional trailing name text."""
     selectors: dict[str, str] = {}
     index = 0
     while index < len(args):
         arg = args[index]
         if "=" not in arg:
-            raise ValueError(f"invalid name selector: {arg}")
+            selectors["value"] = " ".join(args[index:]).strip()
+            break
         key, value = arg.split("=", 1)
-        if key == "value":
+        if key == "text":
             value = " ".join([value, *args[index + 1:]]).strip()
             index = len(args)
         else:
             index += 1
-        if key not in {"run", "pipeline", "job", "value"}:
+        if key not in {"run", "pipeline", "job", "text"}:
             raise ValueError(f"unknown name selector: {key}")
         if not value:
             raise ValueError(f"name selector {key}= requires a value")
-        selectors[key] = value
+        selectors["value" if key == "text" else key] = value
     selected_target(selectors)
     return selectors
 

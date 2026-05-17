@@ -5,7 +5,14 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-17 04:48:04 EDT
+Last updated: 2026-05-17 07:56:14 EDT
+
+### 2026-05-17 07:56:14 EDT
+
+#### Changed
+
+- Simplified post-hoc runtime naming to `name run|pipeline|job=<id> name text`;
+  `text=` is the explicit keyed form.
 
 ### 2026-05-17 04:48:04 EDT
 
@@ -13,7 +20,7 @@ Last updated: 2026-05-17 04:48:04 EDT
 
 - Added runtime naming for pipelines, command runs, and jobs. Pipelines can be
   named inline with `name: command | pipeline`, stages can be named with
-  `name=...`, and existing entities can be named with the `name` commandlet.
+  `name=...`, and existing entities can be named with the `name` commandlet using trailing name text.
 
 ### 2026-05-17 04:32:17 EDT
 

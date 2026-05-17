@@ -344,11 +344,13 @@ bywaf> hostscanner 127.0.0.1 name=localhost sweep
 Name or inspect runtime entities after they exist:
 
 ```text
-bywaf> name run=<command-run-id> value=localhost sweep
-bywaf> name pipeline=<pipeline-id> value=client subnet scan
-bywaf> name job=<job-id> value=background listener
+bywaf> name run=<command-run-id> localhost sweep
+bywaf> name pipeline=<pipeline-id> client subnet scan
+bywaf> name job=<job-id> background listener
 bywaf> name run=<command-run-id>
 ```
+
+The explicit keyed form is `text=`, for example `name run=<id> text=localhost sweep`.
 
 Assigned names appear in `runs`, `pipelines`, and `jobs` listings.
 
@@ -1018,7 +1020,7 @@ job <list|show|cancel|kill>
 pipeline <list|show|cancel|kill|attach>
 cancel <job=id|pipeline=id>
 kill [--force] <job=id|pipeline=id>
-name <run=id|pipeline=id|job=id> [value=name]
+name <run=id|pipeline=id|job=id> [name text]
 note [add] <run=id|pipeline=id|job=id> [text=note|file=path]
 artifact <attach|list|remove|replace|save|verify> [artifact=id|run=id|pipeline=id|job=id] [file=path|dir=path]
 jobs
