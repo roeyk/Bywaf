@@ -165,6 +165,12 @@ This includes:
 - reproducible workflows;
 - and queryable historical state.
 
+Audit records should be easy to extract for review and handoff. Users should be
+able to filter audit logs by date/time ranges and export the selected records
+to plain text, structured text formats, or PDF. PDF exports should optionally
+support encryption so sensitive assessment records can be shared or archived
+without leaving plaintext reports behind.
+
 Findings should never depend solely on:
 
 - terminal scrollback;
@@ -215,4 +221,3 @@ Stable terminology reduces architectural drift and improves:
 - plugin interoperability;
 - documentation quality;
 - and AI-assisted development.
-

@@ -5,7 +5,16 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-17 03:55:02 EDT
+Last updated: 2026-05-17 04:06:50 EDT
+
+### 2026-05-17 04:06:50 EDT
+
+#### Fixed
+
+- Fixed startup replay of historical framework request events by initializing
+  new shell sessions at the current event high-water mark.
+- Rechecked `topics <prefix>` and bounded `audit show` behavior as part of the
+  startup-spam bugfix batch.
 
 ### 2026-05-17 03:55:02 EDT
 

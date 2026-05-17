@@ -151,7 +151,7 @@ def shutdown_runner(runner: Runner) -> None:
 def repl(runner: Runner) -> None:
     """Run the interactive shell until EOF, interrupt, or an exit command."""
 
-    state = ShellState()
+    state = new_shell_state(runner)
     state.completer = Completer(runner.registry, runner.db)
     install_readline(state.completer)
     try:
@@ -316,6 +316,11 @@ def process_framework_requests(runner: Runner, state: ShellState) -> None:
             continue
         state.handled_request_ids.add(event.id)
         handle_framework_request(runner, state, event)
+
+
+def new_shell_state(runner: Runner) -> ShellState:
+    """Create shell state that ignores historical framework requests."""
+    return ShellState(framework_request_after_id=runner.db.latest_event_id())
 
 
 def handle_framework_request(runner: Runner, state: ShellState, event) -> None:
@@ -644,8 +649,9 @@ def history_entry_in_window(entry: str, window: tuple[str | None, str | None]) -
 def execute_and_print(runner: Runner, command: str) -> int:
     """Execute one command line for top-level `bywaf run` callers."""
     try:
+        state = new_shell_state(runner)
         events = runner.execute(command)
-        process_framework_requests(runner, ShellState())
+        process_framework_requests(runner, state)
         print_events(events)
     except SystemExit as exc:
         if exc.code in (0, None):
@@ -818,7 +824,7 @@ def print_commandlets(runner: Runner) -> None:
 
 def load_repl_resource(runner: Runner, spec: str, state: ShellState | None = None) -> None:
     """Handle `load key=value` resources from the REPL."""
-    state = state or ShellState()
+    state = state or new_shell_state(runner)
     match spec.split("=", 1):
         case ["db", value]:
             load_database(runner, resolve_resource_path(value, Path("."), DEFAULT_DATABASE))
@@ -838,7 +844,7 @@ def load_repl_resource(runner: Runner, spec: str, state: ShellState | None = Non
 
 def save_repl_resource(runner: Runner, spec: str, state: ShellState | None = None) -> None:
     """Handle `save key=value` resources from the REPL."""
-    state = state or ShellState()
+    state = state or new_shell_state(runner)
     encrypt, resource = parse_save_spec(spec)
     match resource.split("=", 1):
         case ["db", value]:
@@ -968,7 +974,7 @@ def resolve_resource_path(value: str, root: Path, default: Path | None = None) -
 
 def run_script(runner: Runner, path: Path, state: ShellState | None = None) -> None:
     """Run one command expression per non-comment script line."""
-    state = state or ShellState()
+    state = state or new_shell_state(runner)
     for line_number, command in script_commands(path):
         print(f"{path}:{line_number}: {command}")
         if dispatch_repl_line(runner, command, state) == "exit":

@@ -9,6 +9,7 @@ from bywaf.app import (
     ShellState,
     friendly_error,
     make_runner,
+    new_shell_state,
     process_framework_requests,
     render_prompt,
 )
@@ -55,6 +56,22 @@ class FrameworkHttpAppTests(unittest.TestCase):
             alert = runner.db.events_for_topic("console.alert")[0]
             self.assertEqual(alert.payload["request_event_id"], request.id)
             self.assertEqual(output.getvalue(), "plugin <run-1>: hello\n")
+
+    def test_new_shell_state_ignores_historical_framework_requests(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish(
+                "framework.console.alert.requested",
+                {"message": "old", "source": "plugin"},
+                "plugin",
+                command_run_id="old-run",
+            )
+            state = new_shell_state(runner)
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                process_framework_requests(runner, state)
+            self.assertEqual(output.getvalue(), "")
+            self.assertEqual(runner.db.events_for_topic("console.alert"), [])
 
     def test_framework_request_denies_invalid_console_alert(self):
         with tempfile.TemporaryDirectory() as tmp:
