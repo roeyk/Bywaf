@@ -299,10 +299,12 @@ bywaf> load plugin=~/bywaf-plugins/myplugin
 
 # Pipelines
 
-Pipelines connect commandlets with `|`:
+Pipelines connect commandlets with `|`. Prefix the expression with `name:` to
+name the pipeline without consuming commandlet arguments:
 
 ```text
 bywaf> hostscanner 127.0.0.1 | portscanner
+bywaf> client subnet scan: hostscanner 127.0.0.1 | portscanner
 ```
 
 The runner executes each stage in order. Events emitted by one stage are passed
@@ -330,6 +332,25 @@ The attach selectors are orthogonal:
 
 If `run=` is omitted, the attached commandlet reads matching events from the
 whole pipeline.
+
+# Runtime Names
+
+Name the current command run with a stage-local `name=` selector:
+
+```text
+bywaf> hostscanner 127.0.0.1 name=localhost sweep
+```
+
+Name or inspect runtime entities after they exist:
+
+```text
+bywaf> name run=<command-run-id> value=localhost sweep
+bywaf> name pipeline=<pipeline-id> value=client subnet scan
+bywaf> name job=<job-id> value=background listener
+bywaf> name run=<command-run-id>
+```
+
+Assigned names appear in `runs`, `pipelines`, and `jobs` listings.
 
 # Framework Notes
 
@@ -997,8 +1018,9 @@ job <list|show|cancel|kill>
 pipeline <list|show|cancel|kill|attach>
 cancel <job=id|pipeline=id>
 kill [--force] <job=id|pipeline=id>
+name <run=id|pipeline=id|job=id> [value=name]
 note [add] <run=id|pipeline=id|job=id> [text=note|file=path]
-artifact <attach|list|save|verify> [artifact=id|run=id|pipeline=id|job=id] [file=path|dir=path]
+artifact <attach|list|remove|replace|save|verify> [artifact=id|run=id|pipeline=id|job=id] [file=path|dir=path]
 jobs
 pipelines
 runs

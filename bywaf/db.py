@@ -510,6 +510,17 @@ class EventStore:
             )
             return [Event.from_row(row) for row in rows]
 
+    def runtime_names(self) -> dict[tuple[str, str], str]:
+        """Return latest user-assigned names keyed by target type and id."""
+        names: dict[tuple[str, str], str] = {}
+        for event in self.events_matching(topic="runtime.name.assigned", limit=100000):
+            target_type = event.payload.get("target_type")
+            target_id = event.payload.get("target_id")
+            name = event.payload.get("name")
+            if target_type is not None and target_id is not None and name is not None:
+                names[(str(target_type), str(target_id))] = str(name)
+        return names
+
     def runs(self, *, active_only: bool = False) -> list[sqlite3.Row]:
         """Summarize commandlet executions that produced events."""
         with self.connect() as conn:

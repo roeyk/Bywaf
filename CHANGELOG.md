@@ -5,7 +5,15 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-17 04:32:17 EDT
+Last updated: 2026-05-17 04:48:04 EDT
+
+### 2026-05-17 04:48:04 EDT
+
+#### Added
+
+- Added runtime naming for pipelines, command runs, and jobs. Pipelines can be
+  named inline with `name: command | pipeline`, stages can be named with
+  `name=...`, and existing entities can be named with the `name` commandlet.
 
 ### 2026-05-17 04:32:17 EDT
 

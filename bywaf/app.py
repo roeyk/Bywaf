@@ -773,6 +773,7 @@ def print_runs(runner: Runner, *, active_only: bool = True) -> None:
     marker_style = normalize_active_listing_format(
         runner.registry.varstore.get(f"global.{ACTIVE_LISTING_FORMAT_VAR}")
     )
+    names = runner.db.runtime_names()
     for row in rows:
         prefix = ""
         detail = ""
@@ -781,7 +782,7 @@ def print_runs(runner: Runner, *, active_only: bool = True) -> None:
             timestamp = row["first_event"] if label in {"active", "in progress"} else row["last_event"]
             prefix, detail = state_marker(label, timestamp, style=marker_style)
         print(
-            f"{prefix}{row['command_run_id']} pipeline={row['pipeline_id']} "
+            f"{prefix}{row['command_run_id']}{format_runtime_name(names.get(('run', str(row['command_run_id']))))} pipeline={row['pipeline_id']} "
             f"source={row['source']} events={row['events']}"
         )
         if detail:
@@ -795,6 +796,11 @@ def print_job(runner: Runner, job_id: str) -> None:
             print(f"#{row['id']} pid={row['pid']} status={row['status']} {row['command_line']}")
             return
     print(f"error: unknown job: {job_id}")
+
+
+def format_runtime_name(display_name: str | None) -> str:
+    """Return a compact runtime name fragment for listings."""
+    return f" name={display_name}" if display_name else ""
 
 
 def print_vars(runner: Runner) -> None:

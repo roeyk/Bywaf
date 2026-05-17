@@ -87,11 +87,19 @@ def print_pipelines(context: CommandContext, *, active_only: bool = True, show_a
     if not rows:
         context.output("no active pipelines" if active_only else "no pipelines")
         return
+    names = context.require_db().runtime_names()
     for row in rows:
-        context.output(format_pipeline(row, show_active=show_active, marker_style=active_listing_format(context.vars.get_global)))
+        context.output(
+            format_pipeline(
+                row,
+                display_name=names.get(("pipeline", str(row["pipeline_id"]))),
+                show_active=show_active,
+                marker_style=active_listing_format(context.vars.get_global),
+            )
+        )
 
 
-def format_pipeline(row, *, show_active: bool = False, marker_style: str = "short") -> str:
+def format_pipeline(row, *, display_name: str | None = None, show_active: bool = False, marker_style: str = "short") -> str:
     """Format one pipeline summary row."""
     statuses = row["job_statuses"] or "unknown"
     prefix = ""
@@ -100,7 +108,8 @@ def format_pipeline(row, *, show_active: bool = False, marker_style: str = "shor
         label = runtime_state_label(statuses)
         timestamp = row["first_seen"] if label in {"active", "in progress"} else row["last_seen"]
         prefix, detail = state_marker(label, timestamp, style=marker_style)
-    line = f"{prefix}{row['pipeline_id']} job={row['job_id']} status={statuses} runs={row['runs']} events={row['events']}"
+    name_part = f" name={display_name}" if display_name else ""
+    line = f"{prefix}{row['pipeline_id']}{name_part} job={row['job_id']} status={statuses} runs={row['runs']} events={row['events']}"
     return f"{line}\n{detail}" if detail else line
 
 

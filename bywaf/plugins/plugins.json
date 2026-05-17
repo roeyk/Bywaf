@@ -9,6 +9,7 @@
     "runtime.control",
     "runtime.audit",
     "runtime.note",
+    "runtime.name",
     "runtime.artifact",
     "storage.db",
     "os.ls",

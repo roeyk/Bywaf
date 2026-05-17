@@ -31,6 +31,7 @@ class CommandInvocation:
     from_topic: str | None = None
     replay_after_id: int = 0
     note: str | None = None
+    display_name: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,6 +40,7 @@ class Pipeline:
 
     commands: tuple[CommandInvocation, ...]
     background: bool = False
+    display_name: str | None = None
 
 
 def parse_invocation(text: str) -> CommandInvocation:
@@ -47,7 +49,8 @@ def parse_invocation(text: str) -> CommandInvocation:
     This function strips Bywaf framework selectors such as `--from-run` before
     plugin argparse sees the remaining plugin-owned arguments.
     """
-    text, note = peel_note_selector(text)
+    text, display_name = peel_final_text_selector(text, "name")
+    text, note = peel_final_text_selector(text, "note")
     tokens = shlex.split(text)
     background = False
     if tokens:
@@ -64,11 +67,13 @@ def parse_invocation(text: str) -> CommandInvocation:
         from_pipeline=selectors["from_pipeline"],
         from_topic=selectors["from_topic"],
         note=note,
+        display_name=display_name,
     )
 
 
 def parse_pipeline(command_line: str) -> Pipeline:
     """Parse a full pipeline and detect foreground/background execution."""
+    command_line, display_name = peel_pipeline_name_prefix(command_line)
     parts, background = split_pipeline(command_line)
     if not parts:
         raise ValueError("empty pipeline")
@@ -84,8 +89,9 @@ def parse_pipeline(command_line: str) -> Pipeline:
             from_topic=last.from_topic,
             replay_after_id=last.replay_after_id,
             note=last.note,
+            display_name=last.display_name,
         )
-    return Pipeline(tuple(commands), any(command.background for command in commands))
+    return Pipeline(tuple(commands), any(command.background for command in commands), display_name)
 
 
 @dataclass(frozen=True, slots=True)
@@ -172,16 +178,18 @@ class Runner:
         pipeline = parse_pipeline(command_line)
         match pipeline:
             case Pipeline(background=True):
-                return [self.start_background(command_line)]
-            case Pipeline(commands=commands):
+                return [self.start_background(command_line, pipeline=pipeline)]
+            case Pipeline(commands=commands, display_name=display_name):
                 if is_management_pipeline(commands):
-                    return self.run_pipeline(commands)
-                return self.execute_foreground_job(command_line, commands)
+                    return self.run_pipeline(commands, pipeline_name=display_name)
+                return self.execute_foreground_job(command_line, commands, pipeline_name=display_name)
 
     def execute_foreground_job(
         self,
         command_line: str,
         commands: tuple[CommandInvocation, ...],
+        *,
+        pipeline_name: str | None = None,
     ) -> list[Event]:
         """Run a foreground pipeline through the same job lifecycle."""
         pid = os.getpid()
@@ -192,7 +200,7 @@ class Runner:
         previous_job_id = self.job_id
         self.job_id = lifecycle.job_id
         try:
-            events = self.run_pipeline(commands)
+            events = self.run_pipeline(commands, pipeline_name=pipeline_name)
         except Exception as exc:
             lifecycle.fail(str(exc))
             raise
@@ -207,6 +215,7 @@ class Runner:
         *,
         pipeline_id: str | None = None,
         stages: tuple[StageRun, ...] | None = None,
+        pipeline_name: str | None = None,
     ) -> list[Event]:
         """Run all stages in-process and return produced events.
 
@@ -215,6 +224,8 @@ class Runner:
         and command-run scope IDs.
         """
         pipeline_id = pipeline_id or new_run_id("pipeline")
+        if pipeline_name:
+            publish_runtime_name(self.db, "pipeline", pipeline_id, pipeline_name, pipeline_id=pipeline_id)
         stages = stages or prepare_stage_runs(commands)
         input_events: list[Event] = []
         produced: list[Event] = []
@@ -275,6 +286,7 @@ class Runner:
                     stage.invocation.from_topic,
                     stage.invocation.replay_after_id,
                     stage.invocation.note,
+                    stage.invocation.display_name,
                 ),
                 daemon=False,
             )
@@ -283,11 +295,13 @@ class Runner:
         for process in processes:
             process.join()
 
-    def start_background(self, command_line: str) -> Event:
+    def start_background(self, command_line: str, *, pipeline: Pipeline | None = None) -> Event:
         """Start an entire command line in a child process and record a job."""
         foreground = command_line.strip()
-        pipeline = parse_pipeline(foreground)
+        pipeline = pipeline or parse_pipeline(foreground)
         pipeline_id = new_run_id("pipeline")
+        if pipeline.display_name:
+            publish_runtime_name(self.db, "pipeline", pipeline_id, pipeline.display_name, pipeline_id=pipeline_id)
         stages = prepare_stage_runs(pipeline.commands)
         lifecycle = JobLifecycle.create(self.db, foreground, None)
         for stage in stages:
@@ -336,6 +350,7 @@ class Runner:
             from_topic=original.from_topic,
             replay_after_id=after_id,
             note=original.note,
+            display_name=original.display_name,
         )
         stage = StageRun(invocation, new_run_id(invocation.name), upstream_run_id)
         lifecycle = JobLifecycle.create(
@@ -477,27 +492,28 @@ def peel_background_marker(tokens: list[str]) -> tuple[list[str], bool]:
     return tokens, False
 
 
-def peel_note_selector(text: str) -> tuple[str, str | None]:
-    """Remove a framework-owned `note=` selector from raw stage text.
+def peel_final_text_selector(text: str, key: str) -> tuple[str, str | None]:
+    """Remove a framework-owned final text selector from raw stage text.
 
     The selector is parsed before `shlex.split` so a final unquoted note can
     consume the rest of the command stage:
 
     `hostscanner targets note=client approved`
     """
-    index = find_unquoted_note_selector(text)
+    index = find_unquoted_text_selector(text, key)
     if index is None:
         return text, None
-    note = normalize_note_text(text[index + len("note="):])
-    if not note:
-        raise ValueError("note= requires a value")
-    return text[:index].rstrip(), note
+    value = normalize_final_text(text[index + len(key) + 1:])
+    if not value:
+        raise ValueError(f"{key}= requires a value")
+    return text[:index].rstrip(), value
 
 
-def find_unquoted_note_selector(text: str) -> int | None:
-    """Return the index of a token-boundary `note=` outside shell quotes."""
+def find_unquoted_text_selector(text: str, key: str) -> int | None:
+    """Return the index of a token-boundary text selector outside shell quotes."""
     quote: str | None = None
     escaped = False
+    needle = f"{key}="
     for index, char in enumerate(text):
         if escaped:
             escaped = False
@@ -512,14 +528,14 @@ def find_unquoted_note_selector(text: str) -> int | None:
         if char in {"'", '"'}:
             quote = char
             continue
-        if text.startswith("note=", index) and (index == 0 or text[index - 1].isspace()):
+        if text.startswith(needle, index) and (index == 0 or text[index - 1].isspace()):
             return index
     return None
 
 
-def normalize_note_text(raw_note: str) -> str:
-    """Return note text with shell quotes removed when possible."""
-    stripped = raw_note.strip()
+def normalize_final_text(raw_value: str) -> str:
+    """Return selector text with shell quotes removed when possible."""
+    stripped = raw_value.strip()
     if not stripped:
         return ""
     try:
@@ -527,6 +543,43 @@ def normalize_note_text(raw_note: str) -> str:
     except ValueError:
         return stripped
     return " ".join(tokens)
+
+
+def peel_pipeline_name_prefix(command_line: str) -> tuple[str, str | None]:
+    """Remove a leading `pipeline name: command` prefix when present."""
+    index = find_pipeline_name_colon(command_line)
+    if index is None:
+        return command_line, None
+    display_name = normalize_final_text(command_line[:index])
+    command = command_line[index + 1:].strip()
+    if not display_name or not command:
+        return command_line, None
+    return command, display_name
+
+
+def find_pipeline_name_colon(command_line: str) -> int | None:
+    """Find a top-level naming colon followed by whitespace before any pipe."""
+    quote: str | None = None
+    escaped = False
+    for index, char in enumerate(command_line):
+        if escaped:
+            escaped = False
+            continue
+        if char == "\\":
+            escaped = True
+            continue
+        if quote is not None:
+            if char == quote:
+                quote = None
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            continue
+        if char == "|":
+            return None
+        if char == ":" and index + 1 < len(command_line) and command_line[index + 1].isspace():
+            return index
+    return None
 
 
 def peel_context_selectors(args: list[str]) -> tuple[list[str], dict[str, str | None]]:
@@ -702,6 +755,17 @@ def execute_stage(
     )
     context.raise_if_cancelled()
     publish_note_if_present(db, context, invocation.note)
+    if invocation.display_name:
+        publish_runtime_name(
+            db,
+            "run",
+            stage.command_run_id,
+            invocation.display_name,
+            job_id=job_id,
+            pipeline_id=pipeline_id,
+            command_run_id=stage.command_run_id,
+            parent_command_run_id=stage.parent_command_run_id,
+        )
     expanded_args = expand_at_file_args(context, invocation.args)
     for input_topic in sorted({event.topic for event in selected_input_events}):
         context.audit_capability(f"db.read:{input_topic}")
@@ -833,6 +897,36 @@ def publish_note_if_present(db: EventStore, context: CommandContext, note: str |
     )
 
 
+def publish_runtime_name(
+    db: EventStore,
+    target_type: str,
+    target_id: str | int,
+    display_name: str,
+    *,
+    job_id: int | None = None,
+    pipeline_id: str | None = None,
+    command_run_id: str | None = None,
+    parent_command_run_id: str | None = None,
+) -> Event:
+    """Persist a user-assigned runtime name."""
+    return db.publish(
+        "runtime.name.assigned",
+        {
+            "target_type": target_type,
+            "target_id": str(target_id),
+            "name": display_name,
+            "job_id": job_id,
+            "pipeline_id": pipeline_id,
+            "command_run_id": command_run_id,
+            "parent_command_run_id": parent_command_run_id,
+        },
+        "framework",
+        pipeline_id=pipeline_id,
+        command_run_id=command_run_id,
+        parent_command_run_id=parent_command_run_id,
+    )
+
+
 def run_stage_process(
     db_path: str,
     db_passphrase: str | None,
@@ -848,6 +942,7 @@ def run_stage_process(
     from_topic: str | None,
     replay_after_id: int,
     note: str | None,
+    display_name: str | None,
 ) -> None:
     """Child-process entry point for one background pipeline stage."""
     db = EventStore(Path(db_path), passphrase=db_passphrase)
@@ -862,6 +957,7 @@ def run_stage_process(
             from_topic=from_topic,
             replay_after_id=replay_after_id,
             note=note,
+            display_name=display_name,
         ),
         command_run_id,
         parent_command_run_id,

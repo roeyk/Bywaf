@@ -77,11 +77,19 @@ def print_jobs(context: CommandContext, *, active_only: bool = True, show_active
     if not rows:
         context.output("no active jobs" if active_only else "no jobs")
         return
+    names = context.require_db().runtime_names()
     for row in rows:
-        context.output(format_job(row, show_active=show_active, marker_style=active_listing_format(context.vars.get_global)))
+        context.output(
+            format_job(
+                row,
+                display_name=names.get(("job", str(row["id"]))),
+                show_active=show_active,
+                marker_style=active_listing_format(context.vars.get_global),
+            )
+        )
 
 
-def format_job(row, *, show_active: bool = False, marker_style: str = "short") -> str:
+def format_job(row, *, display_name: str | None = None, show_active: bool = False, marker_style: str = "short") -> str:
     """Format one job row in the same compact format used by the old `jobs`."""
     prefix = ""
     detail = ""
@@ -89,7 +97,8 @@ def format_job(row, *, show_active: bool = False, marker_style: str = "short") -
         label = runtime_state_label(row["status"])
         timestamp = row["started_at"] if label in {"active", "in progress"} else row["finished_at"]
         prefix, detail = state_marker(label, timestamp, style=marker_style)
-    line = f"{prefix}#{row['id']} pid={row['pid']} status={row['status']} {row['command_line']}"
+    name_part = f" name={display_name}" if display_name else ""
+    line = f"{prefix}#{row['id']} pid={row['pid']} status={row['status']}{name_part} {row['command_line']}"
     return f"{line}\n{detail}" if detail else line
 
 

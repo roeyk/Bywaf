@@ -38,6 +38,7 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn("stop", self.registry.names())
         self.assertIn("audit", self.registry.names())
         self.assertIn("note", self.registry.names())
+        self.assertIn("name", self.registry.names())
         self.assertIn("artifact", self.registry.names())
 
     def test_bundled_plugins_are_loaded_from_config_list(self):
@@ -53,6 +54,7 @@ class RegistryCompletionTests(unittest.TestCase):
                 "runtime.control",
                 "runtime.audit",
                 "runtime.note",
+                "runtime.name",
                 "runtime.artifact",
                 "storage.db",
                 "os.ls",
@@ -66,7 +68,7 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertEqual(self.registry.grouped_names()["os"], ["cat", "less", "ls"])
         self.assertEqual(
             self.registry.grouped_names()["runtime"],
-            ["artifact", "audit", "cancel", "job", "kill", "note", "pause", "pipeline", "resume", "stop"],
+            ["artifact", "audit", "cancel", "job", "kill", "name", "note", "pause", "pipeline", "resume", "stop"],
         )
         self.assertEqual(self.registry.grouped_names()["storage"], ["db"])
 

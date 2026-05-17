@@ -235,6 +235,31 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "runs")
             self.assertIn("r pipeline=p source=hostscanner events=1", output.getvalue())
 
+    def test_runtime_names_display_in_listings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("hostscanner 127.0.0.1", 123, "running")
+            runner.db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", pipeline_id="p", command_run_id="r")
+            runner.db.record_command_run_vars(
+                job_id=job_id,
+                pipeline_id="p",
+                command_run_id="r",
+                commandlet="hostscanner",
+                values={"test.marker": "1"},
+            )
+            runner.db.publish("runtime.name.assigned", {"target_type": "run", "target_id": "r", "name": "run name"}, "framework", command_run_id="r")
+            runner.db.publish("runtime.name.assigned", {"target_type": "pipeline", "target_id": "p", "name": "pipeline name"}, "framework", pipeline_id="p")
+            runner.db.publish("runtime.name.assigned", {"target_type": "job", "target_id": str(job_id), "name": "job name"}, "framework")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "runs")
+                dispatch_repl_line(runner, "pipelines")
+                dispatch_repl_line(runner, "jobs")
+            text = output.getvalue()
+            self.assertIn("r name=run name pipeline=p", text)
+            self.assertIn("p name=pipeline name job=", text)
+            self.assertIn("status=running name=job name", text)
+
     def test_dispatch_runs_defaults_to_active_unless_all_requested(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

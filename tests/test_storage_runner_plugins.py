@@ -68,6 +68,12 @@ class StorageRunnerPluginTests(unittest.TestCase):
         self.assertEqual(invocation.args, ["127.0.0.1"])
         self.assertEqual(invocation.note, "client approved target")
 
+    def test_parse_invocation_strips_final_unquoted_name(self):
+        invocation = parse_invocation("hostscanner 127.0.0.1 name=localhost sweep")
+        self.assertEqual(invocation.name, "hostscanner")
+        self.assertEqual(invocation.args, ["127.0.0.1"])
+        self.assertEqual(invocation.display_name, "localhost sweep")
+
     def test_parse_invocation_strips_quoted_note(self):
         invocation = parse_invocation('hostscanner 127.0.0.1 note="client approved target"')
         self.assertEqual(invocation.args, ["127.0.0.1"])
@@ -79,6 +85,16 @@ class StorageRunnerPluginTests(unittest.TestCase):
         self.assertEqual(pipeline.commands[0].note, "scope approved")
         self.assertEqual(pipeline.commands[1].args, [])
         self.assertEqual(pipeline.commands[1].note, "top ports")
+
+    def test_parse_pipeline_accepts_name_prefix(self):
+        pipeline = parse_pipeline("client subnet scan: hostscanner 127.0.0.1 | portscanner")
+        self.assertEqual(pipeline.display_name, "client subnet scan")
+        self.assertEqual([command.name for command in pipeline.commands], ["hostscanner", "portscanner"])
+
+    def test_parse_pipeline_does_not_treat_url_colon_as_name(self):
+        pipeline = parse_pipeline("http_probe http://127.0.0.1")
+        self.assertIsNone(pipeline.display_name)
+        self.assertEqual(pipeline.commands[0].args, ["http://127.0.0.1"])
 
     def test_parse_invocation_keeps_background_marker_with_note(self):
         invocation = parse_invocation("hostscanner 127.0.0.1& note=background scan")
@@ -475,6 +491,32 @@ class StorageRunnerPluginTests(unittest.TestCase):
             self.assertEqual([note.payload["note"] for note in notes], ["scope approved", "top ports"])
             self.assertEqual(notes[0].command_run_id, events[0].command_run_id)
             self.assertEqual(notes[1].command_run_id, events[-1].command_run_id)
+
+    def test_inline_names_attach_to_pipeline_and_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]):
+                runner = make_runner(Path(tmp, "db.sqlite3"))
+                with contextlib.redirect_stdout(io.StringIO()):
+                    events = runner.execute("client subnet scan: hostscanner 127.0.0.1 name=localhost sweep")
+            names = runner.db.runtime_names()
+            pipeline_id = events[0].pipeline_id
+            self.assertIsNotNone(pipeline_id)
+            assert pipeline_id is not None
+            self.assertEqual(names[("pipeline", pipeline_id)], "client subnet scan")
+            self.assertEqual(names[("run", events[0].command_run_id or "")], "localhost sweep")
+
+    def test_name_command_assigns_posthoc_names(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", pipeline_id="pipe-1", command_run_id="run-1")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("name run=run-1 value=localhost sweep")
+                process_framework_requests(runner, ShellState())
+                runner.execute("name run=run-1")
+                process_framework_requests(runner, ShellState())
+            self.assertEqual(runner.db.runtime_names()[("run", "run-1")], "localhost sweep")
+            self.assertIn("run=run-1 name=localhost sweep", output.getvalue())
 
     def test_at_file_lines_expands_before_commandlet_args(self):
         with tempfile.TemporaryDirectory() as tmp:
