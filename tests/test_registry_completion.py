@@ -69,7 +69,21 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertEqual(self.registry.grouped_names()["os"], ["cat", "less", "ls"])
         self.assertEqual(
             self.registry.grouped_names()["runtime"],
-            ["artifact", "audit", "cancel", "job", "kill", "name", "note", "pause", "pipeline", "resume", "signal", "stop"],
+            [
+                "artifact",
+                "audit",
+                "cancel",
+                "job",
+                "kill",
+                "name",
+                "note",
+                "pause",
+                "pipeline",
+                "resume",
+                "search",
+                "signal",
+                "stop",
+            ],
         )
         self.assertEqual(self.registry.grouped_names()["storage"], ["db"])
 
@@ -229,11 +243,14 @@ class RegistryCompletionTests(unittest.TestCase):
 
     def test_artifact_completion_prefers_actions_first(self):
         completer = Completer(self.registry)
-        self.assertEqual(completer.candidates("artifact "), ["attach", "list", "remove", "replace", "save", "verify"])
+        self.assertEqual(completer.candidates("artifact "), ["attach", "list", "remove", "replace", "save", "search", "verify"])
         self.assertEqual(completer.candidates("artifact a"), ["attach"])
         self.assertIn("file=", completer.candidates("artifact attach "))
         self.assertIn("file=", completer.candidates("artifact replace "))
         self.assertIn("dir=", completer.candidates("artifact save "))
+        self.assertIn("note=", completer.candidates("artifact search "))
+        self.assertIn("--regexp", completer.candidates("search "))
+        self.assertIn("content=", completer.candidates("search "))
 
     def test_control_completion_includes_run_selector(self):
         with tempfile.TemporaryDirectory() as tmp:

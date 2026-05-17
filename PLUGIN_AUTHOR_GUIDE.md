@@ -424,7 +424,7 @@ At execution time, commandlets receive a `CommandContext`:
 - `context.page_file(path)`: request frontend-owned paging for a local file
 - `context.process.run(argv)`: run an external process and capture output
 - `context.process.stream(argv)`: stream stdout/stderr chunks incrementally
-- `context.artifacts.attach_file(path)`: attach one encrypted evidence file
+- `context.artifacts.attach_file(path, name=..., note=...)`: attach one encrypted evidence file
 - `context.artifacts.attach_files(paths)`: attach several encrypted evidence files
 - `context.signals.pending(action=...)`: read live-control signals for this run
 - `context.signals.applied(request, message, **details)`: acknowledge a signal
@@ -469,7 +469,7 @@ Plugins that produce evidence files should attach them through
 `context.artifacts` instead of leaving them as loose plaintext files:
 
 ```python
-snapshot = context.artifacts.attach_file("snapshot.html", note="landing page")
+snapshot = context.artifacts.attach_file("snapshot.html", name="Landing page", note="initial capture")
 context.output(f"attached artifact {snapshot.id}")
 
 context.artifacts.attach_files(["snapshot.html", "headers.txt"])
@@ -478,9 +478,9 @@ context.artifacts.attach_files(["snapshot.html", "headers.txt"])
 Artifact bodies are stored in a separate encrypted SQLCipher database that uses
 the main encrypted database passphrase for the session. The main event database
 records `artifact.attached` provenance events containing the artifact id, hash,
-timestamp, job, pipeline, and command-run IDs. A commandlet can attach multiple
-artifacts to the same run; that is the expected model for screenshots, raw
-responses, parsed reports, and notes produced by one action.
+name, note, timestamp, job, pipeline, and command-run IDs. A commandlet can
+attach multiple artifacts to the same run; that is the expected model for
+screenshots, raw responses, parsed reports, and notes produced by one action.
 
 Users can later `artifact replace`, `artifact remove`, `artifact save`, or
 `artifact verify` those records. Those mutations are audited in the main event

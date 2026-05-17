@@ -235,7 +235,14 @@ class ArtifactStore:
         with self.connect() as conn:
             conn.execute("DELETE FROM artifacts WHERE id = ?", (artifact.id,))
 
-    def replace_file(self, artifact: Artifact, path: Path, *, note: str | None = None) -> Artifact:
+    def replace_file(
+        self,
+        artifact: Artifact,
+        path: Path,
+        *,
+        name: str | None = None,
+        note: str | None = None,
+    ) -> Artifact:
         """Replace one artifact body while preserving its stable artifact id."""
         source_path = path.expanduser()
         data = source_path.read_bytes()
@@ -257,7 +264,7 @@ class ArtifactStore:
                 WHERE id = ?
                 """,
                 (
-                    source_path.name,
+                    name if name is not None else artifact.name,
                     content_type,
                     digest,
                     len(data),

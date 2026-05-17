@@ -342,9 +342,13 @@ class StorageRunnerPluginTests(unittest.TestCase):
             output_path = Path(tmp, "exported.html")
             runner = make_runner(db_path, encrypted=True, passphrase="secret")
             with contextlib.redirect_stdout(io.StringIO()):
-                runner.execute(f"artifact attach run=run-1 file={artifact_source} note=site snapshot")
+                runner.execute(
+                    f"artifact attach run=run-1 file={artifact_source} name='Landing page' note=site snapshot"
+                )
                 process_framework_requests(runner, ShellState())
                 runner.execute("artifact list run=run-1")
+                process_framework_requests(runner, ShellState())
+                runner.execute("search name=landing")
                 process_framework_requests(runner, ShellState())
                 runner.execute("artifact verify run=run-1")
                 process_framework_requests(runner, ShellState())
@@ -353,12 +357,57 @@ class StorageRunnerPluginTests(unittest.TestCase):
             self.assertEqual(output_path.read_text(), "<html>ok</html>")
             artifacts = artifact_store_for_event_store(runner.db).list(command_run_id="run-1")
             self.assertEqual(len(artifacts), 1)
+            self.assertEqual(artifacts[0].name, "Landing page")
             self.assertEqual(artifacts[0].note, "site snapshot")
             self.assertTrue(artifact_db_path(db_path).exists())
             attached_events = runner.db.events_for_topic("artifact.attached")
             self.assertEqual(attached_events[0].payload["command_run_id"], "run-1")
+            self.assertEqual(attached_events[0].payload["name"], "Landing page")
             self.assertEqual(attached_events[0].payload["sha256"], artifacts[0].sha256)
             self.assertEqual(runner.db.events_for_topic("artifact.exported")[0].payload["file"], str(output_path))
+
+    @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
+    def test_artifact_search_filters_name_note_and_content(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp, "db.sqlite3")
+            first = Path(tmp, "snapshot.html")
+            second = Path(tmp, "headers.txt")
+            first.write_text("<html>ok</html>")
+            second.write_text("server: test")
+            runner = make_runner(db_path, encrypted=True, passphrase="secret")
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute(f"artifact attach run=run-1 file={first} name='Landing page' note=html capture")
+                runner.execute(f"artifact attach run=run-1 file={second} name=Headers note=response metadata")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("search run=run-1 name=landing")
+                process_framework_requests(runner, ShellState())
+                runner.execute("search run=run-1 note=metadata")
+                process_framework_requests(runner, ShellState())
+                runner.execute("search run=run-1 name=headers")
+                process_framework_requests(runner, ShellState())
+                runner.execute("artifact search run=run-1 --regexp name='land.*page'")
+                process_framework_requests(runner, ShellState())
+                runner.execute("search run=run-1 --regexp note=response")
+                process_framework_requests(runner, ShellState())
+                runner.execute("search run=run-1 content='server: test'")
+                process_framework_requests(runner, ShellState())
+            listing = output.getvalue()
+            self.assertEqual(listing.count(" name="), 6)
+            self.assertIn("name=Landing page", listing)
+            self.assertIn("name=Headers", listing)
+
+    @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
+    def test_artifact_regexp_rejects_invalid_patterns(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp, "db.sqlite3")
+            source = Path(tmp, "snapshot.html")
+            source.write_text("<html>ok</html>")
+            runner = make_runner(db_path, encrypted=True, passphrase="secret")
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute(f"artifact attach run=run-1 file={source} name='Landing page'")
+            with self.assertRaisesRegex(ValueError, "invalid search --regexp pattern"):
+                runner.execute("search --regexp name='['")
 
     @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
     def test_artifact_save_file_rejects_multiple_matches(self):

@@ -401,14 +401,18 @@ bywaf --encrypt
 Attach one or more files:
 
 ```text
+bywaf> artifact attach run=<command-run-id> file=snapshot.html name='Landing page'
 bywaf> artifact attach run=<command-run-id> file=snapshot.html file=headers.txt
 bywaf> artifact attach pipeline=<pipeline-id> file=report.json note=initial report
 ```
 
-List, save, and verify artifacts:
+List, search, save, and verify artifacts:
 
 ```text
 bywaf> artifact list run=<command-run-id>
+bywaf> search run=<command-run-id> name=landing
+bywaf> search run=<command-run-id> content=csrf
+bywaf> artifact search run=<command-run-id> --regexp note='landing|headers'
 bywaf> artifact replace artifact=1 file=snapshot-v2.html
 bywaf> artifact remove artifact=1
 bywaf> artifact save artifact=1 file=snapshot.html
@@ -416,9 +420,14 @@ bywaf> artifact save run=<command-run-id> dir=artifacts/
 bywaf> artifact verify pipeline=<pipeline-id>
 ```
 
-Use `file=` when saving exactly one artifact. Use `dir=` when saving a set. If
-`file=` matches multiple artifacts, Bywaf reports that clearly and asks you to
-use `dir=` instead.
+Use `name=` for human-readable artifact labels; if omitted, the source filename
+is used. The `search` commandlet, and its `artifact search` alias, search
+artifact metadata quickly. `name=`, `note=`, and `content=` narrow the search to
+artifact names, notes, or decoded text contents. Add `--regexp` to treat those
+field values as Python regular expressions. `since=` and `until=` restrict
+matches by artifact creation time. Use `file=` when saving exactly one artifact.
+Use `dir=` when saving a set. If `file=` matches multiple artifacts, Bywaf
+reports that clearly and asks you to use `dir=` instead.
 
 # At-File Arguments
 
@@ -1083,7 +1092,8 @@ cancel <job=id|pipeline=id|run=id>
 kill [--force] <job=id|pipeline=id|run=id>
 name <run=id|pipeline=id|job=id> [name text]
 note [add] <run=id|pipeline=id|job=id> [text=note|file=path]
-artifact <attach|list|remove|replace|save|verify> [artifact=id|run=id|pipeline=id|job=id] [file=path|dir=path]
+artifact <attach|list|remove|replace|save|search|verify> [artifact=id|run=id|pipeline=id|job=id] [file=path|dir=path]
+search [--regexp] <name=text|note=text|content=text> [artifact=id|run=id|pipeline=id|job=id] [since=time|until=time]
 jobs
 pipelines
 runs

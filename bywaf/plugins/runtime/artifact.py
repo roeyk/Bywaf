@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Iterable
+from datetime import datetime
 from pathlib import Path
 
 from bywaf.artifacts import Artifact, artifact_db_path, artifact_store_for_event_store
 from bywaf.events import Event
+from bywaf.plugins.runtime.audit import parse_compact_time
 from bywaf.plugin import (
     CommandContext,
     Commandlet,
@@ -19,16 +22,19 @@ from bywaf.plugin import (
 )
 from bywaf.utils import complete_path
 
-ARTIFACT_ACTIONS = ("attach", "list", "remove", "replace", "save", "verify")
+ARTIFACT_ACTIONS = ("attach", "list", "remove", "replace", "save", "search", "verify")
+SEARCH_FLAGS = ("--regexp",)
+SEARCH_FIELDS = ("name", "note", "content")
 
 
 @commandlet(
     name="artifact",
     description="Attach, list, save, replace, remove, and verify encrypted artifacts.",
-    usage="artifact <attach|list|save|replace|remove|verify> [artifact=id|run=id|pipeline=id|job=id] [file=path|dir=path]",
+    usage="artifact <attach|list|save|replace|remove|search|verify> [artifact=id|run=id|pipeline=id|job=id] [file=path|dir=path]",
     examples=(
-        "artifact attach run=hostscanner-... file=snapshot.html file=headers.txt",
+        "artifact attach run=hostscanner-... file=snapshot.html name='Landing page'",
         "artifact list run=hostscanner-...",
+        "artifact search --regexp note='login|cookie'",
         "artifact replace artifact=1 file=snapshot-v2.html",
         "artifact remove artifact=1",
         "artifact save artifact=1 file=snapshot.html",
@@ -59,22 +65,23 @@ class ArtifactCommand(CommandletBase):
         """Execute one artifact action."""
         del input_events
         if not args:
-            raise ValueError("artifact requires an action: attach, list, save, or verify")
+            raise ValueError("artifact requires an action: attach, list, remove, replace, save, search, or verify")
         action, *tokens = args
-        selectors = parse_artifact_selectors(tokens)
         match action:
             case "attach":
-                attach_artifacts(context, selectors)
+                attach_artifacts(context, parse_artifact_selectors(tokens))
             case "list":
-                list_artifacts(context, selectors)
+                list_artifacts(context, parse_artifact_selectors(tokens))
             case "remove":
-                remove_artifacts(context, selectors)
+                remove_artifacts(context, parse_artifact_selectors(tokens))
             case "replace":
-                replace_artifact(context, selectors)
+                replace_artifact(context, parse_artifact_selectors(tokens))
             case "save":
-                save_artifacts(context, selectors)
+                save_artifacts(context, parse_artifact_selectors(tokens))
+            case "search":
+                search_artifact_command(context, tokens)
             case "verify":
-                verify_artifacts(context, selectors)
+                verify_artifacts(context, parse_artifact_selectors(tokens))
             case _:
                 raise ValueError(f"unknown artifact action: {action}")
         return ()
@@ -102,15 +109,70 @@ class ArtifactCommand(CommandletBase):
             case "attach":
                 return ["run=", "pipeline=", "job=", "file=", "name=", "note="]
             case "replace":
-                return ["artifact=", "file=", "note="]
+                return ["artifact=", "file=", "name=", "note="]
             case "remove":
                 return ["artifact=", "run=", "pipeline=", "job="]
             case "list" | "verify":
                 return ["artifact=", "run=", "pipeline=", "job="]
             case "save":
                 return ["artifact=", "run=", "pipeline=", "job=", "file=", "dir="]
+            case "search":
+                return ["name=", "note=", "content=", "--regexp", "artifact=", "run=", "pipeline=", "job=", "since=", "until="]
             case _:
                 return list(ARTIFACT_ACTIONS)
+
+
+@commandlet(
+    name="search",
+    description="Search encrypted artifact metadata and text content.",
+    usage="search [--regexp] <name=text|note=text|content=text> [artifact=id|run=id|pipeline=id|job=id] [since=time|until=time]",
+    examples=(
+        "search name=landing",
+        "search --regexp note='login|cookie'",
+        "search run=hostscanner-... content=csrf",
+    ),
+    capabilities=(
+        "artifact.read",
+        "db.raw",
+        "framework.console.output",
+    ),
+)
+@argument("query", "name=, note=, or content= query text", required=False)
+@argument("regexp", "--regexp treats query values as Python regular expressions", required=False, completion=CompletionSpec("choice", SEARCH_FLAGS))
+class SearchCommand(CommandletBase):
+    """Search artifact metadata without changing artifacts."""
+
+    def run(
+        self,
+        context: CommandContext,
+        args: list[str],
+        input_events: Iterable[Event],
+    ):
+        """Search artifact metadata and print matching artifact rows."""
+        del input_events
+        selectors = parse_search_selectors(args)
+        if not any(field in selectors for field in SEARCH_FIELDS):
+            raise ValueError("search requires name=, note=, or content=")
+        artifacts = search_artifacts(context, selectors)
+        if not artifacts:
+            context.output("no artifacts matched")
+            return ()
+        for artifact in artifacts:
+            context.output(format_artifact_row(artifact))
+        return ()
+
+    def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
+        """Complete search selectors, scopes, and runtime entity ids."""
+        del args
+        if prefix.startswith("run="):
+            return [f"run={value}" for value in run_ids(context)]
+        if prefix.startswith("pipeline="):
+            return [f"pipeline={value}" for value in pipeline_ids(context)]
+        if prefix.startswith("job="):
+            return [f"job={value}" for value in job_ids(context)]
+        if prefix.startswith("artifact="):
+            return [f"artifact={value}" for value in artifact_ids(context)]
+        return ["name=", "note=", "content=", "--regexp", "artifact=", "run=", "pipeline=", "job=", "since=", "until="]
 
 
 def parse_artifact_selectors(tokens: list[str]) -> dict[str, list[str]]:
@@ -132,6 +194,28 @@ def parse_artifact_selectors(tokens: list[str]) -> dict[str, list[str]]:
         if not value:
             raise ValueError(f"artifact selector {key}= requires a value")
         selectors.setdefault(key, []).append(value)
+    return selectors
+
+
+def parse_search_selectors(tokens: list[str]) -> dict[str, list[str]]:
+    """Parse search selectors and scope flags."""
+    selectors: dict[str, list[str]] = {}
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+        if token in SEARCH_FLAGS:
+            selectors.setdefault(token.removeprefix("--"), []).append("true")
+            index += 1
+            continue
+        if "=" not in token:
+            raise ValueError(f"invalid search selector: {token}")
+        key, value = token.split("=", 1)
+        if key not in {"artifact", "run", "pipeline", "job", "name", "note", "content", "since", "until"}:
+            raise ValueError(f"unknown search selector: {key}")
+        if not value:
+            raise ValueError(f"search selector {key}= requires a value")
+        selectors.setdefault(key, []).append(value)
+        index += 1
     return selectors
 
 
@@ -217,7 +301,12 @@ def replace_artifact(context: CommandContext, selectors: dict[str, list[str]]) -
     store = artifact_store_for_event_store(db)
     context.audit_capability("filesystem.read")
     context.audit_capability("artifact.write")
-    replacement = store.replace_file(artifact, Path(file_name), note=single_value(selectors, "note") or context.note)
+    replacement = store.replace_file(
+        artifact,
+        Path(file_name),
+        name=single_value(selectors, "name"),
+        note=single_value(selectors, "note") or context.note,
+    )
     db.publish(
         "artifact.replaced",
         {
@@ -282,6 +371,124 @@ def select_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
         pipeline_id=single_value(selectors, "pipeline"),
         command_run_id=single_value(selectors, "run"),
     )
+
+
+def search_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> list[Artifact]:
+    """Return artifacts matching search/regexp query selectors."""
+    db = context.require_db("search")
+    context.audit_capability("artifact.read")
+    store = artifact_store_for_event_store(db)
+    artifact_id = single_value(selectors, "artifact")
+    if artifact_id is not None:
+        artifacts = [store.get(artifact_id)]
+    else:
+        artifacts = store.list(
+            job_id=single_value(selectors, "job"),
+            pipeline_id=single_value(selectors, "pipeline"),
+            command_run_id=single_value(selectors, "run"),
+        )
+    return filter_artifact_time_window(
+        filter_artifact_search(
+            artifacts,
+            selectors,
+            use_regexp="regexp" in selectors,
+        ),
+        since=single_value(selectors, "since"),
+        until=single_value(selectors, "until"),
+    )
+
+
+def search_artifact_command(context: CommandContext, tokens: list[str]) -> None:
+    """Run artifact metadata search from the namespaced artifact command."""
+    selectors = parse_search_selectors(tokens)
+    if not any(field in selectors for field in SEARCH_FIELDS):
+        raise ValueError("artifact search requires name=, note=, or content=")
+    artifacts = search_artifacts(context, selectors)
+    if not artifacts:
+        context.output("no artifacts matched")
+        return
+    for artifact in artifacts:
+        context.output(format_artifact_row(artifact))
+
+
+def filter_artifact_search(
+    artifacts: list[Artifact],
+    selectors: dict[str, list[str]],
+    *,
+    use_regexp: bool,
+) -> list[Artifact]:
+    """Filter artifacts by field-specific query selectors."""
+    queries = artifact_search_queries(selectors, use_regexp=use_regexp)
+    return [artifact for artifact in artifacts if all(query_matches_artifact(query, artifact) for query in queries)]
+
+
+def artifact_search_queries(selectors: dict[str, list[str]], *, use_regexp: bool) -> list[tuple[str, str | re.Pattern[str]]]:
+    """Compile search query selectors for name/note/content fields."""
+    queries: list[tuple[str, str | re.Pattern[str]]] = []
+    for field in SEARCH_FIELDS:
+        for value in selectors.get(field, []):
+            if use_regexp:
+                try:
+                    queries.append((field, re.compile(value, re.IGNORECASE)))
+                except re.error as exc:
+                    raise ValueError(f"invalid search --regexp pattern for {field}=: {exc}") from exc
+            else:
+                queries.append((field, value.casefold()))
+    return queries
+
+
+def query_matches_artifact(query: tuple[str, str | re.Pattern[str]], artifact: Artifact) -> bool:
+    """Return whether one field query matches one artifact."""
+    field, expected = query
+    value = artifact_field_value(artifact, field)
+    if isinstance(expected, re.Pattern):
+        return expected.search(value) is not None
+    return expected in value.casefold()
+
+
+def artifact_field_value(artifact: Artifact, field: str) -> str:
+    """Return one searchable artifact field as text."""
+    match field:
+        case "name":
+            return artifact.name
+        case "note":
+            return artifact.note or ""
+        case "content":
+            return artifact_text_content(artifact)
+        case _:
+            raise ValueError(f"unsupported artifact search field: {field}")
+
+
+def artifact_text_content(artifact: Artifact) -> str:
+    """Decode artifact body for content searches."""
+    return artifact.body.decode("utf-8", errors="ignore")
+
+
+def filter_artifact_time_window(
+    artifacts: list[Artifact],
+    *,
+    since: str | None,
+    until: str | None,
+) -> list[Artifact]:
+    """Filter artifacts by created_at time window."""
+    since_time = parse_compact_time(since, until=False) if since is not None else None
+    until_time = parse_compact_time(until, until=True) if until is not None else None
+    return [
+        artifact
+        for artifact in artifacts
+        if artifact_in_time_window(artifact, since=since_time, until=until_time)
+    ]
+
+
+def artifact_in_time_window(
+    artifact: Artifact,
+    *,
+    since: datetime | None,
+    until: datetime | None,
+) -> bool:
+    """Return whether artifact creation time is within an optional window."""
+    created = datetime.fromisoformat(artifact.created_at).replace(tzinfo=None)
+    return (since is None or created >= since) and (until is None or created <= until)
 
 
 def single_selected_artifact(context: CommandContext, selectors: dict[str, list[str]], action: str) -> Artifact:
@@ -402,6 +609,6 @@ def artifact_ids(context: CompletionContext) -> list[str]:
     return [str(artifact.id) for artifact in store.list()]
 
 
-def plugin() -> Commandlet:
-    """Return the commandlet instance discovered by the plugin registry."""
-    return ArtifactCommand()
+def plugins() -> tuple[Commandlet, ...]:
+    """Return artifact management and search commandlets."""
+    return ArtifactCommand(), SearchCommand()

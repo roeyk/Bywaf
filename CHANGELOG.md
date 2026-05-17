@@ -5,7 +5,15 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-17 08:55:00 EDT
+Last updated: 2026-05-17 19:42:03 EDT
+
+### 2026-05-17 19:42:03 EDT
+
+#### Added
+
+- Added a `search` commandlet, plus `artifact search`, for fast artifact lookup
+  with `name=`, `note=`, and `content=` field queries, optional `--regexp`, and
+  `since=`/`until=` time bounds.
 
 ### 2026-05-17 08:55:00 EDT
 
