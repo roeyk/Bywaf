@@ -5,7 +5,18 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-17 08:24:00 EDT
+Last updated: 2026-05-17 08:55:00 EDT
+
+### 2026-05-17 08:55:00 EDT
+
+#### Added
+
+- Added framework-owned `--plan` and `--yes` handling with auditable
+  `plan.requested`, `policy.evaluated`, `plan.approved`, `plan.denied`,
+  `plan.repair.applied`, and `plan.repair.denied` events.
+- Added `PlanReport`, `PlanItem`, and `PlanRepair` plugin APIs.
+- Added an initial hostscanner plan implementation with network allow/deny
+  policy checks and per-run prune repair suggestions.
 
 ### 2026-05-17 08:24:00 EDT
 

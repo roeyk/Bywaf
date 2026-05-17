@@ -193,6 +193,29 @@ Decorator order is intentional: Python applies decorators from bottom to top, so
 `@argument` and `@option` collect metadata before `@commandlet` builds the final
 `CommandSpec`.
 
+# Plans
+
+Commandlets that can describe risky work before running should implement
+`plan()`. The framework strips `--plan` and `--yes`, calls the hook, audits the
+report, and handles approval:
+
+```python
+from bywaf.plugin import PlanItem, PlanReport
+
+def plan(self, context, args, input_events):
+    targets = tuple(args)
+    return PlanReport(
+        action="scan-hosts",
+        summary=f"Scan {len(targets)} targets",
+        items=tuple(PlanItem("target", target) for target in targets),
+        requires_confirmation=bool(context.vars.get_global("plan.required", "false")),
+    )
+```
+
+Plan repairs can return patched arguments for this invocation only. The
+framework records `plan.requested`, `policy.evaluated`, approval/denial, and
+repair decisions, including `approved_by=<os user>`.
+
 # Parsing Arguments
 
 Use `argparse` inside `run()` when the command has real options:

@@ -467,6 +467,33 @@ scope, then `global.`. For example, `$targets` in `hostscanner` checks
 `targets`, `hostscanner.targets`, and `global.targets`. Variable expansion is
 audited as `framework.variable.expanded`.
 
+# Plans And Policy
+
+Commandlets can expose a framework-owned plan hook. Use `--plan` to show the
+intended action and exit without running, or `--yes` to approve a required plan
+non-interactively:
+
+```text
+bywaf> hostscanner 192.168.1.0/24 --plan
+bywaf> hostscanner 192.168.1.0/24 --yes
+```
+
+Plans are audited as `plan.requested`, evaluated as `policy.evaluated`, and
+approved or denied as `plan.approved` / `plan.denied` with `approved_by=<os
+user>`. Suggested repairs, such as pruning out-of-scope targets for one run,
+are audited as `plan.repair.applied` or `plan.repair.denied`.
+
+Initial network policy variables:
+
+```text
+bywaf> vars global.policy.network.allow=192.168.1.0/24
+bywaf> vars global.policy.network.deny=169.254.169.254/32,192.168.1.50
+bywaf> vars global.plan.required=true
+```
+
+The policy layer applies to the run being launched. Repairs do not mutate source
+files, saved variables, or command history.
+
 # Command Continuation And Sequences
 
 Use a trailing backslash to continue a command across physical lines in the

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import getpass
 import multiprocessing as mp
 import os
 import shlex
@@ -13,7 +14,7 @@ from typing import Literal
 
 from .db import EventStore, Subscription
 from .events import Event
-from .plugin import CommandContext, implied_capabilities
+from .plugin import CommandContext, PlanRepair, PlanReport, implied_capabilities
 from .registry import PluginRegistry
 from .varstore import VarStore
 
@@ -32,6 +33,8 @@ class CommandInvocation:
     note: str | None = None
     display_name: str | None = None
     variable_expansions: tuple[str, ...] = ()
+    plan_only: bool = False
+    approved: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,6 +76,8 @@ def parse_invocation(text: str, varstore: VarStore | None = None) -> CommandInvo
         note=note,
         display_name=display_name,
         variable_expansions=variable_expansions,
+        plan_only=selectors["plan_only"] == "true",
+        approved=selectors["approved"] == "true",
     )
 
 
@@ -96,6 +101,8 @@ def parse_pipeline(command_line: str, varstore: VarStore | None = None) -> Pipel
             note=last.note,
             display_name=last.display_name,
             variable_expansions=last.variable_expansions,
+            plan_only=last.plan_only,
+            approved=last.approved,
         )
     return Pipeline(tuple(commands), any(command.background for command in commands), display_name)
 
@@ -361,6 +368,8 @@ class Runner:
                     stage.invocation.note,
                     stage.invocation.display_name,
                     stage.invocation.variable_expansions,
+                    stage.invocation.plan_only,
+                    stage.invocation.approved,
                 ),
                 daemon=False,
             )
@@ -426,6 +435,8 @@ class Runner:
             note=original.note,
             display_name=original.display_name,
             variable_expansions=original.variable_expansions,
+            plan_only=original.plan_only,
+            approved=original.approved,
         )
         stage = StageRun(invocation, new_run_id(invocation.name), upstream_run_id)
         lifecycle = JobLifecycle.create(
@@ -759,7 +770,13 @@ def find_pipeline_name_colon(command_line: str) -> int | None:
 
 def peel_context_selectors(args: list[str]) -> tuple[list[str], dict[str, str | None]]:
     """Remove framework-owned selector flags from plugin arguments."""
-    selectors: dict[str, str | None] = {"from_run": None, "from_pipeline": None, "from_topic": None}
+    selectors: dict[str, str | None] = {
+        "from_run": None,
+        "from_pipeline": None,
+        "from_topic": None,
+        "plan_only": "false",
+        "approved": "false",
+    }
     cleaned: list[str] = []
     index = 0
     while index < len(args):
@@ -774,6 +791,12 @@ def peel_context_selectors(args: list[str]) -> tuple[list[str], dict[str, str | 
             case "--from-topic" | "--topic":
                 selectors["from_topic"] = require_selector_value(args, index, token)
                 index += 2
+            case "--plan":
+                selectors["plan_only"] = "true"
+                index += 1
+            case "--yes":
+                selectors["approved"] = "true"
+                index += 1
             case _:
                 cleaned.append(token)
                 index += 1
@@ -943,6 +966,10 @@ def execute_stage(
         )
     publish_variable_expansion(context, invocation.variable_expansions)
     expanded_args = expand_at_file_args(context, invocation.args)
+    planned_args = handle_plan_if_needed(context, plugin, expanded_args, selected_input_events, invocation)
+    if planned_args is None:
+        return StageResult([])
+    expanded_args = planned_args
     for input_topic in sorted({event.topic for event in selected_input_events}):
         context.audit_capability(f"db.read:{input_topic}")
     topic = plugin.spec.emits[0] if plugin.spec.emits else plugin.spec.name
@@ -958,6 +985,198 @@ def execute_stage(
             parent_command_run_id=stage.parent_command_run_id,
         ))
     return StageResult(events)
+
+
+def handle_plan_if_needed(
+    context: CommandContext,
+    plugin,
+    args: list[str],
+    input_events: list[Event],
+    invocation: CommandInvocation,
+) -> list[str] | None:
+    """Run a commandlet plan hook, audit it, and enforce approval if needed."""
+    planner = getattr(plugin, "plan", None)
+    if planner is None:
+        if invocation.plan_only:
+            context.output(f"{plugin.spec.name}: no plan available")
+            return None
+        return args
+    report = planner(context, args, input_events)
+    if not isinstance(report, PlanReport):
+        raise ValueError(f"{plugin.spec.name} plan() must return PlanReport")
+    must_approve = report.requires_confirmation or bool(report.warnings)
+    if not invocation.plan_only and not must_approve:
+        return args
+    request = publish_plan_requested(context, report)
+    publish_policy_evaluated(context, request, report)
+    context.output(format_plan_report(report))
+    repaired_args = maybe_apply_plan_repair(context, request, report, invocation)
+    if invocation.plan_only:
+        return None
+    if not must_approve:
+        return repaired_args or args
+    if invocation.approved:
+        publish_plan_decision(context, request, True, "cli-yes", "--yes")
+        return repaired_args or args
+    if context.background:
+        publish_plan_decision(context, request, False, "background", "missing --yes")
+        raise ValueError(f"{plugin.spec.name} plan requires --yes for background execution")
+    answer = input("Approve this plan? type YES: ")
+    approved = answer == "YES"
+    publish_plan_decision(context, request, approved, "interactive", answer)
+    if not approved:
+        raise ValueError("plan denied")
+    return repaired_args or args
+
+
+def maybe_apply_plan_repair(
+    context: CommandContext,
+    request: Event,
+    report: PlanReport,
+    invocation: CommandInvocation,
+) -> list[str] | None:
+    """Apply the first suggested repair when the operator or --yes accepts it."""
+    if not report.repairs:
+        return None
+    repair = report.repairs[0]
+    if invocation.approved:
+        publish_plan_repair(context, request, repair, approved=True, method="cli-yes", answer="--yes")
+        return list(repair.patched_args)
+    if invocation.plan_only or context.background:
+        return None
+    answer = input(f"Apply suggested repair '{repair.name}'? type YES: ")
+    approved = answer == "YES"
+    publish_plan_repair(context, request, repair, approved=approved, method="interactive", answer=answer)
+    return list(repair.patched_args) if approved else None
+
+
+def publish_plan_requested(context: CommandContext, report: PlanReport) -> Event:
+    """Persist the plan report shown to the operator."""
+    if context._db is None:
+        raise ValueError("plan auditing requires an active database")
+    return context._db.publish(
+        "plan.requested",
+        {
+            "commandlet": context.source,
+            "action": report.action,
+            "summary": report.summary,
+            "items": [
+                {"kind": item.kind, "value": item.value, "details": item.details}
+                for item in report.items
+            ],
+            "warnings": list(report.warnings),
+            "repairs": [
+                {
+                    "name": repair.name,
+                    "description": repair.description,
+                    "before": repair.before,
+                    "after": repair.after,
+                }
+                for repair in report.repairs
+            ],
+            "requires_confirmation": report.requires_confirmation,
+            "job_id": context.job_id,
+            "pipeline_id": context.pipeline_id,
+            "command_run_id": context.command_run_id,
+        },
+        "framework",
+        pipeline_id=context.pipeline_id,
+        command_run_id=context.command_run_id,
+        parent_command_run_id=context.parent_command_run_id,
+    )
+
+
+def publish_policy_evaluated(context: CommandContext, request: Event, report: PlanReport) -> Event:
+    """Persist the framework policy decision for a plan."""
+    if context._db is None:
+        raise ValueError("policy auditing requires an active database")
+    decision = "warn" if report.warnings else "allow"
+    return context._db.publish(
+        "policy.evaluated",
+        {
+            "request_event_id": request.id,
+            "decision": decision,
+            "warnings": list(report.warnings),
+            "repairs": [repair.name for repair in report.repairs],
+            "job_id": context.job_id,
+            "pipeline_id": context.pipeline_id,
+            "command_run_id": context.command_run_id,
+        },
+        "framework",
+        pipeline_id=context.pipeline_id,
+        command_run_id=context.command_run_id,
+        parent_command_run_id=context.parent_command_run_id,
+    )
+
+
+def publish_plan_decision(context: CommandContext, request: Event, approved: bool, method: str, answer: str) -> Event:
+    """Persist the operator's approval or denial of a plan."""
+    if context._db is None:
+        raise ValueError("plan approval auditing requires an active database")
+    return context._db.publish(
+        "plan.approved" if approved else "plan.denied",
+        {
+            "request_event_id": request.id,
+            "approved": approved,
+            "approval_method": method,
+            "answer": answer,
+            "approved_by": getpass.getuser(),
+            "job_id": context.job_id,
+            "pipeline_id": context.pipeline_id,
+            "command_run_id": context.command_run_id,
+        },
+        "framework",
+        pipeline_id=context.pipeline_id,
+        command_run_id=context.command_run_id,
+        parent_command_run_id=context.parent_command_run_id,
+    )
+
+
+def publish_plan_repair(
+    context: CommandContext,
+    request: Event,
+    repair: PlanRepair,
+    *,
+    approved: bool,
+    method: str,
+    answer: str,
+) -> Event:
+    """Persist the operator's decision about a suggested plan repair."""
+    if context._db is None:
+        raise ValueError("plan repair auditing requires an active database")
+    return context._db.publish(
+        "plan.repair.applied" if approved else "plan.repair.denied",
+        {
+            "request_event_id": request.id,
+            "repair": repair.name,
+            "description": repair.description,
+            "approved": approved,
+            "approval_method": method,
+            "answer": answer,
+            "approved_by": getpass.getuser(),
+            "before": repair.before,
+            "after": repair.after,
+        },
+        "framework",
+        pipeline_id=context.pipeline_id,
+        command_run_id=context.command_run_id,
+        parent_command_run_id=context.parent_command_run_id,
+    )
+
+
+def format_plan_report(report: PlanReport) -> str:
+    """Return a compact human-readable plan report."""
+    lines = [f"Plan: {report.action}", report.summary]
+    if report.items:
+        lines.append("Items:")
+        lines.extend(f"  {item.kind}: {item.value}" for item in report.items)
+    if report.warnings:
+        lines.append("Warnings:")
+        lines.extend(f"  {warning}" for warning in report.warnings)
+    if report.repairs:
+        lines.append("Suggested repairs:")
+        lines.extend(f"  {repair.name}: {repair.description}" for repair in report.repairs)
+    return "\n".join(lines)
 
 
 def expand_at_file_args(context: CommandContext, args: list[str]) -> list[str]:
@@ -1143,6 +1362,8 @@ def run_stage_process(
     note: str | None,
     display_name: str | None,
     variable_expansions: tuple[str, ...],
+    plan_only: bool,
+    approved: bool,
 ) -> None:
     """Child-process entry point for one background pipeline stage."""
     db = EventStore(Path(db_path), passphrase=db_passphrase)
@@ -1159,6 +1380,8 @@ def run_stage_process(
             note=note,
             display_name=display_name,
             variable_expansions=variable_expansions,
+            plan_only=plan_only,
+            approved=approved,
         ),
         command_run_id,
         parent_command_run_id,

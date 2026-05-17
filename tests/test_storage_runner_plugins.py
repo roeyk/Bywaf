@@ -717,6 +717,35 @@ class StorageRunnerPluginTests(unittest.TestCase):
                     runner.execute(f"hostscanner 192.168.0.1-2 except=@lines:{excluded}")
             discover.assert_called_once_with("192.168.0.1", "-sn")
 
+    def test_hostscanner_plan_shows_intended_targets_without_scanning(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            output = io.StringIO()
+            with (
+                patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts") as discover,
+                contextlib.redirect_stdout(output),
+            ):
+                events = runner.execute("hostscanner 192.168.0.1-2 --plan")
+                process_framework_requests(runner, ShellState())
+            self.assertEqual(events, [])
+            discover.assert_not_called()
+            self.assertIn("Plan: scan-hosts", output.getvalue())
+            self.assertEqual(runner.db.events_for_topic("plan.requested")[0].payload["summary"], "Scan 2 host target(s) with nmap arguments '-sn'.")
+            self.assertEqual(runner.db.events_for_topic("policy.evaluated")[0].payload["decision"], "allow")
+
+    def test_hostscanner_plan_yes_applies_prune_repair_and_audits_approval(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.registry.varstore.set("global.policy.network.allow", "192.168.0.0/24")
+            with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["192.168.0.1"]) as discover:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    runner.execute("hostscanner 192.168.0.1 10.0.0.1 --yes")
+            discover.assert_called_once_with("192.168.0.1", "-sn")
+            self.assertEqual(runner.db.events_for_topic("plan.approved")[0].payload["approval_method"], "cli-yes")
+            repair = runner.db.events_for_topic("plan.repair.applied")[0]
+            self.assertEqual(repair.payload["repair"], "prune-out-of-scope")
+            self.assertTrue(repair.payload["approved_by"])
+
     def test_expand_targets_enforces_limit(self):
         with self.assertRaisesRegex(ValueError, "exceeds limit"):
             expand_targets(["192.168.0.1-3"], 2)
