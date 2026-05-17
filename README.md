@@ -312,6 +312,40 @@ bywaf> note add run=<command-run-id> text=follow-up note
 Notes are append-only. Adding another note creates another timestamped
 `note.attached` event instead of replacing earlier notes.
 
+# Encrypted Artifacts
+
+Artifacts are evidence files attached to a run, pipeline, or job. Artifact
+bodies are stored in a separate encrypted SQLCipher database next to the main
+database, using the main encrypted database passphrase for the session. The main
+database stores timestamped provenance events such as `artifact.attached` and
+`artifact.exported`; it does not store artifact bodies.
+
+Start Bywaf with an encrypted database before attaching artifacts:
+
+```text
+bywaf --encrypted
+```
+
+Attach one or more files:
+
+```text
+bywaf> artifact attach run=<command-run-id> file=snapshot.html file=headers.txt
+bywaf> artifact attach pipeline=<pipeline-id> file=report.json note=initial report
+```
+
+List, save, and verify artifacts:
+
+```text
+bywaf> artifact list run=<command-run-id>
+bywaf> artifact save artifact=1 file=snapshot.html
+bywaf> artifact save run=<command-run-id> dir=artifacts/
+bywaf> artifact verify pipeline=<pipeline-id>
+```
+
+Use `file=` when saving exactly one artifact. Use `dir=` when saving a set. If
+`file=` matches multiple artifacts, Bywaf reports that clearly and asks you to
+use `dir=` instead.
+
 # At-File Arguments
 
 Any commandlet argument can use framework-level at-file expansion. Expansion
@@ -866,6 +900,7 @@ pipeline <list|show|cancel|kill>
 cancel <job=id|pipeline=id>
 kill [--force] <job=id|pipeline=id>
 note [add] <run=id|pipeline=id|job=id> [text=note|file=path]
+artifact <attach|list|save|verify> [artifact=id|run=id|pipeline=id|job=id] [file=path|dir=path]
 jobs
 pipelines
 runs

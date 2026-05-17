@@ -14,6 +14,7 @@ from bywaf.app import (
     process_framework_requests,
     parse_save_spec,
 )
+from bywaf.artifacts import artifact_db_path, artifact_store_for_event_store
 from bywaf.db import EventStore, Subscription
 from bywaf.db import database_appears_encrypted, sqlcipher_available
 from bywaf.nmap_backend import NmapPort
@@ -247,6 +248,55 @@ class StorageRunnerPluginTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(ValueError, "foreground"):
                 encrypt_active_database(context)
+
+    @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
+    def test_artifact_attach_list_save_and_verify(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp, "db.sqlite3")
+            artifact_source = Path(tmp, "snapshot.html")
+            artifact_source.write_text("<html>ok</html>")
+            output_path = Path(tmp, "exported.html")
+            runner = make_runner(db_path, encrypted=True, passphrase="secret")
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute(f"artifact attach run=run-1 file={artifact_source} note=site snapshot")
+                process_framework_requests(runner, ShellState())
+                runner.execute("artifact list run=run-1")
+                process_framework_requests(runner, ShellState())
+                runner.execute("artifact verify run=run-1")
+                process_framework_requests(runner, ShellState())
+                runner.execute(f"artifact save run=run-1 file={output_path}")
+                process_framework_requests(runner, ShellState())
+            self.assertEqual(output_path.read_text(), "<html>ok</html>")
+            artifacts = artifact_store_for_event_store(runner.db).list(command_run_id="run-1")
+            self.assertEqual(len(artifacts), 1)
+            self.assertEqual(artifacts[0].note, "site snapshot")
+            self.assertTrue(artifact_db_path(db_path).exists())
+            attached_events = runner.db.events_for_topic("artifact.attached")
+            self.assertEqual(attached_events[0].payload["command_run_id"], "run-1")
+            self.assertEqual(attached_events[0].payload["sha256"], artifacts[0].sha256)
+            self.assertEqual(runner.db.events_for_topic("artifact.exported")[0].payload["file"], str(output_path))
+
+    @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
+    def test_artifact_save_file_rejects_multiple_matches(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp, "db.sqlite3")
+            first = Path(tmp, "first.txt")
+            second = Path(tmp, "second.txt")
+            first.write_text("one")
+            second.write_text("two")
+            runner = make_runner(db_path, encrypted=True, passphrase="secret")
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute(f"artifact attach run=run-1 file={first} file={second}")
+            with self.assertRaisesRegex(ValueError, "matched multiple artifacts"):
+                runner.execute(f"artifact save run=run-1 file={Path(tmp, 'out.txt')}")
+
+    def test_artifact_attach_requires_encrypted_main_database(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp, "note.txt")
+            source.write_text("secret")
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            with self.assertRaisesRegex(ValueError, "encrypted main database"):
+                runner.execute(f"artifact attach run=run-1 file={source}")
 
     def test_parse_empty_invocation_fails(self):
         with self.assertRaises(ValueError):

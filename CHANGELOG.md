@@ -32,6 +32,10 @@ so compatibility may change between testing releases.
   `run=`, `pipeline=`, or `job=` selector.
 - Added append-only post-hoc notes with `note add ... text=...` and
   `note add ... file=...`.
+- Added encrypted artifact storage with the `artifact` runtime commandlet for
+  `attach`, `list`, `save`, and `verify` actions.
+- Added `context.artifacts.attach_file()` and `context.artifacts.attach_files()`
+  so plugins can attach multiple encrypted evidence files to one run.
 - Added framework-level at-file argument expansion with `@file`, `@raw:file`,
   `@lines:file`, and `@@literal`.
 - Added backslash command continuation for REPL and script input.

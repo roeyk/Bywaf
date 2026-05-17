@@ -35,6 +35,7 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn("cancel", self.registry.names())
         self.assertIn("audit", self.registry.names())
         self.assertIn("note", self.registry.names())
+        self.assertIn("artifact", self.registry.names())
 
     def test_bundled_plugins_are_loaded_from_config_list(self):
         self.assertEqual(
@@ -49,6 +50,7 @@ class RegistryCompletionTests(unittest.TestCase):
                 "runtime.control",
                 "runtime.audit",
                 "runtime.note",
+                "runtime.artifact",
                 "storage.db",
                 "os.ls",
                 "os.cat",
@@ -59,7 +61,10 @@ class RegistryCompletionTests(unittest.TestCase):
     def test_registry_tracks_provider_groups(self):
         self.assertIn("os", self.registry.provider_names())
         self.assertEqual(self.registry.grouped_names()["os"], ["cat", "less", "ls"])
-        self.assertEqual(self.registry.grouped_names()["runtime"], ["audit", "cancel", "job", "kill", "note", "pipeline"])
+        self.assertEqual(
+            self.registry.grouped_names()["runtime"],
+            ["artifact", "audit", "cancel", "job", "kill", "note", "pipeline"],
+        )
         self.assertEqual(self.registry.grouped_names()["storage"], ["db"])
 
     def test_loads_package_defaults_into_varstore(self):
@@ -190,6 +195,13 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn("--cookie-file", probe_options)
         self.assertIn("--firefox-profile", probe_options)
         self.assertIn("--method", probe_options)
+
+    def test_artifact_completion_prefers_actions_first(self):
+        completer = Completer(self.registry)
+        self.assertEqual(completer.candidates("artifact "), ["attach", "list", "save", "verify"])
+        self.assertEqual(completer.candidates("artifact a"), ["attach"])
+        self.assertIn("file=", completer.candidates("artifact attach "))
+        self.assertIn("dir=", completer.candidates("artifact save "))
 
     def test_does_not_complete_exact_option_to_itself(self):
         completer = Completer(self.registry)

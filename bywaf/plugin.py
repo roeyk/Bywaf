@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol, cast
 
+from .artifacts import Artifact, artifact_store_for_event_store
 from .db import EventStore, Subscription
 from .events import Event
 from .varstore import ScopedVarStore, VarStore
@@ -214,6 +215,11 @@ class CommandContext:
         return ContextProcess(self)
 
     @property
+    def artifacts(self) -> "ContextArtifacts":
+        """Return the mediated encrypted artifact API for plugin code."""
+        return ContextArtifacts(self)
+
+    @property
     def pipeline_id(self) -> str | None:
         """Return the current pipeline ID, if this commandlet has one."""
         value = self.metadata.get("pipeline_id")
@@ -235,6 +241,12 @@ class CommandContext:
     def job_id(self) -> int | str | None:
         """Return the active job ID, if this commandlet is job-scoped."""
         return self.metadata.get("job_id")
+
+    @property
+    def note(self) -> str | None:
+        """Return the framework-level `note=` text for this command run."""
+        value = self.metadata.get("note")
+        return str(value) if value is not None else None
 
     @property
     def background(self) -> bool:
@@ -763,6 +775,101 @@ class ContextEvents:
         if self.context._db is None:
             raise ValueError(f"{label} requires an active database")
         return self.context._db
+
+
+@dataclass(frozen=True, slots=True)
+class ContextArtifacts:
+    """Framework-mediated encrypted artifact API exposed to commandlets."""
+
+    context: CommandContext
+
+    def attach_file(
+        self,
+        path: str | Path,
+        *,
+        name: str | None = None,
+        note: str | None = None,
+        job_id: int | str | None = None,
+        pipeline_id: str | None = None,
+        command_run_id: str | None = None,
+    ) -> Artifact:
+        """Attach one file to the encrypted artifact store and audit it."""
+        db = self.require_event_store("artifact attach")
+        self.context.audit_capability("filesystem.read")
+        self.context.audit_capability("artifact.write")
+        artifact = artifact_store_for_event_store(db).attach_file(
+            Path(path),
+            name=name,
+            note=note,
+            commandlet=self.context.source,
+            job_id=job_id if job_id is not None else self.context.job_id,
+            pipeline_id=pipeline_id if pipeline_id is not None else self.context.pipeline_id,
+            command_run_id=command_run_id if command_run_id is not None else self.context.command_run_id,
+            parent_command_run_id=self.context.parent_command_run_id,
+        )
+        self.publish_attached(artifact)
+        return artifact
+
+    def attach_files(
+        self,
+        paths: Iterable[str | Path],
+        *,
+        note: str | None = None,
+        job_id: int | str | None = None,
+        pipeline_id: str | None = None,
+        command_run_id: str | None = None,
+    ) -> list[Artifact]:
+        """Attach several files to the same run/job/pipeline provenance."""
+        return [
+            self.attach_file(
+                path,
+                note=note,
+                job_id=job_id,
+                pipeline_id=pipeline_id,
+                command_run_id=command_run_id,
+            )
+            for path in paths
+        ]
+
+    def publish_attached(self, artifact: Artifact) -> Event | None:
+        """Record artifact provenance in the main event database."""
+        if self.context._db is None:
+            return None
+        payload = artifact_event_payload(artifact)
+        return self.context._db.publish(
+            "artifact.attached",
+            payload,
+            "framework",
+            pipeline_id=artifact.pipeline_id,
+            command_run_id=artifact.command_run_id,
+            parent_command_run_id=artifact.parent_command_run_id,
+        )
+
+    def require_event_store(self, label: str) -> EventStore:
+        """Return the backing event store without exposing raw DB writes."""
+        if self.context._db is None:
+            raise ValueError(f"{label} requires an active database")
+        return self.context._db
+
+
+def artifact_event_payload(artifact: Artifact) -> dict[str, Any]:
+    """Return the main-DB audit payload for one artifact row."""
+    return {
+        "artifact_id": artifact.artifact_id,
+        "artifact_row_id": artifact.id,
+        "name": artifact.name,
+        "content_type": artifact.content_type,
+        "sha256": artifact.sha256,
+        "size": artifact.size,
+        "created_at": artifact.created_at,
+        "source_path": artifact.source_path,
+        "commandlet": artifact.commandlet,
+        "job_id": artifact.job_id,
+        "pipeline_id": artifact.pipeline_id,
+        "command_run_id": artifact.command_run_id,
+        "parent_command_run_id": artifact.parent_command_run_id,
+        "note": artifact.note,
+    }
 
 
 class Commandlet(Protocol):

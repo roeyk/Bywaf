@@ -42,7 +42,7 @@ Common workflow roles:
   documents, or handoff files.
 - **Correlator/analyzer** commandlets combine prior events into new conclusions.
 - **Runtime/storage** commandlets manage jobs, pipelines, audit logs, notes, or
-  databases.
+  artifacts, or databases.
 
 These categories are intentionally orthogonal. For example, an nmap commandlet
 could be a library-backed scanner or an external-process scanner, while a report
@@ -386,6 +386,7 @@ At execution time, commandlets receive a `CommandContext`:
 - `context.vars`: scoped variables for the current commandlet
 - `context.pipeline_id`, `context.command_run_id`, `context.job_id`: run scope
 - `context.parent_command_run_id`: upstream pipeline stage, if any
+- `context.note`: framework-level `note=` text for this command run, if any
 - `context.background`: whether the commandlet is running in the background
 - `context.input_high_watermark`: highest upstream event ID already consumed
 - `context.require_db()`: return the active DB or raise a clear error
@@ -396,6 +397,8 @@ At execution time, commandlets receive a `CommandContext`:
 - `context.page_file(path)`: request frontend-owned paging for a local file
 - `context.process.run(argv)`: run an external process and capture output
 - `context.process.stream(argv)`: stream stdout/stderr chunks incrementally
+- `context.artifacts.attach_file(path)`: attach one encrypted evidence file
+- `context.artifacts.attach_files(paths)`: attach several encrypted evidence files
 - `context.request(topic, payload)`: advanced escape hatch for framework requests
 - `context.cancelled()`: whether a soft-cancellation request is pending
 - `context.raise_if_cancelled()`: raise if cancellation is pending
@@ -423,6 +426,23 @@ Commandlets also do not need to implement at-file expansion. The framework
 expands `@file`, `@raw:file`, `@lines:file`, and `@@literal` before calling
 plugin `run()`. Use `@lines:file` when a file should become multiple arguments,
 such as a target list for a scanner.
+
+Plugins that produce evidence files should attach them through
+`context.artifacts` instead of leaving them as loose plaintext files:
+
+```python
+snapshot = context.artifacts.attach_file("snapshot.html", note="landing page")
+context.output(f"attached artifact {snapshot.id}")
+
+context.artifacts.attach_files(["snapshot.html", "headers.txt"])
+```
+
+Artifact bodies are stored in a separate encrypted SQLCipher database that uses
+the main encrypted database passphrase for the session. The main event database
+records `artifact.attached` provenance events containing the artifact id, hash,
+timestamp, job, pipeline, and command-run IDs. A commandlet can attach multiple
+artifacts to the same run; that is the expected model for screenshots, raw
+responses, parsed reports, and notes produced by one action.
 
 Use `context.events` instead of raw `context.db` for event-bus work:
 
