@@ -69,3 +69,8 @@ Planning dates are release planning markers, not compatibility commitments.
   audit handoff.
 - 2026-05-14: Added framework-mediated process execution through
   `context.process.run()` and line-oriented `context.process.stream()`.
+- 2026-05-17: Added framework-level `note=` parsing and `note.attached` audit
+  events for command runs.
+- 2026-05-17: Added `note` commandlet for timestamped note review and
+  `file=` export by run, pipeline, or job.
+- 2026-05-17: Added append-only post-hoc notes with `note add`.

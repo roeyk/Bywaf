@@ -26,6 +26,12 @@ so compatibility may change between testing releases.
   JSON, JSONL, and SQLite audit handoff.
 - Added framework-mediated external process execution through
   `context.process.run()` and line-oriented `context.process.stream()`.
+- Added framework-level `note=` selectors that attach audited notes to command
+  runs without plugin-specific parsing.
+- Added the `note` runtime commandlet to show or save timestamped notes by
+  `run=`, `pipeline=`, or `job=` selector.
+- Added append-only post-hoc notes with `note add ... text=...` and
+  `note add ... file=...`.
 - Added framework-owned file paging requests through `context.page_file()` and
   `framework.file.page.requested` events.
 - Added `DESIGN.md` with initial framework request IPC and plugin capability

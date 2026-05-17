@@ -282,6 +282,36 @@ and command run ID.
 This model allows downstream commandlets to consume only the output relevant to
 the current pipeline, rather than every historical event in the database.
 
+# Framework Notes
+
+Any commandlet stage can include a framework-level `note=` selector. The runner
+strips it before the commandlet receives arguments and records an audited
+`note.attached` event with the job, pipeline, and command-run IDs.
+
+```text
+bywaf> hostscanner 10.0.0.0/24 note=client-approved internal subnet
+```
+
+If `note=` is the last selector in a stage, it consumes the rest of that stage
+without requiring quotes:
+
+```text
+bywaf> hostscanner targets note=scope approved | portscanner note=top ports
+```
+
+Review attached notes with the `note` commandlet. Output and file exports use
+timestamp-first lines:
+
+```text
+bywaf> note run=<command-run-id>
+bywaf> note pipeline=<pipeline-id>
+bywaf> note job=<job-id> file=notes.txt
+bywaf> note add run=<command-run-id> text=follow-up note
+```
+
+Notes are append-only. Adding another note creates another timestamped
+`note.attached` event instead of replacing earlier notes.
+
 # Background Execution
 
 Append `&` to background a commandlet or pipeline:
@@ -792,6 +822,7 @@ job <list|show|cancel|kill>
 pipeline <list|show|cancel|kill>
 cancel <job=id|pipeline=id>
 kill [--force] <job=id|pipeline=id>
+note [add] <run=id|pipeline=id|job=id> [text=note|file=path]
 jobs
 runs
 topics

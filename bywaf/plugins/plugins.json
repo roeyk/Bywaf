@@ -8,6 +8,7 @@
     "runtime.pipeline",
     "runtime.control",
     "runtime.audit",
+    "runtime.note",
     "storage.db",
     "os.ls",
     "os.cat",

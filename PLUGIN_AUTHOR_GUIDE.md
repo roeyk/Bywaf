@@ -376,6 +376,13 @@ yield {"host": "127.0.0.1", "status": "up"}
 Those helpers keep plugin code simple while still routing display and audit
 state through the framework-owned event bus.
 
+Commandlets do not need to parse `note=`. It is a framework-level selector that
+the runner strips before calling plugin `run()`. The framework records the note
+as `note.attached` with the current job, pipeline, and command-run IDs. Users
+can review those notes with `note run=<id>`, `note pipeline=<id>`, or
+`note job=<id> file=notes.txt`. Users can add post-hoc notes with
+`note add run=<id> text=...`; notes are append-only events.
+
 Use `context.events` instead of raw `context.db` for event-bus work:
 
 ```python

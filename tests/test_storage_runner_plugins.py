@@ -61,6 +61,30 @@ class StorageRunnerPluginTests(unittest.TestCase):
         self.assertEqual(invocation.from_topic, "host.found")
         self.assertEqual(invocation.args, ["--ports", "80"])
 
+    def test_parse_invocation_strips_final_unquoted_note(self):
+        invocation = parse_invocation("hostscanner 127.0.0.1 note=client approved target")
+        self.assertEqual(invocation.name, "hostscanner")
+        self.assertEqual(invocation.args, ["127.0.0.1"])
+        self.assertEqual(invocation.note, "client approved target")
+
+    def test_parse_invocation_strips_quoted_note(self):
+        invocation = parse_invocation('hostscanner 127.0.0.1 note="client approved target"')
+        self.assertEqual(invocation.args, ["127.0.0.1"])
+        self.assertEqual(invocation.note, "client approved target")
+
+    def test_parse_pipeline_keeps_stage_notes_separate(self):
+        pipeline = parse_pipeline("hostscanner 127.0.0.1 note=scope approved | portscanner note=top ports")
+        self.assertEqual(pipeline.commands[0].args, ["127.0.0.1"])
+        self.assertEqual(pipeline.commands[0].note, "scope approved")
+        self.assertEqual(pipeline.commands[1].args, [])
+        self.assertEqual(pipeline.commands[1].note, "top ports")
+
+    def test_parse_invocation_keeps_background_marker_with_note(self):
+        invocation = parse_invocation("hostscanner 127.0.0.1& note=background scan")
+        self.assertTrue(invocation.background)
+        self.assertEqual(invocation.args, ["127.0.0.1"])
+        self.assertEqual(invocation.note, "background scan")
+
     def test_parse_save_spec_accepts_encrypt_before_resource(self):
         encrypt, resource = parse_save_spec("--encrypt db=client.sqlite3")
         self.assertTrue(encrypt)
@@ -253,6 +277,103 @@ class StorageRunnerPluginTests(unittest.TestCase):
             self.assertTrue(capabilities["network.connect"])
             self.assertTrue(capabilities["framework.console.alert"])
             self.assertTrue(capabilities["db.write:host.found"])
+
+    def test_framework_note_attaches_to_command_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]):
+                runner = make_runner(Path(tmp, "db.sqlite3"))
+                with contextlib.redirect_stdout(io.StringIO()):
+                    events = runner.execute("hostscanner 127.0.0.1 note=client approved target")
+            note = runner.db.events_for_topic("note.attached")[0]
+            self.assertEqual(note.payload["note"], "client approved target")
+            self.assertEqual(note.payload["commandlet"], "hostscanner")
+            self.assertEqual(note.command_run_id, events[0].command_run_id)
+            self.assertEqual(note.pipeline_id, events[0].pipeline_id)
+            self.assertEqual(note.payload["job_id"], runner.db.jobs()[0]["id"])
+
+    def test_framework_note_attaches_to_each_pipeline_stage(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with (
+                patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]),
+                patch(
+                    "bywaf.plugins.network.portscanner.scan_open_ports",
+                    return_value=[NmapPort("127.0.0.1", 80, "tcp", "open", "http")],
+                ),
+            ):
+                runner = make_runner(Path(tmp, "db.sqlite3"))
+                with contextlib.redirect_stdout(io.StringIO()):
+                    events = runner.execute(
+                        "hostscanner 127.0.0.1 note=scope approved | portscanner note=top ports"
+                    )
+            notes = runner.db.events_for_topic("note.attached")
+            self.assertEqual([note.payload["note"] for note in notes], ["scope approved", "top ports"])
+            self.assertEqual(notes[0].command_run_id, events[0].command_run_id)
+            self.assertEqual(notes[1].command_run_id, events[-1].command_run_id)
+
+    def test_note_command_shows_run_notes_with_timestamp_first(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]):
+                runner = make_runner(Path(tmp, "db.sqlite3"))
+                with contextlib.redirect_stdout(io.StringIO()):
+                    events = runner.execute("hostscanner 127.0.0.1 note=client approved target")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute(f"note run={events[0].command_run_id}")
+                process_framework_requests(runner, ShellState())
+            line = output.getvalue().splitlines()[-1]
+            self.assertRegex(line, r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC")
+            self.assertIn("client approved target", line)
+            self.assertIn(f"run={events[0].command_run_id}", line)
+
+    def test_note_command_saves_job_notes_to_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp, "notes.txt")
+            with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]):
+                runner = make_runner(Path(tmp, "db.sqlite3"))
+                with contextlib.redirect_stdout(io.StringIO()):
+                    runner.execute("hostscanner 127.0.0.1 note=file export note")
+            job_id = runner.db.jobs()[0]["id"]
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute(f"note job={job_id} file={path}")
+                process_framework_requests(runner, ShellState())
+            text = path.read_text()
+            self.assertRegex(text, r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC")
+            self.assertIn("file export note", text)
+            self.assertIn(f"saved 1 notes to {path}", output.getvalue())
+
+    def test_note_add_appends_multiple_run_notes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]):
+                runner = make_runner(Path(tmp, "db.sqlite3"))
+                with contextlib.redirect_stdout(io.StringIO()):
+                    events = runner.execute("hostscanner 127.0.0.1 note=initial note")
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute(f"note add run={events[0].command_run_id} text=second note")
+                process_framework_requests(runner, ShellState())
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute(f"note run={events[0].command_run_id}")
+                process_framework_requests(runner, ShellState())
+            lines = [line for line in output.getvalue().splitlines() if "run=" in line]
+            self.assertEqual(len(lines), 2)
+            self.assertIn("initial note", lines[0])
+            self.assertIn("second note", lines[1])
+
+    def test_note_add_reads_text_from_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            note_file = Path(tmp, "note.txt")
+            note_file.write_text("file-backed posthoc note\n")
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.record_job("manual", None, "finished")
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute(f"note add job=1 file={note_file}")
+                process_framework_requests(runner, ShellState())
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("note job=1")
+                process_framework_requests(runner, ShellState())
+            self.assertIn("file-backed posthoc note", output.getvalue())
 
     def test_foreground_command_records_job_lifecycle(self):
         with tempfile.TemporaryDirectory() as tmp:

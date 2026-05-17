@@ -240,6 +240,23 @@ process.stdout
 process.stderr
 process.exited
 ```
+
+## Framework Notes
+
+`note=` is a framework-owned stage selector. The runner removes it before
+commandlet argument parsing, then writes a `note.attached` event once the stage
+has job, pipeline, and command-run IDs. This keeps note behavior consistent for
+all commandlets and avoids plugin-specific note parsing.
+
+If `note=` is the final selector in a command stage, it consumes the rest of
+that stage text without requiring quotes. In a pipeline, the note ends at the
+pipe boundary.
+
+The `note` runtime commandlet reads `note.attached` events by `run=`,
+`pipeline=`, or `job=` selector. Console output and `file=` exports use
+timestamp-first text lines so notes can be reviewed or copied into reports.
+Notes are append-only; `note add ... text=...` creates another event rather
+than modifying earlier context.
 - `cwd`
 - `exit_code`
 - output sizes or hashes

@@ -28,6 +28,7 @@ class CommandInvocation:
     from_run: str | None = None
     from_pipeline: str | None = None
     from_topic: str | None = None
+    note: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,6 +45,7 @@ def parse_invocation(text: str) -> CommandInvocation:
     This function strips Bywaf framework selectors such as `--from-run` before
     plugin argparse sees the remaining plugin-owned arguments.
     """
+    text, note = peel_note_selector(text)
     tokens = shlex.split(text)
     background = False
     if tokens:
@@ -52,7 +54,7 @@ def parse_invocation(text: str) -> CommandInvocation:
         raise ValueError("empty command")
     name, *args = tokens
     args, selectors = peel_context_selectors(args)
-    return CommandInvocation(name=name, args=args, background=background, **selectors)
+    return CommandInvocation(name=name, args=args, background=background, note=note, **selectors)
 
 
 def parse_pipeline(command_line: str) -> Pipeline:
@@ -63,7 +65,15 @@ def parse_pipeline(command_line: str) -> Pipeline:
     commands = list(parse_invocation(part) for part in parts)
     if background and commands:
         last = commands[-1]
-        commands[-1] = CommandInvocation(last.name, last.args, background=True)
+        commands[-1] = CommandInvocation(
+            last.name,
+            last.args,
+            background=True,
+            from_run=last.from_run,
+            from_pipeline=last.from_pipeline,
+            from_topic=last.from_topic,
+            note=last.note,
+        )
     return Pipeline(tuple(commands), any(command.background for command in commands))
 
 
@@ -241,6 +251,7 @@ class Runner:
                     stage.invocation.from_run,
                     stage.invocation.from_pipeline,
                     stage.invocation.from_topic,
+                    stage.invocation.note,
                 ),
                 daemon=False,
             )
@@ -346,6 +357,58 @@ def peel_background_marker(tokens: list[str]) -> tuple[list[str], bool]:
             return [*tokens[:-1], stripped], True
         return tokens[:-1], True
     return tokens, False
+
+
+def peel_note_selector(text: str) -> tuple[str, str | None]:
+    """Remove a framework-owned `note=` selector from raw stage text.
+
+    The selector is parsed before `shlex.split` so a final unquoted note can
+    consume the rest of the command stage:
+
+    `hostscanner targets note=client approved`
+    """
+    index = find_unquoted_note_selector(text)
+    if index is None:
+        return text, None
+    note = normalize_note_text(text[index + len("note="):])
+    if not note:
+        raise ValueError("note= requires a value")
+    return text[:index].rstrip(), note
+
+
+def find_unquoted_note_selector(text: str) -> int | None:
+    """Return the index of a token-boundary `note=` outside shell quotes."""
+    quote: str | None = None
+    escaped = False
+    for index, char in enumerate(text):
+        if escaped:
+            escaped = False
+            continue
+        if char == "\\":
+            escaped = True
+            continue
+        if quote is not None:
+            if char == quote:
+                quote = None
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            continue
+        if text.startswith("note=", index) and (index == 0 or text[index - 1].isspace()):
+            return index
+    return None
+
+
+def normalize_note_text(raw_note: str) -> str:
+    """Return note text with shell quotes removed when possible."""
+    stripped = raw_note.strip()
+    if not stripped:
+        return ""
+    try:
+        tokens = shlex.split(stripped)
+    except ValueError:
+        return stripped
+    return " ".join(tokens)
 
 
 def peel_context_selectors(args: list[str]) -> tuple[list[str], dict[str, str | None]]:
@@ -478,6 +541,7 @@ def build_context(
             "from_run": invocation.from_run,
             "from_pipeline": invocation.from_pipeline,
             "from_topic": invocation.from_topic,
+            "note": invocation.note,
             "replace_db": replace_db,
             "job_id": job_id,
             "run_vars": run_vars,
@@ -511,6 +575,7 @@ def execute_stage(
         replace_db=replace_db,
     )
     context.raise_if_cancelled()
+    publish_note_if_present(db, context, invocation.note)
     for input_topic in sorted({event.topic for event in selected_input_events}):
         context.audit_capability(f"db.read:{input_topic}")
     topic = plugin.spec.emits[0] if plugin.spec.emits else plugin.spec.name
@@ -528,6 +593,27 @@ def execute_stage(
     return StageResult(events)
 
 
+def publish_note_if_present(db: EventStore, context: CommandContext, note: str | None) -> Event | None:
+    """Persist a framework-owned note attached to this command run."""
+    if note is None:
+        return None
+    return db.publish(
+        "note.attached",
+        {
+            "note": note,
+            "job_id": context.job_id,
+            "pipeline_id": context.pipeline_id,
+            "command_run_id": context.command_run_id,
+            "parent_command_run_id": context.parent_command_run_id,
+            "commandlet": context.source,
+        },
+        "framework",
+        pipeline_id=context.pipeline_id,
+        command_run_id=context.command_run_id,
+        parent_command_run_id=context.parent_command_run_id,
+    )
+
+
 def run_stage_process(
     db_path: str,
     db_passphrase: str | None,
@@ -541,6 +627,7 @@ def run_stage_process(
     from_run: str | None,
     from_pipeline: str | None,
     from_topic: str | None,
+    note: str | None,
 ) -> None:
     """Child-process entry point for one background pipeline stage."""
     db = EventStore(Path(db_path), passphrase=db_passphrase)
@@ -553,6 +640,7 @@ def run_stage_process(
             from_run=from_run,
             from_pipeline=from_pipeline,
             from_topic=from_topic,
+            note=note,
         ),
         command_run_id,
         parent_command_run_id,
