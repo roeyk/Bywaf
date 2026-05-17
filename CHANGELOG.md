@@ -5,7 +5,29 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-### Added
+Last updated: 2026-05-17 03:55:02 EDT
+
+### 2026-05-17 03:55:02 EDT
+
+#### Added
+
+- Added topics prefix filtering, including clean empty-DB behavior for
+  `topics <prefix>`.
+- Cleaned completion leaks for prompt/internal REPL words and made `run <tab>`
+  complete commandlet pipeline names.
+- Added audit `since=` and `until=` selectors plus PDF export and encrypted
+  SQLite/PDF export support.
+- Added `except=` scanner exclusion lists with file-backed `@lines:` support.
+- Added the `use` built-in for commandlet-scoped short variable assignments and
+  context-first `vars` completion.
+- Added artifact verification cross-checks against both the encrypted artifact
+  DB hash and the main audit DB artifact metadata hash.
+- Added `pause`, `resume`, and `stop` runtime commandlets for jobs and
+  pipelines, with soft behavior by default and explicit hard controls.
+
+### Earlier Unreleased Changes
+
+#### Added
 
 - Added audit-only plugin capability declarations on `CommandSpec`.
 - Added `plugin.capability.used` and `plugin.capability.missing` audit events
@@ -56,7 +78,7 @@ so compatibility may change between testing releases.
 - Added plugin type taxonomy guidance to the plugin author guide.
 - Added roadmap candidates to `TODO.md`.
 
-### Changed
+#### Changed
 
 - Changed the `less` commandlet to request paging from the framework instead of
   launching terminal paging directly.

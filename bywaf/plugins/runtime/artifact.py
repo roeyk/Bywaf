@@ -182,13 +182,20 @@ def verify_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
     artifacts = select_artifacts(context, selectors)
     body_results = {result.artifact_id: result for result in store.verify(artifacts)}
     attached_events = db.events_matching(topic="artifact.attached", limit=100000)
-    attached_ids = {str(event.payload.get("artifact_id")) for event in attached_events}
+    attached_by_id = {str(event.payload.get("artifact_id")): event for event in attached_events}
+    attached_ids = set(attached_by_id)
     matched_ids = {artifact.artifact_id for artifact in artifacts}
     for artifact in artifacts:
         result = body_results[artifact.artifact_id]
         problems = list(result.problems)
-        if artifact.artifact_id not in attached_ids:
+        attached_event = attached_by_id.get(artifact.artifact_id)
+        if attached_event is None:
             problems.append("missing main-db artifact.attached event")
+        else:
+            if attached_event.payload.get("sha256") != artifact.sha256:
+                problems.append("main-db sha256 mismatch")
+            if attached_event.payload.get("size") != artifact.size:
+                problems.append("main-db size mismatch")
         status = "ok" if not problems else "failed"
         detail = "" if not problems else f" problems={json.dumps(problems)}"
         context.output(f"{status} artifact={artifact.id} artifact_id={artifact.artifact_id}{detail}")

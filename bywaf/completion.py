@@ -28,6 +28,7 @@ class Completer:
 
     registry: PluginRegistry
     db: EventStore | None = None
+    active_context: str | None = None
     builtins: tuple[str, ...] = (
         "help",
         "?",
@@ -38,12 +39,12 @@ class Completer:
         "load",
         "plugins",
         "prompt",
-        "repl",
         "run",
         "runs",
         "save",
         "show",
         "topics",
+        "use",
         "vars",
         "exit",
         "quit",
@@ -67,6 +68,12 @@ class Completer:
                 base = self.show_candidates(prefix)
             case ["history", *_]:
                 base = history_candidates(prefix)
+            case ["prompt", *_]:
+                base = []
+            case ["run", *_]:
+                base = self.pipeline_expression_candidates(prefix)
+            case ["use", *_]:
+                base = ["global", *self.registry.names()]
             case [name, *rest] if name in self.registry.plugins:
                 base = self.plugin_candidates(name, prefix, rest)
             case ["load", *_]:
@@ -74,7 +81,7 @@ class Completer:
             case ["save", *_]:
                 base = self.save_candidates(prefix)
             case ["vars", *_]:
-                base = [f"{name}=" for name in self.registry.varstore.names()]
+                base = self.vars_candidates(prefix)
             case _:
                 base = [*self.builtins, *self.registry.names()]
         if prefix == "--":
@@ -198,6 +205,14 @@ class Completer:
             return []
         return [str(row["id"]) for row in self.db.jobs()]
 
+    def pipeline_expression_candidates(self, prefix: str) -> list[str]:
+        """Complete commandlet names after the built-in `run` command."""
+        if prefix.startswith("@"):
+            return complete_at_file_prefix(prefix)
+        if prefix.startswith(".") or "/" in prefix:
+            return complete_path(prefix)
+        return self.registry.names()
+
     def complete_by_spec(self, spec: CompletionSpec, prefix: str) -> list[str]:
         """Resolve a CompletionSpec into concrete candidates."""
         match spec.kind:
@@ -227,6 +242,23 @@ class Completer:
     def save_candidates(self, prefix: str) -> list[str]:
         """Complete `save` resource keys and values."""
         return resource_candidates(prefix, ("config=", "db=", "history="))
+
+    def vars_candidates(self, prefix: str) -> list[str]:
+        """Complete variables, preferring the active `use` context."""
+        names = list(self.registry.varstore.names())
+        if "." in prefix or prefix.startswith("global."):
+            return [f"{name}=" for name in names]
+        if self.active_context:
+            scoped_prefix = f"{self.active_context}."
+            short_names = [
+                f"{name.removeprefix(scoped_prefix)}="
+                for name in names
+                if name.startswith(scoped_prefix)
+            ]
+            if short_names:
+                return short_names
+        namespaces = sorted({name.split(".", 1)[0] for name in names if "." in name})
+        return [f"{namespace}." for namespace in namespaces] + [f"{name}=" for name in names if "." not in name]
 
     def complete(self, text: str, state: int) -> str | None:
         """Readline callback: return one candidate per requested state."""

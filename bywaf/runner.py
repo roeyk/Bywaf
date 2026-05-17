@@ -734,6 +734,10 @@ def expand_at_file_args(context: CommandContext, args: list[str]) -> list[str]:
 
 def expand_at_file_arg(arg: str) -> tuple[list[str], AtFileExpansion | None]:
     """Expand one `@` argument or return it unchanged."""
+    if "=@" in arg and not arg.startswith("@"):
+        key, value = arg.split("=", 1)
+        values, expansion = expand_at_file_arg(value)
+        return [f"{key}={','.join(values)}"], expansion
     if not arg.startswith("@"):
         return [arg], None
     if arg.startswith("@@"):

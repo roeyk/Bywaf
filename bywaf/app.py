@@ -46,6 +46,7 @@ HELP_COMMANDS = (
     HelpEntry("runs", "show commandlet run IDs", "runs"),
     HelpEntry("vars [name=value]", "list or set session variables", "vars [name=value]", ("vars http_probe.cookie-file=/tmp/cookies.txt",)),
     HelpEntry("topics", "list event topics in the active database", "topics"),
+    HelpEntry("use <commandlet|global>", "set the active variable context", "use <commandlet|global>"),
     HelpEntry("show <topic|job=id|run=id|pipeline=id>", "show events for a topic, job, run, or pipeline", "show <topic|job=id|run=id|pipeline=id>", ("show host.found", "show run=hostscanner-...", "show pipeline=pipeline-...")),
     HelpEntry("prompt [pattern]", "show or set prompt pattern", "prompt [pattern]", ("prompt %u@%h %T > ",)),
     HelpEntry("load plugin=<path>", "load a filesystem plugin", "load plugin=<path>"),
@@ -82,6 +83,8 @@ class ShellState:
     session_history: list[str] = field(default_factory=list)
     handled_request_ids: set[int] = field(default_factory=set)
     framework_request_after_id: int = 0
+    active_context: str | None = None
+    completer: Completer | None = None
 
     def prompt(self) -> str:
         return render_prompt(self.prompt_pattern)
@@ -148,7 +151,8 @@ def repl(runner: Runner) -> None:
     """Run the interactive shell until EOF, interrupt, or an exit command."""
 
     state = ShellState()
-    install_readline(Completer(runner.registry, runner.db))
+    state.completer = Completer(runner.registry, runner.db)
+    install_readline(state.completer)
     try:
         while True:
             process_framework_requests(runner, state)
@@ -228,15 +232,21 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
                 print_events(events)
             case ["runs"]:
                 print_runs(runner)
+            case ["use", target]:
+                set_active_context(runner, state, target)
+            case ["use"]:
+                print(state.active_context or "global")
             case ["vars"]:
                 print_vars(runner)
             case ["vars", assignment] if "=" in assignment:
                 key, value = assignment.split("=", 1)
-                runner.registry.varstore.set(key.strip(), value.strip())
+                runner.registry.varstore.set(resolve_var_key(state, key.strip()), value.strip())
             case ["vars", _]:
                 print("usage: vars [name=value]")
             case ["topics"]:
                 print_topics(runner)
+            case ["topics", prefix]:
+                print_topics(runner, prefix)
             case ["show", target] if target.startswith("job="):
                 print_job(runner, target.split("=", 1)[1])
             case ["show", target] if target.startswith("run="):
@@ -762,10 +772,39 @@ def print_vars(runner: Runner) -> None:
         print(f"{key}={value}")
 
 
-def print_topics(runner: Runner) -> None:
-    """Print event topics known to the active database."""
-    for topic in runner.db.topics():
+def set_active_context(runner: Runner, state: ShellState, target: str) -> None:
+    """Set the active commandlet context for short variable assignments."""
+    if target == "global":
+        state.active_context = None
+        if state.completer is not None:
+            state.completer.active_context = None
+        print("using global")
+        return
+    commandlet = target.split(".", 1)[-1]
+    if commandlet not in runner.registry.plugins:
+        raise ValueError(f"unknown commandlet context: {target}")
+    state.active_context = commandlet
+    if state.completer is not None:
+        state.completer.active_context = commandlet
+    print(f"using {commandlet}")
+
+
+def resolve_var_key(state: ShellState, key: str) -> str:
+    """Resolve unqualified variable keys through the active `use` context."""
+    if "." in key or key.startswith("global."):
+        return key
+    if state.active_context:
+        return f"{state.active_context}.{key}"
+    return key
+
+
+def print_topics(runner: Runner, prefix: str = "") -> None:
+    """Print event topics known to the active database, optionally filtered."""
+    matched = [topic for topic in runner.db.topics() if topic.startswith(prefix)]
+    for topic in matched:
         print(topic)
+    if prefix and not matched:
+        print(f"no matching topics: {prefix}")
 
 
 def print_commandlets(runner: Runner) -> None:

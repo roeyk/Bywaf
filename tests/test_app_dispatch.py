@@ -116,6 +116,37 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "list")
             self.assertIn("error: unknown command or commandlet: list", output.getvalue())
 
+    def test_dispatch_topics_accepts_prefix_on_empty_db(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "topics plugins")
+            self.assertIn("no matching topics: plugins", output.getvalue())
+
+    def test_dispatch_topics_filters_by_prefix(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish("host.found", {"host": "127.0.0.1"}, "test")
+            runner.db.publish("port.open", {"port": 80}, "test")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "topics host")
+            self.assertIn("host.found", output.getvalue())
+            self.assertNotIn("port.open", output.getvalue())
+
+    def test_use_context_scopes_short_vars_assignments(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            with contextlib.redirect_stdout(io.StringIO()):
+                dispatch_repl_line(runner, "use hostscanner", state)
+                dispatch_repl_line(runner, "vars targets=127.0.0.1", state)
+                dispatch_repl_line(runner, "use global", state)
+                dispatch_repl_line(runner, "vars target=global", state)
+            self.assertEqual(runner.registry.varstore.get("hostscanner.targets"), "127.0.0.1")
+            self.assertEqual(runner.registry.varstore.get("target"), "global")
+
     def test_dispatch_ls_lists_local_files(self):
         with tempfile.TemporaryDirectory() as tmp:
             Path(tmp, "file.txt").write_text("x")
@@ -244,6 +275,22 @@ class AppDispatchTests(unittest.TestCase):
                 runner.execute(f"job cancel {job_id}")
                 process_framework_requests(runner, ShellState())
             self.assertIn(f"cancel requested for job {job_id}", output.getvalue())
+
+    def test_pause_resume_stop_commands_record_job_state(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("portscanner --listen", 123, "running")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute(f"pause job={job_id}")
+                process_framework_requests(runner, ShellState())
+                runner.execute(f"resume --listonly job={job_id}")
+                process_framework_requests(runner, ShellState())
+                runner.execute(f"stop job={job_id}")
+                process_framework_requests(runner, ShellState())
+            self.assertIn(f"soft pause requested for job {job_id}", output.getvalue())
+            self.assertIn(f"queued resume actions for job {job_id}", output.getvalue())
+            self.assertTrue(runner.db.cancellation_requested(job_id=job_id))
             self.assertTrue(runner.db.cancellation_requested(job_id=job_id))
             job = runner.db.job(job_id)
             self.assertIsNotNone(job)

@@ -33,6 +33,9 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn("pipeline", self.registry.names())
         self.assertIn("kill", self.registry.names())
         self.assertIn("cancel", self.registry.names())
+        self.assertIn("pause", self.registry.names())
+        self.assertIn("resume", self.registry.names())
+        self.assertIn("stop", self.registry.names())
         self.assertIn("audit", self.registry.names())
         self.assertIn("note", self.registry.names())
         self.assertIn("artifact", self.registry.names())
@@ -63,7 +66,7 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertEqual(self.registry.grouped_names()["os"], ["cat", "less", "ls"])
         self.assertEqual(
             self.registry.grouped_names()["runtime"],
-            ["artifact", "audit", "cancel", "job", "kill", "note", "pipeline"],
+            ["artifact", "audit", "cancel", "job", "kill", "note", "pause", "pipeline", "resume", "stop"],
         )
         self.assertEqual(self.registry.grouped_names()["storage"], ["db"])
 
@@ -80,10 +83,30 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn("history", completer.candidates("hist"))
         self.assertIn("ls", completer.candidates("l"))
         self.assertIn("plugins", completer.candidates("plu"))
+        self.assertNotIn("repl", completer.candidates("re"))
         self.assertEqual(
             completer.candidates("hostscanner 127.0.0.1& | por"),
             ["portscanner"],
         )
+
+    def test_prompt_has_no_argument_completion(self):
+        self.assertEqual(Completer(self.registry).candidates("prompt "), [])
+
+    def test_run_completes_commandlet_pipeline_names(self):
+        self.assertEqual(Completer(self.registry).candidates("run host"), ["hostscanner"])
+
+    def test_use_completes_contexts(self):
+        completer = Completer(self.registry)
+        self.assertEqual(completer.candidates("use glo"), ["global"])
+        self.assertEqual(completer.candidates("use host"), ["hostscanner"])
+
+    def test_vars_completion_prefers_active_context_scope(self):
+        self.registry.varstore.set("hostscanner.targets", "127.0.0.1")
+        self.registry.varstore.set("global.proxy", "http://127.0.0.1:8080")
+        completer = Completer(self.registry, active_context="hostscanner")
+        self.assertIn("targets=", completer.candidates("vars "))
+        self.assertNotIn("hostscanner.targets=", completer.candidates("vars "))
+        self.assertEqual(completer.candidates("vars global.pro"), ["global.proxy="])
 
     def test_completes_history_time_window_selectors(self):
         completer = Completer(self.registry)
@@ -238,6 +261,7 @@ class RegistryCompletionTests(unittest.TestCase):
             completer.candidates("portscanner --"),
             [
                 "--arguments",
+                "--except",
                 "--from-pipeline",
                 "--from-run",
                 "--from-topic",

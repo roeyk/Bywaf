@@ -120,6 +120,33 @@ class StorageRunnerPluginTests(unittest.TestCase):
             self.assertIn('"topic": "topic"', output.getvalue())
             self.assertIn('"value": 1', output.getvalue())
 
+    def test_audit_show_filters_since_until_time(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            first = runner.db.publish("topic", {"value": "old"}, "test")
+            second = runner.db.publish("topic", {"value": "new"}, "test")
+            with runner.db.connect() as conn:
+                conn.execute("UPDATE events SET created_at = ? WHERE id = ?", ("2026-05-16T10:00:00+00:00", first.id))
+                conn.execute("UPDATE events SET created_at = ? WHERE id = ?", ("2026-05-17T10:00:00+00:00", second.id))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("audit show topic=topic since=20260517 until=20260517")
+                process_framework_requests(runner, ShellState())
+            self.assertNotIn('"value": "old"', output.getvalue())
+            self.assertIn('"value": "new"', output.getvalue())
+
+    def test_audit_show_filters_since_run_bound(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish("topic", {"value": "old"}, "test", command_run_id="old-run")
+            runner.db.publish("topic", {"value": "new"}, "test", command_run_id="new-run")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("audit show topic=topic since=run:new-run")
+                process_framework_requests(runner, ShellState())
+            self.assertNotIn('"value": "old"', output.getvalue())
+            self.assertIn('"value": "new"', output.getvalue())
+
     def test_audit_export_writes_jsonl(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "audit.jsonl")
@@ -141,6 +168,27 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 runner.execute(f"audit export file={path}")
                 process_framework_requests(runner, ShellState())
             self.assertEqual(EventStore(path).events_for_topic("topic")[0].payload["value"], 1)
+
+    def test_audit_export_writes_pdf(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp, "audit.pdf")
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish("topic", {"value": 1}, "test")
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute(f"audit export file={path}")
+                process_framework_requests(runner, ShellState())
+            self.assertTrue(path.read_bytes().startswith(b"%PDF-1.4"))
+
+    def test_audit_export_encrypted_pdf_requires_qpdf(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp, "audit.pdf")
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            with (
+                patch("bywaf.plugins.runtime.audit.shutil.which", return_value=None),
+                patch.dict("sys.modules", {"pikepdf": None}),
+            ):
+                with self.assertRaisesRegex(ValueError, "qpdf"):
+                    runner.execute(f"audit export --encrypt file={path}")
 
     def test_db_new_file_creates_and_switches_active_database(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -289,6 +337,29 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 runner.execute(f"artifact attach run=run-1 file={first} file={second}")
             with self.assertRaisesRegex(ValueError, "matched multiple artifacts"):
                 runner.execute(f"artifact save run=run-1 file={Path(tmp, 'out.txt')}")
+
+    @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
+    def test_artifact_verify_detects_main_db_hash_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp, "db.sqlite3")
+            source = Path(tmp, "snapshot.html")
+            source.write_text("<html>ok</html>")
+            runner = make_runner(db_path, encrypted=True, passphrase="secret")
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute(f"artifact attach run=run-1 file={source}")
+            event = runner.db.events_for_topic("artifact.attached")[0]
+            payload = dict(event.payload)
+            payload["sha256"] = "bad"
+            with runner.db.connect() as conn:
+                conn.execute(
+                    "UPDATE events SET payload_json = ? WHERE id = ?",
+                    (json.dumps(payload, sort_keys=True), event.id),
+                )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("artifact verify run=run-1")
+                process_framework_requests(runner, ShellState())
+            self.assertIn("main-db sha256 mismatch", output.getvalue())
 
     def test_artifact_attach_requires_encrypted_main_database(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -505,6 +576,24 @@ class StorageRunnerPluginTests(unittest.TestCase):
                     runner.execute("hostscanner 192.168.0.1-2")
             discover.assert_called_once_with("192.168.0.1 192.168.0.2", "-sn")
 
+    def test_hostscanner_except_removes_targets_before_nmap(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["192.168.0.1"]) as discover:
+                runner = make_runner(Path(tmp, "db.sqlite3"))
+                with contextlib.redirect_stdout(io.StringIO()):
+                    runner.execute("hostscanner 192.168.0.1-3 except=192.168.0.2,192.168.0.3")
+            discover.assert_called_once_with("192.168.0.1", "-sn")
+
+    def test_hostscanner_except_supports_at_file_value(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            excluded = Path(tmp, "excluded.txt")
+            excluded.write_text("192.168.0.2\n")
+            with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["192.168.0.1"]) as discover:
+                runner = make_runner(Path(tmp, "db.sqlite3"))
+                with contextlib.redirect_stdout(io.StringIO()):
+                    runner.execute(f"hostscanner 192.168.0.1-2 except=@lines:{excluded}")
+            discover.assert_called_once_with("192.168.0.1", "-sn")
+
     def test_expand_targets_enforces_limit(self):
         with self.assertRaisesRegex(ValueError, "exceeds limit"):
             expand_targets(["192.168.0.1-3"], 2)
@@ -578,6 +667,17 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 with contextlib.redirect_stdout(io.StringIO()):
                     runner.execute("portscanner --ports 80 127.0.0.1")
             self.assertEqual(scan.call_args.args[1], "80")
+
+    def test_portscanner_except_skips_hosts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            with patch(
+                "bywaf.plugins.network.portscanner.scan_open_ports",
+                return_value=[NmapPort("127.0.0.1", 80, "tcp", "open")],
+            ) as scan:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    runner.execute("portscanner 127.0.0.1 127.0.0.2 except=127.0.0.2")
+            self.assertEqual(scan.call_args.args[0], ["127.0.0.1"])
 
     def test_portscanner_silent_suppresses_alert(self):
         context = CommandContext(db=None, source="portscanner", metadata={"command_run_id": "run-1"})

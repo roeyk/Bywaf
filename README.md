@@ -231,8 +231,19 @@ bywaf> vars global.progress.min-percent-delta=1
 ```
 
 Audit logs are stored as SQLite events. Use `audit show ...` to inspect them
-and `audit export file=audit.jsonl` or `audit export file=audit.sqlite3` to
-hand off a copy.
+and `audit export file=audit.jsonl`, `audit export file=audit.pdf`, or
+`audit export file=audit.sqlite3` to hand off a copy.
+
+```text
+bywaf> audit show topic=console.alert since=20260517 until=20260518
+bywaf> audit export file=audit.pdf since=run=<command-run-id>
+bywaf> audit export --encrypt file=audit.sqlite3
+bywaf> audit export --encrypt file=audit.pdf
+```
+
+Unqualified `since=` and `until=` audit bounds default to `time:`. Encrypted
+SQLite audit exports use SQLCipher. Encrypted PDF export uses `pikepdf` when
+available, otherwise the external `qpdf` command.
 
 # Plugins
 
@@ -392,6 +403,7 @@ framework argument expansion.
 
 ```text
 bywaf> hostscanner @lines:targets.txt
+bywaf> hostscanner 192.168.1.1-255 except=@lines:do-not-scan.txt
 bywaf> http_probe @target.txt
 bywaf> echo @@literal-at-sign
 ```
@@ -402,6 +414,9 @@ Supported forms:
 - `@raw:file`: read the file as one text argument
 - `@lines:file`: expand each non-empty line into a separate argument
 - `@@value`: pass `@value` literally
+
+Scanner commandlets support `except=` for exclusion lists. Values may be comma
+separated or file-backed through `@lines:`.
 
 Tab completion preserves these prefixes while completing filesystem paths.
 
@@ -492,6 +507,9 @@ bywaf> cancel job=<id>
 bywaf> cancel pipeline=<id>
 bywaf> kill job=<id>
 bywaf> kill --force pipeline=<id>
+bywaf> pause job=<id>
+bywaf> resume --listonly pipeline=<id>
+bywaf> stop --hard job=<id>
 ```
 
 `jobs` remains as a convenience alias for `job list`, and `pipelines` remains
@@ -671,6 +689,15 @@ bywaf> vars http_probe.cookie-file=/tmp/cookies.txt
 bywaf> vars history.timestamp-format=%Y-%m-%d %H:%M:%S %Z
 bywaf> vars hostscanner.targets=192.168.1.1-255
 bywaf> hostscanner
+```
+
+Use a commandlet context to make short variable assignments target that
+commandlet:
+
+```text
+bywaf> use hostscanner
+bywaf> vars targets=192.168.1.1-255
+bywaf> use global
 ```
 
 For commandlets that opt into variable defaults, explicit command-line
