@@ -10,6 +10,7 @@ from __future__ import annotations
 import sqlite3
 import time
 import json
+import os
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -27,7 +28,7 @@ except ImportError:  # pragma: no cover - exercised on systems without the optio
     sqlcipher = None
 
 SQLITE_HEADER = b"SQLite format 3\x00"
-ACTIVE_JOB_STATUSES = ("queued", "claimed", "running", "cancelling")
+ACTIVE_JOB_STATUSES = ("queued", "claimed", "running", "pausing", "paused", "cancelling")
 
 
 @dataclass(frozen=True, slots=True)
@@ -266,10 +267,40 @@ class EventStore:
         with self.connect() as conn:
             conn.execute("UPDATE jobs SET status = ? WHERE id = ?", (status, job_id))
 
-    def jobs(self) -> list[sqlite3.Row]:
+    def jobs(self, *, active_only: bool = False) -> list[sqlite3.Row]:
         """Return known jobs with newest jobs first."""
         with self.connect() as conn:
-            return list(conn.execute("SELECT * FROM jobs ORDER BY id DESC"))
+            return list(
+                conn.execute(
+                    """
+                    SELECT *
+                    FROM jobs
+                    WHERE ? = 0 OR status IN (?, ?, ?, ?, ?, ?)
+                    ORDER BY id DESC
+                    """,
+                    (1 if active_only else 0, *ACTIVE_JOB_STATUSES),
+                )
+            )
+
+    def mark_stale_jobs(self) -> int:
+        """Mark active jobs stale when their recorded process is gone."""
+        stale_ids: list[int] = []
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT id, pid FROM jobs WHERE status IN (?, ?, ?, ?, ?, ?)",
+                ACTIVE_JOB_STATUSES,
+            ).fetchall()
+            for row in rows:
+                pid = row["pid"]
+                if pid is None or not process_exists(int(pid)):
+                    stale_ids.append(int(row["id"]))
+            now = datetime.now(timezone.utc).isoformat()
+            for job_id in stale_ids:
+                conn.execute(
+                    "UPDATE jobs SET status = ?, finished_at = ? WHERE id = ?",
+                    ("stale", now, job_id),
+                )
+        return len(stale_ids)
 
     def job(self, job_id: int) -> sqlite3.Row | None:
         """Return one job row by ID."""
@@ -290,6 +321,23 @@ class EventStore:
                     ORDER BY jobs.id
                     """,
                     (pipeline_id,),
+                )
+            )
+
+    def jobs_for_run(self, command_run_id: str) -> list[sqlite3.Row]:
+        """Return jobs associated with one command-run variable snapshot."""
+        with self.connect() as conn:
+            return list(
+                conn.execute(
+                    """
+                    SELECT DISTINCT jobs.*
+                    FROM command_run_vars
+                    JOIN jobs ON jobs.id = command_run_vars.job_id
+                    WHERE command_run_vars.command_run_id = ?
+                      AND command_run_vars.job_id IS NOT NULL
+                    ORDER BY jobs.id
+                    """,
+                    (command_run_id,),
                 )
             )
 
@@ -462,24 +510,32 @@ class EventStore:
             )
             return [Event.from_row(row) for row in rows]
 
-    def runs(self) -> list[sqlite3.Row]:
+    def runs(self, *, active_only: bool = False) -> list[sqlite3.Row]:
         """Summarize commandlet executions that produced events."""
         with self.connect() as conn:
             return list(
                 conn.execute(
                     """
                     SELECT
-                        command_run_id,
-                        pipeline_id,
-                        source,
-                        COUNT(*) AS events,
-                        MIN(created_at) AS first_event,
-                        MAX(created_at) AS last_event
+                        events.command_run_id,
+                        events.pipeline_id,
+                        events.source,
+                        COUNT(DISTINCT events.id) AS events,
+                        MIN(events.created_at) AS first_event,
+                        MAX(events.created_at) AS last_event,
+                        GROUP_CONCAT(DISTINCT jobs.status) AS job_statuses,
+                        SUM(CASE WHEN jobs.status IN (?, ?, ?, ?, ?, ?) THEN 1 ELSE 0 END) AS active_jobs
                     FROM events
-                    WHERE command_run_id IS NOT NULL
-                    GROUP BY command_run_id, pipeline_id, source
-                    ORDER BY MAX(id) DESC
-                    """
+                    LEFT JOIN command_run_vars
+                      ON command_run_vars.command_run_id = events.command_run_id
+                    LEFT JOIN jobs
+                      ON jobs.id = command_run_vars.job_id
+                    WHERE events.command_run_id IS NOT NULL
+                    GROUP BY events.command_run_id, events.pipeline_id, events.source
+                    HAVING ? = 0 OR active_jobs > 0
+                    ORDER BY MAX(events.id) DESC
+                    """,
+                    (*ACTIVE_JOB_STATUSES, 1 if active_only else 0),
                 )
             )
 
@@ -500,7 +556,7 @@ class EventStore:
                         COUNT(DISTINCT command_run_vars.command_run_id) AS runs,
                         COUNT(DISTINCT events.id) AS events,
                         GROUP_CONCAT(DISTINCT jobs.status) AS job_statuses,
-                        SUM(CASE WHEN jobs.status IN (?, ?, ?, ?) THEN 1 ELSE 0 END) AS active_jobs,
+                        SUM(CASE WHEN jobs.status IN (?, ?, ?, ?, ?, ?) THEN 1 ELSE 0 END) AS active_jobs,
                         MIN(COALESCE(command_run_vars.created_at, events.created_at)) AS first_seen,
                         MAX(COALESCE(command_run_vars.created_at, events.created_at)) AS last_seen
                     FROM known_pipelines
@@ -546,6 +602,17 @@ def database_appears_encrypted(path: Path | str) -> bool:
 def sqlcipher_available() -> bool:
     """Return whether the optional SQLCipher DB-API driver is importable."""
     return sqlcipher is not None
+
+
+def process_exists(pid: int) -> bool:
+    """Return whether an OS process currently exists for a recorded PID."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
 
 
 def export_encrypted_database(

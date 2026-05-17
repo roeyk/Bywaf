@@ -317,12 +317,12 @@ class Runner:
         command_line: str,
         *,
         upstream_run_id: str | None = None,
-        from_cursor: str = "beginning",
+        since_cursor: str = "beginning",
     ) -> Event:
         """Attach one background commandlet to an existing pipeline."""
         if not pipeline_exists(self.db, pipeline_id):
             raise ValueError(f"unknown pipeline: {pipeline_id}")
-        after_id = attach_cursor_event_id(self.db, from_cursor)
+        after_id = attach_cursor_event_id(self.db, since_cursor)
         parsed = parse_pipeline(command_line)
         if len(parsed.commands) != 1:
             raise ValueError("pipeline attach accepts exactly one commandlet")
@@ -340,7 +340,7 @@ class Runner:
         stage = StageRun(invocation, new_run_id(invocation.name), upstream_run_id)
         lifecycle = JobLifecycle.create(
             self.db,
-            f"pipeline attach {pipeline_id} {command_line} run={upstream_run_id or ''} from={from_cursor}".strip(),
+            f"pipeline attach {pipeline_id} {command_line} run={upstream_run_id or ''} since={since_cursor}".strip(),
             None,
         )
         plugin = self.registry.get(invocation.name)
@@ -360,7 +360,7 @@ class Runner:
                 "command": command_line,
                 "command_run_id": stage.command_run_id,
                 "parent_command_run_id": upstream_run_id,
-                "from": from_cursor,
+                "since": since_cursor,
                 "after_id": after_id,
             },
             "runner",
@@ -728,7 +728,8 @@ def expand_at_file_args(context: CommandContext, args: list[str]) -> list[str]:
         expanded.extend(values)
         if expansion is not None:
             context.audit_capability("filesystem.read")
-            publish_at_file_expansion(context, expansion)
+            artifact_id = attach_at_file_artifact(context, expansion)
+            publish_at_file_expansion(context, expansion, artifact_id=artifact_id)
     return expanded
 
 
@@ -766,23 +767,44 @@ def parse_at_file_token(arg: str) -> tuple[Literal["text", "lines", "raw"], str]
     return "text", arg.removeprefix("@")
 
 
-def publish_at_file_expansion(context: CommandContext, expansion: AtFileExpansion) -> Event | None:
+def attach_at_file_artifact(context: CommandContext, expansion: AtFileExpansion) -> str | None:
+    """Attach an expanded input file as provenance when artifact storage works."""
+    try:
+        artifact = context.artifacts.attach_file(
+            expansion.path,
+            name=expansion.path.name,
+            note=f"framework argument expansion {expansion.mode} from {expansion.token}",
+        )
+    except (RuntimeError, ValueError):
+        return None
+    return artifact.artifact_id
+
+
+def publish_at_file_expansion(
+    context: CommandContext,
+    expansion: AtFileExpansion,
+    *,
+    artifact_id: str | None = None,
+) -> Event | None:
     """Record one framework-owned at-file expansion."""
     if context._db is None:
         return None
+    payload = {
+        "operator": "@",
+        "token": expansion.token,
+        "mode": expansion.mode,
+        "path": str(expansion.path),
+        "produced": expansion.produced,
+        "job_id": context.job_id,
+        "pipeline_id": context.pipeline_id,
+        "command_run_id": context.command_run_id,
+        "commandlet": context.source,
+    }
+    if artifact_id is not None:
+        payload["artifact_id"] = artifact_id
     return context._db.publish(
         "framework.argument.expanded",
-        {
-            "operator": "@",
-            "token": expansion.token,
-            "mode": expansion.mode,
-            "path": str(expansion.path),
-            "produced": expansion.produced,
-            "job_id": context.job_id,
-            "pipeline_id": context.pipeline_id,
-            "command_run_id": context.command_run_id,
-            "commandlet": context.source,
-        },
+        payload,
         "framework",
         pipeline_id=context.pipeline_id,
         command_run_id=context.command_run_id,
@@ -853,11 +875,11 @@ def pipeline_exists(db: EventStore, pipeline_id: str) -> bool:
 
 
 def attach_cursor_event_id(db: EventStore, cursor: str) -> int:
-    """Convert an attach `from=` cursor into an event high-water mark."""
+    """Convert an attach `since=` cursor into an event high-water mark."""
     match cursor:
         case "beginning":
             return 0
         case "now":
             return db.latest_event_id()
         case _:
-            raise ValueError("from= must be beginning or now")
+            raise ValueError("since= must be beginning or now")

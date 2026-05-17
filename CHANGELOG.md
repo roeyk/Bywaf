@@ -5,7 +5,33 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-17 04:06:50 EDT
+Last updated: 2026-05-17 04:32:17 EDT
+
+### 2026-05-17 04:32:17 EDT
+
+#### Added
+
+- Finished artifact provenance support with `artifact replace`, `artifact
+  remove`, audited mutation events, and encrypted provenance artifacts for
+  framework `@file` expansion when artifact storage is available.
+- Extended runtime control commands to accept `run=<id>` selectors and list
+  queued resume actions from recorded control events.
+- Added active/history runtime listing behavior: `runs`, `jobs`, and
+  `pipelines` default to active state, while `--all` shows historical rows with
+  `[active]`, `[in progress]`, `[failed]`, or `[completed]` markers. The marker
+  format is configurable with `global.listing.active-format=short|long`.
+
+#### Fixed
+
+- Mark active jobs as `stale` on startup when their recorded PID is gone, so
+  dead jobs, runs, and pipelines do not appear active after restarting Bywaf.
+
+### 2026-05-17 04:14:50 EDT
+
+#### Changed
+
+- Changed `pipeline attach` replay cursors from `from=` to `since=` for
+  terminology consistency. `run=` remains the upstream producer selector.
 
 ### 2026-05-17 04:06:50 EDT
 
@@ -77,7 +103,7 @@ Last updated: 2026-05-17 04:06:50 EDT
 - Added backslash command continuation for REPL and script input.
 - Added semicolon-separated command sequences.
 - Added `pipelines` as a convenience alias for `pipeline list`.
-- Added `pipeline attach <pipeline-id> <commandlet> [run=<id>] [from=beginning|now]`
+- Added `pipeline attach <pipeline-id> <commandlet> [run=<id>] [since=beginning|now]`
   to attach a background commandlet to an existing pipeline with explicit replay
   semantics.
 - Added framework-owned file paging requests through `context.page_file()` and

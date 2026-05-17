@@ -335,8 +335,34 @@ class StorageRunnerPluginTests(unittest.TestCase):
             runner = make_runner(db_path, encrypted=True, passphrase="secret")
             with contextlib.redirect_stdout(io.StringIO()):
                 runner.execute(f"artifact attach run=run-1 file={first} file={second}")
-            with self.assertRaisesRegex(ValueError, "matched multiple artifacts"):
-                runner.execute(f"artifact save run=run-1 file={Path(tmp, 'out.txt')}")
+        with self.assertRaisesRegex(ValueError, "matched multiple artifacts"):
+            runner.execute(f"artifact save run=run-1 file={Path(tmp, 'out.txt')}")
+
+    @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
+    def test_artifact_replace_and_remove_are_audited(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp, "db.sqlite3")
+            first = Path(tmp, "first.txt")
+            second = Path(tmp, "second.txt")
+            first.write_text("one")
+            second.write_text("two")
+            runner = make_runner(db_path, encrypted=True, passphrase="secret")
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute(f"artifact attach run=run-1 file={first}")
+            artifact = artifact_store_for_event_store(runner.db).list(command_run_id="run-1")[0]
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute(f"artifact replace artifact={artifact.id} file={second}")
+                process_framework_requests(runner, ShellState())
+                runner.execute(f"artifact verify artifact={artifact.id}")
+                process_framework_requests(runner, ShellState())
+                runner.execute(f"artifact remove artifact={artifact.id}")
+                process_framework_requests(runner, ShellState())
+            self.assertIn("ok artifact=", output.getvalue())
+            self.assertIn("removed artifact=", output.getvalue())
+            self.assertEqual(artifact_store_for_event_store(runner.db).list(command_run_id="run-1"), [])
+            self.assertTrue(runner.db.events_for_topic("artifact.replaced"))
+            self.assertTrue(runner.db.events_for_topic("artifact.removed"))
 
     @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
     def test_artifact_verify_detects_main_db_hash_mismatch(self):
@@ -462,6 +488,20 @@ class StorageRunnerPluginTests(unittest.TestCase):
             expansion = runner.db.events_for_topic("framework.argument.expanded")[0]
             self.assertEqual(expansion.payload["mode"], "lines")
             self.assertEqual(expansion.payload["produced"], 2)
+
+    @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
+    def test_at_file_expansion_attaches_input_file_when_artifacts_available(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            targets = Path(tmp, "targets.txt")
+            targets.write_text("127.0.0.1\n")
+            with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]):
+                runner = make_runner(Path(tmp, "db.sqlite3"), encrypted=True, passphrase="secret")
+                with contextlib.redirect_stdout(io.StringIO()):
+                    runner.execute(f"hostscanner @lines:{targets}")
+            expansion = runner.db.events_for_topic("framework.argument.expanded")[0]
+            self.assertIn("artifact_id", expansion.payload)
+            artifacts = artifact_store_for_event_store(runner.db).list(command_run_id=expansion.command_run_id)
+            self.assertEqual(artifacts[0].body, b"127.0.0.1\n")
 
     def test_at_file_double_at_escapes_literal_at(self):
         values, expansion = expand_at_file_arg("@@literal")
@@ -786,7 +826,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
             with patch("bywaf.runner.mp.Process") as process_cls:
                 process_cls.return_value.pid = 123
                 with contextlib.redirect_stdout(io.StringIO()):
-                    runner.execute("pipeline attach pipe-1 portscanner run=host-run-1 from=now --listen-timeout 1")
+                    runner.execute("pipeline attach pipe-1 portscanner run=host-run-1 since=now --listen-timeout 1")
             process_cls.return_value.start.assert_called_once()
             process_args = process_cls.call_args.kwargs["args"]
             self.assertEqual(process_args[4], "pipe-1")
@@ -798,9 +838,9 @@ class StorageRunnerPluginTests(unittest.TestCase):
             self.assertEqual(stage.invocation.from_run, "host-run-1")
             self.assertEqual(stage.invocation.replay_after_id, latest_id)
             attached = runner.db.events_for_topic("pipeline.attached")[0]
+            self.assertEqual(attached.payload["since"], "now")
             self.assertEqual(attached.payload["pipeline_id"], "pipe-1")
             self.assertEqual(attached.payload["parent_command_run_id"], "host-run-1")
-            self.assertEqual(attached.payload["from"], "now")
 
     def test_background_command_records_job_and_event(self):
         with tempfile.TemporaryDirectory() as tmp:

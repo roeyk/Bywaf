@@ -8,7 +8,9 @@ from collections.abc import Iterable
 
 from bywaf.events import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
+from bywaf.runtime_display import active_listing_format, runtime_state_label, state_marker
 
+ACTIVE_STATUSES = {"queued", "claimed", "running", "pausing", "paused", "cancelling"}
 JOB_ACTIONS = ("cancel", "kill", "list", "show")
 
 
@@ -34,13 +36,14 @@ class Job(CommandletBase):
         parser = self.parser()
         parser.add_argument("action", choices=JOB_ACTIONS)
         parser.add_argument("id", nargs="?")
+        parser.add_argument("--all", action="store_true")
         parser.add_argument("--force", action="store_true")
         parsed = parser.parse_args(args)
         context.require_db()
         context.require_foreground("job management commands")
         match parsed.action:
             case "list":
-                print_jobs(context)
+                print_jobs(context, active_only=not parsed.all, show_active=parsed.all)
             case "show":
                 row = require_job(context, parsed.id)
                 context.output(format_job(row))
@@ -57,6 +60,8 @@ class Job(CommandletBase):
         """Complete subcommands and job IDs from the active database."""
         if not args:
             return list(JOB_ACTIONS)
+        if len(args) == 1 and args[0] == "list":
+            return ["--all"]
         if len(args) == 1 and args[0] in {"show", "cancel", "kill"}:
             return job_ids(context)
         if len(args) == 1 and args[0] not in JOB_ACTIONS:
@@ -66,15 +71,26 @@ class Job(CommandletBase):
         return []
 
 
-def print_jobs(context: CommandContext) -> None:
-    """Print all known jobs with newest first."""
-    for row in context.require_db().jobs():
-        context.output(format_job(row))
+def print_jobs(context: CommandContext, *, active_only: bool = True, show_active: bool = False) -> None:
+    """Print known jobs with newest first."""
+    rows = context.require_db().jobs(active_only=active_only)
+    if not rows:
+        context.output("no active jobs" if active_only else "no jobs")
+        return
+    for row in rows:
+        context.output(format_job(row, show_active=show_active, marker_style=active_listing_format(context.vars.get_global)))
 
 
-def format_job(row) -> str:
+def format_job(row, *, show_active: bool = False, marker_style: str = "short") -> str:
     """Format one job row in the same compact format used by the old `jobs`."""
-    return f"#{row['id']} pid={row['pid']} status={row['status']} {row['command_line']}"
+    prefix = ""
+    detail = ""
+    if show_active:
+        label = runtime_state_label(row["status"])
+        timestamp = row["started_at"] if label in {"active", "in progress"} else row["finished_at"]
+        prefix, detail = state_marker(label, timestamp, style=marker_style)
+    line = f"{prefix}#{row['id']} pid={row['pid']} status={row['status']} {row['command_line']}"
+    return f"{line}\n{detail}" if detail else line
 
 
 def require_job(context: CommandContext, job_id: str | None):

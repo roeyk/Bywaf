@@ -315,17 +315,17 @@ the current pipeline, rather than every historical event in the database.
 Attach a new background commandlet to an existing pipeline:
 
 ```text
-bywaf> pipeline attach <pipeline-id> portscanner run=<producer-run-id> from=beginning
-bywaf> pipeline attach <pipeline-id> http_probe from=now
+bywaf> pipeline attach <pipeline-id> portscanner run=<producer-run-id> since=beginning
+bywaf> pipeline attach <pipeline-id> http_probe since=now
 ```
 
 The attach selectors are orthogonal:
 
 - `<pipeline-id>` chooses the pipeline the new command run joins.
 - `run=<producer-run-id>` optionally narrows input to one upstream producer run.
-- `from=beginning` replays matching historical events, then listens for new
+- `since=beginning` replays matching historical events, then listens for new
   events.
-- `from=now` ignores historical events and starts from the current event
+- `since=now` ignores historical events and starts from the current event
   high-water mark.
 
 If `run=` is omitted, the attached commandlet reads matching events from the
@@ -386,6 +386,8 @@ List, save, and verify artifacts:
 
 ```text
 bywaf> artifact list run=<command-run-id>
+bywaf> artifact replace artifact=1 file=snapshot-v2.html
+bywaf> artifact remove artifact=1
 bywaf> artifact save artifact=1 file=snapshot.html
 bywaf> artifact save run=<command-run-id> dir=artifacts/
 bywaf> artifact verify pipeline=<pipeline-id>
@@ -399,7 +401,9 @@ use `dir=` instead.
 
 Any commandlet argument can use framework-level at-file expansion. Expansion
 happens before the commandlet receives its argument list and is audited as a
-framework argument expansion.
+framework argument expansion. When the active database is encrypted and artifact
+storage is available, the expanded input file is also attached as an encrypted
+provenance artifact.
 
 ```text
 bywaf> hostscanner @lines:targets.txt
@@ -462,10 +466,12 @@ In that example, `portscanner` listens for `host.found` rows created by the
 immediately upstream `hostscanner` run in the same pipeline. It does not consume
 unrelated `host.found` rows from older scans.
 
-List jobs:
+List active jobs, or all jobs with an explicit active marker:
 
 ```text
 bywaf> job list
+bywaf> job list --all
+bywaf> jobs --all
 ```
 
 Show one job:
@@ -497,8 +503,13 @@ bywaf> pipeline cancel <id>
 bywaf> pipeline kill <id>
 ```
 
-`pipeline list` shows active pipelines by default. Use `--all` to include
-finished or failed historical pipelines.
+`job list`, `runs`, and `pipeline list` show active runtime state by default.
+Use `--all` to include historical entries. When jobs are listed with `--all`,
+Bywaf prefixes history rows with `[active]`, `[in progress]`, `[failed]`, or
+`[completed]` so stale and finished jobs, runs, and pipelines are visible
+without looking active. Set `vars global.listing.active-format=long` to print
+an indented marker such as `[active since 2026-05-17 04:30:00 UTC]` beneath
+the entity row; set it to `short` for the compact prefix form.
 
 For hand-typed control, `cancel` and `kill` also accept selector syntax:
 
@@ -508,7 +519,9 @@ bywaf> cancel pipeline=<id>
 bywaf> kill job=<id>
 bywaf> kill --force pipeline=<id>
 bywaf> pause job=<id>
+bywaf> pause run=<command-run-id>
 bywaf> resume --listonly pipeline=<id>
+bywaf> resume --listonly run=<command-run-id>
 bywaf> stop --hard job=<id>
 ```
 

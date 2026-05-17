@@ -430,7 +430,9 @@ can review those notes with `note run=<id>`, `note pipeline=<id>`, or
 Commandlets also do not need to implement at-file expansion. The framework
 expands `@file`, `@raw:file`, `@lines:file`, and `@@literal` before calling
 plugin `run()`. Use `@lines:file` when a file should become multiple arguments,
-such as a target list for a scanner.
+such as a target list for a scanner. When the active database is encrypted and
+artifact storage is available, the framework also stores expanded input files as
+encrypted provenance artifacts.
 
 Plugins that produce evidence files should attach them through
 `context.artifacts` instead of leaving them as loose plaintext files:
@@ -448,6 +450,10 @@ records `artifact.attached` provenance events containing the artifact id, hash,
 timestamp, job, pipeline, and command-run IDs. A commandlet can attach multiple
 artifacts to the same run; that is the expected model for screenshots, raw
 responses, parsed reports, and notes produced by one action.
+
+Users can later `artifact replace`, `artifact remove`, `artifact save`, or
+`artifact verify` those records. Those mutations are audited in the main event
+database while artifact bodies remain in encrypted artifact storage.
 
 Use structured progress events for in-flight status. Progress is for UI/runtime
 state; findings are still durable evidence events such as `host.found` or

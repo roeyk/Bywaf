@@ -226,10 +226,19 @@ class RegistryCompletionTests(unittest.TestCase):
 
     def test_artifact_completion_prefers_actions_first(self):
         completer = Completer(self.registry)
-        self.assertEqual(completer.candidates("artifact "), ["attach", "list", "save", "verify"])
+        self.assertEqual(completer.candidates("artifact "), ["attach", "list", "remove", "replace", "save", "verify"])
         self.assertEqual(completer.candidates("artifact a"), ["attach"])
         self.assertIn("file=", completer.candidates("artifact attach "))
+        self.assertIn("file=", completer.candidates("artifact replace "))
         self.assertIn("dir=", completer.candidates("artifact save "))
+
+    def test_control_completion_includes_run_selector(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "db.sqlite3"))
+            db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", command_run_id="run-1")
+            completer = Completer(self.registry, db)
+            self.assertIn("run=", completer.candidates("pause "))
+            self.assertEqual(completer.candidates("pause run="), ["run=run-1"])
 
     def test_pipeline_attach_completion_prefers_action_then_scope(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -247,8 +256,8 @@ class RegistryCompletionTests(unittest.TestCase):
             self.assertIn("portscanner", completer.candidates("pipeline attach pipe-1 por"))
             self.assertIn("run=host-run-1", completer.candidates("pipeline attach pipe-1 portscanner run="))
             self.assertEqual(
-                completer.candidates("pipeline attach pipe-1 portscanner from="),
-                ["from=beginning", "from=now"],
+                completer.candidates("pipeline attach pipe-1 portscanner since="),
+                ["since=beginning", "since=now"],
             )
 
     def test_does_not_complete_exact_option_to_itself(self):

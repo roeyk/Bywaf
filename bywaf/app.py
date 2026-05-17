@@ -24,6 +24,7 @@ from .db import EventStore, Subscription, database_appears_encrypted, export_enc
 from .nmap_backend import NmapScanError, NmapUnavailableError
 from .plugin import CommandContext, normalize_argv, run_process_argv
 from .registry import PluginRegistry
+from .runtime_display import ACTIVE_LISTING_FORMAT_VAR, normalize_active_listing_format, runtime_state_label, state_marker
 from .runner import Runner, add_runner_arguments
 
 @dataclass(frozen=True, slots=True)
@@ -133,7 +134,9 @@ def make_runner(
             varstore=registry.varstore,
         )
         registry.plugins.update(filesystem.plugins)
-    return Runner(EventStore(database_path, passphrase=db_passphrase), registry)
+    db = EventStore(database_path, passphrase=db_passphrase)
+    db.mark_stale_jobs()
+    return Runner(db, registry)
 
 
 def format_event(event) -> str:
@@ -227,12 +230,18 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
                 events = runner.execute("job list")
                 process_framework_requests(runner, state)
                 print_events(events)
+            case ["jobs", "--all"]:
+                events = runner.execute("job list --all")
+                process_framework_requests(runner, state)
+                print_events(events)
             case ["pipelines"]:
                 events = runner.execute("pipeline list")
                 process_framework_requests(runner, state)
                 print_events(events)
             case ["runs"]:
                 print_runs(runner)
+            case ["runs", "--all"]:
+                print_runs(runner, active_only=False)
             case ["use", target]:
                 set_active_context(runner, state, target)
             case ["use"]:
@@ -755,13 +764,28 @@ def print_jobs(runner: Runner) -> None:
         print(f"#{row['id']} pid={row['pid']} status={row['status']} {row['command_line']}")
 
 
-def print_runs(runner: Runner) -> None:
+def print_runs(runner: Runner, *, active_only: bool = True) -> None:
     """Print command run summaries."""
-    for row in runner.db.runs():
+    rows = runner.db.runs(active_only=active_only)
+    if not rows:
+        print("no active runs" if active_only else "no runs")
+        return
+    marker_style = normalize_active_listing_format(
+        runner.registry.varstore.get(f"global.{ACTIVE_LISTING_FORMAT_VAR}")
+    )
+    for row in rows:
+        prefix = ""
+        detail = ""
+        if not active_only:
+            label = runtime_state_label(row["job_statuses"])
+            timestamp = row["first_event"] if label in {"active", "in progress"} else row["last_event"]
+            prefix, detail = state_marker(label, timestamp, style=marker_style)
         print(
-            f"{row['command_run_id']} pipeline={row['pipeline_id']} "
+            f"{prefix}{row['command_run_id']} pipeline={row['pipeline_id']} "
             f"source={row['source']} events={row['events']}"
         )
+        if detail:
+            print(detail)
 
 
 def print_job(runner: Runner, job_id: str) -> None:

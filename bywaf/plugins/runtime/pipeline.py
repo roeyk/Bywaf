@@ -8,6 +8,7 @@ from collections.abc import Iterable
 from bywaf.events import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
 from bywaf.plugins.runtime.job import cancel_job, kill_job
+from bywaf.runtime_display import active_listing_format, runtime_state_label, state_marker
 
 PIPELINE_ACTIONS = ("attach", "cancel", "kill", "list", "show")
 
@@ -21,7 +22,7 @@ PIPELINE_ACTIONS = ("attach", "cancel", "kill", "list", "show")
         "pipeline list --all",
         "pipeline show pipeline-...",
         "pipeline cancel pipeline-...",
-        "pipeline attach pipeline-... portscanner run=hostscanner-... from=beginning",
+        "pipeline attach pipeline-... portscanner run=hostscanner-... since=beginning",
     ),
     capabilities=("db.raw", "framework.console.output", "framework.pipeline.control", "framework.job.control"),
 )
@@ -49,7 +50,7 @@ class Pipeline(CommandletBase):
         context.require_foreground("pipeline management commands")
         match parsed.action:
             case "list":
-                print_pipelines(context, active_only=not parsed.all)
+                print_pipelines(context, active_only=not parsed.all, show_active=parsed.all)
             case "show":
                 row = require_pipeline(context, parsed.id)
                 context.output(format_pipeline(row))
@@ -80,20 +81,27 @@ class Pipeline(CommandletBase):
         return []
 
 
-def print_pipelines(context: CommandContext, *, active_only: bool = True) -> None:
+def print_pipelines(context: CommandContext, *, active_only: bool = True, show_active: bool = False) -> None:
     """Print active pipelines by default, or all pipelines when requested."""
     rows = context.require_db().pipelines(active_only=active_only)
     if not rows:
         context.output("no active pipelines" if active_only else "no pipelines")
         return
     for row in rows:
-        context.output(format_pipeline(row))
+        context.output(format_pipeline(row, show_active=show_active, marker_style=active_listing_format(context.vars.get_global)))
 
 
-def format_pipeline(row) -> str:
+def format_pipeline(row, *, show_active: bool = False, marker_style: str = "short") -> str:
     """Format one pipeline summary row."""
     statuses = row["job_statuses"] or "unknown"
-    return f"{row['pipeline_id']} job={row['job_id']} status={statuses} runs={row['runs']} events={row['events']}"
+    prefix = ""
+    detail = ""
+    if show_active:
+        label = runtime_state_label(statuses)
+        timestamp = row["first_seen"] if label in {"active", "in progress"} else row["last_seen"]
+        prefix, detail = state_marker(label, timestamp, style=marker_style)
+    line = f"{prefix}{row['pipeline_id']} job={row['job_id']} status={statuses} runs={row['runs']} events={row['events']}"
+    return f"{line}\n{detail}" if detail else line
 
 
 def require_pipeline(context: CommandContext, pipeline_id: str | None):
@@ -133,7 +141,7 @@ def attach_pipeline(context: CommandContext, args: list[str]) -> None:
     """Attach one commandlet to an existing pipeline as a background job."""
     context.require_foreground("pipeline attach")
     if len(args) < 2:
-        raise ValueError("usage: pipeline attach <pipeline-id> <commandlet> [run=<run-id>] [from=beginning|now] [args...]")
+        raise ValueError("usage: pipeline attach <pipeline-id> <commandlet> [run=<run-id>] [since=beginning|now] [args...]")
     pipeline_id, commandlet_name, *tail = args
     selectors, commandlet_args = parse_attach_tail(tail)
     runner = context.metadata.get("runner")
@@ -144,23 +152,23 @@ def attach_pipeline(context: CommandContext, args: list[str]) -> None:
         pipeline_id,
         command_line,
         upstream_run_id=selectors.get("run"),
-        from_cursor=selectors.get("from", "beginning"),
+        since_cursor=selectors.get("since", "beginning"),
     )
     context.output(f"attached job={event.payload['job_id']} pipeline={pipeline_id} command={command_line}")
 
 
 def parse_attach_tail(tokens: list[str]) -> tuple[dict[str, str], list[str]]:
-    """Split `run=` and `from=` attach selectors from commandlet arguments."""
+    """Split attach selectors from commandlet arguments."""
     selectors: dict[str, str] = {}
     commandlet_args: list[str] = []
     for token in tokens:
         if token.startswith("run="):
             selectors["run"] = require_selector_value(token)
-        elif token.startswith("from="):
+        elif token.startswith("since="):
             value = require_selector_value(token)
             if value not in {"beginning", "now"}:
-                raise ValueError("from= must be beginning or now")
-            selectors["from"] = value
+                raise ValueError("since= must be beginning or now")
+            selectors["since"] = value
         else:
             commandlet_args.append(token)
     return selectors, commandlet_args
@@ -184,10 +192,10 @@ def attach_candidates(context: CompletionContext, args: list[str], prefix: str) 
     if prefix.startswith("run="):
         value_prefix = prefix.split("=", 1)[1]
         return [f"run={run_id}" for run_id in run_ids(context) if run_id.startswith(value_prefix)]
-    if prefix.startswith("from="):
+    if prefix.startswith("since="):
         value_prefix = prefix.split("=", 1)[1]
-        return [f"from={value}" for value in ("beginning", "now") if value.startswith(value_prefix)]
-    return ["run=", "from="]
+        return [f"since={value}" for value in ("beginning", "now") if value.startswith(value_prefix)]
+    return ["run=", "since="]
 
 
 def pipeline_ids(context: CompletionContext) -> list[str]:

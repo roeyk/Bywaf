@@ -19,16 +19,18 @@ from bywaf.plugin import (
 )
 from bywaf.utils import complete_path
 
-ARTIFACT_ACTIONS = ("attach", "list", "save", "verify")
+ARTIFACT_ACTIONS = ("attach", "list", "remove", "replace", "save", "verify")
 
 
 @commandlet(
     name="artifact",
-    description="Attach, list, save, and verify encrypted artifacts.",
-    usage="artifact <attach|list|save|verify> [artifact=id|run=id|pipeline=id|job=id] [file=path|dir=path]",
+    description="Attach, list, save, replace, remove, and verify encrypted artifacts.",
+    usage="artifact <attach|list|save|replace|remove|verify> [artifact=id|run=id|pipeline=id|job=id] [file=path|dir=path]",
     examples=(
         "artifact attach run=hostscanner-... file=snapshot.html file=headers.txt",
         "artifact list run=hostscanner-...",
+        "artifact replace artifact=1 file=snapshot-v2.html",
+        "artifact remove artifact=1",
         "artifact save artifact=1 file=snapshot.html",
         "artifact save run=hostscanner-... dir=artifacts/",
         "artifact verify pipeline=pipeline-...",
@@ -65,6 +67,10 @@ class ArtifactCommand(CommandletBase):
                 attach_artifacts(context, selectors)
             case "list":
                 list_artifacts(context, selectors)
+            case "remove":
+                remove_artifacts(context, selectors)
+            case "replace":
+                replace_artifact(context, selectors)
             case "save":
                 save_artifacts(context, selectors)
             case "verify":
@@ -95,6 +101,10 @@ class ArtifactCommand(CommandletBase):
         match action:
             case "attach":
                 return ["run=", "pipeline=", "job=", "file=", "name=", "note="]
+            case "replace":
+                return ["artifact=", "file=", "note="]
+            case "remove":
+                return ["artifact=", "run=", "pipeline=", "job="]
             case "list" | "verify":
                 return ["artifact=", "run=", "pipeline=", "job="]
             case "save":
@@ -175,6 +185,61 @@ def save_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> 
         write_artifact(context, artifact, directory / safe_artifact_filename(artifact))
 
 
+def remove_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> None:
+    """Remove selected artifacts and audit each deletion."""
+    artifacts = select_artifacts(context, selectors)
+    if not artifacts:
+        context.output("no artifacts matched")
+        return
+    db = context.require_db("artifact")
+    store = artifact_store_for_event_store(db)
+    context.audit_capability("artifact.write")
+    for artifact in artifacts:
+        store.remove(artifact)
+        db.publish(
+            "artifact.removed",
+            artifact_event_payload(artifact),
+            "framework",
+            pipeline_id=artifact.pipeline_id,
+            command_run_id=artifact.command_run_id,
+            parent_command_run_id=artifact.parent_command_run_id,
+        )
+        context.output(f"removed artifact={artifact.id} artifact_id={artifact.artifact_id}")
+
+
+def replace_artifact(context: CommandContext, selectors: dict[str, list[str]]) -> None:
+    """Replace one artifact body with a new filesystem file."""
+    artifact = single_selected_artifact(context, selectors, "artifact replace")
+    file_name = single_value(selectors, "file")
+    if file_name is None:
+        raise ValueError("artifact replace requires file=")
+    db = context.require_db("artifact")
+    store = artifact_store_for_event_store(db)
+    context.audit_capability("filesystem.read")
+    context.audit_capability("artifact.write")
+    replacement = store.replace_file(artifact, Path(file_name), note=single_value(selectors, "note") or context.note)
+    db.publish(
+        "artifact.replaced",
+        {
+            "old": artifact_event_payload(artifact),
+            "new": artifact_event_payload(replacement),
+        },
+        "framework",
+        pipeline_id=replacement.pipeline_id,
+        command_run_id=replacement.command_run_id,
+        parent_command_run_id=replacement.parent_command_run_id,
+    )
+    db.publish(
+        "artifact.attached",
+        artifact_event_payload(replacement),
+        "framework",
+        pipeline_id=replacement.pipeline_id,
+        command_run_id=replacement.command_run_id,
+        parent_command_run_id=replacement.parent_command_run_id,
+    )
+    context.output(format_artifact_row(replacement))
+
+
 def verify_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> None:
     """Verify artifact body integrity and main-DB provenance links."""
     db = context.require_db("artifact")
@@ -217,6 +282,36 @@ def select_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
         pipeline_id=single_value(selectors, "pipeline"),
         command_run_id=single_value(selectors, "run"),
     )
+
+
+def single_selected_artifact(context: CommandContext, selectors: dict[str, list[str]], action: str) -> Artifact:
+    """Return exactly one selected artifact for mutation commands."""
+    artifacts = select_artifacts(context, selectors)
+    if not artifacts:
+        raise ValueError(f"{action} matched no artifacts")
+    if len(artifacts) > 1:
+        raise ValueError(f"{action} matched multiple artifacts; use artifact=<id>")
+    return artifacts[0]
+
+
+def artifact_event_payload(artifact: Artifact) -> dict[str, object]:
+    """Return public artifact metadata for audit events."""
+    return {
+        "artifact_id": artifact.artifact_id,
+        "artifact_row_id": artifact.id,
+        "name": artifact.name,
+        "content_type": artifact.content_type,
+        "sha256": artifact.sha256,
+        "size": artifact.size,
+        "created_at": artifact.created_at,
+        "source_path": artifact.source_path,
+        "commandlet": artifact.commandlet,
+        "job_id": artifact.job_id,
+        "pipeline_id": artifact.pipeline_id,
+        "command_run_id": artifact.command_run_id,
+        "parent_command_run_id": artifact.parent_command_run_id,
+        "note": artifact.note,
+    }
 
 
 def write_artifact(context: CommandContext, artifact: Artifact, path: Path) -> None:

@@ -230,6 +230,46 @@ class ArtifactStore:
             results.append(ArtifactVerification(artifact.artifact_id, not problems, tuple(problems)))
         return results
 
+    def remove(self, artifact: Artifact) -> None:
+        """Delete one artifact row from encrypted storage."""
+        with self.connect() as conn:
+            conn.execute("DELETE FROM artifacts WHERE id = ?", (artifact.id,))
+
+    def replace_file(self, artifact: Artifact, path: Path, *, note: str | None = None) -> Artifact:
+        """Replace one artifact body while preserving its stable artifact id."""
+        source_path = path.expanduser()
+        data = source_path.read_bytes()
+        content_type = mimetypes.guess_type(source_path.name)[0] or "application/octet-stream"
+        digest = hashlib.sha256(data).hexdigest()
+        created_at = datetime.now(timezone.utc).isoformat()
+        with self.connect() as conn:
+            conn.execute(
+                """
+                UPDATE artifacts
+                SET name = ?,
+                    content_type = ?,
+                    sha256 = ?,
+                    size = ?,
+                    body = ?,
+                    created_at = ?,
+                    source_path = ?,
+                    note = ?
+                WHERE id = ?
+                """,
+                (
+                    source_path.name,
+                    content_type,
+                    digest,
+                    len(data),
+                    data,
+                    created_at,
+                    str(source_path),
+                    note if note is not None else artifact.note,
+                    artifact.id,
+                ),
+            )
+        return self.get(artifact.id)
+
 
 def artifact_db_path(main_db_path: Path | str) -> Path:
     """Return the encrypted artifact DB path for a main Bywaf database."""

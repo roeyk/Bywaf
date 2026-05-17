@@ -18,6 +18,7 @@ from bywaf.app import (
     repl,
     shutdown_runner,
 )
+from bywaf.db import EventStore
 from bywaf.events import Event
 class AppDispatchTests(unittest.TestCase):
     def test_build_parser_accepts_run(self):
@@ -220,11 +221,62 @@ class AppDispatchTests(unittest.TestCase):
     def test_dispatch_runs_lists_command_runs(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("hostscanner 127.0.0.1", 123, "running")
             runner.db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", pipeline_id="p", command_run_id="r")
+            runner.db.record_command_run_vars(
+                job_id=job_id,
+                pipeline_id="p",
+                command_run_id="r",
+                commandlet="hostscanner",
+                values={"test.marker": "1"},
+            )
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "runs")
             self.assertIn("r pipeline=p source=hostscanner events=1", output.getvalue())
+
+    def test_dispatch_runs_defaults_to_active_unless_all_requested(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("hostscanner done", 123, "finished")
+            runner.db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", pipeline_id="p", command_run_id="r")
+            runner.db.record_command_run_vars(
+                job_id=job_id,
+                pipeline_id="p",
+                command_run_id="r",
+                commandlet="hostscanner",
+                values={"test.marker": "1"},
+            )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "runs")
+            self.assertIn("no active runs", output.getvalue())
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "runs --all")
+            self.assertIn("r pipeline=p source=hostscanner events=1", output.getvalue())
+
+    def test_make_runner_marks_dead_runtime_jobs_stale_on_startup(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp, "db.sqlite3")
+            db = EventStore(db_path)
+            job_id = db.record_job("hostscanner 127.0.0.1", 99999999, "running")
+            db.record_command_run_vars(
+                job_id=job_id,
+                pipeline_id="p",
+                command_run_id="r",
+                commandlet="hostscanner",
+                values={"test.marker": "1"},
+            )
+            runner = make_runner(db_path)
+            job = runner.db.job(job_id)
+            self.assertIsNotNone(job)
+            assert job is not None
+            self.assertEqual(job["status"], "stale")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "pipelines")
+            self.assertIn("no active pipelines", output.getvalue())
 
     def test_jobs_alias_runs_job_list(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -234,6 +286,28 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "jobs")
             self.assertIn("#1 pid=123 status=running hostscanner 127.0.0.1", output.getvalue())
+
+    def test_jobs_all_marks_active_state(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.record_job("active", 123, "running")
+            runner.db.record_job("old", 456, "finished")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "jobs --all")
+            text = output.getvalue()
+            self.assertIn("[active] #1 pid=123 status=running active", text)
+            self.assertIn("[completed] #2 pid=456 status=finished old", text)
+
+    def test_jobs_all_can_use_long_active_marker(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.registry.varstore.set("global.listing.active-format", "long")
+            runner.db.record_job("active", 123, "running")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "jobs --all")
+            self.assertIn("#1 pid=123 status=running active\n  [active since ", output.getvalue())
 
     def test_pipelines_alias_runs_pipeline_list(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -301,6 +375,32 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIsNotNone(job)
             assert job is not None
             self.assertEqual(job["status"], "cancelling")
+
+    def test_pause_resume_stop_commands_accept_run_selector(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("portscanner --listen", 123, "running")
+            runner.db.record_command_run_vars(
+                job_id=job_id,
+                pipeline_id="pipe-1",
+                command_run_id="run-1",
+                commandlet="portscanner",
+                values={"test.marker": "1"},
+            )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("pause run=run-1")
+                process_framework_requests(runner, ShellState())
+                runner.execute("resume --listonly run=run-1")
+                process_framework_requests(runner, ShellState())
+                runner.execute("resume run=run-1")
+                process_framework_requests(runner, ShellState())
+            self.assertIn(f"soft pause requested for job {job_id}", output.getvalue())
+            self.assertIn("run.pause.requested run=run-1", output.getvalue())
+            job = runner.db.job(job_id)
+            self.assertIsNotNone(job)
+            assert job is not None
+            self.assertEqual(job["status"], "running")
 
     def test_job_kill_sends_term_by_default(self):
         with tempfile.TemporaryDirectory() as tmp:
