@@ -33,6 +33,7 @@ class Completer:
         "?",
         "history",
         "jobs",
+        "pipelines",
         "cmds",
         "load",
         "plugins",

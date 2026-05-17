@@ -42,6 +42,7 @@ HELP_COMMANDS = (
     HelpEntry("cmds", "show commandlets grouped by plugin provider", "cmds"),
     HelpEntry("history", "show command history", "history"),
     HelpEntry("jobs", "alias for job list", "jobs"),
+    HelpEntry("pipelines", "alias for pipeline list", "pipelines"),
     HelpEntry("runs", "show commandlet run IDs", "runs"),
     HelpEntry("vars [name=value]", "list or set session variables", "vars [name=value]", ("vars http_probe.cookie-file=/tmp/cookies.txt",)),
     HelpEntry("topics", "list event topics in the active database", "topics"),
@@ -101,6 +102,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("cmds", help="show commandlets grouped by plugin provider")
     subparsers.add_parser("history", help="show command history")
     subparsers.add_parser("jobs", help="show background jobs")
+    subparsers.add_parser("pipelines", help="show pipelines")
     subparsers.add_parser("repl", help="start interactive shell")
     return parser
 
@@ -216,6 +218,10 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
                 print_history(state.session_history)
             case ["jobs"]:
                 events = runner.execute("job list")
+                process_framework_requests(runner, state)
+                print_events(events)
+            case ["pipelines"]:
+                events = runner.execute("pipeline list")
                 process_framework_requests(runner, state)
                 print_events(events)
             case ["runs"]:
@@ -554,7 +560,15 @@ def print_run_variables(runner: Runner, command_run_id: str) -> None:
 def print_history(entries: Sequence[str] = ()) -> None:
     """Print the current session history, not the full persistent history file."""
     for entry in entries:
-        print(entry)
+        print(format_history_entry_for_display(entry))
+
+
+def format_history_entry_for_display(entry: str) -> str:
+    """Display script-friendly history as timestamp-first for readability."""
+    command, separator, timestamp = entry.rpartition("  # ")
+    if not separator or not timestamp:
+        return entry
+    return f"{timestamp}  {command}"
 
 
 def execute_and_print(runner: Runner, command: str) -> int:
@@ -1022,6 +1036,8 @@ def main(argv: list[str] | None = None) -> int:
                 print_history()
             case "jobs":
                 print_events(runner.execute("job list"))
+            case "pipelines":
+                print_events(runner.execute("pipeline list"))
             case _:
                 parser.error(f"unknown subcommand: {args.subcommand}")
         return 0

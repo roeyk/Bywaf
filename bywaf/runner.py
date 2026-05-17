@@ -481,7 +481,7 @@ def prepare_stage_runs(commands: tuple[CommandInvocation, ...]) -> tuple[StageRu
 
 def is_management_pipeline(commands: tuple[CommandInvocation, ...]) -> bool:
     """Return True for foreground management commands that should run directly."""
-    return len(commands) == 1 and commands[0].name in {"db", "job"}
+    return len(commands) == 1 and commands[0].name in {"db", "job", "pipeline"}
 
 
 def effective_run_vars(varstore: VarStore, commandlet: str) -> dict[str, str]:

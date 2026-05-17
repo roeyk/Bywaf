@@ -417,7 +417,8 @@ bywaf> kill job=<id>
 bywaf> kill --force pipeline=<id>
 ```
 
-`jobs` remains as a convenience alias for `job list`.
+`jobs` remains as a convenience alias for `job list`, and `pipelines` remains
+as a convenience alias for `pipeline list`.
 
 # Database and Event Model
 
@@ -621,10 +622,12 @@ History lines are stored as commands followed by a timestamp comment:
 hostscanner 127.0.0.1  # 2026-05-12 10:15:30 EDT
 ```
 
-The `history` command shows only commands from the current REPL invocation:
+The `history` command shows only commands from the current REPL invocation,
+with timestamps displayed first for easier scanning:
 
 ```text
 bywaf> history
+2026-05-17 10:00:00 EDT  plugins
 ```
 
 The persistent history file can be viewed with the OS commandlets:
@@ -634,7 +637,8 @@ bywaf> cat .bywaf/history.bywaf
 bywaf> less .bywaf/history.bywaf
 ```
 
-Because timestamps are comments, history lines can be copied into a script file.
+The persistent history file stays script-friendly: timestamps are stored after
+commands as comments, so history lines can be copied into a script file.
 
 Change the timestamp format:
 
@@ -862,6 +866,7 @@ cancel <job=id|pipeline=id>
 kill [--force] <job=id|pipeline=id>
 note [add] <run=id|pipeline=id|job=id> [text=note|file=path]
 jobs
+pipelines
 runs
 topics
 show <topic>

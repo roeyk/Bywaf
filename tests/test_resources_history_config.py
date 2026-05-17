@@ -9,6 +9,7 @@ from unittest.mock import patch
 from bywaf.app import (
     ShellState,
     dispatch_repl_line,
+    format_history_entry_for_display,
     line_has_continuation,
     make_runner,
     record_command_history,
@@ -176,16 +177,22 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             record_command_history("plugins", path, timestamp_format="%Y/%m/%d")
             self.assertRegex(path.read_text(), r"^plugins  # \d{4}/\d{2}/\d{2}\n$")
 
+    def test_format_history_entry_for_display_puts_timestamp_first(self):
+        self.assertEqual(
+            format_history_entry_for_display("plugins  # 2026-05-17 10:00:00 EDT"),
+            "2026-05-17 10:00:00 EDT  plugins",
+        )
+
     def test_dispatch_history_prints_session_history_only(self):
         with tempfile.TemporaryDirectory() as tmp:
             history_path = Path(tmp, ".bywaf", "history.bywaf")
             record_command_history("old-command", history_path)
             runner = make_runner(Path(tmp, "db.sqlite3"))
-            state = ShellState(history_path=history_path, session_history=["plugins  # now"])
+            state = ShellState(history_path=history_path, session_history=["plugins  # 2026-05-17 10:00:00 EDT"])
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "history", state)
-            self.assertIn("plugins  # ", output.getvalue())
+            self.assertIn("2026-05-17 10:00:00 EDT  plugins", output.getvalue())
             self.assertNotIn("old-command", output.getvalue())
 
     def test_save_and_load_history(self):

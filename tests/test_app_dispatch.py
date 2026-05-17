@@ -32,6 +32,7 @@ class AppDispatchTests(unittest.TestCase):
         self.assertEqual(parser.parse_args(["plugins"]).subcommand, "plugins")
         self.assertEqual(parser.parse_args(["cmds"]).subcommand, "cmds")
         self.assertEqual(parser.parse_args(["history"]).subcommand, "history")
+        self.assertEqual(parser.parse_args(["pipelines"]).subcommand, "pipelines")
 
     def test_build_parser_rejects_direct_os_commandlets(self):
         parser = build_parser()
@@ -197,6 +198,21 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "jobs")
             self.assertIn("#1 pid=123 status=running hostscanner 127.0.0.1", output.getvalue())
+
+    def test_pipelines_alias_runs_pipeline_list(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.record_command_run_vars(
+                job_id=7,
+                pipeline_id="pipe-1",
+                command_run_id="run-1",
+                commandlet="hostscanner",
+                values={"test.marker": "1"},
+            )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "pipelines")
+            self.assertIn("pipe-1 job=7 runs=1", output.getvalue())
 
     def test_job_cancel_records_soft_cancellation(self):
         with tempfile.TemporaryDirectory() as tmp:

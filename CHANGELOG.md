@@ -36,6 +36,7 @@ so compatibility may change between testing releases.
   `@lines:file`, and `@@literal`.
 - Added backslash command continuation for REPL and script input.
 - Added semicolon-separated command sequences.
+- Added `pipelines` as a convenience alias for `pipeline list`.
 - Added framework-owned file paging requests through `context.page_file()` and
   `framework.file.page.requested` events.
 - Added `DESIGN.md` with initial framework request IPC and plugin capability
@@ -47,6 +48,8 @@ so compatibility may change between testing releases.
 
 - Changed the `less` commandlet to request paging from the framework instead of
   launching terminal paging directly.
+- Changed `history` display to show timestamps before commands while preserving
+  script-friendly storage.
 - Changed background job child-process failures to record `job.failed` when
   possible and exit without dumping raw multiprocessing tracebacks.
 

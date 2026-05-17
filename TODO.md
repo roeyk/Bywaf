@@ -78,3 +78,4 @@ Planning dates are release planning markers, not compatibility commitments.
   for `@`, `@@`, `@raw:`, and `@lines:`.
 - 2026-05-17: Added backslash command continuation and semicolon command
   sequences.
+- 2026-05-17: Added `pipelines` alias and timestamp-first history display.
