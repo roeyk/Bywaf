@@ -36,6 +36,7 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn("pause", self.registry.names())
         self.assertIn("resume", self.registry.names())
         self.assertIn("stop", self.registry.names())
+        self.assertIn("signal", self.registry.names())
         self.assertIn("audit", self.registry.names())
         self.assertIn("note", self.registry.names())
         self.assertIn("name", self.registry.names())
@@ -68,7 +69,7 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertEqual(self.registry.grouped_names()["os"], ["cat", "less", "ls"])
         self.assertEqual(
             self.registry.grouped_names()["runtime"],
-            ["artifact", "audit", "cancel", "job", "kill", "name", "note", "pause", "pipeline", "resume", "stop"],
+            ["artifact", "audit", "cancel", "job", "kill", "name", "note", "pause", "pipeline", "resume", "signal", "stop"],
         )
         self.assertEqual(self.registry.grouped_names()["storage"], ["db"])
 
@@ -241,6 +242,10 @@ class RegistryCompletionTests(unittest.TestCase):
             completer = Completer(self.registry, db)
             self.assertIn("run=", completer.candidates("pause "))
             self.assertEqual(completer.candidates("pause run="), ["run=run-1"])
+            self.assertIn("run=", completer.candidates("signal "))
+            self.assertEqual(completer.candidates("signal run="), ["run=run-1"])
+            self.assertIn("prune", completer.candidates("signal run=run-1 "))
+            self.assertIn("targets=", completer.candidates("signal run=run-1 prune "))
 
     def test_pipeline_attach_completion_prefers_action_then_scope(self):
         with tempfile.TemporaryDirectory() as tmp:

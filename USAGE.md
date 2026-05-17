@@ -160,8 +160,9 @@ vars
 history
 job <list|show|cancel|kill>
 pipeline <list|show|cancel|kill>
-cancel <job=id|pipeline=id>
-kill [--force] <job=id|pipeline=id>
+signal <job=id|pipeline=id|run=id> <action> [--soft|--hard] [key=value ...]
+cancel <job=id|pipeline=id|run=id>
+kill [--force] <job=id|pipeline=id|run=id>
 jobs
 runs
 topics
@@ -552,7 +553,21 @@ without looking active. Set `vars global.listing.active-format=long` to print
 an indented marker such as `[active since 2026-05-17 04:30:00 UTC]` beneath
 the entity row; set it to `short` for the compact prefix form.
 
-For hand-typed control, `cancel` and `kill` also accept selector syntax:
+For live runtime control, `signal` is the canonical command. It sends an
+audited control message to a job, pipeline, or command run. Framework-native
+signals such as `pause`, `resume`, `stop`, and `kill` apply the existing
+framework controls; plugin-domain signals such as `prune`, `mute`, `unmute`,
+and `verbosity` are delivered for commandlets to apply or ignore.
+
+```text
+bywaf> signal run=<command-run-id> prune targets=192.168.1.0/24
+bywaf> signal run=<command-run-id> mute
+bywaf> signal run=<command-run-id> verbosity level=debug
+bywaf> signal run=<command-run-id> pause --hard
+```
+
+`cancel`, `kill`, `pause`, `resume`, and `stop` are convenience aliases over
+the same signal/control path:
 
 ```text
 bywaf> cancel job=<id>
@@ -1036,8 +1051,9 @@ vars [name=value]
 history
 job <list|show|cancel|kill>
 pipeline <list|show|cancel|kill|attach>
-cancel <job=id|pipeline=id>
-kill [--force] <job=id|pipeline=id>
+signal <job=id|pipeline=id|run=id> <action> [--soft|--hard] [key=value ...]
+cancel <job=id|pipeline=id|run=id>
+kill [--force] <job=id|pipeline=id|run=id>
 name <run=id|pipeline=id|job=id> [name text]
 note [add] <run=id|pipeline=id|job=id> [text=note|file=path]
 artifact <attach|list|remove|replace|save|verify> [artifact=id|run=id|pipeline=id|job=id] [file=path|dir=path]

@@ -403,6 +403,9 @@ At execution time, commandlets receive a `CommandContext`:
 - `context.process.stream(argv)`: stream stdout/stderr chunks incrementally
 - `context.artifacts.attach_file(path)`: attach one encrypted evidence file
 - `context.artifacts.attach_files(paths)`: attach several encrypted evidence files
+- `context.signals.pending(action=...)`: read live-control signals for this run
+- `context.signals.applied(request, message, **details)`: acknowledge a signal
+- `context.signals.ignored(request, message, **details)`: decline a signal
 - `context.request(topic, payload)`: advanced escape hatch for framework requests
 - `context.cancelled()`: whether a soft-cancellation request is pending
 - `context.raise_if_cancelled()`: raise if cancellation is pending
@@ -490,6 +493,21 @@ Users configure that policy with:
 vars global.progress.min-interval-ms=250
 vars global.progress.min-percent-delta=1
 ```
+
+Use `context.signals` for live-control requests that the framework delivers to
+running commandlets:
+
+```python
+for request in context.signals.pending(action="prune"):
+    targets = request.payload["args"].get("targets") or request.payload["args"].get("target")
+    pruned = queue.prune(targets)
+    context.signals.applied(request, "pruned pending targets", count=pruned)
+```
+
+The framework records the original `runtime.signal.requested` event. The
+commandlet records whether it applied or ignored the request. Plugin-specific
+actions such as `prune`, `mute`, and `verbosity` are cooperative; the plugin
+decides what they mean for its own work queue and output policy.
 
 Use `context.events` instead of raw `context.db` for event-bus work:
 

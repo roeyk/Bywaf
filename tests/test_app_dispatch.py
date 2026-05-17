@@ -427,6 +427,35 @@ class AppDispatchTests(unittest.TestCase):
             assert job is not None
             self.assertEqual(job["status"], "running")
 
+    def test_signal_records_plugin_scoped_live_control_request(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("signal run=run-1 prune targets=192.168.1.0/24 reason=user-request")
+                process_framework_requests(runner, ShellState())
+            signal_event = runner.db.events_for_topic("runtime.signal.requested")[0]
+            self.assertEqual(signal_event.command_run_id, "run-1")
+            self.assertEqual(signal_event.payload["target_type"], "run")
+            self.assertEqual(signal_event.payload["action"], "prune")
+            self.assertEqual(signal_event.payload["args"]["targets"], "192.168.1.0/24")
+            self.assertIn("signal requested for run=run-1 action=prune mode=soft", output.getvalue())
+
+    def test_signal_pause_applies_framework_control(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("portscanner --listen", 123, "running")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute(f"signal job={job_id} pause")
+                process_framework_requests(runner, ShellState())
+            self.assertEqual(runner.db.events_for_topic("runtime.signal.requested")[0].payload["action"], "pause")
+            job = runner.db.job(job_id)
+            self.assertIsNotNone(job)
+            assert job is not None
+            self.assertEqual(job["status"], "pausing")
+            self.assertIn(f"soft pause requested for job {job_id}", output.getvalue())
+
     def test_job_kill_sends_term_by_default(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

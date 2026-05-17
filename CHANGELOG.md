@@ -5,7 +5,21 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-17 08:06:47 EDT
+Last updated: 2026-05-17 08:24:00 EDT
+
+### 2026-05-17 08:24:00 EDT
+
+#### Added
+
+- Added the `signal` runtime commandlet for audited live-control messages:
+  `signal <job|pipeline|run>=<id> <action> [--soft|--hard] [key=value ...]`.
+- Added `context.signals` helpers so commandlets can read, apply, or ignore
+  live-control signals without raw DB polling.
+
+#### Changed
+
+- Routed `pause`, `resume`, `stop`, `cancel`, and `kill` convenience commandlets
+  through the same `runtime.signal.requested` audit path.
 
 ### 2026-05-17 08:06:47 EDT
 

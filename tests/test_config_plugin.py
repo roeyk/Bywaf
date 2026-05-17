@@ -301,6 +301,29 @@ class ConfigPluginTests(unittest.TestCase):
             ]
             self.assertEqual(len(progress_events), 4)
 
+    def test_context_signals_filters_and_responds(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "db.sqlite3"))
+            request = db.publish(
+                "runtime.signal.requested",
+                {"target_type": "run", "target_id": "run-1", "action": "prune", "args": {"targets": "192.168.1.0/24"}},
+                "framework",
+                command_run_id="run-1",
+            )
+            db.publish(
+                "runtime.signal.requested",
+                {"target_type": "run", "target_id": "other-run", "action": "mute", "args": {}},
+                "framework",
+                command_run_id="other-run",
+            )
+            context = CommandContext(db, source="hostscanner", metadata={"pipeline_id": "pipe-1", "command_run_id": "run-1"})
+            pending = context.signals.pending(action="prune")
+            self.assertEqual([event.id for event in pending], [request.id])
+            context.signals.applied(pending[0], "pruned pending targets", count=3)
+            applied = db.events_for_topic("runtime.signal.applied")[0]
+            self.assertEqual(applied.payload["request_event_id"], request.id)
+            self.assertEqual(applied.payload["details"]["count"], 3)
+
 
 if __name__ == "__main__":
     unittest.main()
