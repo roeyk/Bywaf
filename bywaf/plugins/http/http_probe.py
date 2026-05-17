@@ -17,8 +17,12 @@ from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet,
 DEFAULTS = {
     "cookie-file": "",
     "firefox-profile": "",
+    "follow-redirects": "true",
     "method": "HEAD",
     "path": "/",
+    "scheme": "auto",
+    "silent": "false",
+    "targets": "",
     "timeout": 5,
     "user-agent": "Bywaf/0.9",
 }
@@ -56,24 +60,23 @@ class HttpProbe(CommandletBase):
         """Probe explicit URLs/hosts or HTTP-looking pipeline ports."""
         parser = self.parser()
         parser.add_argument("targets", nargs="*")
-        parser.add_argument("-s", "--silent", action="store_true")
-        parser.add_argument("--cookie-file")
-        parser.add_argument("--firefox-profile")
-        parser.add_argument("--follow-redirects", choices=("true", "false"), default="true")
-        parser.add_argument("--method", choices=("HEAD", "GET"), default="HEAD")
-        parser.add_argument("--path", default="/")
-        parser.add_argument("--scheme", choices=("auto", "http", "https"), default="auto")
-        parser.add_argument("--timeout", type=float, default=5)
-        parser.add_argument("--user-agent", default="Bywaf/0.9")
+        parser.add_argument("-s", "--silent", action="store_true", default=self.var_default(context, "silent", False, cast=parse_bool))
+        parser.add_argument("--cookie-file", default=self.var_default(context, "cookie-file", None))
+        parser.add_argument("--firefox-profile", default=self.var_default(context, "firefox-profile", None))
+        parser.add_argument("--follow-redirects", choices=("true", "false"), default=self.var_default(context, "follow-redirects", "true"))
+        parser.add_argument("--method", choices=("HEAD", "GET"), default=self.var_default(context, "method", "HEAD"))
+        parser.add_argument("--path", default=self.var_default(context, "path", "/"))
+        parser.add_argument("--scheme", choices=("auto", "http", "https"), default=self.var_default(context, "scheme", "auto"))
+        parser.add_argument("--timeout", type=float, default=self.var_default(context, "timeout", 5, cast=float))
+        parser.add_argument("--user-agent", default=self.var_default(context, "user-agent", "Bywaf/0.9"))
         parsed = parser.parse_args(args)
-        cookie_file = option_or_var(context, "cookie-file", parsed.cookie_file)
-        firefox_profile = option_or_var(context, "firefox-profile", parsed.firefox_profile)
         remember_option(context, "cookie-file", parsed.cookie_file)
         remember_option(context, "firefox-profile", parsed.firefox_profile)
-        if cookie_file or firefox_profile:
+        if parsed.cookie_file or parsed.firefox_profile:
             context.audit_capability("filesystem.read")
-        opener = build_opener(cookie_file, firefox_profile, parsed.follow_redirects == "true")
-        for target in probe_targets(parsed.targets, input_events, parsed.scheme, parsed.path):
+        opener = build_opener(parsed.cookie_file, parsed.firefox_profile, parsed.follow_redirects == "true")
+        targets = self.values_or_var(context, parsed.targets, "targets")
+        for target in probe_targets(targets, input_events, parsed.scheme, parsed.path):
             context.audit_capability("network.connect")
             result = probe_url(opener, target.url, parsed.method, parsed.timeout, parsed.user_agent)
             payload = {
@@ -110,17 +113,17 @@ def build_opener(cookie_file: str | None, firefox_profile: str | None, follow_re
     return urllib.request.build_opener(*handlers)
 
 
-def option_or_var(context: CommandContext, name: str, explicit: str | None) -> str | None:
-    """Prefer a CLI option, then fall back to the plugin variable namespace."""
-    if explicit:
-        return explicit
-    return context.vars.get(name) or None
-
-
 def remember_option(context: CommandContext, name: str, explicit: str | None) -> None:
     """Persist explicitly supplied options into the session varstore."""
     if explicit:
         context.vars.set(name, explicit)
+
+
+def parse_bool(value: str | bool) -> bool:
+    """Parse bool-like commandlet variable values."""
+    if isinstance(value, bool):
+        return value
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def probe_targets(

@@ -1108,6 +1108,56 @@ class CommandletBase:
         """Parse commandlet arguments with the commandlet parser."""
         return self.parser().parse_args(args)
 
+    def var_default(
+        self,
+        context: CommandContext,
+        name: str,
+        default: Any = None,
+        *,
+        cast=None,
+        empty_is_none: bool = True,
+    ) -> Any:
+        """Return a commandlet variable value for use as an argparse default.
+
+        This implements the Bywaf precedence rule: explicit CLI arguments
+        override parser defaults, commandlet variables override code defaults,
+        and code defaults are used last.
+        """
+        value = context.vars.get(name)
+        if value is None or (empty_is_none and value == ""):
+            return default
+        if cast is None:
+            return value
+        try:
+            return cast(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"invalid value for {context.source}.{name}: {value}") from exc
+
+    def values_or_var(
+        self,
+        context: CommandContext,
+        values: Sequence[str],
+        name: str,
+        *,
+        required: bool = False,
+    ) -> list[str]:
+        """Return CLI positional values or a split commandlet variable."""
+        if values:
+            return list(values)
+        stored = context.vars.get(name)
+        if stored:
+            parsed = split_var_values(stored)
+            if parsed:
+                return parsed
+        if required:
+            raise ValueError(f"{self.spec.name} requires {name} argument or {context.source}.{name} variable")
+        return []
+
+
+def split_var_values(value: str) -> list[str]:
+    """Split comma and whitespace separated variable values."""
+    return [part for chunk in value.split(",") for part in chunk.split() if part]
+
 
 def command_run_id(context: CommandContext) -> str:
     """Return the current command run ID or a stable interactive fallback."""

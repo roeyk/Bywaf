@@ -10,6 +10,7 @@ from bywaf.db import EventStore
 from bywaf.plugin import (
     ArgumentSpec,
     CommandContext,
+    CommandletBase,
     CommandSpec,
     CompletionSpec,
     OptionSpec,
@@ -218,6 +219,35 @@ class ConfigPluginTests(unittest.TestCase):
         store.set("b", 2)
         store.set("a", 1)
         self.assertEqual(store.items(), [("a", "1"), ("b", "2")])
+
+    def test_commandlet_base_var_default_uses_cli_variable_default_order(self):
+        store = VarStore()
+        store.set("example.timeout", "7")
+        context = CommandContext(None, source="example", _varstore=store)
+
+        class Example(CommandletBase):
+            spec = CommandSpec("example", "example")
+
+        commandlet = Example()
+        parser = commandlet.parser()
+        parser.add_argument("--timeout", type=int, default=commandlet.var_default(context, "timeout", 3, cast=int))
+        self.assertEqual(parser.parse_args([]).timeout, 7)
+        self.assertEqual(parser.parse_args(["--timeout", "2"]).timeout, 2)
+
+    def test_commandlet_base_values_or_var(self):
+        store = VarStore()
+        store.set("example.targets", "127.0.0.1, 127.0.0.2")
+        context = CommandContext(None, source="example", _varstore=store)
+
+        class Example(CommandletBase):
+            spec = CommandSpec("example", "example")
+
+        commandlet = Example()
+        self.assertEqual(
+            commandlet.values_or_var(context, [], "targets", required=True),
+            ["127.0.0.1", "127.0.0.2"],
+        )
+        self.assertEqual(commandlet.values_or_var(context, ["198.51.100.1"], "targets"), ["198.51.100.1"])
 
     def test_host_message_json_round_trip(self):
         host = Host(run_id="1", host="127.0.0.1")

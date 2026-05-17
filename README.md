@@ -665,7 +665,15 @@ Common examples:
 ```text
 bywaf> vars http_probe.cookie-file=/tmp/cookies.txt
 bywaf> vars history.timestamp-format=%Y-%m-%d %H:%M:%S %Z
+bywaf> vars hostscanner.targets=192.168.1.1-255
+bywaf> hostscanner
 ```
+
+For commandlets that opt into variable defaults, explicit command-line
+arguments take precedence over commandlet variables, and commandlet variables
+take precedence over built-in defaults. For example,
+`hostscanner 127.0.0.1` ignores `hostscanner.targets`, while `hostscanner`
+falls back to it.
 
 Save variables:
 

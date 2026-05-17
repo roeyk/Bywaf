@@ -9,7 +9,7 @@ from bywaf.nmap_backend import discover_live_hosts
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
 from bywaf.utils import host_candidates
 
-DEFAULTS = {"arguments": "-sn", "limit": 256}
+DEFAULTS = {"arguments": "-sn", "limit": 256, "targets": ""}
 
 
 @commandlet(
@@ -36,12 +36,13 @@ class HostScanner(CommandletBase):
     ):
         """Expand target expressions, run nmap discovery, and emit live hosts."""
         parser = self.parser()
-        parser.add_argument("targets", nargs="+")
-        parser.add_argument("-s", "--silent", action="store_true")
-        parser.add_argument("--arguments", default="-sn")
-        parser.add_argument("--limit", type=int, default=256)
+        parser.add_argument("targets", nargs="*")
+        parser.add_argument("-s", "--silent", action="store_true", default=self.var_default(context, "silent", False, cast=parse_bool))
+        parser.add_argument("--arguments", default=self.var_default(context, "arguments", "-sn"))
+        parser.add_argument("--limit", type=int, default=self.var_default(context, "limit", 256, cast=int))
         parsed = parser.parse_args(args)
-        targets = expand_targets(parsed.targets, parsed.limit)
+        target_args = self.values_or_var(context, parsed.targets, "targets", required=True)
+        targets = expand_targets(target_args, parsed.limit)
         context.raise_if_cancelled()
         context.audit_capability("network.connect")
         for host in discover_live_hosts(" ".join(targets), parsed.arguments)[: parsed.limit]:
@@ -58,6 +59,13 @@ def expand_targets(targets: list[str], limit: int) -> tuple[str, ...]:
         if len(expanded) > limit:
             raise ValueError(f"expanded target list exceeds limit {limit}")
     return tuple(expanded)
+
+
+def parse_bool(value: str | bool) -> bool:
+    """Parse bool-like commandlet variable values."""
+    if isinstance(value, bool):
+        return value
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def plugin() -> Commandlet:

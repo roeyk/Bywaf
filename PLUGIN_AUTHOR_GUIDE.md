@@ -715,6 +715,33 @@ Users can override values:
 bywaf> vars file_info.timeout=10
 ```
 
+Use `CommandletBase.var_default()` when an argparse option should use a
+commandlet variable as its default:
+
+```python
+parser.add_argument(
+    "--timeout",
+    type=float,
+    default=self.var_default(context, "timeout", 5, cast=float),
+)
+```
+
+This keeps precedence consistent: explicit CLI argument, then commandlet
+variable, then code default. Invalid variable values raise a clear `ValueError`
+before the commandlet does any work.
+
+For positional arguments that may come from a variable, use
+`CommandletBase.values_or_var()`:
+
+```python
+parser.add_argument("targets", nargs="*")
+parsed = parser.parse_args(args)
+targets = self.values_or_var(context, parsed.targets, "targets", required=True)
+```
+
+That lets `file_info README.md` override `file_info.targets`, while `file_info`
+can fall back to `file_info.targets` if the user configured it.
+
 # Loading and Packaging Plugins
 
 During development, plain plugin names resolve under:

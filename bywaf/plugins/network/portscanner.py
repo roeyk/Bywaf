@@ -9,7 +9,7 @@ from bywaf.events import Event
 from bywaf.nmap_backend import scan_open_ports
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
 
-DEFAULTS = {"arguments": "-sT", "ports": ""}
+DEFAULTS = {"arguments": "-sT", "hosts": "", "listen": "false", "listen-interval": "1.0", "listen-timeout": "0", "ports": "", "silent": "false"}
 
 
 @commandlet(
@@ -41,13 +41,14 @@ class PortScanner(CommandletBase):
         """Scan explicit/pipeline hosts, then optionally listen for new hosts."""
         parser = self.parser()
         parser.add_argument("hosts", nargs="*")
-        parser.add_argument("-s", "--silent", action="store_true")
-        parser.add_argument("--arguments", default="-sT")
-        parser.add_argument("--listen", action="store_true")
-        parser.add_argument("--listen-interval", type=float, default=1.0)
-        parser.add_argument("--listen-timeout", type=float, default=0.0)
-        parser.add_argument("--ports")
+        parser.add_argument("-s", "--silent", action="store_true", default=self.var_default(context, "silent", False, cast=parse_bool))
+        parser.add_argument("--arguments", default=self.var_default(context, "arguments", "-sT"))
+        parser.add_argument("--listen", action="store_true", default=self.var_default(context, "listen", False, cast=parse_bool))
+        parser.add_argument("--listen-interval", type=float, default=self.var_default(context, "listen-interval", 1.0, cast=float))
+        parser.add_argument("--listen-timeout", type=float, default=self.var_default(context, "listen-timeout", 0.0, cast=float))
+        parser.add_argument("--ports", default=self.var_default(context, "ports", None))
         parsed = parser.parse_args(args)
+        parsed.hosts = self.values_or_var(context, parsed.hosts, "hosts")
         seen_hosts: set[str] = set()
         yield from scan_events_or_hosts(context, parsed, input_events, seen_hosts)
         should_listen = parsed.listen or (
@@ -143,3 +144,10 @@ def listen_for_upstream_hosts(context: CommandContext, parsed, seen_hosts: set[s
 def plugin() -> Commandlet:
     """Factory used by PluginRegistry."""
     return PortScanner()
+
+
+def parse_bool(value: str | bool) -> bool:
+    """Parse bool-like commandlet variable values."""
+    if isinstance(value, bool):
+        return value
+    return value.strip().lower() in {"1", "true", "yes", "on"}

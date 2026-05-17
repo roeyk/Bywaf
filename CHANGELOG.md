@@ -38,6 +38,9 @@ so compatibility may change between testing releases.
   so plugins can attach multiple encrypted evidence files to one run.
 - Added structured progress reporting helpers with framework-enforced,
   user-configurable throttling.
+- Added `CommandletBase.var_default()` and `values_or_var()` helpers so
+  commandlets can consistently use CLI arguments before scoped variables before
+  built-in defaults.
 - Added framework-level at-file argument expansion with `@file`, `@raw:file`,
   `@lines:file`, and `@@literal`.
 - Added backslash command continuation for REPL and script input.

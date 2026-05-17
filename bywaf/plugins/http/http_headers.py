@@ -8,7 +8,7 @@ from collections.abc import Iterable
 from bywaf.events import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
 
-DEFAULTS = {"ssl": "false", "timeout": 5}
+DEFAULTS = {"port": "", "ssl": "false", "target": "", "timeout": 5}
 
 
 @commandlet(
@@ -36,11 +36,12 @@ class HttpHeaders(CommandletBase):
         """Fetch HEAD response metadata for explicit or pipeline targets."""
         parser = self.parser()
         parser.add_argument("target", nargs="?")
-        parser.add_argument("--port", type=int)
-        parser.add_argument("--ssl", choices=("true", "false"), default="false")
-        parser.add_argument("--timeout", type=float, default=5)
+        parser.add_argument("--port", type=int, default=self.var_default(context, "port", None, cast=int))
+        parser.add_argument("--ssl", choices=("true", "false"), default=self.var_default(context, "ssl", "false"))
+        parser.add_argument("--timeout", type=float, default=self.var_default(context, "timeout", 5, cast=float))
         parsed = parser.parse_args(args)
-        targets = self.targets(parsed.target, parsed.port, parsed.ssl == "true", input_events)
+        target = parsed.target or self.var_default(context, "target", None)
+        targets = self.targets(target, parsed.port, parsed.ssl == "true", input_events)
         for host, port, use_ssl in targets:
             context.audit_capability("network.connect")
             connection_cls = http.client.HTTPSConnection if use_ssl else http.client.HTTPConnection

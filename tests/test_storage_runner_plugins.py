@@ -328,6 +328,25 @@ class StorageRunnerPluginTests(unittest.TestCase):
             self.assertTrue(capabilities["framework.console.alert"])
             self.assertTrue(capabilities["db.write:host.found"])
 
+    def test_hostscanner_uses_targets_variable_when_cli_target_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]) as discover:
+                runner = make_runner(Path(tmp, "db.sqlite3"))
+                runner.registry.varstore.set("hostscanner.targets", "127.0.0.1")
+                with contextlib.redirect_stdout(io.StringIO()):
+                    events = runner.execute("hostscanner")
+            self.assertEqual(events[0].payload["host"], "127.0.0.1")
+            discover.assert_called_once_with("127.0.0.1", "-sn")
+
+    def test_hostscanner_cli_target_overrides_targets_variable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["192.0.2.1"]) as discover:
+                runner = make_runner(Path(tmp, "db.sqlite3"))
+                runner.registry.varstore.set("hostscanner.targets", "127.0.0.1")
+                with contextlib.redirect_stdout(io.StringIO()):
+                    runner.execute("hostscanner 192.0.2.1")
+            discover.assert_called_once_with("192.0.2.1", "-sn")
+
     def test_framework_note_attaches_to_command_run(self):
         with tempfile.TemporaryDirectory() as tmp:
             with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]):
@@ -540,6 +559,25 @@ class StorageRunnerPluginTests(unittest.TestCase):
                     events = runner.execute("portscanner --from-run host-run --ports 80")
             self.assertEqual(events[0].payload["host"], "127.0.0.1")
             self.assertEqual(scan.call_args.args[0], ["127.0.0.1"])
+
+    def test_portscanner_ports_variable_is_default_but_cli_overrides(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.registry.varstore.set("portscanner.ports", "22")
+            with patch(
+                "bywaf.plugins.network.portscanner.scan_open_ports",
+                return_value=[NmapPort("127.0.0.1", 22, "tcp", "open")],
+            ) as scan:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    runner.execute("portscanner 127.0.0.1")
+            self.assertEqual(scan.call_args.args[1], "22")
+            with patch(
+                "bywaf.plugins.network.portscanner.scan_open_ports",
+                return_value=[NmapPort("127.0.0.1", 80, "tcp", "open")],
+            ) as scan:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    runner.execute("portscanner --ports 80 127.0.0.1")
+            self.assertEqual(scan.call_args.args[1], "80")
 
     def test_portscanner_silent_suppresses_alert(self):
         context = CommandContext(db=None, source="portscanner", metadata={"command_run_id": "run-1"})
