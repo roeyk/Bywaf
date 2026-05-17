@@ -475,10 +475,14 @@ Pipelines can be inspected and controlled the same way:
 
 ```text
 bywaf> pipeline list
+bywaf> pipeline list --all
 bywaf> pipeline show <id>
 bywaf> pipeline cancel <id>
 bywaf> pipeline kill <id>
 ```
+
+`pipeline list` shows active pipelines by default. Use `--all` to include
+finished or failed historical pipelines.
 
 For hand-typed control, `cancel` and `kill` also accept selector syntax:
 
@@ -708,6 +712,14 @@ with timestamps displayed first for easier scanning:
 ```text
 bywaf> history
 2026-05-17 10:00:00 EDT  plugins
+```
+
+Limit session history by timestamp with `since=` and `until=`. Unqualified
+values default to `time:` and use `yyyymmdd[HH[MM[SS]]]`:
+
+```text
+bywaf> history since=20260517 until=20260518
+bywaf> history since=time:202605171000 until=time:202605171059
 ```
 
 The persistent history file can be viewed with the OS commandlets:

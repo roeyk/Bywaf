@@ -60,6 +60,9 @@ so compatibility may change between testing releases.
 
 - Changed the `less` commandlet to request paging from the framework instead of
   launching terminal paging directly.
+- Changed `pipeline list` and the `pipelines` alias to show active pipelines by
+  default, with `pipeline list --all` for historical pipelines.
+- Changed `history` to support `since=` and `until=` time-window selectors.
 - Changed `history` display to show timestamps before commands while preserving
   script-friendly storage.
 - Changed background job child-process failures to record `job.failed` when

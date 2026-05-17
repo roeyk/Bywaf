@@ -85,6 +85,11 @@ class RegistryCompletionTests(unittest.TestCase):
             ["portscanner"],
         )
 
+    def test_completes_history_time_window_selectors(self):
+        completer = Completer(self.registry)
+        self.assertEqual(completer.candidates("history s"), ["since="])
+        self.assertEqual(completer.candidates("history u"), ["until="])
+
     def test_completes_file_commands(self):
         with tempfile.TemporaryDirectory() as tmp:
             Path(tmp, "file.txt").write_text("x")

@@ -216,6 +216,8 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
                 print_commandlets(runner)
             case ["history"]:
                 print_history(state.session_history)
+            case ["history", selectors]:
+                print_history(state.session_history, parse_history_selectors(shlex.split(selectors)))
             case ["jobs"]:
                 events = runner.execute("job list")
                 process_framework_requests(runner, state)
@@ -557,10 +559,12 @@ def print_run_variables(runner: Runner, command_run_id: str) -> None:
         print(f"  {row['name']}={row['value']}")
 
 
-def print_history(entries: Sequence[str] = ()) -> None:
-    """Print the current session history, not the full persistent history file."""
+def print_history(entries: Sequence[str] = (), selectors: dict[str, str] | None = None) -> None:
+    """Print the current session history, optionally filtered by time bounds."""
+    window = history_time_window(selectors or {})
     for entry in entries:
-        print(format_history_entry_for_display(entry))
+        if history_entry_in_window(entry, window):
+            print(format_history_entry_for_display(entry))
 
 
 def format_history_entry_for_display(entry: str) -> str:
@@ -569,6 +573,61 @@ def format_history_entry_for_display(entry: str) -> str:
     if not separator or not timestamp:
         return entry
     return f"{timestamp}  {command}"
+
+
+def parse_history_selectors(tokens: Sequence[str]) -> dict[str, str]:
+    """Parse `history since=... until=...` selector tokens."""
+    selectors: dict[str, str] = {}
+    for token in tokens:
+        if "=" not in token:
+            raise ValueError("history selectors must be since=<time> or until=<time>")
+        key, value = token.split("=", 1)
+        if key not in {"since", "until"}:
+            raise ValueError("history selectors must be since=<time> or until=<time>")
+        if not value:
+            raise ValueError(f"history {key}= requires a value")
+        selectors[key] = value
+    return selectors
+
+
+def history_time_window(selectors: dict[str, str]) -> tuple[str | None, str | None]:
+    """Convert history selectors to inclusive compact timestamp bounds."""
+    since = normalize_history_time_bound(selectors["since"], until=False) if "since" in selectors else None
+    until = normalize_history_time_bound(selectors["until"], until=True) if "until" in selectors else None
+    return since, until
+
+
+def normalize_history_time_bound(value: str, *, until: bool) -> str:
+    """Normalize `yyyymmdd[HH[MM[SS]]]` or `time:<...>` to YYYYMMDDHHMMSS."""
+    if ":" in value:
+        kind, raw = value.split(":", 1)
+        if kind != "time":
+            raise ValueError("history since=/until= only supports time bounds")
+    else:
+        raw = value
+    digits = "".join(char for char in raw if char.isdigit())
+    if len(digits) not in {8, 10, 12, 14}:
+        raise ValueError("history time must be yyyymmdd[HH[MM[SS]]]")
+    if len(digits) == 8:
+        return digits + ("235959" if until else "000000")
+    if len(digits) == 10:
+        return digits + ("5959" if until else "0000")
+    if len(digits) == 12:
+        return digits + ("59" if until else "00")
+    return digits
+
+
+def history_entry_in_window(entry: str, window: tuple[str | None, str | None]) -> bool:
+    """Return whether a script-friendly history entry falls within a time window."""
+    since, until = window
+    _command, separator, timestamp = entry.rpartition("  # ")
+    if not separator:
+        return since is None and until is None
+    compact = "".join(char for char in timestamp if char.isdigit())
+    if len(compact) < 14:
+        return since is None and until is None
+    compact = compact[:14]
+    return (since is None or compact >= since) and (until is None or compact <= until)
 
 
 def execute_and_print(runner: Runner, command: str) -> int:

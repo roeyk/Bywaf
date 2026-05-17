@@ -18,6 +18,7 @@ PIPELINE_ACTIONS = ("attach", "cancel", "kill", "list", "show")
     usage="pipeline <list|show|cancel|kill|attach> [options] [id]",
     examples=(
         "pipeline list",
+        "pipeline list --all",
         "pipeline show pipeline-...",
         "pipeline cancel pipeline-...",
         "pipeline attach pipeline-... portscanner run=hostscanner-... from=beginning",
@@ -42,12 +43,13 @@ class Pipeline(CommandletBase):
             return ()
         parser.add_argument("action", choices=PIPELINE_ACTIONS)
         parser.add_argument("id", nargs="?")
+        parser.add_argument("--all", action="store_true")
         parser.add_argument("--force", action="store_true")
         parsed = parser.parse_args(args)
         context.require_foreground("pipeline management commands")
         match parsed.action:
             case "list":
-                print_pipelines(context)
+                print_pipelines(context, active_only=not parsed.all)
             case "show":
                 row = require_pipeline(context, parsed.id)
                 context.output(format_pipeline(row))
@@ -63,26 +65,35 @@ class Pipeline(CommandletBase):
             return list(PIPELINE_ACTIONS)
         if len(args) == 1 and args[0] == "attach":
             return pipeline_ids(context)
+        if len(args) == 1 and args[0] == "list":
+            return ["--all"]
         if len(args) == 1 and args[0] in {"show", "cancel", "kill"}:
             return pipeline_ids(context)
         if len(args) == 1 and args[0] not in PIPELINE_ACTIONS:
             return list(PIPELINE_ACTIONS)
         if args and args[0] == "attach":
             return attach_candidates(context, args, prefix)
+        if args and args[0] == "list":
+            return ["--all"] if "--all".startswith(prefix) else []
         if len(args) >= 2 and args[0] in {"show", "cancel", "kill"}:
             return pipeline_ids(context)
         return []
 
 
-def print_pipelines(context: CommandContext) -> None:
-    """Print all known pipelines with newest first."""
-    for row in context.require_db().pipelines():
+def print_pipelines(context: CommandContext, *, active_only: bool = True) -> None:
+    """Print active pipelines by default, or all pipelines when requested."""
+    rows = context.require_db().pipelines(active_only=active_only)
+    if not rows:
+        context.output("no active pipelines" if active_only else "no pipelines")
+        return
+    for row in rows:
         context.output(format_pipeline(row))
 
 
 def format_pipeline(row) -> str:
     """Format one pipeline summary row."""
-    return f"{row['pipeline_id']} job={row['job_id']} runs={row['runs']} events={row['events']}"
+    statuses = row["job_statuses"] or "unknown"
+    return f"{row['pipeline_id']} job={row['job_id']} status={statuses} runs={row['runs']} events={row['events']}"
 
 
 def require_pipeline(context: CommandContext, pipeline_id: str | None):

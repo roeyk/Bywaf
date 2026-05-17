@@ -27,6 +27,7 @@ except ImportError:  # pragma: no cover - exercised on systems without the optio
     sqlcipher = None
 
 SQLITE_HEADER = b"SQLite format 3\x00"
+ACTIVE_JOB_STATUSES = ("queued", "claimed", "running", "cancelling")
 
 
 @dataclass(frozen=True, slots=True)
@@ -482,7 +483,7 @@ class EventStore:
                 )
             )
 
-    def pipelines(self) -> list[sqlite3.Row]:
+    def pipelines(self, *, active_only: bool = False) -> list[sqlite3.Row]:
         """Summarize known pipeline IDs from events and run-variable snapshots."""
         with self.connect() as conn:
             return list(
@@ -498,16 +499,22 @@ class EventStore:
                         MIN(command_run_vars.job_id) AS job_id,
                         COUNT(DISTINCT command_run_vars.command_run_id) AS runs,
                         COUNT(DISTINCT events.id) AS events,
+                        GROUP_CONCAT(DISTINCT jobs.status) AS job_statuses,
+                        SUM(CASE WHEN jobs.status IN (?, ?, ?, ?) THEN 1 ELSE 0 END) AS active_jobs,
                         MIN(COALESCE(command_run_vars.created_at, events.created_at)) AS first_seen,
                         MAX(COALESCE(command_run_vars.created_at, events.created_at)) AS last_seen
                     FROM known_pipelines
                     LEFT JOIN command_run_vars
                       ON command_run_vars.pipeline_id = known_pipelines.pipeline_id
+                    LEFT JOIN jobs
+                      ON jobs.id = command_run_vars.job_id
                     LEFT JOIN events
                       ON events.pipeline_id = known_pipelines.pipeline_id
                     GROUP BY known_pipelines.pipeline_id
+                    HAVING ? = 0 OR active_jobs > 0
                     ORDER BY last_seen DESC
-                    """
+                    """,
+                    (*ACTIVE_JOB_STATUSES, 1 if active_only else 0),
                 )
             )
 

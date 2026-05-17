@@ -202,8 +202,9 @@ class AppDispatchTests(unittest.TestCase):
     def test_pipelines_alias_runs_pipeline_list(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("hostscanner 127.0.0.1", 123, "running")
             runner.db.record_command_run_vars(
-                job_id=7,
+                job_id=job_id,
                 pipeline_id="pipe-1",
                 command_run_id="run-1",
                 commandlet="hostscanner",
@@ -212,7 +213,27 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "pipelines")
-            self.assertIn("pipe-1 job=7 runs=1", output.getvalue())
+            self.assertIn(f"pipe-1 job={job_id} status=running runs=1", output.getvalue())
+
+    def test_pipeline_list_defaults_to_active_unless_all_requested(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("hostscanner done", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=job_id,
+                pipeline_id="finished-pipe",
+                command_run_id="run-1",
+                commandlet="hostscanner",
+                values={"test.marker": "1"},
+            )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "pipeline list")
+            self.assertIn("no active pipelines", output.getvalue())
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "pipeline list --all")
+            self.assertIn("finished-pipe", output.getvalue())
 
     def test_job_cancel_records_soft_cancellation(self):
         with tempfile.TemporaryDirectory() as tmp:

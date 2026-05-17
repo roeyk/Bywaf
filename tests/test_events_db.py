@@ -116,6 +116,31 @@ class EventDbTests(unittest.TestCase):
             self.assertEqual(rows[0]["command_run_id"], "r")
             self.assertEqual(rows[0]["events"], 2)
 
+    def test_pipelines_can_filter_to_active_jobs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "events.sqlite3"))
+            active_job = db.record_job("hostscanner active", 123, "running")
+            finished_job = db.record_job("hostscanner done", 456, "finished")
+            db.record_command_run_vars(
+                job_id=active_job,
+                pipeline_id="active-pipe",
+                command_run_id="active-run",
+                commandlet="hostscanner",
+                values={"marker": "active"},
+            )
+            db.record_command_run_vars(
+                job_id=finished_job,
+                pipeline_id="finished-pipe",
+                command_run_id="finished-run",
+                commandlet="hostscanner",
+                values={"marker": "finished"},
+            )
+            self.assertEqual([row["pipeline_id"] for row in db.pipelines(active_only=True)], ["active-pipe"])
+            self.assertEqual(
+                {row["pipeline_id"] for row in db.pipelines(active_only=False)},
+                {"active-pipe", "finished-pipe"},
+            )
+
     @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
     def test_encrypted_database_round_trip(self):
         with tempfile.TemporaryDirectory() as tmp:

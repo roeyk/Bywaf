@@ -65,6 +65,8 @@ class Completer:
                 base = [*self.builtins, *self.registry.names()]
             case ["show", *_]:
                 base = self.show_candidates(prefix)
+            case ["history", *_]:
+                base = history_candidates(prefix)
             case [name, *rest] if name in self.registry.plugins:
                 base = self.plugin_candidates(name, prefix, rest)
             case ["load", *_]:
@@ -332,6 +334,12 @@ def tokens_after_last_pipe(tokens: list[str]) -> list[str]:
         return tokens
     last_pipe = len(tokens) - 1 - tokens[::-1].index("|")
     return tokens[last_pipe + 1 :]
+
+
+def history_candidates(prefix: str) -> list[str]:
+    """Complete timestamp-window selectors for the built-in history command."""
+    selectors = ("since=", "until=")
+    return [selector for selector in selectors if selector.startswith(prefix)]
 
 
 def should_print_completion_menu(line: str, candidates: Sequence[str]) -> bool:

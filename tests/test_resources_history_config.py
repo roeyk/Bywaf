@@ -195,6 +195,32 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             self.assertIn("2026-05-17 10:00:00 EDT  plugins", output.getvalue())
             self.assertNotIn("old-command", output.getvalue())
 
+    def test_dispatch_history_filters_since_until(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState(
+                session_history=[
+                    "plugins  # 2026-05-17 09:00:00 EDT",
+                    "cmds  # 2026-05-17 10:00:00 EDT",
+                    "vars  # 2026-05-17 11:00:00 EDT",
+                ],
+            )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "history since=202605171000 until=202605171059", state)
+            self.assertNotIn("plugins", output.getvalue())
+            self.assertIn("cmds", output.getvalue())
+            self.assertNotIn("vars", output.getvalue())
+
+    def test_dispatch_history_accepts_explicit_time_prefix(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState(session_history=["plugins  # 2026/05/17 10:00:00"])
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "history since=time:20260517 until=time:20260517", state)
+            self.assertIn("plugins", output.getvalue())
+
     def test_save_and_load_history(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "history.bywaf")
