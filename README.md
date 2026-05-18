@@ -209,8 +209,15 @@ complete correctly.
 
 Interactive shells use `prompt_toolkit` when a real terminal is available.
 Completion menus support arrow-key navigation, `Enter` to accept, `Esc` to
-return to the command line, and `s` to select the highlighted completion. A
-bottom toolbar shows that hint while a completion menu is open. Minimal
+return to the command line, and `Ctrl-Space` to select the highlighted
+completion. A bottom toolbar shows that hint while a completion menu is open.
+The selection key is configurable with `vars completion.select-key=<key>` using
+prompt-toolkit key names, because some desktop environments or terminal stacks
+reserve `Ctrl-Space`. `vars completion.menu-selection=false` disables the extra
+selection binding. `vars completion.wasd-selection=true` enables
+optional WASD-style menu navigation (`w`/`a` move backward, `s`/`d` move
+forward, following prompt-toolkit's flat completion order), but it is off by
+default so ordinary typing is not intercepted. Minimal
 non-interactive environments fall back to readline-style completion.
 
 Plugin authors should use `context.output()`, `context.table()`,

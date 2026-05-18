@@ -7,10 +7,17 @@ from unittest.mock import patch
 from types import ModuleType
 
 from bywaf.completion import (
+    COMPLETION_MENU_SELECTION_VAR,
+    COMPLETION_SELECT_KEY_VAR,
+    COMPLETION_WASD_SELECTION_VAR,
     Completer,
     PromptToolkitCompleter,
     common_completion_prefix,
+    completion_menu_selection_enabled,
     completion_results,
+    completion_select_key,
+    completion_select_key_display,
+    completion_wasd_selection_enabled,
     configure_readline_delimiters,
     display_label,
     should_print_completion_menu,
@@ -262,6 +269,19 @@ class RegistryCompletionTests(unittest.TestCase):
         display_texts = [completion.display_text for completion in completions]
         self.assertIn("host.found", display_texts)
         self.assertNotIn("topic=host.found", display_texts)
+
+    def test_prompt_toolkit_selection_key_is_configurable(self):
+        completer = Completer(self.registry)
+        self.assertEqual(completion_select_key(completer), "c-space")
+        self.assertEqual(completion_select_key_display(completer), "Ctrl-Space")
+        self.registry.varstore.set(COMPLETION_SELECT_KEY_VAR, "c-j")
+        self.assertEqual(completion_select_key(completer), "c-j")
+        self.assertEqual(completion_select_key_display(completer), "Ctrl-J")
+        self.assertFalse(completion_wasd_selection_enabled(completer))
+        self.registry.varstore.set(COMPLETION_WASD_SELECTION_VAR, "true")
+        self.assertTrue(completion_wasd_selection_enabled(completer))
+        self.registry.varstore.set(COMPLETION_MENU_SELECTION_VAR, "false")
+        self.assertFalse(completion_menu_selection_enabled(completer))
 
     def test_control_completion_includes_run_selector(self):
         with tempfile.TemporaryDirectory() as tmp:

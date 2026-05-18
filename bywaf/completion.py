@@ -44,6 +44,10 @@ FRAMEWORK_OPTION_COMPLETIONS = {
     "--from-pipeline": CompletionSpec("pipeline"),
     "--from-topic": CompletionSpec("topic"),
 }
+COMPLETION_SELECT_KEY_VAR = "completion.select-key"
+COMPLETION_MENU_SELECTION_VAR = "completion.menu-selection"
+COMPLETION_WASD_SELECTION_VAR = "completion.wasd-selection"
+DEFAULT_COMPLETION_SELECT_KEY = "c-space"
 
 
 @dataclass(slots=True)
@@ -345,44 +349,128 @@ def build_prompt_session(completer: Completer):
         complete_while_typing=False,
         complete_style=CompleteStyle.MULTI_COLUMN,
         reserve_space_for_menu=8,
-        bottom_toolbar=completion_bottom_toolbar,
-        key_bindings=completion_key_bindings(),
+        bottom_toolbar=lambda: completion_bottom_toolbar(completer),
+        key_bindings=completion_key_bindings(completer),
     )
 
 
-def completion_bottom_toolbar():
+def completion_bottom_toolbar(completer: Completer):
     """Display completion menu help only while a menu is active."""
     if get_app is None or HTML is None:
         return ""
     try:
         if get_app().current_buffer.complete_state:
+            select_key = completion_select_key_display(completer)
+            wasd_hint = " | WASD navigates" if completion_wasd_selection_enabled(completer) else ""
             return HTML(
-                "<b>Completion:</b> arrows move | <b>s</b> selects | "
-                "<b>Enter</b> accepts | <b>Esc</b> returns"
+                f"<b>Completion:</b> arrows move | <b>{select_key}</b> selects | "
+                f"<b>Enter</b> accepts | <b>Esc</b> returns{wasd_hint}"
             )
     except RuntimeError:
         return ""
     return ""
 
 
-def completion_key_bindings():
+def completion_key_bindings(completer: Completer):
     """Return prompt-toolkit keybindings for completion selection."""
     if KeyBindings is None or has_completions is None:
         return None
     bindings = KeyBindings()
+    if not completion_menu_selection_enabled(completer):
+        return bindings
+    select_key = completion_select_key(completer)
 
-    @bindings.add("s", filter=has_completions)
-    def _select_completion(event) -> None:
-        buffer = event.app.layout.get_buffer_by_name(DEFAULT_BUFFER)
-        if buffer is None or buffer.complete_state is None:
-            return
-        completion = buffer.complete_state.current_completion
-        if completion is None and buffer.complete_state.completions:
-            completion = buffer.complete_state.completions[0]
-        if completion is not None:
-            buffer.apply_completion(completion)
+    try:
+        register_select_completion_binding(bindings, select_key)
+    except ValueError:
+        register_select_completion_binding(bindings, DEFAULT_COMPLETION_SELECT_KEY)
+    if completion_wasd_selection_enabled(completer):
+        register_wasd_completion_bindings(bindings)
 
     return bindings
+
+
+def register_select_completion_binding(bindings, select_key: str) -> None:
+    """Register the configured highlighted-completion acceptance key."""
+
+    @bindings.add(select_key, filter=has_completions)
+    def _select_completion(event) -> None:
+        apply_current_completion(event)
+
+
+def register_wasd_completion_bindings(bindings) -> None:
+    """Register optional WASD completion-menu navigation keys."""
+
+    @bindings.add("w", filter=has_completions)
+    def _previous_completion(event) -> None:
+        event.current_buffer.complete_previous()
+
+    @bindings.add("a", filter=has_completions)
+    def _left_completion(event) -> None:
+        event.current_buffer.complete_previous()
+
+    @bindings.add("s", filter=has_completions)
+    def _next_completion(event) -> None:
+        event.current_buffer.complete_next()
+
+    @bindings.add("d", filter=has_completions)
+    def _right_completion(event) -> None:
+        event.current_buffer.complete_next()
+
+
+def apply_current_completion(event) -> None:
+    """Accept the highlighted completion, or the first completion if none selected."""
+    buffer = event.app.layout.get_buffer_by_name(DEFAULT_BUFFER)
+    if buffer is None or buffer.complete_state is None:
+        return
+    completion = buffer.complete_state.current_completion
+    if completion is None and buffer.complete_state.completions:
+        completion = buffer.complete_state.completions[0]
+    if completion is not None:
+        buffer.apply_completion(completion)
+
+
+def completion_menu_selection_enabled(completer: Completer) -> bool:
+    """Return whether extra completion-menu selection binding is enabled."""
+    value = completer.registry.varstore.get(COMPLETION_MENU_SELECTION_VAR, "true")
+    return framework_bool(value, default=True)
+
+
+def completion_wasd_selection_enabled(completer: Completer) -> bool:
+    """Return whether optional WASD completion navigation is enabled."""
+    value = completer.registry.varstore.get(COMPLETION_WASD_SELECTION_VAR, "false")
+    return framework_bool(value, default=False)
+
+
+def completion_select_key(completer: Completer) -> str:
+    """Return the configured prompt-toolkit key name for selection."""
+    value = completer.registry.varstore.get(COMPLETION_SELECT_KEY_VAR, DEFAULT_COMPLETION_SELECT_KEY)
+    key = str(value).strip()
+    if key.casefold() in {"", "none", "off", "disabled"}:
+        return DEFAULT_COMPLETION_SELECT_KEY
+    return key
+
+
+def framework_bool(value: str | None, *, default: bool) -> bool:
+    """Parse a shell variable as a framework boolean."""
+    if value is None:
+        return default
+    normalized = str(value).strip().casefold()
+    if normalized in {"1", "true", "yes", "on", "enabled"}:
+        return True
+    if normalized in {"0", "false", "no", "off", "disabled"}:
+        return False
+    return default
+
+
+def completion_select_key_display(completer: Completer) -> str:
+    """Return a human-readable label for the configured selection key."""
+    key = completion_select_key(completer)
+    if key == "c-space":
+        return "Ctrl-Space"
+    if key.startswith("c-") and len(key) > 2:
+        return f"Ctrl-{key[2:].upper()}"
+    return key
 
 
 def resource_candidates(prefix: str, keywords: tuple[str, ...]) -> list[str]:
