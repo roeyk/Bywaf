@@ -5,6 +5,9 @@ more specific than `TODO.md`, but less stable than the public usage guide.
 
 For canonical definitions of runtime terms such as job, pipeline, run, local
 ID, serial, event, topic, commandlet, and capability, see `TERMINOLOGY.md`.
+For the stable architecture model, see `RUNTIME_MODEL.md`, `EVENT_MODEL.md`,
+`CAPABILITY_MODEL.md`, `SYSTEM_BLOCK_DIAGRAM.pdf`, and
+`SYSTEM_DATAFLOW_DIAGRAM.pdf`.
 
 ## Framework Request IPC
 

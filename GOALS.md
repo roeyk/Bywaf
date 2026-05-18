@@ -142,14 +142,15 @@ Documentation should explain:
 
 Important architectural and conceptual documents may include:
 
-- `ARCHITECTURE.md`
 - `EVENT_MODEL.md`
 - `RUNTIME_MODEL.md`
 - `CAPABILITY_MODEL.md`
 - `TERMINOLOGY.md`
-- `PLUGIN_TYPES.md`
-- `PLUGIN_SECURITY_MODEL.md`
-- `COMMAND_SYNTAX.md`
+- `SYSTEM_BLOCK_DIAGRAM.pdf`
+- `SYSTEM_DATAFLOW_DIAGRAM.pdf`
+- future `PLUGIN_TYPES.md`
+- future `PLUGIN_SECURITY_MODEL.md`
+- future `COMMAND_SYNTAX.md`
 
 The project should emphasize strong terminology and stable conceptual definitions.
 

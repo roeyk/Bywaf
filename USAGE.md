@@ -16,6 +16,20 @@ and probe web services.
 Use Bywaf only on systems and networks where you have explicit authorization.
 
 Evolving framework design notes are tracked in [DESIGN.md](DESIGN.md).
+Core architectural references:
+
+- [TERMINOLOGY.md](TERMINOLOGY.md) defines jobs, pipelines, runs, events,
+  topics, commandlets, plugins, capabilities, local IDs, and serials.
+- [RUNTIME_MODEL.md](RUNTIME_MODEL.md) explains runtime entities, lifecycle,
+  foreground/background execution, control signals, and variable snapshots.
+- [EVENT_MODEL.md](EVENT_MODEL.md) explains event rows, topics, replay,
+  framework requests, artifacts, notes, and provenance.
+- [CAPABILITY_MODEL.md](CAPABILITY_MODEL.md) explains capability auditing,
+  policy direction, and plugin integration types.
+- [SYSTEM_BLOCK_DIAGRAM.pdf](SYSTEM_BLOCK_DIAGRAM.pdf) shows live runtime flow
+  and durable data flow through the system.
+- [SYSTEM_DATAFLOW_DIAGRAM.pdf](SYSTEM_DATAFLOW_DIAGRAM.pdf) focuses on command
+  input, event, artifact, audit, request, and report data movement.
 
 # Installation
 

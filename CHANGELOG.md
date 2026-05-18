@@ -5,7 +5,23 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-17 21:27:27 EDT
+Last updated: 2026-05-17 21:31:17 EDT
+
+### 2026-05-17 21:31:17 EDT
+
+#### Added
+
+- Added `RUNTIME_MODEL.md`, `EVENT_MODEL.md`, and `CAPABILITY_MODEL.md` as
+  canonical architecture references.
+- Added `SYSTEM_BLOCK_DIAGRAM.pdf`, `SYSTEM_DATAFLOW_DIAGRAM.pdf`, and their
+  Typst sources, showing system components plus event/artifact/audit/request
+  data flow.
+
+#### Changed
+
+- Folded the plugin integration taxonomy into `CAPABILITY_MODEL.md`, covering
+  framework-native, library-backed, external-process wrapper, and native/FFI
+  plugin types.
 
 ### 2026-05-17 21:27:27 EDT
 

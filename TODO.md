@@ -27,6 +27,8 @@ Planning dates are release planning markers, not compatibility commitments.
   exercised with real plugins.
 - Add policy checks for direct process execution and require `process.run` for
   mediated external tool wrappers.
+- Split future deep-dive docs from `CAPABILITY_MODEL.md` if needed, such as
+  `PLUGIN_TYPES.md`, `PLUGIN_SECURITY_MODEL.md`, and `PLUGIN_PACKAGING.md`.
 
 ### External Tool Wrappers
 
@@ -83,3 +85,5 @@ Planning dates are release planning markers, not compatibility commitments.
 - 2026-05-17: Added backslash command continuation and semicolon command
   sequences.
 - 2026-05-17: Added `pipelines` alias and timestamp-first history display.
+- 2026-05-17: Added canonical architecture documents for terminology, runtime,
+  events, capabilities, and system block/dataflow diagrams.

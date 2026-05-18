@@ -48,6 +48,9 @@ These categories are intentionally orthogonal. For example, an nmap commandlet
 could be a library-backed scanner or an external-process scanner, while a report
 generator could be a framework-native renderer.
 
+See `CAPABILITY_MODEL.md` for how these integration types affect trust
+boundaries, failure semantics, deployment, and capability declarations.
+
 # A Minimal Commandlet
 
 Create a plugin directory:
