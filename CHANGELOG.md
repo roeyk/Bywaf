@@ -5,7 +5,15 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-18 08:46:16 EDT
+Last updated: 2026-05-18 09:30:33 EDT
+
+### 2026-05-18 09:30:33 EDT
+
+#### Changed
+
+- Clarified the packaging tracker: local pip, Debian, and RPM package builds
+  are implemented and smoke-tested, while TestPyPI/PyPI upload and GitHub
+  release artifact publishing remain open release tasks.
 
 ### 2026-05-18 08:46:16 EDT
 

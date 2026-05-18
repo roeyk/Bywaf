@@ -57,15 +57,12 @@ Planning dates are release planning markers, not compatibility commitments.
 
 ### Packaging
 
+- Upload the 0.9.x source and wheel artifacts to TestPyPI, then PyPI, and
+  verify installation from PyPI in a clean virtual environment.
+- Decide whether GitHub releases should attach generated `.deb`, `.rpm`,
+  source, and wheel artifacts directly.
 - Keep pip, Debian, RPM, and plugin install-path smoke scripts aligned as
   packaging behavior changes.
-- Install Bywaf as a normal `bywaf` executable through the Python console
-  script metadata.
-- Verify packaged installs include `bywaf/plugins/plugins.json` and bundled
-  stock commandlet modules.
-- Test user-local plugin roots shaped like `~/.bywaf/plugins` and system-wide
-  plugin roots shaped like `/usr/share/bywaf/plugins` through the explicit
-  `--plugin-root` / `--plugin-config` path.
 - Decide whether Bywaf should auto-discover user-local and system-wide plugin
   config files, or keep those paths explicit until the plugin trust model is
   stricter.
@@ -80,6 +77,9 @@ Planning dates are release planning markers, not compatibility commitments.
   under `dist/` and RPM artifacts under `dist/rpm/`.
 - 2026-05-18: Built and smoke-tested pip source/wheel distributions, the
   Debian package, and RPM source/noarch packages from the packaging scaffolds.
+- 2026-05-18: Verified packaged installs expose a normal `bywaf` executable,
+  include `bywaf/plugins/plugins.json`, and include bundled stock commandlet
+  modules.
 - 2026-05-18: Added the initial Debian packaging scaffold and declared packaged
   plugin metadata.
 - 2026-05-18: Added regression coverage and a reusable smoke script for
