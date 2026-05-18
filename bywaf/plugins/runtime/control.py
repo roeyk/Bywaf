@@ -102,10 +102,10 @@ class Control(CommandletBase):
     description="Send a live-control signal to a job, pipeline, or command run.",
     usage="signal <job=id|pipeline=id|run=id> <action> [--soft|--hard] [key=value ...]",
     examples=(
-        "signal run=hostscanner-... prune host=192.168.1.50",
-        "signal run=hostscanner-... verbosity level=debug",
-        "signal pipeline=pipeline-... mute",
-        "signal run=hostscanner-... pause --hard",
+        "signal run=1 prune host=192.168.1.50",
+        "signal run=1 verbosity level=debug",
+        "signal pipeline=1 mute",
+        "signal run=1 pause --hard",
     ),
     capabilities=("db.raw", "framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
@@ -185,7 +185,7 @@ class RuntimeSignal(CommandletBase):
     name="kill",
     description="Hard-terminate a job or pipeline.",
     usage="kill [--force] <job=id|pipeline=id|run=id>",
-    examples=("kill job=1", "kill --force pipeline=pipeline-...", "kill run=hostscanner-..."),
+    examples=("kill job=1", "kill --force pipeline=1", "kill run=1"),
     capabilities=("db.raw", "framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
 @argument("target", "job=<id>, pipeline=<id>, or run=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "run=")))
@@ -199,7 +199,7 @@ class Kill(Control):
     name="cancel",
     description="Request cooperative cancellation for a job or pipeline.",
     usage="cancel <job=id|pipeline=id|run=id>",
-    examples=("cancel job=1", "cancel pipeline=pipeline-...", "cancel run=hostscanner-..."),
+    examples=("cancel job=1", "cancel pipeline=1", "cancel run=1"),
     capabilities=("db.raw", "framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
 @argument("target", "job=<id>, pipeline=<id>, or run=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "run=")))
@@ -213,7 +213,7 @@ class Cancel(Control):
     name="pause",
     description="Pause a job or pipeline.",
     usage="pause [--soft|--hard] <job=id|pipeline=id|run=id>",
-    examples=("pause job=1", "pause --hard pipeline=pipeline-...", "pause run=hostscanner-..."),
+    examples=("pause job=1", "pause --hard pipeline=1", "pause run=1"),
     capabilities=("db.raw", "framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
 @argument("target", "job=<id>, pipeline=<id>, or run=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "run=")))
@@ -227,7 +227,7 @@ class Pause(Control):
     name="resume",
     description="Resume a paused job or pipeline.",
     usage="resume [--listonly] [--soft|--hard] <job=id|pipeline=id|run=id>",
-    examples=("resume job=1", "resume --listonly pipeline=pipeline-...", "resume run=hostscanner-..."),
+    examples=("resume job=1", "resume --listonly pipeline=1", "resume run=1"),
     capabilities=("db.raw", "framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
 @argument("target", "job=<id>, pipeline=<id>, or run=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "run=")))
@@ -241,7 +241,7 @@ class Resume(Control):
     name="stop",
     description="Stop a job or pipeline.",
     usage="stop [--soft|--hard] <job=id|pipeline=id|run=id>",
-    examples=("stop job=1", "stop --hard pipeline=pipeline-...", "stop run=hostscanner-..."),
+    examples=("stop job=1", "stop --hard pipeline=1", "stop run=1"),
     capabilities=("db.raw", "framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
 @argument("target", "job=<id>, pipeline=<id>, or run=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "run=")))

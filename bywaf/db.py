@@ -510,6 +510,53 @@ class EventStore:
             )
             return [Event.from_row(row) for row in rows]
 
+    def events_for_serial(self, serial: str, *, limit: int = 1000) -> list[Event]:
+        """Return events associated with a globally unique audit serial."""
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT *
+                FROM events
+                WHERE command_run_id = ?
+                   OR pipeline_id = ?
+                   OR json_extract(payload_json, '$.serial') = ?
+                   OR json_extract(payload_json, '$.artifact_id') = ?
+                   OR json_extract(payload_json, '$.target_id') = ?
+                ORDER BY id ASC
+                LIMIT ?
+                """,
+                (serial, serial, serial, serial, serial, limit),
+            )
+            return [Event.from_row(row) for row in rows]
+
+    def serials(self) -> list[str]:
+        """Return known durable runtime/resource/artifact serial values."""
+        values: set[str] = set()
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT command_run_id AS serial FROM events WHERE command_run_id IS NOT NULL
+                UNION
+                SELECT pipeline_id AS serial FROM events WHERE pipeline_id IS NOT NULL
+                UNION
+                SELECT command_run_id AS serial FROM command_run_vars WHERE command_run_id IS NOT NULL
+                UNION
+                SELECT pipeline_id AS serial FROM command_run_vars WHERE pipeline_id IS NOT NULL
+                UNION
+                SELECT json_extract(payload_json, '$.serial') AS serial
+                FROM events
+                WHERE json_extract(payload_json, '$.serial') IS NOT NULL
+                UNION
+                SELECT json_extract(payload_json, '$.artifact_id') AS serial
+                FROM events
+                WHERE json_extract(payload_json, '$.artifact_id') IS NOT NULL
+                """
+            ).fetchall()
+        for row in rows:
+            if row["serial"] is not None:
+                values.add(str(row["serial"]))
+        return sorted(values)
+
     def runtime_names(self) -> dict[tuple[str, str], str]:
         """Return latest user-assigned names keyed by target type and id."""
         names: dict[tuple[str, str], str] = {}
@@ -550,6 +597,29 @@ class EventStore:
                 )
             )
 
+    def run_aliases(self) -> dict[str, str]:
+        """Return stable numeric run aliases keyed by durable run serial."""
+        rows = sorted(
+            self.runs(active_only=False),
+            key=lambda row: (row["first_event"] or "", row["command_run_id"] or ""),
+        )
+        aliases: dict[str, str] = {}
+        for row in rows:
+            serial = str(row["command_run_id"])
+            if serial not in aliases:
+                aliases[serial] = str(len(aliases) + 1)
+        return aliases
+
+    def resolve_run_serial(self, value: str) -> str:
+        """Resolve a user-facing run id or legacy serial to a run serial."""
+        aliases = self.run_aliases()
+        if value in aliases:
+            return value
+        for serial, alias in aliases.items():
+            if value == alias:
+                return serial
+        return value
+
     def pipelines(self, *, active_only: bool = False) -> list[sqlite3.Row]:
         """Summarize known pipeline IDs from events and run-variable snapshots."""
         with self.connect() as conn:
@@ -584,6 +654,24 @@ class EventStore:
                     (*ACTIVE_JOB_STATUSES, 1 if active_only else 0),
                 )
             )
+
+    def pipeline_aliases(self) -> dict[str, str]:
+        """Return stable numeric pipeline aliases keyed by durable pipeline serial."""
+        rows = sorted(
+            self.pipelines(active_only=False),
+            key=lambda row: (row["first_seen"] or "", row["pipeline_id"] or ""),
+        )
+        return {str(row["pipeline_id"]): str(index) for index, row in enumerate(rows, start=1)}
+
+    def resolve_pipeline_serial(self, value: str) -> str:
+        """Resolve a user-facing pipeline id or legacy serial to a pipeline serial."""
+        aliases = self.pipeline_aliases()
+        if value in aliases:
+            return value
+        for serial, alias in aliases.items():
+            if value == alias:
+                return serial
+        return value
 
 
 def set_sqlcipher_key(conn: Any, passphrase: str) -> None:

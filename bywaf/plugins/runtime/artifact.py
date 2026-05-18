@@ -32,14 +32,14 @@ SEARCH_FIELDS = ("name", "note", "content")
     description="Attach, list, save, replace, remove, and verify encrypted artifacts.",
     usage="artifact <attach|list|save|replace|remove|search|verify> [artifact=id|run=id|pipeline=id|job=id] [file=path|dir=path]",
     examples=(
-        "artifact attach run=hostscanner-... file=snapshot.html name='Landing page'",
-        "artifact list run=hostscanner-...",
+        "artifact attach run=1 file=snapshot.html name='Landing page'",
+        "artifact list run=1",
         "artifact search --regexp note='login|cookie'",
         "artifact replace artifact=1 file=snapshot-v2.html",
         "artifact remove artifact=1",
         "artifact save artifact=1 file=snapshot.html",
-        "artifact save run=hostscanner-... dir=artifacts/",
-        "artifact verify pipeline=pipeline-...",
+        "artifact save run=1 dir=artifacts/",
+        "artifact verify pipeline=1",
     ),
     capabilities=(
         "artifact.read",
@@ -104,6 +104,8 @@ class ArtifactCommand(CommandletBase):
             return [f"job={value}" for value in job_ids(context)]
         if prefix.startswith("artifact="):
             return [f"artifact={value}" for value in artifact_ids(context)]
+        if prefix.startswith("serial="):
+            return [f"serial={value}" for value in serial_ids(context)]
         action = args[0]
         match action:
             case "attach":
@@ -117,7 +119,7 @@ class ArtifactCommand(CommandletBase):
             case "save":
                 return ["artifact=", "run=", "pipeline=", "job=", "file=", "dir="]
             case "search":
-                return ["name=", "note=", "content=", "--regexp", "artifact=", "run=", "pipeline=", "job=", "since=", "until="]
+                return ["name=", "note=", "content=", "serial=", "--regexp", "artifact=", "run=", "pipeline=", "job=", "since=", "until="]
             case _:
                 return list(ARTIFACT_ACTIONS)
 
@@ -125,11 +127,12 @@ class ArtifactCommand(CommandletBase):
 @commandlet(
     name="search",
     description="Search encrypted artifact metadata and text content.",
-    usage="search [--regexp] <name=text|note=text|content=text> [artifact=id|run=id|pipeline=id|job=id] [since=time|until=time]",
+    usage="search [--regexp] <name=text|note=text|content=text|serial=id> [artifact=id|run=id|pipeline=id|job=id] [since=time|until=time]",
     examples=(
         "search name=landing",
         "search --regexp note='login|cookie'",
-        "search run=hostscanner-... content=csrf",
+        "search serial=pipeline-...",
+        "search run=1 content=csrf",
     ),
     capabilities=(
         "artifact.read",
@@ -151,8 +154,8 @@ class SearchCommand(CommandletBase):
         """Search artifact metadata and print matching artifact rows."""
         del input_events
         selectors = parse_search_selectors(args)
-        if not any(field in selectors for field in SEARCH_FIELDS):
-            raise ValueError("search requires name=, note=, or content=")
+        if not any(field in selectors for field in SEARCH_FIELDS) and "serial" not in selectors:
+            raise ValueError("search requires name=, note=, content=, or serial=")
         artifacts = search_artifacts(context, selectors)
         if not artifacts:
             context.output("no artifacts matched")
@@ -172,7 +175,9 @@ class SearchCommand(CommandletBase):
             return [f"job={value}" for value in job_ids(context)]
         if prefix.startswith("artifact="):
             return [f"artifact={value}" for value in artifact_ids(context)]
-        return ["name=", "note=", "content=", "--regexp", "artifact=", "run=", "pipeline=", "job=", "since=", "until="]
+        if prefix.startswith("serial="):
+            return [f"serial={value}" for value in serial_ids(context)]
+        return ["name=", "note=", "content=", "serial=", "--regexp", "artifact=", "run=", "pipeline=", "job=", "since=", "until="]
 
 
 def parse_artifact_selectors(tokens: list[str]) -> dict[str, list[str]]:
@@ -210,7 +215,7 @@ def parse_search_selectors(tokens: list[str]) -> dict[str, list[str]]:
         if "=" not in token:
             raise ValueError(f"invalid search selector: {token}")
         key, value = token.split("=", 1)
-        if key not in {"artifact", "run", "pipeline", "job", "name", "note", "content", "since", "until"}:
+        if key not in {"artifact", "run", "pipeline", "job", "serial", "name", "note", "content", "since", "until"}:
             raise ValueError(f"unknown search selector: {key}")
         if not value:
             raise ValueError(f"search selector {key}= requires a value")
@@ -232,8 +237,8 @@ def attach_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
             name=single_value(selectors, "name"),
             note=note,
             job_id=single_value(selectors, "job"),
-            pipeline_id=single_value(selectors, "pipeline"),
-            command_run_id=single_value(selectors, "run"),
+            pipeline_id=resolve_pipeline_selector(context, single_value(selectors, "pipeline")),
+            command_run_id=resolve_run_selector(context, single_value(selectors, "run")),
         )
         attached.append(artifact)
     for artifact in attached:
@@ -368,8 +373,8 @@ def select_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
         return [store.get(artifact_id)]
     return store.list(
         job_id=single_value(selectors, "job"),
-        pipeline_id=single_value(selectors, "pipeline"),
-        command_run_id=single_value(selectors, "run"),
+        pipeline_id=resolve_pipeline_selector(context, single_value(selectors, "pipeline")),
+        command_run_id=resolve_run_selector(context, single_value(selectors, "run")),
     )
 
 
@@ -384,9 +389,10 @@ def search_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
     else:
         artifacts = store.list(
             job_id=single_value(selectors, "job"),
-            pipeline_id=single_value(selectors, "pipeline"),
-            command_run_id=single_value(selectors, "run"),
+            pipeline_id=resolve_pipeline_selector(context, single_value(selectors, "pipeline")),
+            command_run_id=resolve_run_selector(context, single_value(selectors, "run")),
         )
+    artifacts = filter_artifact_serials(artifacts, selectors.get("serial", []))
     return filter_artifact_time_window(
         filter_artifact_search(
             artifacts,
@@ -401,8 +407,8 @@ def search_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
 def search_artifact_command(context: CommandContext, tokens: list[str]) -> None:
     """Run artifact metadata search from the namespaced artifact command."""
     selectors = parse_search_selectors(tokens)
-    if not any(field in selectors for field in SEARCH_FIELDS):
-        raise ValueError("artifact search requires name=, note=, or content=")
+    if not any(field in selectors for field in SEARCH_FIELDS) and "serial" not in selectors:
+        raise ValueError("artifact search requires name=, note=, content=, or serial=")
     artifacts = search_artifacts(context, selectors)
     if not artifacts:
         context.output("no artifacts matched")
@@ -420,6 +426,42 @@ def filter_artifact_search(
     """Filter artifacts by field-specific query selectors."""
     queries = artifact_search_queries(selectors, use_regexp=use_regexp)
     return [artifact for artifact in artifacts if all(query_matches_artifact(query, artifact) for query in queries)]
+
+
+def filter_artifact_serials(artifacts: list[Artifact], serials: list[str]) -> list[Artifact]:
+    """Filter artifacts by exact durable serial selectors."""
+    if not serials:
+        return artifacts
+    wanted = set(serials)
+    return [artifact for artifact in artifacts if artifact_serials(artifact) & wanted]
+
+
+def artifact_serials(artifact: Artifact) -> set[str]:
+    """Return durable serials associated with one artifact."""
+    return {
+        value
+        for value in {
+            artifact.artifact_id,
+            artifact.pipeline_id,
+            artifact.command_run_id,
+            str(artifact.job_id) if artifact.job_id is not None else None,
+        }
+        if value
+    }
+
+
+def resolve_run_selector(context: CommandContext, value: str | None) -> str | None:
+    """Resolve a user-facing run id to the durable run serial."""
+    if value is None:
+        return None
+    return context.require_db("artifact").resolve_run_serial(value)
+
+
+def resolve_pipeline_selector(context: CommandContext, value: str | None) -> str | None:
+    """Resolve a user-facing pipeline id to the durable pipeline serial."""
+    if value is None:
+        return None
+    return context.require_db("artifact").resolve_pipeline_serial(value)
 
 
 def artifact_search_queries(selectors: dict[str, list[str]], *, use_regexp: bool) -> list[tuple[str, str | re.Pattern[str]]]:
@@ -579,14 +621,14 @@ def run_ids(context: CompletionContext) -> list[str]:
     """Return command-run IDs for completion."""
     if context.db is None:
         return []
-    return [str(row["command_run_id"]) for row in context.db.runs()]
+    return sorted(context.db.run_aliases().values(), key=int)
 
 
 def pipeline_ids(context: CompletionContext) -> list[str]:
     """Return pipeline IDs for completion."""
     if context.db is None:
         return []
-    return [str(row["pipeline_id"]) for row in context.db.pipelines()]
+    return sorted(context.db.pipeline_aliases().values(), key=int)
 
 
 def job_ids(context: CompletionContext) -> list[str]:
@@ -607,6 +649,13 @@ def artifact_ids(context: CompletionContext) -> list[str]:
     except RuntimeError:
         return []
     return [str(artifact.id) for artifact in store.list()]
+
+
+def serial_ids(context: CompletionContext) -> list[str]:
+    """Return durable serials for completion."""
+    if context.db is None:
+        return []
+    return context.db.serials()
 
 
 def plugins() -> tuple[Commandlet, ...]:

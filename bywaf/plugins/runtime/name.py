@@ -13,8 +13,8 @@ from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionC
     description="Show or assign names for jobs, pipelines, and command runs.",
     usage="name <run=id|pipeline=id|job=id> [name text|text=name]",
     examples=(
-        "name run=hostscanner-... localhost sweep",
-        "name pipeline=pipeline-... client subnet scan",
+        "name run=1 localhost sweep",
+        "name pipeline=1 client subnet scan",
         "name job=12 background listener",
     ),
     capabilities=("db.raw", "framework.console.output"),
@@ -33,7 +33,7 @@ class Name(CommandletBase):
         """Show an existing name or assign a new one."""
         del input_events
         selectors = parse_name_selectors(args)
-        target_type, target_id = selected_target(selectors)
+        target_type, target_id = selected_target(context, selectors)
         if "value" in selectors:
             context.require_db("name").publish(
                 "runtime.name.assigned",
@@ -58,9 +58,9 @@ class Name(CommandletBase):
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
         """Complete runtime selectors."""
         if prefix.startswith("run="):
-            return [f"run={row['command_run_id']}" for row in context.db.runs()] if context.db else []
+            return [f"run={value}" for value in sorted(context.db.run_aliases().values(), key=int)] if context.db else []
         if prefix.startswith("pipeline="):
-            return [f"pipeline={row['pipeline_id']}" for row in context.db.pipelines()] if context.db else []
+            return [f"pipeline={value}" for value in sorted(context.db.pipeline_aliases().values(), key=int)] if context.db else []
         if prefix.startswith("job="):
             return [f"job={row['id']}" for row in context.db.jobs()] if context.db else []
         if not args:
@@ -88,17 +88,22 @@ def parse_name_selectors(args: list[str]) -> dict[str, str]:
         if not value:
             raise ValueError(f"name selector {key}= requires a value")
         selectors["value" if key == "text" else key] = value
-    selected_target(selectors)
+    selected_target(None, selectors)
     return selectors
 
 
-def selected_target(selectors: dict[str, str]) -> tuple[str, str]:
+def selected_target(context: CommandContext | None, selectors: dict[str, str]) -> tuple[str, str]:
     """Return the single selected target type and id."""
     targets = [key for key in ("run", "pipeline", "job") if key in selectors]
     if len(targets) != 1:
         raise ValueError("name requires exactly one run=, pipeline=, or job= selector")
     target_type = targets[0]
-    return target_type, selectors[target_type]
+    target_id = selectors[target_type]
+    if context is not None and target_type == "run":
+        target_id = context.require_db("name").resolve_run_serial(target_id)
+    if context is not None and target_type == "pipeline":
+        target_id = context.require_db("name").resolve_pipeline_serial(target_id)
+    return target_type, target_id
 
 
 def plugin() -> Commandlet:

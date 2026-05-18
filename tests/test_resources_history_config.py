@@ -279,6 +279,44 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
                 dispatch_repl_line(runner, f"load script={script}")
             self.assertEqual(runner.registry.varstore.get("loaded.value"), "yes")
 
+    def test_load_script_records_auditable_serial(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            script = Path(tmp, "script.bywaf")
+            script.write_text("vars loaded.value=yes\n")
+            with contextlib.redirect_stdout(io.StringIO()):
+                dispatch_repl_line(runner, f"load script={script}")
+            loaded = runner.db.events_for_topic("resource.script.loaded")[0]
+            serial = loaded.payload["serial"]
+            self.assertTrue(str(serial).startswith("script-"))
+            self.assertIn(str(serial), runner.db.serials())
+            commands = runner.db.events_for_serial(str(serial))
+            self.assertEqual([event.topic for event in commands], ["resource.script.loaded", "resource.script.command"])
+            self.assertEqual(commands[1].payload["command"], "vars loaded.value=yes")
+
+    def test_load_plugin_records_auditable_serial(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            plugin_dir = Path(tmp, "example")
+            plugin_dir.mkdir()
+            (plugin_dir / "plugin.py").write_text(
+                "from bywaf.plugin import CommandSpec\n"
+                "class Example:\n"
+                "    spec = CommandSpec('example', 'example plugin')\n"
+                "    def run(self, context, args, input_events):\n"
+                "        return ()\n"
+                "def plugin():\n"
+                "    return Example()\n"
+            )
+            with contextlib.redirect_stdout(io.StringIO()):
+                dispatch_repl_line(runner, f"load plugin={plugin_dir}")
+            self.assertIn("example", runner.registry.names())
+            loaded = runner.db.events_for_topic("resource.plugin.loaded")[0]
+            serial = loaded.payload["serial"]
+            self.assertTrue(str(serial).startswith("plugin-"))
+            self.assertEqual(loaded.payload["commandlet"], "example")
+            self.assertEqual(runner.db.events_for_serial(str(serial)), [loaded])
+
     def test_regression_script_smoke_variables(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

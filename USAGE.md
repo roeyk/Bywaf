@@ -80,6 +80,12 @@ plugin's variables through that API. Explicit global variables use
 the effective commandlet and global variables into SQLite under that
 `command_run_id`; `show run=<id>` displays the captured variables so runs remain
 auditable and reproducible even when session variables change later.
+Runtime entities have two identities: short incrementing IDs for interactive
+typing (`run=1`, `pipeline=2`) and durable serials for audit/provenance.
+Use `show serial=<serial>` when you want to inspect by the durable identifier.
+Explicit `load plugin=...` and `load script=...` operations also receive
+resource serials, so the load itself and the script commands it executed can be
+reviewed later.
 
 Plugins that need interpreter-owned actions use request events instead of
 direct method calls. For example, a plugin can publish
@@ -168,7 +174,7 @@ jobs
 runs
 topics
 db <status|path|checkpoint|vacuum|new|encrypt|decrypt|rekey>
-show <topic|job=id|run=id|pipeline=id>
+show <topic|job=id|run=id|pipeline=id|serial=id>
 load <resource>
 save <resource>
 exit
@@ -669,8 +675,9 @@ bywaf> runs
 Show events by command run or pipeline:
 
 ```text
-bywaf> show run=<command-run-id>
-bywaf> show pipeline=<pipeline-id>
+bywaf> show run=1
+bywaf> show pipeline=1
+bywaf> show serial=<durable-serial>
 ```
 
 Save a database snapshot:
@@ -1116,6 +1123,7 @@ show <topic>
 show job=<id>
 show run=<id>
 show pipeline=<id>
+show serial=<id>
 db <status|path|checkpoint|vacuum|new|encrypt|decrypt|rekey>
 load plugin=<resource>
 load script=<resource>

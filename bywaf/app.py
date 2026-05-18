@@ -21,11 +21,12 @@ from . import __version__
 from .completion import Completer, build_prompt_session, install_readline
 from .config import Settings
 from .db import EventStore, Subscription, database_appears_encrypted, export_encrypted_database, export_plaintext_database
+from .events import Event
 from .nmap_backend import NmapScanError, NmapUnavailableError
 from .plugin import CommandContext, normalize_argv, run_process_argv
 from .registry import PluginRegistry
 from .runtime_display import ACTIVE_LISTING_FORMAT_VAR, normalize_active_listing_format, runtime_state_label, state_marker
-from .runner import Runner, add_runner_arguments
+from .runner import Runner, add_runner_arguments, new_run_id
 
 @dataclass(frozen=True, slots=True)
 class HelpEntry:
@@ -48,7 +49,7 @@ HELP_COMMANDS = (
     HelpEntry("vars [name=value]", "list or set session variables", "vars [name=value]", ("vars http_probe.cookie-file=/tmp/cookies.txt",)),
     HelpEntry("topics", "list event topics in the active database", "topics"),
     HelpEntry("use <commandlet|global>", "set the active variable context", "use <commandlet|global>"),
-    HelpEntry("show <topic|job=id|run=id|pipeline=id>", "show events for a topic, job, run, or pipeline", "show <topic|job=id|run=id|pipeline=id>", ("show host.found", "show run=hostscanner-...", "show pipeline=pipeline-...")),
+    HelpEntry("show <topic|job=id|run=id|pipeline=id|serial=id>", "show events for a topic, job, run, pipeline, or serial", "show <topic|job=id|run=id|pipeline=id|serial=id>", ("show host.found", "show run=1", "show pipeline=1", "show serial=hostscanner-...")),
     HelpEntry("prompt [pattern]", "show or set prompt pattern", "prompt [pattern]", ("prompt %u@%h %T > ",)),
     HelpEntry("load plugin=<path>", "load a filesystem plugin", "load plugin=<path>"),
     HelpEntry("load script=<path>", "run commands from a script file", "load script=<path>"),
@@ -271,11 +272,14 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
             case ["show", target] if target.startswith("job="):
                 print_job(runner, target.split("=", 1)[1])
             case ["show", target] if target.startswith("run="):
-                run_id = target.split("=", 1)[1]
+                run_id = runner.db.resolve_run_serial(target.split("=", 1)[1])
                 print_run_variables(runner, run_id)
                 print_events(runner.db.events_matching(command_run_id=run_id))
             case ["show", target] if target.startswith("pipeline="):
-                print_events(runner.db.events_matching(pipeline_id=target.split("=", 1)[1]))
+                pipeline_id = runner.db.resolve_pipeline_serial(target.split("=", 1)[1])
+                print_events(runner.db.events_matching(pipeline_id=pipeline_id))
+            case ["show", target] if target.startswith("serial="):
+                print_events(runner.db.events_for_serial(target.split("=", 1)[1]))
             case ["show", target] if target.startswith("topic="):
                 print_events(runner.db.events_matching(topic=target.split("=", 1)[1]))
             case ["show", topic]:
@@ -785,6 +789,8 @@ def print_runs(runner: Runner, *, active_only: bool = True) -> None:
         runner.registry.varstore.get(f"global.{ACTIVE_LISTING_FORMAT_VAR}")
     )
     names = runner.db.runtime_names()
+    run_aliases = runner.db.run_aliases()
+    pipeline_aliases = runner.db.pipeline_aliases()
     for row in rows:
         prefix = ""
         detail = ""
@@ -792,8 +798,13 @@ def print_runs(runner: Runner, *, active_only: bool = True) -> None:
             label = runtime_state_label(row["job_statuses"])
             timestamp = row["first_event"] if label in {"active", "in progress"} else row["last_event"]
             prefix, detail = state_marker(label, timestamp, style=marker_style)
+        run_serial = str(row["command_run_id"])
+        pipeline_serial = str(row["pipeline_id"]) if row["pipeline_id"] is not None else ""
+        pipeline_alias = pipeline_aliases.get(pipeline_serial, "")
         print(
-            f"{prefix}{row['command_run_id']}{format_runtime_name(names.get(('run', str(row['command_run_id']))))} pipeline={row['pipeline_id']} "
+            f"{prefix}run={run_aliases.get(run_serial, run_serial)} serial={run_serial}"
+            f"{format_runtime_name(names.get(('run', run_serial)))} "
+            f"pipeline={pipeline_alias} pipeline_serial={pipeline_serial} "
             f"source={row['source']} events={row['events']}"
         )
         if detail:
@@ -876,9 +887,19 @@ def load_repl_resource(runner: Runner, spec: str, state: ShellState | None = Non
         case ["plugin", value] if value:
             plugin_path = resolve_resource_path(value, DEFAULT_PLUGIN_DIR)
             plugin = runner.registry.load_filesystem_entry(plugin_path.parent, plugin_path.name)
-            print(f"loaded {plugin.spec.name}")
+            event = publish_resource_loaded(
+                runner,
+                "plugin",
+                path=plugin_path,
+                details={
+                    "provider": plugin_path.name,
+                    "commandlet": plugin.spec.name,
+                    "commandlets": [plugin.spec.name],
+                },
+            )
+            print(f"loaded {plugin.spec.name} serial={event.payload['serial']}")
         case ["script", value] if value:
-            run_script(runner, resolve_resource_path(value, Path(".")))
+            run_script(runner, resolve_resource_path(value, Path(".")), state)
         case _:
             print("usage: load plugin=<path>, load script=<path>, load db=<path>, load config=<path>, or load history=<path>")
 
@@ -989,6 +1010,25 @@ def load_history(state: ShellState, path: Path) -> None:
     print(f"loaded history={path}")
 
 
+def publish_resource_loaded(
+    runner: Runner,
+    resource_type: str,
+    *,
+    path: Path,
+    details: dict[str, object] | None = None,
+) -> Event:
+    """Audit one explicitly loaded resource and return the persisted event."""
+    serial = new_run_id(resource_type)
+    payload: dict[str, object] = {
+        "serial": serial,
+        "resource_type": resource_type,
+        "path": str(path),
+    }
+    if details:
+        payload.update(details)
+    return runner.db.publish(f"resource.{resource_type}.loaded", payload, "framework")
+
+
 def is_explicit_path(value: str) -> bool:
     """Return True when resource resolution should not prepend a root."""
     return (
@@ -1016,7 +1056,27 @@ def resolve_resource_path(value: str, root: Path, default: Path | None = None) -
 def run_script(runner: Runner, path: Path, state: ShellState | None = None) -> None:
     """Run one command expression per non-comment script line."""
     state = state or new_shell_state(runner)
-    for line_number, command in script_commands(path):
+    commands = script_commands(path)
+    event = publish_resource_loaded(
+        runner,
+        "script",
+        path=path,
+        details={"commands": len(commands)},
+    )
+    serial = str(event.payload["serial"])
+    print(f"loaded script={path} serial={serial}")
+    for line_number, command in commands:
+        runner.db.publish(
+            "resource.script.command",
+            {
+                "serial": serial,
+                "resource_type": "script",
+                "path": str(path),
+                "line": line_number,
+                "command": command,
+            },
+            "framework",
+        )
         print(f"{path}:{line_number}: {command}")
         if dispatch_repl_line(runner, command, state) == "exit":
             return

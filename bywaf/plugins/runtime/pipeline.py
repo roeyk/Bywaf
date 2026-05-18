@@ -20,9 +20,9 @@ PIPELINE_ACTIONS = ("attach", "cancel", "kill", "list", "show")
     examples=(
         "pipeline list",
         "pipeline list --all",
-        "pipeline show pipeline-...",
-        "pipeline cancel pipeline-...",
-        "pipeline attach pipeline-... portscanner run=hostscanner-... since=beginning",
+        "pipeline show 1",
+        "pipeline cancel 1",
+        "pipeline attach 1 portscanner run=1 since=beginning",
     ),
     capabilities=("db.raw", "framework.console.output", "framework.pipeline.control", "framework.job.control"),
 )
@@ -87,19 +87,29 @@ def print_pipelines(context: CommandContext, *, active_only: bool = True, show_a
     if not rows:
         context.output("no active pipelines" if active_only else "no pipelines")
         return
-    names = context.require_db().runtime_names()
+    db = context.require_db()
+    names = db.runtime_names()
+    aliases = db.pipeline_aliases()
     for row in rows:
         context.output(
             format_pipeline(
                 row,
                 display_name=names.get(("pipeline", str(row["pipeline_id"]))),
+                alias=aliases.get(str(row["pipeline_id"]), str(row["pipeline_id"])),
                 show_active=show_active,
                 marker_style=active_listing_format(context.vars.get_global),
             )
         )
 
 
-def format_pipeline(row, *, display_name: str | None = None, show_active: bool = False, marker_style: str = "short") -> str:
+def format_pipeline(
+    row,
+    *,
+    display_name: str | None = None,
+    alias: str | None = None,
+    show_active: bool = False,
+    marker_style: str = "short",
+) -> str:
     """Format one pipeline summary row."""
     statuses = row["job_statuses"] or "unknown"
     prefix = ""
@@ -109,7 +119,10 @@ def format_pipeline(row, *, display_name: str | None = None, show_active: bool =
         timestamp = row["first_seen"] if label in {"active", "in progress"} else row["last_seen"]
         prefix, detail = state_marker(label, timestamp, style=marker_style)
     name_part = f" name={display_name}" if display_name else ""
-    line = f"{prefix}{row['pipeline_id']}{name_part} job={row['job_id']} status={statuses} runs={row['runs']} events={row['events']}"
+    line = (
+        f"{prefix}pipeline={alias or row['pipeline_id']} serial={row['pipeline_id']}"
+        f"{name_part} job={row['job_id']} status={statuses} runs={row['runs']} events={row['events']}"
+    )
     return f"{line}\n{detail}" if detail else line
 
 
@@ -117,8 +130,9 @@ def require_pipeline(context: CommandContext, pipeline_id: str | None):
     """Return a pipeline row or raise a user-facing error."""
     if not pipeline_id:
         raise ValueError("pipeline id is required")
+    resolved = context.require_db().resolve_pipeline_serial(pipeline_id)
     for row in context.require_db().pipelines():
-        if row["pipeline_id"] == pipeline_id:
+        if row["pipeline_id"] == resolved:
             return row
     raise ValueError(f"unknown pipeline: {pipeline_id}")
 
@@ -152,18 +166,21 @@ def attach_pipeline(context: CommandContext, args: list[str]) -> None:
     if len(args) < 2:
         raise ValueError("usage: pipeline attach <pipeline-id> <commandlet> [run=<run-id>] [since=beginning|now] [args...]")
     pipeline_id, commandlet_name, *tail = args
+    resolved_pipeline_id = context.require_db().resolve_pipeline_serial(pipeline_id)
     selectors, commandlet_args = parse_attach_tail(tail)
     runner = context.metadata.get("runner")
     if runner is None:
         raise ValueError("pipeline attach requires a live runner")
     command_line = " ".join(shlex.quote(token) for token in [commandlet_name, *commandlet_args])
     event = runner.start_attached_pipeline(
-        pipeline_id,
+        resolved_pipeline_id,
         command_line,
-        upstream_run_id=selectors.get("run"),
+        upstream_run_id=(
+            context.require_db().resolve_run_serial(selectors["run"]) if "run" in selectors else None
+        ),
         since_cursor=selectors.get("since", "beginning"),
     )
-    context.output(f"attached job={event.payload['job_id']} pipeline={pipeline_id} command={command_line}")
+    context.output(f"attached job={event.payload['job_id']} pipeline={resolved_pipeline_id} command={command_line}")
 
 
 def parse_attach_tail(tokens: list[str]) -> tuple[dict[str, str], list[str]]:
@@ -211,14 +228,14 @@ def pipeline_ids(context: CompletionContext) -> list[str]:
     """Return pipeline IDs for completion."""
     if context.db is None:
         return []
-    return [row["pipeline_id"] for row in context.db.pipelines()]
+    return sorted(context.db.pipeline_aliases().values(), key=int)
 
 
 def run_ids(context: CompletionContext) -> list[str]:
     """Return command-run IDs for completion."""
     if context.db is None:
         return []
-    return [row["command_run_id"] for row in context.db.runs()]
+    return sorted(context.db.run_aliases().values(), key=int)
 
 
 def plugin() -> Commandlet:

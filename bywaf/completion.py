@@ -202,7 +202,7 @@ class Completer:
 
     def show_candidates(self, prefix: str) -> list[str]:
         """Complete `show` selectors and selector values."""
-        selectors = ("job=", "run=", "pipeline=", "topic=")
+        selectors = ("job=", "run=", "pipeline=", "serial=", "topic=")
         for selector in selectors:
             if prefix.startswith(selector):
                 value_prefix = prefix.split("=", 1)[1]
@@ -225,6 +225,24 @@ class Completer:
         if not self.db:
             return []
         return sorted({row["pipeline_id"] for row in self.db.runs() if row["pipeline_id"]})
+
+    def run_alias_candidates(self) -> list[str]:
+        """Complete user-facing run IDs."""
+        if not self.db:
+            return []
+        return list(self.db.run_aliases().values())
+
+    def pipeline_alias_candidates(self) -> list[str]:
+        """Complete user-facing pipeline IDs."""
+        if not self.db:
+            return []
+        return list(self.db.pipeline_aliases().values())
+
+    def serial_candidates(self) -> list[str]:
+        """Complete durable serial values."""
+        if not self.db:
+            return []
+        return self.db.serials()
 
     def job_candidates(self) -> list[str]:
         """Complete job IDs from the active database."""
@@ -252,11 +270,13 @@ class Completer:
                 db_topics = set(self.db.topics()) if self.db else set()
                 return [*plugin_topics, *db_topics]
             case "run":
-                return self.run_candidates()
+                return self.run_alias_candidates()
             case "pipeline":
-                return self.pipeline_candidates()
+                return self.pipeline_alias_candidates()
             case "job":
                 return self.job_candidates()
+            case "serial":
+                return self.serial_candidates()
             case "plugin":
                 return self.registry.names()
             case _:

@@ -210,8 +210,10 @@ class RegistryCompletionTests(unittest.TestCase):
                 command_run_id="run-1",
             )
             completer = Completer(self.registry, db)
-            self.assertEqual(completer.candidates("portscanner --from-run "), ["run-1"])
-            self.assertEqual(completer.candidates("portscanner --from-pipeline "), ["pipeline-1"])
+            self.assertEqual(completer.candidates("portscanner --from-run "), ["1"])
+            self.assertEqual(completer.candidates("portscanner --from-pipeline "), ["1"])
+            self.assertIn("serial=run-1", completer.candidates("show serial="))
+            self.assertIn("serial=pipeline-1", completer.candidates("show serial="))
             self.assertIn("host.found", completer.candidates("portscanner --from-topic "))
 
     def test_show_completes_selector_values(self):
@@ -226,8 +228,10 @@ class RegistryCompletionTests(unittest.TestCase):
             )
             job_id = db.record_job("hostscanner 127.0.0.1", 123, "running")
             completer = Completer(self.registry, db)
-            self.assertEqual(completer.candidates("show run="), ["run=run-1"])
-            self.assertEqual(completer.candidates("show pipeline="), ["pipeline=pipeline-1"])
+            self.assertEqual(completer.candidates("show run="), ["run=1"])
+            self.assertEqual(completer.candidates("show pipeline="), ["pipeline=1"])
+            self.assertIn("serial=run-1", completer.candidates("show serial="))
+            self.assertIn("serial=pipeline-1", completer.candidates("show serial="))
             self.assertEqual(completer.candidates("show job="), [f"job={job_id}"])
             self.assertIn("topic=host.found", completer.candidates("show topic="))
 
@@ -303,9 +307,9 @@ class RegistryCompletionTests(unittest.TestCase):
             )
             completer = Completer(self.registry, db)
             self.assertIn("attach", completer.candidates("pipeline "))
-            self.assertEqual(completer.candidates("pipeline attach "), ["pipe-1"])
+            self.assertEqual(completer.candidates("pipeline attach "), ["1"])
             self.assertIn("portscanner", completer.candidates("pipeline attach pipe-1 por"))
-            self.assertIn("run=host-run-1", completer.candidates("pipeline attach pipe-1 portscanner run="))
+            self.assertIn("run=1", completer.candidates("pipeline attach pipe-1 portscanner run="))
             self.assertEqual(
                 completer.candidates("pipeline attach pipe-1 portscanner since="),
                 ["since=beginning", "since=now"],
@@ -493,10 +497,10 @@ class RegistryCompletionTests(unittest.TestCase):
             )
             completer = Completer(self.registry, db)
             self.assertIn("kill", completer.candidates("pipeline k"))
-            self.assertEqual(completer.candidates("pipeline show "), ["pipe-1"])
+            self.assertEqual(completer.candidates("pipeline show "), ["1"])
             self.assertEqual(completer.candidates("kill job="), ["job=1"])
-            self.assertEqual(completer.candidates("kill pipeline="), ["pipeline=pipe-1"])
-            self.assertEqual(completer.candidates("cancel pipeline="), ["pipeline=pipe-1"])
+            self.assertEqual(completer.candidates("kill pipeline="), ["pipeline=1"])
+            self.assertEqual(completer.candidates("cancel pipeline="), ["pipeline=1"])
 
     def test_readline_delimiters_keep_hyphen_and_equals_in_completion_word(self):
         with (

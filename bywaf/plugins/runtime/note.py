@@ -23,10 +23,10 @@ from bywaf.utils import complete_path
     description="Show or save notes attached to jobs, pipelines, and command runs.",
     usage="note [add] <run=id|pipeline=id|job=id> [text=note|file=path]",
     examples=(
-        "note run=hostscanner-...",
-        "note pipeline=pipeline-...",
+        "note run=1",
+        "note pipeline=1",
         "note job=12 file=notes.txt",
-        "note add run=hostscanner-... text=follow-up note",
+        "note add run=1 text=follow-up note",
     ),
     capabilities=("db.raw", "filesystem.read", "filesystem.write", "framework.console.output"),
 )
@@ -122,6 +122,7 @@ def parse_note_selectors(args: list[str], *, allow_text: bool) -> dict[str, str]
 def add_note(context: CommandContext, selectors: dict[str, str]) -> None:
     """Append a note to an existing runtime entity."""
     db = context.require_db("note")
+    selectors = resolve_note_selectors(context, selectors)
     note_text = selectors.get("text")
     if note_text is None:
         path = Path(selectors["file"]).expanduser()
@@ -148,6 +149,7 @@ def add_note(context: CommandContext, selectors: dict[str, str]) -> None:
 def select_note_events(context: CommandContext, selectors: dict[str, str]) -> list[Event]:
     """Return note events matching the selected runtime entity."""
     db = context.require_db("note")
+    selectors = resolve_note_selectors(context, selectors)
     if "job" in selectors:
         try:
             job_id = int(selectors["job"])
@@ -176,14 +178,14 @@ def run_ids(context: CompletionContext) -> list[str]:
     """Return command-run IDs for completion."""
     if context.db is None:
         return []
-    return [str(row["command_run_id"]) for row in context.db.runs()]
+    return sorted(context.db.run_aliases().values(), key=int)
 
 
 def pipeline_ids(context: CompletionContext) -> list[str]:
     """Return pipeline IDs for completion."""
     if context.db is None:
         return []
-    return [str(row["pipeline_id"]) for row in context.db.pipelines()]
+    return sorted(context.db.pipeline_aliases().values(), key=int)
 
 
 def job_ids(context: CompletionContext) -> list[str]:
@@ -191,6 +193,16 @@ def job_ids(context: CompletionContext) -> list[str]:
     if context.db is None:
         return []
     return [str(row["id"]) for row in context.db.jobs()]
+
+
+def resolve_note_selectors(context: CommandContext, selectors: dict[str, str]) -> dict[str, str]:
+    """Resolve user-facing runtime IDs to durable serials for note events."""
+    resolved = dict(selectors)
+    if "run" in resolved:
+        resolved["run"] = context.require_db("note").resolve_run_serial(resolved["run"])
+    if "pipeline" in resolved:
+        resolved["pipeline"] = context.require_db("note").resolve_pipeline_serial(resolved["pipeline"])
+    return resolved
 
 
 def plugin() -> Commandlet:

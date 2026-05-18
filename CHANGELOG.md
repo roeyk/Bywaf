@@ -5,7 +5,18 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-17 20:05:09 EDT
+Last updated: 2026-05-17 20:39:42 EDT
+
+### 2026-05-17 20:39:42 EDT
+
+#### Added
+
+- Added short numeric aliases for interactive run and pipeline selectors while
+  preserving durable serials for audit/provenance lookup.
+- Added `show serial=<id>` and serial completion for runtime, artifact, plugin
+  load, and script load records.
+- Added auditable serials for explicit `load plugin=...` and `load script=...`
+  operations, including per-command script audit events.
 
 ### 2026-05-17 20:05:09 EDT
 

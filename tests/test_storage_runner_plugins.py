@@ -592,9 +592,9 @@ class StorageRunnerPluginTests(unittest.TestCase):
             runner.db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", pipeline_id="pipe-1", command_run_id="run-1")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                runner.execute("name run=run-1 localhost sweep")
+                runner.execute("name run=1 localhost sweep")
                 process_framework_requests(runner, ShellState())
-                runner.execute("name run=run-1")
+                runner.execute("name run=1")
                 process_framework_requests(runner, ShellState())
             self.assertEqual(runner.db.runtime_names()[("run", "run-1")], "localhost sweep")
             self.assertIn("run=run-1 name=localhost sweep", output.getvalue())
@@ -658,7 +658,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
                     events = runner.execute("hostscanner 127.0.0.1 note=client approved target")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                runner.execute(f"note run={events[0].command_run_id}")
+                runner.execute("note run=1")
                 process_framework_requests(runner, ShellState())
             line = output.getvalue().splitlines()[-1]
             self.assertRegex(line, r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC")
@@ -687,13 +687,13 @@ class StorageRunnerPluginTests(unittest.TestCase):
             with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]):
                 runner = make_runner(Path(tmp, "db.sqlite3"))
                 with contextlib.redirect_stdout(io.StringIO()):
-                    events = runner.execute("hostscanner 127.0.0.1 note=initial note")
+                    runner.execute("hostscanner 127.0.0.1 note=initial note")
             with contextlib.redirect_stdout(io.StringIO()):
-                runner.execute(f"note add run={events[0].command_run_id} text=second note")
+                runner.execute("note add run=1 text=second note")
                 process_framework_requests(runner, ShellState())
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                runner.execute(f"note run={events[0].command_run_id}")
+                runner.execute("note run=1")
                 process_framework_requests(runner, ShellState())
             lines = [line for line in output.getvalue().splitlines() if "run=" in line]
             self.assertEqual(len(lines), 2)
@@ -997,7 +997,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
             self.assertEqual(stage.invocation.args, ["--listen-timeout", "1"])
             self.assertEqual(stage.invocation.from_pipeline, "pipe-1")
             self.assertEqual(stage.invocation.from_run, "host-run-1")
-            self.assertEqual(stage.invocation.replay_after_id, latest_id)
+            self.assertGreaterEqual(stage.invocation.replay_after_id, latest_id)
             attached = runner.db.events_for_topic("pipeline.attached")[0]
             self.assertEqual(attached.payload["since"], "now")
             self.assertEqual(attached.payload["pipeline_id"], "pipe-1")

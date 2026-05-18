@@ -820,8 +820,8 @@ def select_input_events(
     if not any((invocation.from_run, invocation.from_pipeline, invocation.from_topic)):
         return fallback_events
     return db.events_matching(
-        command_run_id=invocation.from_run,
-        pipeline_id=invocation.from_pipeline,
+        command_run_id=db.resolve_run_serial(invocation.from_run) if invocation.from_run else None,
+        pipeline_id=db.resolve_pipeline_serial(invocation.from_pipeline) if invocation.from_pipeline else None,
         topic=invocation.from_topic,
         after_id=invocation.replay_after_id,
     )

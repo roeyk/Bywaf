@@ -27,16 +27,17 @@ from bywaf.plugin import (
 
 AUDIT_ACTIONS = ("export", "show")
 AUDIT_FORMATS = ("json", "jsonl", "pdf", "sqlite")
-AUDIT_SELECTORS = {"file", "topic", "run", "pipeline", "job", "since", "until"}
+AUDIT_SELECTORS = {"file", "topic", "run", "pipeline", "job", "serial", "since", "until"}
 
 
 @commandlet(
     name="audit",
     description="Show or export the SQLite-backed audit log.",
-    usage="audit <show|export> [file=<path>] [topic=<topic>|run=<id>|pipeline=<id>|job=<id>]",
+    usage="audit <show|export> [file=<path>] [topic=<topic>|run=<id>|pipeline=<id>|job=<id>|serial=<id>]",
     examples=(
         "audit show topic=plugin.capability.used",
-        "audit show run=hostscanner-...",
+        "audit show run=1",
+        "audit show serial=hostscanner-...",
         "audit show since=20260517 until=20260518",
         "audit export file=audit.jsonl",
         "audit export file=audit.sqlite3 --format sqlite",
@@ -90,7 +91,7 @@ class Audit(CommandletBase):
             return list(AUDIT_ACTIONS)
         if prefix.startswith("file="):
             return [f"file={candidate}" for candidate in complete_path(prefix.removeprefix("file="))]
-        return ["file=", "topic=", "run=", "pipeline=", "job=", "since=", "until="]
+        return ["file=", "topic=", "run=", "pipeline=", "job=", "serial=", "since=", "until="]
 
 
 def parse_selectors(tokens: list[str]) -> dict[str, str]:
@@ -119,13 +120,15 @@ def require_selector(selectors: dict[str, str], name: str) -> str:
 def selected_events(context: CommandContext, selectors: dict[str, str], limit: int) -> list[Event]:
     """Fetch events matching audit selectors."""
     db = context.require_db("audit")
-    if "job" in selectors:
+    if "serial" in selectors:
+        events = db.events_for_serial(selectors["serial"], limit=100000)
+    elif "job" in selectors:
         events = db.events_for_job(int(selectors["job"]), limit=100000)
     else:
         events = db.events_matching(
             topic=selectors.get("topic"),
-            command_run_id=selectors.get("run"),
-            pipeline_id=selectors.get("pipeline"),
+            command_run_id=resolve_run_selector(context, selectors.get("run")),
+            pipeline_id=resolve_pipeline_selector(context, selectors.get("pipeline")),
             limit=100000,
         )
     window = audit_window(context, selectors)
@@ -156,9 +159,9 @@ def resolve_bound(
         case "time":
             return None, parse_compact_time(raw, until=not since)
         case "run":
-            return entity_event_id(context, command_run_id=raw, first=since), None
+            return entity_event_id(context, command_run_id=context.require_db("audit").resolve_run_serial(raw), first=since), None
         case "pipeline":
-            return entity_event_id(context, pipeline_id=raw, first=since), None
+            return entity_event_id(context, pipeline_id=context.require_db("audit").resolve_pipeline_serial(raw), first=since), None
         case "job":
             events = context.require_db("audit").events_for_job(int(raw), limit=100000)
             if not events:
@@ -213,6 +216,20 @@ def entity_event_id(
     if event_id is None:
         raise ValueError(f"audit bound has no event id: {label}")
     return event_id
+
+
+def resolve_run_selector(context: CommandContext, value: str | None) -> str | None:
+    """Resolve a user-facing run id to a durable run serial."""
+    if value is None:
+        return None
+    return context.require_db("audit").resolve_run_serial(value)
+
+
+def resolve_pipeline_selector(context: CommandContext, value: str | None) -> str | None:
+    """Resolve a user-facing pipeline id to a durable pipeline serial."""
+    if value is None:
+        return None
+    return context.require_db("audit").resolve_pipeline_serial(value)
 
 
 def event_in_window(

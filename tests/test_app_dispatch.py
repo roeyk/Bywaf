@@ -233,7 +233,7 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "runs")
-            self.assertIn("r pipeline=p source=hostscanner events=1", output.getvalue())
+            self.assertIn("run=1 serial=r pipeline=1 pipeline_serial=p source=hostscanner events=1", output.getvalue())
 
     def test_runtime_names_display_in_listings(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -256,8 +256,8 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "pipelines")
                 dispatch_repl_line(runner, "jobs")
             text = output.getvalue()
-            self.assertIn("r name=run name pipeline=p", text)
-            self.assertIn("p name=pipeline name job=", text)
+            self.assertIn("run=1 serial=r name=run name pipeline=1 pipeline_serial=p", text)
+            self.assertIn("pipeline=1 serial=p name=pipeline name job=", text)
             self.assertIn("status=running name=job name", text)
 
     def test_dispatch_runs_defaults_to_active_unless_all_requested(self):
@@ -279,7 +279,7 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "runs --all")
-            self.assertIn("r pipeline=p source=hostscanner events=1", output.getvalue())
+            self.assertIn("run=1 serial=r pipeline=1 pipeline_serial=p source=hostscanner events=1", output.getvalue())
 
     def test_make_runner_marks_dead_runtime_jobs_stale_on_startup(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -348,7 +348,7 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "pipelines")
-            self.assertIn(f"pipe-1 job={job_id} status=running runs=1", output.getvalue())
+            self.assertIn(f"pipeline=1 serial=pipe-1 job={job_id} status=running runs=1", output.getvalue())
 
     def test_pipeline_list_defaults_to_active_unless_all_requested(self):
         with tempfile.TemporaryDirectory() as tmp:
