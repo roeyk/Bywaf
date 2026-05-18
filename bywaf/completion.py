@@ -75,6 +75,7 @@ class Completer:
         "vars",
         "exit",
         "event",
+        "events",
         "quit",
         "q",
     )
@@ -94,6 +95,8 @@ class Completer:
                 base = [*self.builtins, *self.registry.names()]
             case ["event", *_]:
                 base = self.event_candidates(prefix)
+            case ["events", *_]:
+                base = ["tail", "--tail", "last="]
             case ["history", *_]:
                 base = history_candidates(prefix)
             case ["prompt", *_]:

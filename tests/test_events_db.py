@@ -126,6 +126,13 @@ class EventDbTests(unittest.TestCase):
             events = db.events_matching(topic="a", pipeline_id="pipe-1", command_run_id="run-1")
             self.assertEqual([event.payload["n"] for event in events], [1])
 
+    def test_recent_events_returns_tail_in_chronological_order(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "events.sqlite3"))
+            for number in range(5):
+                db.publish("topic", {"n": number}, "test")
+            self.assertEqual([event.payload["n"] for event in db.recent_events(3)], [2, 3, 4])
+
     def test_sql_like_filter_values_are_bound_as_data(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "events.sqlite3"))

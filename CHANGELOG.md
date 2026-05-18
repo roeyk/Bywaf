@@ -5,7 +5,14 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-17 23:14:36 EDT
+Last updated: 2026-05-17 23:19:44 EDT
+
+### 2026-05-17 23:19:44 EDT
+
+#### Added
+
+- Added `events`, `events tail`, and `events tail last=N` for inspecting the
+  latest event rows, with bare `events` defaulting to the last 25 events.
 
 ### 2026-05-17 23:14:36 EDT
 

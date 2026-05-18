@@ -190,6 +190,7 @@ end [--soft|--hard] <job=id|pipeline=id|run=id>
 kill [--soft|--hard] <job=id|pipeline=id|run=id>
 jobs
 runs
+events [tail|--tail] [last=N]
 topics
 db <status|path|checkpoint|vacuum|new|encrypt|decrypt|rekey>
 event <topic|job=id|run=id|pipeline=id|serial=id>
@@ -713,11 +714,19 @@ List known event topics:
 bywaf> topics
 ```
 
+Show the last 25 events, or choose an explicit tail size:
+
+```text
+bywaf> events
+bywaf> events tail
+bywaf> events tail last=50
+```
+
 Show recent events for a topic:
 
 ```text
 bywaf> event host.found
-bywaf> show port.open
+bywaf> event port.open
 ```
 
 List command runs:
@@ -1179,6 +1188,7 @@ search [--regexp] <name=text|note=text|content=text> [artifact=id|run=id|pipelin
 jobs
 pipelines
 runs
+events [tail|--tail] [last=N]
 topics
 event <topic>
 event job=<id>

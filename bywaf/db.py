@@ -483,6 +483,21 @@ class EventStore:
             )
             return [Event.from_row(row) for row in rows]
 
+    def recent_events(self, limit: int = 25) -> list[Event]:
+        """Return the latest events as a chronological slice."""
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT *
+                FROM (
+                    SELECT * FROM events ORDER BY id DESC LIMIT ?
+                )
+                ORDER BY id ASC
+                """,
+                (limit,),
+            )
+            return [Event.from_row(row) for row in rows]
+
     def latest_event_id(self) -> int:
         """Return the current highest event id, or zero for an empty DB."""
         with self.connect() as conn:

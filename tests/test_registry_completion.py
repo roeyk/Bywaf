@@ -499,6 +499,11 @@ class RegistryCompletionTests(unittest.TestCase):
             self.assertIn("custom.topic", candidates)
             self.assertIn("job=1", candidates)
 
+    def test_events_completes_tail_selectors(self):
+        completer = Completer(self.registry)
+        self.assertIn("tail", completer.candidates("events "))
+        self.assertIn("last=", completer.candidates("events "))
+
     def test_job_completes_actions_and_job_ids(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))

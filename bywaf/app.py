@@ -59,6 +59,7 @@ HELP_COMMANDS = (
     HelpEntry("topics", "list event topics in the active database", "topics"),
     HelpEntry("use <commandlet|global>", "set the active variable context", "use <commandlet|global>"),
     HelpEntry("event <topic|job=id|run=id|pipeline=id|serial=id>", "show events for a topic, job, run, pipeline, or serial", "event <topic|job=id|run=id|pipeline=id|serial=id>", ("event host.found", "event run=1", "event pipeline=1", "event serial=hostscanner-...")),
+    HelpEntry("events [tail|--tail] [last=N]", "show recent events", "events [tail|--tail] [last=N]", ("events", "events tail", "events tail last=50")),
     HelpEntry("prompt [pattern]", "show or set prompt pattern", "prompt [pattern]", ("prompt %u@%h %T > ",)),
     HelpEntry("load plugin=<path>", "load a filesystem plugin", "load plugin=<path>"),
     HelpEntry("load script=<path>", "run commands from a script file", "load script=<path>"),
@@ -297,6 +298,10 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
                 print_events(runner.db.events_for_topic(topic))
             case ["event"]:
                 print("usage: event <topic>")
+            case ["events"]:
+                print_events(runner.db.recent_events(25))
+            case ["events", selectors]:
+                print_events(runner.db.recent_events(parse_events_selectors(shlex.split(selectors))))
             case ["prompt"]:
                 print(state.prompt_pattern)
             case ["prompt", pattern]:
@@ -629,6 +634,34 @@ def print_events(events) -> None:
     """Print persisted events in a compact inspectable form."""
     for event in events:
         print(format_event(event))
+
+
+def parse_events_selectors(selectors: Sequence[str]) -> int:
+    """Parse `events [tail|--tail] [last=N]` and return the requested tail size."""
+    limit = 25
+    seen_last = False
+    for selector in selectors:
+        if selector in {"tail", "--tail"}:
+            continue
+        if selector.startswith("last="):
+            if seen_last:
+                raise ValueError("events last= may only be provided once")
+            seen_last = True
+            limit = parse_events_last_value(selector.split("=", 1)[1])
+            continue
+        raise ValueError("usage: events [tail|--tail] [last=N]")
+    return limit
+
+
+def parse_events_last_value(raw: str) -> int:
+    """Parse a positive integer event tail size."""
+    try:
+        limit = int(raw)
+    except ValueError as exc:
+        raise ValueError(f"invalid events last= value: {raw}") from exc
+    if limit < 1:
+        raise ValueError("events last= must be at least 1")
+    return limit
 
 
 def print_run_variables(runner: Runner, command_run_id: str) -> None:

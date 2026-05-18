@@ -58,6 +58,32 @@ class AppDispatchTests(unittest.TestCase):
         event = Event.new("topic", {"x": 1}, "test")
         self.assertIn("topic", format_event(event))
 
+    def test_events_defaults_to_tail_last_25(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            for number in range(30):
+                runner.db.publish("topic", {"n": number}, "test")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "events")
+            text = output.getvalue()
+            self.assertNotIn("'n': 4", text)
+            self.assertIn("'n': 5", text)
+            self.assertIn("'n': 29", text)
+
+    def test_events_tail_accepts_last_selector(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            for number in range(5):
+                runner.db.publish("topic", {"n": number}, "test")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "events tail last=2")
+            text = output.getvalue()
+            self.assertNotIn("'n': 2", text)
+            self.assertIn("'n': 3", text)
+            self.assertIn("'n': 4", text)
+
     def test_main_version_returns_success(self):
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(main(["--version"]), 0)
