@@ -4,7 +4,7 @@ Planning dates are release planning markers, not compatibility commitments.
 
 ## Current Release
 
-- Bywaf 0.9.1 testing release: 2026-05-18.
+- Bywaf 0.9.2 testing release: 2026-05-18.
 
 ## Target: 0.10.0
 

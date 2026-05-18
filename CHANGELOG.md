@@ -5,7 +5,24 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-18 15:20:00 EDT
+Last updated: 2026-05-18 16:25:00 EDT
+
+## [0.9.2] - 2026-05-18
+
+Testing release focused on producing unambiguous release artifacts from the
+fixed package workflow.
+
+### 2026-05-18 16:25:00 EDT
+
+#### Fixed
+
+- Fixed release workflow dependency installation for Python package builds.
+- Fixed Debian build dependencies in GitHub Actions.
+- Fixed RPM smoke tests on Ubuntu builders by skipping RPM database dependency
+  checks and normalizing Python installation paths into a stable RPM site
+  directory.
+- Confirmed pip, Debian, and RPM package artifacts can be built and smoke-tested
+  from the same release workflow.
 
 ## [0.9.1] - 2026-05-18
 

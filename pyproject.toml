@@ -1,6 +1,6 @@
 [project]
 name = "bywaf"
-version = "0.9.1"
+version = "0.9.2"
 description = "Python 3 commandlet framework with SQLite pub/sub for Bywaf-style workflows."
 readme = "README.md"
 license = "GPL-3.0-or-later"

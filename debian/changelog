@@ -1,3 +1,10 @@
+bywaf (0.9.2-1) unstable; urgency=medium
+
+  * Testing release with fixed pip, Debian, and RPM release packaging
+    workflow.
+
+ -- Roey Katz <roey.katz@gmail.com>  Mon, 18 May 2026 16:25:00 -0400
+
 bywaf (0.9.1-1) unstable; urgency=medium
 
   * Testing release with finding workflows, wrapper plugins, completion
