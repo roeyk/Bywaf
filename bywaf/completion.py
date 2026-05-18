@@ -60,6 +60,7 @@ class Completer:
         "help",
         "?",
         "history",
+        "info",
         "jobs",
         "pipelines",
         "cmds",
@@ -328,6 +329,35 @@ class Completer:
     def format_common_prefix(self, candidate: str) -> str:
         return candidate
 
+    def completion_meta(self, candidate: str, line: str, prefix: str) -> str:
+        """Return prompt-toolkit metadata for runtime entity completions."""
+        if self.db is None:
+            return ""
+        kind, value = runtime_completion_target(candidate, line, prefix)
+        match kind:
+            case "job":
+                try:
+                    row = self.db.job(int(value))
+                except ValueError:
+                    return ""
+                if row is None:
+                    return ""
+                artifacts = self.db.artifact_counts_by_job().get(str(row["id"]), 0)
+                return f"serial={row['serial']} status={row['status']} artifacts={artifacts} command={row['command_line']}"
+            case "run":
+                serial = self.db.resolve_run_serial(value)
+                artifacts = self.db.artifact_counts_by_run().get(serial, 0)
+                for row in self.db.runs(active_only=False):
+                    if row["command_run_id"] == serial:
+                        return f"serial={serial} source={row['source']} artifacts={artifacts} events={row['events']}"
+            case "pipeline":
+                serial = self.db.resolve_pipeline_serial(value)
+                artifacts = self.db.artifact_counts_by_pipeline().get(serial, 0)
+                for row in self.db.pipelines(active_only=False):
+                    if row["pipeline_id"] == serial:
+                        return f"serial={serial} artifacts={artifacts} runs={row['runs']} events={row['events']}"
+        return ""
+
 
 class PromptToolkitCompleter(PromptToolkitCompleterBase):
     """Prompt-toolkit adapter around Bywaf's command-aware completer."""
@@ -349,12 +379,33 @@ class PromptToolkitCompleter(PromptToolkitCompleterBase):
                 self.completer.format_candidate(candidate),
                 start_position=-len(prefix),
                 display=display_label(candidate) if display_value_only else candidate,
+                display_meta=self.completer.completion_meta(candidate, line, prefix),
             )
 
 
 def prompt_toolkit_available() -> bool:
     """Return whether the richer prompt-toolkit REPL can be used."""
     return PromptSession is not None and KeyBindings is not None
+
+
+def runtime_completion_target(candidate: str, line: str, prefix: str) -> tuple[str | None, str]:
+    """Infer whether a completion candidate represents a job, run, or pipeline."""
+    for kind in ("job", "run", "pipeline"):
+        selector = f"{kind}="
+        if candidate.startswith(selector):
+            return kind, candidate.removeprefix(selector)
+        if prefix.startswith(selector):
+            return kind, candidate
+    try:
+        tokens = shlex.split(line)
+    except ValueError:
+        tokens = line.split()
+    tokens = tokens_after_last_pipe(tokens)
+    if len(tokens) >= 2 and tokens[0] == "pipeline" and tokens[1] in {"attach", "show", "cancel", "kill"}:
+        return "pipeline", candidate
+    if len(tokens) >= 2 and tokens[0] == "job" and tokens[1] in {"show", "cancel", "kill"}:
+        return "job", candidate
+    return None, candidate
 
 
 def build_prompt_session(completer: Completer):

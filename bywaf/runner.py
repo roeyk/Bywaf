@@ -208,41 +208,54 @@ class JobLifecycle:
     job_id: int
     command_line: str
     request_event: Event | None = None
+    job_serial: str | None = None
 
     @classmethod
     def create(cls, db: EventStore, command_line: str, pid: int | None, status: str = "queued") -> "JobLifecycle":
         """Record a new job and its requested event."""
         job_id = db.record_job(command_line.strip(), pid, status)
         lifecycle = cls(db, job_id, command_line.strip())
+        lifecycle.job_serial = db.job_serial(job_id)
         lifecycle.request_event = lifecycle.requested()
         return lifecycle
 
     def requested(self) -> Event:
         """Publish that the framework accepted a job request."""
-        return self.db.publish("job.requested", {"job_id": self.job_id, "command": self.command_line}, "runner")
+        return self.db.publish("job.requested", self.payload({"command": self.command_line}), "runner")
 
     def claim(self, pid: int | None) -> bool:
         """Try to claim the job for one process and audit the result."""
         if not self.db.claim_job(self.job_id, pid):
-            self.db.publish("job.claim.denied", {"job_id": self.job_id, "pid": pid}, "runner")
+            self.db.publish("job.claim.denied", self.payload({"pid": pid}), "runner")
             return False
-        self.db.publish("job.claimed", {"job_id": self.job_id, "pid": pid}, "runner")
+        self.db.publish("job.claimed", self.payload({"pid": pid}), "runner")
         return True
 
     def start(self, pid: int | None) -> None:
         """Mark the job running and publish the start event."""
         self.db.update_job_status(self.job_id, "running")
-        self.db.publish("job.started", {"job_id": self.job_id, "pid": pid, "command": self.command_line}, "runner")
+        self.db.publish("job.started", self.payload({"pid": pid, "command": self.command_line}), "runner")
 
     def fail(self, error: str) -> None:
         """Mark the job failed and publish the failure event."""
-        self.db.publish("job.failed", {"job_id": self.job_id, "error": error}, "runner")
+        self.db.publish("job.failed", self.payload({"error": error}), "runner")
         self.db.finish_job(self.job_id, "failed")
 
     def finish(self) -> None:
         """Mark the job finished and publish the completion event."""
-        self.db.publish("job.finished", {"job_id": self.job_id, "command": self.command_line}, "runner")
+        self.db.publish("job.finished", self.payload({"command": self.command_line}), "runner")
         self.db.finish_job(self.job_id, "finished")
+
+    def payload(self, values: dict[str, object]) -> dict[str, object]:
+        """Return job lifecycle payload values with local and serial IDs."""
+        if self.job_serial is None:
+            self.job_serial = self.db.job_serial(self.job_id)
+        return {
+            "job_id": self.job_id,
+            "job_serial": self.job_serial,
+            "serial": self.job_serial,
+            **values,
+        }
 
 
 class Runner:

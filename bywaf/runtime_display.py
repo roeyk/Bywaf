@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 
 ACTIVE_LISTING_FORMAT_VAR = "listing.active-format"
 DEFAULT_ACTIVE_LISTING_FORMAT = "short"
@@ -53,8 +54,36 @@ def state_marker(label: str, timestamp: str | None, *, style: str) -> tuple[str,
     return f"[{label}] ", ""
 
 
+def runtime_state_text(statuses: str | list[str] | tuple[str, ...] | None, timestamp: str | None, *, style: str) -> str:
+    """Return the state cell text for runtime tables."""
+    label = runtime_state_label(statuses)
+    if style == "long":
+        return f"{label} since {format_runtime_timestamp(timestamp)}"
+    return label
+
+
 def format_runtime_timestamp(value: str | None) -> str:
     """Render an ISO timestamp compactly for runtime listings."""
     if not value:
         return "unknown"
     return value.replace("T", " ").replace("+00:00", " UTC")
+
+
+def render_table(headers: tuple[str, ...], rows: Sequence[Sequence[object]]) -> str:
+    """Render a small plain-text table with padded columns."""
+    if not rows:
+        return ""
+    text_rows = [[str(value) if value is not None else "" for value in row] for row in rows]
+    widths = [
+        max(len(header), *(len(row[index]) for row in text_rows))
+        for index, header in enumerate(headers)
+    ]
+    lines = [
+        "  ".join(header.ljust(widths[index]) for index, header in enumerate(headers)),
+        "  ".join("-" * width for width in widths),
+    ]
+    lines.extend(
+        "  ".join(value.ljust(widths[index]) for index, value in enumerate(row))
+        for row in text_rows
+    )
+    return "\n".join(lines)

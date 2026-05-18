@@ -80,9 +80,11 @@ plugin's variables through that API. Explicit global variables use
 the effective commandlet and global variables into SQLite under that
 `command_run_id`; `show run=<id>` displays the captured variables so runs remain
 auditable and reproducible even when session variables change later.
-Runtime entities have two identities: short incrementing IDs for interactive
-typing (`run=1`, `pipeline=2`) and durable serials for audit/provenance.
-Use `show serial=<serial>` when you want to inspect by the durable identifier.
+Runtime entities have two identities: local IDs for interactive typing
+(`job=12`, `run=1`, `pipeline=2`) and durable serials for audit/provenance.
+Local IDs are stable inside the current database and are never reused there,
+but they are not portable across replay/import into another database. Use
+`show serial=<serial>` when you want to inspect by the durable identifier.
 Explicit `load plugin=...` and `load script=...` operations also receive
 resource serials, so the load itself and the script commands it executed can be
 reviewed later.
@@ -165,6 +167,7 @@ plugins
 cmds
 vars
 history
+info
 job <list|show|cancel|kill>
 pipeline <list|show|cancel|kill>
 signal <job=id|pipeline=id|run=id> <action> [--soft|--hard] [key=value ...]
@@ -211,6 +214,9 @@ completion because those commandlets declare path/file completion in their
 plugin specs. Other completion specs include `topic`, `run`, `pipeline`, `job`,
 and `plugin`, so plugin authors can make hand-typed commands much easier to
 complete correctly.
+Runtime entity completions include prompt-toolkit metadata when available, such
+as serial, status/source, event counts, and the current number of attached
+artifacts.
 
 Interactive shells use `prompt_toolkit` when a real terminal is available.
 `Ctrl-Space` enters completion-selection mode by opening the menu and selecting
@@ -564,6 +570,18 @@ In that example, `portscanner` listens for `host.found` rows created by the
 immediately upstream `hostscanner` run in the same pipeline. It does not consume
 unrelated `host.found` rows from older scans.
 
+A job is the supervised execution lifecycle: foreground or background work that
+has a process/status, can be cancelled or killed, and may contain a whole
+pipeline. A run is one commandlet invocation inside that pipeline, such as the
+specific `hostscanner` stage or `portscanner` stage. Pipelines group one or
+more runs, and jobs supervise the execution.
+
+Show the currently active runtime entities:
+
+```text
+bywaf> info
+```
+
 List active jobs, or all jobs with an explicit active marker:
 
 ```text
@@ -602,12 +620,11 @@ bywaf> pipeline kill <id>
 ```
 
 `job list`, `runs`, and `pipeline list` show active runtime state by default.
-Use `--all` to include historical entries. When jobs are listed with `--all`,
-Bywaf prefixes history rows with `[active]`, `[in progress]`, `[failed]`, or
-`[completed]` so stale and finished jobs, runs, and pipelines are visible
-without looking active. Set `vars global.listing.active-format=long` to print
-an indented marker such as `[active since 2026-05-17 04:30:00 UTC]` beneath
-the entity row; set it to `short` for the compact prefix form.
+Use `--all` to include historical entries. These commands render table views
+with local ID, durable serial, lifecycle state, names, timestamps, and an
+`ARTIFACTS` column counting artifacts attached so far. Set
+`vars global.listing.active-format=long` to include the state timestamp in the
+state column; set it to `short` for compact lifecycle labels.
 
 For live runtime control, `signal` is the canonical command. It sends an
 audited control message to a job, pipeline, or command run. Framework-native

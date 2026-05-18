@@ -8,7 +8,7 @@ from collections.abc import Iterable
 from bywaf.events import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
 from bywaf.plugins.runtime.job import cancel_job, kill_job
-from bywaf.runtime_display import active_listing_format, runtime_state_label, state_marker
+from bywaf.runtime_display import active_listing_format, format_runtime_timestamp, render_table, runtime_state_label, runtime_state_text, state_marker
 
 PIPELINE_ACTIONS = ("attach", "cancel", "kill", "list", "show")
 
@@ -90,16 +90,33 @@ def print_pipelines(context: CommandContext, *, active_only: bool = True, show_a
     db = context.require_db()
     names = db.runtime_names()
     aliases = db.pipeline_aliases()
+    artifact_counts = db.artifact_counts_by_pipeline()
+    table_rows: list[tuple[object, ...]] = []
     for row in rows:
-        context.output(
-            format_pipeline(
-                row,
-                display_name=names.get(("pipeline", str(row["pipeline_id"]))),
-                alias=aliases.get(str(row["pipeline_id"]), str(row["pipeline_id"])),
-                show_active=show_active,
-                marker_style=active_listing_format(context.vars.get_global),
+        statuses = row["job_statuses"] or "unknown"
+        label = runtime_state_label(statuses)
+        timestamp = row["first_seen"] if label in {"active", "in progress"} else row["last_seen"]
+        table_rows.append(
+            (
+                aliases.get(str(row["pipeline_id"]), str(row["pipeline_id"])),
+                row["pipeline_id"],
+                runtime_state_text(statuses, timestamp, style=active_listing_format(context.vars.get_global)),
+                names.get(("pipeline", str(row["pipeline_id"])), ""),
+                row["job_id"],
+                statuses,
+                row["runs"],
+                row["events"],
+                artifact_counts.get(str(row["pipeline_id"]), 0),
+                format_runtime_timestamp(row["first_seen"]),
+                format_runtime_timestamp(row["last_seen"]),
             )
         )
+    context.output(
+        render_table(
+            ("PIPELINE", "SERIAL", "STATE", "NAME", "JOB", "STATUS", "RUNS", "EVENTS", "ARTIFACTS", "FIRST", "LAST"),
+            table_rows,
+        )
+    )
 
 
 def format_pipeline(

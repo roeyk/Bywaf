@@ -5,13 +5,33 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-17 20:39:42 EDT
+Last updated: 2026-05-17 21:07:52 EDT
+
+### 2026-05-17 21:07:52 EDT
+
+#### Changed
+
+- Changed `jobs`, `runs`, and `pipelines` listings to table views with local
+  IDs, durable serials, lifecycle state, names, timestamps, and artifact counts.
+- Added runtime completion metadata for jobs, runs, and pipelines, including
+  serial/source/status context and current artifact counts.
+
+### 2026-05-17 21:01:41 EDT
+
+#### Changed
+
+- Clarified runtime identity as local IDs plus durable serials: local `job=`,
+  `run=`, and `pipeline=` numbers are stable inside one database and never
+  reused there, while `serial=` remains the portable audit-grade selector.
+- Added persisted local ID allocation for runs and pipelines, replacing
+  recomputed aliases.
+- Added durable job serials to job rows and job lifecycle audit events.
 
 ### 2026-05-17 20:39:42 EDT
 
 #### Added
 
-- Added short numeric aliases for interactive run and pipeline selectors while
+- Added short local IDs for interactive run and pipeline selectors while
   preserving durable serials for audit/provenance lookup.
 - Added `show serial=<id>` and serial completion for runtime, artifact, plugin
   load, and script load records.

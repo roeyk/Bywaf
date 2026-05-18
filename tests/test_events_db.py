@@ -59,9 +59,37 @@ class EventDbTests(unittest.TestCase):
             self.assertIsNotNone(job)
             assert job is not None
             self.assertEqual(job["pid"], 456)
+            self.assertTrue(str(job["serial"]).startswith("job-"))
+            self.assertEqual(db.job_serial(job_id), job["serial"])
             db.finish_job(job_id, "finished")
             rows = db.jobs()
             self.assertEqual(rows[0]["status"], "finished")
+
+    def test_runtime_local_ids_are_persisted_and_not_reused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "events.sqlite3"))
+            db.publish("host.found", {"host": "a"}, "hostscanner", pipeline_id="pipe-a", command_run_id="run-a")
+            db.publish("host.found", {"host": "b"}, "hostscanner", pipeline_id="pipe-b", command_run_id="run-b")
+            self.assertEqual(db.run_aliases(), {"run-a": "1", "run-b": "2"})
+            self.assertEqual(db.pipeline_aliases(), {"pipe-a": "1", "pipe-b": "2"})
+            with db.connect() as conn:
+                conn.execute("DELETE FROM events WHERE command_run_id = ?", ("run-a",))
+            db.publish("host.found", {"host": "c"}, "hostscanner", pipeline_id="pipe-c", command_run_id="run-c")
+            self.assertEqual(db.run_aliases()["run-b"], "2")
+            self.assertEqual(db.run_aliases()["run-c"], "3")
+            self.assertEqual(db.resolve_run_serial("2"), "run-b")
+            self.assertEqual(db.resolve_pipeline_serial("2"), "pipe-b")
+
+    def test_job_serials_are_searchable_serials(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "events.sqlite3"))
+            job_id = db.record_job("job list", 123, "running")
+            serial = db.job_serial(job_id)
+            self.assertIsNotNone(serial)
+            assert serial is not None
+            db.publish("job.requested", {"job_id": job_id, "job_serial": serial, "serial": serial}, "runner")
+            self.assertIn(serial, db.serials())
+            self.assertEqual(db.events_for_serial(serial)[0].payload["job_id"], job_id)
 
     def test_cancellation_records_match_targets(self):
         with tempfile.TemporaryDirectory() as tmp:

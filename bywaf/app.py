@@ -25,7 +25,14 @@ from .events import Event
 from .nmap_backend import NmapScanError, NmapUnavailableError
 from .plugin import CommandContext, normalize_argv, run_process_argv
 from .registry import PluginRegistry
-from .runtime_display import ACTIVE_LISTING_FORMAT_VAR, normalize_active_listing_format, runtime_state_label, state_marker
+from .runtime_display import (
+    ACTIVE_LISTING_FORMAT_VAR,
+    format_runtime_timestamp,
+    normalize_active_listing_format,
+    render_table,
+    runtime_state_label,
+    runtime_state_text,
+)
 from .runner import Runner, add_runner_arguments, new_run_id
 
 @dataclass(frozen=True, slots=True)
@@ -43,6 +50,7 @@ HELP_COMMANDS = (
     HelpEntry("plugins", "list loaded plugin providers", "plugins"),
     HelpEntry("cmds", "show commandlets grouped by plugin provider", "cmds"),
     HelpEntry("history", "show command history", "history"),
+    HelpEntry("info", "show active jobs, pipelines, and runs", "info"),
     HelpEntry("jobs", "alias for job list", "jobs"),
     HelpEntry("pipelines", "alias for pipeline list", "pipelines"),
     HelpEntry("runs", "show commandlet run IDs", "runs"),
@@ -238,6 +246,8 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
                 print_history(state.session_history)
             case ["history", selectors]:
                 print_history(state.session_history, parse_history_selectors(shlex.split(selectors)))
+            case ["info"]:
+                print_info(runner)
             case ["jobs"]:
                 events = runner.execute("job list")
                 process_framework_requests(runner, state)
@@ -775,8 +785,44 @@ def print_plugin_argparse_help(runner: Runner, plugin) -> None:
 
 def print_jobs(runner: Runner) -> None:
     """Print known background jobs."""
-    for row in runner.db.jobs():
-        print(f"#{row['id']} pid={row['pid']} status={row['status']} {row['command_line']}")
+    artifact_counts = runner.db.artifact_counts_by_job()
+    rows = [
+        (
+            row["id"],
+            row["serial"] or "",
+            row["pid"],
+            row["status"],
+            artifact_counts.get(str(row["id"]), 0),
+            format_runtime_timestamp(row["started_at"]),
+            format_runtime_timestamp(row["finished_at"]),
+            row["command_line"],
+        )
+        for row in runner.db.jobs()
+    ]
+    if rows:
+        print(render_table(("JOB", "SERIAL", "PID", "STATUS", "ARTIFACTS", "STARTED", "FINISHED", "COMMAND"), rows))
+
+
+def print_info(runner: Runner) -> None:
+    """Print a compact runtime dashboard for entities currently in play."""
+    print(f"Jobs ({len(runner.db.jobs(active_only=True))})")
+    events = runner.execute("job list")
+    process_events_for_non_repl_info(runner, events)
+    print()
+    print(f"Pipelines ({len(runner.db.pipelines(active_only=True))})")
+    events = runner.execute("pipeline list")
+    process_events_for_non_repl_info(runner, events)
+    print()
+    print(f"Runs ({len(runner.db.runs(active_only=True))})")
+    print_runs(runner)
+
+
+def process_events_for_non_repl_info(runner: Runner, events) -> None:
+    """Print framework output events emitted by commandlets during `info`."""
+    del runner
+    for event in events:
+        if event.topic == "framework.console.output.requested":
+            print(event.payload.get("text", ""), end=event.payload.get("end", "\n"))
 
 
 def print_runs(runner: Runner, *, active_only: bool = True) -> None:
@@ -791,31 +837,42 @@ def print_runs(runner: Runner, *, active_only: bool = True) -> None:
     names = runner.db.runtime_names()
     run_aliases = runner.db.run_aliases()
     pipeline_aliases = runner.db.pipeline_aliases()
+    artifact_counts = runner.db.artifact_counts_by_run()
+    table_rows: list[tuple[object, ...]] = []
     for row in rows:
-        prefix = ""
-        detail = ""
-        if not active_only:
-            label = runtime_state_label(row["job_statuses"])
-            timestamp = row["first_event"] if label in {"active", "in progress"} else row["last_event"]
-            prefix, detail = state_marker(label, timestamp, style=marker_style)
         run_serial = str(row["command_run_id"])
         pipeline_serial = str(row["pipeline_id"]) if row["pipeline_id"] is not None else ""
         pipeline_alias = pipeline_aliases.get(pipeline_serial, "")
-        print(
-            f"{prefix}run={run_aliases.get(run_serial, run_serial)} serial={run_serial}"
-            f"{format_runtime_name(names.get(('run', run_serial)))} "
-            f"pipeline={pipeline_alias} pipeline_serial={pipeline_serial} "
-            f"source={row['source']} events={row['events']}"
+        label = runtime_state_label(row["job_statuses"])
+        timestamp = row["first_event"] if label in {"active", "in progress"} else row["last_event"]
+        table_rows.append(
+            (
+                run_aliases.get(run_serial, run_serial),
+                run_serial,
+                runtime_state_text(row["job_statuses"], timestamp, style=marker_style),
+                names.get(("run", run_serial), ""),
+                pipeline_alias,
+                pipeline_serial,
+                row["source"],
+                row["events"],
+                artifact_counts.get(run_serial, 0),
+                format_runtime_timestamp(row["first_event"]),
+                format_runtime_timestamp(row["last_event"]),
+            )
         )
-        if detail:
-            print(detail)
+    print(
+        render_table(
+            ("RUN", "SERIAL", "STATE", "NAME", "PIPELINE", "PIPELINE_SERIAL", "SOURCE", "EVENTS", "ARTIFACTS", "FIRST", "LAST"),
+            table_rows,
+        )
+    )
 
 
 def print_job(runner: Runner, job_id: str) -> None:
     """Print one job row by ID."""
     for row in runner.db.jobs():
         if str(row["id"]) == job_id:
-            print(f"#{row['id']} pid={row['pid']} status={row['status']} {row['command_line']}")
+            print(f"#{row['id']} serial={row['serial']} pid={row['pid']} status={row['status']} {row['command_line']}")
             return
     print(f"error: unknown job: {job_id}")
 

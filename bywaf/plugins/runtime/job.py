@@ -8,7 +8,14 @@ from collections.abc import Iterable
 
 from bywaf.events import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
-from bywaf.runtime_display import active_listing_format, runtime_state_label, state_marker
+from bywaf.runtime_display import (
+    active_listing_format,
+    format_runtime_timestamp,
+    render_table,
+    runtime_state_label,
+    runtime_state_text,
+    state_marker,
+)
 
 ACTIVE_STATUSES = {"queued", "claimed", "running", "pausing", "paused", "cancelling"}
 JOB_ACTIONS = ("cancel", "kill", "list", "show")
@@ -78,15 +85,31 @@ def print_jobs(context: CommandContext, *, active_only: bool = True, show_active
         context.output("no active jobs" if active_only else "no jobs")
         return
     names = context.require_db().runtime_names()
+    artifact_counts = context.require_db().artifact_counts_by_job()
+    table_rows: list[tuple[object, ...]] = []
     for row in rows:
-        context.output(
-            format_job(
-                row,
-                display_name=names.get(("job", str(row["id"]))),
-                show_active=show_active,
-                marker_style=active_listing_format(context.vars.get_global),
+        label = runtime_state_label(row["status"])
+        timestamp = row["started_at"] if label in {"active", "in progress"} else row["finished_at"]
+        table_rows.append(
+            (
+                row["id"],
+                row["serial"] or "",
+                runtime_state_text(row["status"], timestamp, style=active_listing_format(context.vars.get_global)),
+                row["pid"],
+                row["status"],
+                artifact_counts.get(str(row["id"]), 0),
+                names.get(("job", str(row["id"])), ""),
+                format_runtime_timestamp(row["started_at"]),
+                format_runtime_timestamp(row["finished_at"]),
+                row["command_line"],
             )
         )
+    context.output(
+        render_table(
+            ("JOB", "SERIAL", "STATE", "PID", "STATUS", "ARTIFACTS", "NAME", "STARTED", "FINISHED", "COMMAND"),
+            table_rows,
+        )
+    )
 
 
 def format_job(row, *, display_name: str | None = None, show_active: bool = False, marker_style: str = "short") -> str:
@@ -98,7 +121,8 @@ def format_job(row, *, display_name: str | None = None, show_active: bool = Fals
         timestamp = row["started_at"] if label in {"active", "in progress"} else row["finished_at"]
         prefix, detail = state_marker(label, timestamp, style=marker_style)
     name_part = f" name={display_name}" if display_name else ""
-    line = f"{prefix}#{row['id']} pid={row['pid']} status={row['status']}{name_part} {row['command_line']}"
+    serial = row["serial"] or ""
+    line = f"{prefix}#{row['id']} serial={serial} pid={row['pid']} status={row['status']}{name_part} {row['command_line']}"
     return f"{line}\n{detail}" if detail else line
 
 

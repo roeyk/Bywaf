@@ -235,6 +235,29 @@ class RegistryCompletionTests(unittest.TestCase):
             self.assertEqual(completer.candidates("show job="), [f"job={job_id}"])
             self.assertIn("topic=host.found", completer.candidates("show topic="))
 
+    def test_runtime_completion_metadata_includes_artifact_counts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "db.sqlite3"))
+            db.publish(
+                "host.found",
+                {"host": "127.0.0.1"},
+                "hostscanner",
+                pipeline_id="pipeline-1",
+                command_run_id="run-1",
+            )
+            job_id = db.record_job("hostscanner 127.0.0.1", 123, "running")
+            db.publish(
+                "artifact.attached",
+                {"artifact_id": "artifact-1", "job_id": job_id},
+                "framework",
+                pipeline_id="pipeline-1",
+                command_run_id="run-1",
+            )
+            completer = Completer(self.registry, db)
+            self.assertIn("artifacts=1", completer.completion_meta("run=1", "show run=", "run="))
+            self.assertIn("artifacts=1", completer.completion_meta("pipeline=1", "show pipeline=", "pipeline="))
+            self.assertIn("artifacts=1", completer.completion_meta(f"job={job_id}", "show job=", "job="))
+
     def test_tokens_after_last_pipe(self):
         self.assertEqual(tokens_after_last_pipe(["hostscanner", "x", "|", "por"]), ["por"])
 

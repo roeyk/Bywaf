@@ -11,6 +11,7 @@ import sqlite3
 import time
 import json
 import os
+import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -139,6 +140,7 @@ class EventStore:
             command_run_id=command_run_id,
             parent_command_run_id=parent_command_run_id,
         )
+        saved: Event
         with self.connect() as conn:
             cursor = conn.execute(
                 """
@@ -163,7 +165,7 @@ class EventStore:
                     event.parent_command_run_id,
                 ),
             )
-            return Event(
+            saved = Event(
                 cursor.lastrowid,
                 event.topic,
                 event.payload,
@@ -173,6 +175,11 @@ class EventStore:
                 event.command_run_id,
                 event.parent_command_run_id,
             )
+        if saved.pipeline_id:
+            self.ensure_runtime_entity("pipeline", saved.pipeline_id, saved.created_at.isoformat())
+        if saved.command_run_id:
+            self.ensure_runtime_entity("run", saved.command_run_id, saved.created_at.isoformat())
+        return saved
 
     def fetch(self, subscription: Subscription) -> list[Event]:
         """Return events matching a subscription.
@@ -226,10 +233,11 @@ class EventStore:
     def record_job(self, command_line: str, pid: int | None, status: str) -> int:
         """Record a background job owned by the runner."""
         now = datetime.now(timezone.utc).isoformat()
+        serial = new_serial("job")
         with self.connect() as conn:
             cursor = conn.execute(
-                "INSERT INTO jobs(command_line, pid, status, started_at) VALUES (?, ?, ?, ?)",
-                (command_line, pid, status, now),
+                "INSERT INTO jobs(serial, command_line, pid, status, started_at) VALUES (?, ?, ?, ?, ?)",
+                (serial, command_line, pid, status, now),
             )
             if cursor.lastrowid is None:
                 raise RuntimeError("SQLite did not return a job row id")
@@ -269,6 +277,7 @@ class EventStore:
 
     def jobs(self, *, active_only: bool = False) -> list[sqlite3.Row]:
         """Return known jobs with newest jobs first."""
+        self.ensure_job_serials()
         with self.connect() as conn:
             return list(
                 conn.execute(
@@ -304,8 +313,23 @@ class EventStore:
 
     def job(self, job_id: int) -> sqlite3.Row | None:
         """Return one job row by ID."""
+        self.ensure_job_serials()
         with self.connect() as conn:
             return conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
+
+    def job_serial(self, job_id: int | str) -> str | None:
+        """Return a durable job serial for a local job id."""
+        self.ensure_job_serials()
+        with self.connect() as conn:
+            row = conn.execute("SELECT serial FROM jobs WHERE id = ?", (int(job_id),)).fetchone()
+            return str(row["serial"]) if row is not None and row["serial"] is not None else None
+
+    def ensure_job_serials(self) -> None:
+        """Backfill durable serials for jobs created before job serial support."""
+        with self.connect() as conn:
+            rows = conn.execute("SELECT id FROM jobs WHERE serial IS NULL ORDER BY id").fetchall()
+            for row in rows:
+                conn.execute("UPDATE jobs SET serial = ? WHERE id = ?", (new_serial("job"), int(row["id"])))
 
     def jobs_for_pipeline(self, pipeline_id: str) -> list[sqlite3.Row]:
         """Return jobs associated with a command-run variable snapshot pipeline."""
@@ -412,6 +436,8 @@ class EventStore:
                     for name, value in sorted(values.items())
                 ],
             )
+        self.ensure_runtime_entity("pipeline", pipeline_id, now)
+        self.ensure_runtime_entity("run", command_run_id, now)
 
     def command_run_vars(self, command_run_id: str) -> dict[str, str]:
         """Return the persisted variable snapshot for one command run."""
@@ -520,12 +546,13 @@ class EventStore:
                 WHERE command_run_id = ?
                    OR pipeline_id = ?
                    OR json_extract(payload_json, '$.serial') = ?
+                   OR json_extract(payload_json, '$.job_serial') = ?
                    OR json_extract(payload_json, '$.artifact_id') = ?
                    OR json_extract(payload_json, '$.target_id') = ?
                 ORDER BY id ASC
                 LIMIT ?
                 """,
-                (serial, serial, serial, serial, serial, limit),
+                (serial, serial, serial, serial, serial, serial, limit),
             )
             return [Event.from_row(row) for row in rows]
 
@@ -547,15 +574,71 @@ class EventStore:
                 FROM events
                 WHERE json_extract(payload_json, '$.serial') IS NOT NULL
                 UNION
+                SELECT json_extract(payload_json, '$.job_serial') AS serial
+                FROM events
+                WHERE json_extract(payload_json, '$.job_serial') IS NOT NULL
+                UNION
                 SELECT json_extract(payload_json, '$.artifact_id') AS serial
                 FROM events
                 WHERE json_extract(payload_json, '$.artifact_id') IS NOT NULL
+                UNION
+                SELECT serial FROM jobs WHERE serial IS NOT NULL
                 """
             ).fetchall()
         for row in rows:
             if row["serial"] is not None:
                 values.add(str(row["serial"]))
         return sorted(values)
+
+    def artifact_counts_by_run(self) -> dict[str, int]:
+        """Return artifact counts keyed by durable command-run serial."""
+        return self.artifact_counts("command_run_id")
+
+    def artifact_counts_by_pipeline(self) -> dict[str, int]:
+        """Return artifact counts keyed by durable pipeline serial."""
+        return self.artifact_counts("pipeline_id")
+
+    def artifact_counts_by_job(self) -> dict[str, int]:
+        """Return artifact counts keyed by local job id string."""
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT json_extract(payload_json, '$.job_id') AS target_id,
+                       COUNT(DISTINCT json_extract(payload_json, '$.artifact_id')) AS artifacts
+                FROM events
+                WHERE topic = 'artifact.attached'
+                  AND json_extract(payload_json, '$.job_id') IS NOT NULL
+                GROUP BY target_id
+                """
+            ).fetchall()
+        return {str(row["target_id"]): int(row["artifacts"]) for row in rows}
+
+    def artifact_counts(self, scope_column: str) -> dict[str, int]:
+        """Return artifact counts grouped by a trusted events scope column."""
+        match scope_column:
+            case "command_run_id":
+                sql = """
+                    SELECT command_run_id AS target_id,
+                           COUNT(DISTINCT json_extract(payload_json, '$.artifact_id')) AS artifacts
+                    FROM events
+                    WHERE topic = 'artifact.attached'
+                      AND command_run_id IS NOT NULL
+                    GROUP BY command_run_id
+                """
+            case "pipeline_id":
+                sql = """
+                    SELECT pipeline_id AS target_id,
+                           COUNT(DISTINCT json_extract(payload_json, '$.artifact_id')) AS artifacts
+                    FROM events
+                    WHERE topic = 'artifact.attached'
+                      AND pipeline_id IS NOT NULL
+                    GROUP BY pipeline_id
+                """
+            case _:
+                raise ValueError(f"unsupported artifact count scope: {scope_column}")
+        with self.connect() as conn:
+            rows = conn.execute(sql).fetchall()
+        return {str(row["target_id"]): int(row["artifacts"]) for row in rows}
 
     def runtime_names(self) -> dict[tuple[str, str], str]:
         """Return latest user-assigned names keyed by target type and id."""
@@ -570,6 +653,7 @@ class EventStore:
 
     def runs(self, *, active_only: bool = False) -> list[sqlite3.Row]:
         """Summarize commandlet executions that produced events."""
+        self.ensure_run_aliases()
         with self.connect() as conn:
             return list(
                 conn.execute(
@@ -597,31 +681,9 @@ class EventStore:
                 )
             )
 
-    def run_aliases(self) -> dict[str, str]:
-        """Return stable numeric run aliases keyed by durable run serial."""
-        rows = sorted(
-            self.runs(active_only=False),
-            key=lambda row: (row["first_event"] or "", row["command_run_id"] or ""),
-        )
-        aliases: dict[str, str] = {}
-        for row in rows:
-            serial = str(row["command_run_id"])
-            if serial not in aliases:
-                aliases[serial] = str(len(aliases) + 1)
-        return aliases
-
-    def resolve_run_serial(self, value: str) -> str:
-        """Resolve a user-facing run id or legacy serial to a run serial."""
-        aliases = self.run_aliases()
-        if value in aliases:
-            return value
-        for serial, alias in aliases.items():
-            if value == alias:
-                return serial
-        return value
-
     def pipelines(self, *, active_only: bool = False) -> list[sqlite3.Row]:
         """Summarize known pipeline IDs from events and run-variable snapshots."""
+        self.ensure_pipeline_aliases()
         with self.connect() as conn:
             return list(
                 conn.execute(
@@ -655,23 +717,177 @@ class EventStore:
                 )
             )
 
+    def run_aliases(self) -> dict[str, str]:
+        """Return stable local run IDs keyed by durable run serial."""
+        self.ensure_run_aliases()
+        return self.runtime_aliases("run")
+
     def pipeline_aliases(self) -> dict[str, str]:
-        """Return stable numeric pipeline aliases keyed by durable pipeline serial."""
-        rows = sorted(
-            self.pipelines(active_only=False),
-            key=lambda row: (row["first_seen"] or "", row["pipeline_id"] or ""),
-        )
-        return {str(row["pipeline_id"]): str(index) for index, row in enumerate(rows, start=1)}
+        """Return stable local pipeline IDs keyed by durable pipeline serial."""
+        self.ensure_pipeline_aliases()
+        return self.runtime_aliases("pipeline")
+
+    def resolve_run_serial(self, value: str) -> str:
+        """Resolve a local run id or durable serial to the durable run serial."""
+        return self.resolve_runtime_serial("run", value)
 
     def resolve_pipeline_serial(self, value: str) -> str:
-        """Resolve a user-facing pipeline id or legacy serial to a pipeline serial."""
-        aliases = self.pipeline_aliases()
-        if value in aliases:
-            return value
-        for serial, alias in aliases.items():
-            if value == alias:
-                return serial
+        """Resolve a local pipeline id or durable serial to the durable pipeline serial."""
+        return self.resolve_runtime_serial("pipeline", value)
+
+    def runtime_aliases(self, entity_type: str) -> dict[str, str]:
+        """Return local IDs keyed by serial for one runtime entity type."""
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT serial, local_id
+                FROM runtime_entities
+                WHERE entity_type = ?
+                ORDER BY local_id
+                """,
+                (entity_type,),
+            ).fetchall()
+        return {str(row["serial"]): str(row["local_id"]) for row in rows}
+
+    def resolve_runtime_serial(self, entity_type: str, value: str) -> str:
+        """Resolve a local runtime id or pass through an explicit serial."""
+        if value.isdigit():
+            with self.connect() as conn:
+                row = conn.execute(
+                    """
+                    SELECT serial
+                    FROM runtime_entities
+                    WHERE entity_type = ? AND local_id = ?
+                    """,
+                    (entity_type, int(value)),
+                ).fetchone()
+            if row is not None:
+                return str(row["serial"])
         return value
+
+    def ensure_run_aliases(self) -> None:
+        """Allocate stable local IDs for known command runs."""
+        rows = sorted(
+            self.runs_without_alias_backfill(active_only=False),
+            key=lambda row: (row["first_event"] or "", row["command_run_id"] or ""),
+        )
+        for row in rows:
+            serial = row["command_run_id"]
+            if serial is not None:
+                self.ensure_runtime_entity("run", str(serial), row["first_event"])
+
+    def ensure_pipeline_aliases(self) -> None:
+        """Allocate stable local IDs for known pipelines."""
+        rows = sorted(
+            self.pipelines_without_alias_backfill(active_only=False),
+            key=lambda row: (row["first_seen"] or "", row["pipeline_id"] or ""),
+        )
+        for row in rows:
+            serial = row["pipeline_id"]
+            if serial is not None:
+                self.ensure_runtime_entity("pipeline", str(serial), row["first_seen"])
+
+    def ensure_runtime_entity(self, entity_type: str, serial: str, created_at: str | None = None) -> int:
+        """Allocate a stable local ID for a durable runtime serial."""
+        created = created_at or datetime.now(timezone.utc).isoformat()
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT local_id FROM runtime_entities WHERE entity_type = ? AND serial = ?",
+                (entity_type, serial),
+            ).fetchone()
+            if row is not None:
+                return int(row["local_id"])
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                row = conn.execute(
+                    "SELECT local_id FROM runtime_entities WHERE entity_type = ? AND serial = ?",
+                    (entity_type, serial),
+                ).fetchone()
+                if row is not None:
+                    conn.execute("COMMIT")
+                    return int(row["local_id"])
+                next_id = int(
+                    conn.execute(
+                        "SELECT COALESCE(MAX(local_id), 0) + 1 FROM runtime_entities WHERE entity_type = ?",
+                        (entity_type,),
+                    ).fetchone()[0]
+                )
+                conn.execute(
+                    """
+                    INSERT INTO runtime_entities(entity_type, local_id, serial, created_at)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (entity_type, next_id, serial, created),
+                )
+                conn.execute("COMMIT")
+                return next_id
+            except Exception:
+                conn.execute("ROLLBACK")
+                raise
+
+    def runs_without_alias_backfill(self, *, active_only: bool = False) -> list[sqlite3.Row]:
+        """Summarize runs without recursively allocating local IDs."""
+        with self.connect() as conn:
+            return list(
+                conn.execute(
+                    """
+                    SELECT
+                        events.command_run_id,
+                        events.pipeline_id,
+                        events.source,
+                        COUNT(DISTINCT events.id) AS events,
+                        MIN(events.created_at) AS first_event,
+                        MAX(events.created_at) AS last_event,
+                        GROUP_CONCAT(DISTINCT jobs.status) AS job_statuses,
+                        SUM(CASE WHEN jobs.status IN (?, ?, ?, ?, ?, ?) THEN 1 ELSE 0 END) AS active_jobs
+                    FROM events
+                    LEFT JOIN command_run_vars
+                      ON command_run_vars.command_run_id = events.command_run_id
+                    LEFT JOIN jobs
+                      ON jobs.id = command_run_vars.job_id
+                    WHERE events.command_run_id IS NOT NULL
+                    GROUP BY events.command_run_id, events.pipeline_id, events.source
+                    HAVING ? = 0 OR active_jobs > 0
+                    ORDER BY MAX(events.id) DESC
+                    """,
+                    (*ACTIVE_JOB_STATUSES, 1 if active_only else 0),
+                )
+            )
+
+    def pipelines_without_alias_backfill(self, *, active_only: bool = False) -> list[sqlite3.Row]:
+        """Summarize pipelines without recursively allocating local IDs."""
+        with self.connect() as conn:
+            return list(
+                conn.execute(
+                    """
+                    WITH known_pipelines AS (
+                        SELECT pipeline_id FROM events WHERE pipeline_id IS NOT NULL
+                        UNION
+                        SELECT pipeline_id FROM command_run_vars WHERE pipeline_id IS NOT NULL
+                    )
+                    SELECT
+                        known_pipelines.pipeline_id,
+                        MIN(command_run_vars.job_id) AS job_id,
+                        COUNT(DISTINCT command_run_vars.command_run_id) AS runs,
+                        COUNT(DISTINCT events.id) AS events,
+                        GROUP_CONCAT(DISTINCT jobs.status) AS job_statuses,
+                        SUM(CASE WHEN jobs.status IN (?, ?, ?, ?, ?, ?) THEN 1 ELSE 0 END) AS active_jobs,
+                        MIN(COALESCE(command_run_vars.created_at, events.created_at)) AS first_seen,
+                        MAX(COALESCE(command_run_vars.created_at, events.created_at)) AS last_seen
+                    FROM known_pipelines
+                    LEFT JOIN command_run_vars
+                      ON command_run_vars.pipeline_id = known_pipelines.pipeline_id
+                    LEFT JOIN jobs
+                      ON jobs.id = command_run_vars.job_id
+                    LEFT JOIN events
+                      ON events.pipeline_id = known_pipelines.pipeline_id
+                    GROUP BY known_pipelines.pipeline_id
+                    HAVING ? = 0 OR active_jobs > 0
+                    ORDER BY last_seen DESC
+                    """,
+                    (*ACTIVE_JOB_STATUSES, 1 if active_only else 0),
+                )
+            )
 
 
 def set_sqlcipher_key(conn: Any, passphrase: str) -> None:
@@ -712,6 +928,12 @@ def process_exists(pid: int) -> bool:
     except PermissionError:
         return True
     return True
+
+
+def new_serial(prefix: str) -> str:
+    """Return a durable serial for auditable entities."""
+    safe_prefix = "".join(char if char.isalnum() else "-" for char in prefix).strip("-")
+    return f"{safe_prefix}-{uuid.uuid4().hex}"
 
 
 def export_encrypted_database(

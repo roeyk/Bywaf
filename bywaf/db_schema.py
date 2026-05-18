@@ -21,6 +21,7 @@ CREATE INDEX IF NOT EXISTS idx_events_scope ON events(topic, pipeline_id, comman
 
 CREATE TABLE IF NOT EXISTS jobs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    serial TEXT UNIQUE,
     command_line TEXT NOT NULL,
     pid INTEGER,
     status TEXT NOT NULL,
@@ -50,6 +51,16 @@ CREATE TABLE IF NOT EXISTS command_run_vars (
     UNIQUE(command_run_id, name)
 );
 CREATE INDEX IF NOT EXISTS idx_command_run_vars_run ON command_run_vars(command_run_id, name);
+
+CREATE TABLE IF NOT EXISTS runtime_entities (
+    entity_type TEXT NOT NULL,
+    local_id INTEGER NOT NULL,
+    serial TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY(entity_type, serial),
+    UNIQUE(entity_type, local_id)
+);
+CREATE INDEX IF NOT EXISTS idx_runtime_entities_serial ON runtime_entities(serial);
 """
 
 
@@ -59,6 +70,9 @@ def ensure_event_columns(conn: sqlite3.Connection) -> None:
     for name in ("pipeline_id", "command_run_id", "parent_command_run_id"):
         if name not in columns:
             conn.execute(f"ALTER TABLE events ADD COLUMN {name} TEXT")
+    job_columns = {row["name"] for row in conn.execute("PRAGMA table_info(jobs)")}
+    if "serial" not in job_columns:
+        conn.execute("ALTER TABLE jobs ADD COLUMN serial TEXT")
     tables = {row["name"] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
     if "cancellations" not in tables:
         conn.executescript(
@@ -91,5 +105,20 @@ def ensure_event_columns(conn: sqlite3.Connection) -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_command_run_vars_run
             ON command_run_vars(command_run_id, name);
+            """
+        )
+    if "runtime_entities" not in tables:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS runtime_entities (
+                entity_type TEXT NOT NULL,
+                local_id INTEGER NOT NULL,
+                serial TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY(entity_type, serial),
+                UNIQUE(entity_type, local_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_runtime_entities_serial
+            ON runtime_entities(serial);
             """
         )

@@ -223,6 +223,13 @@ class AppDispatchTests(unittest.TestCase):
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("hostscanner 127.0.0.1", 123, "running")
             runner.db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", pipeline_id="p", command_run_id="r")
+            runner.db.publish(
+                "artifact.attached",
+                {"artifact_id": "artifact-1", "job_id": job_id},
+                "framework",
+                pipeline_id="p",
+                command_run_id="r",
+            )
             runner.db.record_command_run_vars(
                 job_id=job_id,
                 pipeline_id="p",
@@ -233,7 +240,31 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "runs")
-            self.assertIn("run=1 serial=r pipeline=1 pipeline_serial=p source=hostscanner events=1", output.getvalue())
+            text = output.getvalue()
+            self.assertIn("RUN", text)
+            self.assertIn("ARTIFACTS", text)
+            self.assertRegex(text, r"\n1\s+r\s+active\s+\s*1\s+p\s+hostscanner\s+1\s+1\s+")
+
+    def test_info_shows_active_runtime_counts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("hostscanner 127.0.0.1", 123, "running")
+            runner.db.record_command_run_vars(
+                job_id=job_id,
+                pipeline_id="p",
+                command_run_id="r",
+                commandlet="hostscanner",
+                values={"test.marker": "1"},
+            )
+            runner.db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", pipeline_id="p", command_run_id="r")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "info")
+            text = output.getvalue()
+            self.assertIn("Jobs (1)", text)
+            self.assertIn("Pipelines (1)", text)
+            self.assertIn("Runs (1)", text)
+            self.assertIn("ARTIFACTS", text)
 
     def test_runtime_names_display_in_listings(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -256,9 +287,10 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "pipelines")
                 dispatch_repl_line(runner, "jobs")
             text = output.getvalue()
-            self.assertIn("run=1 serial=r name=run name pipeline=1 pipeline_serial=p", text)
-            self.assertIn("pipeline=1 serial=p name=pipeline name job=", text)
-            self.assertIn("status=running name=job name", text)
+            self.assertIn("run name", text)
+            self.assertIn("pipeline name", text)
+            self.assertIn("job name", text)
+            self.assertIn("ARTIFACTS", text)
 
     def test_dispatch_runs_defaults_to_active_unless_all_requested(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -279,7 +311,7 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "runs --all")
-            self.assertIn("run=1 serial=r pipeline=1 pipeline_serial=p source=hostscanner events=1", output.getvalue())
+            self.assertRegex(output.getvalue(), r"\n1\s+r\s+completed\s+\s*1\s+p\s+hostscanner\s+1\s+0\s+")
 
     def test_make_runner_marks_dead_runtime_jobs_stale_on_startup(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -310,7 +342,9 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "jobs")
-            self.assertIn("#1 pid=123 status=running hostscanner 127.0.0.1", output.getvalue())
+            self.assertIn("ARTIFACTS", output.getvalue())
+            self.assertRegex(output.getvalue(), r"\n1\s+job-[0-9a-f]+\s+active\s+123\s+running\s+0\s+")
+            self.assertIn("hostscanner 127.0.0.1", output.getvalue())
 
     def test_jobs_all_marks_active_state(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -321,8 +355,8 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "jobs --all")
             text = output.getvalue()
-            self.assertIn("[active] #1 pid=123 status=running active", text)
-            self.assertIn("[completed] #2 pid=456 status=finished old", text)
+            self.assertRegex(text, r"\n1\s+job-[0-9a-f]+\s+active\s+123\s+running\s+0\s+")
+            self.assertRegex(text, r"\n2\s+job-[0-9a-f]+\s+completed\s+456\s+finished\s+0\s+")
 
     def test_jobs_all_can_use_long_active_marker(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -332,7 +366,8 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "jobs --all")
-            self.assertIn("#1 pid=123 status=running active\n  [active since ", output.getvalue())
+            self.assertIn("active since ", output.getvalue())
+            self.assertRegex(output.getvalue(), r"\n1\s+job-[0-9a-f]+\s+active since ")
 
     def test_pipelines_alias_runs_pipeline_list(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -348,7 +383,9 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "pipelines")
-            self.assertIn(f"pipeline=1 serial=pipe-1 job={job_id} status=running runs=1", output.getvalue())
+            text = output.getvalue()
+            self.assertIn("ARTIFACTS", text)
+            self.assertRegex(text, rf"\n1\s+pipe-1\s+active\s+\s*{job_id}\s+running\s+1\s+0\s+0\s+")
 
     def test_pipeline_list_defaults_to_active_unless_all_requested(self):
         with tempfile.TemporaryDirectory() as tmp:
