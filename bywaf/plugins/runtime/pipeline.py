@@ -10,18 +10,20 @@ from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionC
 from bywaf.plugins.runtime.job import cancel_job, kill_job
 from bywaf.runtime_display import active_listing_format, format_runtime_timestamp, render_table, runtime_state_label, runtime_state_text, state_marker
 
-PIPELINE_ACTIONS = ("attach", "cancel", "kill", "list", "show")
+PIPELINE_ACTIONS = ("attach", "cancel", "end", "kill", "list", "show")
 
 
 @commandlet(
     name="pipeline",
     description="Manage pipelines.",
-    usage="pipeline <list|show|cancel|kill|attach> [options] [id]",
+    usage="pipeline <list|show|cancel|end|kill|attach> [options] [id]",
     examples=(
         "pipeline list",
         "pipeline list --all",
         "pipeline show 1",
         "pipeline cancel 1",
+        "pipeline end --hard 1",
+        "pipeline kill --hard 1",
         "pipeline attach 1 portscanner run=1 since=beginning",
     ),
     capabilities=("db.raw", "framework.console.output", "framework.pipeline.control", "framework.job.control"),
@@ -29,7 +31,7 @@ PIPELINE_ACTIONS = ("attach", "cancel", "kill", "list", "show")
 @argument("action", "pipeline operation", completion=CompletionSpec("choice", PIPELINE_ACTIONS))
 @argument("id", "pipeline id", required=False, completion="pipeline")
 class Pipeline(CommandletBase):
-    """List, inspect, softly cancel, and hard-kill pipelines."""
+    """List, inspect, softly cancel, and end pipelines."""
 
     def run(
         self,
@@ -45,19 +47,27 @@ class Pipeline(CommandletBase):
         parser.add_argument("action", choices=PIPELINE_ACTIONS)
         parser.add_argument("id", nargs="?")
         parser.add_argument("--all", action="store_true")
-        parser.add_argument("--force", action="store_true")
+        parser.add_argument("--hard", action="store_true")
+        parser.add_argument("--soft", action="store_true")
         parsed = parser.parse_args(args)
         context.require_foreground("pipeline management commands")
+        validate_pipeline_mode(parsed.action, soft=parsed.soft, hard=parsed.hard)
         match parsed.action:
             case "list":
                 print_pipelines(context, active_only=not parsed.all, show_active=parsed.all)
             case "show":
                 row = require_pipeline(context, parsed.id)
-                context.output(format_pipeline(row))
+                db = context.require_db()
+                display_name = db.runtime_names().get(("pipeline", str(row["pipeline_id"])))
+                alias = db.pipeline_aliases().get(str(row["pipeline_id"]))
+                context.output(format_pipeline(row, display_name=display_name, alias=alias))
             case "cancel":
                 cancel_pipeline(context, parsed.id)
-            case "kill":
-                kill_pipeline(context, parsed.id, force=parsed.force)
+            case "end" | "kill":
+                if parsed.hard:
+                    kill_pipeline(context, parsed.id)
+                else:
+                    cancel_pipeline(context, parsed.id)
         return ()
 
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
@@ -68,7 +78,7 @@ class Pipeline(CommandletBase):
             return pipeline_ids(context)
         if len(args) == 1 and args[0] == "list":
             return ["--all"]
-        if len(args) == 1 and args[0] in {"show", "cancel", "kill"}:
+        if len(args) == 1 and args[0] in {"show", "cancel", "end", "kill"}:
             return pipeline_ids(context)
         if len(args) == 1 and args[0] not in PIPELINE_ACTIONS:
             return list(PIPELINE_ACTIONS)
@@ -76,7 +86,7 @@ class Pipeline(CommandletBase):
             return attach_candidates(context, args, prefix)
         if args and args[0] == "list":
             return ["--all"] if "--all".startswith(prefix) else []
-        if len(args) >= 2 and args[0] in {"show", "cancel", "kill"}:
+        if len(args) >= 2 and args[0] in {"show", "cancel", "end", "kill"}:
             return pipeline_ids(context)
         return []
 
@@ -117,6 +127,16 @@ def print_pipelines(context: CommandContext, *, active_only: bool = True, show_a
             table_rows,
         )
     )
+
+
+def validate_pipeline_mode(action: str, *, soft: bool, hard: bool) -> None:
+    """Reject ambiguous mode flags for pipeline management operations."""
+    if soft and hard:
+        raise ValueError("--soft cannot be combined with --hard")
+    if action == "cancel" and (soft or hard):
+        raise ValueError("pipeline cancel is already cooperative; use pipeline end --hard or pipeline kill --hard for forced termination")
+    if action not in {"end", "kill"} and (soft or hard):
+        raise ValueError(f"pipeline {action} does not accept --soft or --hard")
 
 
 def format_pipeline(
@@ -165,7 +185,7 @@ def cancel_pipeline(context: CommandContext, pipeline_id: str | None) -> None:
     context.output(f"cancel requested for pipeline {row['pipeline_id']}")
 
 
-def kill_pipeline(context: CommandContext, pipeline_id: str | None, *, force: bool) -> None:
+def kill_pipeline(context: CommandContext, pipeline_id: str | None) -> None:
     """Hard-kill known jobs associated with a pipeline."""
     row = require_pipeline(context, pipeline_id)
     context.audit_capability("framework.pipeline.control")
@@ -173,8 +193,8 @@ def kill_pipeline(context: CommandContext, pipeline_id: str | None, *, force: bo
     if not jobs:
         raise ValueError(f"pipeline {row['pipeline_id']} has no associated jobs")
     for job in jobs:
-        kill_job(context, job, force=force)
-    context.output(f"killed pipeline {row['pipeline_id']}" if force else f"terminated pipeline {row['pipeline_id']}")
+        kill_job(context, job)
+    context.output(f"killed pipeline {row['pipeline_id']}")
 
 
 def attach_pipeline(context: CommandContext, args: list[str]) -> None:

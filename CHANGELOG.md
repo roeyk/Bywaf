@@ -5,7 +5,33 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-17 22:06:36 EDT
+Last updated: 2026-05-17 22:59:17 EDT
+
+### 2026-05-17 22:59:17 EDT
+
+#### Changed
+
+- Clarified runtime terminology: pipelines group runs, while jobs supervise
+  execution work that may run one or more commandlet invocations.
+- Added `end` as a synonym for `kill`; both default to cooperative `--soft`
+  behavior and accept `--hard` for forced process termination.
+- Restricted `signal` to concrete receivers (`job=`, `run=`, or `serial=` that
+  resolves to a job/run) instead of pretending pipelines receive plugin-domain
+  signals directly.
+- Documented artifact storage as paired with the active encrypted main database
+  rather than independently selectable by default.
+
+### 2026-05-17 22:46:56 EDT
+
+#### Changed
+
+- Extended artifact `serial=` handling so attachments can target run,
+  pipeline, or job serials while artifact serials continue to select existing
+  artifacts.
+- Kept artifact provenance one-level deep: artifacts attach to runtime
+  entities, not to other artifacts.
+- Included assigned runtime names in job and pipeline detail output, matching
+  the table listings.
 
 ### 2026-05-17 22:06:36 EDT
 

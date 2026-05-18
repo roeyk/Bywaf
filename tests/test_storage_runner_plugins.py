@@ -398,6 +398,44 @@ class StorageRunnerPluginTests(unittest.TestCase):
             self.assertIn("name=Headers", listing)
 
     @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
+    def test_artifact_attach_and_select_accept_serials(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp, "db.sqlite3")
+            source = Path(tmp, "snapshot.html")
+            source.write_text("<html>ok</html>")
+            output_path = Path(tmp, "out.html")
+            runner = make_runner(db_path, encrypted=True, passphrase="secret")
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute(f"artifact attach serial=run-1 file={source} name='Landing page'")
+                process_framework_requests(runner, ShellState())
+            artifact = artifact_store_for_event_store(runner.db).list(command_run_id="run-1")[0]
+            self.assertEqual(artifact.name, "Landing page")
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute(f"artifact save serial={artifact.artifact_id} file={output_path}")
+                process_framework_requests(runner, ShellState())
+            self.assertEqual(output_path.read_text(), "<html>ok</html>")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute(f"search serial={artifact.artifact_id}")
+                process_framework_requests(runner, ShellState())
+            self.assertIn("Landing page", output.getvalue())
+
+    @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
+    def test_artifact_attach_rejects_artifact_parent_serial(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp, "db.sqlite3")
+            first = Path(tmp, "first.txt")
+            second = Path(tmp, "second.txt")
+            first.write_text("one")
+            second.write_text("two")
+            runner = make_runner(db_path, encrypted=True, passphrase="secret")
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute(f"artifact attach run=run-1 file={first}")
+            artifact = artifact_store_for_event_store(runner.db).list(command_run_id="run-1")[0]
+            with self.assertRaisesRegex(ValueError, "artifacts are not attached to other artifacts"):
+                runner.execute(f"artifact attach serial={artifact.artifact_id} file={second}")
+
+    @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
     def test_artifact_regexp_rejects_invalid_patterns(self):
         with tempfile.TemporaryDirectory() as tmp:
             db_path = Path(tmp, "db.sqlite3")

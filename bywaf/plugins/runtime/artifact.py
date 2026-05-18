@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Iterable
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -30,9 +31,10 @@ SEARCH_FIELDS = ("name", "note", "content")
 @commandlet(
     name="artifact",
     description="Attach, list, save, replace, remove, and verify encrypted artifacts.",
-    usage="artifact <attach|list|save|replace|remove|search|verify> [artifact=id|run=id|pipeline=id|job=id] [file=path|dir=path]",
+    usage="artifact <attach|list|save|replace|remove|search|verify> [serial=id|artifact=id|run=id|pipeline=id|job=id] [file=path|dir=path]",
     examples=(
         "artifact attach run=1 file=snapshot.html name='Landing page'",
+        "artifact attach serial=run-... file=snapshot.html",
         "artifact list run=1",
         "artifact search --regexp note='login|cookie'",
         "artifact replace artifact=1 file=snapshot-v2.html",
@@ -52,7 +54,7 @@ SEARCH_FIELDS = ("name", "note", "content")
     ),
 )
 @argument("action", "artifact action", completion=CompletionSpec("choice", ARTIFACT_ACTIONS))
-@argument("selector", "artifact=, run=, pipeline=, job=, file=, dir=, name=, or note=", required=False)
+@argument("selector", "serial=, artifact=, run=, pipeline=, job=, file=, dir=, name=, or note=", required=False)
 class ArtifactCommand(CommandletBase):
     """Manage encrypted artifacts linked to Bywaf runtime entities."""
 
@@ -109,15 +111,15 @@ class ArtifactCommand(CommandletBase):
         action = args[0]
         match action:
             case "attach":
-                return ["run=", "pipeline=", "job=", "file=", "name=", "note="]
+                return ["serial=", "run=", "pipeline=", "job=", "file=", "name=", "note="]
             case "replace":
                 return ["artifact=", "file=", "name=", "note="]
             case "remove":
-                return ["artifact=", "run=", "pipeline=", "job="]
+                return ["artifact=", "serial=", "run=", "pipeline=", "job="]
             case "list" | "verify":
-                return ["artifact=", "run=", "pipeline=", "job="]
+                return ["artifact=", "serial=", "run=", "pipeline=", "job="]
             case "save":
-                return ["artifact=", "run=", "pipeline=", "job=", "file=", "dir="]
+                return ["artifact=", "serial=", "run=", "pipeline=", "job=", "file=", "dir="]
             case "search":
                 return ["name=", "note=", "content=", "serial=", "--regexp", "artifact=", "run=", "pipeline=", "job=", "since=", "until="]
             case _:
@@ -194,7 +196,7 @@ def parse_artifact_selectors(tokens: list[str]) -> dict[str, list[str]]:
             index = len(tokens)
         else:
             index += 1
-        if key not in {"artifact", "run", "pipeline", "job", "file", "dir", "name", "note"}:
+        if key not in {"artifact", "run", "pipeline", "job", "serial", "file", "dir", "name", "note"}:
             raise ValueError(f"unknown artifact selector: {key}")
         if not value:
             raise ValueError(f"artifact selector {key}= requires a value")
@@ -231,14 +233,15 @@ def attach_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
         raise ValueError("artifact attach name= is only valid with one file=")
     attached: list[Artifact] = []
     note = single_value(selectors, "note") or context.note
+    scope = resolve_artifact_scope(context, selectors)
     for file_name in files:
         artifact = context.artifacts.attach_file(
             Path(file_name),
             name=single_value(selectors, "name"),
             note=note,
-            job_id=single_value(selectors, "job"),
-            pipeline_id=resolve_pipeline_selector(context, single_value(selectors, "pipeline")),
-            command_run_id=resolve_run_selector(context, single_value(selectors, "run")),
+            job_id=scope.job_id,
+            pipeline_id=scope.pipeline_id,
+            command_run_id=scope.command_run_id,
         )
         attached.append(artifact)
     for artifact in attached:
@@ -371,10 +374,14 @@ def select_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
     artifact_id = single_value(selectors, "artifact")
     if artifact_id is not None:
         return [store.get(artifact_id)]
+    serial = single_value(selectors, "serial")
+    if serial is not None and serial.startswith("artifact-"):
+        return [store.get(serial)]
+    scope = resolve_artifact_scope(context, selectors)
     return store.list(
-        job_id=single_value(selectors, "job"),
-        pipeline_id=resolve_pipeline_selector(context, single_value(selectors, "pipeline")),
-        command_run_id=resolve_run_selector(context, single_value(selectors, "run")),
+        job_id=scope.job_id,
+        pipeline_id=scope.pipeline_id,
+        command_run_id=scope.command_run_id,
     )
 
 
@@ -387,12 +394,16 @@ def search_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
     if artifact_id is not None:
         artifacts = [store.get(artifact_id)]
     else:
-        artifacts = store.list(
-            job_id=single_value(selectors, "job"),
-            pipeline_id=resolve_pipeline_selector(context, single_value(selectors, "pipeline")),
-            command_run_id=resolve_run_selector(context, single_value(selectors, "run")),
-        )
-    artifacts = filter_artifact_serials(artifacts, selectors.get("serial", []))
+        serial = single_value(selectors, "serial")
+        if serial is not None and serial.startswith("artifact-"):
+            artifacts = [store.get(serial)]
+        else:
+            scope = resolve_artifact_scope(context, selectors)
+            artifacts = store.list(
+                job_id=scope.job_id,
+                pipeline_id=scope.pipeline_id,
+                command_run_id=scope.command_run_id,
+            )
     return filter_artifact_time_window(
         filter_artifact_search(
             artifacts,
@@ -448,6 +459,52 @@ def artifact_serials(artifact: Artifact) -> set[str]:
         }
         if value
     }
+
+
+@dataclass(frozen=True, slots=True)
+class ArtifactScope:
+    """Resolved artifact provenance selectors."""
+
+    job_id: str | None = None
+    pipeline_id: str | None = None
+    command_run_id: str | None = None
+
+
+def resolve_artifact_scope(context: CommandContext, selectors: dict[str, list[str]]) -> ArtifactScope:
+    """Resolve run/pipeline/job/serial selectors into artifact provenance scope."""
+    serial = single_value(selectors, "serial")
+    explicit = ArtifactScope(
+        job_id=single_value(selectors, "job"),
+        pipeline_id=resolve_pipeline_selector(context, single_value(selectors, "pipeline")),
+        command_run_id=resolve_run_selector(context, single_value(selectors, "run")),
+    )
+    if serial is None:
+        return explicit
+    if any((explicit.job_id, explicit.pipeline_id, explicit.command_run_id)):
+        raise ValueError("serial= cannot be combined with run=, pipeline=, or job=")
+    return resolve_serial_scope(context, serial)
+
+
+def resolve_serial_scope(context: CommandContext, serial: str) -> ArtifactScope:
+    """Resolve a durable runtime serial to an artifact provenance scope."""
+    if serial.startswith("artifact-"):
+        raise ValueError("artifacts are not attached to other artifacts; use artifact= to select existing artifacts")
+    if serial.startswith("pipeline-"):
+        return ArtifactScope(pipeline_id=serial)
+    if serial.startswith("job-"):
+        job_id = resolve_job_serial(context, serial)
+        if job_id is None:
+            raise ValueError(f"unknown job serial: {serial}")
+        return ArtifactScope(job_id=job_id)
+    return ArtifactScope(command_run_id=serial)
+
+
+def resolve_job_serial(context: CommandContext, serial: str) -> str | None:
+    """Resolve a durable job serial to the local job id stored with artifacts."""
+    db = context.require_db("artifact")
+    with db.connect() as conn:
+        row = conn.execute("SELECT id FROM jobs WHERE serial = ?", (serial,)).fetchone()
+    return str(row["id"]) if row is not None else None
 
 
 def resolve_run_selector(context: CommandContext, value: str | None) -> str | None:

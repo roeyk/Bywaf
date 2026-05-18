@@ -58,7 +58,7 @@ HELP_COMMANDS = (
     HelpEntry("vars [name=value]", "list or set session variables", "vars [name=value]", ("vars http_probe.cookie-file=/tmp/cookies.txt",)),
     HelpEntry("topics", "list event topics in the active database", "topics"),
     HelpEntry("use <commandlet|global>", "set the active variable context", "use <commandlet|global>"),
-    HelpEntry("show <topic|job=id|run=id|pipeline=id|serial=id>", "show events for a topic, job, run, pipeline, or serial", "show <topic|job=id|run=id|pipeline=id|serial=id>", ("show host.found", "show run=1", "show pipeline=1", "show serial=hostscanner-...")),
+    HelpEntry("event <topic|job=id|run=id|pipeline=id|serial=id>", "show events for a topic, job, run, pipeline, or serial", "event <topic|job=id|run=id|pipeline=id|serial=id>", ("event host.found", "event run=1", "event pipeline=1", "event serial=hostscanner-...")),
     HelpEntry("prompt [pattern]", "show or set prompt pattern", "prompt [pattern]", ("prompt %u@%h %T > ",)),
     HelpEntry("load plugin=<path>", "load a filesystem plugin", "load plugin=<path>"),
     HelpEntry("load script=<path>", "run commands from a script file", "load script=<path>"),
@@ -280,23 +280,23 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
                 print_topics(runner)
             case ["topics", prefix]:
                 print_topics(runner, prefix)
-            case ["show", target] if target.startswith("job="):
+            case ["event", target] if target.startswith("job="):
                 print_job(runner, target.split("=", 1)[1])
-            case ["show", target] if target.startswith("run="):
+            case ["event", target] if target.startswith("run="):
                 run_id = runner.db.resolve_run_serial(target.split("=", 1)[1])
                 print_run_variables(runner, run_id)
                 print_events(runner.db.events_matching(command_run_id=run_id))
-            case ["show", target] if target.startswith("pipeline="):
+            case ["event", target] if target.startswith("pipeline="):
                 pipeline_id = runner.db.resolve_pipeline_serial(target.split("=", 1)[1])
                 print_events(runner.db.events_matching(pipeline_id=pipeline_id))
-            case ["show", target] if target.startswith("serial="):
+            case ["event", target] if target.startswith("serial="):
                 print_events(runner.db.events_for_serial(target.split("=", 1)[1]))
-            case ["show", target] if target.startswith("topic="):
+            case ["event", target] if target.startswith("topic="):
                 print_events(runner.db.events_matching(topic=target.split("=", 1)[1]))
-            case ["show", topic]:
+            case ["event", topic]:
                 print_events(runner.db.events_for_topic(topic))
-            case ["show"]:
-                print("usage: show <topic>")
+            case ["event"]:
+                print("usage: event <topic>")
             case ["prompt"]:
                 print(state.prompt_pattern)
             case ["prompt", pattern]:
@@ -817,6 +817,7 @@ def print_plugin_argparse_help(runner: Runner, plugin) -> None:
 
 def print_jobs(runner: Runner) -> None:
     """Print known background jobs."""
+    names = runner.db.runtime_names()
     artifact_counts = runner.db.artifact_counts_by_job()
     rows = [
         (
@@ -825,6 +826,7 @@ def print_jobs(runner: Runner) -> None:
             row["pid"],
             row["status"],
             artifact_counts.get(str(row["id"]), 0),
+            names.get(("job", str(row["id"])), ""),
             format_runtime_timestamp(row["started_at"]),
             format_runtime_timestamp(row["finished_at"]),
             row["command_line"],
@@ -832,7 +834,7 @@ def print_jobs(runner: Runner) -> None:
         for row in runner.db.jobs()
     ]
     if rows:
-        print(render_table(("JOB", "SERIAL", "PID", "STATUS", "ARTIFACTS", "STARTED", "FINISHED", "COMMAND"), rows))
+        print(render_table(("JOB", "SERIAL", "PID", "STATUS", "ARTIFACTS", "NAME", "STARTED", "FINISHED", "COMMAND"), rows))
 
 
 def print_info(runner: Runner) -> None:
@@ -902,9 +904,13 @@ def print_runs(runner: Runner, *, active_only: bool = True) -> None:
 
 def print_job(runner: Runner, job_id: str) -> None:
     """Print one job row by ID."""
+    names = runner.db.runtime_names()
     for row in runner.db.jobs():
         if str(row["id"]) == job_id:
-            print(f"#{row['id']} serial={row['serial']} pid={row['pid']} status={row['status']} {row['command_line']}")
+            print(
+                f"#{row['id']} serial={row['serial']} pid={row['pid']} status={row['status']}"
+                f"{format_runtime_name(names.get(('job', str(row['id']))))} {row['command_line']}"
+            )
             return
     print(f"error: unknown job: {job_id}")
 

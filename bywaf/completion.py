@@ -70,11 +70,11 @@ class Completer:
         "run",
         "runs",
         "save",
-        "show",
         "topics",
         "use",
         "vars",
         "exit",
+        "event",
         "quit",
         "q",
     )
@@ -92,8 +92,8 @@ class Completer:
                 base = [*self.builtins, *self.registry.names()]
             case [_] if not line.endswith(" "):
                 base = [*self.builtins, *self.registry.names()]
-            case ["show", *_]:
-                base = self.show_candidates(prefix)
+            case ["event", *_]:
+                base = self.event_candidates(prefix)
             case ["history", *_]:
                 base = history_candidates(prefix)
             case ["prompt", *_]:
@@ -201,8 +201,8 @@ class Completer:
         job_candidates = [f"job={row['id']}" for row in self.db.jobs()] if self.db else []
         return [*plugin_topics, *db_topics, *job_candidates]
 
-    def show_candidates(self, prefix: str) -> list[str]:
-        """Complete `show` selectors and selector values."""
+    def event_candidates(self, prefix: str) -> list[str]:
+        """Complete `event` selectors and selector values."""
         selectors = ("job=", "run=", "pipeline=", "serial=", "topic=")
         for selector in selectors:
             if prefix.startswith(selector):
@@ -401,9 +401,9 @@ def runtime_completion_target(candidate: str, line: str, prefix: str) -> tuple[s
     except ValueError:
         tokens = line.split()
     tokens = tokens_after_last_pipe(tokens)
-    if len(tokens) >= 2 and tokens[0] == "pipeline" and tokens[1] in {"attach", "show", "cancel", "kill"}:
+    if len(tokens) >= 2 and tokens[0] == "pipeline" and tokens[1] in {"attach", "show", "cancel", "end", "kill"}:
         return "pipeline", candidate
-    if len(tokens) >= 2 and tokens[0] == "job" and tokens[1] in {"show", "cancel", "kill"}:
+    if len(tokens) >= 2 and tokens[0] == "job" and tokens[1] in {"show", "cancel", "end", "kill"}:
         return "job", candidate
     return None, candidate
 

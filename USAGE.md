@@ -92,13 +92,13 @@ Execution-time plugin variables are scoped by commandlet. A plugin uses
 plugin's variables through that API. Explicit global variables use
 `context.vars.get_global("name")`. When a commandlet run starts, Bywaf snapshots
 the effective commandlet and global variables into SQLite under that
-`command_run_id`; `show run=<id>` displays the captured variables so runs remain
+`command_run_id`; `event run=<id>` displays the captured variables so runs remain
 auditable and reproducible even when session variables change later.
 Runtime entities have two identities: local IDs for interactive typing
 (`job=12`, `run=1`, `pipeline=2`) and durable serials for audit/provenance.
 Local IDs are stable inside the current database and are never reused there,
 but they are not portable across replay/import into another database. Use
-`show serial=<serial>` when you want to inspect by the durable identifier.
+`event serial=<serial>` when you want to inspect by the durable identifier.
 Explicit `load plugin=...` and `load script=...` operations also receive
 resource serials, so the load itself and the script commands it executed can be
 reviewed later.
@@ -182,16 +182,17 @@ cmds
 vars
 history
 info
-job <list|show|cancel|kill>
-pipeline <list|show|cancel|kill>
-signal <job=id|pipeline=id|run=id> <action> [--soft|--hard] [key=value ...]
+job <list|show|cancel|end|kill>
+pipeline <list|show|cancel|end|kill>
+signal <job=id|run=id|serial=id> <action> [--soft|--hard] [key=value ...]
 cancel <job=id|pipeline=id|run=id>
-kill [--force] <job=id|pipeline=id|run=id>
+end [--soft|--hard] <job=id|pipeline=id|run=id>
+kill [--soft|--hard] <job=id|pipeline=id|run=id>
 jobs
 runs
 topics
 db <status|path|checkpoint|vacuum|new|encrypt|decrypt|rekey>
-show <topic|job=id|run=id|pipeline=id|serial=id>
+event <topic|job=id|run=id|pipeline=id|serial=id>
 load <resource>
 save <resource>
 exit
@@ -430,7 +431,10 @@ Artifacts are evidence files attached to a run, pipeline, or job. Artifact
 bodies are stored in a separate encrypted SQLCipher database next to the main
 database, using the main encrypted database passphrase for the session. The main
 database stores timestamped provenance events such as `artifact.attached` and
-`artifact.exported`; it does not store artifact bodies.
+`artifact.exported`; it does not store artifact bodies. Bywaf derives the
+artifact DB path from the active main DB path so the two files remain an
+integrity pair; arbitrary artifact DB switching is intentionally not exposed by
+default.
 
 Start Bywaf with an encrypted database before attaching artifacts:
 
@@ -442,6 +446,7 @@ Attach one or more files:
 
 ```text
 bywaf> artifact attach run=<command-run-id> file=snapshot.html name='Landing page'
+bywaf> artifact attach serial=<run-or-pipeline-or-job-serial> file=snapshot.html
 bywaf> artifact attach run=<command-run-id> file=snapshot.html file=headers.txt
 bywaf> artifact attach pipeline=<pipeline-id> file=report.json note=initial report
 ```
@@ -456,6 +461,7 @@ bywaf> artifact search run=<command-run-id> --regexp note='landing|headers'
 bywaf> artifact replace artifact=1 file=snapshot-v2.html
 bywaf> artifact remove artifact=1
 bywaf> artifact save artifact=1 file=snapshot.html
+bywaf> artifact save serial=<artifact-serial> file=snapshot.html
 bywaf> artifact save run=<command-run-id> dir=artifacts/
 bywaf> artifact verify pipeline=<pipeline-id>
 ```
@@ -468,6 +474,9 @@ field values as Python regular expressions. `since=` and `until=` restrict
 matches by artifact creation time. Use `file=` when saving exactly one artifact.
 Use `dir=` when saving a set. If `file=` matches multiple artifacts, Bywaf
 reports that clearly and asks you to use `dir=` instead.
+For `artifact attach`, `serial=` may refer to a run, pipeline, or job serial.
+Artifact serials identify existing artifact rows for listing, searching,
+saving, and verifying; artifacts are not attached to other artifacts.
 
 # At-File Arguments
 
@@ -584,13 +593,15 @@ In that example, `portscanner` listens for `host.found` rows created by the
 immediately upstream `hostscanner` run in the same pipeline. It does not consume
 unrelated `host.found` rows from older scans.
 
-A job is the supervised execution lifecycle: foreground or background work that
-has a process/status, can be cancelled or killed, and may contain a whole
-pipeline. A run is one commandlet invocation inside that pipeline, such as the
-specific `hostscanner` stage or `portscanner` stage. Pipelines group one or
-more runs, and jobs supervise the execution. See `TERMINOLOGY.md` for the
-canonical definitions of jobs, pipelines, runs, local IDs, serials, events, and
-topics.
+A pipeline groups one or more runs in the same command expression or attached
+workflow. A run is one commandlet invocation inside that pipeline, such as the
+specific `hostscanner` stage or `portscanner` stage. A job is the supervised
+foreground/background execution lifecycle that runs one or more of those
+commandlet invocations. Operationally, jobs are chained together into pipelines
+by the runs they supervise; one job may contribute the whole chain, or multiple
+jobs may contribute runs when commandlets are attached later. See
+`TERMINOLOGY.md` for the canonical definitions of jobs, pipelines, runs, local
+IDs, serials, events, and topics.
 
 Show the currently active runtime entities:
 
@@ -618,11 +629,13 @@ Soft-cancel a job so commandlets that check cancellation can exit cleanly:
 bywaf> job cancel <id>
 ```
 
-Hard-stop a job process:
+End a job. By default this is cooperative, like `cancel`; add `--hard` to
+force-stop the process:
 
 ```text
-bywaf> job kill <id>
-bywaf> job kill --force <id>
+bywaf> job end <id>
+bywaf> job end --hard <id>
+bywaf> job kill --hard <id>
 ```
 
 Pipelines can be inspected and controlled the same way:
@@ -632,7 +645,8 @@ bywaf> pipeline list
 bywaf> pipeline list --all
 bywaf> pipeline show <id>
 bywaf> pipeline cancel <id>
-bywaf> pipeline kill <id>
+bywaf> pipeline end <id>
+bywaf> pipeline kill --hard <id>
 ```
 
 `job list`, `runs`, and `pipeline list` show active runtime state by default.
@@ -642,28 +656,35 @@ with local ID, durable serial, lifecycle state, names, timestamps, and an
 `vars global.listing.active-format=long` to include the state timestamp in the
 state column; set it to `short` for compact lifecycle labels.
 
-For live runtime control, `signal` is the canonical command. It sends an
-audited control message to a job, pipeline, or command run. Framework-native
-signals such as `pause`, `resume`, `stop`, and `kill` apply the existing
-framework controls; plugin-domain signals such as `prune`, `mute`, `unmute`,
-and `verbosity` are delivered for commandlets to apply or ignore.
+For live runtime control, `signal` is the canonical command for a concrete
+receiver: a job, a command run, or a `serial=` that resolves to one of those.
+A pipeline is a grouping scope, not executing code, so it does not receive
+plugin-domain signals directly. Use pipeline-aware commands such as `pause
+pipeline=...` or `end --hard pipeline=...` when you want the framework to fan
+out control over jobs associated with a pipeline. Framework-native signals such
+as `pause`, `resume`, `stop`, `end`, and `kill` apply the existing framework
+controls; plugin-domain signals such as `prune`, `mute`, `unmute`, and
+`verbosity` are delivered for commandlets to apply or ignore.
 
 ```text
 bywaf> signal run=<command-run-id> prune targets=192.168.1.0/24
 bywaf> signal run=<command-run-id> mute
+bywaf> signal serial=<run-or-job-serial> verbosity level=debug
 bywaf> signal run=<command-run-id> verbosity level=debug
 bywaf> signal run=<command-run-id> pause --hard
 ```
 
-`cancel`, `kill`, `pause`, `resume`, and `stop` are convenience aliases over
-the same signal/control path:
+`cancel`, `end`, `kill`, `pause`, `resume`, and `stop` are convenience aliases
+over the same signal/control path. `end` and `kill` are synonyms; both default
+to cooperative `--soft`, and `--hard` force-terminates the affected process:
 
 ```text
 bywaf> cancel job=<id>
 bywaf> cancel pipeline=<id>
-bywaf> kill job=<id>
-bywaf> kill --force pipeline=<id>
+bywaf> end job=<id>
+bywaf> kill --hard pipeline=<id>
 bywaf> pause job=<id>
+bywaf> pause --hard job=<id>
 bywaf> pause run=<command-run-id>
 bywaf> resume --listonly pipeline=<id>
 bywaf> resume --listonly run=<command-run-id>
@@ -695,7 +716,7 @@ bywaf> topics
 Show recent events for a topic:
 
 ```text
-bywaf> show host.found
+bywaf> event host.found
 bywaf> show port.open
 ```
 
@@ -708,9 +729,9 @@ bywaf> runs
 Show events by command run or pipeline:
 
 ```text
-bywaf> show run=1
-bywaf> show pipeline=1
-bywaf> show serial=<durable-serial>
+bywaf> event run=1
+bywaf> event pipeline=1
+bywaf> event serial=<durable-serial>
 ```
 
 Save a database snapshot:
@@ -1139,11 +1160,12 @@ plugins
 cmds
 vars [name=value]
 history
-job <list|show|cancel|kill>
-pipeline <list|show|cancel|kill|attach>
-signal <job=id|pipeline=id|run=id> <action> [--soft|--hard] [key=value ...]
+job <list|show|cancel|end|kill>
+pipeline <list|show|cancel|end|kill|attach>
+signal <job=id|run=id|serial=id> <action> [--soft|--hard] [key=value ...]
 cancel <job=id|pipeline=id|run=id>
-kill [--force] <job=id|pipeline=id|run=id>
+end [--soft|--hard] <job=id|pipeline=id|run=id>
+kill [--soft|--hard] <job=id|pipeline=id|run=id>
 name <run=id|pipeline=id|job=id> [name text]
 note [add] <run=id|pipeline=id|job=id> [text=note|file=path]
 artifact <attach|list|remove|replace|save|search|verify> [artifact=id|run=id|pipeline=id|job=id] [file=path|dir=path]
@@ -1152,11 +1174,11 @@ jobs
 pipelines
 runs
 topics
-show <topic>
-show job=<id>
-show run=<id>
-show pipeline=<id>
-show serial=<id>
+event <topic>
+event job=<id>
+event run=<id>
+event pipeline=<id>
+event serial=<id>
 db <status|path|checkpoint|vacuum|new|encrypt|decrypt|rekey>
 load plugin=<resource>
 load script=<resource>

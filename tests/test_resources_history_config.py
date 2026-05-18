@@ -42,9 +42,9 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             run_output = io.StringIO()
             pipe_output = io.StringIO()
             with contextlib.redirect_stdout(run_output):
-                dispatch_repl_line(runner, "show run=r")
+                dispatch_repl_line(runner, "event run=r")
             with contextlib.redirect_stdout(pipe_output):
-                dispatch_repl_line(runner, "show pipeline=p")
+                dispatch_repl_line(runner, "event pipeline=p")
             self.assertIn("127.0.0.1", run_output.getvalue())
             self.assertIn("Variables:", run_output.getvalue())
             self.assertIn("hostscanner.arguments=-sn", run_output.getvalue())
@@ -446,7 +446,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             with contextlib.redirect_stdout(topics):
                 dispatch_repl_line(runner, "topics")
             with contextlib.redirect_stdout(shown):
-                dispatch_repl_line(runner, "show host.found")
+                dispatch_repl_line(runner, "event host.found")
             self.assertIn("host.found", topics.getvalue())
             self.assertIn("127.0.0.1", shown.getvalue())
 
@@ -456,7 +456,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             job_id = runner.db.record_job("hostscanner 127.0.0.1", 123, "running")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, f"show job={job_id}")
+                dispatch_repl_line(runner, f"event job={job_id}")
             self.assertIn("hostscanner 127.0.0.1", output.getvalue())
 
     def test_dispatch_prompt_sets_pattern(self):

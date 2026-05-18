@@ -27,14 +27,14 @@ class Control(CommandletBase):
         """Dispatch a runtime-control selector to the specific manager."""
         parser = self.parser()
         parser.add_argument("target")
-        parser.add_argument("--force", action="store_true")
         parser.add_argument("--hard", action="store_true")
         parser.add_argument("--soft", action="store_true")
         parser.add_argument("--listonly", action="store_true")
         parsed = parser.parse_args(args)
         context.require_foreground(f"{self.action} commands")
-        kind, target_id = parse_target(parsed.target)
-        hard = parsed.hard or parsed.force
+        validate_control_mode(self.action, soft=parsed.soft, hard=parsed.hard)
+        kind, target_id = resolve_control_target(context, *parse_target(parsed.target), allow_pipeline=True)
+        hard = parsed.hard
         match (self.action, kind):
             case ("cancel", "job"):
                 publish_runtime_signal(context, "job", target_id, "stop", {}, mode="soft")
@@ -45,15 +45,24 @@ class Control(CommandletBase):
             case ("cancel", "run"):
                 publish_runtime_signal(context, "run", target_id, "stop", {}, mode="soft")
                 cancel_run(context, target_id)
-            case ("kill", "job"):
-                publish_runtime_signal(context, "job", target_id, "kill", {}, mode="hard")
-                kill_job(context, require_job(context, target_id), force=parsed.force)
-            case ("kill", "pipeline"):
-                publish_runtime_signal(context, "pipeline", target_id, "kill", {}, mode="hard")
-                kill_pipeline(context, target_id, force=parsed.force)
-            case ("kill", "run"):
-                publish_runtime_signal(context, "run", target_id, "kill", {}, mode="hard")
-                kill_run(context, target_id, force=parsed.force)
+            case ("end", "job"):
+                publish_runtime_signal(context, "job", target_id, "end", {}, mode="hard" if hard else "soft")
+                if hard:
+                    kill_job(context, require_job(context, target_id))
+                else:
+                    cancel_job(context, require_job(context, target_id))
+            case ("end", "pipeline"):
+                publish_runtime_signal(context, "pipeline", target_id, "end", {}, mode="hard" if hard else "soft")
+                if hard:
+                    kill_pipeline(context, target_id)
+                else:
+                    cancel_pipeline(context, target_id)
+            case ("end", "run"):
+                publish_runtime_signal(context, "run", target_id, "end", {}, mode="hard" if hard else "soft")
+                if hard:
+                    kill_run(context, target_id)
+                else:
+                    cancel_run(context, target_id)
             case ("pause", "job"):
                 pause_job(context, require_job(context, target_id), hard=hard)
             case ("pause", "pipeline"):
@@ -77,8 +86,8 @@ class Control(CommandletBase):
         return ()
 
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
-        """Complete `job=<id>`, `pipeline=<id>`, and `run=<id>` selectors."""
-        selectors = ("job=", "pipeline=", "run=")
+        """Complete target selectors and runtime IDs."""
+        selectors = ("job=", "pipeline=", "run=", "serial=")
         if prefix.startswith("job="):
             value_prefix = prefix.split("=", 1)[1]
             return [f"job={job_id}" for job_id in job_ids(context) if job_id.startswith(value_prefix)]
@@ -92,29 +101,40 @@ class Control(CommandletBase):
         if prefix.startswith("run="):
             value_prefix = prefix.split("=", 1)[1]
             return [f"run={run_id}" for run_id in run_ids(context) if run_id.startswith(value_prefix)]
+        if prefix.startswith("serial="):
+            value_prefix = prefix.split("=", 1)[1]
+            return [f"serial={serial}" for serial in runtime_serial_ids(context) if serial.startswith(value_prefix)]
         if prefix:
             return [selector for selector in selectors if selector.startswith(prefix)]
         return list(selectors)
 
 
+def validate_control_mode(action: str, *, soft: bool, hard: bool) -> None:
+    """Reject mode flags that would make runtime control semantics ambiguous."""
+    if soft and hard:
+        raise ValueError("--soft cannot be combined with --hard")
+    if action == "cancel" and (soft or hard):
+        raise ValueError("cancel is always cooperative; use stop --hard or end --hard for forced termination")
+
+
 @commandlet(
     name="signal",
     description="Send a live-control signal to a job, pipeline, or command run.",
-    usage="signal <job=id|pipeline=id|run=id> <action> [--soft|--hard] [key=value ...]",
+    usage="signal <job=id|run=id|serial=id> <action> [--soft|--hard] [key=value ...]",
     examples=(
         "signal run=1 prune host=192.168.1.50",
         "signal run=1 verbosity level=debug",
-        "signal pipeline=1 mute",
+        "signal job=1 mute",
         "signal run=1 pause --hard",
     ),
     capabilities=("db.raw", "framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
-@argument("target", "job=<id>, pipeline=<id>, or run=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "run=")))
-@argument("action", "signal action such as prune, mute, verbosity, pause, resume, stop, or kill")
+@argument("target", "job=<id>, run=<id>, or serial=<id>", completion=CompletionSpec("choice", ("job=", "run=", "serial=")))
+@argument("action", "signal action such as prune, mute, verbosity, pause, resume, stop, end, or kill")
 class RuntimeSignal(CommandletBase):
     """Publish audited live-control signals for in-flight commandlets."""
 
-    actions = ("prune", "mute", "unmute", "verbosity", "increase-verbosity", "decrease-verbosity", "pause", "resume", "stop", "kill")
+    actions = ("prune", "mute", "unmute", "verbosity", "increase-verbosity", "decrease-verbosity", "pause", "resume", "stop", "end", "kill")
 
     def run(
         self,
@@ -126,11 +146,17 @@ class RuntimeSignal(CommandletBase):
         del input_events
         parsed = parse_signal_args(args)
         context.require_foreground("signal command")
+        signal_kind, signal_target_id = resolve_control_target(
+            context,
+            str(parsed["kind"]),
+            str(parsed["target_id"]),
+            allow_pipeline=False,
+        )
         signal_args = cast(dict[str, str], parsed["args"])
         signal_action = str(parsed["action"])
-        signal_kind = str(parsed["kind"])
         signal_mode = str(parsed["mode"])
-        signal_target_id = str(parsed["target_id"])
+        parsed["kind"] = signal_kind
+        parsed["target_id"] = signal_target_id
         publish_runtime_signal(
             context,
             signal_kind,
@@ -148,7 +174,7 @@ class RuntimeSignal(CommandletBase):
 
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
         """Complete target selectors first, then action names."""
-        selectors = ("job=", "pipeline=", "run=")
+        selectors = ("job=", "run=", "serial=")
         if not args:
             return [selector for selector in selectors if selector.startswith(prefix)] if prefix else list(selectors)
         if len(args) == 1 and "=" not in args[0]:
@@ -156,16 +182,12 @@ class RuntimeSignal(CommandletBase):
         if prefix.startswith("job="):
             value_prefix = prefix.split("=", 1)[1]
             return [f"job={job_id}" for job_id in job_ids(context) if job_id.startswith(value_prefix)]
-        if prefix.startswith("pipeline="):
-            value_prefix = prefix.split("=", 1)[1]
-            return [
-                f"pipeline={pipeline_id}"
-                for pipeline_id in pipeline_ids(context)
-                if pipeline_id.startswith(value_prefix)
-            ]
         if prefix.startswith("run="):
             value_prefix = prefix.split("=", 1)[1]
             return [f"run={run_id}" for run_id in run_ids(context) if run_id.startswith(value_prefix)]
+        if prefix.startswith("serial="):
+            value_prefix = prefix.split("=", 1)[1]
+            return [f"serial={serial}" for serial in runtime_serial_ids(context) if serial.startswith(value_prefix)]
         if len(args) == 1:
             return [action for action in self.actions if action.startswith(prefix)]
         if len(args) >= 2:
@@ -182,17 +204,31 @@ class RuntimeSignal(CommandletBase):
 
 
 @commandlet(
-    name="kill",
-    description="Hard-terminate a job or pipeline.",
-    usage="kill [--force] <job=id|pipeline=id|run=id>",
-    examples=("kill job=1", "kill --force pipeline=1", "kill run=1"),
+    name="end",
+    description="Stop a job, pipeline, or run; defaults to cooperative cancellation.",
+    usage="end [--soft|--hard] <job=id|pipeline=id|run=id>",
+    examples=("end job=1", "end --hard pipeline=1", "end run=1"),
     capabilities=("db.raw", "framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
-@argument("target", "job=<id>, pipeline=<id>, or run=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "run=")))
-class Kill(Control):
-    """Hard-terminate a job or pipeline."""
+@argument("target", "job=<id>, pipeline=<id>, run=<id>, or serial=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "run=", "serial=")))
+class End(Control):
+    """Stop a job or pipeline, softly by default."""
 
-    action = "kill"
+    action = "end"
+
+
+@commandlet(
+    name="kill",
+    description="Synonym for end; defaults to cooperative cancellation.",
+    usage="kill [--soft|--hard] <job=id|pipeline=id|run=id>",
+    examples=("kill job=1", "kill --hard pipeline=1", "kill run=1"),
+    capabilities=("db.raw", "framework.console.output", "framework.job.control", "framework.pipeline.control"),
+)
+@argument("target", "job=<id>, pipeline=<id>, run=<id>, or serial=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "run=", "serial=")))
+class Kill(Control):
+    """Synonym for `end`, softly by default."""
+
+    action = "end"
 
 
 @commandlet(
@@ -254,11 +290,65 @@ class Stop(Control):
 def parse_target(target: str) -> tuple[str, str]:
     """Parse a `kind=id` target selector."""
     if "=" not in target:
-        raise ValueError("target must be job=<id>, pipeline=<id>, or run=<id>")
+        raise ValueError("target must be job=<id>, pipeline=<id>, run=<id>, or serial=<id>")
     kind, target_id = target.split("=", 1)
-    if kind not in {"job", "pipeline", "run"} or not target_id:
-        raise ValueError("target must be job=<id>, pipeline=<id>, or run=<id>")
+    if kind not in {"job", "pipeline", "run", "serial"} or not target_id:
+        raise ValueError("target must be job=<id>, pipeline=<id>, run=<id>, or serial=<id>")
     return kind, target_id
+
+
+def resolve_control_target(
+    context: CommandContext,
+    kind: str,
+    target_id: str,
+    *,
+    allow_pipeline: bool,
+) -> tuple[str, str]:
+    """Resolve local IDs and durable serials to canonical runtime control targets."""
+    db = context.require_db("control")
+    if kind == "serial":
+        resolved = resolve_runtime_serial_target(context, target_id)
+        if resolved[0] == "pipeline" and not allow_pipeline:
+            raise ValueError("signal serial= must resolve to a job or run, not a pipeline")
+        return resolved
+    if kind == "run":
+        return "run", db.resolve_run_serial(target_id)
+    if kind == "pipeline":
+        if not allow_pipeline:
+            raise ValueError("signal does not target pipelines; use job=, run=, or serial= for a job/run")
+        return "pipeline", db.resolve_pipeline_serial(target_id)
+    return kind, target_id
+
+
+def resolve_runtime_serial_target(context: CommandContext, serial: str) -> tuple[str, str]:
+    """Resolve a durable serial to job, run, or pipeline target coordinates."""
+    db = context.require_db("control")
+    job_id = job_id_for_serial(context, serial)
+    if job_id is not None:
+        return "job", job_id
+    if run_serial_exists(context, serial):
+        return "run", serial
+    if any(row["pipeline_id"] == serial for row in db.pipelines(active_only=False)):
+        return "pipeline", serial
+    raise ValueError(f"serial does not identify a controllable runtime entity: {serial}")
+
+
+def job_id_for_serial(context: CommandContext, serial: str) -> str | None:
+    """Return local job id for a durable job serial."""
+    db = context.require_db("control")
+    with db.connect() as conn:
+        row = conn.execute("SELECT id FROM jobs WHERE serial = ?", (serial,)).fetchone()
+    return str(row["id"]) if row is not None else None
+
+
+def run_serial_exists(context: CommandContext, serial: str) -> bool:
+    """Return whether a durable run serial is known from events or run snapshots."""
+    db = context.require_db("control")
+    if any(row["command_run_id"] == serial for row in db.runs(active_only=False)):
+        return True
+    with db.connect() as conn:
+        row = conn.execute("SELECT 1 FROM command_run_vars WHERE command_run_id = ? LIMIT 1", (serial,)).fetchone()
+    return row is not None
 
 
 def parse_signal_args(args: list[str]) -> dict[str, object]:
@@ -266,7 +356,7 @@ def parse_signal_args(args: list[str]) -> dict[str, object]:
     if len(args) < 2:
         raise ValueError("signal requires target and action")
     kind, target_id = parse_target(args[0])
-    action = args[1]
+    action = normalize_signal_action(args[1])
     if action.startswith("--"):
         raise ValueError("signal requires an action after the target")
     mode = signal_default_mode(action)
@@ -287,9 +377,14 @@ def parse_signal_args(args: list[str]) -> dict[str, object]:
     return {"kind": kind, "target_id": target_id, "action": action, "args": payload_args, "mode": mode}
 
 
+def normalize_signal_action(action: str) -> str:
+    """Normalize live-control action aliases to their canonical signal names."""
+    return "end" if action == "kill" else action
+
+
 def signal_default_mode(action: str) -> str:
     """Return the default control mode for a signal action."""
-    return "hard" if action == "kill" else "soft"
+    return "soft"
 
 
 def publish_runtime_signal(
@@ -332,7 +427,7 @@ def publish_runtime_signal(
 def dispatch_framework_signal(context: CommandContext, parsed: dict[str, object]) -> None:
     """Apply framework-native signal actions after publishing the signal."""
     action = str(parsed["action"])
-    if action not in {"pause", "resume", "stop", "kill"}:
+    if action not in {"pause", "resume", "stop", "end"}:
         return
     kind = str(parsed["kind"])
     target_id = str(parsed["target_id"])
@@ -356,12 +451,21 @@ def dispatch_framework_signal(context: CommandContext, parsed: dict[str, object]
             stop_pipeline(context, target_id, hard=hard, publish_signal=False)
         case ("stop", "run"):
             stop_run(context, target_id, hard=hard, publish_signal=False)
-        case ("kill", "job"):
-            kill_job(context, require_job(context, target_id), force=True)
-        case ("kill", "pipeline"):
-            kill_pipeline(context, target_id, force=True)
-        case ("kill", "run"):
-            kill_run(context, target_id, force=True)
+        case ("end", "job"):
+            if hard:
+                kill_job(context, require_job(context, target_id))
+            else:
+                cancel_job(context, require_job(context, target_id))
+        case ("end", "pipeline"):
+            if hard:
+                kill_pipeline(context, target_id)
+            else:
+                cancel_pipeline(context, target_id)
+        case ("end", "run"):
+            if hard:
+                kill_run(context, target_id)
+            else:
+                cancel_run(context, target_id)
         case _:
             raise ValueError(f"unsupported signal target: {kind}={target_id}")
 
@@ -413,7 +517,7 @@ def stop_job(context: CommandContext, row, *, hard: bool, publish_signal: bool =
         "framework",
     )
     if hard:
-        kill_job(context, row, force=True)
+        kill_job(context, row)
     else:
         cancel_job(context, row)
 
@@ -451,11 +555,11 @@ def cancel_run(context: CommandContext, command_run_id: str) -> None:
     context.output(f"cancel requested for run {command_run_id}")
 
 
-def kill_run(context: CommandContext, command_run_id: str, *, force: bool) -> None:
+def kill_run(context: CommandContext, command_run_id: str) -> None:
     """Hard-kill jobs associated with one command run."""
     for job in require_run_jobs(context, command_run_id):
-        kill_job(context, job, force=force)
-    context.output(f"killed run {command_run_id}" if force else f"terminated run {command_run_id}")
+        kill_job(context, job)
+    context.output(f"killed run {command_run_id}")
 
 
 def pause_run(context: CommandContext, command_run_id: str, *, hard: bool, publish_signal: bool = True) -> None:
@@ -581,11 +685,23 @@ def run_ids(context: CompletionContext) -> list[str]:
     return [str(row["command_run_id"]) for row in context.db.runs()]
 
 
+def runtime_serial_ids(context: CompletionContext) -> list[str]:
+    """Return durable runtime serials for signal completion."""
+    if context.db is None:
+        return []
+    values = []
+    for serial in context.db.serials():
+        if serial.startswith(("artifact-", "plugin-", "script-")):
+            continue
+        values.append(serial)
+    return values
+
+
 def plugin() -> Commandlet:
     """Return the first commandlet when loaded as a single plugin entry."""
-    return Kill()
+    return End()
 
 
 def plugins() -> tuple[Commandlet, ...]:
     """Return all commandlets provided by this module."""
-    return (RuntimeSignal(), Kill(), Cancel(), Pause(), Resume(), Stop())
+    return (RuntimeSignal(), End(), Kill(), Cancel(), Pause(), Resume(), Stop())

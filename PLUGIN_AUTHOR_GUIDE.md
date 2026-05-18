@@ -461,10 +461,11 @@ At execution time, commandlets receive a `CommandContext`:
 - `context.progress(...)`: report throttled structured progress
 - `context.progress_started(...)`: report progress start
 
-For terminology, a job is the supervised command-line lifecycle, a pipeline
-groups one or more chained commandlet runs, and a run is one invocation of one
-commandlet. See `TERMINOLOGY.md` for the canonical definitions plugin authors
-should use in docs, emitted events, and user-facing messages.
+For terminology, a pipeline groups one or more commandlet runs, a run is one
+invocation of one commandlet, and a job supervises the foreground or background
+work that executes those runs. See `TERMINOLOGY.md` for the canonical
+definitions plugin authors should use in docs, emitted events, and user-facing
+messages.
 - `context.progress_completed(...)`: report progress completion
 - `context.progress_failed(...)`: report progress failure
 - `context.table(rows, columns)`: print small tabular command output
@@ -479,6 +480,11 @@ should use in docs, emitted events, and user-facing messages.
 - `context.request(topic, payload)`: advanced escape hatch for framework requests
 - `context.cancelled()`: whether a soft-cancellation request is pending
 - `context.raise_if_cancelled()`: raise if cancellation is pending
+
+Plugin-domain signals should be designed around runs. A run is the commandlet
+execution context that can poll `context.signals`; a job is the framework's
+supervised lifecycle wrapper, and a pipeline is a grouping scope rather than
+code that can receive a plugin signal.
 
 For beginner plugins, the core loop is usually:
 
@@ -662,7 +668,7 @@ for each `command_run_id` and stores that snapshot in SQLite. During execution,
 `context.vars.get()` checks the run snapshot first, then falls back to the
 session variable store. This lets two background runs of the same commandlet
 keep different values even if the operator changes session variables after the
-first job starts. It also means `show run=<id>` can report the variables that
+first job starts. It also means `event run=<id>` can report the variables that
 were actually supplied to that run.
 
 Plugins should treat interpreter behavior, such as the prompt, as framework

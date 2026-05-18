@@ -5,7 +5,7 @@ intended to keep the CLI, documentation, plugin API, and audit records aligned.
 
 ## Job
 
-A job is the supervised execution lifecycle for one command line.
+A job is the supervised execution lifecycle for foreground or background work.
 
 A job records process-oriented state:
 
@@ -15,24 +15,26 @@ A job records process-oriented state:
 - process ID, when applicable;
 - lifecycle status;
 - start and finish timestamps;
-- cancellation/kill state.
+- cancellation/end state.
 
 Foreground command lines and background command lines both create jobs. A
 background job usually maps to a worker process. A foreground job may run
-in-process but is still audited through the same lifecycle events.
+in-process but is still audited through the same lifecycle events. Jobs do not
+define the audit scope by themselves; they supervise work that may execute one
+or more commandlet runs.
 
 Use job selectors when you want to control or inspect execution lifecycle:
 
 ```text
 job show 1
 job cancel 1
-job kill --force 1
+job end --hard 1
 ```
 
 ## Pipeline
 
 A pipeline is a group of one or more commandlet runs that belong to the same
-command expression.
+command expression or attached workflow.
 
 The common case is a pipe expression:
 
@@ -42,7 +44,9 @@ hostscanner 192.168.1.0/24 | portscanner | http_probe
 
 That creates one pipeline containing three commandlet runs. The pipeline is the
 scope that lets downstream commandlets consume only the upstream events that
-belong to the same workflow.
+belong to the same workflow. Operationally, jobs are chained together into a
+pipeline by the runs they supervise; one job may contribute the whole chain, or
+multiple jobs may contribute runs when commandlets are attached later.
 
 Use pipeline selectors when you want to inspect or control the whole chain:
 
@@ -76,10 +80,17 @@ A run is the audit scope for a specific commandlet invocation. It records the
 commandlet, arguments, effective variable snapshot, emitted events, artifacts,
 upstream parent run, and pipeline membership.
 
+Signals target concrete execution receivers. A run can receive plugin-domain
+signals because it is the commandlet execution context; plugin code reads those
+with `context.signals.pending(...)`. A job can receive framework lifecycle
+signals because it supervises a process or foreground execution. A pipeline does
+not receive plugin-domain signals directly because it is only a grouping scope;
+pipeline-level control commands fan out to associated jobs or runs.
+
 Use run selectors when you care about one stage of a workflow:
 
 ```text
-show run=2
+event run=2
 artifact save run=2 dir=artifacts/
 note run=2
 ```
@@ -119,7 +130,7 @@ Serials are the right identifiers for audit reports, replayable notes,
 cross-database references, and long-term provenance. The universal selector is:
 
 ```text
-show serial=<serial>
+event serial=<serial>
 ```
 
 ## Event
