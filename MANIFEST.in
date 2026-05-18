@@ -1,0 +1,18 @@
+include LICENSE
+include README.md
+include USAGE.md
+include PLUGIN_AUTHOR_GUIDE.md
+include TERMINOLOGY.md
+include EVENT_MODEL.md
+include RUNTIME_MODEL.md
+include CAPABILITY_MODEL.md
+include CHANGELOG.md
+include TODO.md
+include GOALS.md
+include bywaf/plugins/plugins.json
+recursive-exclude * __pycache__
+recursive-exclude * *.py[cod]
+prune .bywaf
+prune .git
+prune .ruff_cache
+prune .venv

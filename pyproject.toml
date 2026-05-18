@@ -2,8 +2,20 @@
 name = "bywaf"
 version = "0.9.0"
 description = "Python 3 commandlet framework with SQLite pub/sub for Bywaf-style workflows."
+readme = "README.md"
+license = "GPL-3.0-or-later"
+authors = [{ name = "Roey Katz", email = "roey.katz@gmail.com" }]
 requires-python = ">=3.11"
 dependencies = ["prompt_toolkit>=3.0"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Information Technology",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Security",
+    "Topic :: System :: Networking",
+]
 
 [project.optional-dependencies]
 sqlcipher = ["sqlcipher3-binary>=0.6.0"]

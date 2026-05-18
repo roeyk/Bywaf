@@ -5,7 +5,24 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-18 08:10:08 EDT
+Last updated: 2026-05-18 08:16:00 EDT
+
+### 2026-05-18 08:16:00 EDT
+
+#### Added
+
+- Added pip package metadata polish, including README, license, author, and
+  classifier metadata.
+- Added `MANIFEST.in` so source distributions include core docs and bundled
+  plugin metadata while excluding generated local state.
+- Added `tests/scripts/smoke_pip_package.sh` for building and installing the
+  wheel in a temporary virtual environment, with `twine check` when available.
+- Added an initial RPM spec scaffold under `packaging/rpm/bywaf.spec`.
+- Added `tests/scripts/smoke_rpm_package.sh` for building a source RPM and
+  noarch binary RPM in a temporary RPM tree.
+- Added `tests/scripts/smoke_installed_package.sh` for validating an installed
+  `bywaf` executable and its plugin-root behavior.
+- Documented local pip, Debian, and RPM package build commands.
 
 ### 2026-05-18 08:10:08 EDT
 

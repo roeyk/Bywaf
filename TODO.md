@@ -57,7 +57,12 @@ Planning dates are release planning markers, not compatibility commitments.
 
 ### Packaging
 
+- Build and test pip source and wheel distributions from `pyproject.toml`.
 - Build and test the Debian `.deb` package from the new `debian/` scaffold.
+- Build and test RPM packages from the initial `packaging/rpm/bywaf.spec`
+  scaffold once local RPM tooling is installed.
+- Keep pip, Debian, RPM, and plugin install-path smoke scripts aligned as
+  packaging behavior changes.
 - Install Bywaf as a normal `bywaf` executable through the Python console
   script metadata.
 - Verify packaged installs include `bywaf/plugins/plugins.json` and bundled
@@ -65,8 +70,6 @@ Planning dates are release planning markers, not compatibility commitments.
 - Test user-local plugin roots shaped like `~/.bywaf/plugins` and system-wide
   plugin roots shaped like `/usr/share/bywaf/plugins` through the explicit
   `--plugin-root` / `--plugin-config` path.
-- Add a true installed-package smoke pass that runs the generated
-  `/usr/bin/bywaf` after installing the `.deb`.
 - Decide whether Bywaf should auto-discover user-local and system-wide plugin
   config files, or keep those paths explicit until the plugin trust model is
   stricter.
@@ -81,6 +84,8 @@ Planning dates are release planning markers, not compatibility commitments.
   plugin metadata.
 - 2026-05-18: Added regression coverage and a reusable smoke script for
   user-local and system-wide shaped plugin roots.
+- 2026-05-18: Added an installed-package smoke wrapper for validating an
+  installed `bywaf` executable.
 - 2026-05-13: Added audit-only plugin capability declarations and
   `plugin.capability.used` / `plugin.capability.missing` events.
 - 2026-05-13: Added pipeline control plus `kill` / `cancel` selector

@@ -86,6 +86,14 @@ bywaf --help
 bywaf repl
 ```
 
+For a local pip package build:
+
+```bash
+python3 -m build --sdist --wheel
+python3 -m pip install dist/bywaf-0.9.0-py3-none-any.whl
+bywaf --help
+```
+
 For a local Debian package build, install the Debian build dependencies and
 run `dpkg-buildpackage` from the repository root:
 
@@ -94,6 +102,27 @@ sudo apt install debhelper dh-python pybuild-plugin-pyproject python3-all python
 dpkg-buildpackage -us -uc -b
 sudo apt install ../bywaf_0.9.0-1_all.deb
 bywaf --help
+```
+
+For a local RPM package build, install RPM build tooling and build from the
+generated source distribution:
+
+```bash
+sudo apt install rpm python3-build python3-installer
+python3 -m build --sdist
+mkdir -p ~/rpmbuild/SOURCES ~/rpmbuild/SPECS
+cp dist/bywaf-0.9.0.tar.gz ~/rpmbuild/SOURCES/
+cp packaging/rpm/bywaf.spec ~/rpmbuild/SPECS/
+rpmbuild -ba ~/rpmbuild/SPECS/bywaf.spec
+```
+
+Packaging smoke scripts:
+
+```bash
+tests/scripts/smoke_pip_package.sh
+tests/scripts/smoke_rpm_package.sh
+tests/scripts/smoke_plugin_install_paths.sh
+tests/scripts/smoke_installed_package.sh
 ```
 
 The project metadata defines a console script named `bywaf`, so packaged
