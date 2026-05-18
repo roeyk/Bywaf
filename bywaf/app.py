@@ -45,6 +45,7 @@ class HelpEntry:
     description: str
     usage: str
     examples: tuple[str, ...] = ()
+    summary: str = ""
 
 
 HELP_COMMANDS = (
@@ -59,7 +60,7 @@ HELP_COMMANDS = (
     HelpEntry("vars [name[=value]]", "list, show, or set session variables", "vars [name[=value]]", ("vars http_probe.cookie-file=/tmp/cookies.txt", "vars http_probe.cookie-file")),
     HelpEntry("topics", "list event topics in the active database", "topics"),
     HelpEntry("use <commandlet|global>", "set the active variable context", "use <commandlet|global>"),
-    HelpEntry("event <topic|job=id|run=id|pipeline=id|serial=id>", "show events for a topic, job, run, pipeline, or serial", "event <topic|job=id|run=id|pipeline=id|serial=id>", ("event host.found", "event run=1", "event pipeline=1", "event serial=hostscanner-...")),
+    HelpEntry("event", "show events for a topic, job, run, pipeline, or serial", "event <topic|job=id|run=id|pipeline=id|serial=id>", ("event host.found", "event run=1", "event pipeline=1", "event serial=hostscanner-..."), "event <selector>"),
     HelpEntry("events [tail|--tail] [last=N]", "show recent events", "events [tail|--tail] [last=N]", ("events", "events tail", "events tail last=50")),
     HelpEntry("prompt [pattern]", "show or set prompt pattern", "prompt [pattern]", ("prompt %u@%h %T > ",)),
     HelpEntry("load plugin=<path>", "load a filesystem plugin", "load plugin=<path>"),
@@ -835,9 +836,10 @@ def print_help(runner: Runner, command: str | None = None) -> None:
     if command:
         print_command_help(runner, command)
         return
-    width = max(len(entry.command) for entry in HELP_COMMANDS)
+    width = max(len(entry.summary or entry.command) for entry in HELP_COMMANDS)
     for entry in HELP_COMMANDS:
-        print(f"{entry.command:<{width}}  {entry.description}")
+        command = entry.summary or entry.command
+        print(f"{command:<{width}}  {entry.description}")
 
 
 def print_command_help(runner: Runner, command: str) -> None:
