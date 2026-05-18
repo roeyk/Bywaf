@@ -16,6 +16,7 @@ from .db import EventStore, Subscription
 from .events import Event
 from .plugin import CommandContext, PlanRepair, PlanReport, implied_capabilities
 from .registry import PluginRegistry
+from .stores import EventStoreProtocol, MaintenanceStoreProtocol, RuntimeStoreProtocol
 from .varstore import VarStore
 
 
@@ -265,6 +266,21 @@ class Runner:
         self.db = db
         self.registry = registry
         self.job_id = job_id
+
+    @property
+    def events(self) -> EventStoreProtocol:
+        """Return the active event/audit store."""
+        return self.db
+
+    @property
+    def runtime(self) -> RuntimeStoreProtocol:
+        """Return the active runtime metadata store."""
+        return self.db
+
+    @property
+    def maintenance(self) -> MaintenanceStoreProtocol:
+        """Return the active maintenance store."""
+        return self.db
 
     def execute(self, command_line: str) -> list[Event]:
         """Run a command line immediately or start it as a background job."""

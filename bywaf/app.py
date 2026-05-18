@@ -161,7 +161,7 @@ def format_event(event) -> str:
 def shutdown_runner(runner: Runner) -> None:
     """Flush SQLite WAL state before the process exits."""
 
-    runner.db.checkpoint()
+    runner.maintenance.checkpoint()
 
 
 def repl(runner: Runner) -> None:
@@ -248,7 +248,7 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
     Built-ins are handled here; commandlets fall through to the generic runner
     so plugin commands such as `ls` are not hard-coded into the shell.
     """
-    state = state or ShellState(framework_request_after_id=runner.db.latest_event_id())
+    state = state or ShellState(framework_request_after_id=runner.events.latest_event_id())
     commands = split_command_sequence(line)
     if len(commands) > 1:
         for command in commands:
@@ -317,24 +317,24 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
             case ["event", target] if target.startswith("job="):
                 print_job(runner, target.split("=", 1)[1])
             case ["event", target] if target.startswith("run="):
-                run_id = runner.db.resolve_run_serial(target.split("=", 1)[1])
+                run_id = runner.runtime.resolve_run_serial(target.split("=", 1)[1])
                 print_run_variables(runner, run_id)
-                print_events(runner.db.events_matching(command_run_id=run_id))
+                print_events(runner.events.events_matching(command_run_id=run_id))
             case ["event", target] if target.startswith("pipeline="):
-                pipeline_id = runner.db.resolve_pipeline_serial(target.split("=", 1)[1])
-                print_events(runner.db.events_matching(pipeline_id=pipeline_id))
+                pipeline_id = runner.runtime.resolve_pipeline_serial(target.split("=", 1)[1])
+                print_events(runner.events.events_matching(pipeline_id=pipeline_id))
             case ["event", target] if target.startswith("serial="):
-                print_events(runner.db.events_for_serial(target.split("=", 1)[1]))
+                print_events(runner.events.events_for_serial(target.split("=", 1)[1]))
             case ["event", target] if target.startswith("topic="):
-                print_events(runner.db.events_matching(topic=target.split("=", 1)[1]))
+                print_events(runner.events.events_matching(topic=target.split("=", 1)[1]))
             case ["event", topic]:
-                print_events(runner.db.events_for_topic(topic))
+                print_events(runner.events.events_for_topic(topic))
             case ["event"]:
                 print("usage: event <topic>")
             case ["events"]:
-                print_events(runner.db.recent_events(25))
+                print_events(runner.events.recent_events(25))
             case ["events", selectors]:
-                print_events(runner.db.recent_events(parse_events_selectors(shlex.split(selectors))))
+                print_events(runner.events.recent_events(parse_events_selectors(shlex.split(selectors))))
             case ["prompt"]:
                 print(state.prompt_pattern)
             case ["prompt", pattern]:
@@ -369,7 +369,7 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
 
 def process_framework_requests(runner: Runner, state: ShellState) -> None:
     """Apply interpreter-owned requests that plugins wrote to the event bus."""
-    for event in runner.db.fetch(
+    for event in runner.events.fetch(
         Subscription(
             topics=(
                 "shell.prompt.requested",
@@ -394,7 +394,7 @@ def process_framework_requests(runner: Runner, state: ShellState) -> None:
 
 def new_shell_state(runner: Runner) -> ShellState:
     """Create shell state that ignores historical framework requests."""
-    return ShellState(framework_request_after_id=runner.db.latest_event_id())
+    return ShellState(framework_request_after_id=runner.events.latest_event_id())
 
 
 def handle_framework_request(runner: Runner, state: ShellState, event) -> None:
@@ -412,7 +412,7 @@ def handle_prompt_request(runner: Runner, state: ShellState, event) -> None:
     if isinstance(requested_prompt, str) and requested_prompt:
         old_prompt = state.prompt_pattern
         state.prompt_pattern = requested_prompt
-        runner.db.publish(
+        runner.events.publish(
             "shell.prompt.updated",
             {
                 "old_prompt": old_prompt,
@@ -446,7 +446,7 @@ def emit_console_alert(runner: Runner, event) -> None:
         "job_id": event.payload.get("job_id"),
         "request_event_id": event.id,
     }
-    runner.db.publish(
+    runner.events.publish(
         "console.alert",
         payload,
         "framework",
@@ -474,7 +474,7 @@ def emit_console_output(runner: Runner, event) -> None:
     if not isinstance(end, str):
         deny_framework_request(runner, event, "console output end must be a string")
         return
-    runner.db.publish(
+    runner.events.publish(
         "console.output",
         {
             "text": text,
@@ -506,7 +506,7 @@ def handle_render_table_request(runner: Runner, state: ShellState, event) -> Non
         deny_framework_request(runner, event, str(exc))
         return
     rendered = render_console_table(table)
-    runner.db.publish(
+    runner.events.publish(
         "render.table",
         {
             "title": table.title,
@@ -543,7 +543,7 @@ def handle_file_page_request(runner: Runner, state: ShellState, event) -> None:
     if bool(event.payload.get("background")):
         deny_framework_request(runner, event, "file paging requires a foreground commandlet")
         return
-    runner.db.publish(
+    runner.events.publish(
         "console.page",
         {
             "path": str(path),
@@ -594,7 +594,7 @@ def handle_process_run_request(runner: Runner, state: ShellState, event) -> None
     except Exception as exc:
         deny_framework_request(runner, event, str(exc))
         return
-    runner.db.publish(
+    runner.events.publish(
         "process.run",
         {
             "argv": list(argv),
@@ -638,7 +638,7 @@ FRAMEWORK_REQUEST_HANDLERS = {
 
 def deny_framework_request(runner: Runner, event, reason: str) -> None:
     """Record a denied framework request for auditability."""
-    runner.db.publish(
+    runner.events.publish(
         "framework.request.denied",
         {
             "request_event_id": event.id,
@@ -653,7 +653,7 @@ def set_prompt_pattern(runner: Runner, state: ShellState, pattern: str, *, sourc
     """Set the REPL prompt and record the change as an auditable event."""
     old_prompt = state.prompt_pattern
     state.prompt_pattern = pattern
-    runner.db.publish(
+    runner.events.publish(
         "shell.prompt.updated",
         {"old_prompt": old_prompt, "new_prompt": pattern, "source": source},
         "framework",
@@ -703,7 +703,7 @@ def parse_events_last_value(raw: str) -> int:
 
 def print_run_variables(runner: Runner, command_run_id: str) -> None:
     """Print the variable snapshot captured for a command run."""
-    rows = runner.db.command_run_var_rows(command_run_id)
+    rows = runner.runtime.command_run_var_rows(command_run_id)
     if not rows:
         return
     print("Variables:")
@@ -888,8 +888,9 @@ def print_plugin_argparse_help(runner: Runner, plugin) -> None:
 
 def print_jobs(runner: Runner) -> None:
     """Print known background jobs."""
-    names = runner.db.runtime_names()
-    artifact_counts = runner.db.artifact_counts_by_job()
+    runtime = runner.runtime
+    names = runtime.runtime_names()
+    artifact_counts = runtime.artifact_counts_by_job()
     rows = [
         (
             row["id"],
@@ -902,7 +903,7 @@ def print_jobs(runner: Runner) -> None:
             format_runtime_timestamp(row["finished_at"]),
             row["command_line"],
         )
-        for row in runner.db.jobs()
+        for row in runtime.jobs()
     ]
     if rows:
         print(render_table(("JOB", "SERIAL", "PID", "STATUS", "ARTIFACTS", "NAME", "STARTED", "FINISHED", "COMMAND"), rows))
@@ -910,15 +911,16 @@ def print_jobs(runner: Runner) -> None:
 
 def print_info(runner: Runner) -> None:
     """Print a compact runtime dashboard for entities currently in play."""
-    print(f"Jobs ({len(runner.db.jobs(active_only=True))})")
+    runtime = runner.runtime
+    print(f"Jobs ({len(runtime.jobs(active_only=True))})")
     events = runner.execute("job list")
     process_events_for_non_repl_info(runner, events)
     print()
-    print(f"Pipelines ({len(runner.db.pipelines(active_only=True))})")
+    print(f"Pipelines ({len(runtime.pipelines(active_only=True))})")
     events = runner.execute("pipeline list")
     process_events_for_non_repl_info(runner, events)
     print()
-    print(f"Runs ({len(runner.db.runs(active_only=True))})")
+    print(f"Runs ({len(runtime.runs(active_only=True))})")
     print_runs(runner)
 
 
@@ -932,17 +934,18 @@ def process_events_for_non_repl_info(runner: Runner, events) -> None:
 
 def print_runs(runner: Runner, *, active_only: bool = True) -> None:
     """Print command run summaries."""
-    rows = runner.db.runs(active_only=active_only)
+    runtime = runner.runtime
+    rows = runtime.runs(active_only=active_only)
     if not rows:
         print("no active runs" if active_only else "no runs")
         return
     marker_style = normalize_active_listing_format(
         runner.registry.varstore.get(f"global.{ACTIVE_LISTING_FORMAT_VAR}")
     )
-    names = runner.db.runtime_names()
-    run_aliases = runner.db.run_aliases()
-    pipeline_aliases = runner.db.pipeline_aliases()
-    artifact_counts = runner.db.artifact_counts_by_run()
+    names = runtime.runtime_names()
+    run_aliases = runtime.run_aliases()
+    pipeline_aliases = runtime.pipeline_aliases()
+    artifact_counts = runtime.artifact_counts_by_run()
     table_rows: list[tuple[object, ...]] = []
     for row in rows:
         run_serial = str(row["command_run_id"])
@@ -975,8 +978,9 @@ def print_runs(runner: Runner, *, active_only: bool = True) -> None:
 
 def print_job(runner: Runner, job_id: str) -> None:
     """Print one job row by ID."""
-    names = runner.db.runtime_names()
-    for row in runner.db.jobs():
+    runtime = runner.runtime
+    names = runtime.runtime_names()
+    for row in runtime.jobs():
         if str(row["id"]) == job_id:
             print(
                 f"#{row['id']} serial={row['serial']} pid={row['pid']} status={row['status']}"
@@ -1035,7 +1039,7 @@ def resolve_var_key(state: ShellState, key: str) -> str:
 
 def print_topics(runner: Runner, prefix: str = "") -> None:
     """Print event topics known to the active database, optionally filtered."""
-    matched = [topic for topic in runner.db.topics() if topic.startswith(prefix)]
+    matched = [topic for topic in runner.events.topics() if topic.startswith(prefix)]
     for topic in matched:
         print(topic)
     if prefix and not matched:
@@ -1113,20 +1117,21 @@ def parse_save_spec(spec: str) -> tuple[bool, str]:
 
 def save_database(runner: Runner, path: Path, *, encrypt: bool = False) -> None:
     """Copy the active SQLite database to a snapshot file."""
+    maintenance = runner.maintenance
     if encrypt:
         passphrase = prompt_database_passphrase(path, creating=True)
         export_encrypted_database(
-            runner.db.path,
+            maintenance.path,
             path,
             passphrase,
-            source_passphrase=runner.db.passphrase,
+            source_passphrase=maintenance.passphrase,
         )
-    elif runner.db.encrypted:
-        if runner.db.passphrase is None:
+    elif maintenance.encrypted:
+        if maintenance.passphrase is None:
             raise RuntimeError("encrypted database is missing its in-memory passphrase")
-        export_plaintext_database(runner.db.path, path, source_passphrase=runner.db.passphrase)
+        export_plaintext_database(maintenance.path, path, source_passphrase=maintenance.passphrase)
     else:
-        copy_sqlite_database(runner.db.path, path)
+        copy_sqlite_database(maintenance.path, path)
     print(f"saved db={path}")
 
 
@@ -1202,7 +1207,7 @@ def publish_resource_loaded(
     }
     if details:
         payload.update(details)
-    return runner.db.publish(f"resource.{resource_type}.loaded", payload, "framework")
+    return runner.events.publish(f"resource.{resource_type}.loaded", payload, "framework")
 
 
 def is_explicit_path(value: str) -> bool:
@@ -1242,7 +1247,7 @@ def run_script(runner: Runner, path: Path, state: ShellState | None = None) -> N
     serial = str(event.payload["serial"])
     print(f"loaded script={path} serial={serial}")
     for line_number, command in commands:
-        runner.db.publish(
+        runner.events.publish(
             "resource.script.command",
             {
                 "serial": serial,

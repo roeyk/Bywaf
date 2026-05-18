@@ -5,7 +5,7 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-18 19:36:29 EDT
+Last updated: 2026-05-18 19:44:53 EDT
 
 ### 2026-05-18 18:29:12 EDT
 
@@ -29,6 +29,9 @@ Last updated: 2026-05-18 19:36:29 EDT
   rendering formats, nmap backend handlers, finding report sources, finding
   dedupe payload/alert builders, framework request capabilities, at-file
   expansion modes, and artifact count scopes.
+- Added role-specific runner store properties and migrated the public API plus
+  user-facing runtime/event display paths to event, runtime, and maintenance
+  store roles where concrete SQLite access is not required.
 
 ## [0.9.2] - 2026-05-18
 

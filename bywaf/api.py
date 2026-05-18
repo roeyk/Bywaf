@@ -12,6 +12,7 @@ from .db import EventStore, database_appears_encrypted
 from .events import Event
 from .registry import PluginRegistry
 from .runner import Runner
+from .stores import EventStoreProtocol, MaintenanceStoreProtocol, RuntimeStoreProtocol
 
 
 @dataclass(slots=True)
@@ -47,8 +48,23 @@ class BywafSession:
 
     @property
     def db(self) -> EventStore:
-        """Return the active event store."""
+        """Return the concrete active store for backward compatibility."""
         return self.runner.db
+
+    @property
+    def event_store(self) -> EventStoreProtocol:
+        """Return the active event/audit store."""
+        return self.runner.events
+
+    @property
+    def runtime_store(self) -> RuntimeStoreProtocol:
+        """Return the active runtime metadata store."""
+        return self.runner.runtime
+
+    @property
+    def maintenance_store(self) -> MaintenanceStoreProtocol:
+        """Return the active maintenance store."""
+        return self.runner.maintenance
 
     @property
     def registry(self) -> PluginRegistry:
@@ -65,7 +81,7 @@ class BywafSession:
 
     def jobs(self):
         """Return known background and foreground job rows."""
-        return self.db.jobs()
+        return self.runtime_store.jobs()
 
     def events(
         self,
@@ -76,7 +92,7 @@ class BywafSession:
         limit: int = 1000,
     ) -> list[Event]:
         """Return events filtered by topic, command run, or pipeline."""
-        return self.db.events_matching(
+        return self.event_store.events_matching(
             topic=topic,
             command_run_id=run,
             pipeline_id=pipeline,
@@ -85,7 +101,7 @@ class BywafSession:
 
     def topics(self) -> list[str]:
         """Return event topics in the active database."""
-        return self.db.topics()
+        return self.event_store.topics()
 
     def plugins(self) -> list[str]:
         """Return loaded plugin provider names."""
@@ -120,4 +136,4 @@ class BywafSession:
 
     def checkpoint(self) -> None:
         """Checkpoint the active SQLite database."""
-        self.db.checkpoint()
+        self.maintenance_store.checkpoint()
