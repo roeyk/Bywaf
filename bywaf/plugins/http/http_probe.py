@@ -209,6 +209,7 @@ def response_payload(response, body: bytes, elapsed: float) -> dict:
         "reason": response.reason,
         "final_url": response.geturl(),
         "elapsed_ms": int(elapsed * 1000),
+        "headers": headers,
         "server": headers.get("Server", ""),
         "content_type": headers.get("Content-Type", ""),
         "location": headers.get("Location", ""),

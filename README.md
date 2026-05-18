@@ -22,7 +22,7 @@ and connects commandlets through a SQLite-backed event bus.
 The core workflow is intentionally simple:
 
 ```text
-hostscanner 192.168.1.0/24 | portscanner | http_probe
+hostscanner 192.168.1.0/24 | portscanner | http_probe | webfin
 ```
 
 That command expresses a complete chain:
@@ -31,6 +31,7 @@ That command expresses a complete chain:
 hostscanner  -> emits host.found
 portscanner  -> consumes host.found, emits port.open
 http_probe   -> consumes port.open, emits http.endpoint
+webfin       -> consumes http.endpoint, emits web.fingerprint
 ```
 
 The important difference from a plain stdout pipe is that each stage publishes
@@ -1142,6 +1143,13 @@ bywaf> http_headers --ssl true example.com
 bywaf> http_probe https://example.com/
 ```
 
+`webfin` fingerprints HTTP endpoints and emits `web.fingerprint` events:
+
+```text
+bywaf> http_probe https://example.com/ | webfin
+bywaf> webfin https://example.com/
+```
+
 For authorized session-aware testing, it can use cookies:
 
 ```text
@@ -1180,6 +1188,12 @@ Probe HTTP services after port scanning:
 
 ```text
 bywaf> hostscanner 127.0.0.1 | portscanner --ports 80,443 | http_probe
+```
+
+Fingerprint HTTP services after probing:
+
+```text
+bywaf> hostscanner 127.0.0.1 | portscanner --ports 80,443 | http_probe --method GET | webfin
 ```
 
 Save the current database:

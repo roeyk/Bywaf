@@ -35,6 +35,7 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn("portscanner", self.registry.names())
         self.assertIn("http_headers", self.registry.names())
         self.assertIn("http_probe", self.registry.names())
+        self.assertIn("webfin", self.registry.names())
         self.assertIn("db", self.registry.names())
         self.assertIn("job", self.registry.names())
         self.assertIn("pipeline", self.registry.names())
@@ -58,6 +59,7 @@ class RegistryCompletionTests(unittest.TestCase):
                 "network.portscanner",
                 "http.http_headers",
                 "http.http_probe",
+                "http.webfin",
                 "runtime.job",
                 "runtime.pipeline",
                 "runtime.control",

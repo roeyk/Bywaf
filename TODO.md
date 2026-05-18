@@ -40,6 +40,10 @@ Planning dates are release planning markers, not compatibility commitments.
 
 - Define how third-party plugins are packaged, installed, discovered, trusted,
   and upgraded independently from the core Bywaf package.
+- Preserve explicit plugin loading as the scaling model: Bywaf should be able
+  to ship or discover large plugin catalogs without importing every plugin at
+  startup, following the same practical pressure Metasploit has with thousands
+  of modules.
 - Decide whether Bywaf should auto-discover user-local and system-wide plugin
   config files, or keep those paths explicit until the plugin trust model is
   stricter.
@@ -58,9 +62,9 @@ Planning dates are release planning markers, not compatibility commitments.
   scanning.
 - Treat the table rendering provider as the helper/provider example: it is
   framework-native and mainly exists for other commandlets to use.
-- Add a user-facing native pentesting plugin that does not primarily wrap an
-  external tool, publishes structured events, and chains cleanly with existing
-  discovery/HTTP commandlets.
+- Expand the new native `webfin` plugin into the user-facing native pentesting
+  example, and keep `web_fingerprint` plus `scope_audit` as naming/design
+  candidates for future native commandlets if they become separate behaviors.
 - Add a Nikto wrapper plugin that invokes Nikto through the framework-mediated
   process API, parses its output into structured events, and can consume
   upstream hosts/ports from the Bywaf event database.

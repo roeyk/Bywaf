@@ -5,7 +5,20 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-18 09:42:12 EDT
+Last updated: 2026-05-18 09:47:16 EDT
+
+### 2026-05-18 09:47:16 EDT
+
+#### Added
+
+- Added the native `webfin` HTTP fingerprinting commandlet. It consumes
+  `http.endpoint` events or probes explicit targets, emits `web.fingerprint`,
+  and reports lightweight technology tags plus web observations.
+
+#### Changed
+
+- Documented the native web fingerprinting chain:
+  `hostscanner | portscanner | http_probe | webfin`.
 
 ### 2026-05-18 09:42:12 EDT
 

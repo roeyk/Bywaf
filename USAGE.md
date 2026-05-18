@@ -1098,6 +1098,13 @@ bywaf> http_headers --ssl true example.com
 bywaf> http_probe https://example.com/
 ```
 
+`webfin` fingerprints HTTP endpoints and emits `web.fingerprint` events:
+
+```text
+bywaf> http_probe https://example.com/ | webfin
+bywaf> webfin https://example.com/
+```
+
 For authorized session-aware testing, it can use cookies:
 
 ```text
@@ -1136,6 +1143,12 @@ Probe HTTP services after port scanning:
 
 ```text
 bywaf> hostscanner 127.0.0.1 | portscanner --ports 80,443 | http_probe
+```
+
+Fingerprint HTTP services after probing:
+
+```text
+bywaf> hostscanner 127.0.0.1 | portscanner --ports 80,443 | http_probe --method GET | webfin
 ```
 
 Save the current database:

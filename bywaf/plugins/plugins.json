@@ -4,6 +4,7 @@
     "network.portscanner",
     "http.http_headers",
     "http.http_probe",
+    "http.webfin",
     "runtime.job",
     "runtime.pipeline",
     "runtime.control",
