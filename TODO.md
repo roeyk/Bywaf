@@ -36,7 +36,7 @@ Planning dates are release planning markers, not compatibility commitments.
   output into the central event database.
 - Prioritize wrappers that remove manual handoffs between scan phases.
 
-### Plugin Packaging
+### Item: Plugin Packaging
 
 - Define how third-party plugins are packaged, installed, discovered, trusted,
   and upgraded independently from the core Bywaf package.
@@ -52,7 +52,7 @@ Planning dates are release planning markers, not compatibility commitments.
 - Document recommended plugin package layouts for pip, Debian, RPM, and
   unpacked local development plugins.
 
-### MVP Plugin Suite
+### Item: MVP Plugin Suite
 
 - Build a small, rock-solid plugin suite that demonstrates the main plugin
   integration styles: native user-facing, library-backed, external-tool

@@ -5,7 +5,15 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-18 09:47:16 EDT
+Last updated: 2026-05-18 09:52:25 EDT
+
+### 2026-05-18 09:52:25 EDT
+
+#### Changed
+
+- Renamed the Plugin Packaging and MVP Plugin Suite tracker entries as explicit
+  `Item:` sections so they read as standalone tracker items rather than only
+  category headings.
 
 ### 2026-05-18 09:47:16 EDT
 
