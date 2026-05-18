@@ -5,7 +5,21 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-18 07:59:26 EDT
+Last updated: 2026-05-18 08:10:08 EDT
+
+### 2026-05-18 08:10:08 EDT
+
+#### Added
+
+- Added regression tests for user-local and system-wide shaped filesystem
+  plugin roots using the current explicit `--plugin-root` / `--plugin-config`
+  path.
+- Added `tests/scripts/smoke_plugin_install_paths.sh`, a reusable smoke script
+  that can run against either `python3 -m bywaf` or an installed `bywaf`
+  executable through `BYWAF_CMD`.
+- Captured the packaging follow-up decision: whether user-local and system-wide
+  plugin config files should become auto-discovered, or remain explicit until
+  the plugin trust model is stricter.
 
 ### 2026-05-18 07:59:26 EDT
 

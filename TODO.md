@@ -62,6 +62,14 @@ Planning dates are release planning markers, not compatibility commitments.
   script metadata.
 - Verify packaged installs include `bywaf/plugins/plugins.json` and bundled
   stock commandlet modules.
+- Test user-local plugin roots shaped like `~/.bywaf/plugins` and system-wide
+  plugin roots shaped like `/usr/share/bywaf/plugins` through the explicit
+  `--plugin-root` / `--plugin-config` path.
+- Add a true installed-package smoke pass that runs the generated
+  `/usr/bin/bywaf` after installing the `.deb`.
+- Decide whether Bywaf should auto-discover user-local and system-wide plugin
+  config files, or keep those paths explicit until the plugin trust model is
+  stricter.
 - Keep user-local state in `~/.bywaf/`; do not package generated local DB,
   history, cache, or virtualenv files.
 - Continue refining stock plugin directory/search-path behavior for future
@@ -71,6 +79,8 @@ Planning dates are release planning markers, not compatibility commitments.
 
 - 2026-05-18: Added the initial Debian packaging scaffold and declared packaged
   plugin metadata.
+- 2026-05-18: Added regression coverage and a reusable smoke script for
+  user-local and system-wide shaped plugin roots.
 - 2026-05-13: Added audit-only plugin capability declarations and
   `plugin.capability.used` / `plugin.capability.missing` events.
 - 2026-05-13: Added pipeline control plus `kill` / `cancel` selector
