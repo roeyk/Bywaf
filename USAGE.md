@@ -111,7 +111,7 @@ The host and port scanner commandlets use `nmap` through a Python adapter. A
 local `nmap` binary is required for real scans. The adapter prefers `nmaplib`,
 then `python-nmap`, then `nmapthon`, then `libnmap`.
 
-Dependency summary:
+## Dependency Summary
 
 ```text
 nmap                       required for hostscanner and portscanner
@@ -119,10 +119,10 @@ nikto                      required for the nikto wrapper commandlet
 eyewitness                 required for the eyewitness screenshot wrapper
 kismet                     required for the wifi_scan wireless wrapper
 prompt_toolkit             required for rich interactive REPL completion
-nmaplib/python-nmap/etc.   Python nmap adapter; Bywaf tries supported adapters
+libnmap/python-nmap/etc.   Python nmap adapter; Bywaf tries supported adapters
 sqlcipher3-binary          optional Python SQLCipher driver for encrypted DBs
 sqlcipher                  optional system SQLCipher tooling/library
-scapy                      optional helper library for future packet plugins
+python-docx/openpyxl       optional DOCX/XLSX table rendering backends
 dnspython                  optional for dns_lookup
 impacket                   optional for smb_probe
 ldap3                      optional for ldap_probe
@@ -131,6 +131,35 @@ pysnmp                     optional for snmp_get
 shodan                     optional for shodan_lookup
 yara-python                optional for yara_scan
 ```
+
+Install all dependencies with one of these command sets from the repository
+root.
+
+Debian / Ubuntu:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y python3 python3-pip python3-venv python3-setuptools \
+  python3-build python3-installer python3-prompt-toolkit nmap \
+  sqlcipher libsqlcipher-dev debhelper dh-python pybuild-plugin-pyproject \
+  python3-all rpm nikto kismet
+python3 -m pip install -e '.[plugins,reporting,sqlcipher]'
+python3 -m pip install libnmap python-nmap nmapthon
+```
+
+Fedora / RHEL-family:
+
+```bash
+sudo dnf install -y python3 python3-pip python3-setuptools python3-build \
+  python3-installer python3-prompt-toolkit nmap sqlcipher sqlcipher-devel \
+  rpm-build nikto kismet
+python3 -m pip install -e '.[plugins,reporting,sqlcipher]'
+python3 -m pip install libnmap python-nmap nmapthon
+```
+
+Use `yum` instead of `dnf` on older RHEL-family systems. Some external-wrapper
+tools, especially `eyewitness`, `nikto`, and `kismet`, may require a
+security-focused distribution, EPEL, or an upstream installation source.
 
 Bywaf plugins are intended to wrap useful external tools and normalize their
 results into the central event database. That removes manual handoffs such as
