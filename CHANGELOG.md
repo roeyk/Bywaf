@@ -5,7 +5,17 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-18 09:33:46 EDT
+Last updated: 2026-05-18 09:42:12 EDT
+
+### 2026-05-18 09:42:12 EDT
+
+#### Changed
+
+- Split plugin packaging into its own tracker section, separate from core
+  package release mechanics.
+- Added an MVP plugin suite tracker section covering native user-facing,
+  library-backed, external-tool wrapper, and helper/provider plugin examples,
+  including Nikto wrapper planning and an end-to-end chaining example.
 
 ### 2026-05-18 09:33:46 EDT
 

@@ -36,6 +36,38 @@ Planning dates are release planning markers, not compatibility commitments.
   output into the central event database.
 - Prioritize wrappers that remove manual handoffs between scan phases.
 
+### Plugin Packaging
+
+- Define how third-party plugins are packaged, installed, discovered, trusted,
+  and upgraded independently from the core Bywaf package.
+- Decide whether Bywaf should auto-discover user-local and system-wide plugin
+  config files, or keep those paths explicit until the plugin trust model is
+  stricter.
+- Continue refining stock plugin directory/search-path behavior for future
+  system-wide plugin directories.
+- Document recommended plugin package layouts for pip, Debian, RPM, and
+  unpacked local development plugins.
+
+### MVP Plugin Suite
+
+- Build a small, rock-solid plugin suite that demonstrates the main plugin
+  integration styles: native user-facing, library-backed, external-tool
+  wrapper, and helper/provider.
+- Treat the existing `hostscanner` and `portscanner` commandlets as
+  library-backed examples around libnmap/nmap-backed discovery and port
+  scanning.
+- Treat the table rendering provider as the helper/provider example: it is
+  framework-native and mainly exists for other commandlets to use.
+- Add a user-facing native pentesting plugin that does not primarily wrap an
+  external tool, publishes structured events, and chains cleanly with existing
+  discovery/HTTP commandlets.
+- Add a Nikto wrapper plugin that invokes Nikto through the framework-mediated
+  process API, parses its output into structured events, and can consume
+  upstream hosts/ports from the Bywaf event database.
+- Add at least one documented end-to-end chain showing discovery, port
+  scanning, HTTP probing, Nikto scanning, table/report output, notes, and
+  artifacts.
+
 ### GUI/Web Frontend
 
 - Build a local GUI or web frontend on top of `BywafSession`.
@@ -61,13 +93,8 @@ Planning dates are release planning markers, not compatibility commitments.
   verify installation from PyPI in a clean virtual environment.
 - Keep pip, Debian, RPM, and plugin install-path smoke scripts aligned as
   packaging behavior changes.
-- Decide whether Bywaf should auto-discover user-local and system-wide plugin
-  config files, or keep those paths explicit until the plugin trust model is
-  stricter.
 - Keep user-local state in `~/.bywaf/`; do not package generated local DB,
   history, cache, or virtualenv files.
-- Continue refining stock plugin directory/search-path behavior for future
-  system-wide plugin directories.
 
 ## Completed After 0.9.0
 
