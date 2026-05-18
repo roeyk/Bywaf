@@ -36,19 +36,19 @@ python3 -m build --no-isolation --wheel
 %install
 python3 -m installer --destdir %{buildroot} --prefix /usr dist/*.whl
 
-# Debian/Ubuntu's Python scheme installs prefix-based wheels under /usr/local.
-# Normalize that into /usr so this RPM owns a normal system executable and
-# import path on the local build host.
+# Some Python build hosts apply their own installation scheme even when
+# installer receives --prefix /usr. Normalize those files into the RPM's
+# expected Python site directory so %check and %files agree on one import path.
 if [ -d "%{buildroot}/usr/local/bin" ]; then
     mkdir -p "%{buildroot}%{_bindir}"
     mv "%{buildroot}/usr/local/bin/"* "%{buildroot}%{_bindir}/"
 fi
-local_lib=$(find "%{buildroot}/usr/local/lib" -type d -name dist-packages -print -quit 2>/dev/null || true)
-if [ -n "$local_lib" ]; then
+install_lib=$(find "%{buildroot}" -type d \( -name site-packages -o -name dist-packages \) -print -quit 2>/dev/null || true)
+if [ -n "$install_lib" ] && [ "$install_lib" != "%{buildroot}%{python3_sitelib}" ]; then
     mkdir -p "%{buildroot}%{python3_sitelib}"
-    cp -a "$local_lib/." "%{buildroot}%{python3_sitelib}/"
+    cp -a "$install_lib/." "%{buildroot}%{python3_sitelib}/"
 fi
-rm -rf "%{buildroot}/usr/local"
+rm -rf "%{buildroot}/usr/local" "%{buildroot}/opt"
 
 %check
 PYTHONPATH=%{buildroot}%{python3_sitelib} %{buildroot}%{_bindir}/bywaf --version
