@@ -13,8 +13,8 @@ Last updated: 2026-05-17 20:05:09 EDT
 
 - Switched interactive TTY input to `prompt_toolkit`, with a readline fallback
   for non-interactive/minimal environments.
-- Added completion-menu toolbar help and configurable `Ctrl-Space` selection
-  for highlighted completions.
+- Added completion-menu toolbar help and configurable `Ctrl-Space`
+  completion-selection mode.
 - Added opt-in WASD completion-menu navigation via
   `completion.wasd-selection=true`.
 

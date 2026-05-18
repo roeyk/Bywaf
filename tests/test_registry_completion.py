@@ -7,13 +7,11 @@ from unittest.mock import patch
 from types import ModuleType
 
 from bywaf.completion import (
-    COMPLETION_MENU_SELECTION_VAR,
     COMPLETION_SELECT_KEY_VAR,
     COMPLETION_WASD_SELECTION_VAR,
     Completer,
     PromptToolkitCompleter,
     common_completion_prefix,
-    completion_menu_selection_enabled,
     completion_results,
     completion_select_key,
     completion_select_key_display,
@@ -280,8 +278,6 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertFalse(completion_wasd_selection_enabled(completer))
         self.registry.varstore.set(COMPLETION_WASD_SELECTION_VAR, "true")
         self.assertTrue(completion_wasd_selection_enabled(completer))
-        self.registry.varstore.set(COMPLETION_MENU_SELECTION_VAR, "false")
-        self.assertFalse(completion_menu_selection_enabled(completer))
 
     def test_control_completion_includes_run_selector(self):
         with tempfile.TemporaryDirectory() as tmp:

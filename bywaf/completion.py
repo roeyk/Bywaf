@@ -45,7 +45,6 @@ FRAMEWORK_OPTION_COMPLETIONS = {
     "--from-topic": CompletionSpec("topic"),
 }
 COMPLETION_SELECT_KEY_VAR = "completion.select-key"
-COMPLETION_MENU_SELECTION_VAR = "completion.menu-selection"
 COMPLETION_WASD_SELECTION_VAR = "completion.wasd-selection"
 DEFAULT_COMPLETION_SELECT_KEY = "c-space"
 
@@ -363,8 +362,8 @@ def completion_bottom_toolbar(completer: Completer):
             select_key = completion_select_key_display(completer)
             wasd_hint = " | WASD navigates" if completion_wasd_selection_enabled(completer) else ""
             return HTML(
-                f"<b>Completion:</b> arrows move | <b>{select_key}</b> selects | "
-                f"<b>Enter</b> accepts | <b>Esc</b> returns{wasd_hint}"
+                f"<b>Completion:</b> <b>{select_key}</b> enters selection | "
+                f"arrows move | <b>Enter</b> selects | <b>Esc</b> cancels{wasd_hint}"
             )
     except RuntimeError:
         return ""
@@ -376,8 +375,6 @@ def completion_key_bindings(completer: Completer):
     if KeyBindings is None or has_completions is None:
         return None
     bindings = KeyBindings()
-    if not completion_menu_selection_enabled(completer):
-        return bindings
     select_key = completion_select_key(completer)
 
     try:
@@ -391,11 +388,19 @@ def completion_key_bindings(completer: Completer):
 
 
 def register_select_completion_binding(bindings, select_key: str) -> None:
-    """Register the configured highlighted-completion acceptance key."""
+    """Register the configured completion-selection-mode key."""
 
-    @bindings.add(select_key, filter=has_completions)
+    @bindings.add(select_key)
     def _select_completion(event) -> None:
+        enter_completion_selection_mode(event)
+
+    @bindings.add("enter", filter=has_completions)
+    def _accept_completion(event) -> None:
         apply_current_completion(event)
+
+    @bindings.add("escape", filter=has_completions)
+    def _cancel_completion(event) -> None:
+        event.current_buffer.cancel_completion()
 
 
 def register_wasd_completion_bindings(bindings) -> None:
@@ -430,10 +435,14 @@ def apply_current_completion(event) -> None:
         buffer.apply_completion(completion)
 
 
-def completion_menu_selection_enabled(completer: Completer) -> bool:
-    """Return whether extra completion-menu selection binding is enabled."""
-    value = completer.registry.varstore.get(COMPLETION_MENU_SELECTION_VAR, "true")
-    return framework_bool(value, default=True)
+def enter_completion_selection_mode(event) -> None:
+    """Open the completion menu and select the first item for navigation."""
+    buffer = event.current_buffer
+    if buffer.complete_state is None:
+        buffer.start_completion(select_first=True)
+        return
+    if buffer.complete_state.current_completion is None and buffer.complete_state.completions:
+        buffer.go_to_completion(0)
 
 
 def completion_wasd_selection_enabled(completer: Completer) -> bool:
