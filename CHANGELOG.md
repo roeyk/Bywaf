@@ -5,7 +5,14 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-17 21:14:00 EDT
+Last updated: 2026-05-17 21:27:27 EDT
+
+### 2026-05-17 21:27:27 EDT
+
+#### Added
+
+- Added `TERMINOLOGY.md` with canonical definitions for jobs, pipelines, runs,
+  local IDs, serials, events, topics, commandlets, plugins, and capabilities.
 
 ### 2026-05-17 21:14:00 EDT
 

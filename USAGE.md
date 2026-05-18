@@ -574,7 +574,9 @@ A job is the supervised execution lifecycle: foreground or background work that
 has a process/status, can be cancelled or killed, and may contain a whole
 pipeline. A run is one commandlet invocation inside that pipeline, such as the
 specific `hostscanner` stage or `portscanner` stage. Pipelines group one or
-more runs, and jobs supervise the execution.
+more runs, and jobs supervise the execution. See `TERMINOLOGY.md` for the
+canonical definitions of jobs, pipelines, runs, local IDs, serials, events, and
+topics.
 
 Show the currently active runtime entities:
 

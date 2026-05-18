@@ -3,6 +3,9 @@
 These notes describe framework decisions that are still being refined. They are
 more specific than `TODO.md`, but less stable than the public usage guide.
 
+For canonical definitions of runtime terms such as job, pipeline, run, local
+ID, serial, event, topic, commandlet, and capability, see `TERMINOLOGY.md`.
+
 ## Framework Request IPC
 
 Plugins should not directly control interpreter-owned behavior such as terminal

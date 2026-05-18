@@ -418,6 +418,11 @@ At execution time, commandlets receive a `CommandContext`:
 - `context.alert(message)`: request an operator alert from the framework
 - `context.progress(...)`: report throttled structured progress
 - `context.progress_started(...)`: report progress start
+
+For terminology, a job is the supervised command-line lifecycle, a pipeline
+groups one or more chained commandlet runs, and a run is one invocation of one
+commandlet. See `TERMINOLOGY.md` for the canonical definitions plugin authors
+should use in docs, emitted events, and user-facing messages.
 - `context.progress_completed(...)`: report progress completion
 - `context.progress_failed(...)`: report progress failure
 - `context.table(rows, columns)`: print small tabular command output
