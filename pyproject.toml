@@ -20,6 +20,9 @@ build-backend = "setuptools.build_meta"
 where = ["."]
 include = ["bywaf*"]
 
+[tool.setuptools.package-data]
+"bywaf.plugins" = ["plugins.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 

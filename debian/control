@@ -1,0 +1,33 @@
+Source: bywaf
+Section: net
+Priority: optional
+Maintainer: Roey Katz <roey.katz@gmail.com>
+Build-Depends:
+ debhelper-compat (= 13),
+ dh-python,
+ pybuild-plugin-pyproject,
+ python3-all,
+ python3-prompt-toolkit,
+ python3-setuptools
+Standards-Version: 4.7.0
+Rules-Requires-Root: no
+Homepage: https://github.com/roeyk/Bywaf
+
+Package: bywaf
+Architecture: all
+Depends:
+ ${misc:Depends},
+ ${python3:Depends},
+ python3-prompt-toolkit
+Recommends:
+ nmap,
+ python3-libnmap
+Suggests:
+ python3-nmap,
+ sqlcipher
+Description: highly-auditable Python 3 commandlet framework
+ Bywaf is a commandlet framework for chaining plugin-driven workflows through
+ an auditable event and artifact model. It provides a REPL, runtime entities,
+ plugin completion metadata, SQLite-backed event storage, and bundled
+ commandlets for discovery, HTTP probing, runtime control, storage, artifacts,
+ and local filesystem inspection.

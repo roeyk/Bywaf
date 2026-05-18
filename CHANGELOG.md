@@ -5,7 +5,18 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-17 23:19:44 EDT
+Last updated: 2026-05-18 07:59:26 EDT
+
+### 2026-05-18 07:59:26 EDT
+
+#### Added
+
+- Added an initial Debian packaging scaffold under `debian/` for building a
+  local `.deb` package with `dpkg-buildpackage`.
+- Declared `bywaf/plugins/plugins.json` as package data so packaged installs
+  retain the default plugin list.
+- Documented the local Debian package build command and required Debian build
+  dependencies.
 
 ### 2026-05-17 23:19:44 EDT
 

@@ -57,11 +57,20 @@ Planning dates are release planning markers, not compatibility commitments.
 
 ### Packaging
 
-- Package Bywaf for system installation, including a normal `bywaf` executable,
-  stock plugin directories, and user-local `.bywaf/` state.
+- Build and test the Debian `.deb` package from the new `debian/` scaffold.
+- Install Bywaf as a normal `bywaf` executable through the Python console
+  script metadata.
+- Verify packaged installs include `bywaf/plugins/plugins.json` and bundled
+  stock commandlet modules.
+- Keep user-local state in `~/.bywaf/`; do not package generated local DB,
+  history, cache, or virtualenv files.
+- Continue refining stock plugin directory/search-path behavior for future
+  system-wide plugin directories.
 
 ## Completed After 0.9.0
 
+- 2026-05-18: Added the initial Debian packaging scaffold and declared packaged
+  plugin metadata.
 - 2026-05-13: Added audit-only plugin capability declarations and
   `plugin.capability.used` / `plugin.capability.missing` events.
 - 2026-05-13: Added pipeline control plus `kill` / `cancel` selector

@@ -86,6 +86,16 @@ bywaf --help
 bywaf repl
 ```
 
+For a local Debian package build, install the Debian build dependencies and
+run `dpkg-buildpackage` from the repository root:
+
+```bash
+sudo apt install debhelper dh-python pybuild-plugin-pyproject python3-all python3-setuptools python3-prompt-toolkit
+dpkg-buildpackage -us -uc -b
+sudo apt install ../bywaf_0.9.0-1_all.deb
+bywaf --help
+```
+
 The project metadata defines a console script named `bywaf`, so packaged
 installations can expose Bywaf as a normal command instead of requiring
 `python3 -m bywaf`.
