@@ -20,6 +20,6 @@ mkdir -p "$TOPDIR/BUILD" "$TOPDIR/BUILDROOT" "$TOPDIR/RPMS" "$TOPDIR/SOURCES" "$
 cp "$DIST/bywaf-$VERSION.tar.gz" "$TOPDIR/SOURCES/"
 cp "$ROOT/packaging/rpm/bywaf.spec" "$TOPDIR/SPECS/"
 
-rpmbuild --define "_topdir $TOPDIR" -ba "$TOPDIR/SPECS/bywaf.spec"
+rpmbuild --nodeps --define "_topdir $TOPDIR" -ba "$TOPDIR/SPECS/bywaf.spec"
 
 printf 'rpm artifacts written under %s\n' "$RPMDIST"
