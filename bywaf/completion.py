@@ -1,4 +1,6 @@
-"""Readline-compatible completion helpers."""
+"""Readline and prompt-toolkit completion helpers."""
+# pyright: reportMissingImports=false, reportGeneralTypeIssues=false
+# pyright: reportInvalidTypeForm=false
 
 from __future__ import annotations
 
@@ -7,6 +9,28 @@ import shlex
 from os.path import commonprefix
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Any
+
+try:
+    from prompt_toolkit.application.current import get_app
+    from prompt_toolkit.completion import Completion
+    from prompt_toolkit.completion import Completer as PromptToolkitCompleterBase
+    from prompt_toolkit.enums import DEFAULT_BUFFER
+    from prompt_toolkit.filters import has_completions
+    from prompt_toolkit.formatted_text import HTML
+    from prompt_toolkit.key_binding import KeyBindings
+    from prompt_toolkit.shortcuts import PromptSession
+    from prompt_toolkit.shortcuts.prompt import CompleteStyle
+except ImportError:  # pragma: no cover - exercised only on minimal installs.
+    get_app = None
+    Completion = None
+    PromptToolkitCompleterBase = object
+    DEFAULT_BUFFER = "DEFAULT_BUFFER"
+    has_completions = None
+    HTML = None
+    KeyBindings = None
+    PromptSession = None
+    CompleteStyle = None
 
 from .config import Settings
 from .db import EventStore
@@ -282,6 +306,85 @@ class Completer:
         return candidate
 
 
+class PromptToolkitCompleter(PromptToolkitCompleterBase):
+    """Prompt-toolkit adapter around Bywaf's command-aware completer."""
+
+    def __init__(self, completer: Completer):
+        self.completer = completer
+
+    def get_completions(self, document, complete_event: Any):
+        """Yield prompt-toolkit Completion objects for the current buffer."""
+        del complete_event
+        if Completion is None:
+            return
+        line = document.text_before_cursor
+        prefix = completion_prefix(line)
+        candidates = self.completer.candidates(line)
+        display_value_only = should_display_value_only(prefix, candidates)
+        for candidate in candidates:
+            yield Completion(
+                self.completer.format_candidate(candidate),
+                start_position=-len(prefix),
+                display=display_label(candidate) if display_value_only else candidate,
+            )
+
+
+def prompt_toolkit_available() -> bool:
+    """Return whether the richer prompt-toolkit REPL can be used."""
+    return PromptSession is not None and KeyBindings is not None
+
+
+def build_prompt_session(completer: Completer):
+    """Create a prompt-toolkit session with Bywaf completion behavior."""
+    if not prompt_toolkit_available():
+        return None
+    assert PromptSession is not None
+    assert CompleteStyle is not None
+    return PromptSession(
+        completer=PromptToolkitCompleter(completer),
+        complete_while_typing=False,
+        complete_style=CompleteStyle.MULTI_COLUMN,
+        reserve_space_for_menu=8,
+        bottom_toolbar=completion_bottom_toolbar,
+        key_bindings=completion_key_bindings(),
+    )
+
+
+def completion_bottom_toolbar():
+    """Display completion menu help only while a menu is active."""
+    if get_app is None or HTML is None:
+        return ""
+    try:
+        if get_app().current_buffer.complete_state:
+            return HTML(
+                "<b>Completion:</b> arrows move | <b>s</b> selects | "
+                "<b>Enter</b> accepts | <b>Esc</b> returns"
+            )
+    except RuntimeError:
+        return ""
+    return ""
+
+
+def completion_key_bindings():
+    """Return prompt-toolkit keybindings for completion selection."""
+    if KeyBindings is None or has_completions is None:
+        return None
+    bindings = KeyBindings()
+
+    @bindings.add("s", filter=has_completions)
+    def _select_completion(event) -> None:
+        buffer = event.app.layout.get_buffer_by_name(DEFAULT_BUFFER)
+        if buffer is None or buffer.complete_state is None:
+            return
+        completion = buffer.complete_state.current_completion
+        if completion is None and buffer.complete_state.completions:
+            completion = buffer.complete_state.completions[0]
+        if completion is not None:
+            buffer.apply_completion(completion)
+
+    return bindings
+
+
 def resource_candidates(prefix: str, keywords: tuple[str, ...]) -> list[str]:
     """Complete key=value resource expressions used by load/save."""
     for keyword in keywords:
@@ -380,8 +483,13 @@ def should_print_completion_menu(line: str, candidates: Sequence[str]) -> bool:
     return (
         len(candidates) > 1
         and "=" in prefix
-        and all(candidate.startswith(prefix.split("=", 1)[0] + "=") for candidate in candidates)
+        and should_display_value_only(prefix, candidates)
     )
+
+
+def should_display_value_only(prefix: str, candidates: Sequence[str]) -> bool:
+    """Return whether completion display should hide a repeated key= prefix."""
+    return "=" in prefix and all(candidate.startswith(prefix.split("=", 1)[0] + "=") for candidate in candidates)
 
 
 def print_completion_menu(line: str, candidates: Sequence[str]) -> None:

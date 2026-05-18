@@ -12,13 +12,13 @@ import shlex
 import socket
 import subprocess
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
 from . import __version__
-from .completion import Completer, install_readline
+from .completion import Completer, build_prompt_session, install_readline
 from .config import Settings
 from .db import EventStore, Subscription, database_appears_encrypted, export_encrypted_database, export_plaintext_database
 from .nmap_backend import NmapScanError, NmapUnavailableError
@@ -156,12 +156,12 @@ def repl(runner: Runner) -> None:
 
     state = new_shell_state(runner)
     state.completer = Completer(runner.registry, runner.db)
-    install_readline(state.completer)
+    input_reader = build_input_reader(state.completer)
     try:
         while True:
             process_framework_requests(runner, state)
             try:
-                line = read_logical_input(state).strip()
+                line = read_logical_input(state, input_reader).strip()
             except (EOFError, KeyboardInterrupt):
                 print()
                 return
@@ -181,12 +181,23 @@ def repl(runner: Runner) -> None:
         shutdown_runner(runner)
 
 
-def read_logical_input(state: ShellState) -> str:
+def build_input_reader(completer: Completer) -> Callable[[str], str]:
+    """Return the best available line reader for the current terminal."""
+    if sys.stdin.isatty() and sys.stdout.isatty():
+        session = build_prompt_session(completer)
+        if session is not None:
+            return session.prompt
+    install_readline(completer)
+    return input
+
+
+def read_logical_input(state: ShellState, reader: Callable[[str], str] | None = None) -> str:
     """Read one logical REPL command, joining backslash continuations."""
+    reader = reader or input
     lines: list[str] = []
     prompt = state.prompt()
     while True:
-        line = input(prompt)
+        line = reader(prompt)
         if line_has_continuation(line):
             lines.append(remove_line_continuation(line))
             prompt = "... "

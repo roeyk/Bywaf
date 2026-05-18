@@ -3,7 +3,7 @@ name = "bywaf"
 version = "0.9.0"
 description = "Python 3 commandlet framework with SQLite pub/sub for Bywaf-style workflows."
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["prompt_toolkit>=3.0"]
 
 [project.optional-dependencies]
 sqlcipher = ["sqlcipher3-binary>=0.6.0"]

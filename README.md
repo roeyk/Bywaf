@@ -61,6 +61,7 @@ Dependency summary:
 
 ```text
 nmap                       required for hostscanner and portscanner
+prompt_toolkit             required for rich interactive REPL completion
 nmaplib/python-nmap/etc.   Python nmap adapter; Bywaf tries supported adapters
 sqlcipher3-binary          optional Python SQLCipher driver for encrypted DBs
 sqlcipher                  optional system SQLCipher tooling/library
@@ -205,6 +206,12 @@ completion because those commandlets declare path/file completion in their
 plugin specs. Other completion specs include `topic`, `run`, `pipeline`, `job`,
 and `plugin`, so plugin authors can make hand-typed commands much easier to
 complete correctly.
+
+Interactive shells use `prompt_toolkit` when a real terminal is available.
+Completion menus support arrow-key navigation, `Enter` to accept, `Esc` to
+return to the command line, and `s` to select the highlighted completion. A
+bottom toolbar shows that hint while a completion menu is open. Minimal
+non-interactive environments fall back to readline-style completion.
 
 Plugin authors should use `context.output()`, `context.table()`,
 `context.alert()`, `context.progress()`, `context.page_file()`, and
@@ -1056,7 +1063,7 @@ bywaf/runner.py       parsing, pipelines, foreground/background execution
 bywaf/db.py           SQLite event store
 bywaf/plugin.py       commandlet protocol and specs
 bywaf/registry.py     plugin discovery and loading
-bywaf/completion.py   readline completion
+bywaf/completion.py   prompt_toolkit/readline completion
 bywaf/plugins/        bundled plugin providers
 tests/                unit tests
 ```

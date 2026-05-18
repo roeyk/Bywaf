@@ -5,7 +5,16 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-17 19:42:03 EDT
+Last updated: 2026-05-17 20:05:09 EDT
+
+### 2026-05-17 20:05:09 EDT
+
+#### Added
+
+- Switched interactive TTY input to `prompt_toolkit`, with a readline fallback
+  for non-interactive/minimal environments.
+- Added completion-menu toolbar help and `s` selection for highlighted
+  completions.
 
 ### 2026-05-17 19:42:03 EDT
 

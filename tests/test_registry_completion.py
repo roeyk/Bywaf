@@ -1,5 +1,6 @@
 import unittest
 import os
+import importlib
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -7,6 +8,7 @@ from types import ModuleType
 
 from bywaf.completion import (
     Completer,
+    PromptToolkitCompleter,
     common_completion_prefix,
     completion_results,
     configure_readline_delimiters,
@@ -251,6 +253,15 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn("note=", completer.candidates("artifact search "))
         self.assertIn("--regexp", completer.candidates("search "))
         self.assertIn("content=", completer.candidates("search "))
+
+    def test_prompt_toolkit_completer_hides_repeated_key_prefix_in_display(self):
+        Document = importlib.import_module("prompt_toolkit.document").Document
+
+        completer = PromptToolkitCompleter(Completer(self.registry))
+        completions = list(completer.get_completions(Document("show topic=h"), None))
+        display_texts = [completion.display_text for completion in completions]
+        self.assertIn("host.found", display_texts)
+        self.assertNotIn("topic=host.found", display_texts)
 
     def test_control_completion_includes_run_selector(self):
         with tempfile.TemporaryDirectory() as tmp:
