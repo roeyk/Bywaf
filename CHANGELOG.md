@@ -5,7 +5,13 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-17 21:07:52 EDT
+Last updated: 2026-05-17 21:14:00 EDT
+
+### 2026-05-17 21:14:00 EDT
+
+#### Changed
+
+- Replaced the framework-owned dry-run flag `--plan` with `--test`.
 
 ### 2026-05-17 21:07:52 EDT
 
@@ -61,7 +67,7 @@ Last updated: 2026-05-17 21:07:52 EDT
 
 #### Added
 
-- Added framework-owned `--plan` and `--yes` handling with auditable
+- Added framework-owned plan/test and `--yes` handling with auditable
   `plan.requested`, `policy.evaluated`, `plan.approved`, `plan.denied`,
   `plan.repair.applied`, and `plan.repair.denied` events.
 - Added `PlanReport`, `PlanItem`, and `PlanRepair` plugin APIs.

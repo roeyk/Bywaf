@@ -504,12 +504,12 @@ audited as `framework.variable.expanded`.
 
 # Plans And Policy
 
-Commandlets can expose a framework-owned plan hook. Use `--plan` to show the
+Commandlets can expose a framework-owned plan hook. Use `--test` to show the
 intended action and exit without running, or `--yes` to approve a required plan
 non-interactively:
 
 ```text
-bywaf> hostscanner 192.168.1.0/24 --plan
+bywaf> hostscanner 192.168.1.0/24 --test
 bywaf> hostscanner 192.168.1.0/24 --yes
 ```
 

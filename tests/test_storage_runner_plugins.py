@@ -774,7 +774,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts") as discover,
                 contextlib.redirect_stdout(output),
             ):
-                events = runner.execute("hostscanner 192.168.0.1-2 --plan")
+                events = runner.execute("hostscanner 192.168.0.1-2 --test")
                 process_framework_requests(runner, ShellState())
             self.assertEqual(events, [])
             discover.assert_not_called()

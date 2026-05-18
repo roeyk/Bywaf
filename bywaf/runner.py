@@ -804,7 +804,7 @@ def peel_context_selectors(args: list[str]) -> tuple[list[str], dict[str, str | 
             case "--from-topic" | "--topic":
                 selectors["from_topic"] = require_selector_value(args, index, token)
                 index += 2
-            case "--plan":
+            case "--test":
                 selectors["plan_only"] = "true"
                 index += 1
             case "--yes":
