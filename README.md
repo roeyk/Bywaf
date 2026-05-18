@@ -89,7 +89,7 @@ bywaf repl
 For a local pip package build:
 
 ```bash
-python3 -m build --sdist --wheel
+scripts/build_pip_package.sh
 python3 -m pip install dist/bywaf-0.9.0-py3-none-any.whl
 bywaf --help
 ```
@@ -104,21 +104,18 @@ sudo apt install ../bywaf_0.9.0-1_all.deb
 bywaf --help
 ```
 
-For a local RPM package build, install RPM build tooling and build from the
-generated source distribution:
+For a local RPM package build, install RPM build tooling and write release
+artifacts under `dist/rpm/`:
 
 ```bash
 sudo apt install rpm python3-build python3-installer
-python3 -m build --sdist
-mkdir -p ~/rpmbuild/SOURCES ~/rpmbuild/SPECS
-cp dist/bywaf-0.9.0.tar.gz ~/rpmbuild/SOURCES/
-cp packaging/rpm/bywaf.spec ~/rpmbuild/SPECS/
-rpmbuild -ba ~/rpmbuild/SPECS/bywaf.spec
+scripts/build_rpm_package.sh
 ```
 
 Packaging smoke scripts:
 
 ```bash
+scripts/build_release_packages.sh
 tests/scripts/smoke_pip_package.sh
 tests/scripts/smoke_rpm_package.sh
 tests/scripts/smoke_plugin_install_paths.sh

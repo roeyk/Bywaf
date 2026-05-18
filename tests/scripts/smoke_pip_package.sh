@@ -10,7 +10,7 @@ if command -v twine >/dev/null 2>&1; then
   twine check "$WORKDIR"/dist/*
 fi
 python3 -m venv --system-site-packages "$WORKDIR/venv"
-"$WORKDIR/venv/bin/python" -m pip install --no-deps "$WORKDIR"/dist/bywaf-*.whl >/dev/null
+"$WORKDIR/venv/bin/python" -m pip install --force-reinstall --no-deps "$WORKDIR"/dist/bywaf-*.whl >/dev/null
 
 "$WORKDIR/venv/bin/bywaf" --version | grep -q '^0\.9\.0$'
 "$WORKDIR/venv/bin/python" - <<'PY'

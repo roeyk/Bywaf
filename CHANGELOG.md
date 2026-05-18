@@ -5,7 +5,21 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-18 08:36:06 EDT
+Last updated: 2026-05-18 08:46:16 EDT
+
+### 2026-05-18 08:46:16 EDT
+
+#### Added
+
+- Added persistent package release builders: `scripts/build_pip_package.sh`
+  writes source and wheel artifacts under `dist/`, `scripts/build_rpm_package.sh`
+  writes source and noarch RPM artifacts under `dist/rpm/`, and
+  `scripts/build_release_packages.sh` runs both.
+
+#### Changed
+
+- Updated packaging documentation to use the release-build scripts instead of
+  requiring manual RPM tree setup.
 
 ### 2026-05-18 08:36:06 EDT
 

@@ -57,10 +57,6 @@ Planning dates are release planning markers, not compatibility commitments.
 
 ### Packaging
 
-- Build and test pip source and wheel distributions from `pyproject.toml`.
-- Build and test the Debian `.deb` package from the new `debian/` scaffold.
-- Build and test RPM packages from the initial `packaging/rpm/bywaf.spec`
-  scaffold once local RPM tooling is installed.
 - Keep pip, Debian, RPM, and plugin install-path smoke scripts aligned as
   packaging behavior changes.
 - Install Bywaf as a normal `bywaf` executable through the Python console
@@ -80,6 +76,10 @@ Planning dates are release planning markers, not compatibility commitments.
 
 ## Completed After 0.9.0
 
+- 2026-05-18: Added persistent release builders for pip source/wheel artifacts
+  under `dist/` and RPM artifacts under `dist/rpm/`.
+- 2026-05-18: Built and smoke-tested pip source/wheel distributions, the
+  Debian package, and RPM source/noarch packages from the packaging scaffolds.
 - 2026-05-18: Added the initial Debian packaging scaffold and declared packaged
   plugin metadata.
 - 2026-05-18: Added regression coverage and a reusable smoke script for
