@@ -8,7 +8,7 @@ URL:            https://github.com/roeyk/Bywaf
 Source0:        %{name}-%{version}.tar.gz
 BuildArch:      noarch
 
-%global python3_sitelib %(python3 -c 'import sysconfig; print(sysconfig.get_paths()["purelib"].replace("/usr/local", "/usr"))')
+%global python3_sitelib %(python3 -c 'import sys; print(f"/usr/lib/python{sys.version_info.major}.{sys.version_info.minor}/site-packages")')
 
 BuildRequires:  python3
 BuildRequires:  python3-build
