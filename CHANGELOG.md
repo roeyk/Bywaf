@@ -5,7 +5,15 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-18 08:16:00 EDT
+Last updated: 2026-05-18 08:25:45 EDT
+
+### 2026-05-18 08:25:45 EDT
+
+#### Changed
+
+- Shortened runtime list timestamps for jobs, runs, pipelines, and info tables
+  to `HH:MM:SS TZ` and hide noisy `job-`, `run-`, and `pipeline-` serial
+  prefixes in runtime displays so wide rows are easier to read in a terminal.
 
 ### 2026-05-18 08:16:00 EDT
 

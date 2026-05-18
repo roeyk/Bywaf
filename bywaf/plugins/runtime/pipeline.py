@@ -6,9 +6,25 @@ import shlex
 from collections.abc import Iterable
 
 from bywaf.events import Event
-from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
+from bywaf.plugin import (
+    CommandContext,
+    Commandlet,
+    CommandletBase,
+    CompletionContext,
+    CompletionSpec,
+    argument,
+    commandlet,
+)
 from bywaf.plugins.runtime.job import cancel_job, kill_job
-from bywaf.runtime_display import active_listing_format, format_runtime_timestamp, render_table, runtime_state_label, runtime_state_text, state_marker
+from bywaf.runtime_display import (
+    active_listing_format,
+    display_runtime_serial,
+    format_runtime_timestamp,
+    render_table,
+    runtime_state_label,
+    runtime_state_text,
+    state_marker,
+)
 
 PIPELINE_ACTIONS = ("attach", "cancel", "end", "kill", "list", "show")
 
@@ -109,7 +125,7 @@ def print_pipelines(context: CommandContext, *, active_only: bool = True, show_a
         table_rows.append(
             (
                 aliases.get(str(row["pipeline_id"]), str(row["pipeline_id"])),
-                row["pipeline_id"],
+                display_runtime_serial(row["pipeline_id"]),
                 runtime_state_text(statuses, timestamp, style=active_listing_format(context.vars.get_global)),
                 names.get(("pipeline", str(row["pipeline_id"])), ""),
                 row["job_id"],
@@ -157,7 +173,7 @@ def format_pipeline(
         prefix, detail = state_marker(label, timestamp, style=marker_style)
     name_part = f" name={display_name}" if display_name else ""
     line = (
-        f"{prefix}pipeline={alias or row['pipeline_id']} serial={row['pipeline_id']}"
+        f"{prefix}pipeline={alias or row['pipeline_id']} serial={display_runtime_serial(row['pipeline_id'])}"
         f"{name_part} job={row['job_id']} status={statuses} runs={row['runs']} events={row['events']}"
     )
     return f"{line}\n{detail}" if detail else line

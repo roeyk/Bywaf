@@ -10,6 +10,7 @@ from bywaf.events import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
 from bywaf.runtime_display import (
     active_listing_format,
+    display_runtime_serial,
     format_runtime_timestamp,
     render_table,
     runtime_state_label,
@@ -99,7 +100,7 @@ def print_jobs(context: CommandContext, *, active_only: bool = True, show_active
         table_rows.append(
             (
                 row["id"],
-                row["serial"] or "",
+                display_runtime_serial(row["serial"]),
                 runtime_state_text(row["status"], timestamp, style=active_listing_format(context.vars.get_global)),
                 row["pid"],
                 row["status"],
@@ -137,7 +138,7 @@ def format_job(row, *, display_name: str | None = None, show_active: bool = Fals
         timestamp = row["started_at"] if label in {"active", "in progress"} else row["finished_at"]
         prefix, detail = state_marker(label, timestamp, style=marker_style)
     name_part = f" name={display_name}" if display_name else ""
-    serial = row["serial"] or ""
+    serial = display_runtime_serial(row["serial"])
     line = f"{prefix}#{row['id']} serial={serial} pid={row['pid']} status={row['status']}{name_part} {row['command_line']}"
     return f"{line}\n{detail}" if detail else line
 

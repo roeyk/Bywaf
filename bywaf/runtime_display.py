@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import datetime
 
 ACTIVE_LISTING_FORMAT_VAR = "listing.active-format"
 DEFAULT_ACTIVE_LISTING_FORMAT = "short"
@@ -23,6 +24,7 @@ def active_listing_format(getter) -> str:
 ACTIVE_RUNTIME_STATUSES = {"running", "paused"}
 IN_PROGRESS_RUNTIME_STATUSES = {"queued", "claimed", "pausing", "cancelling"}
 FAILED_RUNTIME_STATUSES = {"failed", "missing", "stale"}
+DISPLAY_SERIAL_PREFIXES = ("pipeline-", "run-", "job-")
 
 
 def runtime_state_label(statuses: str | list[str] | tuple[str, ...] | None) -> str:
@@ -66,7 +68,24 @@ def format_runtime_timestamp(value: str | None) -> str:
     """Render an ISO timestamp compactly for runtime listings."""
     if not value:
         return "unknown"
-    return value.replace("T", " ").replace("+00:00", " UTC")
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return value
+    timezone = parsed.tzname()
+    suffix = f" {timezone}" if timezone else ""
+    return f"{parsed:%H:%M:%S}{suffix}"
+
+
+def display_runtime_serial(value: object | None) -> str:
+    """Return a compact display value for durable runtime serials."""
+    if value is None:
+        return ""
+    text = str(value)
+    for prefix in DISPLAY_SERIAL_PREFIXES:
+        if text.startswith(prefix):
+            return text.removeprefix(prefix)
+    return text
 
 
 def render_table(headers: tuple[str, ...], rows: Sequence[Sequence[object]]) -> str:

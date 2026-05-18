@@ -389,7 +389,7 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "jobs")
             self.assertIn("ARTIFACTS", output.getvalue())
-            self.assertRegex(output.getvalue(), r"\n1\s+job-[0-9a-f]+\s+active\s+123\s+running\s+0\s+")
+            self.assertRegex(output.getvalue(), r"\n1\s+[0-9a-f]{32}\s+active\s+123\s+running\s+0\s+")
             self.assertIn("hostscanner 127.0.0.1", output.getvalue())
 
     def test_jobs_all_marks_active_state(self):
@@ -401,8 +401,8 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "jobs --all")
             text = output.getvalue()
-            self.assertRegex(text, r"\n1\s+job-[0-9a-f]+\s+active\s+123\s+running\s+0\s+")
-            self.assertRegex(text, r"\n2\s+job-[0-9a-f]+\s+completed\s+456\s+finished\s+0\s+")
+            self.assertRegex(text, r"\n1\s+[0-9a-f]{32}\s+active\s+123\s+running\s+0\s+")
+            self.assertRegex(text, r"\n2\s+[0-9a-f]{32}\s+completed\s+456\s+finished\s+0\s+")
 
     def test_jobs_all_can_use_long_active_marker(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -413,7 +413,7 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "jobs --all")
             self.assertIn("active since ", output.getvalue())
-            self.assertRegex(output.getvalue(), r"\n1\s+job-[0-9a-f]+\s+active since ")
+            self.assertRegex(output.getvalue(), r"\n1\s+[0-9a-f]{32}\s+active since ")
 
     def test_pipelines_alias_runs_pipeline_list(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -28,6 +28,7 @@ from .registry import PluginRegistry
 from .rendering import Table, render_console_table
 from .runtime_display import (
     ACTIVE_LISTING_FORMAT_VAR,
+    display_runtime_serial,
     format_runtime_timestamp,
     normalize_active_listing_format,
     render_table,
@@ -855,7 +856,7 @@ def print_jobs(runner: Runner) -> None:
     rows = [
         (
             row["id"],
-            row["serial"] or "",
+            display_runtime_serial(row["serial"]),
             row["pid"],
             row["status"],
             artifact_counts.get(str(row["id"]), 0),
@@ -915,11 +916,11 @@ def print_runs(runner: Runner, *, active_only: bool = True) -> None:
         table_rows.append(
             (
                 run_aliases.get(run_serial, run_serial),
-                run_serial,
+                display_runtime_serial(run_serial),
                 runtime_state_text(row["job_statuses"], timestamp, style=marker_style),
                 names.get(("run", run_serial), ""),
                 pipeline_alias,
-                pipeline_serial,
+                display_runtime_serial(pipeline_serial),
                 row["source"],
                 row["events"],
                 artifact_counts.get(run_serial, 0),
