@@ -1,5 +1,5 @@
 Name:           bywaf
-Version:        0.9.0
+Version:        0.9.1
 Release:        1%{?dist}
 Summary:        Highly-auditable Python 3 commandlet framework
 
@@ -61,5 +61,8 @@ PYTHONPATH=%{buildroot}%{python3_sitelib} %{buildroot}%{_bindir}/bywaf --version
 %{python3_sitelib}/bywaf-*.dist-info
 
 %changelog
+* Mon May 18 2026 Roey Katz <roey.katz@gmail.com> - 0.9.1-1
+- Testing release with finding workflows, completion regressions, and release packaging.
+
 * Mon May 18 2026 Roey Katz <roey.katz@gmail.com> - 0.9.0-1
 - Initial RPM packaging scaffold.

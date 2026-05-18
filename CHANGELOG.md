@@ -5,7 +5,12 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-18 14:59:08 EDT
+Last updated: 2026-05-18 15:20:00 EDT
+
+## [0.9.1] - 2026-05-18
+
+Testing release focused on plugin breadth, finding/report workflows,
+completion regressions, runtime polish, and package release automation.
 
 ### 2026-05-18 14:39:43 EDT
 
