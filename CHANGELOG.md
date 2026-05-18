@@ -5,7 +5,14 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-18 08:25:45 EDT
+Last updated: 2026-05-18 08:36:06 EDT
+
+### 2026-05-18 08:36:06 EDT
+
+#### Changed
+
+- Ctrl-C in the interactive REPL now prompts for yes/no confirmation before
+  quitting, and confirmed exits still run the normal orderly shutdown path.
 
 ### 2026-05-18 08:25:45 EDT
 

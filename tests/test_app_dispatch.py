@@ -17,6 +17,7 @@ from bywaf.app import (
     read_logical_input,
     repl,
     shutdown_runner,
+    confirm_repl_exit,
 )
 from bywaf.db import EventStore
 from bywaf.events import Event
@@ -115,6 +116,60 @@ class AppDispatchTests(unittest.TestCase):
             ):
                 repl(runner)
             checkpoint.assert_called_once_with()
+
+    def test_repl_confirms_keyboard_interrupt_before_exit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            answers = iter([KeyboardInterrupt, "n", "q"])
+
+            def reader(prompt=""):
+                print(prompt, end="")
+                answer = next(answers)
+                if answer is KeyboardInterrupt:
+                    raise KeyboardInterrupt
+                return answer
+
+            with (
+                patch("builtins.input", side_effect=reader),
+                patch.object(runner.db, "checkpoint") as checkpoint,
+                contextlib.redirect_stdout(io.StringIO()) as output,
+            ):
+                repl(runner)
+            checkpoint.assert_called_once_with()
+            self.assertIn("Quit Bywaf?", output.getvalue())
+
+    def test_repl_exits_after_confirmed_keyboard_interrupt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            answers = iter([KeyboardInterrupt, "yes"])
+
+            def reader(prompt=""):
+                print(prompt, end="")
+                answer = next(answers)
+                if answer is KeyboardInterrupt:
+                    raise KeyboardInterrupt
+                return answer
+
+            with (
+                patch("builtins.input", side_effect=reader),
+                patch.object(runner.db, "checkpoint") as checkpoint,
+                contextlib.redirect_stdout(io.StringIO()) as output,
+            ):
+                repl(runner)
+            checkpoint.assert_called_once_with()
+            self.assertIn("Quit Bywaf?", output.getvalue())
+
+    def test_confirm_repl_exit_reprompts_until_yes_or_no(self):
+        answers = iter(["maybe", "Y"])
+
+        def reader(prompt):
+            print(prompt, end="")
+            return next(answers)
+
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.assertTrue(confirm_repl_exit(reader))
+        self.assertIn("please answer yes or no", output.getvalue())
 
     def test_read_logical_input_joins_backslash_continuations(self):
         state = ShellState()

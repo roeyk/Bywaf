@@ -174,9 +174,14 @@ def repl(runner: Runner) -> None:
             process_framework_requests(runner, state)
             try:
                 line = read_logical_input(state, input_reader).strip()
-            except (EOFError, KeyboardInterrupt):
+            except EOFError:
                 print()
                 return
+            except KeyboardInterrupt:
+                print()
+                if confirm_repl_exit(input_reader):
+                    return
+                continue
             record_command_history(
                 line,
                 state.history_path,
@@ -201,6 +206,24 @@ def build_input_reader(completer: Completer) -> Callable[[str], str]:
             return session.prompt
     install_readline(completer)
     return input
+
+
+def confirm_repl_exit(reader: Callable[[str], str]) -> bool:
+    """Ask whether Ctrl-C should exit the REPL."""
+    while True:
+        try:
+            answer = reader("Quit Bywaf? [y/N] ").strip().lower()
+        except KeyboardInterrupt:
+            print()
+            return False
+        except EOFError:
+            print()
+            return True
+        if answer in {"", "n", "no"}:
+            return False
+        if answer in {"y", "yes"}:
+            return True
+        print("please answer yes or no")
 
 
 def read_logical_input(state: ShellState, reader: Callable[[str], str] | None = None) -> str:

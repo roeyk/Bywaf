@@ -283,6 +283,8 @@ exit
 ```
 
 `help <command>` shows the same help as `<command> --help` for commandlets.
+Ctrl-C in the interactive shell asks whether to quit; answering yes exits
+through the normal shutdown path, including the SQLite checkpoint.
 
 # Commandlets
 
