@@ -1,0 +1,81 @@
+"""SSH probe commandlet backed by Paramiko."""
+
+from __future__ import annotations
+
+from collections.abc import Iterable
+
+from bywaf.events import Event
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
+from bywaf.plugins._args import key_value_to_long_options
+from bywaf.plugins.recon.dns_lookup import optional_module
+
+DEFAULTS = {"password": "", "port": "22", "timeout": "5", "username": ""}
+OPTION_KEYS = {"password", "port", "timeout", "username"}
+
+
+@commandlet(
+    name="ssh_probe",
+    description="Probe SSH service metadata with Paramiko.",
+    usage="ssh_probe [port=22] [username=USER password=PASS] <host ...>",
+    examples=("ssh_probe 127.0.0.1", "ssh_probe username=test password=test 127.0.0.1"),
+    consumes=("port.open",),
+    emits=("ssh.service",),
+    capabilities=("db.write:ssh.service", "db.write:tool.error", "network.connect"),
+)
+@option("password", "SSH password")
+@option("port", "SSH port", "22")
+@option("timeout", "connection timeout seconds", "5")
+@option("username", "SSH username")
+class SshProbe(CommandletBase):
+    def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
+        """Probe SSH hosts from args or upstream port events."""
+        parser = self.parser()
+        parser.add_argument("hosts", nargs="*")
+        parser.add_argument("--password", default=self.var_default(context, "password", ""))
+        parser.add_argument("--port", type=int, default=self.var_default(context, "port", 22, cast=int))
+        parser.add_argument("--timeout", type=float, default=self.var_default(context, "timeout", 5, cast=float))
+        parser.add_argument("--username", default=self.var_default(context, "username", ""))
+        parsed = parser.parse_args(key_value_to_long_options(args, OPTION_KEYS))
+        paramiko = optional_module(context, "paramiko", "paramiko")
+        if paramiko is None:
+            return ()
+        for host, port in ssh_targets(parsed.hosts, parsed.port, input_events):
+            context.audit_capability("network.connect")
+            client = paramiko.SSHClient()
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            try:
+                client.connect(
+                    hostname=host,
+                    port=port,
+                    username=parsed.username or None,
+                    password=parsed.password or None,
+                    timeout=parsed.timeout,
+                    banner_timeout=parsed.timeout,
+                    auth_timeout=parsed.timeout,
+                    look_for_keys=False,
+                    allow_agent=False,
+                )
+                transport = client.get_transport()
+                banner = getattr(transport, "remote_version", "") if transport is not None else ""
+                context.events.publish("ssh.service", {"host": host, "port": port, "banner": banner, "auth": "success"})
+            except Exception as exc:
+                context.events.publish("ssh.service", {"host": host, "port": port, "error": str(exc), "auth": "failed"})
+            finally:
+                client.close()
+        return ()
+
+
+def ssh_targets(hosts: list[str], port: int, input_events: Iterable[Event]) -> list[tuple[str, int]]:
+    """Resolve SSH targets from args or `port.open` events."""
+    if hosts:
+        return [(host, port) for host in hosts]
+    return [
+        (str(event.payload["host"]), int(event.payload["port"]))
+        for event in input_events
+        if event.topic == "port.open" and int(event.payload.get("port", 0)) == 22
+    ]
+
+
+def plugin() -> Commandlet:
+    """Factory used by PluginRegistry."""
+    return SshProbe()

@@ -32,10 +32,22 @@ class RegistryCompletionTests(unittest.TestCase):
 
     def test_discovers_bundled_plugins(self):
         self.assertIn("hostscanner", self.registry.names())
+        self.assertIn("dns_lookup", self.registry.names())
+        self.assertIn("ldap_probe", self.registry.names())
         self.assertIn("portscanner", self.registry.names())
+        self.assertIn("shodan_lookup", self.registry.names())
+        self.assertIn("smb_probe", self.registry.names())
+        self.assertIn("snmp_get", self.registry.names())
+        self.assertIn("ssh_probe", self.registry.names())
+        self.assertIn("eyewitness", self.registry.names())
         self.assertIn("http_headers", self.registry.names())
         self.assertIn("http_probe", self.registry.names())
+        self.assertIn("nikto", self.registry.names())
         self.assertIn("webfin", self.registry.names())
+        self.assertIn("wifi_scan", self.registry.names())
+        self.assertIn("finding_dedupe", self.registry.names())
+        self.assertIn("finding_report", self.registry.names())
+        self.assertIn("yara_scan", self.registry.names())
         self.assertIn("db", self.registry.names())
         self.assertIn("job", self.registry.names())
         self.assertIn("pipeline", self.registry.names())
@@ -56,10 +68,22 @@ class RegistryCompletionTests(unittest.TestCase):
             parse_package_plugin_config("bywaf.plugins", "plugins.json"),
             [
                 "discovery.hostscanner",
+                "analysis.finding_dedupe",
+                "analysis.finding_report",
+                "analysis.yara_scan",
+                "identity.ldap_probe",
+                "identity.smb_probe",
                 "network.portscanner",
+                "network.snmp_get",
+                "network.ssh_probe",
+                "recon.dns_lookup",
+                "recon.shodan_lookup",
                 "http.http_headers",
+                "http.eyewitness",
                 "http.http_probe",
+                "http.nikto",
                 "http.webfin",
+                "wireless.wifi_scan",
                 "runtime.job",
                 "runtime.pipeline",
                 "runtime.control",
@@ -75,8 +99,12 @@ class RegistryCompletionTests(unittest.TestCase):
         )
 
     def test_registry_tracks_provider_groups(self):
+        self.assertEqual(self.registry.grouped_names()["analysis"], ["finding_dedupe", "finding_report", "yara_scan"])
+        self.assertEqual(self.registry.grouped_names()["identity"], ["ldap_probe", "smb_probe"])
+        self.assertEqual(self.registry.grouped_names()["network"], ["portscanner", "snmp_get", "ssh_probe"])
         self.assertIn("os", self.registry.provider_names())
         self.assertEqual(self.registry.grouped_names()["os"], ["cat", "less", "ls"])
+        self.assertEqual(self.registry.grouped_names()["recon"], ["dns_lookup", "shodan_lookup"])
         self.assertEqual(
             self.registry.grouped_names()["runtime"],
             [
@@ -267,17 +295,18 @@ class RegistryCompletionTests(unittest.TestCase):
 
     def test_completes_plugin_options(self):
         completer = Completer(self.registry)
-        self.assertIn("--ports", completer.candidates("portscanner --p"))
+        self.assertIn("ports=", completer.candidates("portscanner por"))
         self.assertIn("--from-run", completer.candidates("portscanner --from"))
         http_options = completer.candidates("http_headers --")
         self.assertIn("--help", http_options)
-        self.assertIn("--port", http_options)
-        self.assertIn("--ssl", http_options)
-        self.assertIn("--timeout", http_options)
+        self.assertIn("port=", completer.candidates("http_headers po"))
+        self.assertIn("ssl=", completer.candidates("http_headers ss"))
+        self.assertIn("timeout=", completer.candidates("http_headers ti"))
         probe_options = completer.candidates("http_probe --")
-        self.assertIn("--cookie-file", probe_options)
-        self.assertIn("--firefox-profile", probe_options)
-        self.assertIn("--method", probe_options)
+        self.assertIn("--silent", probe_options)
+        self.assertIn("cookie-file=", completer.candidates("http_probe coo"))
+        self.assertIn("firefox-profile=", completer.candidates("http_probe fir"))
+        self.assertIn("method=", completer.candidates("http_probe me"))
 
     def test_artifact_completion_prefers_actions_first(self):
         completer = Completer(self.registry)
@@ -288,6 +317,7 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn("dir=", completer.candidates("artifact save "))
         self.assertIn("note=", completer.candidates("artifact search "))
         self.assertIn("--regexp", completer.candidates("search "))
+        self.assertIn("filename=", completer.candidates("search "))
         self.assertIn("content=", completer.candidates("search "))
 
     def test_prompt_toolkit_completer_hides_repeated_key_prefix_in_display(self):
@@ -351,16 +381,11 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertEqual(
             completer.candidates("portscanner --"),
             [
-                "--arguments",
-                "--except",
                 "--from-pipeline",
                 "--from-run",
                 "--from-topic",
                 "--help",
                 "--listen",
-                "--listen-interval",
-                "--listen-timeout",
-                "--ports",
                 "--silent",
             ],
         )

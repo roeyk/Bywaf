@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import selectors
 import subprocess
+import tempfile
 import time
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -250,7 +251,7 @@ class CommandContext:
 
     @property
     def artifacts(self) -> "ContextArtifacts":
-        """Return the mediated encrypted artifact API for plugin code."""
+        """Return the mediated artifact API for plugin code."""
         return ContextArtifacts(self)
 
     @property
@@ -566,6 +567,29 @@ class CommandContext:
         }
         if self.request("framework.file.page.requested", payload) is None:
             print(file_path.read_text(errors="replace"), end="", flush=True)
+
+    def page_text(self, text: object, *, suffix: str = ".txt") -> None:
+        """Page generated text through the same framework path as local files."""
+        content = str(text)
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=suffix, delete=False) as handle:
+            handle.write(content)
+            if content and not content.endswith("\n"):
+                handle.write("\n")
+            path = Path(handle.name)
+        payload = {
+            "path": str(path),
+            "source": self.source,
+            "command_run_id": self.command_run_id,
+            "pipeline_id": self.pipeline_id,
+            "job_id": self.job_id,
+            "background": self.background,
+            "temporary": True,
+        }
+        if self.request("framework.file.page.requested", payload) is None:
+            try:
+                print(path.read_text(errors="replace"), end="", flush=True)
+            finally:
+                path.unlink(missing_ok=True)
 
 
 @dataclass(frozen=True, slots=True)
@@ -1018,6 +1042,69 @@ class ContextEvents:
             )
         )
 
+    def follow(
+        self,
+        topics: tuple[str, ...],
+        *,
+        after_id: int = 0,
+        limit: int = 100,
+        pipeline_id: str | None = None,
+        command_run_id: str | None = None,
+        parent_command_run_id: str | None = None,
+        until_parent_done: bool = False,
+        idle_interval: float = 1.0,
+        timeout: float | None = None,
+    ) -> Iterable[Event]:
+        """Yield matching events until cancellation, timeout, or parent completion.
+
+        This is for finite second-stage listeners in pipelines. When
+        `until_parent_done` is true, the stream exits after the parent command
+        run has completed or failed and all matching events have been drained.
+        Long-running service plugins should leave `until_parent_done` false and
+        use cancellation/signals or their own stop condition.
+        """
+        cursor = after_id
+        scoped_pipeline = pipeline_id if pipeline_id is not None else self.context.pipeline_id
+        scoped_run = command_run_id
+        if scoped_run is None and until_parent_done:
+            scoped_run = self.context.parent_command_run_id
+        deadline = None if timeout is None or timeout <= 0 else time.monotonic() + timeout
+        while True:
+            if self.context.cancelled():
+                return
+            events = self.fetch(
+                topics,
+                after_id=cursor,
+                limit=limit,
+                pipeline_id=scoped_pipeline,
+                command_run_id=scoped_run,
+                parent_command_run_id=parent_command_run_id,
+            )
+            if events:
+                cursor = max(event.id or cursor for event in events)
+                yield from events
+                continue
+            if until_parent_done and self.command_run_terminal(scoped_run):
+                return
+            if deadline is not None and time.monotonic() >= deadline:
+                return
+            sleep_for = idle_interval
+            if deadline is not None:
+                sleep_for = min(sleep_for, max(0.0, deadline - time.monotonic()))
+            time.sleep(max(0.0, sleep_for))
+
+    def command_run_terminal(self, command_run_id: str | None) -> bool:
+        """Return whether a command run has reached a terminal lifecycle event."""
+        if command_run_id is None:
+            return False
+        db = self.require_event_store(f"{self.context.source} event follow")
+        self.context.audit_capability("db.read:command.run.completed")
+        self.context.audit_capability("db.read:command.run.failed")
+        return bool(
+            db.events_matching(topic="command.run.completed", command_run_id=command_run_id, limit=1)
+            or db.events_matching(topic="command.run.failed", command_run_id=command_run_id, limit=1)
+        )
+
     def query(
         self,
         *,
@@ -1098,7 +1185,7 @@ def signal_applies_to_context(event: Event, context: CommandContext) -> bool:
 
 @dataclass(frozen=True, slots=True)
 class ContextArtifacts:
-    """Framework-mediated encrypted artifact API exposed to commandlets."""
+    """Framework-mediated artifact API exposed to commandlets."""
 
     context: CommandContext
 
@@ -1112,7 +1199,7 @@ class ContextArtifacts:
         pipeline_id: str | None = None,
         command_run_id: str | None = None,
     ) -> Artifact:
-        """Attach one file to the encrypted artifact store and audit it."""
+        """Attach one file to the paired artifact store and audit it."""
         db = self.require_event_store("artifact attach")
         self.context.audit_capability("filesystem.read")
         self.context.audit_capability("artifact.write")

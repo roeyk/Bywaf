@@ -20,6 +20,15 @@ classifiers = [
 [project.optional-dependencies]
 sqlcipher = ["sqlcipher3-binary>=0.6.0"]
 reporting = ["openpyxl>=3.1", "python-docx>=1.1"]
+plugins = [
+    "dnspython>=2.6",
+    "impacket>=0.12",
+    "ldap3>=2.9",
+    "paramiko>=3.4",
+    "pysnmp>=4.4",
+    "shodan>=1.31",
+    "yara-python>=4.5",
+]
 
 [project.scripts]
 bywaf = "bywaf.__main__:main"

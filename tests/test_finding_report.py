@@ -1,0 +1,107 @@
+import tempfile
+import unittest
+from pathlib import Path
+
+from bywaf.db import EventStore
+from bywaf.app import make_runner
+from bywaf.plugin import CommandContext
+from bywaf.plugins.analysis.finding_report import FindingReport, infer_export_format
+
+
+def context_for(db: EventStore) -> CommandContext:
+    return CommandContext(
+        db=db,
+        source="finding_report",
+        metadata={"capabilities": FindingReport().spec.capabilities},
+    )
+
+
+class FindingReportTests(unittest.TestCase):
+    def test_report_renders_deduped_findings_as_framework_table(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            finding = db.publish(
+                "finding.new",
+                {
+                    "title": "Missing Content-Security-Policy header",
+                    "description": "CSP header is absent",
+                    "target": {"scheme": "https", "host": "example.test", "port": "443", "path": "/"},
+                    "identifiers": {"cve": ["CVE-2026-0001"]},
+                    "severity": "medium",
+                    "recommendation": "Add a Content-Security-Policy header.",
+                },
+                "finding_dedupe",
+            )
+            list(FindingReport().run(context_for(db), [], [finding]))
+            request = db.events_for_topic("framework.render.table.requested")[0]
+            self.assertEqual(request.payload["columns"][0]["title"], "Finding name")
+            row = request.payload["rows"][0]
+            self.assertEqual(row["finding_name"], "Missing Content-Security-Policy header")
+            self.assertEqual(row["hosts_affected"], "https://example.test:443/")
+            self.assertEqual(row["cve"], "CVE-2026-0001")
+
+    def test_report_falls_back_to_raw_tool_findings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            event = db.publish(
+                "vulnerability.potential",
+                {
+                    "title": "Directory listing enabled",
+                    "url": "http://example.test/files",
+                    "severity": "low",
+                },
+                "scanner",
+            )
+            list(FindingReport().run(context_for(db), ["source=tools"], [event]))
+            row = db.events_for_topic("framework.render.table.requested")[0].payload["rows"][0]
+            self.assertEqual(row["finding_name"], "Directory listing enabled")
+            self.assertIn("directory", row["recommendation"].lower())
+
+    def test_export_infers_format_and_attaches_artifact(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            db = EventStore(root / "bywaf.sqlite3")
+            event = db.publish(
+                "finding.new",
+                {
+                    "title": "Known vulnerable component",
+                    "class": "known_vulnerable_component",
+                    "target": {"host": "example.test"},
+                    "severity": "high",
+                },
+                "finding_dedupe",
+            )
+            output = root / "findings.csv"
+            list(FindingReport().run(context_for(db), [f"export={output}"], [event]))
+            self.assertTrue(output.exists())
+            self.assertIn("Finding name", output.read_text())
+            self.assertEqual(db.events_for_topic("artifact.attached")[0].payload["name"], "findings.csv")
+
+    def test_export_format_is_inferred_from_suffix(self):
+        self.assertEqual(infer_export_format(Path("report.docx"), "md"), "docx")
+        self.assertEqual(infer_export_format(Path("report.xlsx"), "md"), "xlsx")
+        self.assertEqual(infer_export_format(Path("report.json"), "md"), "jsonl")
+        self.assertEqual(infer_export_format(Path("report.unknown"), "csv"), "csv")
+
+    def test_pipeline_report_uses_preceding_dedupe_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "vulnerability.potential",
+                {
+                    "title": "Missing Content-Security-Policy header",
+                    "class": "missing_security_header",
+                    "url": "https://example.test/",
+                    "severity": "medium",
+                },
+                "scanner",
+            )
+            runner.execute("finding_dedupe -s | finding_report")
+            request = runner.db.events_for_topic("framework.render.table.requested")[0]
+            row = request.payload["rows"][0]
+            self.assertEqual(row["finding_name"], "Missing Content-Security-Policy header")
+            self.assertEqual(runner.db.events_for_topic("finding.new")[0].command_run_id, request.parent_command_run_id)
+
+
+if __name__ == "__main__":
+    unittest.main()

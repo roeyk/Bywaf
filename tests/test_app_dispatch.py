@@ -298,6 +298,22 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, f"less {path}")
             run.assert_called_once_with(["/usr/bin/less", str(path)], check=False)
 
+    def test_list_action_page_uses_system_pager_for_generated_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.record_job("hostscanner 127.0.0.1", 123, "running")
+            with (
+                patch("bywaf.app.shutil.which", return_value="/usr/bin/less"),
+                patch("bywaf.app.sys.stdin.isatty", return_value=True),
+                patch("bywaf.app.sys.stdout.isatty", return_value=True),
+                patch("bywaf.app.subprocess.run") as run,
+            ):
+                dispatch_repl_line(runner, "job list --page")
+            run.assert_called_once()
+            argv = run.call_args.args[0]
+            self.assertEqual(argv[0], "/usr/bin/less")
+            self.assertFalse(Path(argv[1]).exists())
+
     def test_dispatch_unknown_command_prints_error(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

@@ -69,6 +69,40 @@ network.listen
 Use topic suffixes where they add clarity. Use coarser names for behavior that
 does not naturally map to one resource.
 
+## Capability Codes
+
+Each framework capability should also have a stable human-facing code in
+`C###` format. The dotted capability name remains the semantic identifier used
+in plugin metadata, documentation, and audit payloads; the `C###` code is a
+compact stable shorthand for tables, prompts, reports, and operator selection.
+
+Example:
+
+```text
+C302  framework.process.stream
+```
+
+Codes are not transient row numbers. Once assigned, a code should not be
+reused for a different capability.
+
+Accepted code ranges:
+
+```text
+C001-C099   framework core/session/completion/help
+C100-C199   events and audit
+C200-C299   database and artifact storage
+C300-C399   process execution and OS access
+C400-C499   network access
+C500-C599   credential/secret/cookie access
+C600-C699   policy/scope/control-plane actions
+C700-C799   rendering/export/report generation
+C800-C899   plugin/package management
+C900-C999   reserved/experimental/local
+```
+
+`audit list capabilities` should display both the code and dotted name, and all
+timestamps in capability reports should include a timezone.
+
 ## Plugin Integration Types
 
 Capability requirements depend heavily on how a plugin integrates with other

@@ -64,13 +64,14 @@ class Pipeline(CommandletBase):
         parser.add_argument("id", nargs="?")
         parser.add_argument("--all", action="store_true")
         parser.add_argument("--hard", action="store_true")
+        parser.add_argument("--page", action="store_true")
         parser.add_argument("--soft", action="store_true")
         parsed = parser.parse_args(args)
         context.require_foreground("pipeline management commands")
         validate_pipeline_mode(parsed.action, soft=parsed.soft, hard=parsed.hard)
         match parsed.action:
             case "list":
-                print_pipelines(context, active_only=not parsed.all, show_active=parsed.all)
+                print_pipelines(context, active_only=not parsed.all, show_active=parsed.all, page=parsed.page)
             case "show":
                 row = require_pipeline(context, parsed.id)
                 db = context.require_db()
@@ -93,7 +94,7 @@ class Pipeline(CommandletBase):
         if len(args) == 1 and args[0] == "attach":
             return pipeline_ids(context)
         if len(args) == 1 and args[0] == "list":
-            return ["--all"]
+            return ["--all", "--page"]
         if len(args) == 1 and args[0] in {"show", "cancel", "end", "kill"}:
             return pipeline_ids(context)
         if len(args) == 1 and args[0] not in PIPELINE_ACTIONS:
@@ -101,13 +102,13 @@ class Pipeline(CommandletBase):
         if args and args[0] == "attach":
             return attach_candidates(context, args, prefix)
         if args and args[0] == "list":
-            return ["--all"] if "--all".startswith(prefix) else []
+            return [option for option in ("--all", "--page") if option.startswith(prefix)]
         if len(args) >= 2 and args[0] in {"show", "cancel", "end", "kill"}:
             return pipeline_ids(context)
         return []
 
 
-def print_pipelines(context: CommandContext, *, active_only: bool = True, show_active: bool = False) -> None:
+def print_pipelines(context: CommandContext, *, active_only: bool = True, show_active: bool = False, page: bool = False) -> None:
     """Print active pipelines by default, or all pipelines when requested."""
     rows = context.require_db().pipelines(active_only=active_only)
     if not rows:
@@ -137,12 +138,14 @@ def print_pipelines(context: CommandContext, *, active_only: bool = True, show_a
                 format_runtime_timestamp(row["last_seen"]),
             )
         )
-    context.output(
-        render_table(
-            ("PIPELINE", "SERIAL", "STATE", "NAME", "JOB", "STATUS", "RUNS", "EVENTS", "ARTIFACTS", "FIRST", "LAST"),
-            table_rows,
-        )
+    output = render_table(
+        ("PIPELINE", "SERIAL", "STATE", "NAME", "JOB", "STATUS", "RUNS", "EVENTS", "ARTIFACTS", "FIRST", "LAST"),
+        table_rows,
     )
+    if page:
+        context.page_text(output)
+    else:
+        context.output(output)
 
 
 def validate_pipeline_mode(action: str, *, soft: bool, hard: bool) -> None:

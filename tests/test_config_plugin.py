@@ -166,6 +166,38 @@ class ConfigPluginTests(unittest.TestCase):
             missing = db.events_for_topic("plugin.capability.missing")
         self.assertEqual(missing[0].payload["capability"], "process.run")
 
+    def test_command_context_events_follow_stops_after_parent_completion(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="listener",
+                metadata={
+                    "pipeline_id": "pipe-1",
+                    "parent_command_run_id": "parent-run",
+                    "capabilities": (
+                        "db.read:host.found",
+                        "db.read:command.run.completed",
+                        "db.read:command.run.failed",
+                    ),
+                },
+            )
+            db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", pipeline_id="pipe-1", command_run_id="parent-run")
+            db.publish("host.found", {"host": "10.0.0.1"}, "other", pipeline_id="pipe-2", command_run_id="parent-run")
+            db.publish("command.run.completed", {"status": "completed"}, "framework", pipeline_id="pipe-1", command_run_id="parent-run")
+
+            events = list(
+                context.events.follow(
+                    ("host.found",),
+                    pipeline_id="pipe-1",
+                    until_parent_done=True,
+                    idle_interval=0,
+                    timeout=1,
+                )
+            )
+
+        self.assertEqual([event.payload["host"] for event in events], ["127.0.0.1"])
+
     def test_command_context_process_stream_records_incremental_output(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))

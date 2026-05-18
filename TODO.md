@@ -65,12 +65,18 @@ Planning dates are release planning markers, not compatibility commitments.
 - Expand the new native `webfin` plugin into the user-facing native pentesting
   example, and keep `web_fingerprint` plus `scope_audit` as naming/design
   candidates for future native commandlets if they become separate behaviors.
-- Add a Nikto wrapper plugin that invokes Nikto through the framework-mediated
-  process API, parses its output into structured events, and can consume
-  upstream hosts/ports from the Bywaf event database.
+- Keep the Nikto wrapper plugin as the external-tool wrapper example: it
+  invokes Nikto through the framework-mediated process API, parses JSON output
+  into structured finding and vulnerability events, and consumes upstream HTTP
+  endpoint/fingerprint events from the Bywaf event database.
+- Treat `eyewitness` and `wifi_scan` as additional external-tool wrapper
+  examples covering screenshot artifacts and wireless scan logs.
+- Treat `finding_dedupe` as the native finding-normalization step that prepares
+  scanner output for a later reporter plugin using the framework table
+  provider.
 - Add at least one documented end-to-end chain showing discovery, port
-  scanning, HTTP probing, Nikto scanning, table/report output, notes, and
-  artifacts.
+  scanning, HTTP probing, screenshots, Nikto scanning, table/report output,
+  notes, and artifacts.
 
 ### GUI/Web Frontend
 

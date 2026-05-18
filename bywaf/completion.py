@@ -44,6 +44,7 @@ FRAMEWORK_OPTION_COMPLETIONS = {
     "--from-pipeline": CompletionSpec("pipeline"),
     "--from-topic": CompletionSpec("topic"),
 }
+BINARY_OPTION_NAMES = {"listen", "silent"}
 COMPLETION_SELECT_KEY_VAR = "completion.select-key"
 COMPLETION_WASD_SELECTION_VAR = "completion.wasd-selection"
 DEFAULT_COMPLETION_SELECT_KEY = "c-space"
@@ -133,24 +134,68 @@ class Completer:
         if prefix.startswith("@"):
             return complete_at_file_prefix(prefix)
         plugin = self.registry.get(name)
-        if not prefix.startswith("--"):
-            custom_candidates = self.plugin_custom_candidates(name, prefix, args)
-            if custom_candidates:
-                return custom_candidates
+        variable_candidates = self.plugin_variable_candidates(name, prefix)
+        if variable_candidates:
+            return variable_candidates
+        if "=" in prefix and not prefix.startswith("--"):
+            key_value_candidates = self.plugin_key_value_candidates(name, prefix)
+            if key_value_candidates:
+                return key_value_candidates
         if args and not prefix.startswith("--"):
             previous = args[-2] if prefix and args[-1] == prefix and len(args) >= 2 else args[-1]
             value_candidates = self.plugin_option_value_candidates(name, previous, prefix)
             if value_candidates:
                 return value_candidates
         if not prefix.startswith("--"):
+            custom_candidates = self.plugin_custom_candidates(name, prefix, args)
+            matching_custom_candidates = [candidate for candidate in custom_candidates if candidate.startswith(prefix)]
+            if matching_custom_candidates:
+                return matching_custom_candidates
+        if not prefix.startswith("--"):
             positional_candidates = self.plugin_positional_candidates(name, prefix, args)
-            if positional_candidates:
-                return positional_candidates
-        options = ["-h", "--help", *[f"--{option.name}" for option in plugin.spec.options]]
+            matching_positional_candidates = [candidate for candidate in positional_candidates if candidate.startswith(prefix)]
+            if matching_positional_candidates:
+                return matching_positional_candidates
+        binary_flags = [f"--{option.name}" for option in plugin.spec.options if option_is_binary(option.name)]
+        valued_options = [f"{option.name}=" for option in plugin.spec.options if not option_is_binary(option.name)]
+        options = ["-h", "--help", *binary_flags]
         options.extend(("--from-run", "--from-pipeline", "--from-topic"))
         if prefix.startswith(".") or "/" in prefix:
             return complete_path(prefix)
-        return [*options, *plugin.spec.consumes, *plugin.spec.emits]
+        return [*valued_options, *options, *plugin.spec.consumes, *plugin.spec.emits]
+
+    def plugin_variable_candidates(self, plugin_name: str, prefix: str) -> list[str]:
+        """Complete variable references in positional or key=value arguments."""
+        key = ""
+        value_prefix = prefix
+        if "=" in prefix and not prefix.startswith("--"):
+            key, value_prefix = prefix.split("=", 1)
+        if not value_prefix.startswith("$"):
+            return []
+        variable_prefix = value_prefix[1:]
+        candidates = variable_reference_candidates(self.registry.varstore.names(), plugin_name, variable_prefix)
+        if key:
+            return [f"{key}={candidate}" for candidate in candidates]
+        return candidates
+
+    def plugin_key_value_candidates(self, plugin_name: str, prefix: str) -> list[str]:
+        """Complete explicit `name=value` arguments for valued commandlet options."""
+        key, value_prefix = prefix.split("=", 1)
+        plugin = self.registry.get(plugin_name)
+        for option in plugin.spec.options:
+            if option.name != key or option_is_binary(option.name):
+                continue
+            completion_candidates = self.complete_by_spec(option.completion, value_prefix)
+            if completion_candidates:
+                return [f"{key}={candidate}" for candidate in completion_candidates]
+            candidates = [*option.choices]
+            stored = self.registry.varstore.get(f"{plugin_name}.{option.name}")
+            if stored:
+                candidates.append(stored)
+            if option.default:
+                candidates.append(option.default)
+            return [f"{key}={candidate}" for candidate in candidates]
+        return []
 
     def plugin_option_value_candidates(self, plugin_name: str, option_token: str, prefix: str) -> list[str]:
         """Complete a value for a plugin option or framework selector."""
@@ -544,6 +589,27 @@ def framework_bool(value: str | None, *, default: bool) -> bool:
     if normalized in {"0", "false", "no", "off", "disabled"}:
         return False
     return default
+
+
+def option_is_binary(option_name: str) -> bool:
+    """Return whether an option should complete as a binary `--flag`."""
+    return option_name in BINARY_OPTION_NAMES
+
+
+def variable_reference_candidates(names: Sequence[str], commandlet: str, prefix: str) -> list[str]:
+    """Return `$variable` completions using commandlet and global shorthand."""
+    candidates: set[str] = set()
+    commandlet_prefix = f"{commandlet}."
+    for name in names:
+        if name.startswith(commandlet_prefix):
+            candidates.add(f"${name.removeprefix(commandlet_prefix)}")
+        if name.startswith("global."):
+            candidates.add(f"${name.removeprefix('global.')}")
+        candidates.add(f"${{{name}}}")
+        if "." not in name:
+            candidates.add(f"${name}")
+    full_prefix = f"${prefix}"
+    return sorted(candidate for candidate in candidates if candidate.startswith(full_prefix))
 
 
 def completion_select_key_display(completer: Completer) -> str:

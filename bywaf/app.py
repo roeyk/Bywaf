@@ -200,7 +200,7 @@ def repl(runner: Runner) -> None:
 
 def build_input_reader(completer: Completer) -> Callable[[str], str]:
     """Return the best available line reader for the current terminal."""
-    if sys.stdin.isatty() and sys.stdout.isatty():
+    if os.environ.get("BYWAF_INPUT_READER", "").casefold() != "readline" and sys.stdin.isatty() and sys.stdout.isatty():
         session = build_prompt_session(completer)
         if session is not None:
             return session.prompt
@@ -282,8 +282,16 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
                 events = runner.execute("job list --all")
                 process_framework_requests(runner, state)
                 print_events(events)
+            case ["jobs", "--page"]:
+                events = runner.execute("job list --page")
+                process_framework_requests(runner, state)
+                print_events(events)
             case ["pipelines"]:
                 events = runner.execute("pipeline list")
+                process_framework_requests(runner, state)
+                print_events(events)
+            case ["pipelines", "--page"]:
+                events = runner.execute("pipeline list --page")
                 process_framework_requests(runner, state)
                 print_events(events)
             case ["runs"]:
@@ -547,11 +555,15 @@ def handle_file_page_request(runner: Runner, state: ShellState, event) -> None:
         command_run_id=event.command_run_id,
         parent_command_run_id=event.parent_command_run_id,
     )
-    pager = shutil.which("less")
-    if pager and sys.stdin.isatty() and sys.stdout.isatty():
-        subprocess.run([pager, str(path)], check=False)
-        return
-    print(path.read_text(errors="replace"), end="", flush=True)
+    try:
+        pager = shutil.which("less")
+        if pager and sys.stdin.isatty() and sys.stdout.isatty():
+            subprocess.run([pager, str(path)], check=False)
+            return
+        print(path.read_text(errors="replace"), end="", flush=True)
+    finally:
+        if bool(event.payload.get("temporary")):
+            path.unlink(missing_ok=True)
 
 
 def handle_process_run_request(runner: Runner, state: ShellState, event) -> None:

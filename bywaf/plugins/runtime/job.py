@@ -46,6 +46,7 @@ class Job(CommandletBase):
         parser.add_argument("id", nargs="?")
         parser.add_argument("--all", action="store_true")
         parser.add_argument("--hard", action="store_true")
+        parser.add_argument("--page", action="store_true")
         parser.add_argument("--soft", action="store_true")
         parsed = parser.parse_args(args)
         context.require_db()
@@ -53,7 +54,7 @@ class Job(CommandletBase):
         validate_job_mode(parsed.action, soft=parsed.soft, hard=parsed.hard)
         match parsed.action:
             case "list":
-                print_jobs(context, active_only=not parsed.all, show_active=parsed.all)
+                print_jobs(context, active_only=not parsed.all, show_active=parsed.all, page=parsed.page)
             case "show":
                 row = require_job(context, parsed.id)
                 display_name = context.require_db().runtime_names().get(("job", str(row["id"])))
@@ -75,7 +76,7 @@ class Job(CommandletBase):
         if not args:
             return list(JOB_ACTIONS)
         if len(args) == 1 and args[0] == "list":
-            return ["--all"]
+            return ["--all", "--page"]
         if len(args) == 1 and args[0] in {"show", "cancel", "end", "kill"}:
             return job_ids(context)
         if len(args) == 1 and args[0] not in JOB_ACTIONS:
@@ -85,7 +86,7 @@ class Job(CommandletBase):
         return []
 
 
-def print_jobs(context: CommandContext, *, active_only: bool = True, show_active: bool = False) -> None:
+def print_jobs(context: CommandContext, *, active_only: bool = True, show_active: bool = False, page: bool = False) -> None:
     """Print known jobs with newest first."""
     rows = context.require_db().jobs(active_only=active_only)
     if not rows:
@@ -111,12 +112,14 @@ def print_jobs(context: CommandContext, *, active_only: bool = True, show_active
                 row["command_line"],
             )
         )
-    context.output(
-        render_table(
-            ("JOB", "SERIAL", "STATE", "PID", "STATUS", "ARTIFACTS", "NAME", "STARTED", "FINISHED", "COMMAND"),
-            table_rows,
-        )
+    output = render_table(
+        ("JOB", "SERIAL", "STATE", "PID", "STATUS", "ARTIFACTS", "NAME", "STARTED", "FINISHED", "COMMAND"),
+        table_rows,
     )
+    if page:
+        context.page_text(output)
+    else:
+        context.output(output)
 
 
 def validate_job_mode(action: str, *, soft: bool, hard: bool) -> None:

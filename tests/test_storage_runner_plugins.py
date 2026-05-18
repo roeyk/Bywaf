@@ -392,8 +392,12 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 process_framework_requests(runner, ShellState())
                 runner.execute("search run=run-1 content='server: test'")
                 process_framework_requests(runner, ShellState())
+                runner.execute("search run=run-1 filename=snapshot.html")
+                process_framework_requests(runner, ShellState())
+                runner.execute("artifact search run=run-1 --regexp filename='headers\\.txt'")
+                process_framework_requests(runner, ShellState())
             listing = output.getvalue()
-            self.assertEqual(listing.count(" name="), 6)
+            self.assertEqual(listing.count(" name="), 8)
             self.assertIn("name=Landing page", listing)
             self.assertIn("name=Headers", listing)
 
@@ -510,13 +514,16 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 process_framework_requests(runner, ShellState())
             self.assertIn("main-db sha256 mismatch", output.getvalue())
 
-    def test_artifact_attach_requires_encrypted_main_database(self):
+    def test_artifact_attach_uses_plaintext_store_for_plaintext_database(self):
         with tempfile.TemporaryDirectory() as tmp:
             source = Path(tmp, "note.txt")
             source.write_text("secret")
             runner = make_runner(Path(tmp, "db.sqlite3"))
-            with self.assertRaisesRegex(ValueError, "encrypted main database"):
+            with contextlib.redirect_stdout(io.StringIO()):
                 runner.execute(f"artifact attach run=run-1 file={source}")
+            artifacts = artifact_store_for_event_store(runner.db).list(command_run_id="run-1")
+            self.assertEqual(artifacts[0].body, b"secret")
+            self.assertTrue(artifact_db_path(runner.db.path).exists())
 
     def test_parse_empty_invocation_fails(self):
         with self.assertRaises(ValueError):

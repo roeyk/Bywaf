@@ -460,26 +460,26 @@ At execution time, commandlets receive a `CommandContext`:
 - `context.alert(message)`: request an operator alert from the framework
 - `context.progress(...)`: report throttled structured progress
 - `context.progress_started(...)`: report progress start
-
-For terminology, a pipeline groups one or more commandlet runs, a run is one
-invocation of one commandlet, and a job supervises the foreground or background
-work that executes those runs. See `TERMINOLOGY.md` for the canonical
-definitions plugin authors should use in docs, emitted events, and user-facing
-messages.
 - `context.progress_completed(...)`: report progress completion
 - `context.progress_failed(...)`: report progress failure
 - `context.table(rows, columns)`: print small tabular command output
 - `context.page_file(path)`: request frontend-owned paging for a local file
 - `context.process.run(argv)`: run an external process and capture output
 - `context.process.stream(argv)`: stream stdout/stderr chunks incrementally
-- `context.artifacts.attach_file(path, name=..., note=...)`: attach one encrypted evidence file
-- `context.artifacts.attach_files(paths)`: attach several encrypted evidence files
+- `context.artifacts.attach_file(path, name=..., note=...)`: attach one evidence file
+- `context.artifacts.attach_files(paths)`: attach several evidence files
 - `context.signals.pending(action=...)`: read live-control signals for this run
 - `context.signals.applied(request, message, **details)`: acknowledge a signal
 - `context.signals.ignored(request, message, **details)`: decline a signal
 - `context.request(topic, payload)`: advanced escape hatch for framework requests
 - `context.cancelled()`: whether a soft-cancellation request is pending
 - `context.raise_if_cancelled()`: raise if cancellation is pending
+
+For terminology, a pipeline groups one or more commandlet runs, a run is one
+invocation of one commandlet, and a job supervises the foreground or background
+work that executes those runs. See `TERMINOLOGY.md` for the canonical
+definitions plugin authors should use in docs, emitted events, and user-facing
+messages.
 
 Plugin-domain signals should be designed around runs. A run is the commandlet
 execution context that can poll `context.signals`; a job is the framework's
@@ -509,9 +509,8 @@ can review those notes with `note run=<id>`, `note pipeline=<id>`, or
 Commandlets also do not need to implement at-file expansion. The framework
 expands `@file`, `@raw:file`, `@lines:file`, and `@@literal` before calling
 plugin `run()`. Use `@lines:file` when a file should become multiple arguments,
-such as a target list for a scanner. When the active database is encrypted and
-artifact storage is available, the framework also stores expanded input files as
-encrypted provenance artifacts.
+such as a target list for a scanner. The framework also stores expanded input
+files as provenance artifacts when artifact storage is available.
 
 Commandlets also do not need to expand `$variables`. The framework expands
 unquoted and double-quoted variables before plugin parsing, leaves
@@ -528,16 +527,18 @@ context.output(f"attached artifact {snapshot.id}")
 context.artifacts.attach_files(["snapshot.html", "headers.txt"])
 ```
 
-Artifact bodies are stored in a separate encrypted SQLCipher database that uses
-the main encrypted database passphrase for the session. The main event database
-records `artifact.attached` provenance events containing the artifact id, hash,
-name, note, timestamp, job, pipeline, and command-run IDs. A commandlet can
-attach multiple artifacts to the same run; that is the expected model for
-screenshots, raw responses, parsed reports, and notes produced by one action.
+Artifact bodies are stored in a separate artifact database paired with the main
+event database. If the main DB is encrypted, the artifact DB is encrypted with
+the same session passphrase; if the main DB is plaintext, the artifact DB is
+plaintext too. The main event database records `artifact.attached` provenance
+events containing the artifact id, hash, name, note, timestamp, job, pipeline,
+and command-run IDs. A commandlet can attach multiple artifacts to the same run;
+that is the expected model for screenshots, raw responses, parsed reports, and
+notes produced by one action.
 
 Users can later `artifact replace`, `artifact remove`, `artifact save`, or
 `artifact verify` those records. Those mutations are audited in the main event
-database while artifact bodies remain in encrypted artifact storage.
+database while artifact bodies remain in the paired artifact store.
 
 Use structured progress events for in-flight status. Progress is for UI/runtime
 state; findings are still durable evidence events such as `host.found` or
@@ -596,6 +597,24 @@ for event in context.events.fetch(("host.found",), after_id=context.input_high_w
 usage. Raw `context.db` remains available for privileged/internal framework
 commandlets during the transition; accessing it records `db.raw`, and
 third-party plugins should avoid it.
+
+Finite listener commandlets should use `context.events.follow(...)` instead of
+hand-rolled polling loops. In a normal pipeline, a second-stage listener should
+stop after its parent run has completed or failed and all matching events have
+been drained:
+
+```python
+for event in context.events.follow(
+    ("host.found",),
+    after_id=context.input_high_watermark,
+    until_parent_done=True,
+):
+    context.events.publish("example.seen_host", {"host": event.payload["host"]})
+```
+
+Long-running service plugins should leave `until_parent_done` false and use
+`context.cancelled()`, `context.signals`, or their own configured stop
+condition.
 
 Plugins should also avoid direct process execution with `subprocess`,
 `os.system`, or `os.spawn*`. External tool wrappers should declare

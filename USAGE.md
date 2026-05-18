@@ -115,11 +115,21 @@ Dependency summary:
 
 ```text
 nmap                       required for hostscanner and portscanner
+nikto                      required for the nikto wrapper commandlet
+eyewitness                 required for the eyewitness screenshot wrapper
+kismet                     required for the wifi_scan wireless wrapper
 prompt_toolkit             required for rich interactive REPL completion
 nmaplib/python-nmap/etc.   Python nmap adapter; Bywaf tries supported adapters
 sqlcipher3-binary          optional Python SQLCipher driver for encrypted DBs
 sqlcipher                  optional system SQLCipher tooling/library
 scapy                      optional helper library for future packet plugins
+dnspython                  optional for dns_lookup
+impacket                   optional for smb_probe
+ldap3                      optional for ldap_probe
+paramiko                   optional for ssh_probe
+pysnmp                     optional for snmp_get
+shodan                     optional for shodan_lookup
+yara-python                optional for yara_scan
 ```
 
 Bywaf plugins are intended to wrap useful external tools and normalize their
@@ -352,8 +362,11 @@ bywaf> cmds
 discovery
   hostscanner
 http
+  eyewitness
   http_headers
   http_probe
+  nikto
+  webfin
 network
   portscanner
 os
@@ -469,18 +482,20 @@ bywaf> note add run=<command-run-id> text=follow-up note
 Notes are append-only. Adding another note creates another timestamped
 `note.attached` event instead of replacing earlier notes.
 
-# Encrypted Artifacts
+# Artifacts
 
 Artifacts are evidence files attached to a run, pipeline, or job. Artifact
-bodies are stored in a separate encrypted SQLCipher database next to the main
-database, using the main encrypted database passphrase for the session. The main
-database stores timestamped provenance events such as `artifact.attached` and
-`artifact.exported`; it does not store artifact bodies. Bywaf derives the
-artifact DB path from the active main DB path so the two files remain an
-integrity pair; arbitrary artifact DB switching is intentionally not exposed by
-default.
+bodies are stored in a separate artifact database next to the main database.
+If the main database is encrypted, the artifact database is encrypted with the
+same session passphrase. If the main database is plaintext, the artifact
+database is plaintext too. The main database stores timestamped provenance
+events such as `artifact.attached` and `artifact.exported`; it does not store
+artifact bodies. Bywaf derives the artifact DB path from the active main DB path
+so the two files remain an integrity pair; arbitrary artifact DB switching is
+intentionally not exposed by default.
 
-Start Bywaf with an encrypted database before attaching artifacts:
+Start Bywaf with an encrypted database when you want SQLCipher-protected
+artifact bodies:
 
 ```text
 bywaf --encrypt
@@ -500,8 +515,9 @@ List, search, save, and verify artifacts:
 ```text
 bywaf> artifact list run=<command-run-id>
 bywaf> search run=<command-run-id> name=landing
+bywaf> search run=<command-run-id> filename=snapshot.html
 bywaf> search run=<command-run-id> content=csrf
-bywaf> artifact search run=<command-run-id> --regexp note='landing|headers'
+bywaf> artifact search run=<command-run-id> --regexp filename='.*\\.png'
 bywaf> artifact replace artifact=1 file=snapshot-v2.html
 bywaf> artifact remove artifact=1
 bywaf> artifact save artifact=1 file=snapshot.html
@@ -512,12 +528,14 @@ bywaf> artifact verify pipeline=<pipeline-id>
 
 Use `name=` for human-readable artifact labels; if omitted, the source filename
 is used. The `search` commandlet, and its `artifact search` alias, search
-artifact metadata quickly. `name=`, `note=`, and `content=` narrow the search to
-artifact names, notes, or decoded text contents. Add `--regexp` to treat those
-field values as Python regular expressions. `since=` and `until=` restrict
-matches by artifact creation time. Use `file=` when saving exactly one artifact.
-Use `dir=` when saving a set. If `file=` matches multiple artifacts, Bywaf
-reports that clearly and asks you to use `dir=` instead.
+artifact metadata quickly. `name=`, `filename=`, `note=`, and `content=` narrow
+the search to artifact names, source filenames, notes, or decoded text contents. Add
+`--regexp` to treat those field values as Python regular expressions. Any
+commandlet whose main action is text search should follow the same `--regexp`
+convention. `since=` and `until=` restrict matches by artifact creation time.
+Use `file=` when saving exactly one artifact. Use `dir=` when saving a set. If
+`file=` matches multiple artifacts, Bywaf reports that clearly and asks you to
+use `dir=` instead.
 For `artifact attach`, `serial=` may refer to a run, pipeline, or job serial.
 Artifact serials identify existing artifact rows for listing, searching,
 saving, and verifying; artifacts are not attached to other artifacts.
@@ -658,6 +676,7 @@ List active jobs, or all jobs with an explicit active marker:
 ```text
 bywaf> job list
 bywaf> job list --all
+bywaf> job list --page
 bywaf> jobs --all
 ```
 
@@ -687,6 +706,7 @@ Pipelines can be inspected and controlled the same way:
 ```text
 bywaf> pipeline list
 bywaf> pipeline list --all
+bywaf> pipeline list --page
 bywaf> pipeline show <id>
 bywaf> pipeline cancel <id>
 bywaf> pipeline end <id>
@@ -698,7 +718,9 @@ Use `--all` to include historical entries. These commands render table views
 with local ID, durable serial, lifecycle state, names, timestamps, and an
 `ARTIFACTS` column counting artifacts attached so far. Set
 `vars global.listing.active-format=long` to include the state timestamp in the
-state column; set it to `short` for compact lifecycle labels.
+state column; set it to `short` for compact lifecycle labels. Use `--page` on
+list actions such as `job list`, `pipeline list`, and `artifact list` to view
+long output through the framework pager.
 
 For live runtime control, `signal` is the canonical command for a concrete
 receiver: a job, a command run, or a `serial=` that resolves to one of those.
@@ -1083,6 +1105,53 @@ Use listen mode to consume newly inserted hosts:
 bywaf> portscanner --listen
 ```
 
+`ssh_probe` uses Paramiko for SSH service/auth probing and emits
+`ssh.service`:
+
+```text
+bywaf> ssh_probe 127.0.0.1
+bywaf> ssh_probe username=test password=test 127.0.0.1
+```
+
+`snmp_get` uses pysnmp to read one OID and emits `snmp.value`:
+
+```text
+bywaf> snmp_get community=public oid=1.3.6.1.2.1.1.1.0 127.0.0.1
+```
+
+## recon
+
+`dns_lookup` uses dnspython and emits `dns.record` or `dns.error`:
+
+```text
+bywaf> dns_lookup example.com
+bywaf> dns_lookup record-type=MX example.com
+```
+
+`shodan_lookup` uses the Shodan Python library. Set `SHODAN_API_KEY`, use
+`api-key=...`, or set `vars shodan_lookup.api-key=...`.
+
+```text
+bywaf> shodan_lookup 8.8.8.8
+bywaf> shodan_lookup mode=search apache country:US
+```
+
+## identity
+
+`ldap_probe` uses ldap3 and emits `ldap.server`:
+
+```text
+bywaf> ldap_probe dc.example.test
+bywaf> ldap_probe username='EXAMPLE\\user' password=secret dc.example.test
+```
+
+`smb_probe` uses Impacket and emits `smb.server`:
+
+```text
+bywaf> smb_probe 127.0.0.1
+bywaf> smb_probe domain=EXAMPLE username=user password=secret dc.example.test
+```
+
 ## http
 
 `http_headers` performs HTTP HEAD requests and emits `http.headers` events:
@@ -1105,12 +1174,86 @@ bywaf> http_probe https://example.com/ | webfin
 bywaf> webfin https://example.com/
 ```
 
+`nikto` wraps the Nikto web scanner through the framework process API, attaches
+raw JSON output as an artifact, and emits
+`nikto.finding`, `vulnerability.found`, and `vulnerability.potential` events:
+
+```text
+bywaf> nikto https://example.com/
+bywaf> http_probe https://example.com/ | nikto
+bywaf> http_probe https://example.com/ | webfin | nikto
+```
+
+`source=webfin` is available when Nikto receives mixed upstream input and you
+want it to ignore plain `http.endpoint` events.
+
+`eyewitness` wraps EyeWitness for web screenshots. It writes output under
+`.bywaf/eyewitness/<run-id>` by default, or under `--output-dir` when supplied.
+Screenshot files are also attached to the encrypted artifact store when the
+active database is encrypted, or the plaintext artifact store otherwise.
+
+```text
+bywaf> eyewitness https://example.com/
+bywaf> http_probe https://example.com/ | eyewitness
+bywaf> eyewitness --output-dir=client-shots https://example.com/
+```
+
 For authorized session-aware testing, it can use cookies:
 
 ```text
 bywaf> vars http_probe.cookie-file=/path/to/cookies.txt
 bywaf> http_probe https://example.com/
 bywaf> http_probe --firefox-profile ~/.mozilla/firefox/<profile>
+```
+
+## wireless
+
+`wifi_scan` wraps a Kismet-style wireless scan. It writes logs under
+`.bywaf/wireless/<run-id>` by default, attaches produced files to the paired
+artifact store, and emits `wifi.network` plus `kismet.network` events from JSON
+output when present.
+
+```text
+bywaf> wifi_scan interface=wlan0mon duration=60
+bywaf> vars wifi_scan.interface=wlan0mon
+bywaf> wifi_scan duration=120
+```
+
+## analysis
+
+`finding_dedupe` normalizes vulnerability/finding events and emits deduplicated
+finding lifecycle events: `finding.new`, `finding.duplicate`,
+`finding.updated`, and `finding.merge_candidate`. It preserves the original
+scanner output and points normalized findings back to their source events, so a
+reporter plugin can later render tables from the normalized event stream.
+
+```text
+bywaf> nikto https://example.com/ | finding_dedupe
+bywaf> finding_dedupe file=dedupe-summary.json
+bywaf> finding_dedupe format=md file=findings.md
+```
+
+Exact matches use standardized identifiers such as CVE/CWE/GHSA/vendor IDs
+when available, then target identity and stable evidence fingerprints. Fuzzy
+text matching is only used as a low-confidence `finding.merge_candidate`.
+
+`finding_report` renders normalized dedupe events or raw tool findings as a
+table through the framework table provider. The columns are Finding name,
+Description, Host(s) affected, CVE, Severity rating, and Recommendation.
+`export=` writes the table to a file, infers the format from the suffix, and
+attaches the report as an artifact.
+
+```text
+bywaf> finding_report
+bywaf> finding_report source=tools
+bywaf> finding_report export=findings.md
+bywaf> finding_report export=findings.xlsx
+```
+
+`yara_scan` uses yara-python and emits `yara.match`:
+
+```text
+bywaf> yara_scan rule=webshells.yar shell.php
 ```
 
 # Common Workflows
@@ -1212,6 +1355,29 @@ Run tests:
 python3 -m unittest discover -s tests
 ```
 
+Run completion regressions only:
+
+```bash
+python3 -m unittest discover -s tests -p 'test_completion_regression.py'
+```
+
+The completion regression suite loads every default commandlet and verifies
+that command names, binary `--flag` options, value-bearing `name=` arguments,
+choice values, filespec values, `$variable` references, runtime selectors,
+pipe-position command completion, and prompt-toolkit display labels stay
+consistent.
+
+Run the PTY-level readline Tab smoke tests only:
+
+```bash
+python3 -m unittest discover -s tests -p 'test_interactive_completion_smoke.py'
+```
+
+Those smoke tests launch the real REPL under `pexpect`, type partial commands,
+send Tab, and verify the terminal text. They force `BYWAF_INPUT_READER=readline`
+for deterministic PTY behavior; prompt-toolkit display behavior is covered by
+the faster completion adapter tests.
+
 Add a commandlet by defining a class with a `CommandSpec` and a `run()` method,
 then expose it through a `plugin()` factory. Add bundled commandlets to
 `bywaf/plugins/plugins.json` when they should load by default.
@@ -1240,7 +1406,7 @@ kill [--soft|--hard] <job=id|pipeline=id|run=id>
 name <run=id|pipeline=id|job=id> [name text]
 note [add] <run=id|pipeline=id|job=id> [text=note|file=path]
 artifact <attach|list|remove|replace|save|search|verify> [artifact=id|run=id|pipeline=id|job=id] [file=path|dir=path]
-search [--regexp] <name=text|note=text|content=text> [artifact=id|run=id|pipeline=id|job=id] [since=time|until=time]
+search [--regexp] <name=text|filename=text|note=text|content=text> [artifact=id|run=id|pipeline=id|job=id] [since=time|until=time]
 jobs
 pipelines
 runs

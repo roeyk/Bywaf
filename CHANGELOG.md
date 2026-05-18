@@ -5,7 +5,119 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-18 09:52:25 EDT
+Last updated: 2026-05-18 14:59:08 EDT
+
+### 2026-05-18 14:39:43 EDT
+
+#### Added
+
+- Added a generated completion regression suite covering commandlet names,
+  binary `--flag` options, value-bearing `name=` arguments, choice values,
+  filespec completions, `$variable` references, runtime selectors,
+  pipe-position commandlet completion, and prompt-toolkit display labels.
+- Added PTY-level readline completion smoke tests that launch the real REPL,
+  type partial commands, send Tab, and verify the terminal text for pipe
+  command completion, filespec arguments, and `--` prefix handling.
+
+#### Changed
+
+- Completion now follows the command syntax rule: `--flag` is for binary flags,
+  while `name=value` is for arguments or selectors that take a value.
+- Added `BYWAF_INPUT_READER=readline` for deterministic interactive completion
+  smoke tests while keeping prompt-toolkit as the default interactive reader.
+
+### 2026-05-18 14:17:22 EDT
+
+#### Added
+
+- Added the native `finding_report` analysis commandlet. It reads normalized
+  dedupe findings or raw tool vulnerability events and renders a findings table
+  through the framework table provider.
+- Added `finding_report export=...`, which infers the table output format from
+  the filename suffix and attaches the exported report as an artifact.
+
+#### Changed
+
+- Pipeline stages now pass directly-published declared output events to the
+  next stage, not only yielded payload events. This lets
+  `finding_dedupe | finding_report` report on the immediately preceding
+  commandlet's findings.
+
+### 2026-05-18 14:01:37 EDT
+
+#### Added
+
+- Added the native `finding_dedupe` analysis commandlet. It consumes
+  vulnerability/finding events, emits `finding.new`, `finding.duplicate`,
+  `finding.updated`, and `finding.merge_candidate`, and can write/attach JSON
+  or Markdown dedupe summaries for later reporting.
+
+#### Changed
+
+- Documented the dedupe model: exact standardized identifiers first, then
+  target and evidence fingerprints, with fuzzy text matching reserved for
+  reviewable merge candidates.
+
+### 2026-05-18 12:40:40 EDT
+
+#### Added
+
+- Added initial library-backed commandlets for optional Python pentesting
+  libraries: `dns_lookup` using dnspython, `shodan_lookup` using Shodan,
+  `ssh_probe` using Paramiko, `snmp_get` using pysnmp, `ldap_probe` using
+  ldap3, `smb_probe` using Impacket, and `yara_scan` using yara-python.
+- Added `context.events.follow(...)` for finite second-stage listeners. A
+  listener can now follow scoped upstream events and terminate after its parent
+  command run has completed or failed and all matching events are drained.
+- Added `command.run.started`, `command.run.completed`, and
+  `command.run.failed` lifecycle events around commandlet execution.
+
+#### Changed
+
+- `portscanner --listen` now uses the framework event-follow helper instead of
+  its own polling loop.
+- `wifi_scan` examples now use Bywaf-style `interface=` and `duration=`
+  arguments.
+
+### 2026-05-18 12:24:49 EDT
+
+#### Changed
+
+- Artifact storage now mirrors the main database encryption mode. Encrypted
+  main databases use encrypted artifact databases with the same passphrase;
+  plaintext main databases use plaintext artifact databases instead of
+  rejecting artifact attachment.
+
+### 2026-05-18 12:12:28 EDT
+
+#### Added
+
+- Added the `eyewitness` HTTP screenshot wrapper commandlet. It runs
+  EyeWitness through the framework process API, emits `eyewitness.screenshot`
+  and `web.screenshot` events, writes screenshots under a durable output
+  directory by default, and attaches screenshots as encrypted artifacts when
+  available.
+- Added the `wifi_scan` wireless wrapper commandlet. It runs a Kismet-style
+  scan through the framework process API, writes logs under a durable output
+  directory by default, attaches output files when possible, and emits
+  `wifi.network` and `kismet.network` events from JSON output.
+- Added `filename=` to `search` and `artifact search`, with `--regexp` support,
+  so source filenames can be searched separately from human artifact names.
+
+### 2026-05-18 12:02:07 EDT
+
+#### Added
+
+- Added the `nikto` HTTP wrapper commandlet. It runs Nikto through the
+  framework-mediated process API, reads JSON output, emits `nikto.finding`,
+  `vulnerability.found`, and `vulnerability.potential` events, and attempts to
+  attach raw Nikto JSON as an encrypted artifact when artifact storage is
+  available.
+
+#### Changed
+
+- Documented Nikto as the MVP external-tool wrapper plugin and added it to the
+  HTTP workflow examples.
 
 ### 2026-05-18 09:52:25 EDT
 

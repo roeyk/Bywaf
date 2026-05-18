@@ -965,39 +965,124 @@ def execute_stage(
         runner=runner,
     )
     context.raise_if_cancelled()
+    stage_start_event_id = db.latest_event_id()
+    publish_command_run_lifecycle(context, "started")
     publish_note_if_present(db, context, invocation.note)
-    if invocation.display_name:
-        publish_runtime_name(
+    try:
+        if invocation.display_name:
+            publish_runtime_name(
+                db,
+                "run",
+                stage.command_run_id,
+                invocation.display_name,
+                job_id=job_id,
+                pipeline_id=pipeline_id,
+                command_run_id=stage.command_run_id,
+                parent_command_run_id=stage.parent_command_run_id,
+            )
+        publish_variable_expansion(context, invocation.variable_expansions)
+        expanded_args = expand_at_file_args(context, invocation.args)
+        planned_args = handle_plan_if_needed(context, plugin, expanded_args, selected_input_events, invocation)
+        if planned_args is None:
+            publish_command_run_lifecycle(context, "completed", emitted=0, skipped=True)
+            return StageResult([])
+        expanded_args = normalize_valued_option_args(plugin, planned_args)
+        for input_topic in sorted({event.topic for event in selected_input_events}):
+            context.audit_capability(f"db.read:{input_topic}")
+        topic = plugin.spec.emits[0] if plugin.spec.emits else plugin.spec.name
+        yielded_events = []
+        for payload in plugin.run(context, expanded_args, selected_input_events):
+            context.audit_capability(f"db.write:{topic}")
+            yielded_events.append(db.publish(
+                topic,
+                payload,
+                plugin.spec.name,
+                pipeline_id=pipeline_id,
+                command_run_id=stage.command_run_id,
+                parent_command_run_id=stage.parent_command_run_id,
+            ))
+        events = pipeline_visible_stage_events(
             db,
-            "run",
+            plugin.spec.emits,
             stage.command_run_id,
-            invocation.display_name,
-            job_id=job_id,
-            pipeline_id=pipeline_id,
-            command_run_id=stage.command_run_id,
-            parent_command_run_id=stage.parent_command_run_id,
+            after_id=stage_start_event_id,
+            yielded_events=yielded_events,
         )
-    publish_variable_expansion(context, invocation.variable_expansions)
-    expanded_args = expand_at_file_args(context, invocation.args)
-    planned_args = handle_plan_if_needed(context, plugin, expanded_args, selected_input_events, invocation)
-    if planned_args is None:
-        return StageResult([])
-    expanded_args = planned_args
-    for input_topic in sorted({event.topic for event in selected_input_events}):
-        context.audit_capability(f"db.read:{input_topic}")
-    topic = plugin.spec.emits[0] if plugin.spec.emits else plugin.spec.name
-    events = []
-    for payload in plugin.run(context, expanded_args, selected_input_events):
-        context.audit_capability(f"db.write:{topic}")
-        events.append(db.publish(
-            topic,
-            payload,
-            plugin.spec.name,
-            pipeline_id=pipeline_id,
-            command_run_id=stage.command_run_id,
-            parent_command_run_id=stage.parent_command_run_id,
-        ))
-    return StageResult(events)
+        publish_command_run_lifecycle(context, "completed", emitted=len(events))
+        return StageResult(events)
+    except Exception as exc:
+        publish_command_run_lifecycle(context, "failed", error=str(exc), exception=exc.__class__.__name__)
+        raise
+
+
+def pipeline_visible_stage_events(
+    db: EventStore,
+    emitted_topics: tuple[str, ...],
+    command_run_id: str,
+    *,
+    after_id: int,
+    yielded_events: list[Event],
+) -> list[Event]:
+    """Return events from this stage that should feed the next pipeline stage."""
+    if not emitted_topics:
+        return yielded_events
+    emitted = set(emitted_topics)
+    direct_events = [
+        event
+        for event in db.events_matching(command_run_id=command_run_id, after_id=after_id, limit=10000)
+        if event.topic in emitted
+    ]
+    by_id: dict[int, Event] = {}
+    unsaved: list[Event] = []
+    for event in [*yielded_events, *direct_events]:
+        if event.id is None:
+            unsaved.append(event)
+            continue
+        by_id[event.id] = event
+    return [*unsaved, *[by_id[event_id] for event_id in sorted(by_id)]]
+
+
+def normalize_valued_option_args(plugin, args: list[str]) -> list[str]:
+    """Convert public `name=value` syntax into argparse `--name value` pairs."""
+    valued_options = {
+        option.name
+        for option in plugin.spec.options
+        if option.name not in {"listen", "silent"}
+    }
+    normalized: list[str] = []
+    for arg in args:
+        if "=" not in arg or arg.startswith("--"):
+            normalized.append(arg)
+            continue
+        key, value = arg.split("=", 1)
+        if key not in valued_options:
+            normalized.append(arg)
+            continue
+        normalized.extend((f"--{key}", value))
+    return normalized
+
+
+def publish_command_run_lifecycle(context: CommandContext, status: str, **details: object) -> Event | None:
+    """Publish command-run lifecycle events used by finite listeners."""
+    if context._db is None:
+        return None
+    payload = {
+        "status": status,
+        "commandlet": context.source,
+        "job_id": context.job_id,
+        "pipeline_id": context.pipeline_id,
+        "command_run_id": context.command_run_id,
+        "parent_command_run_id": context.parent_command_run_id,
+    }
+    payload.update(details)
+    return context._db.publish(
+        f"command.run.{status}",
+        payload,
+        "framework",
+        pipeline_id=context.pipeline_id,
+        command_run_id=context.command_run_id,
+        parent_command_run_id=context.parent_command_run_id,
+    )
 
 
 def handle_plan_if_needed(

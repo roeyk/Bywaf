@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from time import monotonic, sleep
-
 from bywaf.events import Event
 from bywaf.nmap_backend import scan_open_ports
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option, split_var_values
@@ -126,36 +124,25 @@ def listen_for_upstream_hosts(context: CommandContext, parsed, seen_hosts: set[s
     pipeline_id = context.pipeline_id
     if not pipeline_id:
         raise ValueError("portscanner --listen must be used in a pipeline scope")
-    after_id = context.input_high_watermark
-    deadline = monotonic() + parsed.listen_timeout if parsed.listen_timeout > 0 else None
-    while deadline is None or monotonic() < deadline:
-        if context.cancelled():
-            return
-        events = context.events.fetch(
+    for event in context.events.follow(
             ("host.found",),
-            after_id=after_id,
+            after_id=context.input_high_watermark,
             pipeline_id=pipeline_id,
             command_run_id=upstream_id,
+            until_parent_done=True,
+            idle_interval=parsed.listen_interval,
+            timeout=parsed.listen_timeout if parsed.listen_timeout > 0 else None,
+    ):
+        if "host" not in event.payload or event.payload["host"] in parsed.excluded_hosts:
+            continue
+        yield from scan_hosts(
+            context,
+            [event.payload["host"]],
+            parsed.ports,
+            parsed.arguments,
+            seen_hosts,
+            parsed.silent,
         )
-        if events:
-            after_id = max(event.id or after_id for event in events)
-            hosts = [
-                event.payload["host"]
-                for event in events
-                if "host" in event.payload and event.payload["host"] not in parsed.excluded_hosts
-            ]
-            yield from scan_hosts(
-                context,
-                hosts,
-                parsed.ports,
-                parsed.arguments,
-                seen_hosts,
-                parsed.silent,
-            )
-        elif deadline is not None:
-            sleep(min(parsed.listen_interval, max(0, deadline - monotonic())))
-        else:
-            sleep(parsed.listen_interval)
 
 
 def plugin() -> Commandlet:

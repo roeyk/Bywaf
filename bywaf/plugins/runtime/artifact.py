@@ -1,4 +1,4 @@
-"""Runtime commandlet for encrypted artifacts and provenance verification."""
+"""Runtime commandlet for artifacts and provenance verification."""
 
 from __future__ import annotations
 
@@ -25,12 +25,12 @@ from bywaf.utils import complete_path
 
 ARTIFACT_ACTIONS = ("attach", "list", "remove", "replace", "save", "search", "verify")
 SEARCH_FLAGS = ("--regexp",)
-SEARCH_FIELDS = ("name", "note", "content")
+SEARCH_FIELDS = ("name", "filename", "note", "content")
 
 
 @commandlet(
     name="artifact",
-    description="Attach, list, save, replace, remove, and verify encrypted artifacts.",
+    description="Attach, list, save, replace, remove, and verify artifacts.",
     usage="artifact <attach|list|save|replace|remove|search|verify> [serial=id|artifact=id|run=id|pipeline=id|job=id] [file=path|dir=path]",
     examples=(
         "artifact attach run=1 file=snapshot.html name='Landing page'",
@@ -56,7 +56,7 @@ SEARCH_FIELDS = ("name", "note", "content")
 @argument("action", "artifact action", completion=CompletionSpec("choice", ARTIFACT_ACTIONS))
 @argument("selector", "serial=, artifact=, run=, pipeline=, job=, file=, dir=, name=, or note=", required=False)
 class ArtifactCommand(CommandletBase):
-    """Manage encrypted artifacts linked to Bywaf runtime entities."""
+    """Manage artifacts linked to Bywaf runtime entities."""
 
     def run(
         self,
@@ -73,7 +73,8 @@ class ArtifactCommand(CommandletBase):
             case "attach":
                 attach_artifacts(context, parse_artifact_selectors(tokens))
             case "list":
-                list_artifacts(context, parse_artifact_selectors(tokens))
+                selectors = parse_artifact_selectors(tokens, allow_page=True)
+                list_artifacts(context, selectors, page=pop_page_flag(selectors))
             case "remove":
                 remove_artifacts(context, parse_artifact_selectors(tokens))
             case "replace":
@@ -116,23 +117,25 @@ class ArtifactCommand(CommandletBase):
                 return ["artifact=", "file=", "name=", "note="]
             case "remove":
                 return ["artifact=", "serial=", "run=", "pipeline=", "job="]
-            case "list" | "verify":
+            case "list":
+                return ["artifact=", "serial=", "run=", "pipeline=", "job=", "--page"]
+            case "verify":
                 return ["artifact=", "serial=", "run=", "pipeline=", "job="]
             case "save":
                 return ["artifact=", "serial=", "run=", "pipeline=", "job=", "file=", "dir="]
             case "search":
-                return ["name=", "note=", "content=", "serial=", "--regexp", "artifact=", "run=", "pipeline=", "job=", "since=", "until="]
+                return ["name=", "filename=", "note=", "content=", "serial=", "--regexp", "artifact=", "run=", "pipeline=", "job=", "since=", "until="]
             case _:
                 return list(ARTIFACT_ACTIONS)
 
 
 @commandlet(
     name="search",
-    description="Search encrypted artifact metadata and text content.",
-    usage="search [--regexp] <name=text|note=text|content=text|serial=id> [artifact=id|run=id|pipeline=id|job=id] [since=time|until=time]",
+    description="Search artifact metadata and text content.",
+    usage="search [--regexp] <name=text|filename=text|note=text|content=text|serial=id> [artifact=id|run=id|pipeline=id|job=id] [since=time|until=time]",
     examples=(
         "search name=landing",
-        "search --regexp note='login|cookie'",
+        "search --regexp filename='.*\\.png'",
         "search serial=pipeline-...",
         "search run=1 content=csrf",
     ),
@@ -142,7 +145,7 @@ class ArtifactCommand(CommandletBase):
         "framework.console.output",
     ),
 )
-@argument("query", "name=, note=, or content= query text", required=False)
+@argument("query", "name=, filename=, note=, or content= query text", required=False)
 @argument("regexp", "--regexp treats query values as Python regular expressions", required=False, completion=CompletionSpec("choice", SEARCH_FLAGS))
 class SearchCommand(CommandletBase):
     """Search artifact metadata without changing artifacts."""
@@ -157,7 +160,7 @@ class SearchCommand(CommandletBase):
         del input_events
         selectors = parse_search_selectors(args)
         if not any(field in selectors for field in SEARCH_FIELDS) and "serial" not in selectors:
-            raise ValueError("search requires name=, note=, content=, or serial=")
+            raise ValueError("search requires name=, filename=, note=, content=, or serial=")
         artifacts = search_artifacts(context, selectors)
         if not artifacts:
             context.output("no artifacts matched")
@@ -179,15 +182,19 @@ class SearchCommand(CommandletBase):
             return [f"artifact={value}" for value in artifact_ids(context)]
         if prefix.startswith("serial="):
             return [f"serial={value}" for value in serial_ids(context)]
-        return ["name=", "note=", "content=", "serial=", "--regexp", "artifact=", "run=", "pipeline=", "job=", "since=", "until="]
+        return ["name=", "filename=", "note=", "content=", "serial=", "--regexp", "artifact=", "run=", "pipeline=", "job=", "since=", "until="]
 
 
-def parse_artifact_selectors(tokens: list[str]) -> dict[str, list[str]]:
+def parse_artifact_selectors(tokens: list[str], *, allow_page: bool = False) -> dict[str, list[str]]:
     """Parse artifact key=value selectors, preserving repeated file= values."""
     selectors: dict[str, list[str]] = {}
     index = 0
     while index < len(tokens):
         token = tokens[index]
+        if token == "--page" and allow_page:
+            selectors.setdefault("page", []).append("true")
+            index += 1
+            continue
         if "=" not in token:
             raise ValueError(f"invalid artifact selector: {token}")
         key, value = token.split("=", 1)
@@ -217,7 +224,7 @@ def parse_search_selectors(tokens: list[str]) -> dict[str, list[str]]:
         if "=" not in token:
             raise ValueError(f"invalid search selector: {token}")
         key, value = token.split("=", 1)
-        if key not in {"artifact", "run", "pipeline", "job", "serial", "name", "note", "content", "since", "until"}:
+        if key not in {"artifact", "run", "pipeline", "job", "serial", "name", "filename", "note", "content", "since", "until"}:
             raise ValueError(f"unknown search selector: {key}")
         if not value:
             raise ValueError(f"search selector {key}= requires a value")
@@ -248,14 +255,23 @@ def attach_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
         context.output(format_artifact_row(artifact))
 
 
-def list_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> None:
+def list_artifacts(context: CommandContext, selectors: dict[str, list[str]], *, page: bool = False) -> None:
     """List artifacts matching optional selectors."""
-    for artifact in select_artifacts(context, selectors):
-        context.output(format_artifact_row(artifact))
+    lines = [format_artifact_row(artifact) for artifact in select_artifacts(context, selectors)]
+    if page and lines:
+        context.page_text("\n".join(lines))
+        return
+    for line in lines:
+        context.output(line)
+
+
+def pop_page_flag(selectors: dict[str, list[str]]) -> bool:
+    """Remove and return the internal artifact-list page flag."""
+    return bool(selectors.pop("page", []))
 
 
 def save_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> None:
-    """Save selected encrypted artifacts back to the filesystem."""
+    """Save selected artifacts back to the filesystem."""
     artifacts = select_artifacts(context, selectors)
     if not artifacts:
         context.output("no artifacts matched")
@@ -419,7 +435,7 @@ def search_artifact_command(context: CommandContext, tokens: list[str]) -> None:
     """Run artifact metadata search from the namespaced artifact command."""
     selectors = parse_search_selectors(tokens)
     if not any(field in selectors for field in SEARCH_FIELDS) and "serial" not in selectors:
-        raise ValueError("artifact search requires name=, note=, content=, or serial=")
+        raise ValueError("artifact search requires name=, filename=, note=, content=, or serial=")
     artifacts = search_artifacts(context, selectors)
     if not artifacts:
         context.output("no artifacts matched")
@@ -522,7 +538,7 @@ def resolve_pipeline_selector(context: CommandContext, value: str | None) -> str
 
 
 def artifact_search_queries(selectors: dict[str, list[str]], *, use_regexp: bool) -> list[tuple[str, str | re.Pattern[str]]]:
-    """Compile search query selectors for name/note/content fields."""
+    """Compile search query selectors for artifact metadata/content fields."""
     queries: list[tuple[str, str | re.Pattern[str]]] = []
     for field in SEARCH_FIELDS:
         for value in selectors.get(field, []):
@@ -550,6 +566,8 @@ def artifact_field_value(artifact: Artifact, field: str) -> str:
     match field:
         case "name":
             return artifact.name
+        case "filename":
+            return Path(artifact.source_path or "").name
         case "note":
             return artifact.note or ""
         case "content":

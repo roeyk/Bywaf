@@ -1,4 +1,4 @@
-"""Encrypted artifact storage linked to the main event audit database."""
+"""Artifact storage linked to the main event audit database."""
 
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ ON artifacts(job_id, pipeline_id, command_run_id);
 
 @dataclass(frozen=True, slots=True)
 class Artifact:
-    """One decrypted artifact row plus provenance metadata."""
+    """One artifact row plus provenance metadata."""
 
     id: int
     artifact_id: str
@@ -61,7 +61,7 @@ class Artifact:
 
     @classmethod
     def from_row(cls, row: Any) -> "Artifact":
-        """Rehydrate an artifact from a SQLCipher row."""
+        """Rehydrate an artifact from a database row."""
         return cls(
             id=int(row["id"]),
             artifact_id=str(row["artifact_id"]),
@@ -91,14 +91,15 @@ class ArtifactVerification:
 
 
 class ArtifactStore:
-    """SQLCipher-backed artifact body store.
+    """Artifact body store paired with a main event DB.
 
     The main event DB records audit events. This store owns encrypted artifact
-    bodies and duplicates enough provenance to stand alone during recovery.
+    bodies when the main DB is encrypted, otherwise plaintext artifact bodies.
+    It duplicates enough provenance to stand alone during recovery.
     """
 
-    def __init__(self, path: Path | str, *, passphrase: str):
-        if sqlcipher is None:
+    def __init__(self, path: Path | str, *, passphrase: str | None = None):
+        if passphrase is not None and sqlcipher is None:
             raise RuntimeError("artifact storage requires the sqlcipher3-binary package")
         self.path = Path(path)
         self.passphrase = passphrase
@@ -106,13 +107,17 @@ class ArtifactStore:
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:
-        """Open a SQLCipher connection using the main DB passphrase."""
-        if sqlcipher is None:
-            raise RuntimeError("artifact storage requires the sqlcipher3-binary package")
+        """Open a connection using SQLCipher only when the main DB is encrypted."""
+        driver: Any = sqlite3
+        if self.passphrase is not None:
+            if sqlcipher is None:
+                raise RuntimeError("artifact storage requires the sqlcipher3-binary package")
+            driver = sqlcipher
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        conn = sqlcipher.connect(str(self.path), timeout=30, isolation_level=None)
-        conn.row_factory = sqlcipher.Row
-        set_sqlcipher_key(conn, self.passphrase)
+        conn = driver.connect(str(self.path), timeout=30, isolation_level=None)
+        conn.row_factory = driver.Row
+        if self.passphrase is not None:
+            set_sqlcipher_key(conn, self.passphrase)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA busy_timeout=30000")
         try:
@@ -121,7 +126,7 @@ class ArtifactStore:
             conn.close()
 
     def initialize(self) -> None:
-        """Create the encrypted artifact schema."""
+        """Create the artifact schema."""
         with self.connect() as conn:
             conn.executescript(ARTIFACT_SCHEMA)
 
@@ -137,7 +142,7 @@ class ArtifactStore:
         command_run_id: str | None = None,
         parent_command_run_id: str | None = None,
     ) -> Artifact:
-        """Store one file as an encrypted artifact and return its row."""
+        """Store one file as an artifact and return its row."""
         source_path = path.expanduser()
         data = source_path.read_bytes()
         artifact_id = f"artifact-{uuid.uuid4().hex}"
@@ -231,7 +236,7 @@ class ArtifactStore:
         return results
 
     def remove(self, artifact: Artifact) -> None:
-        """Delete one artifact row from encrypted storage."""
+        """Delete one artifact row from storage."""
         with self.connect() as conn:
             conn.execute("DELETE FROM artifacts WHERE id = ?", (artifact.id,))
 
@@ -279,13 +284,11 @@ class ArtifactStore:
 
 
 def artifact_db_path(main_db_path: Path | str) -> Path:
-    """Return the encrypted artifact DB path for a main Bywaf database."""
+    """Return the paired artifact DB path for a main Bywaf database."""
     path = Path(main_db_path)
     return path.with_name(f"{path.stem}.artifacts.sqlite3")
 
 
 def artifact_store_for_event_store(db: EventStore) -> ArtifactStore:
-    """Open the artifact store using the active encrypted DB passphrase."""
-    if db.passphrase is None:
-        raise ValueError("artifact storage requires an encrypted main database")
+    """Open the paired artifact store using the main DB encryption mode."""
     return ArtifactStore(artifact_db_path(db.path), passphrase=db.passphrase)
