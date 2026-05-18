@@ -1,19 +1,55 @@
-# Bywaf Usage Guide
+# Bywaf
 
-# Overview
+Bywaf is a highly-auditable Python 3 commandlet framework for authorized web
+application and network testing workflows.
 
-Bywaf is a robust and highly auditable Python 3 commandlet framework for authorized web
-application and network testing workflows. It presents a Metasploit-like
-interactive shell, loads commandlets from plugins, and connects commandlets
-through a SQLite-backed event bus.
+Typical assessments often look like:
 
-The core idea is simple: one commandlet discovers something and publishes it as
-an event; another commandlet consumes that event and publishes the next result.
-For example, `hostscanner` can publish live hosts, `portscanner` can consume
-those hosts and publish open ports, and HTTP commandlets can consume open ports
-and probe web services.
+- run a tool;
+- copy output;
+- transform output;
+- save notes somewhere;
+- run another tool;
+- lose provenance;
+- forget assumptions;
+- lose intermediate state.
+
+Bywaf replaces those manual handoffs with structured events, durable runtime
+records, artifacts, notes, policy decisions, and replayable workflow state. It
+presents a Metasploit-like interactive shell, loads commandlets from plugins,
+and connects commandlets through a SQLite-backed event bus.
+
+The core workflow is intentionally simple:
+
+```text
+hostscanner 192.168.1.0/24 | portscanner | http_probe
+```
+
+That command expresses a complete chain:
+
+```text
+hostscanner  -> emits host.found
+portscanner  -> consumes host.found, emits port.open
+http_probe   -> consumes port.open, emits http.endpoint
+```
+
+The important difference from a plain stdout pipe is that each stage publishes
+normalized events into a durable database. Later commandlets, reports,
+artifact searches, audit exports, and future GUI/web frontends can inspect the
+same recorded facts instead of scraping terminal scrollback.
+
+## Why Not Bash, Metasploit, Airflow, Or Scripts?
+
+| Tool | Good at | Bywaf's distinction |
+| --- | --- | --- |
+| Bash | Fast shell glue | Durable event flow, runtime records, notes, artifacts, and provenance are built in. |
+| Metasploit | Exploitation workflows and module ecosystem | Bywaf focuses on auditable event-driven orchestration over normalized assessment data. |
+| Airflow | Scheduled batch/data pipelines | Bywaf is interactive, operator-driven, and built around live security assessment workflows. |
+| Python scripts | Maximum flexibility | Bywaf gives scripts a common shell, plugin API, event store, audit trail, and reusable workflow state. |
 
 Use Bywaf only on systems and networks where you have explicit authorization.
+
+## Project References
 
 Project changes are summarized in [CHANGELOG.md](CHANGELOG.md).
 Evolving framework design notes are tracked in [DESIGN.md](DESIGN.md).

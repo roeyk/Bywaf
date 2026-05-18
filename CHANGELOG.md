@@ -5,7 +5,15 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-17 21:31:17 EDT
+Last updated: 2026-05-17 21:42:38 EDT
+
+### 2026-05-17 21:42:38 EDT
+
+#### Changed
+
+- Reworked the README opening around the assessment handoff problem, a compact
+  Bywaf pipeline example, and a comparison with Bash, Metasploit, Airflow, and
+  standalone Python scripts.
 
 ### 2026-05-17 21:31:17 EDT
 
