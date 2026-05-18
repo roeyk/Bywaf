@@ -8,3 +8,10 @@ __pycache__/
 build/
 *.egg-info/
 dist/
+.pybuild/
+debian/.debhelper/
+debian/bywaf/
+debian/debhelper-build-stamp
+debian/files
+debian/*.debhelper
+debian/*.substvars

@@ -59,8 +59,6 @@ Planning dates are release planning markers, not compatibility commitments.
 
 - Upload the 0.9.x source and wheel artifacts to TestPyPI, then PyPI, and
   verify installation from PyPI in a clean virtual environment.
-- Decide whether GitHub releases should attach generated `.deb`, `.rpm`,
-  source, and wheel artifacts directly.
 - Keep pip, Debian, RPM, and plugin install-path smoke scripts aligned as
   packaging behavior changes.
 - Decide whether Bywaf should auto-discover user-local and system-wide plugin
@@ -75,6 +73,9 @@ Planning dates are release planning markers, not compatibility commitments.
 
 - 2026-05-18: Added persistent release builders for pip source/wheel artifacts
   under `dist/` and RPM artifacts under `dist/rpm/`.
+- 2026-05-18: Added persistent Debian release artifacts under `dist/deb/` and
+  a tag-driven GitHub Actions workflow that builds, smoke-tests, uploads, and
+  attaches pip, Debian, and RPM artifacts to GitHub Releases.
 - 2026-05-18: Built and smoke-tested pip source/wheel distributions, the
   Debian package, and RPM source/noarch packages from the packaging scaffolds.
 - 2026-05-18: Verified packaged installs expose a normal `bywaf` executable,

@@ -5,7 +5,21 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-18 09:30:33 EDT
+Last updated: 2026-05-18 09:33:46 EDT
+
+### 2026-05-18 09:33:46 EDT
+
+#### Added
+
+- Added `scripts/build_deb_package.sh`, which builds local Debian artifacts
+  and copies them under `dist/deb/`.
+- Added a tag-driven GitHub Actions release workflow that builds pip, Debian,
+  and RPM artifacts with the local release scripts, smoke-tests package outputs,
+  uploads workflow artifacts, and attaches them to tagged GitHub Releases.
+
+#### Changed
+
+- Updated the all-package release builder to include Debian artifacts.
 
 ### 2026-05-18 09:30:33 EDT
 

@@ -95,12 +95,12 @@ bywaf --help
 ```
 
 For a local Debian package build, install the Debian build dependencies and
-run `dpkg-buildpackage` from the repository root:
+write artifacts under `dist/deb/`:
 
 ```bash
 sudo apt install debhelper dh-python pybuild-plugin-pyproject python3-all python3-setuptools python3-prompt-toolkit
-dpkg-buildpackage -us -uc -b
-sudo apt install ../bywaf_0.9.0-1_all.deb
+scripts/build_deb_package.sh
+sudo apt install dist/deb/bywaf_0.9.0-1_all.deb
 bywaf --help
 ```
 
@@ -121,6 +121,11 @@ tests/scripts/smoke_rpm_package.sh
 tests/scripts/smoke_plugin_install_paths.sh
 tests/scripts/smoke_installed_package.sh
 ```
+
+Release tags named `v*` trigger the GitHub Actions release workflow. The
+workflow builds pip, Debian, and RPM artifacts with the same local scripts,
+smoke-tests the package outputs, uploads the artifacts to the workflow run, and
+attaches them to the GitHub Release for the tag.
 
 The project metadata defines a console script named `bywaf`, so packaged
 installations can expose Bywaf as a normal command instead of requiring

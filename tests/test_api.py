@@ -1,9 +1,26 @@
 from pathlib import Path
 import tempfile
+import time
 import unittest
 from unittest.mock import patch
 
 from bywaf import BywafSession
+
+
+TERMINAL_JOB_STATUSES = {"finished", "failed", "cancelled", "killed", "stale"}
+
+
+def wait_for_session_jobs(session: BywafSession, *, timeout: float = 5.0):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        session.db.mark_stale_jobs()
+        jobs = session.jobs()
+        if jobs and all(job["status"] in TERMINAL_JOB_STATUSES for job in jobs):
+            session.checkpoint()
+            time.sleep(0.05)
+            return jobs
+        time.sleep(0.05)
+    raise AssertionError("background session jobs did not finish before timeout")
 
 
 class ApiTests(unittest.TestCase):
@@ -21,7 +38,7 @@ class ApiTests(unittest.TestCase):
             session = BywafSession.open(Path(tmp, "db.sqlite3"))
             event = session.run_background("job list")
             self.assertEqual(event.topic, "job.requested")
-            self.assertIn(session.jobs()[0]["status"], {"queued", "claimed", "running", "finished", "failed"})
+            self.assertIn(wait_for_session_jobs(session)[0]["status"], TERMINAL_JOB_STATUSES)
 
     def test_session_lists_plugins_and_commandlets(self):
         with tempfile.TemporaryDirectory() as tmp:
