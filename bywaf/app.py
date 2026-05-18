@@ -55,7 +55,7 @@ HELP_COMMANDS = (
     HelpEntry("jobs", "alias for job list", "jobs"),
     HelpEntry("pipelines", "alias for pipeline list", "pipelines"),
     HelpEntry("runs", "show commandlet run IDs", "runs"),
-    HelpEntry("vars [name=value]", "list or set session variables", "vars [name=value]", ("vars http_probe.cookie-file=/tmp/cookies.txt",)),
+    HelpEntry("vars [name[=value]]", "list, show, or set session variables", "vars [name[=value]]", ("vars http_probe.cookie-file=/tmp/cookies.txt", "vars http_probe.cookie-file")),
     HelpEntry("topics", "list event topics in the active database", "topics"),
     HelpEntry("use <commandlet|global>", "set the active variable context", "use <commandlet|global>"),
     HelpEntry("event <topic|job=id|run=id|pipeline=id|serial=id>", "show events for a topic, job, run, pipeline, or serial", "event <topic|job=id|run=id|pipeline=id|serial=id>", ("event host.found", "event run=1", "event pipeline=1", "event serial=hostscanner-...")),
@@ -274,8 +274,8 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
             case ["vars", assignment] if "=" in assignment:
                 key, value = assignment.split("=", 1)
                 runner.registry.varstore.set(resolve_var_key(state, key.strip()), value.strip())
-            case ["vars", _]:
-                print("usage: vars [name=value]")
+            case ["vars", name]:
+                print_var(runner, state, name)
             case ["topics"]:
                 print_topics(runner)
             case ["topics", prefix]:
@@ -924,6 +924,16 @@ def print_vars(runner: Runner) -> None:
     """Print session variables in stable key order."""
     for key, value in runner.registry.varstore.items():
         print(f"{key}={value}")
+
+
+def print_var(runner: Runner, state: ShellState, name: str) -> None:
+    """Print one session variable after applying active-context scoping."""
+    key = resolve_var_key(state, name.strip())
+    value = runner.registry.varstore.get(key)
+    if value is None:
+        print(f"error: variable not set: {key}")
+        return
+    print(f"{key}={value}")
 
 
 def set_active_context(runner: Runner, state: ShellState, target: str) -> None:

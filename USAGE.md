@@ -862,6 +862,12 @@ Set a variable:
 bywaf> vars name=value
 ```
 
+Show one variable:
+
+```text
+bywaf> vars name
+```
+
 Common examples:
 
 ```text

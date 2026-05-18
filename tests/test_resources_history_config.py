@@ -105,7 +105,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "help vars")
-            self.assertIn("Usage:   vars [name=value]", output.getvalue())
+            self.assertIn("Usage:   vars [name[=value]]", output.getvalue())
 
     def test_dispatch_help_for_unknown_command(self):
         with tempfile.TemporaryDirectory() as tmp:

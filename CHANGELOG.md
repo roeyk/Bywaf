@@ -5,7 +5,14 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-17 22:59:17 EDT
+Last updated: 2026-05-17 23:14:36 EDT
+
+### 2026-05-17 23:14:36 EDT
+
+#### Added
+
+- Added `vars <name>` lookup for printing a single session variable value,
+  using the same active-context scoping as `vars <name>=<value>`.
 
 ### 2026-05-17 22:59:17 EDT
 

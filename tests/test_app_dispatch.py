@@ -153,6 +153,23 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(runner.registry.varstore.get("hostscanner.targets"), "127.0.0.1")
             self.assertEqual(runner.registry.varstore.get("target"), "global")
 
+    def test_vars_name_prints_one_variable_value(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "vars global.proxy=http://127.0.0.1:8080", state)
+                dispatch_repl_line(runner, "vars global.proxy", state)
+                dispatch_repl_line(runner, "use hostscanner", state)
+                dispatch_repl_line(runner, "vars targets=127.0.0.1", state)
+                dispatch_repl_line(runner, "vars targets", state)
+                dispatch_repl_line(runner, "vars missing", state)
+            text = output.getvalue()
+            self.assertIn("global.proxy=http://127.0.0.1:8080", text)
+            self.assertIn("hostscanner.targets=127.0.0.1", text)
+            self.assertIn("error: variable not set: hostscanner.missing", text)
+
     def test_dispatch_ls_lists_local_files(self):
         with tempfile.TemporaryDirectory() as tmp:
             Path(tmp, "file.txt").write_text("x")
