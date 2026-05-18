@@ -20,6 +20,27 @@ The framework should support long-running and interruptible audit workflows clea
 
 Bywaf should integrate cleanly with existing security tools, libraries, and workflows whenever practical instead of unnecessarily reinventing mature functionality.
 
+Metasploit is an important point of comparison because it already provides an
+interactive security console, a large module ecosystem, sessions, jobs, and
+well-established pentest workflows. Bywaf should not try to win by imitating
+Metasploit feature-for-feature. Its goal is to occupy a related but distinct
+space: highly auditable event-driven orchestration, pipeline composition, and
+Python-first plugin ergonomics over normalized assessment data.
+
+The overlap is intentional at the user-interface level. A Metasploit-like shell
+is familiar to operators, and that familiarity lowers the cost of adoption.
+The difference should be visible in what happens after commands run: Bywaf
+should preserve durable provenance, expose structured event flows, make
+intermediate results reusable by later commandlets, and keep enough audit data
+for replay, reporting, and review.
+
+In practice, this means Bywaf can wrap tools that overlap with Metasploit,
+including scanners and exploit-support utilities, but the framework's central
+value is coordination and traceability rather than replacing every mature tool.
+Where Metasploit is strongest as an exploitation framework, Bywaf should be
+strongest as an auditable workflow framework that lets discovery, analysis,
+artifact capture, and reporting stages cooperate without manual handoffs.
+
 The framework should support:
 
 - subprocess-based tool wrappers;
