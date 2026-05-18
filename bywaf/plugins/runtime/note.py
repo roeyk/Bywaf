@@ -28,7 +28,7 @@ from bywaf.utils import complete_path
         "note job=12 file=notes.txt",
         "note add run=1 text=follow-up note",
     ),
-    capabilities=("db.raw", "filesystem.read", "filesystem.write", "framework.console.output"),
+    capabilities=("filesystem.read", "filesystem.write", "framework.console.output"),
 )
 @argument(
     "selector",
@@ -121,7 +121,7 @@ def parse_note_selectors(args: list[str], *, allow_text: bool) -> dict[str, str]
 
 def add_note(context: CommandContext, selectors: dict[str, str]) -> None:
     """Append a note to an existing runtime entity."""
-    db = context.require_db("note")
+    events = context.event_store("note")
     selectors = resolve_note_selectors(context, selectors)
     note_text = selectors.get("text")
     if note_text is None:
@@ -136,7 +136,7 @@ def add_note(context: CommandContext, selectors: dict[str, str]) -> None:
         "parent_command_run_id": None,
         "commandlet": "note",
     }
-    db.publish(
+    events.publish(
         "note.attached",
         payload,
         "framework",
@@ -148,15 +148,15 @@ def add_note(context: CommandContext, selectors: dict[str, str]) -> None:
 
 def select_note_events(context: CommandContext, selectors: dict[str, str]) -> list[Event]:
     """Return note events matching the selected runtime entity."""
-    db = context.require_db("note")
+    events = context.event_store("note")
     selectors = resolve_note_selectors(context, selectors)
     if "job" in selectors:
         try:
             job_id = int(selectors["job"])
         except ValueError as exc:
             raise ValueError(f"invalid job id: {selectors['job']}") from exc
-        return [event for event in db.events_for_job(job_id) if event.topic == "note.attached"]
-    return db.events_matching(
+        return [event for event in events.events_for_job(job_id) if event.topic == "note.attached"]
+    return events.events_matching(
         topic="note.attached",
         command_run_id=selectors.get("run"),
         pipeline_id=selectors.get("pipeline"),
@@ -198,10 +198,11 @@ def job_ids(context: CompletionContext) -> list[str]:
 def resolve_note_selectors(context: CommandContext, selectors: dict[str, str]) -> dict[str, str]:
     """Resolve user-facing runtime IDs to durable serials for note events."""
     resolved = dict(selectors)
+    runtime = context.runtime_store("note")
     if "run" in resolved:
-        resolved["run"] = context.require_db("note").resolve_run_serial(resolved["run"])
+        resolved["run"] = runtime.resolve_run_serial(resolved["run"])
     if "pipeline" in resolved:
-        resolved["pipeline"] = context.require_db("note").resolve_pipeline_serial(resolved["pipeline"])
+        resolved["pipeline"] = runtime.resolve_pipeline_serial(resolved["pipeline"])
     return resolved
 
 

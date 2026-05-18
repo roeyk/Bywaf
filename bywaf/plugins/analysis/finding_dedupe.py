@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -37,6 +37,8 @@ STATUS_RANKS = {
     "confirmed": 3,
 }
 OPTION_KEYS = {"file", "format", "limit", "threshold"}
+DecisionPayloadBuilder = Callable[[dict[str, Any], str], dict[str, Any]]
+AlertTextBuilder = Callable[[dict[str, Any]], str]
 
 
 @dataclass(frozen=True, slots=True)
@@ -311,39 +313,62 @@ def decision_payload(decision: dict[str, Any]) -> dict[str, Any]:
     """Return the event payload for one dedupe decision."""
     kind = str(decision["decision"])
     finding_id = str(decision["finding_id"])
-    match kind:
-        case "new":
-            finding = decision["finding"]
-            return finding.as_payload(finding_id)
-        case "duplicate":
-            duplicate = decision["duplicate"]
-            return {
-                "finding_id": finding_id,
-                "duplicate_of": finding_id,
-                "matched_on": list(decision["matched_on"]),
-                "source": source_payload(duplicate),
-            }
-        case "updated":
-            previous = decision["previous"]
-            finding = decision["finding"]
-            return {
-                "finding_id": finding_id,
-                "previous_status": previous.status,
-                "new_status": finding.status,
-                "reason": "higher-confidence status from later source event",
-                "source": source_payload(finding),
-            }
-        case "merge_candidate":
-            candidate = decision["candidate"]
-            return {
-                "finding_id": finding_id,
-                "candidate_for": finding_id,
-                "score": round(float(decision["score"]), 3),
-                "matched_on": list(decision["matched_on"]),
-                "candidate": candidate.as_payload(stable_finding_id(candidate.exact_key())),
-            }
-        case _:
-            raise ValueError(f"unknown dedupe decision: {kind}")
+    builder = decision_payload_builders().get(kind)
+    if builder is None:
+        raise ValueError(f"unknown dedupe decision: {kind}")
+    return builder(decision, finding_id)
+
+
+def decision_payload_builders() -> dict[str, DecisionPayloadBuilder]:
+    """Return dedupe decision payload builders keyed by decision name."""
+    return {
+        "new": new_decision_payload,
+        "duplicate": duplicate_decision_payload,
+        "updated": updated_decision_payload,
+        "merge_candidate": merge_candidate_decision_payload,
+    }
+
+
+def new_decision_payload(decision: dict[str, Any], finding_id: str) -> dict[str, Any]:
+    """Return payload for a newly discovered canonical finding."""
+    finding = decision["finding"]
+    return finding.as_payload(finding_id)
+
+
+def duplicate_decision_payload(decision: dict[str, Any], finding_id: str) -> dict[str, Any]:
+    """Return payload for a duplicate finding decision."""
+    duplicate = decision["duplicate"]
+    return {
+        "finding_id": finding_id,
+        "duplicate_of": finding_id,
+        "matched_on": list(decision["matched_on"]),
+        "source": source_payload(duplicate),
+    }
+
+
+def updated_decision_payload(decision: dict[str, Any], finding_id: str) -> dict[str, Any]:
+    """Return payload for a canonical finding status update."""
+    previous = decision["previous"]
+    finding = decision["finding"]
+    return {
+        "finding_id": finding_id,
+        "previous_status": previous.status,
+        "new_status": finding.status,
+        "reason": "higher-confidence status from later source event",
+        "source": source_payload(finding),
+    }
+
+
+def merge_candidate_decision_payload(decision: dict[str, Any], finding_id: str) -> dict[str, Any]:
+    """Return payload for a possible fuzzy merge candidate."""
+    candidate = decision["candidate"]
+    return {
+        "finding_id": finding_id,
+        "candidate_for": finding_id,
+        "score": round(float(decision["score"]), 3),
+        "matched_on": list(decision["matched_on"]),
+        "candidate": candidate.as_payload(stable_finding_id(candidate.exact_key())),
+    }
 
 
 def write_summary_artifact(context: CommandContext, result: dict[str, Any], path: Path, format_name: str) -> None:
@@ -548,17 +573,27 @@ def summary_line(result: dict[str, Any]) -> str:
 
 def alert_text(kind: str, payload: dict[str, Any]) -> str:
     """Return compact alert text for one dedupe decision."""
-    match kind:
-        case "new":
-            return f"new {payload.get('severity')} {payload.get('status')} {payload.get('class')} {payload.get('title')}"
-        case "duplicate":
-            return f"duplicate of {payload.get('duplicate_of')} from {payload.get('source', {}).get('tool')}"
-        case "updated":
-            return f"updated {payload.get('finding_id')} {payload.get('previous_status')} -> {payload.get('new_status')}"
-        case "merge_candidate":
-            return f"merge candidate {payload.get('finding_id')} score={payload.get('score')}"
-        case _:
-            return kind
+    builder = alert_text_builders().get(kind)
+    return builder(payload) if builder is not None else kind
+
+
+def alert_text_builders() -> dict[str, AlertTextBuilder]:
+    """Return alert text builders keyed by dedupe decision name."""
+    return {
+        "new": lambda payload: (
+            f"new {payload.get('severity')} {payload.get('status')} "
+            f"{payload.get('class')} {payload.get('title')}"
+        ),
+        "duplicate": lambda payload: (
+            f"duplicate of {payload.get('duplicate_of')} from {payload.get('source', {}).get('tool')}"
+        ),
+        "updated": lambda payload: (
+            f"updated {payload.get('finding_id')} {payload.get('previous_status')} -> {payload.get('new_status')}"
+        ),
+        "merge_candidate": lambda payload: (
+            f"merge candidate {payload.get('finding_id')} score={payload.get('score')}"
+        ),
+    }
 
 
 def first_text(payload: dict[str, Any], *keys: str) -> str:

@@ -127,7 +127,7 @@ def validate_control_mode(action: str, *, soft: bool, hard: bool) -> None:
         "signal job=1 mute",
         "signal run=1 pause --hard",
     ),
-    capabilities=("db.raw", "framework.console.output", "framework.job.control", "framework.pipeline.control"),
+    capabilities=("framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
 @argument("target", "job=<id>, run=<id>, or serial=<id>", completion=CompletionSpec("choice", ("job=", "run=", "serial=")))
 @argument("action", "signal action such as prune, mute, verbosity, pause, resume, stop, end, or kill")
@@ -208,7 +208,7 @@ class RuntimeSignal(CommandletBase):
     description="Stop a job, pipeline, or run; defaults to cooperative cancellation.",
     usage="end [--soft|--hard] <job=id|pipeline=id|run=id>",
     examples=("end job=1", "end --hard pipeline=1", "end run=1"),
-    capabilities=("db.raw", "framework.console.output", "framework.job.control", "framework.pipeline.control"),
+    capabilities=("framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
 @argument("target", "job=<id>, pipeline=<id>, run=<id>, or serial=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "run=", "serial=")))
 class End(Control):
@@ -222,7 +222,7 @@ class End(Control):
     description="Synonym for end; defaults to cooperative cancellation.",
     usage="kill [--soft|--hard] <job=id|pipeline=id|run=id>",
     examples=("kill job=1", "kill --hard pipeline=1", "kill run=1"),
-    capabilities=("db.raw", "framework.console.output", "framework.job.control", "framework.pipeline.control"),
+    capabilities=("framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
 @argument("target", "job=<id>, pipeline=<id>, run=<id>, or serial=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "run=", "serial=")))
 class Kill(Control):
@@ -236,7 +236,7 @@ class Kill(Control):
     description="Request cooperative cancellation for a job or pipeline.",
     usage="cancel <job=id|pipeline=id|run=id>",
     examples=("cancel job=1", "cancel pipeline=1", "cancel run=1"),
-    capabilities=("db.raw", "framework.console.output", "framework.job.control", "framework.pipeline.control"),
+    capabilities=("framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
 @argument("target", "job=<id>, pipeline=<id>, or run=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "run=")))
 class Cancel(Control):
@@ -250,7 +250,7 @@ class Cancel(Control):
     description="Pause a job or pipeline.",
     usage="pause [--soft|--hard] <job=id|pipeline=id|run=id>",
     examples=("pause job=1", "pause --hard pipeline=1", "pause run=1"),
-    capabilities=("db.raw", "framework.console.output", "framework.job.control", "framework.pipeline.control"),
+    capabilities=("framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
 @argument("target", "job=<id>, pipeline=<id>, or run=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "run=")))
 class Pause(Control):
@@ -264,7 +264,7 @@ class Pause(Control):
     description="Resume a paused job or pipeline.",
     usage="resume [--listonly] [--soft|--hard] <job=id|pipeline=id|run=id>",
     examples=("resume job=1", "resume --listonly pipeline=1", "resume run=1"),
-    capabilities=("db.raw", "framework.console.output", "framework.job.control", "framework.pipeline.control"),
+    capabilities=("framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
 @argument("target", "job=<id>, pipeline=<id>, or run=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "run=")))
 class Resume(Control):
@@ -278,7 +278,7 @@ class Resume(Control):
     description="Stop a job or pipeline.",
     usage="stop [--soft|--hard] <job=id|pipeline=id|run=id>",
     examples=("stop job=1", "stop --hard pipeline=1", "stop run=1"),
-    capabilities=("db.raw", "framework.console.output", "framework.job.control", "framework.pipeline.control"),
+    capabilities=("framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
 @argument("target", "job=<id>, pipeline=<id>, or run=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "run=")))
 class Stop(Control):
@@ -305,50 +305,42 @@ def resolve_control_target(
     allow_pipeline: bool,
 ) -> tuple[str, str]:
     """Resolve local IDs and durable serials to canonical runtime control targets."""
-    db = context.require_db("control")
+    runtime = context.runtime_store("control")
     if kind == "serial":
         resolved = resolve_runtime_serial_target(context, target_id)
         if resolved[0] == "pipeline" and not allow_pipeline:
             raise ValueError("signal serial= must resolve to a job or run, not a pipeline")
         return resolved
     if kind == "run":
-        return "run", db.resolve_run_serial(target_id)
+        return "run", runtime.resolve_run_serial(target_id)
     if kind == "pipeline":
         if not allow_pipeline:
             raise ValueError("signal does not target pipelines; use job=, run=, or serial= for a job/run")
-        return "pipeline", db.resolve_pipeline_serial(target_id)
+        return "pipeline", runtime.resolve_pipeline_serial(target_id)
     return kind, target_id
 
 
 def resolve_runtime_serial_target(context: CommandContext, serial: str) -> tuple[str, str]:
     """Resolve a durable serial to job, run, or pipeline target coordinates."""
-    db = context.require_db("control")
-    job_id = job_id_for_serial(context, serial)
+    runtime = context.runtime_store("control")
+    job_id = runtime.job_id_for_serial(serial)
     if job_id is not None:
         return "job", job_id
-    if run_serial_exists(context, serial):
+    if runtime.run_serial_exists(serial):
         return "run", serial
-    if any(row["pipeline_id"] == serial for row in db.pipelines(active_only=False)):
+    if any(row["pipeline_id"] == serial for row in runtime.pipelines(active_only=False)):
         return "pipeline", serial
     raise ValueError(f"serial does not identify a controllable runtime entity: {serial}")
 
 
 def job_id_for_serial(context: CommandContext, serial: str) -> str | None:
     """Return local job id for a durable job serial."""
-    db = context.require_db("control")
-    with db.connect() as conn:
-        row = conn.execute("SELECT id FROM jobs WHERE serial = ?", (serial,)).fetchone()
-    return str(row["id"]) if row is not None else None
+    return context.runtime_store("control").job_id_for_serial(serial)
 
 
 def run_serial_exists(context: CommandContext, serial: str) -> bool:
     """Return whether a durable run serial is known from events or run snapshots."""
-    db = context.require_db("control")
-    if any(row["command_run_id"] == serial for row in db.runs(active_only=False)):
-        return True
-    with db.connect() as conn:
-        row = conn.execute("SELECT 1 FROM command_run_vars WHERE command_run_id = ? LIMIT 1", (serial,)).fetchone()
-    return row is not None
+    return context.runtime_store("control").run_serial_exists(serial)
 
 
 def parse_signal_args(args: list[str]) -> dict[str, object]:
@@ -397,7 +389,7 @@ def publish_runtime_signal(
     mode: str,
 ) -> Event:
     """Publish the canonical audited runtime signal event."""
-    db = context.require_db("signal")
+    events = context.event_store("signal")
     if target_type in {"job", "run"}:
         context.audit_capability("framework.job.control")
     if target_type in {"pipeline", "run"}:
@@ -415,7 +407,7 @@ def publish_runtime_signal(
         payload["pipeline_id"] = target_id
     if target_type == "run":
         payload["command_run_id"] = target_id
-    return db.publish(
+    return events.publish(
         "runtime.signal.requested",
         payload,
         "framework",
@@ -472,38 +464,40 @@ def dispatch_framework_signal(context: CommandContext, parsed: dict[str, object]
 
 def pause_job(context: CommandContext, row, *, hard: bool, publish_signal: bool = True) -> None:
     """Record or apply a pause request for one job."""
-    db = context.require_db()
+    events = context.event_store("job pause")
+    runtime = context.runtime_store("job pause")
     context.audit_capability("framework.job.control")
     if publish_signal:
         publish_runtime_signal(context, "job", str(row["id"]), "pause", {}, mode="hard" if hard else "soft")
-    db.publish(
+    events.publish(
         "job.pause.requested",
         {"job_id": row["id"], "mode": "hard" if hard else "soft"},
         "framework",
     )
     if hard:
         signal_job_process(row, signal.SIGSTOP)
-    db.update_job_status(int(row["id"]), "paused" if hard else "pausing")
+    runtime.update_job_status(int(row["id"]), "paused" if hard else "pausing")
     context.output(f"{'hard' if hard else 'soft'} pause requested for job {row['id']}")
 
 
 def resume_job(context: CommandContext, row, *, hard: bool, listonly: bool, publish_signal: bool = True) -> None:
     """Record or apply a resume request for one job."""
-    db = context.require_db()
+    events = context.event_store("job resume")
+    runtime = context.runtime_store("job resume")
     context.audit_capability("framework.job.control")
     if listonly:
         print_queued_actions(context, "job", str(row["id"]))
         return
     if publish_signal:
         publish_runtime_signal(context, "job", str(row["id"]), "resume", {}, mode="hard" if hard else "soft")
-    db.publish(
+    events.publish(
         "job.resume.requested",
         {"job_id": row["id"], "mode": "hard" if hard else "soft"},
         "framework",
     )
     if hard:
         signal_job_process(row, signal.SIGCONT)
-    db.update_job_status(int(row["id"]), "running")
+    runtime.update_job_status(int(row["id"]), "running")
     context.output(f"resume requested for job {row['id']}")
 
 
@@ -511,7 +505,7 @@ def stop_job(context: CommandContext, row, *, hard: bool, publish_signal: bool =
     """Soft-cancel or hard-kill one job."""
     if publish_signal:
         publish_runtime_signal(context, "job", str(row["id"]), "stop", {}, mode="hard" if hard else "soft")
-    context.require_db().publish(
+    context.event_store("job stop").publish(
         "job.stop.requested",
         {"job_id": row["id"], "mode": "hard" if hard else "soft"},
         "framework",
@@ -524,32 +518,35 @@ def stop_job(context: CommandContext, row, *, hard: bool, publish_signal: bool =
 
 def pause_pipeline(context: CommandContext, pipeline_id: str, *, hard: bool, publish_signal: bool = True) -> None:
     """Pause all jobs associated with a pipeline."""
+    resolved_pipeline_id = require_pipeline_id(context, pipeline_id)
     if publish_signal:
-        publish_runtime_signal(context, "pipeline", require_pipeline_id(context, pipeline_id), "pause", {}, mode="hard" if hard else "soft")
-    for job in context.require_db().jobs_for_pipeline(require_pipeline_id(context, pipeline_id)):
+        publish_runtime_signal(context, "pipeline", resolved_pipeline_id, "pause", {}, mode="hard" if hard else "soft")
+    for job in context.runtime_store("pipeline pause").jobs_for_pipeline(resolved_pipeline_id):
         pause_job(context, job, hard=hard, publish_signal=False)
 
 
 def resume_pipeline(context: CommandContext, pipeline_id: str, *, hard: bool, listonly: bool, publish_signal: bool = True) -> None:
     """Resume all jobs associated with a pipeline."""
+    resolved_pipeline_id = require_pipeline_id(context, pipeline_id)
     if publish_signal and not listonly:
-        publish_runtime_signal(context, "pipeline", require_pipeline_id(context, pipeline_id), "resume", {}, mode="hard" if hard else "soft")
-    for job in context.require_db().jobs_for_pipeline(require_pipeline_id(context, pipeline_id)):
+        publish_runtime_signal(context, "pipeline", resolved_pipeline_id, "resume", {}, mode="hard" if hard else "soft")
+    for job in context.runtime_store("pipeline resume").jobs_for_pipeline(resolved_pipeline_id):
         resume_job(context, job, hard=hard, listonly=listonly, publish_signal=False)
 
 
 def stop_pipeline(context: CommandContext, pipeline_id: str, *, hard: bool, publish_signal: bool = True) -> None:
     """Stop all jobs associated with a pipeline."""
+    resolved_pipeline_id = require_pipeline_id(context, pipeline_id)
     if publish_signal:
-        publish_runtime_signal(context, "pipeline", require_pipeline_id(context, pipeline_id), "stop", {}, mode="hard" if hard else "soft")
-    for job in context.require_db().jobs_for_pipeline(require_pipeline_id(context, pipeline_id)):
+        publish_runtime_signal(context, "pipeline", resolved_pipeline_id, "stop", {}, mode="hard" if hard else "soft")
+    for job in context.runtime_store("pipeline stop").jobs_for_pipeline(resolved_pipeline_id):
         stop_job(context, job, hard=hard, publish_signal=False)
 
 
 def cancel_run(context: CommandContext, command_run_id: str) -> None:
     """Request cooperative cancellation for one command run."""
     jobs = require_run_jobs(context, command_run_id)
-    context.require_db().request_cancellation("run", command_run_id)
+    context.runtime_store("run cancel").request_cancellation("run", command_run_id)
     for job in jobs:
         cancel_job(context, job)
     context.output(f"cancel requested for run {command_run_id}")
@@ -568,7 +565,7 @@ def pause_run(context: CommandContext, command_run_id: str, *, hard: bool, publi
         publish_runtime_signal(context, "run", command_run_id, "pause", {}, mode="hard" if hard else "soft")
     for job in require_run_jobs(context, command_run_id):
         pause_job(context, job, hard=hard, publish_signal=False)
-    context.require_db().publish(
+    context.event_store("run pause").publish(
         "run.pause.requested",
         {"command_run_id": command_run_id, "mode": "hard" if hard else "soft"},
         "framework",
@@ -585,7 +582,7 @@ def resume_run(context: CommandContext, command_run_id: str, *, hard: bool, list
         publish_runtime_signal(context, "run", command_run_id, "resume", {}, mode="hard" if hard else "soft")
     for job in require_run_jobs(context, command_run_id):
         resume_job(context, job, hard=hard, listonly=False, publish_signal=False)
-    context.require_db().publish(
+    context.event_store("run resume").publish(
         "run.resume.requested",
         {"command_run_id": command_run_id, "mode": "hard" if hard else "soft"},
         "framework",
@@ -599,7 +596,7 @@ def stop_run(context: CommandContext, command_run_id: str, *, hard: bool, publis
         publish_runtime_signal(context, "run", command_run_id, "stop", {}, mode="hard" if hard else "soft")
     for job in require_run_jobs(context, command_run_id):
         stop_job(context, job, hard=hard, publish_signal=False)
-    context.require_db().publish(
+    context.event_store("run stop").publish(
         "run.stop.requested",
         {"command_run_id": command_run_id, "mode": "hard" if hard else "soft"},
         "framework",
@@ -609,7 +606,7 @@ def stop_run(context: CommandContext, command_run_id: str, *, hard: bool, publis
 
 def require_run_jobs(context: CommandContext, command_run_id: str):
     """Return jobs associated with a run or raise a clear error."""
-    jobs = context.require_db().jobs_for_run(command_run_id)
+    jobs = context.runtime_store("run jobs").jobs_for_run(command_run_id)
     if not jobs:
         raise ValueError(f"unknown or inactive run: {command_run_id}")
     return jobs
@@ -617,7 +614,8 @@ def require_run_jobs(context: CommandContext, command_run_id: str):
 
 def require_pipeline_id(context: CommandContext, pipeline_id: str) -> str:
     """Validate that a pipeline exists and return its ID."""
-    if pipeline_id not in set(pipeline_ids(CompletionContext(db=context.db))):
+    runtime = context.runtime_store("pipeline")
+    if pipeline_id not in {str(row["pipeline_id"]) for row in runtime.pipelines(active_only=False)}:
         raise ValueError(f"unknown pipeline: {pipeline_id}")
     return pipeline_id
 
@@ -638,7 +636,7 @@ def print_queued_actions(context: CommandContext, target_type: str, target_id: s
     context.output(f"queued resume actions for {target_type} {target_id}:")
     events = [
         event
-        for event in context.require_db().events_matching(limit=100000)
+        for event in context.event_store("control queued actions").events_matching(limit=100000)
         if event.topic.endswith(".pause.requested")
         or event.topic.endswith(".resume.requested")
         or event.topic.endswith(".stop.requested")

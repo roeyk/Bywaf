@@ -10,7 +10,7 @@ import shlex
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Callable, Literal
 
 from .db import EventStore, Subscription
 from .events import Event
@@ -1307,11 +1307,7 @@ def expand_at_file_arg(arg: str) -> tuple[list[str], AtFileExpansion | None]:
     if path.is_dir():
         raise ValueError(f"at-file path is a directory: {path}")
     text = path.read_text(errors="replace")
-    match mode:
-        case "lines":
-            values = [line.strip() for line in text.splitlines() if line.strip()]
-        case "text" | "raw":
-            values = [text]
+    values = at_file_expanders()[mode](text)
     return values, AtFileExpansion(arg, mode, path, len(values))
 
 
@@ -1322,6 +1318,15 @@ def parse_at_file_token(arg: str) -> tuple[Literal["text", "lines", "raw"], str]
     if arg.startswith("@raw:"):
         return "raw", arg.removeprefix("@raw:")
     return "text", arg.removeprefix("@")
+
+
+def at_file_expanders() -> dict[str, Callable[[str], list[str]]]:
+    """Return at-file content expanders keyed by expansion mode."""
+    return {
+        "lines": lambda text: [line.strip() for line in text.splitlines() if line.strip()],
+        "raw": lambda text: [text],
+        "text": lambda text: [text],
+    }
 
 
 def attach_at_file_artifact(context: CommandContext, expansion: AtFileExpansion) -> str | None:
@@ -1494,10 +1499,11 @@ def pipeline_exists(db: EventStore, pipeline_id: str) -> bool:
 
 def attach_cursor_event_id(db: EventStore, cursor: str) -> int:
     """Convert an attach `since=` cursor into an event high-water mark."""
-    match cursor:
-        case "beginning":
-            return 0
-        case "now":
-            return db.latest_event_id()
-        case _:
-            raise ValueError("since= must be beginning or now")
+    cursors: dict[str, Callable[[], int]] = {
+        "beginning": lambda: 0,
+        "now": db.latest_event_id,
+    }
+    try:
+        return cursors[cursor]()
+    except KeyError as exc:
+        raise ValueError("since= must be beginning or now") from exc

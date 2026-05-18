@@ -7,7 +7,7 @@ import html
 import importlib
 import io
 import json
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
@@ -99,6 +99,9 @@ class Table:
         return cls(tuple(columns), tuple(rows), title=title)
 
 
+TableRenderer = Callable[[Table], str | bytes]
+
+
 def normalize_columns(
     columns: Sequence[str | Column] | None,
     rows: Sequence[Mapping[str, object] | Sequence[object]],
@@ -133,23 +136,23 @@ def json_safe_value(value: object) -> object:
 
 def render_table(table: Table, fmt: TableFormat = "console") -> str | bytes:
     """Render a table in one supported format."""
-    match fmt:
-        case "console":
-            return render_console_table(table)
-        case "md":
-            return render_markdown_table(table)
-        case "csv":
-            return render_csv_table(table)
-        case "jsonl":
-            return render_jsonl_table(table)
-        case "html":
-            return render_html_table(table)
-        case "docx":
-            return render_docx_table(table)
-        case "xlsx":
-            return render_xlsx_table(table)
-        case _:
-            raise ValueError(f"unsupported table format: {fmt}")
+    renderer = table_renderers().get(fmt)
+    if renderer is None:
+        raise ValueError(f"unsupported table format: {fmt}")
+    return renderer(table)
+
+
+def table_renderers() -> dict[str, TableRenderer]:
+    """Return table renderers keyed by output format."""
+    return {
+        "console": render_console_table,
+        "md": render_markdown_table,
+        "csv": render_csv_table,
+        "jsonl": render_jsonl_table,
+        "html": render_html_table,
+        "docx": render_docx_table,
+        "xlsx": render_xlsx_table,
+    }
 
 
 def render_console_table(table: Table) -> str:
@@ -281,24 +284,13 @@ def value_to_text(value: object) -> str:
 
 def align_text(value: str, width: int, align: Align) -> str:
     """Align one text cell."""
-    match align:
-        case "right":
-            return value.rjust(width)
-        case "center":
-            return value.center(width)
-        case _:
-            return value.ljust(width)
+    aligner = {"right": str.rjust, "center": str.center}.get(align, str.ljust)
+    return aligner(value, width)
 
 
 def markdown_alignment(align: Align) -> str:
     """Return one Markdown alignment marker."""
-    match align:
-        case "right":
-            return "---:"
-        case "center":
-            return ":---:"
-        case _:
-            return "---"
+    return {"right": "---:", "center": ":---:"}.get(align, "---")
 
 
 def escape_markdown_cell(value: str) -> str:

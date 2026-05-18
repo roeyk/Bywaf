@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import getpass
 import os
-from collections.abc import Iterable
+from argparse import Namespace
+from collections.abc import Callable, Iterable
 from datetime import datetime
 from pathlib import Path
 
@@ -15,6 +16,7 @@ from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionS
 
 DB_ACTIONS = ("checkpoint", "decrypt", "encrypt", "new", "path", "rekey", "status", "vacuum")
 ENCRYPTION_VAR = "encryption"
+DbActionHandler = Callable[[CommandContext, Namespace], None]
 
 
 @commandlet(
@@ -41,38 +43,82 @@ class Db(CommandletBase):
         parser.add_argument("--encrypt", action="store_true")
         parser.add_argument("--force", action="store_true")
         parsed = parser.parse_args(args)
-        db = context.require_db()
         context.require_foreground("database management commands")
         context.audit_capability("db.manage")
-        match parsed.action:
-            case "checkpoint":
-                db.checkpoint()
-                context.output("checkpoint complete")
-            case "decrypt":
-                decrypt_active_database(context)
-                context.output("database decrypted")
-            case "encrypt":
-                encrypt_active_database(context)
-                context.output("database encrypted")
-            case "new":
-                new_active_database(
-                    context,
-                    file=Path(parsed.file) if parsed.file else None,
-                    encrypt=parsed.encrypt,
-                    force=parsed.force,
-                )
-                context.output(f"created db={context.require_db().path}")
-            case "path":
-                context.output(db.path)
-            case "rekey":
-                rekey_active_database(context)
-                context.output("database rekeyed")
-            case "status":
-                print_database_status(context)
-            case "vacuum":
-                db.vacuum()
-                context.output("vacuum complete")
+        db_action_handlers()[parsed.action](context, parsed)
         return ()
+
+
+def db_action_handlers() -> dict[str, DbActionHandler]:
+    """Return database action handlers keyed by CLI action name."""
+    return {
+        "checkpoint": checkpoint_database,
+        "decrypt": decrypt_database,
+        "encrypt": encrypt_database,
+        "new": create_database,
+        "path": print_database_path,
+        "rekey": rekey_database,
+        "status": status_database,
+        "vacuum": vacuum_database,
+    }
+
+
+def checkpoint_database(context: CommandContext, parsed: Namespace) -> None:
+    """Checkpoint the active database."""
+    del parsed
+    context.maintenance_store("db checkpoint").checkpoint()
+    context.output("checkpoint complete")
+
+
+def decrypt_database(context: CommandContext, parsed: Namespace) -> None:
+    """Decrypt the active database."""
+    del parsed
+    decrypt_active_database(context)
+    context.output("database decrypted")
+
+
+def encrypt_database(context: CommandContext, parsed: Namespace) -> None:
+    """Encrypt the active database."""
+    del parsed
+    encrypt_active_database(context)
+    context.output("database encrypted")
+
+
+def create_database(context: CommandContext, parsed: Namespace) -> None:
+    """Create and switch to a fresh database."""
+    new_active_database(
+        context,
+        file=Path(parsed.file) if parsed.file else None,
+        encrypt=parsed.encrypt,
+        force=parsed.force,
+    )
+    context.output(f"created db={context.require_db().path}")
+
+
+def print_database_path(context: CommandContext, parsed: Namespace) -> None:
+    """Print the active database path."""
+    del parsed
+    context.output(context.maintenance_store("db path").path)
+
+
+def rekey_database(context: CommandContext, parsed: Namespace) -> None:
+    """Rekey the active encrypted database."""
+    del parsed
+    rekey_active_database(context)
+    context.output("database rekeyed")
+
+
+def status_database(context: CommandContext, parsed: Namespace) -> None:
+    """Print active database status."""
+    del parsed
+    print_database_status(context)
+
+
+def vacuum_database(context: CommandContext, parsed: Namespace) -> None:
+    """Vacuum the active database."""
+    del parsed
+    context.maintenance_store("db vacuum").vacuum()
+    context.output("vacuum complete")
 
 
 def print_database_status(context: CommandContext) -> None:

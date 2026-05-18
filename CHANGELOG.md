@@ -5,7 +5,30 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-18 16:25:00 EDT
+Last updated: 2026-05-18 19:36:29 EDT
+
+### 2026-05-18 18:29:12 EDT
+
+#### Added
+
+- Added explicit persistence contracts for event, runtime, artifact,
+  maintenance, and variable stores.
+- Added `PERSISTENCE_MODEL.md` to document store boundaries and default
+  SQLite-backed implementations.
+- Added context accessors for narrow event, runtime, and maintenance store
+  access.
+
+#### Changed
+
+- Moved `Subscription` into a neutral subscriptions module and re-exported it
+  through the existing DB import path.
+- Migrated runtime commandlets away from raw DB access for ordinary
+  runtime/event/artifact operations.
+- Replaced simple value-dispatch `match` blocks with dispatch tables for DB
+  actions, audit actions/export formats/bounds, artifact actions/completions,
+  rendering formats, nmap backend handlers, finding report sources, finding
+  dedupe payload/alert builders, framework request capabilities, at-file
+  expansion modes, and artifact count scopes.
 
 ## [0.9.2] - 2026-05-18
 

@@ -16,6 +16,7 @@ from .artifacts import Artifact, artifact_store_for_event_store
 from .db import EventStore, Subscription
 from .events import Event
 from .rendering import Column, Table, render_console_table
+from .stores import ArtifactStoreProtocol, EventStoreProtocol, MaintenanceStoreProtocol, RuntimeStoreProtocol
 from .varstore import ScopedVarStore, VarStore
 
 
@@ -310,6 +311,31 @@ class CommandContext:
             raise ValueError(f"{label or self.source} requires an active database")
         self.audit_capability("db.raw")
         return self._db
+
+    def event_store(self, label: str | None = None) -> EventStoreProtocol:
+        """Return the event/audit store without exposing raw DB maintenance."""
+        if self._db is None:
+            raise ValueError(f"{label or self.source} requires an active event store")
+        return self._db
+
+    def runtime_store(self, label: str | None = None) -> RuntimeStoreProtocol:
+        """Return runtime metadata storage for jobs, runs, and pipelines."""
+        if self._db is None:
+            raise ValueError(f"{label or self.source} requires active runtime storage")
+        return self._db
+
+    def maintenance_store(self, label: str | None = None) -> MaintenanceStoreProtocol:
+        """Return privileged storage-maintenance operations."""
+        if self._db is None:
+            raise ValueError(f"{label or self.source} requires active storage maintenance")
+        self.audit_capability("db.raw")
+        return self._db
+
+    def artifact_store(self, label: str | None = None) -> ArtifactStoreProtocol:
+        """Return the paired artifact store for framework/internal commandlets."""
+        if self._db is None:
+            raise ValueError(f"{label or self.source} requires active artifact storage")
+        return artifact_store_for_event_store(self._db)
 
     def require_foreground(self, label: str | None = None) -> None:
         """Raise if a foreground-only commandlet is running in the background."""
@@ -1367,31 +1393,37 @@ def emit_alert(context: CommandContext, message: str, *, silent: bool = False) -
 
 def framework_request_capability(topic: str) -> str | None:
     """Map a framework request topic to the capability it uses."""
-    match topic:
-        case "framework.console.output.requested":
-            return "framework.console.output"
-        case "framework.console.alert.requested":
-            return "framework.console.alert"
-        case "framework.file.page.requested":
-            return "framework.file.page"
-        case "framework.process.run.requested":
-            return "process.run"
-        case "framework.process.stream.requested":
-            return "process.run"
-        case "framework.render.table.requested":
-            return "framework.render.table"
-        case topic if topic.startswith("plugin.progress."):
-            return "plugin.progress"
-        case "shell.prompt.requested":
-            return "framework.prompt.change"
-        case topic if topic.startswith("framework.job."):
-            return "framework.job.control"
-        case topic if topic.startswith("framework.pipeline."):
-            return "framework.pipeline.control"
-        case topic if topic.startswith("framework.") and topic.endswith(".requested"):
-            return "framework.request"
-        case _:
-            return None
+    exact = framework_request_capability_map().get(topic)
+    if exact is not None:
+        return exact
+    for prefix, capability in framework_request_prefix_capabilities().items():
+        if topic.startswith(prefix):
+            return capability
+    if topic.startswith("framework.") and topic.endswith(".requested"):
+        return "framework.request"
+    return None
+
+
+def framework_request_capability_map() -> dict[str, str]:
+    """Return exact framework request topic capability mappings."""
+    return {
+        "framework.console.output.requested": "framework.console.output",
+        "framework.console.alert.requested": "framework.console.alert",
+        "framework.file.page.requested": "framework.file.page",
+        "framework.process.run.requested": "process.run",
+        "framework.process.stream.requested": "process.run",
+        "framework.render.table.requested": "framework.render.table",
+        "shell.prompt.requested": "framework.prompt.change",
+    }
+
+
+def framework_request_prefix_capabilities() -> dict[str, str]:
+    """Return prefix-based framework request capability mappings."""
+    return {
+        "plugin.progress.": "plugin.progress",
+        "framework.job.": "framework.job.control",
+        "framework.pipeline.": "framework.pipeline.control",
+    }
 
 
 def capability_declared(capability: str, declarations: Iterable[str]) -> bool:

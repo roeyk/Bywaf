@@ -63,6 +63,8 @@ Core architectural references:
   foreground/background execution, control signals, and variable snapshots.
 - [EVENT_MODEL.md](EVENT_MODEL.md) explains event rows, topics, replay,
   framework requests, artifacts, notes, and provenance.
+- [PERSISTENCE_MODEL.md](PERSISTENCE_MODEL.md) explains the event, runtime,
+  artifact, maintenance, and variable store contracts.
 - [CAPABILITY_MODEL.md](CAPABILITY_MODEL.md) explains capability auditing,
   policy direction, and plugin integration types.
 - [SYSTEM_BLOCK_DIAGRAM.pdf](SYSTEM_BLOCK_DIAGRAM.pdf) shows live runtime flow

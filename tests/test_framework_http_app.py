@@ -171,6 +171,27 @@ class FrameworkHttpAppTests(unittest.TestCase):
             ]
             self.assertEqual(capabilities, ["db.write:test.topic"])
 
+    def test_narrow_store_accessors_do_not_audit_raw_db_access(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            context = CommandContext(runner.db, source="plugin")
+            self.assertIs(context.event_store(), runner.db)
+            self.assertIs(context.runtime_store(), runner.db)
+            self.assertEqual(runner.db.events_for_topic("plugin.capability.used"), [])
+
+    def test_maintenance_store_accessor_audits_raw_db_access(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            context = CommandContext(
+                runner.db,
+                source="plugin",
+                metadata={"capabilities": ("db.raw",)},
+            )
+            self.assertIs(context.maintenance_store(), runner.db)
+            used = runner.db.events_for_topic("plugin.capability.used")[0]
+            self.assertEqual(used.payload["capability"], "db.raw")
+            self.assertTrue(used.payload["declared"])
+
     def test_raw_context_db_access_audits_db_raw(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

@@ -610,6 +610,20 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(job["status"], "pausing")
             self.assertIn(f"soft pause requested for job {job_id}", output.getvalue())
 
+    def test_runtime_control_uses_narrow_store_access(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("portscanner --listen", 123, "running")
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute(f"pause job={job_id}")
+                process_framework_requests(runner, ShellState())
+            capabilities = {
+                event.payload["capability"]
+                for event in runner.db.events_for_topic("plugin.capability.used")
+            }
+            self.assertIn("framework.job.control", capabilities)
+            self.assertNotIn("db.raw", capabilities)
+
     def test_signal_accepts_job_and_run_serials_but_rejects_pipeline_serials(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

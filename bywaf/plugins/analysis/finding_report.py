@@ -117,17 +117,16 @@ def select_report_events(
     if not include_candidates:
         dedupe_events = [event for event in dedupe_events if event.topic != "finding.merge_candidate"]
     tool_events = query_topics(context, FINDING_INPUT_TOPICS, limit)
-    match source:
-        case "dedupe":
-            return dedupe_events
-        case "tools":
-            return tool_events
-        case "all":
-            return sorted([*dedupe_events, *tool_events], key=lambda event: event.id or 0)
-        case "auto":
-            return dedupe_events if dedupe_events else tool_events
-        case _:
-            raise ValueError(f"unknown finding report source: {source}")
+    sources = {
+        "dedupe": dedupe_events,
+        "tools": tool_events,
+        "all": sorted([*dedupe_events, *tool_events], key=lambda event: event.id or 0),
+        "auto": dedupe_events if dedupe_events else tool_events,
+    }
+    try:
+        return sources[source]
+    except KeyError as exc:
+        raise ValueError(f"unknown finding report source: {source}") from exc
 
 
 def query_topics(context: CommandContext, topics: tuple[str, ...], limit: int) -> list[Event]:

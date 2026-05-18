@@ -5,6 +5,7 @@ include PLUGIN_AUTHOR_GUIDE.md
 include TERMINOLOGY.md
 include EVENT_MODEL.md
 include RUNTIME_MODEL.md
+include PERSISTENCE_MODEL.md
 include CAPABILITY_MODEL.md
 include CHANGELOG.md
 include TODO.md

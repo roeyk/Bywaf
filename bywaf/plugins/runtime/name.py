@@ -17,7 +17,7 @@ from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionC
         "name pipeline=1 client subnet scan",
         "name job=12 background listener",
     ),
-    capabilities=("db.raw", "framework.console.output"),
+    capabilities=("framework.console.output"),
 )
 @argument("selector", "run=, pipeline=, or job= selector", completion=CompletionSpec("choice", ("run=", "pipeline=", "job=")))
 @argument("value", "optional name text", required=False)
@@ -35,7 +35,7 @@ class Name(CommandletBase):
         selectors = parse_name_selectors(args)
         target_type, target_id = selected_target(context, selectors)
         if "value" in selectors:
-            context.require_db("name").publish(
+            context.event_store("name").publish(
                 "runtime.name.assigned",
                 {
                     "target_type": target_type,
@@ -51,7 +51,7 @@ class Name(CommandletBase):
             )
             context.output(f"named {target_type}={target_id} {selectors['value']}")
             return ()
-        display_name = context.require_db("name").runtime_names().get((target_type, target_id))
+        display_name = context.runtime_store("name").runtime_names().get((target_type, target_id))
         context.output(f"{target_type}={target_id} name={display_name or ''}".rstrip())
         return ()
 
@@ -100,9 +100,9 @@ def selected_target(context: CommandContext | None, selectors: dict[str, str]) -
     target_type = targets[0]
     target_id = selectors[target_type]
     if context is not None and target_type == "run":
-        target_id = context.require_db("name").resolve_run_serial(target_id)
+        target_id = context.runtime_store("name").resolve_run_serial(target_id)
     if context is not None and target_type == "pipeline":
-        target_id = context.require_db("name").resolve_pipeline_serial(target_id)
+        target_id = context.runtime_store("name").resolve_pipeline_serial(target_id)
     return target_type, target_id
 
 

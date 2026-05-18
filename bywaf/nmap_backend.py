@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import importlib
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Callable
 
 
 class NmapUnavailableError(RuntimeError):
@@ -36,19 +36,8 @@ class NmapPort:
 def discover_live_hosts(target: str, arguments: str = "-sn") -> list[str]:
     """Discover live hosts using the first available nmap binding."""
     backend_name, backend = load_backend()
-    match backend_name:
-        case "libnmap":
-            return discover_live_hosts_libnmap(backend, target, arguments)
-        case "nmapthon":
-            return discover_live_hosts_nmapthon(backend, target, arguments)
-        case _:
-            scanner = backend.PortScanner()
-            scanner.scan(hosts=target, arguments=arguments)
-            return [
-                host
-                for host in scanner.all_hosts()
-                if host_state(scanner, host) in {"up", "unknown", ""}
-            ]
+    scanner = host_discovery_backends().get(backend_name, discover_live_hosts_portscanner)
+    return scanner(backend, target, arguments)
 
 
 def scan_open_ports(
@@ -60,18 +49,54 @@ def scan_open_ports(
     if not targets:
         return []
     backend_name, backend = load_backend()
-    match backend_name:
-        case "libnmap":
-            return scan_open_ports_libnmap(backend, targets, ports, arguments)
-        case "nmapthon":
-            return scan_open_ports_nmapthon(backend, targets, ports, arguments)
-        case _:
-            scanner = backend.PortScanner()
-            kwargs: dict[str, Any] = {"hosts": " ".join(targets), "arguments": arguments}
-            if ports:
-                kwargs["ports"] = ports
-            scanner.scan(**kwargs)
-            return collect_open_ports(scanner)
+    scanner = port_scan_backends().get(backend_name, scan_open_ports_portscanner)
+    return scanner(backend, targets, ports, arguments)
+
+
+HostDiscoveryBackend = Callable[[Any, str, str], list[str]]
+PortScanBackend = Callable[[Any, list[str], str | None, str], list[NmapPort]]
+
+
+def host_discovery_backends() -> dict[str, HostDiscoveryBackend]:
+    """Return host discovery handlers keyed by backend name."""
+    return {
+        "libnmap": discover_live_hosts_libnmap,
+        "nmapthon": discover_live_hosts_nmapthon,
+    }
+
+
+def port_scan_backends() -> dict[str, PortScanBackend]:
+    """Return port scan handlers keyed by backend name."""
+    return {
+        "libnmap": scan_open_ports_libnmap,
+        "nmapthon": scan_open_ports_nmapthon,
+    }
+
+
+def discover_live_hosts_portscanner(backend: Any, target: str, arguments: str) -> list[str]:
+    """Discover live hosts using a python-nmap-style PortScanner backend."""
+    scanner = backend.PortScanner()
+    scanner.scan(hosts=target, arguments=arguments)
+    return [
+        host
+        for host in scanner.all_hosts()
+        if host_state(scanner, host) in {"up", "unknown", ""}
+    ]
+
+
+def scan_open_ports_portscanner(
+    backend: Any,
+    targets: list[str],
+    ports: str | None,
+    arguments: str,
+) -> list[NmapPort]:
+    """Scan open ports using a python-nmap-style PortScanner backend."""
+    scanner = backend.PortScanner()
+    kwargs: dict[str, Any] = {"hosts": " ".join(targets), "arguments": arguments}
+    if ports:
+        kwargs["ports"] = ports
+    scanner.scan(**kwargs)
+    return collect_open_ports(scanner)
 
 
 def load_backend() -> tuple[str, Any]:

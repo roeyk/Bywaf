@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import os
 import signal
-from collections.abc import Iterable
+from argparse import Namespace
+from collections.abc import Callable, Iterable
 
 from bywaf.events import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
@@ -20,6 +21,7 @@ from bywaf.runtime_display import (
 
 ACTIVE_STATUSES = {"queued", "claimed", "running", "pausing", "paused", "cancelling"}
 JOB_ACTIONS = ("cancel", "end", "kill", "list", "show")
+JobActionHandler = Callable[[CommandContext, Namespace], None]
 
 
 @commandlet(
@@ -27,7 +29,7 @@ JOB_ACTIONS = ("cancel", "end", "kill", "list", "show")
     description="Manage background jobs.",
     usage="job <list|show|cancel|end|kill> [options] [id]",
     examples=("job list", "job show 1", "job cancel 1", "job end 1", "job kill --hard 1"),
-    capabilities=("db.raw", "framework.console.output", "framework.job.control"),
+    capabilities=("framework.console.output", "framework.job.control"),
 )
 @argument("action", "job operation", completion=CompletionSpec("choice", JOB_ACTIONS))
 @argument("id", "job id", required=False, completion="job")
@@ -49,26 +51,9 @@ class Job(CommandletBase):
         parser.add_argument("--page", action="store_true")
         parser.add_argument("--soft", action="store_true")
         parsed = parser.parse_args(args)
-        context.require_db()
         context.require_foreground("job management commands")
         validate_job_mode(parsed.action, soft=parsed.soft, hard=parsed.hard)
-        match parsed.action:
-            case "list":
-                print_jobs(context, active_only=not parsed.all, show_active=parsed.all, page=parsed.page)
-            case "show":
-                row = require_job(context, parsed.id)
-                display_name = context.require_db().runtime_names().get(("job", str(row["id"])))
-                context.output(format_job(row, display_name=display_name))
-            case "cancel":
-                row = require_job(context, parsed.id)
-                cancel_job(context, row)
-            case "end" | "kill":
-                row = require_job(context, parsed.id)
-                context.audit_capability("framework.job.control")
-                if parsed.hard:
-                    kill_job(context, row)
-                else:
-                    cancel_job(context, row)
+        job_action_handlers()[parsed.action](context, parsed)
         return ()
 
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
@@ -86,14 +71,53 @@ class Job(CommandletBase):
         return []
 
 
+def job_action_handlers() -> dict[str, JobActionHandler]:
+    """Return job action handlers keyed by action name."""
+    return {
+        "cancel": cancel_job_action,
+        "end": end_job_action,
+        "kill": end_job_action,
+        "list": list_job_action,
+        "show": show_job_action,
+    }
+
+
+def list_job_action(context: CommandContext, parsed: Namespace) -> None:
+    """Run `job list`."""
+    print_jobs(context, active_only=not parsed.all, show_active=parsed.all, page=parsed.page)
+
+
+def show_job_action(context: CommandContext, parsed: Namespace) -> None:
+    """Run `job show`."""
+    row = require_job(context, parsed.id)
+    display_name = context.runtime_store("job show").runtime_names().get(("job", str(row["id"])))
+    context.output(format_job(row, display_name=display_name))
+
+
+def cancel_job_action(context: CommandContext, parsed: Namespace) -> None:
+    """Run `job cancel`."""
+    cancel_job(context, require_job(context, parsed.id))
+
+
+def end_job_action(context: CommandContext, parsed: Namespace) -> None:
+    """Run `job end` or `job kill`."""
+    row = require_job(context, parsed.id)
+    context.audit_capability("framework.job.control")
+    if parsed.hard:
+        kill_job(context, row)
+    else:
+        cancel_job(context, row)
+
+
 def print_jobs(context: CommandContext, *, active_only: bool = True, show_active: bool = False, page: bool = False) -> None:
     """Print known jobs with newest first."""
-    rows = context.require_db().jobs(active_only=active_only)
+    runtime = context.runtime_store("job list")
+    rows = runtime.jobs(active_only=active_only)
     if not rows:
         context.output("no active jobs" if active_only else "no jobs")
         return
-    names = context.require_db().runtime_names()
-    artifact_counts = context.require_db().artifact_counts_by_job()
+    names = runtime.runtime_names()
+    artifact_counts = runtime.artifact_counts_by_job()
     table_rows: list[tuple[object, ...]] = []
     for row in rows:
         label = runtime_state_label(row["status"])
@@ -148,14 +172,14 @@ def format_job(row, *, display_name: str | None = None, show_active: bool = Fals
 
 def require_job(context: CommandContext, job_id: str | None):
     """Return a job row or raise a user-facing error."""
-    db = context.require_db()
+    runtime = context.runtime_store("job")
     if not job_id:
         raise ValueError("job id is required")
     try:
         numeric_id = int(job_id)
     except ValueError as exc:
         raise ValueError(f"invalid job id: {job_id}") from exc
-    row = db.job(numeric_id)
+    row = runtime.job(numeric_id)
     if row is None:
         raise ValueError(f"unknown job: {job_id}")
     return row
@@ -163,16 +187,16 @@ def require_job(context: CommandContext, job_id: str | None):
 
 def kill_job(context: CommandContext, row) -> None:
     """Forcefully terminate a job process and update its status."""
-    db = context.require_db()
+    runtime = context.runtime_store("job kill")
     pid = row["pid"]
     if pid is None:
         raise ValueError(f"job {row['id']} has no pid")
     try:
         os.kill(int(pid), signal.SIGKILL)
     except ProcessLookupError:
-        db.finish_job(int(row["id"]), "missing")
+        runtime.finish_job(int(row["id"]), "missing")
         raise ValueError(f"job {row['id']} process is not running") from None
-    db.finish_job(int(row["id"]), "killed")
+    runtime.finish_job(int(row["id"]), "killed")
     context.output(f"killed job {row['id']}")
 
 
@@ -185,10 +209,10 @@ def job_ids(context: CompletionContext) -> list[str]:
 
 def cancel_job(context: CommandContext, row) -> None:
     """Request cooperative cancellation for one job row."""
-    db = context.require_db()
+    runtime = context.runtime_store("job cancel")
     context.audit_capability("framework.job.control")
-    db.request_cancellation("job", str(row["id"]))
-    db.update_job_status(int(row["id"]), "cancelling")
+    runtime.request_cancellation("job", str(row["id"]))
+    runtime.update_job_status(int(row["id"]), "cancelling")
     context.output(f"cancel requested for job {row['id']}")
 
 

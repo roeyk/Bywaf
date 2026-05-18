@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import shlex
-from collections.abc import Iterable
+from argparse import Namespace
+from collections.abc import Callable, Iterable
 
 from bywaf.events import Event
 from bywaf.plugin import (
@@ -27,6 +28,7 @@ from bywaf.runtime_display import (
 )
 
 PIPELINE_ACTIONS = ("attach", "cancel", "end", "kill", "list", "show")
+PipelineActionHandler = Callable[[CommandContext, Namespace], None]
 
 
 @commandlet(
@@ -42,7 +44,7 @@ PIPELINE_ACTIONS = ("attach", "cancel", "end", "kill", "list", "show")
         "pipeline kill --hard 1",
         "pipeline attach 1 portscanner run=1 since=beginning",
     ),
-    capabilities=("db.raw", "framework.console.output", "framework.pipeline.control", "framework.job.control"),
+    capabilities=("framework.console.output", "framework.pipeline.control", "framework.job.control"),
 )
 @argument("action", "pipeline operation", completion=CompletionSpec("choice", PIPELINE_ACTIONS))
 @argument("id", "pipeline id", required=False, completion="pipeline")
@@ -69,22 +71,7 @@ class Pipeline(CommandletBase):
         parsed = parser.parse_args(args)
         context.require_foreground("pipeline management commands")
         validate_pipeline_mode(parsed.action, soft=parsed.soft, hard=parsed.hard)
-        match parsed.action:
-            case "list":
-                print_pipelines(context, active_only=not parsed.all, show_active=parsed.all, page=parsed.page)
-            case "show":
-                row = require_pipeline(context, parsed.id)
-                db = context.require_db()
-                display_name = db.runtime_names().get(("pipeline", str(row["pipeline_id"])))
-                alias = db.pipeline_aliases().get(str(row["pipeline_id"]))
-                context.output(format_pipeline(row, display_name=display_name, alias=alias))
-            case "cancel":
-                cancel_pipeline(context, parsed.id)
-            case "end" | "kill":
-                if parsed.hard:
-                    kill_pipeline(context, parsed.id)
-                else:
-                    cancel_pipeline(context, parsed.id)
+        pipeline_action_handlers()[parsed.action](context, parsed)
         return ()
 
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
@@ -108,16 +95,54 @@ class Pipeline(CommandletBase):
         return []
 
 
+def pipeline_action_handlers() -> dict[str, PipelineActionHandler]:
+    """Return pipeline action handlers keyed by action name."""
+    return {
+        "cancel": cancel_pipeline_action,
+        "end": end_pipeline_action,
+        "kill": end_pipeline_action,
+        "list": list_pipeline_action,
+        "show": show_pipeline_action,
+    }
+
+
+def list_pipeline_action(context: CommandContext, parsed: Namespace) -> None:
+    """Run `pipeline list`."""
+    print_pipelines(context, active_only=not parsed.all, show_active=parsed.all, page=parsed.page)
+
+
+def show_pipeline_action(context: CommandContext, parsed: Namespace) -> None:
+    """Run `pipeline show`."""
+    row = require_pipeline(context, parsed.id)
+    runtime = context.runtime_store("pipeline show")
+    display_name = runtime.runtime_names().get(("pipeline", str(row["pipeline_id"])))
+    alias = runtime.pipeline_aliases().get(str(row["pipeline_id"]))
+    context.output(format_pipeline(row, display_name=display_name, alias=alias))
+
+
+def cancel_pipeline_action(context: CommandContext, parsed: Namespace) -> None:
+    """Run `pipeline cancel`."""
+    cancel_pipeline(context, parsed.id)
+
+
+def end_pipeline_action(context: CommandContext, parsed: Namespace) -> None:
+    """Run `pipeline end` or `pipeline kill`."""
+    if parsed.hard:
+        kill_pipeline(context, parsed.id)
+    else:
+        cancel_pipeline(context, parsed.id)
+
+
 def print_pipelines(context: CommandContext, *, active_only: bool = True, show_active: bool = False, page: bool = False) -> None:
     """Print active pipelines by default, or all pipelines when requested."""
-    rows = context.require_db().pipelines(active_only=active_only)
+    runtime = context.runtime_store("pipeline list")
+    rows = runtime.pipelines(active_only=active_only)
     if not rows:
         context.output("no active pipelines" if active_only else "no pipelines")
         return
-    db = context.require_db()
-    names = db.runtime_names()
-    aliases = db.pipeline_aliases()
-    artifact_counts = db.artifact_counts_by_pipeline()
+    names = runtime.runtime_names()
+    aliases = runtime.pipeline_aliases()
+    artifact_counts = runtime.artifact_counts_by_pipeline()
     table_rows: list[tuple[object, ...]] = []
     for row in rows:
         statuses = row["job_statuses"] or "unknown"
@@ -186,8 +211,9 @@ def require_pipeline(context: CommandContext, pipeline_id: str | None):
     """Return a pipeline row or raise a user-facing error."""
     if not pipeline_id:
         raise ValueError("pipeline id is required")
-    resolved = context.require_db().resolve_pipeline_serial(pipeline_id)
-    for row in context.require_db().pipelines():
+    runtime = context.runtime_store("pipeline")
+    resolved = runtime.resolve_pipeline_serial(pipeline_id)
+    for row in runtime.pipelines():
         if row["pipeline_id"] == resolved:
             return row
     raise ValueError(f"unknown pipeline: {pipeline_id}")
@@ -197,9 +223,9 @@ def cancel_pipeline(context: CommandContext, pipeline_id: str | None) -> None:
     """Request cooperative cancellation for a pipeline and its known jobs."""
     row = require_pipeline(context, pipeline_id)
     context.audit_capability("framework.pipeline.control")
-    db = context.require_db()
-    db.request_cancellation("pipeline", row["pipeline_id"])
-    for job in db.jobs_for_pipeline(row["pipeline_id"]):
+    runtime = context.runtime_store("pipeline cancel")
+    runtime.request_cancellation("pipeline", row["pipeline_id"])
+    for job in runtime.jobs_for_pipeline(row["pipeline_id"]):
         cancel_job(context, job)
     context.output(f"cancel requested for pipeline {row['pipeline_id']}")
 
@@ -208,7 +234,7 @@ def kill_pipeline(context: CommandContext, pipeline_id: str | None) -> None:
     """Hard-kill known jobs associated with a pipeline."""
     row = require_pipeline(context, pipeline_id)
     context.audit_capability("framework.pipeline.control")
-    jobs = context.require_db().jobs_for_pipeline(row["pipeline_id"])
+    jobs = context.runtime_store("pipeline kill").jobs_for_pipeline(row["pipeline_id"])
     if not jobs:
         raise ValueError(f"pipeline {row['pipeline_id']} has no associated jobs")
     for job in jobs:
@@ -222,7 +248,8 @@ def attach_pipeline(context: CommandContext, args: list[str]) -> None:
     if len(args) < 2:
         raise ValueError("usage: pipeline attach <pipeline-id> <commandlet> [run=<run-id>] [since=beginning|now] [args...]")
     pipeline_id, commandlet_name, *tail = args
-    resolved_pipeline_id = context.require_db().resolve_pipeline_serial(pipeline_id)
+    runtime = context.runtime_store("pipeline attach")
+    resolved_pipeline_id = runtime.resolve_pipeline_serial(pipeline_id)
     selectors, commandlet_args = parse_attach_tail(tail)
     runner = context.metadata.get("runner")
     if runner is None:
@@ -232,7 +259,7 @@ def attach_pipeline(context: CommandContext, args: list[str]) -> None:
         resolved_pipeline_id,
         command_line,
         upstream_run_id=(
-            context.require_db().resolve_run_serial(selectors["run"]) if "run" in selectors else None
+            runtime.resolve_run_serial(selectors["run"]) if "run" in selectors else None
         ),
         since_cursor=selectors.get("since", "beginning"),
     )

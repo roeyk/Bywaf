@@ -14,13 +14,13 @@ import os
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from .db_schema import SCHEMA, ensure_event_columns
 from .events import Event
+from .subscriptions import Subscription
 
 sqlcipher: Any
 try:
@@ -32,20 +32,8 @@ SQLITE_HEADER = b"SQLite format 3\x00"
 ACTIVE_JOB_STATUSES = ("queued", "claimed", "running", "pausing", "paused", "cancelling")
 
 
-@dataclass(frozen=True, slots=True)
-class Subscription:
-    """A scoped request for events newer than a known high-water mark."""
-
-    topics: tuple[str, ...]
-    after_id: int = 0
-    limit: int = 100
-    pipeline_id: str | None = None
-    command_run_id: str | None = None
-    parent_command_run_id: str | None = None
-
-
 class EventStore:
-    """Thin SQLite wrapper used by the runner and plugins.
+    """SQLite implementation of Bywaf's event, runtime, and maintenance stores.
 
     Connections are intentionally short-lived. Each operation opens its own
     autocommit connection, which works well with multiprocessing and avoids
@@ -324,6 +312,13 @@ class EventStore:
             row = conn.execute("SELECT serial FROM jobs WHERE id = ?", (int(job_id),)).fetchone()
             return str(row["serial"]) if row is not None and row["serial"] is not None else None
 
+    def job_id_for_serial(self, serial: str) -> str | None:
+        """Return the local job id for a durable job serial."""
+        self.ensure_job_serials()
+        with self.connect() as conn:
+            row = conn.execute("SELECT id FROM jobs WHERE serial = ?", (serial,)).fetchone()
+        return str(row["id"]) if row is not None else None
+
     def ensure_job_serials(self) -> None:
         """Backfill durable serials for jobs created before job serial support."""
         with self.connect() as conn:
@@ -364,6 +359,17 @@ class EventStore:
                     (command_run_id,),
                 )
             )
+
+    def run_serial_exists(self, serial: str) -> bool:
+        """Return whether a durable run serial is known from events or run snapshots."""
+        if any(row["command_run_id"] == serial for row in self.runs(active_only=False)):
+            return True
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT 1 FROM command_run_vars WHERE command_run_id = ? LIMIT 1",
+                (serial,),
+            ).fetchone()
+        return row is not None
 
     def request_cancellation(self, target_type: str, target_id: str, reason: str | None = None) -> None:
         """Record a soft-cancellation request for a job, pipeline, or run."""
@@ -630,27 +636,10 @@ class EventStore:
 
     def artifact_counts(self, scope_column: str) -> dict[str, int]:
         """Return artifact counts grouped by a trusted events scope column."""
-        match scope_column:
-            case "command_run_id":
-                sql = """
-                    SELECT command_run_id AS target_id,
-                           COUNT(DISTINCT json_extract(payload_json, '$.artifact_id')) AS artifacts
-                    FROM events
-                    WHERE topic = 'artifact.attached'
-                      AND command_run_id IS NOT NULL
-                    GROUP BY command_run_id
-                """
-            case "pipeline_id":
-                sql = """
-                    SELECT pipeline_id AS target_id,
-                           COUNT(DISTINCT json_extract(payload_json, '$.artifact_id')) AS artifacts
-                    FROM events
-                    WHERE topic = 'artifact.attached'
-                      AND pipeline_id IS NOT NULL
-                    GROUP BY pipeline_id
-                """
-            case _:
-                raise ValueError(f"unsupported artifact count scope: {scope_column}")
+        try:
+            sql = artifact_count_queries()[scope_column]
+        except KeyError as exc:
+            raise ValueError(f"unsupported artifact count scope: {scope_column}") from exc
         with self.connect() as conn:
             rows = conn.execute(sql).fetchall()
         return {str(row["target_id"]): int(row["artifacts"]) for row in rows}
@@ -903,6 +892,28 @@ class EventStore:
                     (*ACTIVE_JOB_STATUSES, 1 if active_only else 0),
                 )
             )
+
+
+def artifact_count_queries() -> dict[str, str]:
+    """Return artifact count queries keyed by trusted event scope column."""
+    return {
+        "command_run_id": """
+            SELECT command_run_id AS target_id,
+                   COUNT(DISTINCT json_extract(payload_json, '$.artifact_id')) AS artifacts
+            FROM events
+            WHERE topic = 'artifact.attached'
+              AND command_run_id IS NOT NULL
+            GROUP BY command_run_id
+        """,
+        "pipeline_id": """
+            SELECT pipeline_id AS target_id,
+                   COUNT(DISTINCT json_extract(payload_json, '$.artifact_id')) AS artifacts
+            FROM events
+            WHERE topic = 'artifact.attached'
+              AND pipeline_id IS NOT NULL
+            GROUP BY pipeline_id
+        """,
+    }
 
 
 def set_sqlcipher_key(conn: Any, passphrase: str) -> None:
