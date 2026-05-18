@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+VERSION=$(python3 -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"])')
 WORKDIR=$(mktemp -d)
 trap 'rm -rf "$WORKDIR"' EXIT
 
@@ -12,7 +13,7 @@ fi
 python3 -m venv --system-site-packages "$WORKDIR/venv"
 "$WORKDIR/venv/bin/python" -m pip install --force-reinstall --no-deps "$WORKDIR"/dist/bywaf-*.whl >/dev/null
 
-"$WORKDIR/venv/bin/bywaf" --version | grep -q '^0\.9\.0$'
+"$WORKDIR/venv/bin/bywaf" --version | grep -q "^${VERSION}$"
 "$WORKDIR/venv/bin/python" - <<'PY'
 from importlib import resources
 
