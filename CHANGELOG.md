@@ -5,7 +5,18 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-17 21:42:38 EDT
+Last updated: 2026-05-17 22:06:36 EDT
+
+### 2026-05-17 22:06:36 EDT
+
+#### Added
+
+- Added `bywaf.rendering` with structured `Table` and `Column` models plus
+  console, Markdown, CSV, JSONL, HTML, DOCX, and XLSX table renderers.
+- Added `context.render.table(...)` and kept `context.table(...)` as a
+  compatibility wrapper over the structured renderer.
+- Added framework/audit handling for `framework.render.table.requested` and
+  `render.table` events.
 
 ### 2026-05-17 21:42:38 EDT
 

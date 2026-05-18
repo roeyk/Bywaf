@@ -25,6 +25,7 @@ from .events import Event
 from .nmap_backend import NmapScanError, NmapUnavailableError
 from .plugin import CommandContext, normalize_argv, run_process_argv
 from .registry import PluginRegistry
+from .rendering import Table, render_console_table
 from .runtime_display import (
     ACTIVE_LISTING_FORMAT_VAR,
     format_runtime_timestamp,
@@ -339,6 +340,7 @@ def process_framework_requests(runner: Runner, state: ShellState) -> None:
                 "framework.file.page.requested",
                 "framework.process.run.requested",
                 "framework.process.stream.requested",
+                "framework.render.table.requested",
             ),
             after_id=state.framework_request_after_id,
             limit=1000,
@@ -457,6 +459,35 @@ def handle_console_output_request(runner: Runner, state: ShellState, event) -> N
     emit_console_output(runner, event)
 
 
+def handle_render_table_request(runner: Runner, state: ShellState, event) -> None:
+    """Validate, audit, and display a plugin-requested structured table."""
+    del state
+    try:
+        table = Table.from_payload(event.payload)
+    except ValueError as exc:
+        deny_framework_request(runner, event, str(exc))
+        return
+    rendered = render_console_table(table)
+    runner.db.publish(
+        "render.table",
+        {
+            "title": table.title,
+            "columns": [column.key for column in table.columns],
+            "row_count": len(table.rows),
+            "format": "console",
+            "source": event.payload.get("source", event.source),
+            "job_id": event.payload.get("job_id"),
+            "request_event_id": event.id,
+        },
+        "framework",
+        pipeline_id=event.pipeline_id,
+        command_run_id=event.command_run_id,
+        parent_command_run_id=event.parent_command_run_id,
+    )
+    if rendered:
+        print(rendered, flush=True)
+
+
 def handle_file_page_request(runner: Runner, state: ShellState, event) -> None:
     """Validate, audit, and display a plugin-requested local file page."""
     del state
@@ -559,6 +590,7 @@ FRAMEWORK_REQUEST_HANDLERS = {
     "framework.file.page.requested": handle_file_page_request,
     "framework.process.run.requested": handle_process_run_request,
     "framework.process.stream.requested": handle_process_stream_request,
+    "framework.render.table.requested": handle_render_table_request,
 }
 
 

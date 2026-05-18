@@ -116,6 +116,7 @@ nmaplib/python-nmap/etc.   Python nmap adapter; Bywaf tries supported adapters
 sqlcipher3-binary          optional Python SQLCipher driver for encrypted DBs
 sqlcipher                  optional system SQLCipher tooling/library
 scapy                      optional helper library for future packet plugins
+python-docx/openpyxl       optional DOCX/XLSX table rendering backends
 ```
 
 Bywaf plugins are intended to wrap useful external tools and normalize their
@@ -158,6 +159,12 @@ SQLCipher library and use the optional Python extra:
 ```bash
 sudo apt install sqlcipher libsqlcipher-dev
 python3 -m pip install -e '.[sqlcipher]'
+```
+
+Install optional table export backends with:
+
+```bash
+python3 -m pip install -e '.[reporting]'
 ```
 
 # Starting Bywaf

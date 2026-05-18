@@ -234,6 +234,45 @@ parsed = parser.parse_args(args)
 
 Bywaf catches `SystemExit` from argparse so `--help` works cleanly in the REPL.
 
+# Rendering Tables
+
+Plugins should hand structured table data to the framework instead of
+manually padding strings. The same table can be rendered to the console now and
+to Markdown, CSV, JSONL, HTML, DOCX, or XLSX later.
+
+```python
+from bywaf.rendering import Column, Table
+
+context.render.table(
+    Table.from_rows(
+        (
+            {"host": "127.0.0.1", "port": 22, "service": "ssh"},
+            {"host": "127.0.0.1", "port": 80, "service": "http"},
+        ),
+        (
+            Column("host", "Host"),
+            Column("port", "Port", "right"),
+            Column("service", "Service"),
+        ),
+        title="Open ports",
+    )
+)
+```
+
+For simple cases, `context.table(...)` is a compatibility wrapper:
+
+```python
+context.table(
+    ({"host": "127.0.0.1", "port": 80},),
+    ("host", "port"),
+    title="Open ports",
+)
+```
+
+The render request is audited as `framework.render.table.requested`, and the
+frontend records `render.table` after it handles the request. Commandlets that
+use table rendering should declare `framework.render.table`.
+
 # Publishing Events
 
 Yield dictionaries from `run()`:

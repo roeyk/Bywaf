@@ -14,6 +14,7 @@ from typing import Any, Protocol, cast
 from .artifacts import Artifact, artifact_store_for_event_store
 from .db import EventStore, Subscription
 from .events import Event
+from .rendering import Column, Table, render_console_table
 from .varstore import ScopedVarStore, VarStore
 
 
@@ -253,6 +254,11 @@ class CommandContext:
         return ContextArtifacts(self)
 
     @property
+    def render(self) -> "ContextRender":
+        """Return the mediated rendering API for plugin code."""
+        return ContextRender(self)
+
+    @property
     def signals(self) -> "ContextSignals":
         """Return live-control signals addressed to this commandlet run."""
         return ContextSignals(self)
@@ -390,20 +396,15 @@ class CommandContext:
         if self.request("framework.console.output.requested", payload) is None:
             print(str(text), end=end, flush=True)
 
-    def table(self, rows: Iterable[Mapping[str, object] | Sequence[object]], columns: Sequence[str] | None = None) -> None:
-        """Render a small text table through the framework output path."""
-        normalized = list(rows)
-        if not normalized:
-            return
-        if columns is None:
-            first = normalized[0]
-            if isinstance(first, Mapping):
-                columns = tuple(str(column) for column in first.keys())
-            else:
-                columns = tuple(str(index) for index in range(len(first)))
-        lines = format_table(normalized, columns)
-        if lines:
-            self.output("\n".join(lines))
+    def table(
+        self,
+        rows: Iterable[Mapping[str, object] | Sequence[object]],
+        columns: Sequence[str | Column] | None = None,
+        *,
+        title: str | None = None,
+    ) -> None:
+        """Render a structured table through the framework output path."""
+        self.render.table(Table.from_rows(rows, columns, title=title))
 
     def alert(self, message: str, *, level: str = "alert", silent: bool = False) -> None:
         """Request a framework-owned console alert.
@@ -568,6 +569,30 @@ class CommandContext:
 
 
 @dataclass(frozen=True, slots=True)
+class ContextRender:
+    """Framework-mediated rendering API exposed to commandlets."""
+
+    context: CommandContext
+
+    def table(self, table: Table) -> Event | None:
+        """Request rendering of one structured table."""
+        payload = {
+            **table.to_payload(),
+            "source": self.context.source,
+            "command_run_id": self.context.command_run_id,
+            "pipeline_id": self.context.pipeline_id,
+            "job_id": self.context.job_id,
+            "row_count": len(table.rows),
+        }
+        event = self.context.request("framework.render.table.requested", payload)
+        if event is None:
+            rendered = render_console_table(table)
+            if rendered:
+                print(rendered, flush=True)
+        return event
+
+
+@dataclass(frozen=True, slots=True)
 class ProcessResult:
     """Normalized result from a framework-mediated process run."""
 
@@ -699,7 +724,7 @@ class ContextProcess:
                         yield chunk
                     else:
                         selector.unregister(key.fileobj)
-            returncode = process.wait(timeout=0)
+            returncode = process.wait(timeout=1)
         finally:
             for pipe in (process.stdout, process.stderr):
                 if pipe is not None and not pipe.closed:
@@ -1266,6 +1291,8 @@ def framework_request_capability(topic: str) -> str | None:
             return "process.run"
         case "framework.process.stream.requested":
             return "process.run"
+        case "framework.render.table.requested":
+            return "framework.render.table"
         case topic if topic.startswith("plugin.progress."):
             return "plugin.progress"
         case "shell.prompt.requested":
@@ -1300,17 +1327,5 @@ def implied_capabilities(spec: CommandSpec) -> tuple[str, ...]:
 
 def format_table(rows: Sequence[Mapping[str, object] | Sequence[object]], columns: Sequence[str]) -> list[str]:
     """Return aligned text rows for small commandlet tables."""
-    values: list[list[str]] = []
-    for row in rows:
-        if isinstance(row, Mapping):
-            values.append([str(row.get(column, "")) for column in columns])
-        else:
-            values.append([str(row[index]) if index < len(row) else "" for index, _column in enumerate(columns)])
-    widths = [
-        max(len(column), *(len(row[index]) for row in values))
-        for index, column in enumerate(columns)
-    ]
-    header = "  ".join(column.ljust(widths[index]) for index, column in enumerate(columns))
-    divider = "  ".join("-" * width for width in widths)
-    body = ["  ".join(value.ljust(widths[index]) for index, value in enumerate(row)) for row in values]
-    return [header, divider, *body]
+    rendered = render_console_table(Table.from_rows(rows, columns))
+    return rendered.splitlines() if rendered else []
