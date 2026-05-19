@@ -5,7 +5,21 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-19 18:35:00 EDT
+Last updated: 2026-05-19 18:52:00 EDT
+
+### 2026-05-19 18:52:00 EDT
+
+#### Added
+
+- Added plugin catalog tree verification so signed catalogs can also be checked
+  against the current bundled plugin source and sidecar manifest hashes.
+- Added regression tests for plugin catalog build, tree checking, signing,
+  verification, and tamper rejection.
+
+#### Changed
+
+- Documented the maintainer-side plugin catalog signing workflow in the README,
+  usage guide, and plugin author guide.
 
 ### 2026-05-19 18:35:00 EDT
 

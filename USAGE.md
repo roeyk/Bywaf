@@ -1570,6 +1570,26 @@ User flows are ordinary `.bywaf` scripts with optional `# EXPECT:` and
 `# EXPECT-EVENT:` assertions. They exercise real REPL/script commands from the
 operator's point of view and double as executable examples.
 
+Build and verify a maintainer-side signed plugin catalog:
+
+```bash
+python3 scripts/plugin_catalog.py build --output dist/plugin-catalog.json
+python3 scripts/plugin_catalog.py sign \
+  --catalog dist/plugin-catalog.json \
+  --private maintainer-plugin-signing.pem \
+  --signer "Bywaf maintainer" \
+  --output dist/plugin-catalog.signed.json
+python3 scripts/plugin_catalog.py verify \
+  --catalog dist/plugin-catalog.signed.json \
+  --public maintainer-plugin-signing.pub.pem \
+  --check-tree
+```
+
+The catalog binds the reviewed bundled plugin list, plugin source hashes,
+sidecar manifest hashes, traits, commandlets, capabilities, and secret options.
+`--check-tree` proves the signed catalog still matches the files in the current
+checkout.
+
 Add a commandlet by defining a class with a `CommandSpec` and a `run()` method,
 then expose it through a `plugin()` factory. Add bundled commandlets to
 `bywaf/plugins/plugins.toml` when they should load by default.

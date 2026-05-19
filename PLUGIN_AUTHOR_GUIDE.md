@@ -1112,6 +1112,35 @@ Bundled plugins live under `bywaf/plugins/` and are loaded from
 add its dotted module path to `default_plugins` and add or update the matching
 sidecar manifest, for example `bywaf/plugins/http/nikto.plugin.toml`.
 
+# Plugin Catalog Signing
+
+Bywaf keeps runtime plugin loading separate from maintainer release tooling. The
+maintainer-side catalog helper builds a reviewed catalog from bundled plugin
+source files and sidecar manifests, records SHA-256 hashes, and can sign that
+catalog with an encrypted Ed25519 key:
+
+```bash
+python3 scripts/plugin_catalog.py build --output dist/plugin-catalog.json
+python3 scripts/plugin_catalog.py generate-key \
+  --private maintainer-plugin-signing.pem \
+  --public maintainer-plugin-signing.pub.pem
+python3 scripts/plugin_catalog.py sign \
+  --catalog dist/plugin-catalog.json \
+  --private maintainer-plugin-signing.pem \
+  --signer "Bywaf maintainer" \
+  --output dist/plugin-catalog.signed.json
+python3 scripts/plugin_catalog.py verify \
+  --catalog dist/plugin-catalog.signed.json \
+  --public maintainer-plugin-signing.pub.pem \
+  --check-tree
+```
+
+`verify` checks the catalog signature. `--check-tree` additionally checks that
+the current plugin modules and sidecar manifests still match the hashes and
+metadata in the signed catalog. This is the beginning of plugin chain-of-custody
+support; runtime trust prompts, revocation policy, and external plugin package
+distribution are still design items.
+
 # Testing a Plugin
 
 Unit test the commandlet directly:

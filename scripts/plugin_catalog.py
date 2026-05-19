@@ -202,6 +202,48 @@ def verify_catalog(catalog_path: Path, public_path: Path) -> bool:
     return True
 
 
+def check_catalog_tree(catalog_path: Path, root: Path = ROOT) -> list[str]:
+    """Return problems if a catalog no longer matches the plugin tree."""
+    catalog = load_json(catalog_path)
+    current = build_catalog(root)
+    problems: list[str] = []
+    if catalog.get("schema") != CATALOG_SCHEMA:
+        problems.append(f"unsupported schema: {catalog.get('schema')}")
+    if catalog.get("source") != current.get("source"):
+        problems.append("catalog source mismatch")
+    catalog_plugins = catalog.get("plugins")
+    current_plugins = current.get("plugins")
+    if not isinstance(catalog_plugins, list):
+        problems.append("catalog plugins must be a list")
+        return problems
+    if catalog_plugins != current_plugins:
+        problems.extend(plugin_catalog_differences(catalog_plugins, current_plugins))
+    return problems
+
+
+def plugin_catalog_differences(catalog_plugins: list[Any], current_plugins: Any) -> list[str]:
+    """Return human-readable differences between catalog and current tree."""
+    if not isinstance(current_plugins, list):
+        return ["current plugin catalog build did not produce a plugin list"]
+    problems: list[str] = []
+    current_by_entry: dict[str, Any] = {}
+    for row in current_plugins:
+        if isinstance(row, dict) and isinstance(row.get("entry"), str):
+            current_by_entry[str(row["entry"])] = row
+    catalog_by_entry: dict[str, Any] = {}
+    for row in catalog_plugins:
+        if isinstance(row, dict) and isinstance(row.get("entry"), str):
+            catalog_by_entry[str(row["entry"])] = row
+    for entry in sorted(set(catalog_by_entry) - set(current_by_entry)):
+        problems.append(f"catalog lists missing plugin: {entry}")
+    for entry in sorted(set(current_by_entry) - set(catalog_by_entry)):
+        problems.append(f"catalog omits plugin: {entry}")
+    for entry in sorted(set(catalog_by_entry) & set(current_by_entry)):
+        if catalog_by_entry[entry] != current_by_entry[entry]:
+            problems.append(f"catalog metadata/hash mismatch: {entry}")
+    return problems
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI parser."""
     parser = argparse.ArgumentParser(prog="scripts/plugin_catalog.py")
@@ -223,6 +265,10 @@ def build_parser() -> argparse.ArgumentParser:
     verify = subparsers.add_parser("verify", help="verify a signed catalog")
     verify.add_argument("--catalog", required=True, type=Path)
     verify.add_argument("--public", required=True, type=Path)
+    verify.add_argument("--check-tree", action="store_true", help="also verify catalog hashes against this checkout")
+
+    check = subparsers.add_parser("check", help="verify catalog hashes against this checkout")
+    check.add_argument("--catalog", required=True, type=Path)
     return parser
 
 
@@ -240,10 +286,24 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "verify":
         if verify_catalog(args.catalog, args.public):
+            if args.check_tree:
+                problems = check_catalog_tree(args.catalog)
+                if problems:
+                    for problem in problems:
+                        print(problem, file=sys.stderr)
+                    return 1
             print("signature ok")
             return 0
         print("signature invalid", file=sys.stderr)
         return 1
+    if args.command == "check":
+        problems = check_catalog_tree(args.catalog)
+        if problems:
+            for problem in problems:
+                print(problem, file=sys.stderr)
+            return 1
+        print("catalog tree ok")
+        return 0
     raise SystemExit(f"unknown command: {args.command}")
 
 
