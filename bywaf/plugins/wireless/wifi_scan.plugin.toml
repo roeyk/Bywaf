@@ -5,5 +5,17 @@ service = false
 
 [[commandlets]]
 name = "wifi_scan"
+capabilities = [
+  "artifact.write",
+  "db.write:kismet.network",
+  "db.write:wifi.network",
+  "db.write:tool.error",
+  "db.write:system.error",
+  "filesystem.read",
+  "filesystem.write",
+  "framework.console.alert",
+  "framework.process.run",
+  "network.listen",
+  "process.run",
+]
 module = "bywaf.plugins.wireless.wifi_scan"
-

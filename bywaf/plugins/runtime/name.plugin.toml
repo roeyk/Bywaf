@@ -4,5 +4,7 @@ service = false
 
 [[commandlets]]
 name = "name"
+capabilities = [
+  "framework.console.output",
+]
 module = "bywaf.plugins.runtime.name"
-

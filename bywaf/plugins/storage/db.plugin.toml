@@ -4,5 +4,11 @@ service = false
 
 [[commandlets]]
 name = "db"
+capabilities = [
+  "db.manage",
+  "db.raw",
+  "filesystem.read",
+  "filesystem.write",
+  "framework.console.output",
+]
 module = "bywaf.plugins.storage.db"
-

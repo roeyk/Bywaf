@@ -44,6 +44,24 @@ CommandSpec(
 `consumes` and `emits` imply the corresponding topic capabilities for normal
 event-bus use. Explicit declarations are still useful documentation for humans.
 
+Plugin manifests also declare capabilities before Python import:
+
+```toml
+[[commandlets]]
+name = "http_probe"
+capabilities = [
+  "filesystem.read",
+  "framework.console.alert",
+  "network.connect",
+]
+```
+
+Bywaf currently requires manifest capabilities to match
+`CommandSpec.capabilities` exactly when a manifest is present. This catches
+stale metadata early. Runtime policy enforcement remains the real behavior
+boundary: privileged framework APIs can still audit or deny use even if a
+plugin's metadata is absent, incomplete, or stale.
+
 ## Common Capability Names
 
 Common capability names include:

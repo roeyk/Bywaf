@@ -5,7 +5,7 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-18 20:34:54 EDT
+Last updated: 2026-05-18 20:47:59 EDT
 
 ### 2026-05-18 18:29:12 EDT
 
@@ -26,6 +26,9 @@ Last updated: 2026-05-18 20:34:54 EDT
   library-backed, process-wrapped, and service plugins.
 - Added bundled plugin sidecar manifests such as `nikto.plugin.toml` and
   enforced those manifests during package plugin discovery.
+- Added commandlet-level manifest capability declarations, validation against
+  Python `CommandSpec.capabilities`, and plugin-load audit details including
+  manifest path, SHA-256 hash, traits, roles, and capabilities.
 
 #### Changed
 

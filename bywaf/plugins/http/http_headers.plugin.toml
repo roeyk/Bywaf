@@ -4,5 +4,7 @@ service = false
 
 [[commandlets]]
 name = "http_headers"
+capabilities = [
+  "network.connect",
+]
 module = "bywaf.plugins.http.http_headers"
-

@@ -4,5 +4,9 @@ service = false
 
 [[commandlets]]
 name = "note"
+capabilities = [
+  "filesystem.read",
+  "filesystem.write",
+  "framework.console.output",
+]
 module = "bywaf.plugins.runtime.note"
-

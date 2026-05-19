@@ -5,5 +5,21 @@ service = false
 
 [[commandlets]]
 name = "nikto"
+capabilities = [
+  "artifact.write",
+  "db.write:nikto.finding",
+  "db.write:vulnerability.found",
+  "db.write:vulnerability.potential",
+  "db.write:tool.error",
+  "db.write:tool.exception",
+  "db.write:system.error",
+  "db.write:network.error",
+  "db.write:web.error",
+  "filesystem.read",
+  "filesystem.write",
+  "framework.console.alert",
+  "framework.process.run",
+  "network.connect",
+  "process.run",
+]
 module = "bywaf.plugins.http.nikto"
-

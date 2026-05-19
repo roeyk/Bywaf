@@ -5,5 +5,17 @@ service = false
 
 [[commandlets]]
 name = "eyewitness"
+capabilities = [
+  "artifact.write",
+  "db.write:eyewitness.screenshot",
+  "db.write:web.screenshot",
+  "db.write:tool.error",
+  "db.write:system.error",
+  "filesystem.read",
+  "filesystem.write",
+  "framework.console.alert",
+  "framework.process.run",
+  "network.connect",
+  "process.run",
+]
 module = "bywaf.plugins.http.eyewitness"
-

@@ -4,5 +4,8 @@ service = false
 
 [[commandlets]]
 name = "webfin"
+capabilities = [
+  "framework.console.alert",
+  "network.connect",
+]
 module = "bywaf.plugins.http.webfin"
-

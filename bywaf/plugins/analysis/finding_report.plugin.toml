@@ -4,5 +4,18 @@ service = false
 
 [[commandlets]]
 name = "finding_report"
+capabilities = [
+  "artifact.write",
+  "db.read:finding.new",
+  "db.read:finding.merge_candidate",
+  "db.read:nikto.finding",
+  "db.read:vulnerability.found",
+  "db.read:vulnerability.potential",
+  "db.read:vulnerability.confirmed",
+  "db.read:vulnerability.speculative",
+  "db.read:vulnerability.false_positive",
+  "filesystem.read",
+  "filesystem.write",
+  "framework.render.table",
+]
 module = "bywaf.plugins.analysis.finding_report"
-

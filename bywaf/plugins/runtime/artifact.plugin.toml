@@ -4,9 +4,20 @@ service = false
 
 [[commandlets]]
 name = "artifact"
+capabilities = [
+  "artifact.read",
+  "artifact.write",
+  "db.read:artifact.attached",
+  "filesystem.read",
+  "filesystem.write",
+  "framework.console.output",
+]
 module = "bywaf.plugins.runtime.artifact"
 
 [[commandlets]]
 name = "search"
+capabilities = [
+  "artifact.read",
+  "framework.console.output",
+]
 module = "bywaf.plugins.runtime.artifact"
-

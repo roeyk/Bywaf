@@ -4,5 +4,8 @@ service = false
 
 [[commandlets]]
 name = "job"
+capabilities = [
+  "framework.console.output",
+  "framework.job.control",
+]
 module = "bywaf.plugins.runtime.job"
-

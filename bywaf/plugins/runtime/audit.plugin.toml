@@ -4,5 +4,9 @@ service = false
 
 [[commandlets]]
 name = "audit"
+capabilities = [
+  "db.raw",
+  "filesystem.write",
+  "framework.console.output",
+]
 module = "bywaf.plugins.runtime.audit"
-

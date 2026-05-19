@@ -140,6 +140,7 @@ class PluginManifest:
     """Pre-import metadata that controls filesystem plugin exposure."""
 
     commandlets: frozenset[str]
+    commandlet_capabilities: dict[str, tuple[str, ...]] = field(default_factory=dict)
     library_backed: bool = False
     process_wrapped: bool = False
     service: bool = False
@@ -168,6 +169,7 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
     if not isinstance(commandlet_rows, list) or not commandlet_rows:
         raise ValueError(f"{source} must declare at least one [[commandlets]] entry")
     commandlets: set[str] = set()
+    commandlet_capabilities: dict[str, tuple[str, ...]] = {}
     for index, row in enumerate(commandlet_rows, start=1):
         if not isinstance(row, dict):
             raise ValueError(f"{source} commandlets entry {index} must be a table")
@@ -175,6 +177,7 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
         if not isinstance(name, str) or not name:
             raise ValueError(f"{source} commandlets entry {index} requires name")
         commandlets.add(name)
+        commandlet_capabilities[name] = tuple(str(value) for value in list_field(row, "capabilities", source))
     library_backed = bool_field(plugin_data, "library_backed", source)
     process_wrapped = bool_field(plugin_data, "process_wrapped", source)
     service = bool_field(plugin_data, "service", source)
@@ -184,6 +187,7 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
     roles = tuple(str(role) for role in list_field(plugin_data, "roles", source))
     return PluginManifest(
         commandlets=frozenset(commandlets),
+        commandlet_capabilities=commandlet_capabilities,
         library_backed=library_backed,
         process_wrapped=process_wrapped,
         service=service,
@@ -202,6 +206,18 @@ def enforce_plugin_manifest(
     missing = sorted(manifest.commandlets.difference(by_name))
     if missing:
         raise ValueError(f"{path} declares missing commandlets: {', '.join(missing)}")
+    for name in sorted(manifest.commandlets):
+        manifest_caps = set(manifest.commandlet_capabilities.get(name, ()))
+        code_caps = set(by_name[name].spec.capabilities)
+        if manifest_caps != code_caps:
+            missing_caps = sorted(code_caps.difference(manifest_caps))
+            stale_caps = sorted(manifest_caps.difference(code_caps))
+            details = []
+            if missing_caps:
+                details.append(f"missing {', '.join(missing_caps)}")
+            if stale_caps:
+                details.append(f"stale {', '.join(stale_caps)}")
+            raise ValueError(f"{path} capabilities mismatch for {name}: {'; '.join(details)}")
     return tuple(by_name[name] for name in sorted(manifest.commandlets))
 
 

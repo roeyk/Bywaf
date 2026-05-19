@@ -4,5 +4,20 @@ service = false
 
 [[commandlets]]
 name = "finding_dedupe"
+capabilities = [
+  "artifact.write",
+  "db.read:nikto.finding",
+  "db.read:vulnerability.found",
+  "db.read:vulnerability.potential",
+  "db.read:vulnerability.confirmed",
+  "db.read:vulnerability.speculative",
+  "db.read:vulnerability.false_positive",
+  "db.write:finding.new",
+  "db.write:finding.duplicate",
+  "db.write:finding.updated",
+  "db.write:finding.merge_candidate",
+  "filesystem.read",
+  "filesystem.write",
+  "framework.console.output",
+]
 module = "bywaf.plugins.analysis.finding_dedupe"
-

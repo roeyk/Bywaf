@@ -4,5 +4,9 @@ service = false
 
 [[commandlets]]
 name = "pipeline"
+capabilities = [
+  "framework.console.output",
+  "framework.pipeline.control",
+  "framework.job.control",
+]
 module = "bywaf.plugins.runtime.pipeline"
-

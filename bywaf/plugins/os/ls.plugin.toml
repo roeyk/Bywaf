@@ -4,5 +4,8 @@ service = false
 
 [[commandlets]]
 name = "ls"
+capabilities = [
+  "filesystem.read",
+  "framework.console.output",
+]
 module = "bywaf.plugins.os.ls"
-

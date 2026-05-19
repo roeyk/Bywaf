@@ -317,6 +317,35 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             self.assertEqual(loaded.payload["commandlet"], "example")
             self.assertEqual(runner.db.events_for_serial(str(serial)), [loaded])
 
+    def test_load_plugin_audits_manifest_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            plugin_dir = Path(tmp, "example")
+            plugin_dir.mkdir()
+            (plugin_dir / "plugin.py").write_text(
+                "from bywaf.plugin import CommandSpec\n"
+                "class Example:\n"
+                "    spec = CommandSpec('example', 'example plugin', capabilities=('network.connect',))\n"
+                "    def run(self, context, args, input_events):\n"
+                "        return ()\n"
+                "def plugin():\n"
+                "    return Example()\n"
+            )
+            (plugin_dir / "bywaf.plugin.toml").write_text(
+                "[plugin]\n"
+                "library_backed = true\n\n"
+                "[[commandlets]]\n"
+                'name = "example"\n'
+                'capabilities = ["network.connect"]\n'
+            )
+            with contextlib.redirect_stdout(io.StringIO()):
+                dispatch_repl_line(runner, f"load plugin={plugin_dir}")
+            loaded = runner.db.events_for_topic("resource.plugin.loaded")[0]
+            self.assertEqual(loaded.payload["manifest"], str(plugin_dir / "bywaf.plugin.toml"))
+            self.assertEqual(loaded.payload["traits"]["library_backed"], True)
+            self.assertEqual(loaded.payload["capabilities"]["example"], ["network.connect"])
+            self.assertRegex(str(loaded.payload["manifest_sha256"]), r"^[0-9a-f]{64}$")
+
     def test_regression_script_smoke_variables(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

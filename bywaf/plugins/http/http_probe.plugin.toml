@@ -4,5 +4,9 @@ service = false
 
 [[commandlets]]
 name = "http_probe"
+capabilities = [
+  "filesystem.read",
+  "framework.console.alert",
+  "network.connect",
+]
 module = "bywaf.plugins.http.http_probe"
-

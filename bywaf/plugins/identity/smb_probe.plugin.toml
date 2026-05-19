@@ -5,5 +5,9 @@ service = false
 
 [[commandlets]]
 name = "smb_probe"
+capabilities = [
+  "db.write:smb.server",
+  "db.write:tool.error",
+  "network.connect",
+]
 module = "bywaf.plugins.identity.smb_probe"
-

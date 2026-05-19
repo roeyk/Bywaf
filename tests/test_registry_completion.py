@@ -676,6 +676,7 @@ class RegistryCompletionTests(unittest.TestCase):
                 'roles = ["command-provider"]\n\n'
                 "[[commandlets]]\n"
                 'name = "example"\n'
+                "capabilities = []\n"
             )
             config = Path(tmp, "plugins.toml")
             config.write_text('default_plugins = ["scanners/example"]\n')
@@ -722,6 +723,31 @@ class RegistryCompletionTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(ValueError, "native=true conflicts"):
                 parse_plugin_manifest(manifest)
+
+    def test_filesystem_manifest_rejects_capability_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp, "plugins")
+            plugin_dir = root / "scanners" / "example"
+            plugin_dir.mkdir(parents=True)
+            (plugin_dir / "plugin.py").write_text(
+                "from bywaf.plugin import CommandSpec\n"
+                "class Example:\n"
+                "    spec = CommandSpec('example', 'example plugin', capabilities=('network.connect',))\n"
+                "    def run(self, context, args, input_events):\n"
+                "        yield {'ok': True}\n"
+                "def plugin():\n"
+                "    return Example()\n"
+            )
+            (plugin_dir / "bywaf.plugin.toml").write_text(
+                "[[commandlets]]\n"
+                'name = "example"\n'
+                "capabilities = []\n"
+            )
+            config = Path(tmp, "plugins.toml")
+            config.write_text('default_plugins = ["scanners/example"]\n')
+
+            with self.assertRaisesRegex(ValueError, "capabilities mismatch"):
+                PluginRegistry.from_config(root, config)
 
 
 if __name__ == "__main__":

@@ -5,5 +5,9 @@ service = false
 
 [[commandlets]]
 name = "yara_scan"
+capabilities = [
+  "db.write:yara.match",
+  "db.write:tool.error",
+  "filesystem.read",
+]
 module = "bywaf.plugins.analysis.yara_scan"
-

@@ -73,6 +73,7 @@ roles = ["command-provider"]
 
 [[commandlets]]
 name = "example"
+capabilities = ["network.connect"]
 ```
 
 Implementation traits are independent:
@@ -85,6 +86,13 @@ Implementation traits are independent:
   framework process API. The external process may be a compiled binary, script,
   package entrypoint, or other executable tool;
 - `service` means the plugin is expected to run long-lived or continuously.
+
+Each `[[commandlets]]` entry should also list the commandlet capabilities. For
+now Bywaf requires those manifest capabilities to match
+`CommandSpec.capabilities` exactly. This is a pre-load consistency check, not
+the only enforcement layer: runtime policy still audits and can deny actual
+framework API use if a plugin attempts behavior outside its declared
+capabilities.
 
 # A Minimal Commandlet
 

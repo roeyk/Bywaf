@@ -4,29 +4,63 @@ service = false
 
 [[commandlets]]
 name = "signal"
+capabilities = [
+  "framework.console.output",
+  "framework.job.control",
+  "framework.pipeline.control",
+]
 module = "bywaf.plugins.runtime.control"
 
 [[commandlets]]
 name = "end"
+capabilities = [
+  "framework.console.output",
+  "framework.job.control",
+  "framework.pipeline.control",
+]
 module = "bywaf.plugins.runtime.control"
 
 [[commandlets]]
 name = "kill"
+capabilities = [
+  "framework.console.output",
+  "framework.job.control",
+  "framework.pipeline.control",
+]
 module = "bywaf.plugins.runtime.control"
 
 [[commandlets]]
 name = "cancel"
+capabilities = [
+  "framework.console.output",
+  "framework.job.control",
+  "framework.pipeline.control",
+]
 module = "bywaf.plugins.runtime.control"
 
 [[commandlets]]
 name = "pause"
+capabilities = [
+  "framework.console.output",
+  "framework.job.control",
+  "framework.pipeline.control",
+]
 module = "bywaf.plugins.runtime.control"
 
 [[commandlets]]
 name = "resume"
+capabilities = [
+  "framework.console.output",
+  "framework.job.control",
+  "framework.pipeline.control",
+]
 module = "bywaf.plugins.runtime.control"
 
 [[commandlets]]
 name = "stop"
+capabilities = [
+  "framework.console.output",
+  "framework.job.control",
+  "framework.pipeline.control",
+]
 module = "bywaf.plugins.runtime.control"
-

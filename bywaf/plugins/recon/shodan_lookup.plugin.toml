@@ -5,5 +5,10 @@ service = false
 
 [[commandlets]]
 name = "shodan_lookup"
+capabilities = [
+  "db.write:shodan.host",
+  "db.write:shodan.result",
+  "db.write:tool.error",
+  "network.connect",
+]
 module = "bywaf.plugins.recon.shodan_lookup"
-

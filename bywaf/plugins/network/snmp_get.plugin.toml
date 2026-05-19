@@ -5,5 +5,9 @@ service = false
 
 [[commandlets]]
 name = "snmp_get"
+capabilities = [
+  "db.write:snmp.value",
+  "db.write:tool.error",
+  "network.connect",
+]
 module = "bywaf.plugins.network.snmp_get"
-
