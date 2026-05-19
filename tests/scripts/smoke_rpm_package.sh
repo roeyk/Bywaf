@@ -17,7 +17,7 @@ python3 -m build --no-isolation --sdist --outdir "$WORKDIR/dist" "$ROOT"
 cp "$WORKDIR/dist/bywaf-$VERSION.tar.gz" "$WORKDIR/rpmbuild/SOURCES/"
 cp "$ROOT/packaging/rpm/bywaf.spec" "$WORKDIR/rpmbuild/SPECS/"
 
-rpmbuild --nodeps --define "_topdir $WORKDIR/rpmbuild" -ba "$WORKDIR/rpmbuild/SPECS/bywaf.spec"
+rpmbuild --nodeps --define "_topdir $WORKDIR/rpmbuild" --define "bywaf_version $VERSION" -ba "$WORKDIR/rpmbuild/SPECS/bywaf.spec"
 test -f "$WORKDIR/rpmbuild/RPMS/noarch/bywaf-$VERSION-1.noarch.rpm"
 test -f "$WORKDIR/rpmbuild/SRPMS/bywaf-$VERSION-1.src.rpm"
 

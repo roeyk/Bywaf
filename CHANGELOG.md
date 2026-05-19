@@ -3,7 +3,7 @@
 All notable project changes are tracked here. Bywaf is still pre-1.0 software,
 so compatibility may change between testing releases.
 
-## Unreleased
+## [0.10.0] - 2026-05-19
 
 Last updated: 2026-05-19 19:10:00 EDT
 

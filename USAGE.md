@@ -54,7 +54,7 @@ For a local pip package build:
 
 ```bash
 scripts/build_pip_package.sh
-python3 -m pip install dist/bywaf-0.9.2-py3-none-any.whl
+python3 -m pip install dist/bywaf-0.10.0-py3-none-any.whl
 bywaf --help
 ```
 
@@ -64,7 +64,7 @@ write artifacts under `dist/deb/`:
 ```bash
 sudo apt install debhelper dh-python pybuild-plugin-pyproject python3-all python3-setuptools python3-prompt-toolkit
 scripts/build_deb_package.sh
-sudo apt install dist/deb/bywaf_0.9.2-1_all.deb
+sudo apt install dist/deb/bywaf_0.10.0-1_all.deb
 bywaf --help
 ```
 
