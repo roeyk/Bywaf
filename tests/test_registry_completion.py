@@ -25,6 +25,7 @@ from bywaf.db import EventStore
 from bywaf.plugin import ArgumentSpec, CommandSpec, CompletionSpec, OptionSpec
 from bywaf.registry import (
     PluginRegistry,
+    PluginTrustError,
     load_package_manifest,
     load_plugin,
     parse_package_plugin_config,
@@ -480,6 +481,7 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertEqual(completer.candidates("load hi"), ["history="])
         self.assertEqual(completer.candidates("load pl"), ["plugin="])
         self.assertEqual(completer.candidates("load sc"), ["script="])
+        self.assertEqual(completer.candidates("load --f"), ["--force"])
 
     def test_save_resource_keywords_complete_from_prefix(self):
         completer = Completer(self.registry)
@@ -650,9 +652,29 @@ class RegistryCompletionTests(unittest.TestCase):
             (plugin_dir / "defaults.toml").write_text("[defaults]\nanswer = 42\n")
             config = Path(tmp, "plugins.toml")
             config.write_text('default_plugins = ["scanners/example"]\n')
-            registry = PluginRegistry.from_config(root, config)
+            registry = PluginRegistry.from_config(root, config, forced=True)
             self.assertIn("example", registry.names())
             self.assertEqual(registry.varstore.get("example.answer"), "42")
+
+    def test_filesystem_plugin_requires_force_without_verified_catalog(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp, "plugins")
+            plugin_dir = root / "scanners" / "example"
+            plugin_dir.mkdir(parents=True)
+            (plugin_dir / "plugin.py").write_text(
+                "from bywaf.plugin import CommandSpec\n"
+                "class Example:\n"
+                "    spec = CommandSpec('example', 'example plugin')\n"
+                "    def run(self, context, args, input_events):\n"
+                "        yield {'ok': True}\n"
+                "def plugin():\n"
+                "    return Example()\n"
+            )
+            config = Path(tmp, "plugins.toml")
+            config.write_text('default_plugins = ["scanners/example"]\n')
+
+            with self.assertRaisesRegex(PluginTrustError, "refusing external plugin"):
+                PluginRegistry.from_config(root, config)
 
     def test_loads_legacy_filesystem_plugin_json_defaults(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -671,7 +693,7 @@ class RegistryCompletionTests(unittest.TestCase):
             (plugin_dir / "defaults.json").write_text('{"answer": 42}')
             config = Path(tmp, "plugins.yaml")
             config.write_text("default_plugins:\n  - scanners/example\n")
-            registry = PluginRegistry.from_config(root, config)
+            registry = PluginRegistry.from_config(root, config, forced=True)
             self.assertEqual(registry.varstore.get("example.answer"), "42")
 
     def test_filesystem_manifest_is_authoritative(self):
@@ -705,7 +727,7 @@ class RegistryCompletionTests(unittest.TestCase):
             config = Path(tmp, "plugins.toml")
             config.write_text('default_plugins = ["scanners/example"]\n')
 
-            registry = PluginRegistry.from_config(root, config)
+            registry = PluginRegistry.from_config(root, config, forced=True)
 
             self.assertIn("example", registry.names())
             self.assertNotIn("extra", registry.names())
@@ -733,7 +755,7 @@ class RegistryCompletionTests(unittest.TestCase):
             config.write_text('default_plugins = ["scanners/example"]\n')
 
             with self.assertRaisesRegex(ValueError, "missing commandlets"):
-                PluginRegistry.from_config(root, config)
+                PluginRegistry.from_config(root, config, forced=True)
 
     def test_filesystem_manifest_rejects_conflicting_native_trait(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -771,7 +793,7 @@ class RegistryCompletionTests(unittest.TestCase):
             config.write_text('default_plugins = ["scanners/example"]\n')
 
             with self.assertRaisesRegex(ValueError, "capabilities mismatch"):
-                PluginRegistry.from_config(root, config)
+                PluginRegistry.from_config(root, config, forced=True)
 
     def test_filesystem_manifest_rejects_secret_option_mismatch(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -797,7 +819,7 @@ class RegistryCompletionTests(unittest.TestCase):
             config.write_text('default_plugins = ["scanners/example"]\n')
 
             with self.assertRaisesRegex(ValueError, "secret_options mismatch"):
-                PluginRegistry.from_config(root, config)
+                PluginRegistry.from_config(root, config, forced=True)
 
     def test_plugin_manifest_tool_infers_secret_options(self):
         class Example:

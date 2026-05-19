@@ -14,6 +14,7 @@ from bywaf.app import (
     main,
     make_runner,
     command_from_remainder,
+    parse_load_spec,
     process_framework_requests,
     read_logical_input,
     repl,
@@ -49,6 +50,10 @@ class AppDispatchTests(unittest.TestCase):
         self.assertTrue(parser.parse_args(["--encrypt"]).encrypt)
         self.assertTrue(parser.parse_args(["--encrypted"]).encrypted)
 
+    def test_build_parser_accepts_force_plugins(self):
+        parser = build_parser()
+        self.assertTrue(parser.parse_args(["--force-plugins"]).force_plugins)
+
     def test_build_parser_rejects_direct_os_commandlets(self):
         parser = build_parser()
         with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
@@ -56,6 +61,11 @@ class AppDispatchTests(unittest.TestCase):
 
     def test_command_from_remainder_quotes_tokens(self):
         self.assertEqual(command_from_remainder(["cat", "file name.txt"]), "cat 'file name.txt'")
+
+    def test_parse_load_spec_accepts_force_before_resource(self):
+        forced, resource = parse_load_spec("--force plugin=example")
+        self.assertTrue(forced)
+        self.assertEqual(resource, "plugin=example")
 
     def test_command_from_remainder_preserves_single_quoted_pipeline(self):
         self.assertEqual(

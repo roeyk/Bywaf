@@ -321,7 +321,7 @@ class FrameworkHttpAppTests(unittest.TestCase):
             )
             config = Path(tmp, "plugins.yaml")
             config.write_text("default_plugins:\n  - scanners/external\n")
-            runner = make_runner(Path(tmp, "db.sqlite3"), plugin_root=root, plugin_config=config)
+            runner = make_runner(Path(tmp, "db.sqlite3"), plugin_root=root, plugin_config=config, forced_plugins=True)
             self.assertIn("external", runner.registry.names())
 
     def test_friendly_error_strips_keyerror_quotes(self):

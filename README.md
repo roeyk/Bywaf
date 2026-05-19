@@ -506,17 +506,27 @@ Bundled plugins are listed in `bywaf/plugins/plugins.toml`. Adding a plugin file
 is not enough to load it by default; add its dotted path to that config and add
 or update its sidecar manifest, such as `bywaf/plugins/http/nikto.plugin.toml`.
 
-Load an additional plugin by name from `.bywaf/plugins`:
+External filesystem plugins are arbitrary local Python code. Bywaf refuses to
+load them unless plugin catalog trust is verified or the operator explicitly
+forces the load. Use `--force` only for code you have reviewed:
 
 ```text
-bywaf> load plugin=myplugin
+bywaf> load --force plugin=myplugin
 ```
 
 Load a plugin from an explicit filesystem path:
 
 ```text
-bywaf> load plugin=./plugins/myplugin
-bywaf> load plugin=~/bywaf-plugins/myplugin
+bywaf> load --force plugin=./plugins/myplugin
+bywaf> load --force plugin=~/bywaf-plugins/myplugin
+```
+
+Startup plugin roots use the same policy. If you start Bywaf with
+`--plugin-root` and `--plugin-config`, add `--force-plugins` only when that
+plugin tree has been reviewed:
+
+```text
+bywaf --plugin-root ~/.bywaf/plugins --plugin-config ~/.bywaf/plugins/plugins.toml --force-plugins
 ```
 
 # Pipelines
@@ -1681,7 +1691,7 @@ event serial=<id>
 db <status|path|checkpoint|vacuum|new|encrypt|decrypt|rekey>
 key <list|show|generate|import|export|remove|test>
 bundle <create|add|list|show|seal|verify|export>
-load plugin=<resource>
+load [--force] plugin=<resource>
 load script=<resource>
 load db=<resource>
 load config=<resource>

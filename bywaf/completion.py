@@ -342,7 +342,7 @@ class Completer:
 
     def load_candidates(self, prefix: str) -> list[str]:
         """Complete `load` resource keys and values."""
-        return resource_candidates(prefix, ("config=", "db=", "history=", "plugin=", "script="))
+        return resource_candidates(prefix, ("--force", "config=", "db=", "history=", "plugin=", "script="))
 
     def save_candidates(self, prefix: str) -> list[str]:
         """Complete `save` resource keys and values."""
@@ -666,7 +666,7 @@ def completion_select_key_display(completer: Completer) -> str:
 def resource_candidates(prefix: str, keywords: tuple[str, ...]) -> list[str]:
     """Complete key=value resource expressions used by load/save."""
     for keyword in keywords:
-        if prefix.startswith(keyword):
+        if keyword.endswith("=") and prefix.startswith(keyword):
             value = prefix.split("=", 1)[1]
             return [f"{keyword}{path}" for path in complete_resource_value(keyword[:-1], value)]
     keyword_matches = [keyword for keyword in keywords if keyword.startswith(prefix)]

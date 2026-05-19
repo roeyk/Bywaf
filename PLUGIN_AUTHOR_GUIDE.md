@@ -170,7 +170,7 @@ class Hello(CommandletBase):
 Load and run it:
 
 ```text
-bywaf> load plugin=hello
+bywaf> load --force plugin=hello
 loaded hello
 bywaf> hello world
 hello, world
@@ -1023,7 +1023,7 @@ Install it:
 Use it:
 
 ```text
-bywaf> load plugin=file_info
+bywaf> load --force plugin=file_info
 loaded file_info
 bywaf> file_info READ<TAB>
 bywaf> file_info README.md
@@ -1091,7 +1091,7 @@ During development, plain plugin names resolve under:
 So:
 
 ```text
-bywaf> load plugin=file_info
+bywaf> load --force plugin=file_info
 ```
 
 loads:
@@ -1103,8 +1103,21 @@ loads:
 Explicit paths also work:
 
 ```text
-bywaf> load plugin=./scratch/file_info
-bywaf> load plugin=~/bywaf-plugins/file_info
+bywaf> load --force plugin=./scratch/file_info
+bywaf> load --force plugin=~/bywaf-plugins/file_info
+```
+
+`--force` is required for filesystem plugins unless a future runtime catalog
+trust check verifies the plugin first. Filesystem plugins are arbitrary local
+Python code, so forcing a load is an explicit operator acknowledgement that the
+plugin has been reviewed.
+
+Startup plugin roots use the same policy. If you start Bywaf with
+`--plugin-root` and `--plugin-config`, add `--force-plugins` only when that
+plugin tree has been reviewed:
+
+```text
+bywaf --plugin-root ~/.bywaf/plugins --plugin-config ~/.bywaf/plugins/plugins.toml --force-plugins
 ```
 
 Bundled plugins live under `bywaf/plugins/` and are loaded from

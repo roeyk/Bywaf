@@ -5,7 +5,17 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-19 18:52:00 EDT
+Last updated: 2026-05-19 19:08:00 EDT
+
+### 2026-05-19 19:08:00 EDT
+
+#### Changed
+
+- External filesystem plugin loading now refuses by default with a warning when
+  plugin catalog trust is not verified.
+- Added explicit force bypasses for reviewed local development plugins:
+  `load --force plugin=...` in the REPL and `--force-plugins` for startup
+  plugin roots/configs.
 
 ### 2026-05-19 18:52:00 EDT
 

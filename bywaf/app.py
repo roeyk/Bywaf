@@ -29,7 +29,7 @@ from .events import Event
 from .nmap_backend import NmapScanError, NmapUnavailableError
 from .plugin import CommandContext, normalize_argv, run_process_argv
 from .projects import ProjectPaths, create_project, list_projects, require_project
-from .registry import PluginRegistry, parse_plugin_manifest
+from .registry import PluginRegistry, PluginTrustError, parse_plugin_manifest
 from .rendering import Table, render_console_table
 from .runtime_display import (
     ACTIVE_LISTING_FORMAT_VAR,
@@ -77,7 +77,7 @@ HELP_COMMANDS = (
     HelpEntry("event", "show events for a topic, job, run, pipeline, or serial", "event <topic|job=id|run=id|pipeline=id|serial=id>", ("event host.found", "event run=1", "event pipeline=1", "event serial=hostscanner-..."), "event <selector>"),
     HelpEntry("events [tail|--tail] [last=N]", "show recent events", "events [tail|--tail] [last=N]", ("events", "events tail", "events tail last=50")),
     HelpEntry("prompt [pattern]", "show or set prompt pattern", "prompt [pattern]", ("prompt %u@%h %T > ",)),
-    HelpEntry("load plugin=<path>", "load a filesystem plugin", "load plugin=<path>"),
+    HelpEntry("load [--force] plugin=<path>", "load a filesystem plugin", "load [--force] plugin=<path>"),
     HelpEntry("load script=<path>", "run commands from a script file", "load script=<path>"),
     HelpEntry("load db=<path>", "switch active SQLite database", "load db=<path>"),
     HelpEntry("load config=<path>", "load session variables from JSON", "load config=<path>"),
@@ -128,6 +128,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--encrypted", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--plugin-root", help="directory containing filesystem plugins")
     parser.add_argument("--plugin-config", help="JSON or simple YAML plugin config")
+    parser.add_argument(
+        "--force-plugins",
+        action="store_true",
+        help="load filesystem plugins even when plugin catalog trust is not verified",
+    )
     parser.add_argument("--version", action="store_true", help="print version and exit")
     subparsers = parser.add_subparsers(dest="subcommand")
     add_runner_arguments(subparsers.add_parser("run", help="run a commandlet pipeline"))
@@ -145,6 +150,7 @@ def make_runner(
     *,
     plugin_root: str | Path | None = None,
     plugin_config: str | Path | None = None,
+    forced_plugins: bool = False,
     encrypted: bool = False,
     passphrase: str | None = None,
     project: ProjectPaths | None = None,
@@ -161,6 +167,7 @@ def make_runner(
             Path(plugin_root),
             Path(plugin_config),
             varstore=registry.varstore,
+            forced=forced_plugins,
         )
         registry.plugins.update(filesystem.plugins)
     db = EventStore(database_path, passphrase=db_passphrase)
@@ -392,6 +399,8 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
             print(f"error: command failed with exit code {exc.code}")
     except (NmapUnavailableError, NmapScanError) as exc:
         print(f"error: {exc}")
+    except PluginTrustError as exc:
+        print(str(exc))
     except (KeyError, ValueError) as exc:
         print(f"error: {friendly_error(exc)}")
     except Exception as exc:
@@ -1334,7 +1343,8 @@ def stop_active_jobs_for_project_switch(runner: Runner, jobs) -> None:
 def load_repl_resource(runner: Runner, spec: str, state: ShellState | None = None) -> None:
     """Handle `load key=value` resources from the REPL."""
     state = state or new_shell_state(runner)
-    match spec.split("=", 1):
+    forced, resource = parse_load_spec(spec)
+    match resource.split("=", 1):
         case ["db", value]:
             load_database(runner, resolve_resource_path(value, Path("."), DEFAULT_DATABASE))
         case ["config", value]:
@@ -1343,7 +1353,7 @@ def load_repl_resource(runner: Runner, spec: str, state: ShellState | None = Non
             load_history(state, resolve_resource_path(value, Path("."), DEFAULT_HISTORY))
         case ["plugin", value] if value:
             plugin_path = resolve_resource_path(value, DEFAULT_PLUGIN_DIR)
-            runner.registry.load_filesystem_entry(plugin_path.parent, plugin_path.name)
+            runner.registry.load_filesystem_entry(plugin_path.parent, plugin_path.name, forced=forced)
             commandlets = runner.registry.providers.get(plugin_path.name, [])
             manifest_details = plugin_manifest_audit_details(plugin_path)
             event = publish_resource_loaded(
@@ -1361,7 +1371,23 @@ def load_repl_resource(runner: Runner, spec: str, state: ShellState | None = Non
         case ["script", value] if value:
             run_script(runner, resolve_resource_path(value, Path(".")), state)
         case _:
-            print("usage: load plugin=<path>, load script=<path>, load db=<path>, load config=<path>, or load history=<path>")
+            print("usage: load [--force] plugin=<path>, load script=<path>, load db=<path>, load config=<path>, or load history=<path>")
+
+
+def parse_load_spec(spec: str) -> tuple[bool, str]:
+    """Parse built-in load options while keeping resource syntax consistent."""
+    tokens = shlex.split(spec)
+    forced = False
+    resource_tokens: list[str] = []
+    for token in tokens:
+        match token:
+            case "--force":
+                forced = True
+            case _:
+                resource_tokens.append(token)
+    if len(resource_tokens) != 1:
+        raise ValueError("usage: load [--force] plugin=<path>, load script=<path>, load db=<path>, load config=<path>, or load history=<path>")
+    return forced, resource_tokens[0]
 
 
 def save_repl_resource(runner: Runner, spec: str, state: ShellState | None = None) -> None:
@@ -1749,13 +1775,18 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     database = project.database if project is not None else Path(args.database)
     settings = Settings(database=database)
-    runner = make_runner(
-        settings.database,
-        plugin_root=args.plugin_root,
-        plugin_config=args.plugin_config,
-        encrypted=args.encrypt or args.encrypted,
-        project=project,
-    )
+    try:
+        runner = make_runner(
+            settings.database,
+            plugin_root=args.plugin_root,
+            plugin_config=args.plugin_config,
+            forced_plugins=args.force_plugins,
+            encrypted=args.encrypt or args.encrypted,
+            project=project,
+        )
+    except PluginTrustError as exc:
+        print(str(exc))
+        return 1
     if project is not None and project.config.exists():
         apply_config(runner, project.config)
     if args.subcommand in ("repl", None):

@@ -31,6 +31,7 @@ class BywafSession:
         passphrase: str | None = None,
         plugin_root: str | Path | None = None,
         plugin_config: str | Path | None = None,
+        force_plugins: bool = False,
     ) -> "BywafSession":
         """Open a Bywaf session without invoking the interactive shell."""
         database_path = Path(database) if database is not None else Settings().database
@@ -43,6 +44,7 @@ class BywafSession:
                 Path(plugin_root),
                 Path(plugin_config),
                 varstore=registry.varstore,
+                forced=force_plugins,
             )
             registry.plugins.update(filesystem.plugins)
         return cls(Runner(EventStore(database_path, passphrase=db_passphrase), registry))

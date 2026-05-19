@@ -18,6 +18,10 @@ from .toml_support import load_data_file
 from .varstore import VarStore
 
 
+class PluginTrustError(ValueError):
+    """Raised when an external plugin is refused by trust policy."""
+
+
 @dataclass(slots=True)
 class PluginRegistry:
     """Loaded commandlets plus their provider grouping and shared variables."""
@@ -50,16 +54,18 @@ class PluginRegistry:
         config_file: Path | str,
         *,
         varstore: VarStore | None = None,
+        forced: bool = False,
     ) -> "PluginRegistry":
         """Load plugins from an explicit filesystem config file."""
         registry = cls({}, varstore or VarStore())
         for entry in parse_plugin_config(Path(config_file)):
-            registry.load_filesystem_entry(Path(plugin_root), entry)
+            registry.load_filesystem_entry(Path(plugin_root), entry, forced=forced)
         return registry
 
-    def load_filesystem_entry(self, plugin_root: Path, entry: str) -> Commandlet:
+    def load_filesystem_entry(self, plugin_root: Path, entry: str, *, forced: bool = False) -> Commandlet:
         """Load commandlets from `<plugin_root>/<entry>`, enforcing its manifest."""
         plugin_dir = plugin_root / entry
+        enforce_filesystem_plugin_trust(plugin_dir, forced=forced)
         plugins = load_filesystem_plugins(plugin_dir)
         for plugin in plugins:
             self.plugins[plugin.spec.name] = plugin
@@ -122,6 +128,22 @@ def load_plugins(module: ModuleType) -> tuple[Commandlet, ...]:
 def load_plugin_path(path: Path) -> Commandlet:
     """Load an external plugin module from a concrete Python file path."""
     return load_plugins_path(path)[0]
+
+
+def enforce_filesystem_plugin_trust(plugin_dir: Path, *, forced: bool = False) -> None:
+    """Refuse external plugin code unless explicitly forced.
+
+    Bundled plugins are loaded through package resources and have already gone
+    through the reviewed tree. Filesystem plugins are arbitrary local code; the
+    current conservative policy is to refuse them unless the user explicitly
+    acknowledges the bypass with `--force`.
+    """
+    if forced:
+        return
+    raise PluginTrustError(
+        f"warning: refusing external plugin {plugin_dir}; "
+        "plugin catalog trust is not verified. Use --force to bypass."
+    )
 
 
 def load_plugins_path(path: Path) -> tuple[Commandlet, ...]:

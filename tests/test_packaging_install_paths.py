@@ -50,7 +50,7 @@ class PackagingInstallPathTests(unittest.TestCase):
             config = root / "plugins.toml"
             config.write_text('default_plugins = ["local/userprobe"]\n')
 
-            runner = make_runner(Path(tmp, "db.sqlite3"), plugin_root=root, plugin_config=config)
+            runner = make_runner(Path(tmp, "db.sqlite3"), plugin_root=root, plugin_config=config, forced_plugins=True)
 
             self.assertIn("userprobe", runner.registry.names())
             self.assertEqual(runner.registry.varstore.get("userprobe.origin"), "user-local")
@@ -62,7 +62,7 @@ class PackagingInstallPathTests(unittest.TestCase):
             config = root / "plugins.toml"
             config.write_text('default_plugins = ["site/systemprobe"]\n')
 
-            runner = make_runner(Path(tmp, "db.sqlite3"), plugin_root=root, plugin_config=config)
+            runner = make_runner(Path(tmp, "db.sqlite3"), plugin_root=root, plugin_config=config, forced_plugins=True)
 
             self.assertIn("systemprobe", runner.registry.names())
             self.assertEqual(runner.registry.varstore.get("systemprobe.origin"), "system-wide")
@@ -84,6 +84,7 @@ class PackagingInstallPathTests(unittest.TestCase):
                         str(root),
                         "--plugin-config",
                         str(config),
+                        "--force-plugins",
                         "run",
                         "userprobe",
                     ]

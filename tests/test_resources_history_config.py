@@ -317,13 +317,33 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
                 "    return Example()\n"
             )
             with contextlib.redirect_stdout(io.StringIO()):
-                dispatch_repl_line(runner, f"load plugin={plugin_dir}")
+                dispatch_repl_line(runner, f"load --force plugin={plugin_dir}")
             self.assertIn("example", runner.registry.names())
             loaded = runner.db.events_for_topic("resource.plugin.loaded")[0]
             serial = loaded.payload["serial"]
             self.assertTrue(str(serial).startswith("plugin-"))
             self.assertEqual(loaded.payload["commandlet"], "example")
             self.assertEqual(runner.db.events_for_serial(str(serial)), [loaded])
+
+    def test_load_plugin_refuses_without_force(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            plugin_dir = Path(tmp, "example")
+            plugin_dir.mkdir()
+            (plugin_dir / "plugin.py").write_text(
+                "from bywaf.plugin import CommandSpec\n"
+                "class Example:\n"
+                "    spec = CommandSpec('example', 'example plugin')\n"
+                "    def run(self, context, args, input_events):\n"
+                "        return ()\n"
+                "def plugin():\n"
+                "    return Example()\n"
+            )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, f"load plugin={plugin_dir}")
+            self.assertIn("warning: refusing external plugin", output.getvalue())
+            self.assertNotIn("example", runner.registry.names())
 
     def test_load_plugin_audits_manifest_metadata(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -347,7 +367,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
                 'capabilities = ["network.connect"]\n'
             )
             with contextlib.redirect_stdout(io.StringIO()):
-                dispatch_repl_line(runner, f"load plugin={plugin_dir}")
+                dispatch_repl_line(runner, f"load --force plugin={plugin_dir}")
             loaded = runner.db.events_for_topic("resource.plugin.loaded")[0]
             self.assertEqual(loaded.payload["manifest"], str(plugin_dir / "bywaf.plugin.toml"))
             self.assertEqual(loaded.payload["traits"]["library_backed"], True)
