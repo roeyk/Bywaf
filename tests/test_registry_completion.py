@@ -67,6 +67,7 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn("stop", self.registry.names())
         self.assertIn("signal", self.registry.names())
         self.assertIn("audit", self.registry.names())
+        self.assertIn("bundle", self.registry.names())
         self.assertIn("key", self.registry.names())
         self.assertIn("note", self.registry.names())
         self.assertIn("name", self.registry.names())
@@ -99,6 +100,7 @@ class RegistryCompletionTests(unittest.TestCase):
                 "runtime.pipeline",
                 "runtime.control",
                 "runtime.audit",
+                "runtime.bundle",
                 "runtime.key",
                 "runtime.note",
                 "runtime.name",
@@ -149,6 +151,7 @@ class RegistryCompletionTests(unittest.TestCase):
             [
                 "artifact",
                 "audit",
+                "bundle",
                 "cancel",
                 "end",
                 "job",

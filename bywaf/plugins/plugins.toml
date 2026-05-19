@@ -20,6 +20,7 @@ default_plugins = [
   "runtime.pipeline",
   "runtime.control",
   "runtime.audit",
+  "runtime.bundle",
   "runtime.key",
   "runtime.note",
   "runtime.name",

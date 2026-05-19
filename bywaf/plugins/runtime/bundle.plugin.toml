@@ -1,0 +1,19 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "bundle"
+capabilities = [
+  "artifact.read",
+  "db.read:bundle.created",
+  "db.read:bundle.item.added",
+  "db.read:bundle.sealed",
+  "db.write:bundle.created",
+  "db.write:bundle.item.added",
+  "db.write:bundle.sealed",
+  "db.write:bundle.exported",
+  "filesystem.write",
+  "framework.console.output",
+]
+module = "bywaf.plugins.runtime.bundle"

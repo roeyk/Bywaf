@@ -91,6 +91,7 @@ def parse_invocation(text: str, varstore: VarStore | None = None) -> CommandInvo
 
 COMMANDLET_TEXT_SELECTORS = {
     "artifact": frozenset({"name", "note"}),
+    "bundle": frozenset({"name"}),
     "key": frozenset({"name"}),
     "search": frozenset({"name", "note"}),
 }

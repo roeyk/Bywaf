@@ -391,6 +391,29 @@ bywaf> key test name=firm-evidence
 a user-edited `can_sign` flag in metadata. Future signed bundle and audit-export
 commands will complete `key=` values from this keyring.
 
+# Evidence Bundles
+
+Bundles collect audit records, evidence artifacts, and report artifacts into a
+durable manifest. The bundle definition is stored in the event DB as
+`bundle.created`, `bundle.item.added`, `bundle.sealed`, and `bundle.exported`
+events. Sealing hashes the current bundle contents; `--sign key=...` also signs
+that hashable manifest with a key from `~/.bywaf/keys`.
+
+```text
+bywaf> bundle create name=client-a
+bywaf> bundle add name=client-a audit since=20260501 until=20260519
+bywaf> bundle add name=client-a evidence commandlet=nikto,webfin
+bywaf> bundle seal name=client-a --sign key=firm-evidence
+bywaf> bundle verify name=client-a
+bywaf> bundle export name=client-a file=client-a.bundle.json
+```
+
+For artifact-backed bundle items, `commandlet=` accepts comma-separated
+commandlet names. The first implementation exports JSON bundles with artifact
+bodies encoded as Base64 and verifies signatures against the keyring. Sealed
+bundles reject additional `bundle add` operations; create a new bundle when more
+material needs to be added after sealing.
+
 # Plugins
 
 A plugin provider groups related commandlets. The `plugins` command lists loaded
@@ -1588,6 +1611,7 @@ event pipeline=<id>
 event serial=<id>
 db <status|path|checkpoint|vacuum|new|encrypt|decrypt|rekey>
 key <list|show|generate|import|export|remove|test>
+bundle <create|add|list|show|seal|verify|export>
 load plugin=<resource>
 load script=<resource>
 load db=<resource>

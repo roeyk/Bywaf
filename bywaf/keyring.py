@@ -346,6 +346,40 @@ def test_key(name: str, passphrase: str | None = None, paths: KeyPaths | None = 
     return signing_state_for_record(record, passphrase)
 
 
+def sign_bytes(name: str, data: bytes, passphrase: str, paths: KeyPaths | None = None) -> dict[str, str]:
+    """Sign bytes with an encrypted private key and return audit-safe metadata."""
+    record = key_by_name(name, paths)
+    if record.private_path is None:
+        raise ValueError(f"key has no private key material: {name}")
+    private_key = load_private_key(record.private_path.read_bytes(), passphrase)
+    signature = private_key.sign(data)
+    return {
+        "key": record.name,
+        "algorithm": record.algorithm,
+        "fingerprint": record.fingerprint,
+        "signature": base64.b64encode(signature).decode("ascii"),
+    }
+
+
+def verify_bytes(
+    name: str,
+    data: bytes,
+    signature_b64: str,
+    paths: KeyPaths | None = None,
+) -> bool:
+    """Verify a detached signature against a known public key."""
+    record = key_by_name(name, paths)
+    if record.public_path is None or not record.public_path.exists():
+        raise ValueError(f"key has no public key material: {name}")
+    public_key = load_public_key(record.public_path.read_bytes())
+    signature = base64.b64decode(signature_b64)
+    try:
+        public_key.verify(signature, data)
+    except Exception:
+        return False
+    return True
+
+
 def signing_key_names(paths: KeyPaths | None = None) -> list[str]:
     """Return keys that can sign after prompting or are already available."""
     return [

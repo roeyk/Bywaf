@@ -5,7 +5,20 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-19 18:08:00 EDT
+Last updated: 2026-05-19 18:35:00 EDT
+
+### 2026-05-19 18:35:00 EDT
+
+#### Added
+
+- Added the `bundle` runtime commandlet for creating, populating, sealing,
+  verifying, listing, showing, and exporting evidence bundles.
+- Added bundle sealing with deterministic manifest hashing and optional
+  Ed25519 signatures through the user keyring.
+- Added JSON bundle export with audit records, artifact metadata, and Base64
+  artifact bodies.
+- Added a bundle signing user-flow script and unit coverage for signed bundle
+  creation, verification, and export.
 
 ### 2026-05-19 18:08:00 EDT
 

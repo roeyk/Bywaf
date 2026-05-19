@@ -327,6 +327,8 @@ class Completer:
                 return self.job_candidates()
             case "serial":
                 return self.serial_candidates()
+            case "bundle":
+                return bundle_candidates(self.db)
             case "key.any":
                 return key_candidates()
             case "key.signing":
@@ -455,6 +457,22 @@ def key_candidates(*, signing: bool = False, verify: bool = False) -> list[str]:
         if verify:
             return verification_key_names()
         return [record.name for record in load_key_records()]
+    except Exception:
+        return []
+
+
+def bundle_candidates(db: EventStore | None) -> list[str]:
+    """Return known bundle names for completion."""
+    if db is None:
+        return []
+    try:
+        return sorted(
+            {
+                str(event.payload["name"])
+                for event in db.events_matching(topic="bundle.created", limit=100000)
+                if "name" in event.payload
+            }
+        )
     except Exception:
         return []
 
