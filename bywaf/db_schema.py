@@ -61,6 +61,17 @@ CREATE TABLE IF NOT EXISTS runtime_entities (
     UNIQUE(entity_type, local_id)
 );
 CREATE INDEX IF NOT EXISTS idx_runtime_entities_serial ON runtime_entities(serial);
+
+CREATE TABLE IF NOT EXISTS secrets (
+    ref TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    value TEXT NOT NULL,
+    fingerprint TEXT NOT NULL,
+    source TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_secrets_name ON secrets(name);
 """
 
 
@@ -120,5 +131,20 @@ def ensure_event_columns(conn: sqlite3.Connection) -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_runtime_entities_serial
             ON runtime_entities(serial);
+            """
+        )
+    if "secrets" not in tables:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS secrets (
+                ref TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                value TEXT NOT NULL,
+                fingerprint TEXT NOT NULL,
+                source TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_secrets_name ON secrets(name);
             """
         )

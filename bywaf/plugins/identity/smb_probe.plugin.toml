@@ -8,6 +8,8 @@ name = "smb_probe"
 capabilities = [
   "db.write:smb.server",
   "db.write:tool.error",
+  "framework.secret.resolve",
   "network.connect",
 ]
+secret_options = ["password"]
 module = "bywaf.plugins.identity.smb_probe"

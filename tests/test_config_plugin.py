@@ -20,6 +20,7 @@ from bywaf.plugin import (
     normalize_argv,
     option,
 )
+from bywaf.secrets import InMemorySecretStore
 from bywaf.messages import Host, Progress
 from bywaf.varstore import ScopedVarStore, VarStore
 
@@ -39,6 +40,7 @@ class ConfigPluginTests(unittest.TestCase):
     def test_option_spec_defaults(self):
         option = OptionSpec("ports", "ports to scan")
         self.assertEqual(option.choices, ())
+        self.assertFalse(option.secret)
 
     def test_command_spec_defaults(self):
         spec = CommandSpec("name", "description")
@@ -61,6 +63,7 @@ class ConfigPluginTests(unittest.TestCase):
             capabilities=("framework.console.output",),
         )
         @option("timeout", "timeout seconds", default="5")
+        @option("password", "password", secret=True)
         @option("uppercase", "uppercase output", default="false", choices=("true", "false"))
         @argument("suffix", "suffix", required=False)
         @argument("name", "name to greet", required=False, completion="plugin")
@@ -74,8 +77,10 @@ class ConfigPluginTests(unittest.TestCase):
         self.assertFalse(spec.arguments[1].required)
         self.assertEqual(spec.arguments[1].completion, CompletionSpec("plugin"))
         self.assertEqual(spec.options[0].name, "timeout")
-        self.assertEqual(spec.options[1].name, "uppercase")
-        self.assertEqual(spec.options[1].choices, ("true", "false"))
+        self.assertEqual(spec.options[1].name, "password")
+        self.assertTrue(spec.options[1].secret)
+        self.assertEqual(spec.options[2].name, "uppercase")
+        self.assertEqual(spec.options[2].choices, ("true", "false"))
         self.assertEqual(spec.emits, ("hello.greeting",))
         self.assertEqual(spec.capabilities, ("framework.console.output",))
 
@@ -115,6 +120,31 @@ class ConfigPluginTests(unittest.TestCase):
         )
         self.assertEqual(context.vars.get("value"), "run")
         self.assertEqual(context.vars.get_global("proxy"), "run-proxy")
+
+    def test_command_context_resolves_secret_references(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            secrets = InMemorySecretStore()
+            secret_ref = secrets.put("test.password", "supersecret", key=b"k" * 32)
+            context = CommandContext(
+                db=db,
+                source="test",
+                _secrets=secrets,
+                metadata={
+                    "command_run_id": "run-1",
+                    "capabilities": ("framework.secret.resolve",),
+                },
+            )
+            self.assertEqual(context.secrets.resolve(secret_ref.ref), "supersecret")
+            self.assertEqual(context.secrets.resolve("plaintext"), "plaintext")
+            self.assertTrue(context.secrets.is_secret_ref(secret_ref.ref))
+            fingerprint = context.secrets.fingerprint(secret_ref.ref)
+            self.assertIsNotNone(fingerprint)
+            assert fingerprint is not None
+            self.assertTrue(fingerprint.startswith("hmac-sha256:"))
+            used = db.events_for_topic("plugin.capability.used")
+            self.assertEqual(used[0].payload["capability"], "framework.secret.resolve")
+            self.assertTrue(used[0].payload["declared"])
 
     def test_command_context_alert_prints_without_database(self):
         context = CommandContext(db=None, source="test", metadata={"command_run_id": "run-1"})
@@ -173,6 +203,30 @@ class ConfigPluginTests(unittest.TestCase):
             context.process.run([sys.executable, "-c", "print('hello')"])
             missing = db.events_for_topic("plugin.capability.missing")
         self.assertEqual(missing[0].payload["capability"], "process.run")
+
+    def test_command_context_process_run_redacts_secret_argv(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            secrets = InMemorySecretStore()
+            secret_ref = secrets.put("test.password", "supersecret", key=b"k" * 32)
+            context = CommandContext(
+                db=db,
+                source="test",
+                _secrets=secrets,
+                metadata={
+                    "command_run_id": "run-1",
+                    "capabilities": ("framework.secret.resolve", "process.run"),
+                },
+            )
+            password = context.secrets.resolve(secret_ref.ref)
+            context.process.run([sys.executable, "-c", "print('ok')", f"password={password}"])
+            request = db.events_for_topic("framework.process.run.requested")[0]
+            result = db.events_for_topic("process.run")[0]
+            warnings = db.events_for_topic("process.secret.argv")
+        self.assertNotIn("supersecret", str(request.payload))
+        self.assertNotIn("supersecret", str(result.payload))
+        self.assertEqual(request.payload["argv"][-1], "password=<redacted>")
+        self.assertEqual(warnings[0].payload["argv"][-1], "password=<redacted>")
 
     def test_command_context_events_follow_stops_after_parent_completion(self):
         with tempfile.TemporaryDirectory() as tmp:

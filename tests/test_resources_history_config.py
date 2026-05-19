@@ -177,6 +177,14 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             record_command_history("plugins", path, timestamp_format="%Y/%m/%d")
             self.assertRegex(path.read_text(), r"^plugins  # \d{4}/\d{2}/\d{2}\n$")
 
+    def test_record_command_history_accepts_redacted_stored_command(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp, ".bywaf", "history.bywaf")
+            record_command_history("vars password=supersecret", path, stored_command="vars password=<redacted>")
+            text = path.read_text()
+            self.assertIn("vars password=<redacted>", text)
+            self.assertNotIn("supersecret", text)
+
     def test_format_history_entry_for_display_puts_timestamp_first(self):
         self.assertEqual(
             format_history_entry_for_display("plugins  # 2026-05-17 10:00:00 EDT"),

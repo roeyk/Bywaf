@@ -16,6 +16,7 @@ from .artifacts import Artifact, artifact_store_for_event_store
 from .db import EventStore, Subscription
 from .events import Event
 from .rendering import Column, Table, render_console_table
+from .secrets import InMemorySecretStore
 from .stores import ArtifactStoreProtocol, EventStoreProtocol, MaintenanceStoreProtocol, RuntimeStoreProtocol
 from .varstore import ScopedVarStore, VarStore
 
@@ -51,6 +52,7 @@ class OptionSpec:
     default: str | None = None
     choices: tuple[str, ...] = ()
     completion: CompletionSpec = field(default_factory=CompletionSpec)
+    secret: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,6 +140,7 @@ def option(
     default: str | None = None,
     choices: Sequence[str] = (),
     completion: CompletionSpec | str | None = None,
+    secret: bool = False,
 ):
     """Decorate a commandlet class with one option metadata entry."""
     def decorate(cls):
@@ -150,6 +153,7 @@ def option(
                 default,
                 tuple(choices),
                 normalize_completion(completion),
+                secret,
             )
         )
         cls._bywaf_options = tuple(options)
@@ -199,6 +203,7 @@ class CommandContext:
     _db: EventStore | None
     source: str
     _vars: ScopedVarStore
+    _secrets: InMemorySecretStore
     metadata: dict[str, Any]
 
     def __init__(
@@ -206,6 +211,7 @@ class CommandContext:
         db: EventStore | None,
         source: str,
         _varstore: VarStore | None = None,
+        _secrets: InMemorySecretStore | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> None:
         """Create a command context while preserving the public `db=` keyword."""
@@ -217,6 +223,7 @@ class CommandContext:
             self.source,
             self.metadata.get("run_vars", {}),
         )
+        self._secrets = _secrets or InMemorySecretStore()
 
     @property
     def db(self) -> EventStore | None:
@@ -239,6 +246,11 @@ class CommandContext:
     def vars(self) -> ScopedVarStore:
         """Return this commandlet's scoped variable view."""
         return self._vars
+
+    @property
+    def secrets(self) -> "ContextSecrets":
+        """Return the mediated secret resolver for opaque secret references."""
+        return ContextSecrets(self)
 
     @property
     def events(self) -> "ContextEvents":
@@ -619,6 +631,76 @@ class CommandContext:
 
 
 @dataclass(frozen=True, slots=True)
+class ContextSecrets:
+    """Narrow secret-resolution API exposed to commandlets."""
+
+    context: CommandContext
+
+    def resolve(self, value: str | None, default: str | None = None) -> str | None:
+        """Resolve an opaque secret reference, or pass through normal text."""
+        if value is None or value == "":
+            return default
+        secret = self.context._secrets.get(value)
+        if secret is None:
+            return value
+        self.context.audit_capability("framework.secret.resolve")
+        return secret
+
+    def fingerprint(self, value: str | None) -> str | None:
+        """Return an audit-safe fingerprint for an opaque secret reference."""
+        metadata = self.context._secrets.metadata(value or "")
+        return metadata.fingerprint.format() if metadata is not None else None
+
+    def is_secret_ref(self, value: str | None) -> bool:
+        """Return whether a value is an in-memory secret reference."""
+        return self.context._secrets.is_ref(value)
+
+
+def check_process_argv_for_secrets(context: CommandContext, argv: tuple[str, ...]) -> None:
+    """Warn when resolved in-memory secrets appear in process argv."""
+    leaked = leaked_secret_arguments(context, argv)
+    if not leaked:
+        return
+    context.audit_capability("framework.secret.argv")
+    if context._db is not None:
+        context._db.publish(
+            "process.secret.argv",
+            {
+                "argv": list(redact_process_argv(context, argv)),
+                "secret_fingerprints": leaked,
+                "job_id": context.job_id,
+            },
+            "framework",
+            pipeline_id=context.pipeline_id,
+            command_run_id=context.command_run_id,
+            parent_command_run_id=context.parent_command_run_id,
+        )
+
+
+def leaked_secret_arguments(context: CommandContext, argv: tuple[str, ...]) -> list[str]:
+    """Return fingerprints for in-memory secrets that appear in argv text."""
+    found: list[str] = []
+    for ref, secret_ref in context._secrets.refs.items():
+        secret = context._secrets.get(ref)
+        if secret and any(secret in arg for arg in argv):
+            found.append(secret_ref.fingerprint.format())
+    return found
+
+
+def redact_process_argv(context: CommandContext, argv: tuple[str, ...]) -> tuple[str, ...]:
+    """Redact any known secret values before argv is written to audit events."""
+    redacted: list[str] = []
+    for arg in argv:
+        value = arg
+        for ref in context._secrets.refs:
+            secret = context._secrets.get(ref)
+            if secret:
+                value = value.replace(secret, "<redacted>")
+        redacted.append(value)
+    return tuple(redacted)
+
+
+@dataclass(frozen=True, slots=True)
 class ContextRender:
     """Framework-mediated rendering API exposed to commandlets."""
 
@@ -700,8 +782,10 @@ class ContextProcess:
     ) -> ProcessResult:
         """Run an external command through the framework audit path."""
         normalized = normalize_argv(argv)
+        check_process_argv_for_secrets(self.context, normalized)
+        audit_argv = redact_process_argv(self.context, normalized)
         payload: dict[str, Any] = {
-            "argv": list(normalized),
+            "argv": list(audit_argv),
             "cwd": str(Path(cwd).expanduser()) if cwd is not None else None,
             "timeout": timeout,
             "source": self.context.source,
@@ -713,7 +797,7 @@ class ContextProcess:
         request = self.context.request("framework.process.run.requested", payload)
         completed = run_process_argv(normalized, cwd=payload["cwd"], env=env, timeout=timeout)
         result = ProcessResult(
-            argv=normalized,
+            argv=audit_argv,
             returncode=completed.returncode,
             stdout=completed.stdout,
             stderr=completed.stderr,
@@ -734,8 +818,10 @@ class ContextProcess:
     ) -> Iterable[ProcessChunk]:
         """Stream stdout/stderr line chunks while recording process events."""
         normalized = normalize_argv(argv)
+        check_process_argv_for_secrets(self.context, normalized)
+        audit_argv = redact_process_argv(self.context, normalized)
         payload: dict[str, Any] = {
-            "argv": list(normalized),
+            "argv": list(audit_argv),
             "cwd": str(Path(cwd).expanduser()) if cwd is not None else None,
             "timeout": timeout,
             "source": self.context.source,
@@ -747,7 +833,7 @@ class ContextProcess:
         }
         request = self.context.request("framework.process.stream.requested", payload)
         request_id = request.id if request is not None else None
-        self.publish_started(normalized, request_id)
+        self.publish_started(audit_argv, request_id)
         process = popen_process_argv(normalized, cwd=payload["cwd"], env=env)
         selector = selectors.DefaultSelector()
         if process.stdout is not None:
@@ -769,7 +855,7 @@ class ContextProcess:
                     line = pipe.readline()
                     if line:
                         stream = str(key.data)
-                        chunk = ProcessChunk(normalized, stream, line, request_id)
+                        chunk = ProcessChunk(audit_argv, stream, line, request_id)
                         self.publish_chunk(chunk)
                         yield chunk
                     else:
@@ -783,7 +869,7 @@ class ContextProcess:
             if process.poll() is None:
                 process.terminate()
                 process.wait(timeout=5)
-        self.publish_exit(normalized, returncode, request_id)
+        self.publish_exit(audit_argv, returncode, request_id)
 
     def publish_result(self, result: ProcessResult) -> None:
         """Record the process outcome without exposing raw DB operations."""

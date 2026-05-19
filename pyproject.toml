@@ -32,6 +32,7 @@ plugins = [
 
 [project.scripts]
 bywaf = "bywaf.__main__:main"
+bywaf-plugin-manifest = "bywaf.tools.plugin_manifest:main"
 
 [build-system]
 requires = ["setuptools>=68"]

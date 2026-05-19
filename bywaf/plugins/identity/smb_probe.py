@@ -19,10 +19,10 @@ OPTION_KEYS = {"domain", "password", "port", "timeout", "username"}
     usage="smb_probe [username=USER password=PASS domain=DOMAIN] <host ...>",
     examples=("smb_probe 127.0.0.1", "smb_probe domain=EXAMPLE username=user password=secret dc.example.test"),
     emits=("smb.server",),
-    capabilities=("db.write:smb.server", "db.write:tool.error", "network.connect"),
+    capabilities=("db.write:smb.server", "db.write:tool.error", "framework.secret.resolve", "network.connect"),
 )
 @option("domain", "SMB domain")
-@option("password", "SMB password")
+@option("password", "SMB password", secret=True)
 @option("port", "SMB port", "445")
 @option("timeout", "connection timeout seconds", "5")
 @option("username", "SMB username")
@@ -38,6 +38,7 @@ class SmbProbe(CommandletBase):
         parser.add_argument("--timeout", type=float, default=self.var_default(context, "timeout", 5, cast=float))
         parser.add_argument("--username", default=self.var_default(context, "username", ""))
         parsed = parser.parse_args(key_value_to_long_options(args, OPTION_KEYS))
+        password = context.secrets.resolve(parsed.password, "")
         smb_mod = optional_module(context, "impacket.smbconnection", "impacket")
         if smb_mod is None:
             return ()
@@ -45,8 +46,8 @@ class SmbProbe(CommandletBase):
             context.audit_capability("network.connect")
             conn = smb_mod.SMBConnection(host, host, sess_port=parsed.port, timeout=parsed.timeout)
             try:
-                if parsed.username or parsed.password:
-                    conn.login(parsed.username, parsed.password, parsed.domain)
+                if parsed.username or password:
+                    conn.login(parsed.username, password, parsed.domain)
                 context.events.publish(
                     "smb.server",
                     {

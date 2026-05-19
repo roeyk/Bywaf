@@ -74,6 +74,7 @@ roles = ["command-provider"]
 [[commandlets]]
 name = "example"
 capabilities = ["network.connect"]
+secret_options = ["password"]
 ```
 
 Implementation traits are independent:
@@ -87,12 +88,24 @@ Implementation traits are independent:
   package entrypoint, or other executable tool;
 - `service` means the plugin is expected to run long-lived or continuously.
 
-Each `[[commandlets]]` entry should also list the commandlet capabilities. For
-now Bywaf requires those manifest capabilities to match
-`CommandSpec.capabilities` exactly. This is a pre-load consistency check, not
-the only enforcement layer: runtime policy still audits and can deny actual
-framework API use if a plugin attempts behavior outside its declared
+Each `[[commandlets]]` entry should also list the commandlet capabilities and
+any secret options. For now Bywaf requires manifest `capabilities` to match
+`CommandSpec.capabilities` exactly and manifest `secret_options` to match
+Python `OptionSpec.secret` metadata exactly. This is a pre-load consistency
+check, not the only enforcement layer: runtime policy still audits and can deny
+actual framework API use if a plugin attempts behavior outside its declared
 capabilities.
+
+Generate a starter manifest from an existing plugin with:
+
+```text
+bywaf-plugin-manifest path/to/plugin.py
+bywaf-plugin-manifest --library-backed path/to/plugin.py -o bywaf.plugin.toml
+```
+
+The generator imports the plugin and reads its commandlet metadata, so use it
+for your own development tree or reviewed code. It is a convenience tool, not a
+substitute for manifest review.
 
 # A Minimal Commandlet
 
@@ -238,6 +251,39 @@ class Hello(CommandletBase):
 Decorator order is intentional: Python applies decorators from bottom to top, so
 `@argument` and `@option` collect metadata before `@commandlet` builds the final
 `CommandSpec`.
+
+Options that carry credentials should be declared with `secret=True`:
+
+```python
+@option("password", "SSH password", secret=True)
+@option("api-key", "service API key", secret=True)
+```
+
+Bywaf also treats common names such as `password`, `pw`, `token`, `secret`,
+`api-key`, `authorization`, and `cookie` as secret-looking manual `vars`
+assignments. Those values are redacted in command history and displayed as
+`<redacted>` with an HMAC fingerprint, so audit trails can correlate that a
+secret was supplied without exposing the plaintext in normal variable display.
+The plaintext is stored in the active database so it can survive restart. If
+the database is encrypted, the secret is protected by that encryption at rest;
+if the database is plaintext, Bywaf warns the operator before storing it.
+
+Do not pass resolved secrets as process arguments. Command-line arguments can
+be visible in OS process listings and often end up in tool logs. If a
+process-wrapped tool needs a credential or other sensitive value, prefer
+environment variables, stdin, or a temporary file with restrictive permissions.
+Bywaf redacts known in-memory secrets from process audit events and emits
+`process.secret.argv` when it detects a resolved secret in argv, but that
+warning cannot prevent the operating system from briefly exposing the original
+argv to other local observers.
+
+Environment variables are safer than argv for many wrapped tools, but they are
+not magic. Once Bywaf hands a secret to another process, that process is
+responsible for not leaking it. If the wrapped tool prints `using token ...`,
+`scanning subnet ...`, or echoes its effective configuration, Bywaf captures
+that stdout/stderr as evidence of what happened. Plugin authors should read the
+wrapped tool's documentation, test its verbose/debug/error modes, and avoid
+passing sensitive values to tools that echo them.
 
 # Plans
 
@@ -492,6 +538,7 @@ At execution time, commandlets receive a `CommandContext`:
 - `context.events`: mediated event publishing/query API for plugin code
 - `context.db`: legacy/internal raw event database access, if available
 - `context.vars`: scoped variables for the current commandlet
+- `context.secrets`: resolve opaque secret references for credential use
 - `context.pipeline_id`, `context.command_run_id`, `context.job_id`: run scope
 - `context.parent_command_run_id`: upstream pipeline stage, if any
 - `context.note`: framework-level `note=` text for this command run, if any
@@ -724,6 +771,127 @@ which reads:
 ```text
 global.proxy
 ```
+
+Secret variables are different. If an operator sets:
+
+```text
+bywaf> vars ssh_probe.password=client-password
+```
+
+ordinary `context.vars.get("password")` returns an opaque secret reference, not
+the plaintext. A commandlet that declared `framework.secret.resolve` can resolve
+that reference just before it calls the backing library:
+
+```python
+password_ref = context.vars.get("password")
+password = context.secrets.resolve(password_ref, "")
+```
+
+`context.secrets.resolve()` passes through normal non-secret text, so the same
+code works for explicit CLI values and redacted variable references. Resolving
+a real secret reference emits a `plugin.capability.used` audit event for
+`framework.secret.resolve`.
+
+If a commandlet then passes that secret to a subprocess in argv, Bywaf redacts
+the known secret in process audit events and emits a warning event. This is
+still discouraged because the operating system may expose argv briefly through
+process listings before Bywaf can audit anything:
+
+```python
+import sys
+
+from bywaf.plugin import CommandletBase, commandlet, option
+
+@commandlet(
+    name="secret_demo",
+    description="Demonstrate secret resolution and argv redaction.",
+    usage="secret_demo",
+    capabilities=(
+        "framework.secret.resolve",
+        "framework.secret.argv",
+        "process.run",
+    ),
+)
+@option("password", "demo password", secret=True)
+class SecretDemo(CommandletBase):
+    def run(self, context, args, input_events):
+        del args, input_events
+        password_ref = context.vars.get("password")
+        password = context.secrets.resolve(password_ref, "")
+
+        result = context.process.run(
+            [
+                sys.executable,
+                "-c",
+                "import sys; print('subprocess saw', sys.argv[1])",
+                f"password={password}",
+            ]
+        )
+        context.output(result.stdout, end="")
+        return ()
+```
+
+With:
+
+```text
+bywaf> vars secret_demo.password=client-password
+secret_demo.password=<redacted> fingerprint=hmac-sha256:7e3...
+bywaf> secret_demo
+subprocess saw password=client-password
+```
+
+the subprocess output is captured exactly because the child process really did
+receive the secret:
+
+```text
+process.run {
+  "argv": ["python3", "-c", "...", "password=<redacted>"],
+  "stdout": "subprocess saw password=client-password\n",
+  "stderr": "",
+  "ok": true
+}
+```
+
+Bywaf also records the argv leak warning:
+
+```text
+process.secret.argv {
+  "argv": ["python3", "-c", "...", "password=<redacted>"],
+  "secret_fingerprints": ["hmac-sha256:7e3..."]
+}
+```
+
+The important distinction is that Bywaf can redact known secrets from its own
+argv audit fields, but it does not rewrite subprocess stdout/stderr because
+that output is evidence of what the tool actually produced. Plugin authors
+should avoid argv secrets and should avoid printing secrets from child tools.
+Use environment variables, stdin, or restrictive temporary files when the
+wrapped tool supports them.
+
+A better process-wrapped shape uses `env=` instead of argv:
+
+```python
+password_ref = context.vars.get("password")
+password = context.secrets.resolve(password_ref, "")
+
+result = context.process.run(
+    ["example-tool", "--host", "target.example"],
+    env={"EXAMPLE_TOOL_PASSWORD": password or ""},
+)
+```
+
+In that case the audited process argv does not contain the secret:
+
+```text
+framework.process.run.requested {
+  "argv": ["example-tool", "--host", "target.example"],
+  "env": "<not recorded>"
+}
+```
+
+Bywaf intentionally does not record the supplied environment map. However, if
+`example-tool` prints the password, token, subnet, or other sensitive value,
+that value still appears in captured `stdout`/`stderr`.
 
 At launch time, Bywaf captures the effective commandlet and global variables
 for each `command_run_id` and stores that snapshot in SQLite. During execution,

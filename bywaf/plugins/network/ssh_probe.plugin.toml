@@ -8,6 +8,8 @@ name = "ssh_probe"
 capabilities = [
   "db.write:ssh.service",
   "db.write:tool.error",
+  "framework.secret.resolve",
   "network.connect",
 ]
+secret_options = ["password"]
 module = "bywaf.plugins.network.ssh_probe"

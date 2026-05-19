@@ -966,6 +966,26 @@ Set a variable:
 bywaf> vars name=value
 ```
 
+Secret-looking variable names such as `password`, `pw`, `token`, `secret`,
+`api-key`, `authorization`, and `cookie` are stored as secret references in the
+normal variable store. `vars`, command history, and audit-friendly displays
+show `<redacted>` plus an HMAC fingerprint instead of the plaintext:
+
+```text
+bywaf> vars ssh_probe.password=client-password
+ssh_probe.password=<redacted> fingerprint=hmac-sha256:...
+```
+
+Credential-aware commandlets resolve those references through the framework
+secret API at run time. This keeps the normal variable store redacted while
+still allowing commandlets such as `ssh_probe`, `ldap_probe`, `smb_probe`, and
+`shodan_lookup` to authenticate.
+
+Secrets are persisted in the active database so they survive restart. If the
+database is encrypted, they are protected by that database encryption at rest.
+If the database is plaintext, Bywaf prints a warning before storing the secret
+there.
+
 Show one variable:
 
 ```text

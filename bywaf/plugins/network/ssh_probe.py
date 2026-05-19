@@ -20,9 +20,9 @@ OPTION_KEYS = {"password", "port", "timeout", "username"}
     examples=("ssh_probe 127.0.0.1", "ssh_probe username=test password=test 127.0.0.1"),
     consumes=("port.open",),
     emits=("ssh.service",),
-    capabilities=("db.write:ssh.service", "db.write:tool.error", "network.connect"),
+    capabilities=("db.write:ssh.service", "db.write:tool.error", "framework.secret.resolve", "network.connect"),
 )
-@option("password", "SSH password")
+@option("password", "SSH password", secret=True)
 @option("port", "SSH port", "22")
 @option("timeout", "connection timeout seconds", "5")
 @option("username", "SSH username")
@@ -36,6 +36,7 @@ class SshProbe(CommandletBase):
         parser.add_argument("--timeout", type=float, default=self.var_default(context, "timeout", 5, cast=float))
         parser.add_argument("--username", default=self.var_default(context, "username", ""))
         parsed = parser.parse_args(key_value_to_long_options(args, OPTION_KEYS))
+        password = context.secrets.resolve(parsed.password, "")
         paramiko = optional_module(context, "paramiko", "paramiko")
         if paramiko is None:
             return ()
@@ -48,7 +49,7 @@ class SshProbe(CommandletBase):
                     hostname=host,
                     port=port,
                     username=parsed.username or None,
-                    password=parsed.password or None,
+                    password=password or None,
                     timeout=parsed.timeout,
                     banner_timeout=parsed.timeout,
                     auth_timeout=parsed.timeout,

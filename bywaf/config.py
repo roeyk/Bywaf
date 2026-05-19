@@ -19,6 +19,7 @@ class Settings:
     database: Path = Path(".bywaf/bywaf.sqlite3")
     config: Path = Path(".bywaf/config.toml")
     history: Path = Path(".bywaf/history.bywaf")
+    secret_fingerprint_key: Path = Path(".bywaf/secret-fingerprint.key")
     plugin_dir: Path = Path(".bywaf/plugins")
     script_dir: Path = Path(".bywaf/scripts")
     database_dir: Path = Path(".bywaf/db")

@@ -20,9 +20,9 @@ OPTION_KEYS = {"api-key", "limit", "mode"}
     usage="shodan_lookup [mode=host|search] [api-key=KEY] <ip-or-query>",
     examples=("shodan_lookup 8.8.8.8", "shodan_lookup mode=search apache country:US"),
     emits=("shodan.host", "shodan.result"),
-    capabilities=("db.write:shodan.host", "db.write:shodan.result", "db.write:tool.error", "network.connect"),
+    capabilities=("db.write:shodan.host", "db.write:shodan.result", "db.write:tool.error", "framework.secret.resolve", "network.connect"),
 )
-@option("api-key", "Shodan API key; defaults to SHODAN_API_KEY")
+@option("api-key", "Shodan API key; defaults to SHODAN_API_KEY", secret=True)
 @option("limit", "maximum search results", "10")
 @option("mode", "lookup mode", "host", ("host", "search"))
 class ShodanLookup(CommandletBase):
@@ -38,7 +38,7 @@ class ShodanLookup(CommandletBase):
         shodan_mod = optional_module(context, "shodan", "shodan")
         if shodan_mod is None:
             return ()
-        api_key = parsed.api_key or os.environ.get("SHODAN_API_KEY", "")
+        api_key = context.secrets.resolve(parsed.api_key, "") or os.environ.get("SHODAN_API_KEY", "")
         if not api_key:
             context.events.publish("tool.error", {"tool": "shodan", "severity": "error", "message": "missing Shodan API key"})
             return ()

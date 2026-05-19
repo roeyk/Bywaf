@@ -251,6 +251,60 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("hostscanner.targets=127.0.0.1", text)
             self.assertIn("error: variable not set: hostscanner.missing", text)
 
+    def test_vars_secret_assignment_is_redacted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            output = io.StringIO()
+            with (
+                patch("bywaf.app.load_or_create_fingerprint_key", return_value=b"k" * 32),
+                contextlib.redirect_stdout(output),
+            ):
+                dispatch_repl_line(runner, "vars password=supersecret", state)
+                dispatch_repl_line(runner, "vars password", state)
+                dispatch_repl_line(runner, "vars", state)
+            text = output.getvalue()
+            stored = runner.registry.varstore.get("password")
+            self.assertIsNotNone(stored)
+            assert stored is not None
+            self.assertTrue(runner.registry.secrets.is_ref(stored))
+            self.assertEqual(runner.registry.secrets.get(stored), "supersecret")
+            self.assertNotIn("supersecret", text)
+            self.assertIn("password=<redacted> fingerprint=hmac-sha256:", text)
+            self.assertIn("warning: storing secret variable password in plaintext database", text)
+
+    def test_vars_secret_assignment_respects_active_context(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            with (
+                patch("bywaf.app.load_or_create_fingerprint_key", return_value=b"k" * 32),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                dispatch_repl_line(runner, "use ssh_probe", state)
+                dispatch_repl_line(runner, "vars password=supersecret", state)
+            stored = runner.registry.varstore.get("ssh_probe.password")
+            self.assertIsNotNone(stored)
+            assert stored is not None
+            self.assertTrue(runner.registry.secrets.is_ref(stored))
+
+    def test_vars_secret_assignment_persists_and_hydrates_from_database(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp, "db.sqlite3")
+            first = make_runner(db_path)
+            with (
+                patch("bywaf.app.load_or_create_fingerprint_key", return_value=b"k" * 32),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                dispatch_repl_line(first, "vars ssh_probe.password=supersecret", ShellState())
+
+            second = make_runner(db_path)
+            stored = second.registry.varstore.get("ssh_probe.password")
+            self.assertIsNotNone(stored)
+            assert stored is not None
+            self.assertTrue(second.registry.secrets.is_ref(stored))
+            self.assertEqual(second.registry.secrets.get(stored), "supersecret")
+
     def test_dispatch_ls_lists_local_files(self):
         with tempfile.TemporaryDirectory() as tmp:
             Path(tmp, "file.txt").write_text("x")

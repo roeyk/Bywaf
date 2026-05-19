@@ -932,6 +932,7 @@ def build_context(
         db,
         source=plugin.spec.name,
         _varstore=registry.varstore,
+        _secrets=registry.secrets,
         metadata={
             "pipeline_id": pipeline_id,
             "command_run_id": stage.command_run_id,

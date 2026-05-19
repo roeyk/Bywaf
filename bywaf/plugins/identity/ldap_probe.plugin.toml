@@ -8,6 +8,8 @@ name = "ldap_probe"
 capabilities = [
   "db.write:ldap.server",
   "db.write:tool.error",
+  "framework.secret.resolve",
   "network.connect",
 ]
+secret_options = ["password"]
 module = "bywaf.plugins.identity.ldap_probe"

@@ -9,6 +9,8 @@ capabilities = [
   "db.write:shodan.host",
   "db.write:shodan.result",
   "db.write:tool.error",
+  "framework.secret.resolve",
   "network.connect",
 ]
+secret_options = ["api-key"]
 module = "bywaf.plugins.recon.shodan_lookup"

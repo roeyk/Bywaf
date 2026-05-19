@@ -19,10 +19,10 @@ OPTION_KEYS = {"base-dn", "password", "port", "ssl", "timeout", "username"}
     usage="ldap_probe [username=USER password=PASS] <host>",
     examples=("ldap_probe dc.example.test", "ldap_probe username='EXAMPLE\\\\user' password=secret dc.example.test"),
     emits=("ldap.server",),
-    capabilities=("db.write:ldap.server", "db.write:tool.error", "network.connect"),
+    capabilities=("db.write:ldap.server", "db.write:tool.error", "framework.secret.resolve", "network.connect"),
 )
 @option("base-dn", "optional LDAP search base")
-@option("password", "LDAP password")
+@option("password", "LDAP password", secret=True)
 @option("port", "LDAP port", "389")
 @option("ssl", "use LDAPS", "false", ("true", "false"))
 @option("timeout", "connection timeout seconds", "5")
@@ -40,12 +40,13 @@ class LdapProbe(CommandletBase):
         parser.add_argument("--timeout", type=float, default=self.var_default(context, "timeout", 5, cast=float))
         parser.add_argument("--username", default=self.var_default(context, "username", ""))
         parsed = parser.parse_args(key_value_to_long_options(args, OPTION_KEYS))
+        password = context.secrets.resolve(parsed.password, "")
         ldap3 = optional_module(context, "ldap3", "ldap3")
         if ldap3 is None:
             return ()
         context.audit_capability("network.connect")
         server = ldap3.Server(parsed.host, port=parsed.port, use_ssl=parsed.ssl == "true", connect_timeout=parsed.timeout, get_info=ldap3.ALL)
-        conn = ldap3.Connection(server, user=parsed.username or None, password=parsed.password or None, auto_bind=True)
+        conn = ldap3.Connection(server, user=parsed.username or None, password=password or None, auto_bind=True)
         try:
             info = getattr(server, "info", None)
             contexts = list(getattr(info, "naming_contexts", []) or [])

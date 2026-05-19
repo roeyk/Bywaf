@@ -37,6 +37,13 @@ from .runtime_display import (
     runtime_state_text,
 )
 from .runner import Runner, add_runner_arguments, new_run_id
+from .secrets import (
+    SECRET_REF_PREFIX,
+    REDACTED_VALUE,
+    is_secret_name,
+    load_or_create_fingerprint_key,
+    redact_command_text,
+)
 from .toml_support import dump_variables_toml, load_data_file
 
 @dataclass(frozen=True, slots=True)
@@ -151,7 +158,15 @@ def make_runner(
         registry.plugins.update(filesystem.plugins)
     db = EventStore(database_path, passphrase=db_passphrase)
     db.mark_stale_jobs()
+    hydrate_persistent_secrets(db, registry)
     return Runner(db, registry)
+
+
+def hydrate_persistent_secrets(db: EventStore, registry: PluginRegistry) -> None:
+    """Load persisted DB secrets back into the registry secret/variable stores."""
+    for secret_ref, value in db.stored_secrets():
+        registry.secrets.remember(secret_ref, value)
+        registry.varstore.set(secret_ref.name, secret_ref.ref)
 
 
 def format_event(event) -> str:
@@ -193,6 +208,7 @@ def repl(runner: Runner) -> None:
                     HISTORY_TIMESTAMP_FORMAT_VAR,
                     DEFAULT_HISTORY_TIMESTAMP_FORMAT,
                 ) or DEFAULT_HISTORY_TIMESTAMP_FORMAT,
+                stored_command=redact_history_command(line),
             )
             if dispatch_repl_line(runner, line, state) == "exit":
                 return
@@ -306,10 +322,9 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
             case ["use"]:
                 print(state.active_context or "global")
             case ["vars"]:
-                print_vars(runner)
+                print_vars(runner, state)
             case ["vars", assignment] if "=" in assignment:
-                key, value = assignment.split("=", 1)
-                runner.registry.varstore.set(resolve_var_key(state, key.strip()), value.strip())
+                set_var(runner, state, assignment)
             case ["vars", name]:
                 print_var(runner, state, name)
             case ["topics"]:
@@ -880,7 +895,12 @@ def print_help_entry(entry: HelpEntry) -> None:
 
 def print_plugin_argparse_help(runner: Runner, plugin) -> None:
     """Ask a commandlet's argparse parser to print its native help."""
-    context = CommandContext(runner.db, source=plugin.spec.name, _varstore=runner.registry.varstore)
+    context = CommandContext(
+        runner.db,
+        source=plugin.spec.name,
+        _varstore=runner.registry.varstore,
+        _secrets=runner.registry.secrets,
+    )
     try:
         list(plugin.run(context, ["--help"], []))
     except SystemExit as exc:
@@ -997,10 +1017,11 @@ def format_runtime_name(display_name: str | None) -> str:
     return f" name={display_name}" if display_name else ""
 
 
-def print_vars(runner: Runner) -> None:
+def print_vars(runner: Runner, state: ShellState) -> None:
     """Print session variables in stable key order."""
+    del state
     for key, value in runner.registry.varstore.items():
-        print(f"{key}={value}")
+        print(f"{key}={display_var_value(runner, value)}")
 
 
 def print_var(runner: Runner, state: ShellState, name: str) -> None:
@@ -1010,7 +1031,38 @@ def print_var(runner: Runner, state: ShellState, name: str) -> None:
     if value is None:
         print(f"error: variable not set: {key}")
         return
-    print(f"{key}={value}")
+    print(f"{key}={display_var_value(runner, value)}")
+
+
+def set_var(runner: Runner, state: ShellState, assignment: str) -> None:
+    """Set a REPL variable, keeping secret-looking values out of varstore."""
+    key, value = assignment.split("=", 1)
+    resolved_key = resolve_var_key(state, key.strip())
+    cleaned_value = value.strip()
+    if is_secret_name(resolved_key.rsplit(".", 1)[-1]):
+        secret_ref = runner.registry.secrets.put(
+            resolved_key,
+            cleaned_value,
+            key=load_or_create_fingerprint_key(),
+            source="vars",
+        )
+        runner.registry.varstore.set(resolved_key, secret_ref.ref)
+        runner.db.store_secret(secret_ref, cleaned_value)
+        if not runner.db.encrypted:
+            print(f"warning: storing secret variable {resolved_key} in plaintext database {runner.db.path}")
+        print(f"{resolved_key}={REDACTED_VALUE} fingerprint={secret_ref.fingerprint.format()}")
+        return
+    runner.registry.varstore.set(resolved_key, cleaned_value)
+
+
+def display_var_value(runner: Runner, value: str) -> str:
+    """Return a variable value with in-memory secret references redacted."""
+    secret_ref = runner.registry.secrets.metadata(value)
+    if secret_ref is None:
+        if value.startswith(SECRET_REF_PREFIX):
+            return f"{REDACTED_VALUE} fingerprint=unavailable"
+        return value
+    return f"{REDACTED_VALUE} fingerprint={secret_ref.fingerprint.format()}"
 
 
 def set_active_context(runner: Runner, state: ShellState, target: str) -> None:
@@ -1240,6 +1292,11 @@ def plugin_manifest_audit_details(plugin_path: Path) -> dict[str, object]:
             name: list(capabilities)
             for name, capabilities in sorted(manifest.commandlet_capabilities.items())
         },
+        "secret_options": {
+            name: list(options)
+            for name, options in sorted(manifest.commandlet_secret_options.items())
+            if options
+        },
     }
 
 
@@ -1405,18 +1462,27 @@ def record_command_history(
     path: Path = DEFAULT_HISTORY,
     session_history: list[str] | None = None,
     timestamp_format: str = DEFAULT_HISTORY_TIMESTAMP_FORMAT,
+    stored_command: str | None = None,
 ) -> str | None:
     """Append a command to persistent history and the in-memory session list."""
     if not command.strip():
         return None
     path.parent.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime(timestamp_format).strip()
-    entry = f"{command}  # {timestamp}"
+    entry = f"{stored_command or command}  # {timestamp}"
     with path.open("a", encoding="utf-8") as handle:
         handle.write(f"{entry}\n")
     if session_history is not None:
         session_history.append(entry)
     return entry
+
+
+def redact_history_command(command: str) -> str:
+    """Return a history-safe command with obvious secret assignments removed."""
+    if "=" not in command:
+        return command
+    result = redact_command_text(command, key=load_or_create_fingerprint_key())
+    return result.command
 
 
 def render_prompt(pattern: str) -> str:

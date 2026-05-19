@@ -5,7 +5,32 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-18 21:03:24 EDT
+Last updated: 2026-05-19 12:46:00 EDT
+
+### 2026-05-19 12:46:00 EDT
+
+#### Added
+
+- Added commandlet option metadata for `secret=True` and marked bundled
+  password/API-key options as secret.
+- Added HMAC-based secret fingerprints and in-memory secret references for
+  manual `vars password=...` style assignments.
+- Added `context.secrets` so commandlets can explicitly resolve opaque secret
+  references through an audited framework API.
+- Added manifest `secret_options` metadata, enforcement against Python
+  `OptionSpec.secret`, and a `bywaf-plugin-manifest` developer helper.
+- Added persistent database-backed secret storage so secret variables survive
+  restart, with a plaintext database warning when DB encryption is not active.
+
+#### Changed
+
+- Redacted obvious secret `name=value` assignments in REPL command history and
+  `vars` output while preserving an audit-safe fingerprint.
+- Updated bundled credential-aware commandlets to use `context.secrets` and
+  declare `framework.secret.resolve`.
+- Redacted known in-memory secrets from process audit argv and emitted
+  `process.secret.argv` warnings when process-wrapped plugins pass resolved
+  secrets as command-line arguments.
 
 ### 2026-05-18 18:29:12 EDT
 

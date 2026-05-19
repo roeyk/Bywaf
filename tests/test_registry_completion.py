@@ -22,7 +22,7 @@ from bywaf.completion import (
     tokens_after_last_pipe,
 )
 from bywaf.db import EventStore
-from bywaf.plugin import ArgumentSpec, CommandSpec, CompletionSpec
+from bywaf.plugin import ArgumentSpec, CommandSpec, CompletionSpec, OptionSpec
 from bywaf.registry import (
     PluginRegistry,
     load_package_manifest,
@@ -31,6 +31,7 @@ from bywaf.registry import (
     parse_plugin_config,
     parse_plugin_manifest,
 )
+from bywaf.tools.plugin_manifest import manifest_from_plugins
 
 
 class RegistryCompletionTests(unittest.TestCase):
@@ -117,6 +118,12 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertFalse(manifest.library_backed)
         self.assertTrue(manifest.process_wrapped)
         self.assertFalse(manifest.native)
+
+    def test_bundled_sidecar_manifest_declares_secret_options(self):
+        manifest = load_package_manifest("bywaf.plugins", "network.ssh_probe")
+        self.assertIsNotNone(manifest)
+        assert manifest is not None
+        self.assertEqual(manifest.commandlet_secret_options["ssh_probe"], ("password",))
 
     def test_registry_tracks_provider_groups(self):
         self.assertEqual(self.registry.grouped_names()["analysis"], ["finding_dedupe", "finding_report", "yara_scan"])
@@ -748,6 +755,49 @@ class RegistryCompletionTests(unittest.TestCase):
 
             with self.assertRaisesRegex(ValueError, "capabilities mismatch"):
                 PluginRegistry.from_config(root, config)
+
+    def test_filesystem_manifest_rejects_secret_option_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp, "plugins")
+            plugin_dir = root / "scanners" / "example"
+            plugin_dir.mkdir(parents=True)
+            (plugin_dir / "plugin.py").write_text(
+                "from bywaf.plugin import CommandSpec, OptionSpec\n"
+                "class Example:\n"
+                "    spec = CommandSpec('example', 'example plugin', options=(OptionSpec('password', 'password', secret=True),))\n"
+                "    def run(self, context, args, input_events):\n"
+                "        yield {'ok': True}\n"
+                "def plugin():\n"
+                "    return Example()\n"
+            )
+            (plugin_dir / "bywaf.plugin.toml").write_text(
+                "[[commandlets]]\n"
+                'name = "example"\n'
+                "capabilities = []\n"
+                "secret_options = []\n"
+            )
+            config = Path(tmp, "plugins.toml")
+            config.write_text('default_plugins = ["scanners/example"]\n')
+
+            with self.assertRaisesRegex(ValueError, "secret_options mismatch"):
+                PluginRegistry.from_config(root, config)
+
+    def test_plugin_manifest_tool_infers_secret_options(self):
+        class Example:
+            spec = CommandSpec(
+                "example",
+                "example plugin",
+                options=(OptionSpec("password", "password", secret=True),),
+                capabilities=("framework.secret.resolve",),
+            )
+
+            def run(self, context, args, input_events):
+                yield {"ok": True}
+
+        text = manifest_from_plugins((Example(),))
+        self.assertIn('name = "example"', text)
+        self.assertIn('  "framework.secret.resolve",', text)
+        self.assertIn('secret_options = ["password"]', text)
 
 
 if __name__ == "__main__":
