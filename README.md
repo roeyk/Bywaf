@@ -54,6 +54,7 @@ Use Bywaf only on systems and networks where you have explicit authorization.
 ## Project References
 
 Project changes are summarized in [CHANGELOG.md](CHANGELOG.md).
+Common task examples are collected in [FAQ.md](FAQ.md).
 Evolving framework design notes are tracked in [DESIGN.md](DESIGN.md).
 Core architectural references:
 
@@ -836,6 +837,40 @@ bywaf> resume --listonly run=<command-run-id>
 bywaf> stop --hard job=<id>
 ```
 
+## Advanced Runtime Control
+
+Most users should prefer the friendly commands above. `signal` is the explicit
+runtime-control form for debugging, plugin development, and rare control
+messages that do not yet have their own top-level verb. Its main value is
+auditability: the database records the exact control payload requested and the
+plugin or framework response.
+
+For example, these friendly commands:
+
+```text
+bywaf> pause run=7
+bywaf> end --hard job=3
+```
+
+map to explicit control requests like:
+
+```text
+bywaf> signal run=7 pause --soft
+bywaf> signal job=3 end --hard
+```
+
+For plugin-specific messages, the explicit form is the normal route because the
+plugin owns the meaning of the action:
+
+```text
+bywaf> signal run=7 prune targets=192.168.1.0/24
+bywaf> signal run=7 verbosity level=quiet
+```
+
+The resulting audit trail shows the requested selector, action, strength
+(`--soft` or `--hard`), supplied arguments, and whether the receiver applied,
+ignored, or rejected the request.
+
 `jobs` remains as a convenience alias for `job list`, and `pipelines` remains
 as a convenience alias for `pipeline list`.
 
@@ -953,6 +988,44 @@ bywaf> load db=snapshot.sqlite3
 If the database is encrypted, Bywaf prompts for its passphrase when loading it.
 Passphrases are kept in process memory only and are not written to config or
 history files.
+
+# Projects
+
+A project is a named working directory with its own database, config, and
+history:
+
+```text
+~/.bywaf/projects/<name>/bywaf.sqlite3
+~/.bywaf/projects/<name>/config.toml
+~/.bywaf/projects/<name>/history.bywaf
+```
+
+Start in an existing project, or create one before startup:
+
+```text
+bywaf project=client-a
+bywaf --new project=client-b
+bywaf --new --encrypt project=client-c
+```
+
+Manage projects from the REPL:
+
+```text
+bywaf> project list
+bywaf> project info
+bywaf> project new name=client-b
+bywaf> project use name=client-b
+```
+
+Switching projects changes the active database, config, and history path. Bywaf
+refuses to switch while jobs are active because those jobs belong to the current
+database. To deliberately hard-stop active jobs and switch anyway:
+
+```text
+bywaf> project use name=client-b --force
+```
+
+The forced stop is audited in the old project database before the switch.
 
 # Resource Files
 

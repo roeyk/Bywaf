@@ -55,8 +55,9 @@ PYTHONPATH=%{buildroot}%{python3_sitelib} %{buildroot}%{_bindir}/bywaf --version
 
 %files
 %license LICENSE
-%doc README.md USAGE.md PLUGIN_AUTHOR_GUIDE.md TERMINOLOGY.md EVENT_MODEL.md RUNTIME_MODEL.md PERSISTENCE_MODEL.md CAPABILITY_MODEL.md CHANGELOG.md TODO.md GOALS.md
+%doc README.md FAQ.md USAGE.md PLUGIN_AUTHOR_GUIDE.md TERMINOLOGY.md EVENT_MODEL.md RUNTIME_MODEL.md PERSISTENCE_MODEL.md CAPABILITY_MODEL.md CHANGELOG.md TODO.md GOALS.md
 %{_bindir}/bywaf
+%{_bindir}/bywaf-plugin-manifest
 %{python3_sitelib}/bywaf
 %{python3_sitelib}/bywaf-*.dist-info
 

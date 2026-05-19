@@ -5,7 +5,48 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-19 12:46:00 EDT
+Last updated: 2026-05-19 14:10:19 EDT
+
+### 2026-05-19 14:10:19 EDT
+
+#### Added
+
+- Added one-project-per-database workspaces under `~/.bywaf/projects`.
+- Added startup project selection with `bywaf project=<name>` and project
+  creation with `bywaf --new project=<name>`.
+- Added `project list`, `project info`, `project new`, and `project use` REPL
+  commands.
+- Added `FAQ.md` with example-first answers for common Bywaf tasks.
+- Added FAQ provenance examples for identifying artifact producers, verifying
+  artifact integrity, exporting artifacts, securing exports, and inspecting
+  pipeline/run events.
+- Added `command.run.arguments` audit events so commandlet run parameters are
+  visible after framework expansion with declared secret options redacted.
+- Added redacted process environment metadata to framework-mediated process
+  request events.
+
+#### Changed
+
+- `project use` now switches the active database, config, and history path.
+- `project use ... --force` hard-stops active jobs before switching and audits
+  the forced stop in the old project database.
+- Documented `signal` as an advanced explicit runtime-control form while
+  keeping friendly commands as the recommended user interface.
+- Artifact listings now show the producing `commandlet=` field.
+- Run variable display now redacts persisted secret references with their
+  fingerprint instead of printing opaque secret tokens.
+
+### 2026-05-19 13:40:37 EDT
+
+#### Added
+
+- Added normal GitHub Actions CI for unit tests, coverage artifacts, Ruff,
+  Pyright, Bandit, and pip-audit on pushes, pull requests, and manual runs.
+- Added CodeQL analysis for Python on pushes, pull requests, weekly schedule,
+  and manual runs.
+- Added Dependabot configuration for GitHub Actions and Python dependency
+  updates.
+- Added coverage.py configuration in `pyproject.toml`.
 
 ### 2026-05-19 12:46:00 EDT
 
