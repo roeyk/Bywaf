@@ -67,6 +67,7 @@ class Completer:
         "cmds",
         "load",
         "plugins",
+        "project",
         "prompt",
         "run",
         "runs",

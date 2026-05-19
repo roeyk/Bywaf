@@ -10,6 +10,7 @@ import os
 import platform
 import shutil
 import shlex
+import signal
 import socket
 import subprocess
 import sys
@@ -25,6 +26,7 @@ from .db import EventStore, Subscription, database_appears_encrypted, export_enc
 from .events import Event
 from .nmap_backend import NmapScanError, NmapUnavailableError
 from .plugin import CommandContext, normalize_argv, run_process_argv
+from .projects import ProjectPaths, create_project, list_projects, require_project
 from .registry import PluginRegistry, parse_plugin_manifest
 from .rendering import Table, render_console_table
 from .runtime_display import (
@@ -68,6 +70,7 @@ HELP_COMMANDS = (
     HelpEntry("runs", "show commandlet run IDs", "runs"),
     HelpEntry("vars [name[=value]]", "list, show, or set session variables", "vars [name[=value]]", ("vars http_probe.cookie-file=/tmp/cookies.txt", "vars http_probe.cookie-file")),
     HelpEntry("topics", "list event topics in the active database", "topics"),
+    HelpEntry("project", "list, inspect, create, or switch project directories", "project <list|info|new|use>"),
     HelpEntry("use <commandlet|global>", "set the active variable context", "use <commandlet|global>"),
     HelpEntry("event", "show events for a topic, job, run, pipeline, or serial", "event <topic|job=id|run=id|pipeline=id|serial=id>", ("event host.found", "event run=1", "event pipeline=1", "event serial=hostscanner-..."), "event <selector>"),
     HelpEntry("events [tail|--tail] [last=N]", "show recent events", "events [tail|--tail] [last=N]", ("events", "events tail", "events tail last=50")),
@@ -118,6 +121,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser(prog="bywaf")
     parser.add_argument("--database", default=str(DEFAULT_DATABASE), help="SQLite database path")
+    parser.add_argument("--new", action="store_true", help="create a named project before starting")
     parser.add_argument("--encrypt", action="store_true", help="open or create the database with SQLCipher encryption")
     parser.add_argument("--encrypted", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--plugin-root", help="directory containing filesystem plugins")
@@ -141,6 +145,7 @@ def make_runner(
     plugin_config: str | Path | None = None,
     encrypted: bool = False,
     passphrase: str | None = None,
+    project: ProjectPaths | None = None,
 ) -> Runner:
     """Create a runner with stock plugins plus optional filesystem plugins."""
 
@@ -159,7 +164,7 @@ def make_runner(
     db = EventStore(database_path, passphrase=db_passphrase)
     db.mark_stale_jobs()
     hydrate_persistent_secrets(db, registry)
-    return Runner(db, registry)
+    return Runner(db, registry, project=project)
 
 
 def hydrate_persistent_secrets(db: EventStore, registry: PluginRegistry) -> None:
@@ -331,6 +336,10 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
                 print_topics(runner)
             case ["topics", prefix]:
                 print_topics(runner, prefix)
+            case ["project"]:
+                print_project_info(runner)
+            case ["project", selectors]:
+                dispatch_project_command(runner, state, shlex.split(selectors))
             case ["event", target] if target.startswith("job="):
                 print_job(runner, target.split("=", 1)[1])
             case ["event", target] if target.startswith("run="):
@@ -411,7 +420,12 @@ def process_framework_requests(runner: Runner, state: ShellState) -> None:
 
 def new_shell_state(runner: Runner) -> ShellState:
     """Create shell state that ignores historical framework requests."""
-    return ShellState(framework_request_after_id=runner.events.latest_event_id())
+    project = runner.project if isinstance(runner.project, ProjectPaths) else None
+    history_path = project.history if project is not None else DEFAULT_HISTORY
+    return ShellState(
+        framework_request_after_id=runner.events.latest_event_id(),
+        history_path=history_path,
+    )
 
 
 def handle_framework_request(runner: Runner, state: ShellState, event) -> None:
@@ -725,7 +739,7 @@ def print_run_variables(runner: Runner, command_run_id: str) -> None:
         return
     print("Variables:")
     for row in rows:
-        print(f"  {row['name']}={row['value']}")
+        print(f"  {row['name']}={display_var_value(runner, row['value'])}")
 
 
 def print_history(entries: Sequence[str] = (), selectors: dict[str, str] | None = None) -> None:
@@ -1108,6 +1122,129 @@ def print_commandlets(runner: Runner) -> None:
             print(f"  {commandlet}")
 
 
+def dispatch_project_command(runner: Runner, state: ShellState, tokens: list[str]) -> None:
+    """Handle project management commands in the REPL."""
+    match tokens:
+        case ["list"]:
+            print_project_list(runner)
+        case ["info"]:
+            print_project_info(runner)
+        case ["new", *rest]:
+            name = selector_value(rest, "name") or positional_value(rest)
+            if not name:
+                raise ValueError("usage: project new name=<name> [--encrypt]")
+            paths = create_project(name)
+            EventStore(paths.database, passphrase=prompt_database_passphrase(paths.database, creating=True) if "--encrypt" in rest else None)
+            print(f"created project={paths.name} path={paths.path}")
+        case ["use", *rest]:
+            name = selector_value(rest, "name") or positional_value(rest)
+            if not name:
+                raise ValueError("usage: project use name=<name> [--force]")
+            switch_project(runner, state, require_project(name), force="--force" in rest)
+        case _:
+            print("usage: project list, project info, project new name=<name> [--encrypt], project use name=<name>")
+
+
+def selector_value(tokens: list[str], key: str) -> str | None:
+    """Return `key=value` from tokenized selectors."""
+    prefix = f"{key}="
+    for token in tokens:
+        if token.startswith(prefix):
+            return token.split("=", 1)[1]
+    return None
+
+
+def positional_value(tokens: list[str]) -> str | None:
+    """Return the first non-flag, non-selector token."""
+    for token in tokens:
+        if not token.startswith("--") and "=" not in token:
+            return token
+    return None
+
+
+def print_project_list(runner: Runner) -> None:
+    """Print known projects with the active project marked."""
+    active = active_project_name(runner)
+    rows = list_projects()
+    if not rows:
+        print("no projects")
+        return
+    for project in rows:
+        marker = "*" if project.name == active else " "
+        exists = "db" if project.database.exists() else "no-db"
+        print(f"{marker} {project.name}\t{exists}\t{project.path}")
+
+
+def print_project_info(runner: Runner) -> None:
+    """Print the active project or ad hoc database path."""
+    project = runner.project if isinstance(runner.project, ProjectPaths) else None
+    if project is None:
+        print(f"project=<none> db={runner.db.path}")
+        return
+    print(f"project={project.name}")
+    print(f"path={project.path}")
+    print(f"db={project.database}")
+    print(f"config={project.config}")
+    print(f"history={project.history}")
+
+
+def active_project_name(runner: Runner) -> str | None:
+    """Return active project name, if any."""
+    project = runner.project if isinstance(runner.project, ProjectPaths) else None
+    return project.name if project else None
+
+
+def switch_project(runner: Runner, state: ShellState, project: ProjectPaths, *, force: bool = False) -> None:
+    """Switch the active DB/config/history to another project if idle."""
+    active_jobs = runner.db.jobs(active_only=True)
+    if active_jobs:
+        if not force:
+            raise ValueError(
+                f"cannot switch to project={project.name} while {len(active_jobs)} job(s) are active; "
+                f"use `project use name={project.name} --force` to hard-stop them and switch anyway"
+            )
+        stop_active_jobs_for_project_switch(runner, active_jobs)
+    load_database(runner, project.database)
+    runner.project = project
+    state.history_path = project.history
+    runner.registry.varstore.values.clear()
+    if project.config.exists():
+        apply_config(runner, project.config)
+    hydrate_persistent_secrets(runner.db, runner.registry)
+    if state.completer is not None:
+        state.completer.db = runner.db
+    print(f"using project={project.name}")
+
+
+def stop_active_jobs_for_project_switch(runner: Runner, jobs) -> None:
+    """Hard-stop active jobs before switching projects."""
+    stopped: list[dict[str, object]] = []
+    for job in jobs:
+        pid = job["pid"]
+        if pid is not None:
+            try:
+                os.kill(int(pid), signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            except PermissionError as exc:
+                raise ValueError(f"cannot stop job {job['id']} pid={pid}: permission denied") from exc
+        runner.db.finish_job(int(job["id"]), "killed")
+        stopped.append(
+            {
+                "job_id": int(job["id"]),
+                "serial": str(job["serial"]) if job["serial"] is not None else "",
+                "pid": int(pid) if pid is not None else None,
+                "command_line": str(job["command_line"]),
+            }
+        )
+    runner.events.publish(
+        "project.switch.force_stopped",
+        {"jobs": stopped, "count": len(stopped)},
+        "framework",
+    )
+    print(f"stopped {len(jobs)} active job(s)")
+
+
 def load_repl_resource(runner: Runner, spec: str, state: ShellState | None = None) -> None:
     """Handle `load key=value` resources from the REPL."""
     state = state or new_shell_state(runner)
@@ -1198,6 +1335,7 @@ def load_database(runner: Runner, path: Path) -> None:
     if database_appears_encrypted(path):
         passphrase = prompt_database_passphrase(path, creating=False)
     runner.db = EventStore(path, passphrase=passphrase)
+    runner.db.mark_stale_jobs()
     print(f"loaded db={path}")
 
 
@@ -1228,6 +1366,12 @@ def save_config(runner: Runner, path: Path) -> None:
 
 def load_config(runner: Runner, path: Path) -> None:
     """Replace session variables from a TOML table or JSON object."""
+    apply_config(runner, path)
+    print(f"loaded config={path}")
+
+
+def apply_config(runner: Runner, path: Path) -> None:
+    """Replace session variables from config without user-facing output."""
     data = load_data_file(path)
     values = data.get("variables", data)
     if not isinstance(values, dict):
@@ -1235,7 +1379,6 @@ def load_config(runner: Runner, path: Path) -> None:
     runner.registry.varstore.values.clear()
     for key, value in values.items():
         runner.registry.varstore.set(str(key), value)
-    print(f"loaded config={path}")
 
 
 def save_history(state: ShellState, path: Path) -> None:
@@ -1504,18 +1647,31 @@ def render_prompt(pattern: str) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point used by `python -m bywaf` and the console script."""
+    project_name, parsed_argv = extract_startup_project(sys.argv[1:] if argv is None else argv)
     parser = build_parser()
-    args = parser.parse_args(argv)
+    args = parser.parse_args(parsed_argv)
     if args.version:
         print(__version__)
         return 0
-    settings = Settings(database=Path(args.database))
+    try:
+        project = startup_project(project_name, create=args.new)
+    except (FileExistsError, FileNotFoundError, ValueError) as exc:
+        print(f"error: {exc}")
+        return 1
+    if args.new and project is None:
+        print("error: --new requires project=<name>")
+        return 1
+    database = project.database if project is not None else Path(args.database)
+    settings = Settings(database=database)
     runner = make_runner(
         settings.database,
         plugin_root=args.plugin_root,
         plugin_config=args.plugin_config,
         encrypted=args.encrypt or args.encrypted,
+        project=project,
     )
+    if project is not None and project.config.exists():
+        apply_config(runner, project.config)
     if args.subcommand in ("repl", None):
         repl(runner)
         return 0
@@ -1538,3 +1694,26 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     finally:
         shutdown_runner(runner)
+
+
+def extract_startup_project(argv: list[str]) -> tuple[str | None, list[str]]:
+    """Remove a leading `project=name` selector from OS CLI argv."""
+    project_name: str | None = None
+    cleaned: list[str] = []
+    subcommands = {"run", "plugins", "cmds", "history", "jobs", "pipelines", "repl"}
+    before_subcommand = True
+    for token in argv:
+        if before_subcommand and token.startswith("project="):
+            project_name = token.split("=", 1)[1]
+            continue
+        cleaned.append(token)
+        if token in subcommands:
+            before_subcommand = False
+    return project_name, cleaned
+
+
+def startup_project(name: str | None, *, create: bool) -> ProjectPaths | None:
+    """Resolve or create a startup project selected from the OS command line."""
+    if name is None:
+        return None
+    return create_project(name) if create else require_project(name)

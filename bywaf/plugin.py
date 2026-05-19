@@ -677,13 +677,13 @@ def check_process_argv_for_secrets(context: CommandContext, argv: tuple[str, ...
         )
 
 
-def leaked_secret_arguments(context: CommandContext, argv: tuple[str, ...]) -> list[str]:
-    """Return fingerprints for in-memory secrets that appear in argv text."""
-    found: list[str] = []
+def leaked_secret_arguments(context: CommandContext, argv: tuple[str, ...]) -> list[dict[str, str]]:
+    """Return metadata for in-memory secrets that appear in argv text."""
+    found: list[dict[str, str]] = []
     for ref, secret_ref in context._secrets.refs.items():
         secret = context._secrets.get(ref)
         if secret and any(secret in arg for arg in argv):
-            found.append(secret_ref.fingerprint.format())
+            found.append({"name": secret_ref.name, "fingerprint": secret_ref.fingerprint.format()})
     return found
 
 
@@ -698,6 +698,29 @@ def redact_process_argv(context: CommandContext, argv: tuple[str, ...]) -> tuple
                 value = value.replace(secret, "<redacted>")
         redacted.append(value)
     return tuple(redacted)
+
+
+def audit_process_env(context: CommandContext, env: Mapping[str, str] | None) -> dict[str, Any] | None:
+    """Return redacted process environment details for audit events."""
+    if env is None:
+        return None
+    redacted: dict[str, str] = {}
+    secrets: list[dict[str, str]] = []
+    for key, raw_value in sorted(env.items()):
+        value = str(raw_value)
+        for ref, secret_ref in context._secrets.refs.items():
+            secret = context._secrets.get(ref)
+            if secret and secret in value:
+                value = value.replace(secret, "<redacted>")
+                secrets.append(
+                    {
+                        "env": str(key),
+                        "name": secret_ref.name,
+                        "fingerprint": secret_ref.fingerprint.format(),
+                    }
+                )
+        redacted[str(key)] = value
+    return {"env": redacted, "secrets": secrets}
 
 
 @dataclass(frozen=True, slots=True)
@@ -784,6 +807,7 @@ class ContextProcess:
         normalized = normalize_argv(argv)
         check_process_argv_for_secrets(self.context, normalized)
         audit_argv = redact_process_argv(self.context, normalized)
+        audit_env = audit_process_env(self.context, env)
         payload: dict[str, Any] = {
             "argv": list(audit_argv),
             "cwd": str(Path(cwd).expanduser()) if cwd is not None else None,
@@ -794,6 +818,8 @@ class ContextProcess:
             "job_id": self.context.job_id,
             "handled": True,
         }
+        if audit_env is not None:
+            payload.update(audit_env)
         request = self.context.request("framework.process.run.requested", payload)
         completed = run_process_argv(normalized, cwd=payload["cwd"], env=env, timeout=timeout)
         result = ProcessResult(
@@ -820,6 +846,7 @@ class ContextProcess:
         normalized = normalize_argv(argv)
         check_process_argv_for_secrets(self.context, normalized)
         audit_argv = redact_process_argv(self.context, normalized)
+        audit_env = audit_process_env(self.context, env)
         payload: dict[str, Any] = {
             "argv": list(audit_argv),
             "cwd": str(Path(cwd).expanduser()) if cwd is not None else None,
@@ -831,6 +858,8 @@ class ContextProcess:
             "handled": True,
             "mode": "stream",
         }
+        if audit_env is not None:
+            payload.update(audit_env)
         request = self.context.request("framework.process.stream.requested", payload)
         request_id = request.id if request is not None else None
         self.publish_started(audit_argv, request_id)

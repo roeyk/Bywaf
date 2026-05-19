@@ -9,6 +9,7 @@ from bywaf.app import (
     ShellState,
     build_parser,
     dispatch_repl_line,
+    extract_startup_project,
     format_event,
     main,
     make_runner,
@@ -221,6 +222,53 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "topics host")
             self.assertIn("host.found", output.getvalue())
             self.assertNotIn("port.open", output.getvalue())
+
+    def test_extract_startup_project_peels_project_selector(self):
+        project, argv = extract_startup_project(["project=client-a", "--new", "repl"])
+        self.assertEqual(project, "client-a")
+        self.assertEqual(argv, ["--new", "repl"])
+        project, argv = extract_startup_project(["--new", "project=client-b"])
+        self.assertEqual(project, "client-b")
+        self.assertEqual(argv, ["--new"])
+
+    def test_project_use_refuses_active_jobs_and_mentions_force(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.dict("os.environ", {"HOME": tmp}):
+                runner = make_runner(Path(tmp, "adhoc.sqlite3"))
+                state = ShellState()
+                with contextlib.redirect_stdout(io.StringIO()):
+                    dispatch_repl_line(runner, "project new name=client-a", state)
+                runner.db.record_job("hostscanner 127.0.0.1&", None, "running")
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    dispatch_repl_line(runner, "project use name=client-a", state)
+                text = output.getvalue()
+                self.assertIn("cannot switch to project=client-a while 1 job(s) are active", text)
+                self.assertIn("project use name=client-a --force", text)
+                self.assertEqual(runner.db.path, Path(tmp, "adhoc.sqlite3"))
+
+    def test_project_use_force_stops_active_jobs_and_switches_database(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.dict("os.environ", {"HOME": tmp}):
+                runner = make_runner(Path(tmp, "adhoc.sqlite3"))
+                state = ShellState()
+                runner.registry.varstore.set("global.marker", "old")
+                with contextlib.redirect_stdout(io.StringIO()):
+                    dispatch_repl_line(runner, "project new name=client-a", state)
+                old_db = runner.db
+                job_id = old_db.record_job("hostscanner 127.0.0.1&", None, "running")
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    dispatch_repl_line(runner, "project use name=client-a --force", state)
+                self.assertIn("stopped 1 active job(s)", output.getvalue())
+                self.assertIn("using project=client-a", output.getvalue())
+                self.assertEqual(runner.db.path, Path(tmp, ".bywaf", "projects", "client-a", "bywaf.sqlite3"))
+                self.assertEqual(state.history_path, Path(tmp, ".bywaf", "projects", "client-a", "history.bywaf"))
+                self.assertIsNone(runner.registry.varstore.get("global.marker"))
+                self.assertEqual(old_db.jobs(active_only=False)[0]["status"], "killed")
+                events = old_db.events_for_topic("project.switch.force_stopped")
+                self.assertEqual(events[-1].payload["count"], 1)
+                self.assertEqual(events[-1].payload["jobs"][0]["job_id"], job_id)
 
     def test_use_context_scopes_short_vars_assignments(self):
         with tempfile.TemporaryDirectory() as tmp:

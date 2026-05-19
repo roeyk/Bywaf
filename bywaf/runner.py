@@ -16,6 +16,7 @@ from .db import EventStore, Subscription
 from .events import Event
 from .plugin import CommandContext, PlanRepair, PlanReport, implied_capabilities
 from .registry import PluginRegistry
+from .secrets import REDACTED_VALUE, fingerprint_secret, load_or_create_fingerprint_key
 from .stores import EventStoreProtocol, MaintenanceStoreProtocol, RuntimeStoreProtocol
 from .varstore import VarStore
 
@@ -262,10 +263,18 @@ class JobLifecycle:
 class Runner:
     """Execute parsed commandlet pipelines against an EventStore."""
 
-    def __init__(self, db: EventStore, registry: PluginRegistry, *, job_id: int | None = None):
+    def __init__(
+        self,
+        db: EventStore,
+        registry: PluginRegistry,
+        *,
+        job_id: int | None = None,
+        project: object | None = None,
+    ):
         self.db = db
         self.registry = registry
         self.job_id = job_id
+        self.project = project
 
     @property
     def events(self) -> EventStoreProtocol:
@@ -1004,6 +1013,7 @@ def execute_stage(
             publish_command_run_lifecycle(context, "completed", emitted=0, skipped=True)
             return StageResult([])
         expanded_args = normalize_valued_option_args(plugin, planned_args)
+        publish_command_run_arguments(context, plugin, expanded_args)
         for input_topic in sorted({event.topic for event in selected_input_events}):
             context.audit_capability(f"db.read:{input_topic}")
         topic = plugin.spec.emits[0] if plugin.spec.emits else plugin.spec.name
@@ -1100,6 +1110,81 @@ def publish_command_run_lifecycle(context: CommandContext, status: str, **detail
         command_run_id=context.command_run_id,
         parent_command_run_id=context.parent_command_run_id,
     )
+
+
+def publish_command_run_arguments(context: CommandContext, plugin, args: list[str]) -> Event | None:
+    """Publish commandlet arguments after framework expansion/redaction."""
+    if context._db is None:
+        return None
+    redacted_args, secret_args = redact_commandlet_args(context, plugin, args)
+    return context._db.publish(
+        "command.run.arguments",
+        {
+            "commandlet": context.source,
+            "args": redacted_args,
+            "secret_args": secret_args,
+            "job_id": context.job_id,
+            "pipeline_id": context.pipeline_id,
+            "command_run_id": context.command_run_id,
+            "parent_command_run_id": context.parent_command_run_id,
+        },
+        "framework",
+        pipeline_id=context.pipeline_id,
+        command_run_id=context.command_run_id,
+        parent_command_run_id=context.parent_command_run_id,
+    )
+
+
+def redact_commandlet_args(context: CommandContext, plugin, args: list[str]) -> tuple[list[str], list[dict[str, str]]]:
+    """Redact declared secret commandlet options while preserving provenance."""
+    secret_options = {option.name.strip().lower().replace("_", "-") for option in plugin.spec.options if option.secret}
+    if not secret_options:
+        return list(args), []
+    redacted: list[str] = []
+    secrets: list[dict[str, str]] = []
+    pending_secret_option: str | None = None
+    for arg in args:
+        if pending_secret_option is not None:
+            redacted.append(REDACTED_VALUE)
+            secrets.append(secret_arg_metadata(context, pending_secret_option, arg))
+            pending_secret_option = None
+            continue
+        option_name, value, style = split_option_arg(arg)
+        if option_name is not None and option_name in secret_options:
+            if value is None:
+                redacted.append(f"--{option_name}")
+                pending_secret_option = option_name
+                continue
+            secrets.append(secret_arg_metadata(context, option_name, value))
+            redacted.append(f"--{option_name}={REDACTED_VALUE}" if style == "long-equals" else f"{option_name}={REDACTED_VALUE}")
+            continue
+        redacted.append(arg)
+    return redacted, secrets
+
+
+def split_option_arg(arg: str) -> tuple[str | None, str | None, str]:
+    """Return normalized option name/value/style for long options and key=value."""
+    if arg.startswith("--") and "=" in arg:
+        key, value = arg[2:].split("=", 1)
+        return key.strip().lower().replace("_", "-"), value, "long-equals"
+    if arg.startswith("--"):
+        return arg[2:].strip().lower().replace("_", "-"), None, "long"
+    if "=" in arg:
+        key, value = arg.split("=", 1)
+        return key.strip().lower().replace("_", "-"), value, "key-equals"
+    return None, None, ""
+
+
+def secret_arg_metadata(context: CommandContext, name: str, value: str) -> dict[str, str]:
+    """Return audit-safe metadata for one secret argument value."""
+    secret_ref = context._secrets.metadata(value)
+    if secret_ref is not None:
+        return {"name": secret_ref.name, "option": name, "fingerprint": secret_ref.fingerprint.format()}
+    return {
+        "name": name,
+        "option": name,
+        "fingerprint": fingerprint_secret(value, load_or_create_fingerprint_key()).format(),
+    }
 
 
 def handle_plan_if_needed(

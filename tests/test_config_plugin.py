@@ -22,6 +22,8 @@ from bywaf.plugin import (
 )
 from bywaf.secrets import InMemorySecretStore
 from bywaf.messages import Host, Progress
+from bywaf.registry import PluginRegistry
+from bywaf.runner import redact_commandlet_args
 from bywaf.varstore import ScopedVarStore, VarStore
 
 
@@ -227,6 +229,44 @@ class ConfigPluginTests(unittest.TestCase):
         self.assertNotIn("supersecret", str(result.payload))
         self.assertEqual(request.payload["argv"][-1], "password=<redacted>")
         self.assertEqual(warnings[0].payload["argv"][-1], "password=<redacted>")
+
+    def test_command_context_process_run_audits_redacted_secret_env(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            secrets = InMemorySecretStore()
+            secret_ref = secrets.put("test.password", "supersecret", key=b"k" * 32)
+            context = CommandContext(
+                db=db,
+                source="test",
+                _secrets=secrets,
+                metadata={
+                    "command_run_id": "run-1",
+                    "capabilities": ("framework.secret.resolve", "process.run"),
+                },
+            )
+            password = context.secrets.resolve(secret_ref.ref)
+            context.process.run([sys.executable, "-c", "print('ok')"], env={"TOOL_PASSWORD": password or ""})
+            request = db.events_for_topic("framework.process.run.requested")[0]
+        self.assertNotIn("supersecret", str(request.payload))
+        self.assertEqual(request.payload["env"]["TOOL_PASSWORD"], "<redacted>")
+        self.assertEqual(request.payload["secrets"][0]["env"], "TOOL_PASSWORD")
+        self.assertEqual(request.payload["secrets"][0]["name"], "test.password")
+
+    def test_commandlet_secret_args_are_redacted_with_secret_identity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            secrets = InMemorySecretStore()
+            secret_ref = secrets.put("ssh_probe.password", "supersecret", key=b"k" * 32)
+            context = CommandContext(db=db, source="ssh_probe", _secrets=secrets)
+            plugin = PluginRegistry.discover().get("ssh_probe")
+            redacted, secret_args = redact_commandlet_args(
+                context,
+                plugin,
+                ["127.0.0.1", "--password", secret_ref.ref],
+            )
+        self.assertEqual(redacted, ["127.0.0.1", "--password", "<redacted>"])
+        self.assertEqual(secret_args[0]["name"], "ssh_probe.password")
+        self.assertEqual(secret_args[0]["option"], "password")
 
     def test_command_context_events_follow_stops_after_parent_completion(self):
         with tempfile.TemporaryDirectory() as tmp:

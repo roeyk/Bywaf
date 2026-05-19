@@ -713,7 +713,8 @@ def format_artifact_row(artifact: Artifact) -> str:
     return (
         f"{artifact.created_at} artifact={artifact.id} artifact_id={artifact.artifact_id} "
         f"name={artifact.name} size={artifact.size} sha256={artifact.sha256} "
-        f"job={artifact.job_id or ''} pipeline={artifact.pipeline_id or ''} run={artifact.command_run_id or ''}"
+        f"commandlet={artifact.commandlet or ''} job={artifact.job_id or ''} "
+        f"pipeline={artifact.pipeline_id or ''} run={artifact.command_run_id or ''}"
     )
 
 
