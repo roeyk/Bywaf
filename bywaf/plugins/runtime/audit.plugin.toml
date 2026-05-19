@@ -1,0 +1,8 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "audit"
+module = "bywaf.plugins.runtime.audit"
+

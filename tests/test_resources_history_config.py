@@ -334,7 +334,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
     def test_save_and_load_config(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
-            config = Path(tmp, "vars.json")
+            config = Path(tmp, "vars.toml")
             dispatch_repl_line(runner, "vars test.value=before")
             with contextlib.redirect_stdout(io.StringIO()):
                 dispatch_repl_line(runner, f"save config={config}")
@@ -342,6 +342,16 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             with contextlib.redirect_stdout(io.StringIO()):
                 dispatch_repl_line(runner, f"load config={config}")
             self.assertEqual(runner.registry.varstore.get("test.value"), "before")
+            self.assertIn("[variables]", config.read_text())
+
+    def test_load_legacy_json_config(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            config = Path(tmp, "vars.json")
+            config.write_text('{"test.value": "legacy"}\n')
+            with contextlib.redirect_stdout(io.StringIO()):
+                dispatch_repl_line(runner, f"load config={config}")
+            self.assertEqual(runner.registry.varstore.get("test.value"), "legacy")
 
     def test_save_and_load_database(self):
         with tempfile.TemporaryDirectory() as tmp:

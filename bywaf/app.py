@@ -36,6 +36,7 @@ from .runtime_display import (
     runtime_state_text,
 )
 from .runner import Runner, add_runner_arguments, new_run_id
+from .toml_support import dump_variables_toml, load_data_file
 
 @dataclass(frozen=True, slots=True)
 class HelpEntry:
@@ -1066,18 +1067,19 @@ def load_repl_resource(runner: Runner, spec: str, state: ShellState | None = Non
             load_history(state, resolve_resource_path(value, Path("."), DEFAULT_HISTORY))
         case ["plugin", value] if value:
             plugin_path = resolve_resource_path(value, DEFAULT_PLUGIN_DIR)
-            plugin = runner.registry.load_filesystem_entry(plugin_path.parent, plugin_path.name)
+            runner.registry.load_filesystem_entry(plugin_path.parent, plugin_path.name)
+            commandlets = runner.registry.providers.get(plugin_path.name, [])
             event = publish_resource_loaded(
                 runner,
                 "plugin",
                 path=plugin_path,
                 details={
                     "provider": plugin_path.name,
-                    "commandlet": plugin.spec.name,
-                    "commandlets": [plugin.spec.name],
+                    "commandlet": commandlets[0] if commandlets else "",
+                    "commandlets": commandlets,
                 },
             )
-            print(f"loaded {plugin.spec.name} serial={event.payload['serial']}")
+            print(f"loaded {', '.join(commandlets)} serial={event.payload['serial']}")
         case ["script", value] if value:
             run_script(runner, resolve_resource_path(value, Path(".")), state)
         case _:
@@ -1159,17 +1161,22 @@ def prompt_database_passphrase(path: Path, *, creating: bool) -> str:
 
 
 def save_config(runner: Runner, path: Path) -> None:
-    """Persist session variables as JSON."""
+    """Persist session variables as TOML or JSON."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(runner.registry.varstore.values, indent=2, sort_keys=True) + "\n")
+    if path.suffix == ".toml":
+        text = dump_variables_toml(runner.registry.varstore.values)
+    else:
+        text = json.dumps(runner.registry.varstore.values, indent=2, sort_keys=True) + "\n"
+    path.write_text(text, encoding="utf-8")
     print(f"saved config={path}")
 
 
 def load_config(runner: Runner, path: Path) -> None:
-    """Replace session variables from a JSON object."""
-    values = json.loads(path.read_text())
+    """Replace session variables from a TOML table or JSON object."""
+    data = load_data_file(path)
+    values = data.get("variables", data)
     if not isinstance(values, dict):
-        raise ValueError(f"{path} must contain a JSON object")
+        raise ValueError(f"{path} variables must be an object/table")
     runner.registry.varstore.values.clear()
     for key, value in values.items():
         runner.registry.varstore.set(str(key), value)

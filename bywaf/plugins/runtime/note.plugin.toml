@@ -1,0 +1,8 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "note"
+module = "bywaf.plugins.runtime.note"
+

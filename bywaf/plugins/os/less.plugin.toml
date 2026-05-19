@@ -1,0 +1,8 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "less"
+module = "bywaf.plugins.os.less"
+

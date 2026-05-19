@@ -1,0 +1,8 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "webfin"
+module = "bywaf.plugins.http.webfin"
+

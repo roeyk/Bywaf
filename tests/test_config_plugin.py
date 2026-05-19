@@ -29,7 +29,7 @@ class ConfigPluginTests(unittest.TestCase):
         settings = default_settings()
         self.assertIsInstance(settings, Settings)
         self.assertEqual(settings.database.as_posix(), ".bywaf/bywaf.sqlite3")
-        self.assertEqual(settings.config.as_posix(), ".bywaf/config.json")
+        self.assertEqual(settings.config.as_posix(), ".bywaf/config.toml")
         self.assertEqual(settings.history.as_posix(), ".bywaf/history.bywaf")
         self.assertEqual(settings.plugin_dir.as_posix(), ".bywaf/plugins")
         self.assertEqual(settings.script_dir.as_posix(), ".bywaf/scripts")

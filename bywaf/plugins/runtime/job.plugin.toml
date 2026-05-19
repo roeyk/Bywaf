@@ -1,0 +1,8 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "job"
+module = "bywaf.plugins.runtime.job"
+

@@ -13,6 +13,7 @@ from .events import Event
 from .registry import PluginRegistry
 from .runner import Runner
 from .stores import EventStoreProtocol, MaintenanceStoreProtocol, RuntimeStoreProtocol
+from .toml_support import dump_variables_toml, load_data_file
 
 
 @dataclass(slots=True)
@@ -120,16 +121,21 @@ class BywafSession:
         self.registry.varstore.set(name, value)
 
     def save_config(self, path: str | Path) -> None:
-        """Save session variables to JSON."""
+        """Save session variables to TOML or JSON."""
         config_path = Path(path)
         config_path.parent.mkdir(parents=True, exist_ok=True)
-        config_path.write_text(json.dumps(self.registry.varstore.values, indent=2, sort_keys=True) + "\n")
+        if config_path.suffix == ".toml":
+            text = dump_variables_toml(self.registry.varstore.values)
+        else:
+            text = json.dumps(self.registry.varstore.values, indent=2, sort_keys=True) + "\n"
+        config_path.write_text(text, encoding="utf-8")
 
     def load_config(self, path: str | Path) -> None:
-        """Load session variables from JSON."""
-        values = json.loads(Path(path).read_text())
+        """Load session variables from TOML or JSON."""
+        data = load_data_file(Path(path))
+        values = data.get("variables", data)
         if not isinstance(values, dict):
-            raise ValueError(f"{path} must contain a JSON object")
+            raise ValueError(f"{path} variables must be an object/table")
         self.registry.varstore.values.clear()
         for key, value in values.items():
             self.registry.varstore.set(str(key), value)

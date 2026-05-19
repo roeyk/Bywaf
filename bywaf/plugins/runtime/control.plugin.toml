@@ -1,0 +1,32 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "signal"
+module = "bywaf.plugins.runtime.control"
+
+[[commandlets]]
+name = "end"
+module = "bywaf.plugins.runtime.control"
+
+[[commandlets]]
+name = "kill"
+module = "bywaf.plugins.runtime.control"
+
+[[commandlets]]
+name = "cancel"
+module = "bywaf.plugins.runtime.control"
+
+[[commandlets]]
+name = "pause"
+module = "bywaf.plugins.runtime.control"
+
+[[commandlets]]
+name = "resume"
+module = "bywaf.plugins.runtime.control"
+
+[[commandlets]]
+name = "stop"
+module = "bywaf.plugins.runtime.control"
+

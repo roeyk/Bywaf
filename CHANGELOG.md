@@ -5,7 +5,7 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-18 19:44:53 EDT
+Last updated: 2026-05-18 20:34:54 EDT
 
 ### 2026-05-18 18:29:12 EDT
 
@@ -17,6 +17,15 @@ Last updated: 2026-05-18 19:44:53 EDT
   SQLite-backed implementations.
 - Added context accessors for narrow event, runtime, and maintenance store
   access.
+- Added TOML support for human-authored plugin lists, filesystem plugin
+  defaults, and session variable config files.
+- Added bundled `bywaf/plugins/plugins.toml` while keeping legacy
+  `plugins.json` compatibility.
+- Added filesystem plugin manifest support with `bywaf.plugin.toml`, including
+  authoritative commandlet exposure and implementation traits for native,
+  library-backed, process-wrapped, and service plugins.
+- Added bundled plugin sidecar manifests such as `nikto.plugin.toml` and
+  enforced those manifests during package plugin discovery.
 
 #### Changed
 
@@ -32,6 +41,8 @@ Last updated: 2026-05-18 19:44:53 EDT
 - Added role-specific runner store properties and migrated the public API plus
   user-facing runtime/event display paths to event, runtime, and maintenance
   store roles where concrete SQLite access is not required.
+- Changed default session config path to `.bywaf/config.toml`; legacy JSON
+  config files can still be loaded and saved explicitly.
 
 ## [0.9.2] - 2026-05-18
 

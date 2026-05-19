@@ -1,0 +1,9 @@
+[plugin]
+library_backed = true
+process_wrapped = false
+service = false
+
+[[commandlets]]
+name = "dns_lookup"
+module = "bywaf.plugins.recon.dns_lookup"
+

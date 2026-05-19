@@ -23,7 +23,14 @@ from bywaf.completion import (
 )
 from bywaf.db import EventStore
 from bywaf.plugin import ArgumentSpec, CommandSpec, CompletionSpec
-from bywaf.registry import PluginRegistry, load_plugin, parse_package_plugin_config, parse_plugin_config
+from bywaf.registry import (
+    PluginRegistry,
+    load_package_manifest,
+    load_plugin,
+    parse_package_plugin_config,
+    parse_plugin_config,
+    parse_plugin_manifest,
+)
 
 
 class RegistryCompletionTests(unittest.TestCase):
@@ -64,8 +71,9 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn("artifact", self.registry.names())
 
     def test_bundled_plugins_are_loaded_from_config_list(self):
+        entries = parse_package_plugin_config("bywaf.plugins", "plugins.toml")
         self.assertEqual(
-            parse_package_plugin_config("bywaf.plugins", "plugins.json"),
+            entries,
             [
                 "discovery.hostscanner",
                 "analysis.finding_dedupe",
@@ -97,6 +105,18 @@ class RegistryCompletionTests(unittest.TestCase):
                 "os.less",
             ],
         )
+        for entry in entries:
+            with self.subTest(entry=entry):
+                self.assertIsNotNone(load_package_manifest("bywaf.plugins", entry))
+
+    def test_bundled_sidecar_manifest_traits(self):
+        manifest = load_package_manifest("bywaf.plugins", "http.nikto")
+        self.assertIsNotNone(manifest)
+        assert manifest is not None
+        self.assertEqual(manifest.commandlets, frozenset({"nikto"}))
+        self.assertFalse(manifest.library_backed)
+        self.assertTrue(manifest.process_wrapped)
+        self.assertFalse(manifest.native)
 
     def test_registry_tracks_provider_groups(self):
         self.assertEqual(self.registry.grouped_names()["analysis"], ["finding_dedupe", "finding_report", "yara_scan"])
@@ -583,7 +603,34 @@ class RegistryCompletionTests(unittest.TestCase):
             config.write_text("default_plugins:\n  - scanners/example\n")
             self.assertEqual(parse_plugin_config(config), ["scanners/example"])
 
+    def test_parse_toml_plugin_config(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = Path(tmp, "plugins.toml")
+            config.write_text('default_plugins = ["scanners/example"]\n')
+            self.assertEqual(parse_plugin_config(config), ["scanners/example"])
+
     def test_loads_filesystem_plugin_and_defaults(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp, "plugins")
+            plugin_dir = root / "scanners" / "example"
+            plugin_dir.mkdir(parents=True)
+            (plugin_dir / "plugin.py").write_text(
+                "from bywaf.plugin import CommandSpec\n"
+                "class Example:\n"
+                "    spec = CommandSpec('example', 'example plugin', emits=('example.event',))\n"
+                "    def run(self, context, args, input_events):\n"
+                "        yield {'ok': True}\n"
+                "def plugin():\n"
+                "    return Example()\n"
+            )
+            (plugin_dir / "defaults.toml").write_text("[defaults]\nanswer = 42\n")
+            config = Path(tmp, "plugins.toml")
+            config.write_text('default_plugins = ["scanners/example"]\n')
+            registry = PluginRegistry.from_config(root, config)
+            self.assertIn("example", registry.names())
+            self.assertEqual(registry.varstore.get("example.answer"), "42")
+
+    def test_loads_legacy_filesystem_plugin_json_defaults(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "plugins")
             plugin_dir = root / "scanners" / "example"
@@ -601,8 +648,80 @@ class RegistryCompletionTests(unittest.TestCase):
             config = Path(tmp, "plugins.yaml")
             config.write_text("default_plugins:\n  - scanners/example\n")
             registry = PluginRegistry.from_config(root, config)
-            self.assertIn("example", registry.names())
             self.assertEqual(registry.varstore.get("example.answer"), "42")
+
+    def test_filesystem_manifest_is_authoritative(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp, "plugins")
+            plugin_dir = root / "scanners" / "example"
+            plugin_dir.mkdir(parents=True)
+            (plugin_dir / "plugin.py").write_text(
+                "from bywaf.plugin import CommandSpec\n"
+                "class Example:\n"
+                "    spec = CommandSpec('example', 'example plugin')\n"
+                "    def run(self, context, args, input_events):\n"
+                "        yield {'ok': True}\n"
+                "class Extra:\n"
+                "    spec = CommandSpec('extra', 'extra plugin')\n"
+                "    def run(self, context, args, input_events):\n"
+                "        yield {'ok': True}\n"
+                "def plugins():\n"
+                "    return (Example(), Extra())\n"
+            )
+            (plugin_dir / "bywaf.plugin.toml").write_text(
+                "[plugin]\n"
+                "library_backed = true\n"
+                "process_wrapped = true\n"
+                "service = false\n"
+                'roles = ["command-provider"]\n\n'
+                "[[commandlets]]\n"
+                'name = "example"\n'
+            )
+            config = Path(tmp, "plugins.toml")
+            config.write_text('default_plugins = ["scanners/example"]\n')
+
+            registry = PluginRegistry.from_config(root, config)
+
+            self.assertIn("example", registry.names())
+            self.assertNotIn("extra", registry.names())
+            manifest = parse_plugin_manifest(plugin_dir / "bywaf.plugin.toml")
+            self.assertTrue(manifest.library_backed)
+            self.assertTrue(manifest.process_wrapped)
+            self.assertFalse(manifest.native)
+
+    def test_filesystem_manifest_rejects_missing_commandlet(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp, "plugins")
+            plugin_dir = root / "scanners" / "example"
+            plugin_dir.mkdir(parents=True)
+            (plugin_dir / "plugin.py").write_text(
+                "from bywaf.plugin import CommandSpec\n"
+                "class Example:\n"
+                "    spec = CommandSpec('example', 'example plugin')\n"
+                "    def run(self, context, args, input_events):\n"
+                "        yield {'ok': True}\n"
+                "def plugin():\n"
+                "    return Example()\n"
+            )
+            (plugin_dir / "bywaf.plugin.toml").write_text("[[commandlets]]\nname = \"missing\"\n")
+            config = Path(tmp, "plugins.toml")
+            config.write_text('default_plugins = ["scanners/example"]\n')
+
+            with self.assertRaisesRegex(ValueError, "missing commandlets"):
+                PluginRegistry.from_config(root, config)
+
+    def test_filesystem_manifest_rejects_conflicting_native_trait(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = Path(tmp, "bywaf.plugin.toml")
+            manifest.write_text(
+                "[plugin]\n"
+                "native = true\n"
+                "library_backed = true\n\n"
+                "[[commandlets]]\n"
+                'name = "example"\n'
+            )
+            with self.assertRaisesRegex(ValueError, "native=true conflicts"):
+                parse_plugin_manifest(manifest)
 
 
 if __name__ == "__main__":

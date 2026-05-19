@@ -26,7 +26,7 @@ class SmokePlugin:
 def plugin():
     return SmokePlugin()
 PY
-  printf '{"origin": "%s"}\n' "$source" >"$dir/defaults.json"
+  printf '[defaults]\norigin = "%s"\n' "$source" >"$dir/defaults.toml"
 }
 
 run_probe() {
@@ -50,18 +50,16 @@ USER_ROOT="$WORKDIR/home/alice/.bywaf/plugins"
 SYSTEM_ROOT="$WORKDIR/usr/share/bywaf/plugins"
 
 write_plugin "$USER_ROOT" "local/userprobe" "userprobe" "user-local"
-cat >"$USER_ROOT/plugins.yaml" <<'YAML'
-default_plugins:
-  - local/userprobe
-YAML
+cat >"$USER_ROOT/plugins.toml" <<'TOML'
+default_plugins = ["local/userprobe"]
+TOML
 
 write_plugin "$SYSTEM_ROOT" "site/systemprobe" "systemprobe" "system-wide"
-cat >"$SYSTEM_ROOT/plugins.yaml" <<'YAML'
-default_plugins:
-  - site/systemprobe
-YAML
+cat >"$SYSTEM_ROOT/plugins.toml" <<'TOML'
+default_plugins = ["site/systemprobe"]
+TOML
 
-run_probe "$USER_ROOT" "$USER_ROOT/plugins.yaml" "userprobe" "user-local"
-run_probe "$SYSTEM_ROOT" "$SYSTEM_ROOT/plugins.yaml" "systemprobe" "system-wide"
+run_probe "$USER_ROOT" "$USER_ROOT/plugins.toml" "userprobe" "user-local"
+run_probe "$SYSTEM_ROOT" "$SYSTEM_ROOT/plugins.toml" "systemprobe" "system-wide"
 
 echo "plugin install-path smoke test passed"

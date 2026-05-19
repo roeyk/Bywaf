@@ -1,0 +1,12 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "artifact"
+module = "bywaf.plugins.runtime.artifact"
+
+[[commandlets]]
+name = "search"
+module = "bywaf.plugins.runtime.artifact"
+

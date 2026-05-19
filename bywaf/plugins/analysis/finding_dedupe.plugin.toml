@@ -1,0 +1,8 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "finding_dedupe"
+module = "bywaf.plugins.analysis.finding_dedupe"
+

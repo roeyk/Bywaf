@@ -1,0 +1,8 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "ls"
+module = "bywaf.plugins.os.ls"
+

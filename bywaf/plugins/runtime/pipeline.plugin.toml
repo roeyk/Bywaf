@@ -1,0 +1,8 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "pipeline"
+module = "bywaf.plugins.runtime.pipeline"
+

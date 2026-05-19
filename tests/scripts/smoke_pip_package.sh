@@ -19,9 +19,9 @@ from importlib import resources
 
 from bywaf.registry import parse_package_plugin_config
 
-entries = parse_package_plugin_config("bywaf.plugins", "plugins.json")
+entries = parse_package_plugin_config("bywaf.plugins", "plugins.toml")
 assert "runtime.job" in entries
-assert resources.files("bywaf.plugins").joinpath("plugins.json").is_file()
+assert resources.files("bywaf.plugins").joinpath("plugins.toml").is_file()
 PY
 
 echo "pip package smoke test passed"

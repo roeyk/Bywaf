@@ -37,7 +37,7 @@ def write_plugin(root: Path, entry: str, name: str, source: str) -> Path:
             source=source,
         )
     )
-    (plugin_dir / "defaults.json").write_text('{"origin": "' + source + '"}')
+    (plugin_dir / "defaults.toml").write_text(f'[defaults]\norigin = "{source}"\n')
     return plugin_dir
 
 
@@ -47,8 +47,8 @@ class PackagingInstallPathTests(unittest.TestCase):
             home = Path(tmp, "home", "alice")
             root = home / ".bywaf" / "plugins"
             write_plugin(root, "local/userprobe", "userprobe", "user-local")
-            config = root / "plugins.yaml"
-            config.write_text("default_plugins:\n  - local/userprobe\n")
+            config = root / "plugins.toml"
+            config.write_text('default_plugins = ["local/userprobe"]\n')
 
             runner = make_runner(Path(tmp, "db.sqlite3"), plugin_root=root, plugin_config=config)
 
@@ -59,8 +59,8 @@ class PackagingInstallPathTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "usr", "share", "bywaf", "plugins")
             write_plugin(root, "site/systemprobe", "systemprobe", "system-wide")
-            config = root / "plugins.yaml"
-            config.write_text("default_plugins:\n  - site/systemprobe\n")
+            config = root / "plugins.toml"
+            config.write_text('default_plugins = ["site/systemprobe"]\n')
 
             runner = make_runner(Path(tmp, "db.sqlite3"), plugin_root=root, plugin_config=config)
 
@@ -71,8 +71,8 @@ class PackagingInstallPathTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "home", "alice", ".bywaf", "plugins")
             write_plugin(root, "local/userprobe", "userprobe", "user-local")
-            config = root / "plugins.yaml"
-            config.write_text("default_plugins:\n  - local/userprobe\n")
+            config = root / "plugins.toml"
+            config.write_text('default_plugins = ["local/userprobe"]\n')
 
             output = io.StringIO()
             with contextlib.redirect_stdout(output):

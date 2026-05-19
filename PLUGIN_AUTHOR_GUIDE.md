@@ -20,13 +20,16 @@ capabilities, dependencies, and failure behavior easier to reason about.
 
 Common integration types:
 
-- **Framework-native plugins** use Bywaf APIs plus Python standard-library code.
+- **Native plugins** use Bywaf APIs plus Python standard-library code. This is
+  the default case when a plugin is neither library-backed nor process-wrapped.
   These are the easiest to audit and package. Examples include filters,
   correlation commandlets, and simple renderers.
-- **Library-backed plugins** call a Python library or binding in-process, such
-  as an HTTP client, Scapy, or an nmap binding. They can expose richer objects
+- **Library-backed plugins** call a third-party Python package or non-Bywaf
+  Python library in-process, such as an HTTP client, Scapy, dnspython, or an
+  nmap binding. Normal imports from Bywaf itself or sibling bundled plugins do
+  not make a plugin library-backed. These plugins can expose richer objects
   than command-line tools, but failures happen inside the Bywaf process.
-- **External-process wrapper plugins** run a mature external program through
+- **Process-wrapped plugins** run a mature external program through
   `context.process.run()` or `context.process.stream()`. They should declare
   `process.run` and let the framework capture stdout, stderr, return codes, and
   audit events.
@@ -44,12 +47,44 @@ Common workflow roles:
 - **Runtime/storage** commandlets manage jobs, pipelines, audit logs, notes, or
   artifacts, or databases.
 
-These categories are intentionally orthogonal. For example, an nmap commandlet
-could be a library-backed scanner or an external-process scanner, while a report
-generator could be a framework-native renderer.
+These traits are intentionally orthogonal. A plugin can be both library-backed
+and process-wrapped if it uses a third-party Python package and also invokes an
+external tool. A long-running service plugin is also a separate lifecycle trait
+from whether it is native, library-backed, or process-wrapped.
 
 See `CAPABILITY_MODEL.md` for how these integration types affect trust
 boundaries, failure semantics, deployment, and capability declarations.
+
+# Plugin Manifest
+
+Filesystem plugins may include `bywaf.plugin.toml` next to `plugin.py`.
+Bundled plugins use sidecar manifests such as `nikto.plugin.toml` next to
+`nikto.py`. When present, the manifest is authoritative: Bywaf registers only
+the commandlets listed in `[[commandlets]]`. Extra commandlets returned by
+`plugin()` or `plugins()` are ignored, and commandlets declared in the manifest
+but missing from Python code cause plugin loading to fail.
+
+```toml
+[plugin]
+library_backed = true
+process_wrapped = true
+service = false
+roles = ["command-provider"]
+
+[[commandlets]]
+name = "example"
+```
+
+Implementation traits are independent:
+
+- `native` is the default when neither `library_backed` nor `process_wrapped`
+  is true;
+- `library_backed` means the plugin uses a third-party Python package or
+  non-Bywaf Python library;
+- `process_wrapped` means the plugin invokes an external executable through the
+  framework process API. The external process may be a compiled binary, script,
+  package entrypoint, or other executable tool;
+- `service` means the plugin is expected to run long-lived or continuously.
 
 # A Minimal Commandlet
 
@@ -894,8 +929,9 @@ bywaf> load plugin=~/bywaf-plugins/file_info
 ```
 
 Bundled plugins live under `bywaf/plugins/` and are loaded from
-`bywaf/plugins/plugins.json`. To make a bundled commandlet load automatically,
-add its dotted module path to `default_plugins`.
+`bywaf/plugins/plugins.toml`. To make a bundled commandlet load automatically,
+add its dotted module path to `default_plugins` and add or update the matching
+sidecar manifest, for example `bywaf/plugins/http/nikto.plugin.toml`.
 
 # Testing a Plugin
 

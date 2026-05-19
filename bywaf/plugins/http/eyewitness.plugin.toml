@@ -1,0 +1,9 @@
+[plugin]
+library_backed = false
+process_wrapped = true
+service = false
+
+[[commandlets]]
+name = "eyewitness"
+module = "bywaf.plugins.http.eyewitness"
+

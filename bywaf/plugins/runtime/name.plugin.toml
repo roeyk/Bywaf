@@ -1,0 +1,8 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "name"
+module = "bywaf.plugins.runtime.name"
+

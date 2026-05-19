@@ -408,8 +408,9 @@ storage
   db
 ```
 
-Bundled plugins are listed in `bywaf/plugins/plugins.json`. Adding a plugin file
-is not enough to load it by default; add its dotted path to that config.
+Bundled plugins are listed in `bywaf/plugins/plugins.toml`. Adding a plugin file
+is not enough to load it by default; add its dotted path to that config and add
+or update its sidecar manifest, such as `bywaf/plugins/http/nikto.plugin.toml`.
 
 Load an additional plugin by name from `.bywaf/plugins`:
 
@@ -916,7 +917,7 @@ Important files:
 
 ```text
 .bywaf/bywaf.sqlite3
-.bywaf/config.json
+.bywaf/config.toml
 .bywaf/history.bywaf
 .bywaf/plugins/
 ```
@@ -945,8 +946,8 @@ Examples:
 ```text
 bywaf> load script=scan.bywaf
 bywaf> load script=./scripts/scan.bywaf
-bywaf> save config=session.json
-bywaf> load config=session.json
+bywaf> save config=session.toml
+bywaf> load config=session.toml
 bywaf> save history=session-history.bywaf
 bywaf> load history=session-history.bywaf
 ```
@@ -998,16 +999,17 @@ falls back to it.
 Save variables:
 
 ```text
-bywaf> save config=config.json
+bywaf> save config=config.toml
 ```
 
 Load variables:
 
 ```text
-bywaf> load config=config.json
+bywaf> load config=config.toml
 ```
 
-Config files are JSON objects containing session variables.
+Config files are TOML tables containing session variables. Legacy JSON config
+files can still be loaded for compatibility.
 
 # History
 
@@ -1409,7 +1411,7 @@ the faster completion adapter tests.
 
 Add a commandlet by defining a class with a `CommandSpec` and a `run()` method,
 then expose it through a `plugin()` factory. Add bundled commandlets to
-`bywaf/plugins/plugins.json` when they should load by default.
+`bywaf/plugins/plugins.toml` when they should load by default.
 
 Commandlets can declare completion metadata with `ArgumentSpec`,
 `OptionSpec(..., completion=CompletionSpec(...))`, or an optional custom

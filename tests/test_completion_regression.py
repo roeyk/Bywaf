@@ -130,7 +130,7 @@ class CompletionRegressionTests(unittest.TestCase):
             (root / ".bywaf" / "plugins" / "plugin_dir").mkdir(parents=True)
             (root / "script.bywaf").write_text("plugins\n")
             (root / "bywaf.sqlite3").write_text("")
-            (root / "bywaf.config.json").write_text("{}")
+            (root / "bywaf.config.toml").write_text("[variables]\n")
             (root / "history.bywaf").write_text("plugins\n")
             (root / "snapshot.html").write_text("<html></html>")
             (root / "artifacts").mkdir()
@@ -142,10 +142,10 @@ class CompletionRegressionTests(unittest.TestCase):
                     ("load plugin=plug", "plugin=plugin_dir/"),
                     ("load script=scr", "script=script.bywaf"),
                     ("load db=byw", "db=bywaf.sqlite3"),
-                    ("load config=byw", "config=bywaf.config.json"),
+                    ("load config=byw", "config=bywaf.config.toml"),
                     ("load history=his", "history=history.bywaf"),
                     ("save db=byw", "db=bywaf.sqlite3"),
-                    ("save config=byw", "config=bywaf.config.json"),
+                    ("save config=byw", "config=bywaf.config.toml"),
                     ("save history=his", "history=history.bywaf"),
                     ("artifact attach file=snap", "file=snapshot.html"),
                     ("artifact save dir=art", "dir=artifacts/"),

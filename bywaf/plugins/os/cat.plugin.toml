@@ -1,0 +1,8 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "cat"
+module = "bywaf.plugins.os.cat"
+

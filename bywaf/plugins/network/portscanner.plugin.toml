@@ -1,0 +1,9 @@
+[plugin]
+library_backed = true
+process_wrapped = true
+service = false
+
+[[commandlets]]
+name = "portscanner"
+module = "bywaf.plugins.network.portscanner"
+

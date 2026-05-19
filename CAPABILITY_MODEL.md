@@ -107,22 +107,25 @@ timestamps in capability reports should include a timezone.
 
 Capability requirements depend heavily on how a plugin integrates with other
 code. Integration type is separate from workflow role: a scanner can be
-framework-native, library-backed, external-process backed, or native-code
-backed.
+native, library-backed, process-wrapped, or native-code backed.
 
-Framework-native plugins use Bywaf APIs and Python standard-library code. They
-are the easiest to package and audit. Typical examples are filters,
-correlators, renderers, exporters, and workflow helpers. Their capabilities are
-usually event, artifact, filesystem, and framework-output capabilities.
+Native plugins use Bywaf APIs and Python standard-library code. Native is the
+default implementation trait when a plugin is neither library-backed nor
+process-wrapped. Native plugins are the easiest to package and audit. Typical
+examples are filters, correlators, renderers, exporters, and workflow helpers.
+Their capabilities are usually event, artifact, filesystem, and
+framework-output capabilities.
 
-Library-backed plugins use an in-process Python library or binding such as an
-HTTP client, Scapy, or an nmap binding. They have lower overhead and richer
+Library-backed plugins use a third-party Python package or non-Bywaf Python
+library in-process, such as an HTTP client, Scapy, dnspython, or an nmap
+binding. Imports from Bywaf itself or sibling bundled plugins do not make a
+plugin library-backed. Library-backed plugins have lower overhead and richer
 object access than parsing command output, but they share the Bywaf process.
 Failures are Python exceptions or in-process crashes, so these plugins should
 declare capabilities such as `network.connect`, `network.listen`,
 `filesystem.read`, or `db.write:<topic>` precisely.
 
-External-process wrapper plugins run mature tools through framework-mediated
+Process-wrapped plugins run mature external tools through framework-mediated
 process execution. Examples include wrappers around tools such as nmap, ffuf,
 nikto, sqlmap, or similar utilities. They should use `context.process.run()` or
 `context.process.stream()` instead of direct `subprocess` calls, and they
@@ -137,15 +140,18 @@ memory-safety bugs, and crashes can affect Bywaf unless they are isolated.
 Future capability names may need to distinguish `ffi.load`, `ipc.connect`, and
 native process boundaries.
 
-This taxonomy matters because each type implies different trust boundaries,
-deployment requirements, portability, observability, reproducibility, and
-failure handling.
+These are traits, not necessarily mutually exclusive types. A plugin can be
+both library-backed and process-wrapped if it uses a third-party Python package
+and also invokes a binary. A long-running service plugin is a
+separate lifecycle trait. This taxonomy matters because each trait implies
+different trust boundaries, deployment requirements, portability,
+observability, reproducibility, and failure handling.
 
-| Integration type | Typical role examples | Main risk boundary | Common capabilities |
+| Implementation trait | Typical role examples | Main risk boundary | Common capabilities |
 | --- | --- | --- | --- |
-| Framework-native | filter, renderer, correlator | Bywaf API misuse | `db.read:*`, `db.write:*`, `artifact.write` |
+| Native | filter, renderer, correlator | Bywaf API misuse | `db.read:*`, `db.write:*`, `artifact.write` |
 | Library-backed | scanner, analyzer | in-process library behavior | `network.connect`, `filesystem.read`, `db.write:*` |
-| External-process wrapper | scanner, fuzzer, importer | child process and tool output | `framework.process.run`, `filesystem.read` |
+| Process-wrapped | scanner, fuzzer, importer | child process and tool output | `framework.process.run`, `filesystem.read` |
 | Native/FFI | high-performance analyzer | ABI and memory safety | future `ffi.load`, `ipc.connect`, `process.run` |
 
 ## Audited Use

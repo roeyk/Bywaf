@@ -1,0 +1,8 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "http_probe"
+module = "bywaf.plugins.http.http_probe"
+

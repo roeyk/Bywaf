@@ -1,0 +1,9 @@
+[plugin]
+library_backed = true
+process_wrapped = false
+service = false
+
+[[commandlets]]
+name = "yara_scan"
+module = "bywaf.plugins.analysis.yara_scan"
+

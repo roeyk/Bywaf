@@ -17,7 +17,7 @@ class Settings:
 
     state_dir: Path = Path(".bywaf")
     database: Path = Path(".bywaf/bywaf.sqlite3")
-    config: Path = Path(".bywaf/config.json")
+    config: Path = Path(".bywaf/config.toml")
     history: Path = Path(".bywaf/history.bywaf")
     plugin_dir: Path = Path(".bywaf/plugins")
     script_dir: Path = Path(".bywaf/scripts")

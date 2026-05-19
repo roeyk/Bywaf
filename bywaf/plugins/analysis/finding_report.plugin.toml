@@ -1,0 +1,8 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "finding_report"
+module = "bywaf.plugins.analysis.finding_report"
+
