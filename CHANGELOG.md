@@ -5,7 +5,17 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-19 19:08:00 EDT
+Last updated: 2026-05-19 19:10:00 EDT
+
+### 2026-05-19 19:10:00 EDT
+
+#### Added
+
+- Added a plugin catalog signing smoke script that exercises the maintainer CLI
+  flow end to end: build catalog, generate encrypted Ed25519 keys, sign, and
+  verify with `--check-tree`.
+- Added a unittest wrapper for the smoke script, skipped automatically when the
+  optional `cryptography` dependency is unavailable.
 
 ### 2026-05-19 19:08:00 EDT
 
