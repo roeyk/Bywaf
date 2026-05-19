@@ -30,7 +30,9 @@ class StoreProtocolTests(unittest.TestCase):
             job_id = store.record_job("test", None, "queued")
             self.assertTrue(store.claim_job(job_id, 123))
             store.finish_job(job_id, "completed")
-            self.assertEqual(store.job(job_id)["status"], "completed")
+            job = store.job(job_id)
+            assert job is not None
+            self.assertEqual(job["status"], "completed")
 
     def test_artifact_store_satisfies_artifact_protocol(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -56,4 +58,3 @@ class StoreProtocolTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

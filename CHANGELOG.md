@@ -5,7 +5,7 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-18 20:47:59 EDT
+Last updated: 2026-05-18 21:03:24 EDT
 
 ### 2026-05-18 18:29:12 EDT
 
@@ -46,6 +46,9 @@ Last updated: 2026-05-18 20:47:59 EDT
   store roles where concrete SQLite access is not required.
 - Changed default session config path to `.bywaf/config.toml`; legacy JSON
   config files can still be loaded and saved explicitly.
+- Hardened `CommandContext` variable exposure so commandlets receive a scoped
+  variable facade instead of the raw session `VarStore`, and removed public raw
+  store access from `ScopedVarStore`.
 
 ## [0.9.2] - 2026-05-18
 

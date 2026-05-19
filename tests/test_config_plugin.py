@@ -90,6 +90,14 @@ class ConfigPluginTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unqualified"):
             context.vars.get("other.value")
 
+    def test_command_context_does_not_expose_raw_varstore(self):
+        store = VarStore()
+        store.set("other.secret", "hidden")
+        context = CommandContext(db=None, source="test", _varstore=store)
+        self.assertFalse(hasattr(context, "_varstore"))
+        self.assertFalse(hasattr(context.vars, "store"))
+        self.assertIsNone(context.vars.get("secret"))
+
     def test_command_context_vars_prefer_run_snapshot(self):
         store = VarStore()
         store.set("test.value", "session")
@@ -243,6 +251,8 @@ class ConfigPluginTests(unittest.TestCase):
         store.set("one.secret", "a")
         store.set("two.secret", "b")
         one = ScopedVarStore(store, "one")
+        self.assertFalse(hasattr(one, "store"))
+        self.assertFalse(hasattr(one, "run_values"))
         self.assertEqual(one.get("secret"), "a")
         self.assertNotEqual(one.get("secret"), "b")
 

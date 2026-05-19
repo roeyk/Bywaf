@@ -34,7 +34,6 @@ class VarStore:
         return sorted(self.values.items())
 
 
-@dataclass(frozen=True, slots=True)
 class ScopedVarStore:
     """Namespace-limited view of VarStore exposed to plugins.
 
@@ -44,27 +43,35 @@ class ScopedVarStore:
     this API.
     """
 
-    store: VarStore
-    scope: str
-    run_values: dict[str, str] = field(default_factory=dict)
+    __slots__ = ("__store", "scope", "__run_values")
+
+    def __init__(
+        self,
+        store: VarStore,
+        scope: str,
+        run_values: dict[str, str] | None = None,
+    ) -> None:
+        self.__store = store
+        self.scope = scope
+        self.__run_values = run_values or {}
 
     def get(self, key: str, default: str | None = None) -> str | None:
         """Return a scoped variable value."""
         scoped = self.scoped_key(key)
-        if scoped in self.run_values:
-            return self.run_values[scoped]
-        return self.store.get(scoped, default)
+        if scoped in self.__run_values:
+            return self.__run_values[scoped]
+        return self.__store.get(scoped, default)
 
     def set(self, key: str, value: Any) -> None:
         """Set a scoped variable value."""
-        self.store.set(self.scoped_key(key), value)
+        self.__store.set(self.scoped_key(key), value)
 
     def get_global(self, key: str, default: str | None = None) -> str | None:
         """Read an explicitly global variable such as `global.proxy`."""
         scoped = f"global.{key}"
-        if scoped in self.run_values:
-            return self.run_values[scoped]
-        return self.store.get(scoped, default)
+        if scoped in self.__run_values:
+            return self.__run_values[scoped]
+        return self.__store.get(scoped, default)
 
     def scoped_key(self, key: str) -> str:
         """Convert a local variable name to its fully-qualified storage key."""

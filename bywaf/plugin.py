@@ -198,7 +198,7 @@ class CommandContext:
 
     _db: EventStore | None
     source: str
-    _varstore: VarStore
+    _vars: ScopedVarStore
     metadata: dict[str, Any]
 
     def __init__(
@@ -211,8 +211,12 @@ class CommandContext:
         """Create a command context while preserving the public `db=` keyword."""
         self._db = db
         self.source = source
-        self._varstore = _varstore or VarStore()
         self.metadata = metadata or {}
+        self._vars = ScopedVarStore(
+            _varstore or VarStore(),
+            self.source,
+            self.metadata.get("run_vars", {}),
+        )
 
     @property
     def db(self) -> EventStore | None:
@@ -234,11 +238,7 @@ class CommandContext:
     @property
     def vars(self) -> ScopedVarStore:
         """Return this commandlet's scoped variable view."""
-        return ScopedVarStore(
-            self._varstore,
-            self.source,
-            self.metadata.get("run_vars", {}),
-        )
+        return self._vars
 
     @property
     def events(self) -> "ContextEvents":
