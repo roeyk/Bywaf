@@ -1585,6 +1585,17 @@ send Tab, and verify the terminal text. They force `BYWAF_INPUT_READER=readline`
 for deterministic PTY behavior; prompt-toolkit display behavior is covered by
 the faster completion adapter tests.
 
+Run user-facing script flows only:
+
+```bash
+python3 -m unittest tests.test_user_flows
+python3 tests/scripts/run_user_flow.py tests/user_flows/basic_runtime.bywaf
+```
+
+User flows are ordinary `.bywaf` scripts with optional `# EXPECT:` and
+`# EXPECT-EVENT:` assertions. They exercise real REPL/script commands from the
+operator's point of view and double as executable examples.
+
 Add a commandlet by defining a class with a `CommandSpec` and a `run()` method,
 then expose it through a `plugin()` factory. Add bundled commandlets to
 `bywaf/plugins/plugins.toml` when they should load by default.

@@ -1,0 +1,10 @@
+# EXPECT: user-flow-artifact
+# EXPECT: ok artifact=
+# EXPECT-EVENT: artifact.attached
+# EXPECT-EVENT: resource.script.command
+
+ls .
+artifact attach run=1 file={fixture} name=user-flow-artifact note=smoke
+artifact list run=1
+artifact verify run=1
+search name=user-flow-artifact

@@ -1,0 +1,12 @@
+# EXPECT: discovery
+# EXPECT: runtime
+# EXPECT: global.user_flow=hello
+# EXPECT: no keys
+# EXPECT-EVENT: resource.script.loaded
+
+plugins
+cmds
+vars global.user_flow=hello
+vars global.user_flow
+key list
+history

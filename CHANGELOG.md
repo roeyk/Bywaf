@@ -5,7 +5,16 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-19 17:50:00 EDT
+Last updated: 2026-05-19 18:08:00 EDT
+
+### 2026-05-19 18:08:00 EDT
+
+#### Added
+
+- Added executable user-flow regression scripts under `tests/user_flows`.
+- Added `tests/scripts/run_user_flow.py`, which runs `.bywaf` scripts against a
+  temporary database and checks `# EXPECT:` and `# EXPECT-EVENT:` assertions.
+- Added initial user flows for runtime basics and artifact provenance.
 
 ### 2026-05-19 17:50:00 EDT
 
