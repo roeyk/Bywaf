@@ -67,9 +67,11 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn("stop", self.registry.names())
         self.assertIn("signal", self.registry.names())
         self.assertIn("audit", self.registry.names())
+        self.assertIn("key", self.registry.names())
         self.assertIn("note", self.registry.names())
         self.assertIn("name", self.registry.names())
         self.assertIn("artifact", self.registry.names())
+        self.assertIn("watchdog", self.registry.names())
 
     def test_bundled_plugins_are_loaded_from_config_list(self):
         entries = parse_package_plugin_config("bywaf.plugins", "plugins.toml")
@@ -97,9 +99,11 @@ class RegistryCompletionTests(unittest.TestCase):
                 "runtime.pipeline",
                 "runtime.control",
                 "runtime.audit",
+                "runtime.key",
                 "runtime.note",
                 "runtime.name",
                 "runtime.artifact",
+                "runtime.watchdog",
                 "storage.db",
                 "os.ls",
                 "os.cat",
@@ -118,6 +122,14 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertFalse(manifest.library_backed)
         self.assertTrue(manifest.process_wrapped)
         self.assertFalse(manifest.native)
+
+    def test_bundled_watchdog_manifest_is_service(self):
+        manifest = load_package_manifest("bywaf.plugins", "runtime.watchdog")
+        self.assertIsNotNone(manifest)
+        assert manifest is not None
+        self.assertEqual(manifest.commandlets, frozenset({"watchdog"}))
+        self.assertTrue(manifest.service)
+        self.assertTrue(manifest.native)
 
     def test_bundled_sidecar_manifest_declares_secret_options(self):
         manifest = load_package_manifest("bywaf.plugins", "network.ssh_probe")
@@ -140,6 +152,7 @@ class RegistryCompletionTests(unittest.TestCase):
                 "cancel",
                 "end",
                 "job",
+                "key",
                 "kill",
                 "name",
                 "note",
@@ -149,6 +162,7 @@ class RegistryCompletionTests(unittest.TestCase):
                 "search",
                 "signal",
                 "stop",
+                "watchdog",
             ],
         )
         self.assertEqual(self.registry.grouped_names()["storage"], ["db"])

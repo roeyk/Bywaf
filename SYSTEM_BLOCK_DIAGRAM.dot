@@ -1,0 +1,211 @@
+digraph BywafRuntime {
+  graph [
+    rankdir=LR,
+    bgcolor="white",
+    pad=0.25,
+    nodesep=1.15,
+    ranksep=1.55,
+    splines=ortho,
+    outputorder=edgesfirst,
+    fontname="DejaVu Sans",
+    labelloc=t,
+    label="Bywaf Runtime Block Diagram\nRuntime constructs and framework objects. Data movement is shown separately in SYSTEM_DATAFLOW_DIAGRAM.pdf."
+  ];
+
+  node [
+    shape=box,
+    style="rounded,filled",
+    color="#334155",
+    penwidth=1.4,
+    fontname="DejaVu Sans",
+    fontsize=12,
+    margin="0.28,0.18"
+  ];
+
+  edge [
+    fontname="DejaVu Sans",
+    fontsize=10,
+    arrowsize=0.8,
+    penwidth=1.9,
+    color="#1d4ed8"
+  ];
+
+  legend [
+    shape=plain,
+    label=<
+      <TABLE BORDER="1" CELLBORDER="0" CELLPADDING="5" COLOR="#64748b">
+        <TR><TD COLSPAN="2"><B>Legend</B></TD></TR>
+        <TR><TD><FONT COLOR="#1d4ed8">blue</FONT></TD><TD ALIGN="LEFT">runtime object or call passed</TD></TR>
+        <TR><TD><FONT COLOR="#c2410c">orange</FONT></TD><TD ALIGN="LEFT">plugin metadata passed</TD></TR>
+        <TR><TD><FONT COLOR="#15803d">green</FONT></TD><TD ALIGN="LEFT">records read/written</TD></TR>
+        <TR><TD><FONT COLOR="#dc2626">red</FONT></TD><TD ALIGN="LEFT">policy/capability decision</TD></TR>
+      </TABLE>
+    >
+  ];
+
+  interpreter [
+    fillcolor="#fef3c7",
+    label=<
+      <FONT POINT-SIZE="16"><B>Command Interpreter</B></FONT><BR/><BR/>
+      Turns REPL, script, and OS CLI text<BR/>
+      into command expressions for Bywaf.
+    >
+  ];
+
+  runner [
+    fillcolor="#dbeafe",
+    label=<
+      <FONT POINT-SIZE="16"><B>Runner</B></FONT><BR/><BR/>
+      Coordinates command execution and<BR/>
+      binds work to durable runtime IDs.
+    >
+  ];
+
+  registry [
+    fillcolor="#dcfce7",
+    label=<
+      <FONT POINT-SIZE="16"><B>Plugin Registry</B></FONT><BR/><BR/>
+      Maps command names to loaded plugin<BR/>
+      objects, providers, and manifests.
+    >
+  ];
+
+  commandspec [
+    fillcolor="#bbf7d0",
+    label=<
+      <FONT POINT-SIZE="16"><B>CommandSpec</B></FONT><BR/><BR/>
+      Public commandlet contract used by<BR/>
+      help, completion, planning, and audit.
+    >
+  ];
+
+  commandlet [
+    fillcolor="#bbf7d0",
+    label=<
+      <FONT POINT-SIZE="16"><B>Commandlet Object</B></FONT><BR/><BR/>
+      Reusable plugin implementation;<BR/>
+      invocation state lives outside it.
+    >
+  ];
+
+  runtime_manager [
+    fillcolor="#dbeafe",
+    label=<
+      <FONT POINT-SIZE="16"><B>Runtime Manager</B></FONT><BR/><BR/>
+      Owns job lifecycle transitions and<BR/>
+      foreground/background process state.
+    >
+  ];
+
+  context [
+    fillcolor="#ede9fe",
+    label=<
+      <FONT POINT-SIZE="16"><B>CommandContext</B></FONT><BR/><BR/>
+      Per-run API surface passed into one<BR/>
+      commandlet invocation.
+    >
+  ];
+
+  job [
+    fillcolor="#bfdbfe",
+    label=<
+      <FONT POINT-SIZE="16"><B>Job</B></FONT><BR/><BR/>
+      User-controllable supervised<BR/>
+      execution unit with PID and state.
+    >
+  ];
+
+  pipeline [
+    fillcolor="#bfdbfe",
+    label=<
+      <FONT POINT-SIZE="16"><B>Pipeline</B></FONT><BR/><BR/>
+      Shared scope tying chained<BR/>
+      commandlet runs into one expression.
+    >
+  ];
+
+  run [
+    fillcolor="#bfdbfe",
+    label=<
+      <FONT POINT-SIZE="16"><B>Run</B></FONT><BR/><BR/>
+      One commandlet invocation with args,<BR/>
+      variable snapshot, and events.
+    >
+  ];
+
+  process [
+    fillcolor="#bfdbfe",
+    label=<
+      <FONT POINT-SIZE="16"><B>Process</B></FONT><BR/><BR/>
+      OS execution backing a foreground<BR/>
+      job or background stage.
+    >
+  ];
+
+  sqlite [
+    fillcolor="#f8fafc",
+    label=<
+      <FONT POINT-SIZE="16"><B>SQLite DB</B></FONT><BR/><BR/>
+      Main durable event bus and runtime<BR/>
+      metadata store.
+    >
+  ];
+
+  artifacts [
+    fillcolor="#f8fafc",
+    label=<
+      <FONT POINT-SIZE="16"><B>Artifact DB</B></FONT><BR/><BR/>
+      Stores binary/text evidence apart<BR/>
+      from event rows, with hashes.
+    >
+  ];
+
+  policy [
+    fillcolor="#fee2e2",
+    label=<
+      <FONT POINT-SIZE="16"><B>Policy Engine</B></FONT><BR/><BR/>
+      Decides whether intended action is<BR/>
+      allowed, blocked, or modified.
+    >
+  ];
+
+  caps [
+    fillcolor="#fee2e2",
+    label=<
+      <FONT POINT-SIZE="16"><B>Capability Audit</B></FONT><BR/><BR/>
+      Records and checks framework API<BR/>
+      use against declared capabilities.
+    >
+  ];
+
+  { rank=same; legend; registry; commandspec; commandlet; }
+  { rank=same; interpreter; runner; runtime_manager; context; }
+  { rank=same; job; pipeline; run; process; }
+  { rank=same; sqlite; artifacts; policy; caps; }
+
+  interpreter -> runner [xlabel="command line / pipeline expression", color="#1d4ed8"];
+  runner -> registry [xlabel="commandlet name", color="#c2410c"];
+  registry -> commandspec [xlabel="CommandSpec + manifest metadata", color="#c2410c"];
+  commandspec -> commandlet [xlabel="validated commandlet contract", color="#c2410c"];
+  runner -> runtime_manager [xlabel="JobLifecycle request", color="#1d4ed8"];
+  runtime_manager -> context [xlabel="job_id + pipeline_id + run_id", color="#1d4ed8"];
+  context -> commandlet [xlabel="args + input events + context APIs", color="#1d4ed8"];
+
+  runtime_manager -> job [xlabel="job row + status transition", color="#1d4ed8"];
+  runtime_manager -> pipeline [xlabel="pipeline serial + stage list", color="#1d4ed8"];
+  context -> run [xlabel="command_run_id + variable snapshot", color="#1d4ed8"];
+  runtime_manager -> process [xlabel="PID / process handle", color="#1d4ed8"];
+
+  runner -> sqlite [xlabel="job/run/pipeline lifecycle events", color="#15803d"];
+  context -> sqlite [xlabel="published/fetched Event rows", color="#15803d"];
+  context -> artifacts [xlabel="artifact bytes + hash metadata", color="#15803d"];
+  job -> sqlite [xlabel="jobs.status / pid / timestamps", color="#15803d"];
+  pipeline -> sqlite [xlabel="pipeline serials / local aliases", color="#15803d"];
+  run -> sqlite [xlabel="command_run_vars snapshot rows", color="#15803d"];
+
+  policy -> runner [xlabel="plan verdict / repairs / approval", color="#dc2626"];
+  caps -> context [xlabel="allow/deny framework API request", color="#dc2626"];
+  commandlet -> caps [xlabel="declared capability set", color="#dc2626"];
+  policy -> sqlite [xlabel="policy decision audit events", color="#15803d"];
+  caps -> sqlite [xlabel="capability used/missing events", color="#15803d"];
+}

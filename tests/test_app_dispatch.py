@@ -19,6 +19,7 @@ from bywaf.app import (
     repl,
     shutdown_runner,
     confirm_repl_exit,
+    start_default_services,
 )
 from bywaf.db import EventStore
 from bywaf.events import Event
@@ -28,6 +29,12 @@ class AppDispatchTests(unittest.TestCase):
         args = parser.parse_args(["run", "hostscanner", "127.0.0.1"])
         self.assertEqual(args.subcommand, "run")
         self.assertEqual(args.command, ["hostscanner", "127.0.0.1"])
+
+    def test_build_parser_accepts_cmds_page(self):
+        parser = build_parser()
+        args = parser.parse_args(["cmds", "--page"])
+        self.assertEqual(args.subcommand, "cmds")
+        self.assertTrue(args.page)
         self.assertEqual(args.database, ".bywaf/bywaf.sqlite3")
 
     def test_build_parser_accepts_builtin_commands(self):
@@ -195,6 +202,31 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("os\n", output.getvalue())
             self.assertIn("  ls\n", output.getvalue())
             self.assertIn("  cat\n", output.getvalue())
+
+    def test_dispatch_cmds_page_uses_system_pager_for_generated_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            with (
+                patch("bywaf.app.shutil.which", return_value="/usr/bin/less"),
+                patch("bywaf.app.sys.stdin.isatty", return_value=True),
+                patch("bywaf.app.sys.stdout.isatty", return_value=True),
+                patch("bywaf.app.subprocess.run") as run,
+            ):
+                dispatch_repl_line(runner, "cmds --page")
+            run.assert_called_once()
+            argv = run.call_args.args[0]
+            self.assertEqual(argv[0], "/usr/bin/less")
+            self.assertFalse(Path(argv[1]).exists())
+
+    def test_start_default_services_launches_session_watchdog_once(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            event = Event.new("job.requested", {"job_id": 7}, "runner")
+            with patch.object(runner, "start_background", return_value=event) as start:
+                start_default_services(runner)
+                start_default_services(runner)
+            start.assert_called_once_with("watchdog --session-service")
+            self.assertEqual(runner.session_service_job_ids, {7})
 
     def test_dispatch_list_is_unknown(self):
         with tempfile.TemporaryDirectory() as tmp:

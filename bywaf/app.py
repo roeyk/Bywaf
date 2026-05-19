@@ -14,6 +14,8 @@ import signal
 import socket
 import subprocess
 import sys
+import tempfile
+import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -130,7 +132,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="subcommand")
     add_runner_arguments(subparsers.add_parser("run", help="run a commandlet pipeline"))
     subparsers.add_parser("plugins", help="list loaded plugin providers")
-    subparsers.add_parser("cmds", help="show commandlets grouped by plugin provider")
+    subparsers.add_parser("cmds", help="show commandlets grouped by plugin provider").add_argument("--page", action="store_true")
     subparsers.add_parser("history", help="show command history")
     subparsers.add_parser("jobs", help="show background jobs")
     subparsers.add_parser("pipelines", help="show pipelines")
@@ -183,6 +185,7 @@ def format_event(event) -> str:
 def shutdown_runner(runner: Runner) -> None:
     """Flush SQLite WAL state before the process exits."""
 
+    stop_session_services(runner)
     runner.maintenance.checkpoint()
 
 
@@ -192,6 +195,7 @@ def repl(runner: Runner) -> None:
     state = new_shell_state(runner)
     state.completer = Completer(runner.registry, runner.db)
     input_reader = build_input_reader(state.completer)
+    start_default_services(runner)
     try:
         while True:
             process_framework_requests(runner, state)
@@ -292,6 +296,8 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
                 print("\n".join(runner.registry.provider_names()))
             case ["cmds"]:
                 print_commandlets(runner)
+            case ["cmds", "--page"]:
+                print_commandlets(runner, page=True)
             case ["history"]:
                 print_history(state.session_history)
             case ["history", selectors]:
@@ -1114,12 +1120,92 @@ def print_topics(runner: Runner, prefix: str = "") -> None:
         print(f"no matching topics: {prefix}")
 
 
-def print_commandlets(runner: Runner) -> None:
+def print_commandlets(runner: Runner, *, page: bool = False) -> None:
     """Print commandlets grouped under their plugin providers."""
+    lines = render_commandlets(runner)
+    if page:
+        page_generated_text("\n".join(lines))
+        return
+    print("\n".join(lines))
+
+
+def render_commandlets(runner: Runner) -> list[str]:
+    """Return commandlets grouped under their plugin providers."""
+    lines: list[str] = []
     for provider, commandlets in runner.registry.grouped_names().items():
-        print(provider)
+        lines.append(provider)
         for commandlet in commandlets:
-            print(f"  {commandlet}")
+            lines.append(f"  {commandlet}")
+    return lines
+
+
+def page_generated_text(text: str) -> None:
+    """Page built-in generated text through the system pager when available."""
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".txt", delete=False) as handle:
+        handle.write(text)
+        if text and not text.endswith("\n"):
+            handle.write("\n")
+        path = Path(handle.name)
+    try:
+        pager = shutil.which("less")
+        if pager and sys.stdin.isatty() and sys.stdout.isatty():
+            subprocess.run([pager, str(path)], check=False)
+            return
+        print(path.read_text(errors="replace"), end="", flush=True)
+    finally:
+        path.unlink(missing_ok=True)
+
+
+def start_default_services(runner: Runner) -> None:
+    """Start session-scoped service commandlets that should run by default."""
+    if runner.session_service_job_ids:
+        return
+    if "watchdog" not in runner.registry.names():
+        return
+    if any(str(row["command_line"] or "") == "watchdog --session-service" for row in runner.db.jobs(active_only=True)):
+        return
+    event = runner.start_background("watchdog --session-service")
+    job_id = event.payload.get("job_id")
+    if isinstance(job_id, int):
+        runner.session_service_job_ids.add(job_id)
+
+
+def stop_session_services(runner: Runner) -> None:
+    """Stop default session-scoped services started by the interactive shell."""
+    if not runner.session_service_job_ids:
+        return
+    for row in runner.db.jobs(active_only=True):
+        if int(row["id"]) not in runner.session_service_job_ids:
+            continue
+        job_id = int(row["id"])
+        runner.db.request_cancellation("job", str(job_id), reason="session shutdown")
+        runner.db.update_job_status(job_id, "cancelling")
+        pid = row["pid"]
+        if pid is None:
+            continue
+        deadline = time.monotonic() + 0.5
+        while time.monotonic() < deadline:
+            if not process_exists(int(pid)):
+                runner.db.finish_job(job_id, "cancelled")
+                break
+            time.sleep(0.05)
+        else:
+            try:
+                os.kill(int(pid), signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            runner.db.finish_job(job_id, "killed")
+
+
+def process_exists(pid: int) -> bool:
+    """Return whether a process id still exists."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
 
 
 def dispatch_project_command(runner: Runner, state: ShellState, tokens: list[str]) -> None:
@@ -1682,7 +1768,7 @@ def main(argv: list[str] | None = None) -> int:
             case "plugins":
                 print("\n".join(runner.registry.provider_names()))
             case "cmds":
-                print_commandlets(runner)
+                print_commandlets(runner, page=args.page)
             case "history":
                 print_history()
             case "jobs":

@@ -21,6 +21,7 @@ from bywaf.nmap_backend import NmapPort
 from bywaf.plugins.discovery.hostscanner import HostScanner
 from bywaf.plugins.discovery.hostscanner import expand_targets
 from bywaf.plugins.network.portscanner import PortScanner
+from bywaf.plugins.runtime.watchdog import Watchdog
 from bywaf.plugins.storage.db import encrypt_active_database
 from bywaf.plugin import CommandContext
 from bywaf.runner import expand_at_file_arg, parse_invocation, parse_pipeline, run_background_job
@@ -74,6 +75,12 @@ class StorageRunnerPluginTests(unittest.TestCase):
         self.assertEqual(invocation.name, "hostscanner")
         self.assertEqual(invocation.args, ["127.0.0.1"])
         self.assertEqual(invocation.display_name, "localhost sweep")
+
+    def test_parse_invocation_preserves_plugin_owned_name_selector(self):
+        invocation = parse_invocation("key show name=firm-evidence")
+        self.assertEqual(invocation.name, "key")
+        self.assertEqual(invocation.args, ["show", "name=firm-evidence"])
+        self.assertIsNone(invocation.display_name)
 
     def test_parse_invocation_strips_quoted_note(self):
         invocation = parse_invocation('hostscanner 127.0.0.1 note="client approved target"')
@@ -1099,6 +1106,29 @@ class StorageRunnerPluginTests(unittest.TestCase):
             self.assertEqual(job["status"], "failed")
             failure = db.events_for_topic("job.failed")[0]
             self.assertEqual(failure.payload["job_id"], job_id)
+
+    def test_watchdog_emits_timeout_and_stall_warnings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "db.sqlite3"))
+            job_id = db.record_job("hostscanner 127.0.0.1", 123, "running")
+            with db.connect() as conn:
+                conn.execute("UPDATE jobs SET started_at = ? WHERE id = ?", ("2000-01-01T00:00:00+00:00", job_id))
+            context = CommandContext(db, "watchdog", VarStore())
+            list(Watchdog().run(context, ["--once", "-s", "timeout=1", "stall-threshold=1", "error-threshold=99"], ()))
+            self.assertEqual(db.events_for_topic("watchdog.timeout")[0].payload["job_id"], job_id)
+            self.assertEqual(db.events_for_topic("watchdog.stalled")[0].payload["job_id"], job_id)
+
+    def test_watchdog_emits_error_rate_warning(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "db.sqlite3"))
+            job_id = db.record_job("hostscanner 127.0.0.1", 123, "running")
+            db.publish("tool.error", {"job_id": job_id, "message": "first"}, "test")
+            db.publish("tool.error", {"job_id": job_id, "message": "second"}, "test")
+            context = CommandContext(db, "watchdog", VarStore())
+            list(Watchdog().run(context, ["--once", "-s", "timeout=999999", "stall-threshold=999999", "error-threshold=2"], ()))
+            event = db.events_for_topic("watchdog.error_rate")[0]
+            self.assertEqual(event.payload["job_id"], job_id)
+            self.assertEqual(event.payload["observed"], 2)
 
 
 

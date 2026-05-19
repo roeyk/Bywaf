@@ -123,6 +123,7 @@ prompt_toolkit             required for rich interactive REPL completion
 libnmap/python-nmap/etc.   Python nmap adapter; Bywaf tries supported adapters
 sqlcipher3-binary          optional Python SQLCipher driver for encrypted DBs
 sqlcipher                  optional system SQLCipher tooling/library
+cryptography               optional for signing-key management and bundle signing
 python-docx/openpyxl       optional DOCX/XLSX table rendering backends
 dnspython                  optional for dns_lookup
 impacket                   optional for smb_probe
@@ -144,7 +145,7 @@ sudo apt-get install -y python3 python3-pip python3-venv python3-setuptools \
   python3-build python3-installer python3-prompt-toolkit nmap \
   sqlcipher libsqlcipher-dev debhelper dh-python pybuild-plugin-pyproject \
   python3-all rpm nikto kismet
-python3 -m pip install -e '.[plugins,reporting,sqlcipher]'
+python3 -m pip install -e '.[plugins,reporting,signing,sqlcipher]'
 python3 -m pip install libnmap python-nmap nmapthon
 ```
 
@@ -154,7 +155,7 @@ Fedora / RHEL-family:
 sudo dnf install -y python3 python3-pip python3-setuptools python3-build \
   python3-installer python3-prompt-toolkit nmap sqlcipher sqlcipher-devel \
   rpm-build nikto kismet
-python3 -m pip install -e '.[plugins,reporting,sqlcipher]'
+python3 -m pip install -e '.[plugins,reporting,signing,sqlcipher]'
 python3 -m pip install libnmap python-nmap nmapthon
 ```
 
@@ -369,6 +370,26 @@ bywaf> audit export --encrypt file=audit.pdf
 Unqualified `since=` and `until=` audit bounds default to `time:`. Encrypted
 SQLite audit exports use SQLCipher. Encrypted PDF export uses `pikepdf` when
 available, otherwise the external `qpdf` command.
+
+# Signing Keys
+
+Bywaf keeps user signing and verification keys under `~/.bywaf/keys`, outside
+project databases. Private keys are encrypted with a passphrase, and signing
+operations ask for that passphrase instead of storing it in the project.
+
+```text
+bywaf> key list
+bywaf> key generate name=firm-evidence
+bywaf> key show name=firm-evidence
+bywaf> key import public file=reviewer.pub name=reviewer
+bywaf> key export public name=firm-evidence file=firm-evidence.pub
+bywaf> key test name=firm-evidence
+```
+
+`key list` shows computed signing state from the key files themselves:
+`available`, `locked`, `verify-only`, or `invalid`. The framework does not trust
+a user-edited `can_sign` flag in metadata. Future signed bundle and audit-export
+commands will complete `key=` values from this keyring.
 
 # Plugins
 
@@ -752,6 +773,19 @@ with local ID, durable serial, lifecycle state, names, timestamps, and an
 state column; set it to `short` for compact lifecycle labels. Use `--page` on
 list actions such as `job list`, `pipeline list`, and `artifact list` to view
 long output through the framework pager.
+
+`watchdog` is Bywaf's default service-style runtime monitor. Interactive
+sessions start one session-scoped watchdog automatically and stop it during
+orderly shutdown. You can also run it manually to tune thresholds or test the
+current DB:
+
+```text
+bywaf> watchdog --once
+bywaf> watchdog interval=10 timeout=300 stall-threshold=120 error-threshold=10 &
+```
+
+The watchdog emits `watchdog.timeout`, `watchdog.stalled`, and
+`watchdog.error_rate` events when active jobs exceed the configured limits.
 
 For live runtime control, `signal` is the canonical command for a concrete
 receiver: a job, a command run, or a `serial=` that resolves to one of those.
@@ -1542,6 +1576,7 @@ event run=<id>
 event pipeline=<id>
 event serial=<id>
 db <status|path|checkpoint|vacuum|new|encrypt|decrypt|rekey>
+key <list|show|generate|import|export|remove|test>
 load plugin=<resource>
 load script=<resource>
 load db=<resource>

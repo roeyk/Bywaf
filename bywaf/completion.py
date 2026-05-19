@@ -327,6 +327,12 @@ class Completer:
                 return self.job_candidates()
             case "serial":
                 return self.serial_candidates()
+            case "key.any":
+                return key_candidates()
+            case "key.signing":
+                return key_candidates(signing=True)
+            case "key.verify":
+                return key_candidates(verify=True)
             case "plugin":
                 return self.registry.names()
             case _:
@@ -435,6 +441,22 @@ class PromptToolkitCompleter(PromptToolkitCompleterBase):
 def prompt_toolkit_available() -> bool:
     """Return whether the richer prompt-toolkit REPL can be used."""
     return PromptSession is not None and KeyBindings is not None
+
+
+def key_candidates(*, signing: bool = False, verify: bool = False) -> list[str]:
+    """Return key names for completion without making cryptography mandatory."""
+    try:
+        from .keyring import load_key_records, signing_key_names, verification_key_names
+    except Exception:
+        return []
+    try:
+        if signing:
+            return signing_key_names()
+        if verify:
+            return verification_key_names()
+        return [record.name for record in load_key_records()]
+    except Exception:
+        return []
 
 
 def runtime_completion_target(candidate: str, line: str, prefix: str) -> tuple[str | None, str]:

@@ -54,9 +54,15 @@ def parse_invocation(text: str, varstore: VarStore | None = None) -> CommandInvo
     This function strips Bywaf framework selectors such as `--from-run` before
     plugin argparse sees the remaining plugin-owned arguments.
     """
-    text, display_name = peel_final_text_selector(text, "name")
-    text, note = peel_final_text_selector(text, "note")
     commandlet = provisional_command_name(text)
+    if commandlet_owns_text_selector(commandlet, "name"):
+        display_name = None
+    else:
+        text, display_name = peel_final_text_selector(text, "name")
+    if commandlet_owns_text_selector(commandlet, "note"):
+        note = None
+    else:
+        text, note = peel_final_text_selector(text, "note")
     variable_expansions: tuple[str, ...] = ()
     if varstore is not None and commandlet is not None:
         text, variable_expansions = expand_variables_in_text(text, varstore, commandlet)
@@ -81,6 +87,20 @@ def parse_invocation(text: str, varstore: VarStore | None = None) -> CommandInvo
         plan_only=selectors["plan_only"] == "true",
         approved=selectors["approved"] == "true",
     )
+
+
+COMMANDLET_TEXT_SELECTORS = {
+    "artifact": frozenset({"name", "note"}),
+    "key": frozenset({"name"}),
+    "search": frozenset({"name", "note"}),
+}
+
+
+def commandlet_owns_text_selector(commandlet: str | None, key: str) -> bool:
+    """Return whether a commandlet owns a selector that would otherwise be framework text."""
+    if commandlet is None:
+        return False
+    return key in COMMANDLET_TEXT_SELECTORS.get(commandlet, frozenset())
 
 
 def parse_pipeline(command_line: str, varstore: VarStore | None = None) -> Pipeline:
@@ -275,6 +295,7 @@ class Runner:
         self.registry = registry
         self.job_id = job_id
         self.project = project
+        self.session_service_job_ids: set[int] = set()
 
     @property
     def events(self) -> EventStoreProtocol:

@@ -5,7 +5,38 @@ so compatibility may change between testing releases.
 
 ## Unreleased
 
-Last updated: 2026-05-19 14:10:19 EDT
+Last updated: 2026-05-19 17:50:00 EDT
+
+### 2026-05-19 17:50:00 EDT
+
+#### Added
+
+- Added a `key` runtime commandlet for listing, generating, importing,
+  exporting, removing, and testing signing/verification keys.
+- Added user-local key storage under `~/.bywaf/keys`, with encrypted Ed25519
+  private keys, public-key metadata, computed signing state, and key-name
+  completion hooks for future signed bundle/export commands.
+
+#### Changed
+
+- Added the optional `signing` Python extra for `cryptography`.
+- Preserved plugin-owned `name=` selectors for commandlets such as `key`,
+  `artifact`, and `search` instead of treating them as run-display names.
+
+### 2026-05-19 15:12:10 EDT
+
+#### Added
+
+- Added `watchdog` as a service-style runtime monitor that emits timeout,
+  stall, and error-rate events for active jobs.
+- Added automatic session-scoped watchdog startup for interactive sessions,
+  with orderly shutdown of that default service on exit.
+
+#### Changed
+
+- `cmds --page` now pages commandlet listings through the framework pager.
+- Revised `SYSTEM_BLOCK_DIAGRAM` into a structural component map and kept
+  `SYSTEM_DATAFLOW_DIAGRAM` as the data movement view.
 
 ### 2026-05-19 14:10:19 EDT
 

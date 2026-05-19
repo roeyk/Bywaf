@@ -704,7 +704,10 @@ for event in context.events.follow(
 
 Long-running service plugins should leave `until_parent_done` false and use
 `context.cancelled()`, `context.signals`, or their own configured stop
-condition.
+condition. The bundled `watchdog` commandlet is the current service-plugin
+example: it is marked `service = true`, is started automatically for
+interactive sessions, and loops until the framework requests cancellation
+during shutdown.
 
 Plugins should also avoid direct process execution with `subprocess`,
 `os.system`, or `os.spawn*`. External tool wrappers should declare

@@ -1,0 +1,14 @@
+[plugin]
+native = true
+service = true
+
+[[commandlets]]
+name = "watchdog"
+capabilities = [
+  "db.read:*",
+  "db.write:watchdog.timeout",
+  "db.write:watchdog.stalled",
+  "db.write:watchdog.error_rate",
+  "framework.console.alert",
+]
+module = "bywaf.plugins.runtime.watchdog"

@@ -1,0 +1,16 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "key"
+capabilities = [
+  "db.write:key.generated",
+  "db.write:key.imported",
+  "db.write:key.removed",
+  "db.write:key.tested",
+  "filesystem.read",
+  "filesystem.write",
+  "framework.console.output",
+]
+module = "bywaf.plugins.runtime.key"
