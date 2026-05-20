@@ -50,7 +50,7 @@ class Job(CommandletBase):
         parser.add_argument("--hard", action="store_true")
         parser.add_argument("--page", action="store_true")
         parser.add_argument("--soft", action="store_true")
-        parsed = parser.parse_args(args)
+        parsed = parser.parse_intermixed_args(args)
         context.require_foreground("job management commands")
         validate_job_mode(parsed.action, soft=parsed.soft, hard=parsed.hard)
         job_action_handlers()[parsed.action](context, parsed)

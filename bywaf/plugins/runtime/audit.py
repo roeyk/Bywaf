@@ -66,7 +66,7 @@ class Audit(CommandletBase):
         parser.add_argument("--format", default="auto", choices=("auto", *AUDIT_FORMATS))
         parser.add_argument("--encrypt", action="store_true")
         parser.add_argument("--limit", type=int, default=1000)
-        parsed = parser.parse_args(args)
+        parsed = parser.parse_intermixed_args(args)
         selectors = parse_selectors(parsed.selectors)
         audit_action_handlers()[parsed.action](context, parsed, selectors)
         return ()
