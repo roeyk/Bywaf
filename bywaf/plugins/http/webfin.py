@@ -1,4 +1,11 @@
-"""Native web fingerprinting commandlet."""
+"""Web fingerprinting commandlet.
+
+Provides a bundled plugin implementation and CommandSpec metadata. Analyzes HTTP responses to infer web technologies and fingerprints.
+
+Used by:
+- PluginRegistry discovery: loads this module as a commandlet provider.
+- runner and REPL: execute it through normal commandlet dispatch."""
+
 
 from __future__ import annotations
 

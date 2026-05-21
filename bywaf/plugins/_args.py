@@ -1,4 +1,12 @@
-"""Small argument helpers shared by bundled plugins."""
+"""Shared argument parsing helpers for bundled plugins.
+
+Provides common conversion and option parsing utilities used by commandlets to
+avoid repeating small argparse/string handling patterns.
+
+Used by:
+- bundled plugin modules: normalize commandlet arguments.
+- plugin tests: exercise option handling through real commandlets."""
+
 
 from __future__ import annotations
 

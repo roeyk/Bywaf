@@ -1,4 +1,14 @@
-"""Interactive shell and framework request handling."""
+"""Interactive REPL shell orchestration.
+
+Provides ShellState, prompt/input handling, command-history recording,
+line dispatch, and non-interactive `bywaf run` helpers. Built-in command
+behavior, display formatting, and load/save resources live in sibling modules.
+
+Used by:
+- bywaf.repl.__init__: re-exports the public REPL API for compatibility.
+- bywaf.app: starts repl() and calls run_remainder() for CLI execution.
+- bywaf.repl.resources: calls dispatch helpers when running script files."""
+
 
 from __future__ import annotations
 
@@ -12,10 +22,10 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-from .completion import Completer, build_prompt_session, install_readline
-from .framework_requests import process_framework_requests
-from .repl_commands import REPL_COMMAND_HANDLERS, execute_repl_commandlet, set_prompt_pattern
-from .repl_display import (
+from ..completion import Completer, build_prompt_session, install_readline
+from ..framework_requests import process_framework_requests
+from .commands import REPL_COMMAND_HANDLERS, execute_repl_commandlet, set_prompt_pattern
+from .display import (
     display_var_value,
     format_event,
     format_history_entry_for_display,
@@ -25,13 +35,13 @@ from .repl_display import (
     print_history,
     print_triggers,
 )
-from .nmap_backend import NmapScanError, NmapUnavailableError
-from .projects import ProjectPaths
-from .registry import PluginTrustError
-from .repl_resources import DEFAULT_HISTORY
-from .runner import Runner
-from .secrets import load_or_create_fingerprint_key, redact_command_text
-from .triggers import disable_session_triggers, start_default_services, stop_session_services
+from ..nmap_backend import NmapScanError, NmapUnavailableError
+from ..projects import ProjectPaths
+from ..registry import PluginTrustError
+from .resources import DEFAULT_HISTORY
+from ..runner import Runner
+from ..secrets import load_or_create_fingerprint_key, redact_command_text
+from ..triggers import disable_session_triggers, start_default_services, stop_session_services
 
 
 DEFAULT_HISTORY_TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S %Z"

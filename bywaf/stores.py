@@ -1,10 +1,12 @@
-"""Persistence contracts for Bywaf storage backends.
+"""Store protocol definitions for persistence abstractions.
 
-These protocols describe the persistence behavior framework code should rely
-on. The current implementations are still SQLite-backed `EventStore` and
-`ArtifactStore`; the contracts keep future backends from leaking storage
-details into commandlets and runtime code.
-"""
+Provides typing protocols that describe event, runtime, artifact, and secret
+store behavior without binding callers to the SQLite implementation.
+
+Used by:
+- tests and future backends: validate storage contracts.
+- runner-adjacent code: express expected store capabilities."""
+
 
 from __future__ import annotations
 

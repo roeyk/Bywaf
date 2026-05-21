@@ -1,4 +1,12 @@
-"""Plugin protocol and shared dataclasses."""
+"""Core plugin protocol and command context types.
+
+Provides CommandContext, CompletionContext, and the base Plugin interface used
+by commandlets to access events, variables, secrets, and metadata.
+
+Used by:
+- all bundled and external plugins: implement commandlet behavior.
+- registry and runner: load plugins and call their run/complete methods."""
+
 
 from __future__ import annotations
 

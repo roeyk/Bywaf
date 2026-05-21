@@ -1,4 +1,11 @@
-"""Shodan lookup commandlet backed by the shodan Python library."""
+"""Shodan lookup commandlet.
+
+Provides a bundled plugin implementation and CommandSpec metadata. Queries Shodan-style data sources and emits external recon events.
+
+Used by:
+- PluginRegistry discovery: loads this module as a commandlet provider.
+- runner and REPL: execute it through normal commandlet dispatch."""
+
 
 from __future__ import annotations
 

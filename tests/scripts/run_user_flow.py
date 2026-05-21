@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-"""Run a user-facing Bywaf script as a regression flow.
+"""Tests for run user flow behavior.
 
-Flow files are ordinary `.bywaf` scripts with optional assertion comments:
+Provides pytest coverage for the corresponding Bywaf subsystem and its public
+or user-visible behavior.
 
-    # EXPECT: text that must appear in console output
-    # EXPECT-EVENT: topic that must exist in the event DB
+Used by:
+- pytest and CI: detect regressions in this subsystem.
+- maintainers: document expected behavior through executable examples."""
 
-The runner substitutes `{tmp}`, `{db}`, and `{fixture}` before execution so
-scripts can stay readable without hard-coding machine-local paths.
-"""
 
 from __future__ import annotations
 

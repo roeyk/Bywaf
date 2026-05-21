@@ -1,4 +1,12 @@
-"""Event subscription dataclasses shared by store implementations."""
+"""Event subscription selector objects.
+
+Provides Subscription, a compact representation of topic filters consumed by the
+event store and runner pipeline machinery.
+
+Used by:
+- runner and plugins: fetch events matching consumed topics.
+- tests: verify pub/sub filtering behavior."""
+
 
 from __future__ import annotations
 
@@ -15,4 +23,3 @@ class Subscription:
     pipeline_id: str | None = None
     command_run_id: str | None = None
     parent_command_run_id: str | None = None
-

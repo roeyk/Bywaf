@@ -1,4 +1,11 @@
-"""SNMP GET commandlet backed by pysnmp."""
+"""SNMP probing commandlet.
+
+Provides a bundled plugin implementation and CommandSpec metadata. Queries SNMP endpoints and emits service metadata or findings.
+
+Used by:
+- PluginRegistry discovery: loads this module as a commandlet provider.
+- runner and REPL: execute it through normal commandlet dispatch."""
+
 
 from __future__ import annotations
 

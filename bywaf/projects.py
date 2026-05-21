@@ -1,9 +1,12 @@
-"""Project directory helpers.
+"""Project directory lifecycle and path resolution.
 
-A Bywaf project is one isolated working directory containing its own database,
-artifact database, config, and history. The default layout is intentionally
-directory-based instead of adding `project_id` to every table.
-"""
+Provides project creation, lookup, listing, and canonical paths for per-project
+database, config, history, plugin, and script resources.
+
+Used by:
+- CLI startup and REPL project commands: create and switch project workspaces.
+- resource handling: resolve project-scoped defaults."""
+
 
 from __future__ import annotations
 

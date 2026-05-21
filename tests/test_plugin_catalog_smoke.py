@@ -1,3 +1,12 @@
+"""Tests for plugin catalog smoke behavior.
+
+Provides pytest coverage for the corresponding Bywaf subsystem and its public
+or user-visible behavior.
+
+Used by:
+- pytest and CI: detect regressions in this subsystem.
+- maintainers: document expected behavior through executable examples."""
+
 import importlib.util
 import os
 import subprocess

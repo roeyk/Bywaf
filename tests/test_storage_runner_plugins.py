@@ -1,3 +1,12 @@
+"""Tests for storage runner plugins behavior.
+
+Provides pytest coverage for the corresponding Bywaf subsystem and its public
+or user-visible behavior.
+
+Used by:
+- pytest and CI: detect regressions in this subsystem.
+- maintainers: document expected behavior through executable examples."""
+
 from pathlib import Path
 import contextlib
 import io

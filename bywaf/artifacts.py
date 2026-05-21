@@ -1,4 +1,12 @@
-"""Artifact storage linked to the main event audit database."""
+"""Artifact storage helpers for event-backed command output.
+
+Provides file export/import helpers that copy artifacts between working paths,
+database rows, and encrypted or plaintext storage locations.
+
+Used by:
+- runtime artifact commandlets: list, show, export, and attach artifacts.
+- runner and database flows: persist files produced by commandlets."""
+
 
 from __future__ import annotations
 

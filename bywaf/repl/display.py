@@ -1,4 +1,12 @@
-"""Display helpers for the interactive shell."""
+"""Display helpers for REPL help, events, and runtime state.
+
+Provides user-facing rendering for help text, event lists, history, jobs, runs,
+triggers, commandlets, variables, and pager-backed generated output.
+
+Used by:
+- REPL command handlers: print command results without owning formatting.
+- tests: patch pager dependencies and assert stable output."""
+
 
 from __future__ import annotations
 
@@ -10,9 +18,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from .plugin import CommandContext
-from .rendering import Column, Table, render_console_table
-from .runtime_display import (
+from ..plugin import CommandContext
+from ..rendering import Column, Table, render_console_table
+from ..runtime_display import (
     ACTIVE_LISTING_FORMAT_VAR,
     display_runtime_serial,
     format_runtime_timestamp,
@@ -21,8 +29,8 @@ from .runtime_display import (
     runtime_state_label,
     runtime_state_text,
 )
-from .runner import Runner
-from .secrets import SECRET_REF_PREFIX, REDACTED_VALUE
+from ..runner import Runner
+from ..secrets import SECRET_REF_PREFIX, REDACTED_VALUE
 
 
 @dataclass(frozen=True, slots=True)

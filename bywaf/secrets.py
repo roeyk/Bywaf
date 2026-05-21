@@ -1,4 +1,12 @@
-"""Secret redaction and audit fingerprint helpers."""
+"""In-memory and persisted secret reference helpers.
+
+Provides secret fingerprints, redaction, secret references, and lightweight
+secret storage abstractions used to keep sensitive values out of command text.
+
+Used by:
+- varstore, REPL vars, and database persistence: store and redact secrets.
+- command parser and history: prevent obvious secret leakage."""
+
 
 from __future__ import annotations
 

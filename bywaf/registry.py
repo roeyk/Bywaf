@@ -1,4 +1,12 @@
-"""Plugin discovery."""
+"""Plugin registry, discovery, metadata, and trust validation.
+
+Provides PluginRegistry plus manifest parsing, package discovery, filesystem
+plugin loading, trigger/provider indexing, and trust checks.
+
+Used by:
+- CLI startup and runner construction: load commandlets and trigger providers.
+- completion and REPL display: enumerate commandlets, providers, and triggers."""
+
 
 from __future__ import annotations
 

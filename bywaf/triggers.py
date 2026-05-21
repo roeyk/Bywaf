@@ -1,4 +1,12 @@
-"""Runtime orchestration for provider-owned trigger rules."""
+"""Trigger evaluation and service orchestration.
+
+Provides trigger cursor handling, event matching, action dispatch, loop guards,
+and session service lifecycle helpers for provider-owned trigger rules.
+
+Used by:
+- REPL shell and runner startup: start/stop trigger services for a session.
+- registry-provided trigger specs: evaluate event-driven actions."""
+
 
 from __future__ import annotations
 

@@ -1,4 +1,12 @@
-"""Small, testable utility functions."""
+"""General-purpose utility helpers.
+
+Provides small filesystem, path completion, and normalization helpers shared by
+modules that should not depend on larger subsystems.
+
+Used by:
+- completion and command parsing: complete paths and normalize inputs.
+- plugins and tests: reuse low-level helpers."""
+
 
 from __future__ import annotations
 

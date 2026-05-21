@@ -1,4 +1,11 @@
-"""Audit log inspection and export commandlet."""
+"""Runtime audit commandlet.
+
+Provides a bundled plugin implementation and CommandSpec metadata. Displays audit events and exports audit data for inspection.
+
+Used by:
+- PluginRegistry discovery: loads this module as a commandlet provider.
+- runner and REPL: execute it through normal commandlet dispatch."""
+
 
 from __future__ import annotations
 

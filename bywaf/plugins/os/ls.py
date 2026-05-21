@@ -1,4 +1,11 @@
-"""Local filesystem listing commandlet."""
+"""Directory listing commandlet.
+
+Provides a bundled plugin implementation and CommandSpec metadata. Lists local files and directories for REPL-oriented inspection.
+
+Used by:
+- PluginRegistry discovery: loads this module as a commandlet provider.
+- runner and REPL: execute it through normal commandlet dispatch."""
+
 
 from __future__ import annotations
 

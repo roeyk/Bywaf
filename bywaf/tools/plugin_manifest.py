@@ -1,4 +1,12 @@
-"""Generate starter plugin manifests from Python commandlet metadata."""
+"""Plugin manifest generation helpers.
+
+Provides utilities to derive manifest metadata from plugin specs for bundled or
+filesystem plugins.
+
+Used by:
+- plugin author tooling and tests: generate manifest files for signing/checking.
+- catalog tooling: collect plugin metadata for trust workflows."""
+
 
 from __future__ import annotations
 

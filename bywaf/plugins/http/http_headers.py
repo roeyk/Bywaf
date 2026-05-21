@@ -1,4 +1,11 @@
-"""HTTP header fetcher compatible with the original example plugin."""
+"""HTTP header inspection commandlet.
+
+Provides a bundled plugin implementation and CommandSpec metadata. Fetches response headers and emits HTTP observation events.
+
+Used by:
+- PluginRegistry discovery: loads this module as a commandlet provider.
+- runner and REPL: execute it through normal commandlet dispatch."""
+
 
 from __future__ import annotations
 

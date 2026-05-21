@@ -1,4 +1,12 @@
-"""Readline and prompt-toolkit completion helpers."""
+"""Readline and prompt-toolkit completion adapters.
+
+Provides the public Completer API, readline callback behavior, prompt-toolkit
+integration, and display formatting for completion menus.
+
+Used by:
+- REPL shell: installs interactive completion.
+- completion tests and plugins: rely on the stable public completion surface."""
+
 # pyright: reportMissingImports=false, reportGeneralTypeIssues=false
 # pyright: reportInvalidTypeForm=false
 

@@ -1,4 +1,12 @@
-"""User-local signing key storage and inspection."""
+"""Signing and verification keyring management.
+
+Provides key storage, loading, lookup, signing-key selection, verification-key
+selection, and revocation metadata for framework-managed trust.
+
+Used by:
+- runtime key commandlet and signing tools: manage trusted keys.
+- plugin/catalog trust paths: verify manifests and catalogs."""
+
 # pyright: reportMissingImports=false
 
 from __future__ import annotations

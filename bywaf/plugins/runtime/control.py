@@ -1,4 +1,11 @@
-"""Convenience runtime-control commandlets for jobs and pipelines."""
+"""Runtime control commandlets.
+
+Provides a bundled plugin implementation and CommandSpec metadata. Implements job/pipeline pause, resume, stop, cancel, signal, and listing behavior.
+
+Used by:
+- PluginRegistry discovery: loads this module as a commandlet provider.
+- runner and REPL: execute it through normal commandlet dispatch."""
+
 
 from __future__ import annotations
 

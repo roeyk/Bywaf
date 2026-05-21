@@ -1,4 +1,11 @@
-"""Interactive local file pager commandlet."""
+"""Paged file display commandlet.
+
+Provides a bundled plugin implementation and CommandSpec metadata. Shows local file content through the configured pager when available.
+
+Used by:
+- PluginRegistry discovery: loads this module as a commandlet provider.
+- runner and REPL: execute it through normal commandlet dispatch."""
+
 
 from __future__ import annotations
 

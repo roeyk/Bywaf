@@ -1,4 +1,11 @@
-"""Runtime commandlet for naming jobs, pipelines, and command runs."""
+"""Runtime naming commandlet.
+
+Provides a bundled plugin implementation and CommandSpec metadata. Assigns human-readable names to jobs, runs, pipelines, and bundles.
+
+Used by:
+- PluginRegistry discovery: loads this module as a commandlet provider.
+- runner and REPL: execute it through normal commandlet dispatch."""
+
 
 from __future__ import annotations
 

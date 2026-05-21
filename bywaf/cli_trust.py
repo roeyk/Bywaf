@@ -1,4 +1,12 @@
-"""CLI-facing plugin trust and catalog loading helpers."""
+"""CLI plugin trust and catalog loading helpers.
+
+Provides command-line trust-policy construction plus filesystem plugin catalog
+loading, validation, and registry merge behavior.
+
+Used by:
+- bywaf.app: applies CLI trust flags before runner construction.
+- plugin catalog tests and scripts: verify signed external plugin loading."""
+
 
 from __future__ import annotations
 

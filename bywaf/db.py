@@ -1,9 +1,14 @@
-"""SQLite event store and pub/sub helpers.
+"""SQLite-backed event, runtime, and secret metadata store.
 
-The database is the durable coordination point between commandlets. Commandlets
-publish structured events, downstream commandlets subscribe to topics, and the
-REPL can inspect the resulting run/pipeline history.
-"""
+Provides EventStore plus database encryption/export helpers. EventStore is the
+durable coordination point for commandlets, background jobs, pipelines, trigger
+state, audit events, artifacts, and persisted secrets.
+
+Used by:
+- runner and plugin contexts: publish/read events and runtime state.
+- REPL, completion, and API layers: inspect topics, jobs, runs, and pipelines.
+- resource/export tooling: detect encryption and copy databases safely."""
+
 
 from __future__ import annotations
 

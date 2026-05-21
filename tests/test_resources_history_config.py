@@ -1,3 +1,12 @@
+"""Tests for resources history config behavior.
+
+Provides pytest coverage for the corresponding Bywaf subsystem and its public
+or user-visible behavior.
+
+Used by:
+- pytest and CI: detect regressions in this subsystem.
+- maintainers: document expected behavior through executable examples."""
+
 from pathlib import Path
 import contextlib
 import io
@@ -414,7 +423,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             default_config = Path(tmp, "default.toml")
             dispatch_repl_line(runner, "vars test.value=default")
             with (
-                patch("bywaf.repl_resources.DEFAULT_CONFIG", default_config),
+                patch("bywaf.repl.resources.DEFAULT_CONFIG", default_config),
                 contextlib.redirect_stdout(io.StringIO()),
             ):
                 dispatch_repl_line(runner, "save config=")
@@ -426,7 +435,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             default_config = Path(tmp, "default.toml")
             default_config.write_text("[variables]\n\"test.value\" = \"default\"\n", encoding="utf-8")
             with (
-                patch("bywaf.repl_resources.DEFAULT_CONFIG", default_config),
+                patch("bywaf.repl.resources.DEFAULT_CONFIG", default_config),
                 contextlib.redirect_stdout(io.StringIO()),
             ):
                 dispatch_repl_line(runner, "load config=")
@@ -460,7 +469,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             default_history = Path(tmp, "history.bywaf")
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with (
-                patch("bywaf.repl_resources.DEFAULT_HISTORY", default_history),
+                patch("bywaf.repl.resources.DEFAULT_HISTORY", default_history),
                 contextlib.redirect_stdout(io.StringIO()),
             ):
                 dispatch_repl_line(runner, "save history=", state)
@@ -473,7 +482,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             state = ShellState()
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with (
-                patch("bywaf.repl_resources.DEFAULT_HISTORY", default_history),
+                patch("bywaf.repl.resources.DEFAULT_HISTORY", default_history),
                 contextlib.redirect_stdout(io.StringIO()),
             ):
                 dispatch_repl_line(runner, "load history=", state)

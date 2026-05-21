@@ -1,4 +1,12 @@
-"""Typed payload helpers for common event shapes."""
+"""Shared user-facing message helpers.
+
+Provides small formatting utilities for consistent command output and error
+messages where a full table renderer is unnecessary.
+
+Used by:
+- commandlets and runtime helpers: keep repeated messages consistent.
+- tests: assert stable text for user-visible behavior."""
+
 
 from __future__ import annotations
 

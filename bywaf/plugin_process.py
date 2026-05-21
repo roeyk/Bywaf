@@ -1,4 +1,12 @@
-"""Framework-mediated process execution for plugin contexts."""
+"""Subprocess execution helpers for external plugin tools.
+
+Provides process launching, output capture, and result normalization for plugins
+that wrap command-line binaries.
+
+Used by:
+- wrapper plugins such as nikto, eyewitness, and wireless scanners.
+- tests: verify external command error and output handling."""
+
 
 from __future__ import annotations
 

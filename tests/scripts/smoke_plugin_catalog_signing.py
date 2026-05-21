@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""Smoke-test the maintainer plugin catalog signing workflow."""
+"""Tests for smoke plugin catalog signing behavior.
+
+Provides pytest coverage for the corresponding Bywaf subsystem and its public
+or user-visible behavior.
+
+Used by:
+- pytest and CI: detect regressions in this subsystem.
+- maintainers: document expected behavior through executable examples."""
+
 
 from __future__ import annotations
 

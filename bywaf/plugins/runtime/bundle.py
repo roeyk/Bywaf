@@ -1,4 +1,11 @@
-"""Evidence bundle commandlet with optional signing."""
+"""Runtime bundle commandlet.
+
+Provides a bundled plugin implementation and CommandSpec metadata. Groups runtime entities and artifacts into named bundles.
+
+Used by:
+- PluginRegistry discovery: loads this module as a commandlet provider.
+- runner and REPL: execute it through normal commandlet dispatch."""
+
 
 from __future__ import annotations
 

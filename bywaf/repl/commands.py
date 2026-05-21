@@ -1,4 +1,12 @@
-"""Built-in REPL command handlers and mutable shell commands."""
+"""Built-in REPL command handlers and mutable shell commands.
+
+Provides the dispatch table and handlers for built-ins such as help, history,
+vars, use, event, load, save, prompt, jobs, runs, and project.
+
+Used by:
+- bywaf.repl.shell: dispatches parsed REPL lines to these handlers.
+- tests: patch command-owned dependencies such as secret key loading."""
+
 
 from __future__ import annotations
 
@@ -6,8 +14,8 @@ import shlex
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any
 
-from .framework_requests import process_framework_requests
-from .repl_display import (
+from ..framework_requests import process_framework_requests
+from .display import (
     display_var_value,
     friendly_error,
     print_commandlets,
@@ -21,12 +29,12 @@ from .repl_display import (
     print_topics,
     print_triggers,
 )
-from .repl_resources import dispatch_project_command, load_repl_resource, print_project_info, save_repl_resource
-from .runner import Runner
-from .secrets import REDACTED_VALUE, is_secret_name, load_or_create_fingerprint_key
+from .resources import dispatch_project_command, load_repl_resource, print_project_info, save_repl_resource
+from ..runner import Runner
+from ..secrets import REDACTED_VALUE, is_secret_name, load_or_create_fingerprint_key
 
 if TYPE_CHECKING:
-    from .repl import ShellState
+    from .shell import ShellState
 
 
 ReplCommandHandler = Callable[[Runner, Any, str | None, str], str | None]

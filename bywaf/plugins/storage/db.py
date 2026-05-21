@@ -1,4 +1,11 @@
-"""Active database management commandlet."""
+"""Database storage commandlet.
+
+Provides a bundled plugin implementation and CommandSpec metadata. Exports or inspects the active Bywaf database from inside the runtime.
+
+Used by:
+- PluginRegistry discovery: loads this module as a commandlet provider.
+- runner and REPL: execute it through normal commandlet dispatch."""
+
 
 from __future__ import annotations
 

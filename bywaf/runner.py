@@ -1,4 +1,12 @@
-"""Command parser, foreground execution, and background process runner."""
+"""Commandlet runner and background job orchestration.
+
+Provides Runner, pipeline execution, framework selector handling, background job
+lifecycle management, and commandlet context construction.
+
+Used by:
+- CLI, REPL, and API layers: execute command text and pipelines.
+- plugins and tests: coordinate event flow, jobs, artifacts, and runtime state."""
+
 
 from __future__ import annotations
 

@@ -1,4 +1,12 @@
-"""Trigger declaration specs."""
+"""Trigger rule specification dataclasses.
+
+Provides TriggerSpec metadata for provider-owned event rules, including topics,
+conditions, action commands, and action execution mode.
+
+Used by:
+- plugin manifests and registry: discover trigger providers before execution.
+- trigger runtime: evaluate rules and maintain cursors."""
+
 
 from __future__ import annotations
 

@@ -1,4 +1,11 @@
-"""DNS lookup commandlet backed by dnspython."""
+"""DNS lookup commandlet.
+
+Provides a bundled plugin implementation and CommandSpec metadata. Resolves DNS records and emits host or observation events.
+
+Used by:
+- PluginRegistry discovery: loads this module as a commandlet provider.
+- runner and REPL: execute it through normal commandlet dispatch."""
+
 
 from __future__ import annotations
 

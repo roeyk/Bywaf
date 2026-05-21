@@ -1,4 +1,12 @@
-"""Canonical representations for framework-managed config files."""
+"""Canonicalization helpers for signed configuration data.
+
+Provides deterministic conversion of config/TOML-like values into digestable
+bytes so comments and formatting do not affect signatures.
+
+Used by:
+- manifest and plugin trust tooling: compute stable hashes for signed metadata.
+- signature tests: verify canonical data survives ordering and formatting."""
+
 
 from __future__ import annotations
 

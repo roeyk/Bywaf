@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""Sign a plugin sidecar manifest with a direct Ed25519 private key file."""
+"""Command-line tool for signing plugin manifests.
+
+Provides manifest digest calculation, signature block creation, and signature
+verification helpers for framework-managed plugin metadata.
+
+Used by:
+- maintainers: sign or verify plugin manifests during release work.
+- tests and smoke scripts: exercise manifest trust workflows."""
+
 
 from __future__ import annotations
 

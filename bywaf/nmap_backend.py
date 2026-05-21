@@ -1,10 +1,13 @@
-"""Nmap-backed scanning helpers.
+"""Nmap backend discovery and error normalization.
 
-The adapter prefers a module named ``nmaplib`` when available, but also
-supports the common ``python-nmap`` import name (``nmap``) and ``nmapthon``.
-Tests patch these functions, so the framework does not require nmap on the
-developer machine just to run the suite.
-"""
+Provides dynamic loading of the optional nmap integration plus typed errors for
+missing or failed scanner backends.
+
+Used by:
+- discovery/network plugins: run scans without importing optional dependencies
+  at module import time.
+- tests: inject fake nmap implementations."""
+
 
 from __future__ import annotations
 

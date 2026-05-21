@@ -1,4 +1,12 @@
-"""Small TOML helpers for human-authored Bywaf configuration files."""
+"""TOML loading and dumping compatibility helpers.
+
+Provides a small TOML interface that uses the available standard-library or
+third-party TOML implementation while keeping callers isolated from that choice.
+
+Used by:
+- registry, resources, and signing tools: read plugin manifests and configs.
+- tests: validate TOML-backed metadata behavior."""
+
 
 from __future__ import annotations
 

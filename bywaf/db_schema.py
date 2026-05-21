@@ -1,4 +1,12 @@
-"""SQLite schema and compatibility migrations."""
+"""SQLite schema definition and compatibility migrations.
+
+Provides the canonical schema SQL plus lightweight migration helpers for columns
+that may be missing in older Bywaf databases.
+
+Used by:
+- EventStore initialization: creates and upgrades database files.
+- database tests: verify backward-compatible schema evolution."""
+
 
 from __future__ import annotations
 

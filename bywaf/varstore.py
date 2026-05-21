@@ -1,4 +1,12 @@
-"""Session variable storage."""
+"""Variable storage and interpolation helpers.
+
+Provides scoped variable storage, lookup, assignment, and expansion behavior for
+commandlets and framework-level variables.
+
+Used by:
+- command parser, REPL vars, and plugin contexts: resolve runtime variables.
+- tests: verify scoping and interpolation behavior."""
+
 
 from __future__ import annotations
 

@@ -1,4 +1,12 @@
-"""Event model used by commandlets and the SQLite bus."""
+"""Event value objects shared across stores and commandlets.
+
+Provides the Event dataclass used to move structured event records through the
+runner, plugins, REPL display, and tests.
+
+Used by:
+- EventStore and runner: represent persisted rows as Python objects.
+- plugins and tests: assert topics, payloads, and serial identifiers."""
+
 
 from __future__ import annotations
 

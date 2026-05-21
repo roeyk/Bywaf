@@ -1,4 +1,11 @@
-"""Filesystem helpers for operating-system commandlets."""
+"""Shared filesystem plugin helpers.
+
+Provides a bundled plugin implementation and CommandSpec metadata. Provides path handling and display support for local OS commandlets.
+
+Used by:
+- PluginRegistry discovery: loads this module as a commandlet provider.
+- runner and REPL: execute it through normal commandlet dispatch."""
+
 
 from __future__ import annotations
 

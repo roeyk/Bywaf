@@ -1,4 +1,12 @@
-"""Subprocess smoke tests for external plugin development and trust tooling."""
+"""Tests for external plugin cli smoke behavior.
+
+Provides pytest coverage for the corresponding Bywaf subsystem and its public
+or user-visible behavior.
+
+Used by:
+- pytest and CI: detect regressions in this subsystem.
+- maintainers: document expected behavior through executable examples."""
+
 # pyright: reportMissingImports=false
 
 from __future__ import annotations

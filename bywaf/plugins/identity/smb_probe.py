@@ -1,4 +1,11 @@
-"""SMB probe commandlet backed by Impacket."""
+"""SMB probing commandlet.
+
+Provides a bundled plugin implementation and CommandSpec metadata. Checks SMB endpoints and emits service or finding events.
+
+Used by:
+- PluginRegistry discovery: loads this module as a commandlet provider.
+- runner and REPL: execute it through normal commandlet dispatch."""
+
 
 from __future__ import annotations
 

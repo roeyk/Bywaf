@@ -1,4 +1,12 @@
-"""Command-aware completion candidate generation."""
+"""Command-aware completion candidate generation.
+
+Provides the registry/database/spec-driven completion engine that knows how to
+complete commandlets, options, resources, variables, and runtime selectors.
+
+Used by:
+- bywaf.completion: wraps candidate generation for readline and prompt-toolkit.
+- plugin completers: receive runtime context derived from this core."""
+
 
 from __future__ import annotations
 

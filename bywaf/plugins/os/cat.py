@@ -1,4 +1,11 @@
-"""Local file printing commandlet."""
+"""File display commandlet.
+
+Provides a bundled plugin implementation and CommandSpec metadata. Prints file content through framework console output events.
+
+Used by:
+- PluginRegistry discovery: loads this module as a commandlet provider.
+- runner and REPL: execute it through normal commandlet dispatch."""
+
 
 from __future__ import annotations
 

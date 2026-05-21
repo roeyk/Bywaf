@@ -1,3 +1,12 @@
+"""Tests for runtime display behavior.
+
+Provides pytest coverage for the corresponding Bywaf subsystem and its public
+or user-visible behavior.
+
+Used by:
+- pytest and CI: detect regressions in this subsystem.
+- maintainers: document expected behavior through executable examples."""
+
 import unittest
 
 from bywaf.runtime_display import display_runtime_serial, format_runtime_timestamp

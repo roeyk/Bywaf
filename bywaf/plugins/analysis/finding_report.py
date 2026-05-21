@@ -1,4 +1,11 @@
-"""Render finding events as operator-facing tables."""
+"""Finding report commandlet.
+
+Provides a bundled plugin implementation and CommandSpec metadata. Collects finding events and writes human-readable or machine-readable reports.
+
+Used by:
+- PluginRegistry discovery: loads this module as a commandlet provider.
+- runner and REPL: execute it through normal commandlet dispatch."""
+
 
 from __future__ import annotations
 

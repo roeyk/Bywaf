@@ -1,4 +1,12 @@
-"""Structured rendering helpers for plugin output."""
+"""Generic console table rendering primitives.
+
+Provides Column, Table, and renderer helpers for aligned terminal output without
+coupling callers to a specific UI framework.
+
+Used by:
+- REPL display and runtime commandlets: render inspectable tabular output.
+- tests: verify stable formatting for command output."""
+
 
 from __future__ import annotations
 

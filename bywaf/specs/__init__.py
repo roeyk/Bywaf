@@ -1,4 +1,8 @@
-"""Public specification dataclasses for plugin declarations."""
+"""Specification package exports.
+
+Provides the stable import surface for command, trigger, and plan metadata
+classes used by plugins and framework components."""
+
 
 from .command import ArgumentSpec, CommandSpec, CompletionSpec, OptionSpec
 from .plan import PlanItem, PlanRepair, PlanReport

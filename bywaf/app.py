@@ -1,4 +1,13 @@
-"""Top-level CLI startup."""
+"""Top-level CLI startup and command dispatch.
+
+Provides the argparse entrypoint, runner construction, database/project setup,
+plugin trust policy loading, and top-level command routing.
+
+Used by:
+- bywaf.__main__: calls main() for the installed `bywaf` command.
+- tests and smoke scripts: import make_runner(), main(), and compatibility
+  exports while exercising CLI and REPL workflows."""
+
 
 from __future__ import annotations
 
@@ -39,7 +48,7 @@ from .repl import (
     shutdown_runner,
     split_command_sequence,
 )
-from .repl_resources import (
+from .repl.resources import (
     DEFAULT_DATABASE,
     apply_config,
     hydrate_persistent_secrets,

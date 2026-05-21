@@ -1,4 +1,12 @@
-"""Interpreter-owned framework request event handling."""
+"""Framework request processing for plugin-to-shell interactions.
+
+Provides handlers for framework request events such as console output,
+notifications, and control-plane actions that should be processed by the shell.
+
+Used by:
+- REPL shell and non-interactive run helpers: drain pending framework requests.
+- commandlets: communicate with the framework through request events."""
+
 
 from __future__ import annotations
 

@@ -1,4 +1,12 @@
-"""REPL project and load/save resource helpers."""
+"""REPL project and load/save resource helpers.
+
+Provides load/save dispatch for databases, configs, history, plugins, scripts,
+and project commands, plus parsing and default path resolution for those specs.
+
+Used by:
+- REPL command handlers: implement `load`, `save`, and `project` built-ins.
+- CLI startup: apply config, hydrate secrets, and run scripts."""
+
 
 from __future__ import annotations
 
@@ -12,13 +20,13 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Protocol, cast
 
-from .config import Settings
-from .db import EventStore, database_appears_encrypted, export_encrypted_database, export_plaintext_database
-from .events import Event
-from .projects import ProjectPaths, create_project, list_projects, require_project
-from .registry import PluginRegistry, parse_plugin_manifest
-from .runner import Runner, new_run_id
-from .toml_support import dump_variables_toml, load_data_file
+from ..config import Settings
+from ..db import EventStore, database_appears_encrypted, export_encrypted_database, export_plaintext_database
+from ..events import Event
+from ..projects import ProjectPaths, create_project, list_projects, require_project
+from ..registry import PluginRegistry, parse_plugin_manifest
+from ..runner import Runner, new_run_id
+from ..toml_support import dump_variables_toml, load_data_file
 
 DEFAULT_SETTINGS = Settings()
 DEFAULT_DATABASE = DEFAULT_SETTINGS.database
@@ -40,35 +48,35 @@ class ResourceState(Protocol):
 
 def default_resource_state(runner: Runner) -> ResourceState:
     """Create default resource state without importing repl at module load time."""
-    from .repl import new_shell_state
+    from .shell import new_shell_state
 
     return new_shell_state(runner)
 
 
 def dispatch_script_command(runner: Runner, command: str, state: ResourceState) -> str | None:
     """Dispatch one script command without importing repl at module load time."""
-    from .repl import dispatch_repl_line
+    from .shell import dispatch_repl_line
 
     return dispatch_repl_line(runner, command, cast(Any, state))
 
 
 def repl_line_has_continuation(line: str) -> bool:
     """Return whether a script line has a REPL continuation marker."""
-    from .repl import line_has_continuation
+    from .shell import line_has_continuation
 
     return line_has_continuation(line)
 
 
 def repl_remove_line_continuation(line: str) -> str:
     """Remove a REPL continuation marker from a script line."""
-    from .repl import remove_line_continuation
+    from .shell import remove_line_continuation
 
     return remove_line_continuation(line)
 
 
 def repl_split_command_sequence(line: str) -> list[str]:
     """Split a logical REPL script line into commands."""
-    from .repl import split_command_sequence
+    from .shell import split_command_sequence
 
     return split_command_sequence(line)
 

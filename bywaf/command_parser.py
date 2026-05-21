@@ -1,4 +1,12 @@
-"""Shell-aware parsing for Bywaf commandlet invocations and pipelines."""
+"""Command-line parsing helpers for commandlet execution.
+
+Provides parsing for pipelines, framework selector flags, at-file expansion,
+variable expansion, and commandlet argument normalization.
+
+Used by:
+- runner: turns REPL/CLI command text into executable commandlet invocations.
+- resource script loading: parses commands loaded from script files."""
+
 
 from __future__ import annotations
 

@@ -1,4 +1,11 @@
-"""Host discovery commandlet."""
+"""Host discovery commandlet.
+
+Provides a bundled plugin implementation and CommandSpec metadata. Discovers hosts and emits host.found events for downstream network plugins.
+
+Used by:
+- PluginRegistry discovery: loads this module as a commandlet provider.
+- runner and REPL: execute it through normal commandlet dispatch."""
+
 
 from __future__ import annotations
 

@@ -1,4 +1,12 @@
-"""Cookie loading helpers for HTTP probes."""
+"""HTTP cookie parsing and persistence helpers.
+
+Provides lightweight cookie jar loading, saving, and header formatting for HTTP
+commandlets that need session continuity.
+
+Used by:
+- HTTP plugins: share cookies across probes and requests.
+- HTTP-focused tests: validate cookie file behavior."""
+
 
 from __future__ import annotations
 

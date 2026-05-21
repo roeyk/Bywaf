@@ -1,4 +1,12 @@
-"""Commandlet declaration specs."""
+"""Commandlet specification dataclasses.
+
+Provides CommandSpec, OptionSpec, ArgumentSpec, and CompletionSpec metadata used
+to describe plugin arguments, options, topics, and completions.
+
+Used by:
+- plugins and registry: publish commandlet metadata.
+- runner, help, and completion: parse, document, and complete commandlets."""
+
 
 from __future__ import annotations
 

@@ -1,4 +1,11 @@
-"""YARA file scanner commandlet backed by yara-python."""
+"""YARA scanning commandlet.
+
+Provides a bundled plugin implementation and CommandSpec metadata. Scans files with YARA rules and emits finding events for matching content.
+
+Used by:
+- PluginRegistry discovery: loads this module as a commandlet provider.
+- runner and REPL: execute it through normal commandlet dispatch."""
+
 
 from __future__ import annotations
 

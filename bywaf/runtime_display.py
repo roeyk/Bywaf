@@ -1,4 +1,12 @@
-"""Runtime listing display helpers."""
+"""Runtime state formatting helpers.
+
+Provides reusable labels, timestamps, active-state text, serial shortening, and
+table rendering for jobs, runs, and pipelines.
+
+Used by:
+- REPL display and runtime commandlets: present runtime state consistently.
+- tests: validate active/inactive listing formats."""
+
 
 from __future__ import annotations
 

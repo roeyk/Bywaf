@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""Maintainer-side plugin catalog builder, signer, and verifier.
+"""Command-line tool for building signed plugin catalogs.
 
-This is release-engineering tooling, not a Bywaf commandlet. It signs the
-reviewed plugin catalog outside the runtime so Bywaf can later verify official
-plugin provenance before loading code.
-"""
+Provides catalog generation and signing for filesystem plugin directories so the
+framework can verify external plugin metadata before loading.
+
+Used by:
+- maintainers and release workflows: publish trusted external plugin catalogs.
+- catalog tests and smoke scripts: validate trust metadata generation."""
+
 
 from __future__ import annotations
 

@@ -1,4 +1,11 @@
-"""Runtime commandlet for artifacts and provenance verification."""
+"""Runtime artifact commandlet.
+
+Provides a bundled plugin implementation and CommandSpec metadata. Lists, shows, and exports artifacts recorded by commandlets.
+
+Used by:
+- PluginRegistry discovery: loads this module as a commandlet provider.
+- runner and REPL: execute it through normal commandlet dispatch."""
+
 
 from __future__ import annotations
 

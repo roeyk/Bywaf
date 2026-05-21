@@ -1,4 +1,11 @@
-"""Background job management commandlet."""
+"""Runtime job commandlet.
+
+Provides a bundled plugin implementation and CommandSpec metadata. Lists and inspects background job state.
+
+Used by:
+- PluginRegistry discovery: loads this module as a commandlet provider.
+- runner and REPL: execute it through normal commandlet dispatch."""
+
 
 from __future__ import annotations
 

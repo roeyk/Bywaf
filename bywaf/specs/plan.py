@@ -1,4 +1,12 @@
-"""Pre-run plan report specs."""
+"""Plan/policy specification dataclasses.
+
+Provides structured planning and policy metadata used when commandlets or tools
+need to describe intended actions before execution.
+
+Used by:
+- plugins and future policy flows: represent proposed work consistently.
+- tests and docs: validate the public shape of plan data."""
+
 
 from __future__ import annotations
 

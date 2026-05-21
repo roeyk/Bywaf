@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""Validate one filesystem plugin package outside the Bywaf interpreter."""
+"""Developer tool for validating plugin manifests and metadata.
+
+Provides checks for plugin TOML manifests, command specs, signature policy, and
+catalog compatibility outside the Bywaf interpreter.
+
+Used by:
+- plugin authors and maintainers: catch metadata issues before release.
+- tests: verify plugin validation behavior."""
+
 
 from __future__ import annotations
 

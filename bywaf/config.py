@@ -1,4 +1,12 @@
-"""Runtime configuration."""
+"""Default filesystem and runtime configuration values.
+
+Provides Settings, the central set of default paths used by databases, configs,
+history files, plugin directories, and script directories.
+
+Used by:
+- CLI startup and REPL resource handling: resolve default resource locations.
+- tests and packaging checks: assert install-path behavior."""
+
 
 from __future__ import annotations
 

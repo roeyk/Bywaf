@@ -1,4 +1,11 @@
-"""Runtime commandlet for reviewing framework-attached notes."""
+"""Runtime note commandlet.
+
+Provides a bundled plugin implementation and CommandSpec metadata. Adds operator notes to runtime entities through event records.
+
+Used by:
+- PluginRegistry discovery: loads this module as a commandlet provider.
+- runner and REPL: execute it through normal commandlet dispatch."""
+
 
 from __future__ import annotations
 

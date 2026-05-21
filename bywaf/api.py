@@ -1,4 +1,12 @@
-"""Public library facade for embedding Bywaf."""
+"""Programmatic API for embedding Bywaf sessions.
+
+Provides BywafSession for opening databases, running commands, and starting
+background commandlets without going through the CLI or interactive REPL.
+
+Used by:
+- library callers: automate Bywaf workflows from Python code.
+- API tests: validate command execution and encrypted database opening."""
+
 
 from __future__ import annotations
 
