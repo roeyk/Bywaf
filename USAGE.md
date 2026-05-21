@@ -15,25 +15,25 @@ and probe web services.
 
 Use Bywaf only on systems and networks where you have explicit authorization.
 
-Common task examples are collected in [FAQ.md](FAQ.md).
-Evolving framework design notes are tracked in [DESIGN.md](DESIGN.md).
+Common task examples are collected in [docs/FAQ.md](docs/FAQ.md).
+Evolving framework design notes are tracked in [docs/DESIGN.md](docs/DESIGN.md).
 Maintainer signing-key policy is recorded in
 [docs/KEY_MANAGEMENT.md](docs/KEY_MANAGEMENT.md).
 Base capabilities, triggers, and audit/event topics are listed in
 [docs/FRAMEWORK_SURFACE.md](docs/FRAMEWORK_SURFACE.md).
 Core architectural references:
 
-- [TERMINOLOGY.md](TERMINOLOGY.md) defines jobs, pipelines, runs, events,
+- [docs/TERMINOLOGY.md](docs/TERMINOLOGY.md) defines jobs, pipelines, runs, events,
   topics, commandlets, plugins, capabilities, local IDs, and serials.
-- [RUNTIME_MODEL.md](RUNTIME_MODEL.md) explains runtime entities, lifecycle,
+- [docs/RUNTIME_MODEL.md](docs/RUNTIME_MODEL.md) explains runtime entities, lifecycle,
   foreground/background execution, control signals, and variable snapshots.
-- [EVENT_MODEL.md](EVENT_MODEL.md) explains event rows, topics, replay,
+- [docs/EVENT_MODEL.md](docs/EVENT_MODEL.md) explains event rows, topics, replay,
   framework requests, artifacts, notes, and provenance.
-- [CAPABILITY_MODEL.md](CAPABILITY_MODEL.md) explains capability auditing,
+- [docs/CAPABILITY_MODEL.md](docs/CAPABILITY_MODEL.md) explains capability auditing,
   policy direction, and plugin integration types.
-- [SYSTEM_BLOCK_DIAGRAM.pdf](SYSTEM_BLOCK_DIAGRAM.pdf) shows live runtime flow
+- [docs/SYSTEM_BLOCK_DIAGRAM.pdf](docs/SYSTEM_BLOCK_DIAGRAM.pdf) shows live runtime flow
   and durable data flow through the system.
-- [SYSTEM_DATAFLOW_DIAGRAM.pdf](SYSTEM_DATAFLOW_DIAGRAM.pdf) focuses on command
+- [docs/SYSTEM_DATAFLOW_DIAGRAM.pdf](docs/SYSTEM_DATAFLOW_DIAGRAM.pdf) focuses on command
   input, event, artifact, audit, request, and report data movement.
 
 # Installation
@@ -789,7 +789,7 @@ foreground/background execution lifecycle that runs one or more of those
 commandlet invocations. Operationally, jobs are chained together into pipelines
 by the runs they supervise; one job may contribute the whole chain, or multiple
 jobs may contribute runs when commandlets are attached later. See
-`TERMINOLOGY.md` for the canonical definitions of jobs, pipelines, runs, local
+`docs/TERMINOLOGY.md` for the canonical definitions of jobs, pipelines, runs, local
 IDs, serials, events, and topics.
 
 Show the currently active runtime entities:
@@ -1585,7 +1585,8 @@ The main package layout is:
 
 ```text
 bywaf/app.py          REPL and built-in commands
-bywaf/runner.py       parsing, pipelines, foreground/background execution
+bywaf/command_parser.py commandlet and pipeline parsing
+bywaf/runner.py       pipelines, foreground/background execution
 bywaf/db.py           SQLite event store
 bywaf/plugin.py       commandlet protocol and specs
 bywaf/registry.py     plugin discovery and loading
@@ -1677,8 +1678,8 @@ then expose it through a `plugin()` factory. Add bundled commandlets to
 
 Commandlets can declare completion metadata with `ArgumentSpec`,
 `OptionSpec(..., completion=CompletionSpec(...))`, or an optional custom
-`complete(context, args, prefix)` method. See `PLUGIN_AUTHOR_GUIDE.md` for a
-walkthrough and a small working example.
+`complete(context, args, prefix)` method. See `docs/PLUGIN_AUTHOR_GUIDE.md` for
+a walkthrough and a small working example.
 
 # Reference
 

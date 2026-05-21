@@ -23,6 +23,10 @@ Last updated: 2026-05-21 14:27:13 EDT
   manifest-signing keys and public verification keys.
 - Added `docs/FRAMEWORK_SURFACE.md` documenting base capabilities, trigger
   rules, and audit/event topics.
+- Moved reference documentation and diagram artifacts under `docs/` while
+  keeping root-level README, changelog, and usage guide entry points.
+- Extracted commandlet and pipeline parsing from `bywaf.runner` into
+  `bywaf.command_parser`.
 
 ### 2026-05-20 16:55:00 EDT
 

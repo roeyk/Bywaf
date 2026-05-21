@@ -1233,7 +1233,7 @@ annual rotation. Revocation is reserved for suspected compromise or emergency
 distrust and removes the affected key from trust immediately.
 
 Maintainer storage controls for private signing keys are recorded in
-`docs/KEY_MANAGEMENT.md`. In short: private keys stay encrypted, outside the
+`KEY_MANAGEMENT.md`. In short: private keys stay encrypted, outside the
 repository and package tree, with permissions no broader than `0600`; public
 verification keys can be committed and packaged.
 
