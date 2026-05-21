@@ -76,7 +76,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.registry.varstore.set("hostscanner.arguments", "-PE")
-            with patch("bywaf.runner.mp.Process") as process_cls:
+            with patch("bywaf.runner.core.mp.Process") as process_cls:
                 process_cls.return_value.pid = 123
                 event = runner.execute("hostscanner 127.0.0.1 &")[0]
             self.assertEqual(event.topic, "job.requested")

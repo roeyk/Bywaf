@@ -1046,7 +1046,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 command_run_id="host-run-1",
             )
             latest_id = runner.db.latest_event_id()
-            with patch("bywaf.runner.mp.Process") as process_cls:
+            with patch("bywaf.runner.core.mp.Process") as process_cls:
                 process_cls.return_value.pid = 123
                 with contextlib.redirect_stdout(io.StringIO()):
                     runner.execute("pipeline attach pipe-1 portscanner run=host-run-1 since=now --listen-timeout 1")
@@ -1090,7 +1090,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
     def test_background_job_preserves_attached_stage_markers(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
-            with patch("bywaf.runner.mp.Process") as process_cls:
+            with patch("bywaf.runner.core.mp.Process") as process_cls:
                 process = process_cls.return_value
                 process.pid = 123
                 runner.execute("hostscanner 127.0.0.1& | portscanner&")
