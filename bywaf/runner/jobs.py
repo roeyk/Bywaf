@@ -21,7 +21,7 @@ from ..events import Event
 from ..registry import PluginRegistry
 
 if TYPE_CHECKING:
-    from .core import StageRun
+    from .context import StageRun
 
 
 

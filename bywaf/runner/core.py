@@ -1,8 +1,9 @@
 """Runner facade and foreground pipeline execution.
 
 Provides Runner, command-line execution routing, foreground pipeline execution,
-framework selector handling, and commandlet context construction. Background
-job lifecycle publication and child-process entry points live in runner.jobs.
+framework selector handling, and stage execution orchestration. Stage context
+preparation lives in runner.context; background job lifecycle publication and
+child-process entry points live in runner.jobs.
 
 Used by:
 - CLI, REPL, and API layers: execute command text and pipelines.
@@ -14,13 +15,19 @@ from __future__ import annotations
 import argparse
 import multiprocessing as mp
 import os
-import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
 from ..command_parser import CommandInvocation, Pipeline, parse_invocation, parse_pipeline
 from .at_files import expand_at_file_args
+from .context import StageRun
+from .context import build_context
+from .context import ensure_run_var_snapshot
+from .context import is_management_pipeline
+from .context import new_run_id
+from .context import prepare_stage_runs
+from .context import select_input_events
 from .jobs import JobLifecycle, run_attached_pipeline_job, run_background_job
 from .plans import handle_plan_if_needed
 from .runtime_events import attach_cursor_event_id
@@ -30,20 +37,10 @@ from .runtime_events import publish_runtime_name
 from .runtime_events import publish_variable_expansion
 from ..db import EventStore, Subscription
 from ..events import Event
-from ..plugin import CommandContext, implied_capabilities
+from ..plugin import CommandContext
 from ..registry import PluginRegistry
 from ..secrets import REDACTED_VALUE, fingerprint_secret, load_or_create_fingerprint_key
 from ..stores import EventStoreProtocol, MaintenanceStoreProtocol, RuntimeStoreProtocol
-from ..varstore import VarStore
-
-
-@dataclass(frozen=True, slots=True)
-class StageRun:
-    """Execution identity assigned to one pipeline stage."""
-
-    invocation: CommandInvocation
-    command_run_id: str
-    parent_command_run_id: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -328,124 +325,6 @@ def add_runner_arguments(parser: argparse.ArgumentParser) -> None:
         "command",
         nargs=argparse.REMAINDER,
         help="Command line to run, e.g. hostscanner 127.0.0.1",
-    )
-
-
-def new_run_id(prefix: str) -> str:
-    """Return a readable unique ID suitable for DB scope fields."""
-    safe_prefix = "".join(char if char.isalnum() else "-" for char in prefix).strip("-")
-    return f"{safe_prefix}-{uuid.uuid4().hex}"
-
-
-def select_input_events(
-    db: EventStore,
-    invocation: CommandInvocation,
-    fallback_events: list[Event],
-) -> list[Event]:
-    """Choose pipeline input events or DB-selected events for one invocation."""
-    if not any((invocation.from_run, invocation.from_pipeline, invocation.from_topic)):
-        return fallback_events
-    return db.events_matching(
-        command_run_id=db.resolve_run_serial(invocation.from_run) if invocation.from_run else None,
-        pipeline_id=db.resolve_pipeline_serial(invocation.from_pipeline) if invocation.from_pipeline else None,
-        topic=invocation.from_topic,
-        after_id=invocation.replay_after_id,
-    )
-
-
-def prepare_stage_runs(commands: tuple[CommandInvocation, ...]) -> tuple[StageRun, ...]:
-    """Assign stable run IDs and upstream parent IDs to pipeline stages."""
-    stages: list[StageRun] = []
-    parent_id: str | None = None
-    for invocation in commands:
-        command_run_id = new_run_id(invocation.name)
-        stages.append(StageRun(invocation, command_run_id, parent_id))
-        parent_id = command_run_id
-    return tuple(stages)
-
-
-def is_management_pipeline(commands: tuple[CommandInvocation, ...]) -> bool:
-    """Return True for foreground management commands that should run directly."""
-    return len(commands) == 1 and commands[0].name in {"db", "job", "pipeline"}
-
-
-def effective_run_vars(varstore: VarStore, commandlet: str) -> dict[str, str]:
-    """Return the session variables visible to one commandlet at launch time."""
-    prefix = f"{commandlet}."
-    return {
-        key: value
-        for key, value in varstore.items()
-        if key.startswith(prefix) or key.startswith("global.")
-    }
-
-
-def ensure_run_var_snapshot(
-    db: EventStore,
-    varstore: VarStore,
-    *,
-    job_id: int | None,
-    pipeline_id: str,
-    command_run_id: str,
-    commandlet: str,
-) -> dict[str, str]:
-    """Load or create the immutable variable snapshot for one command run."""
-    existing = db.command_run_vars(command_run_id)
-    if existing:
-        return existing
-    values = effective_run_vars(varstore, commandlet)
-    db.record_command_run_vars(
-        job_id=job_id,
-        pipeline_id=pipeline_id,
-        command_run_id=command_run_id,
-        commandlet=commandlet,
-        values=values,
-    )
-    return values
-
-
-def build_context(
-    db: EventStore,
-    registry: PluginRegistry,
-    stage: StageRun,
-    *,
-    pipeline_id: str,
-    job_id: int | None,
-    input_high_watermark: int,
-    replace_db,
-    runner=None,
-) -> CommandContext:
-    """Build the runtime context for one commandlet stage."""
-    invocation = stage.invocation
-    plugin = registry.get(invocation.name)
-    run_vars = ensure_run_var_snapshot(
-        db,
-        registry.varstore,
-        job_id=job_id,
-        pipeline_id=pipeline_id,
-        command_run_id=stage.command_run_id,
-        commandlet=plugin.spec.name,
-    )
-    return CommandContext(
-        db,
-        source=plugin.spec.name,
-        _varstore=registry.varstore,
-        _secrets=registry.secrets,
-        metadata={
-            "pipeline_id": pipeline_id,
-            "command_run_id": stage.command_run_id,
-            "parent_command_run_id": stage.parent_command_run_id,
-            "input_high_watermark": input_high_watermark,
-            "background": invocation.background,
-            "from_run": invocation.from_run,
-            "from_pipeline": invocation.from_pipeline,
-            "from_topic": invocation.from_topic,
-            "note": invocation.note,
-            "replace_db": replace_db,
-            "runner": runner,
-            "job_id": job_id,
-            "run_vars": run_vars,
-            "capabilities": implied_capabilities(plugin.spec),
-        },
     )
 
 
