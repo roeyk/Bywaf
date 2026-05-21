@@ -297,6 +297,9 @@ class Runner:
         self.job_id = job_id
         self.project = project
         self.session_service_job_ids: set[int] = set()
+        self.enabled_session_triggers: set[str] = set()
+        self.fired_session_trigger_events: set[tuple[str, int]] = set()
+        self.trigger_event_cursors: dict[str, int] = {}
 
     @property
     def events(self) -> EventStoreProtocol:

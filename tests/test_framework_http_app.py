@@ -319,6 +319,13 @@ class FrameworkHttpAppTests(unittest.TestCase):
                 "def plugin():\n"
                 "    return External()\n"
             )
+            (plugin_dir / "bywaf.plugin.toml").write_text(
+                "[plugin]\n"
+                "native = true\n\n"
+                "[[commandlets]]\n"
+                'name = "external"\n'
+                "capabilities = []\n"
+            )
             config = Path(tmp, "plugins.yaml")
             config.write_text("default_plugins:\n  - scanners/external\n")
             runner = make_runner(Path(tmp, "db.sqlite3"), plugin_root=root, plugin_config=config, forced_plugins=True)

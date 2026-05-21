@@ -16,7 +16,7 @@ from bywaf.keyring import (
     key_by_name,
     load_key_records,
     signing_key_names,
-    test_key,
+    test_key as validate_key,
     verification_key_names,
 )
 from bywaf.registry import PluginRegistry
@@ -37,7 +37,7 @@ class KeyringTests(unittest.TestCase):
                 self.assertEqual(record.signing_state, "locked")
                 self.assertIn("firm-evidence", signing_key_names())
                 self.assertIn("firm-evidence", verification_key_names())
-                self.assertEqual(test_key("firm-evidence", "passphrase"), "available")
+                self.assertEqual(validate_key("firm-evidence", "passphrase"), "available")
                 self.assertTrue(record.private_path)
                 assert record.private_path is not None
                 self.assertEqual(record.private_path.stat().st_mode & 0o777, 0o600)
@@ -58,7 +58,7 @@ class KeyringTests(unittest.TestCase):
 
                 self.assertEqual(imported.fingerprint, generated.fingerprint)
                 self.assertEqual(key_by_name("reviewer").signing_state, "verify-only")
-                self.assertEqual(test_key("reviewer"), "verify-only")
+                self.assertEqual(validate_key("reviewer"), "verify-only")
 
     def test_key_commandlet_generates_audited_key(self):
         with tempfile.TemporaryDirectory() as tmp:

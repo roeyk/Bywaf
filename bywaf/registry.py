@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
+import base64
+import hashlib
 import json
 import tomllib
 from dataclasses import dataclass, field
@@ -12,7 +14,8 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
-from .plugin import Commandlet
+from .config_canonical import canonical_config_bytes, config_digest
+from .plugin import Commandlet, TriggerSpec
 from .secrets import InMemorySecretStore
 from .toml_support import load_data_file
 from .varstore import VarStore
@@ -20,6 +23,45 @@ from .varstore import VarStore
 
 class PluginTrustError(ValueError):
     """Raised when an external plugin is refused by trust policy."""
+
+
+@dataclass(frozen=True, slots=True)
+class PluginTrustPolicy:
+    """Operator-selected filesystem plugin trust bypasses."""
+
+    allow_unsigned_plugins: bool = False
+    allow_unsigned_plugin_manifests: bool = False
+    allow_plugin_key_mismatch: bool = False
+    allow_missing_plugin_keys: bool = False
+
+    @classmethod
+    def developer_bypass(cls) -> "PluginTrustPolicy":
+        """Return the broad plugin trust bypass."""
+        return cls(
+            allow_unsigned_plugins=True,
+            allow_unsigned_plugin_manifests=True,
+            allow_plugin_key_mismatch=True,
+            allow_missing_plugin_keys=True,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class VerifiedPluginCatalog:
+    """Runtime plugin catalog accepted by the current trust policy."""
+
+    path: Path
+    plugins: dict[str, dict[str, Any]]
+    verified_signature: bool
+
+    def verifies_entry(self, plugin_dir: Path, entry: str) -> bool:
+        """Return whether one filesystem plugin package matches the catalog."""
+        row = self.plugins.get(entry)
+        if row is None:
+            return False
+        return (
+            row.get("module_sha256") == sha256_file(plugin_dir / "plugin.py")
+            and row.get("manifest_sha256") == sha256_file(plugin_dir / "bywaf.plugin.toml")
+        )
 
 
 @dataclass(slots=True)
@@ -30,6 +72,8 @@ class PluginRegistry:
     varstore: VarStore = field(default_factory=VarStore)
     providers: dict[str, list[str]] = field(default_factory=dict)
     secrets: InMemorySecretStore = field(default_factory=InMemorySecretStore)
+    triggers: list[TriggerSpec] = field(default_factory=list)
+    trigger_providers: dict[int, str] = field(default_factory=dict)
 
     @classmethod
     def discover(
@@ -55,22 +99,35 @@ class PluginRegistry:
         *,
         varstore: VarStore | None = None,
         forced: bool = False,
+        trust_policy: PluginTrustPolicy | None = None,
+        catalog: VerifiedPluginCatalog | None = None,
     ) -> "PluginRegistry":
         """Load plugins from an explicit filesystem config file."""
         registry = cls({}, varstore or VarStore())
+        policy = PluginTrustPolicy.developer_bypass() if forced else trust_policy
         for entry in parse_plugin_config(Path(config_file)):
-            registry.load_filesystem_entry(Path(plugin_root), entry, forced=forced)
+            registry.load_filesystem_entry(Path(plugin_root), entry, trust_policy=policy, catalog=catalog)
         return registry
 
-    def load_filesystem_entry(self, plugin_root: Path, entry: str, *, forced: bool = False) -> Commandlet:
+    def load_filesystem_entry(
+        self,
+        plugin_root: Path,
+        entry: str,
+        *,
+        forced: bool = False,
+        trust_policy: PluginTrustPolicy | None = None,
+        catalog: VerifiedPluginCatalog | None = None,
+    ) -> Commandlet:
         """Load commandlets from `<plugin_root>/<entry>`, enforcing its manifest."""
         plugin_dir = plugin_root / entry
-        enforce_filesystem_plugin_trust(plugin_dir, forced=forced)
-        plugins = load_filesystem_plugins(plugin_dir)
+        policy = PluginTrustPolicy.developer_bypass() if forced else trust_policy
+        enforce_filesystem_plugin_trust(plugin_dir, entry=entry, trust_policy=policy, catalog=catalog)
+        plugins, triggers = load_filesystem_plugin_package(plugin_dir)
         for plugin in plugins:
             self.plugins[plugin.spec.name] = plugin
             self.providers.setdefault(provider_name(entry), []).append(plugin.spec.name)
             load_defaults_file(plugin_dir, plugin, self.varstore)
+        self.add_triggers(entry, triggers)
         return plugins[0]
 
     def load_package_entry(self, package_name: str, entry: str) -> Commandlet:
@@ -78,12 +135,18 @@ class PluginRegistry:
         manifest = load_package_manifest(package_name, entry)
         module = importlib.import_module(f"{package_name}.{entry}")
         plugins = load_plugins(module)
+        triggers = load_trigger_specs(module)
         if manifest is not None:
-            plugins = enforce_plugin_manifest(manifest, plugins, Path(f"{package_name}.{entry}.plugin.toml"))
+            manifest_path = Path(f"{package_name}.{entry}.plugin.toml")
+            plugins = enforce_plugin_manifest(manifest, plugins, manifest_path)
+            triggers = enforce_trigger_manifest(manifest, triggers, manifest_path)
+        elif triggers:
+            raise ValueError(f"{package_name}.{entry} exposes undeclared triggers without a plugin manifest")
         for plugin in plugins:
             self.plugins[plugin.spec.name] = plugin
             self.providers.setdefault(provider_name(entry), []).append(plugin.spec.name)
             load_module_defaults(module, plugin, self.varstore)
+        self.add_triggers(entry, triggers)
         return plugins[0]
 
     def get(self, name: str) -> Commandlet:
@@ -105,6 +168,23 @@ class PluginRegistry:
         """Return commandlets grouped by provider for the `cmds` command."""
         return {provider: sorted(set(names)) for provider, names in sorted(self.providers.items())}
 
+    def add_triggers(self, provider: str, triggers: tuple[TriggerSpec, ...] | list[TriggerSpec]) -> None:
+        """Register provider-local trigger specs with framework identity metadata."""
+        for trigger in triggers:
+            self.triggers.append(trigger)
+            self.trigger_providers[id(trigger)] = provider
+
+    def trigger_provider(self, trigger: TriggerSpec) -> str | None:
+        """Return the provider identity for one registered trigger."""
+        return self.trigger_providers.get(id(trigger))
+
+    def trigger_id(self, trigger: TriggerSpec) -> str:
+        """Return the durable framework identity for a provider-owned trigger."""
+        provider = self.trigger_provider(trigger)
+        if provider is None:
+            return trigger.name
+        return f"{provider}.{trigger.name}"
+
 
 def load_plugin(module: ModuleType) -> Commandlet:
     """Instantiate a plugin module via its required `plugin()` factory."""
@@ -125,29 +205,57 @@ def load_plugins(module: ModuleType) -> tuple[Commandlet, ...]:
     return (factory(),)
 
 
+def load_trigger_specs(module: ModuleType) -> tuple[TriggerSpec, ...]:
+    """Instantiate optional trigger specs from a provider plugin module."""
+    factory = getattr(module, "triggers", None)
+    if factory is None:
+        return ()
+    specs = tuple(factory())
+    for spec in specs:
+        if not isinstance(spec, TriggerSpec):
+            raise TypeError(f"{module.__name__}.triggers() must return TriggerSpec objects")
+    return specs
+
+
 def load_plugin_path(path: Path) -> Commandlet:
     """Load an external plugin module from a concrete Python file path."""
     return load_plugins_path(path)[0]
 
 
-def enforce_filesystem_plugin_trust(plugin_dir: Path, *, forced: bool = False) -> None:
-    """Refuse external plugin code unless explicitly forced.
+def enforce_filesystem_plugin_trust(
+    plugin_dir: Path,
+    *,
+    entry: str,
+    trust_policy: PluginTrustPolicy | None = None,
+    catalog: VerifiedPluginCatalog | None = None,
+) -> None:
+    """Refuse external plugin code unless unsigned plugin loading is allowed.
 
     Bundled plugins are loaded through package resources and have already gone
     through the reviewed tree. Filesystem plugins are arbitrary local code; the
-    current conservative policy is to refuse them unless the user explicitly
-    acknowledges the bypass with `--force`.
+    current conservative policy is to treat them as unsigned unless a future
+    runtime catalog verification step proves otherwise.
     """
-    if forced:
+    if catalog is not None and catalog.verifies_entry(plugin_dir, entry):
+        return
+    policy = trust_policy or PluginTrustPolicy()
+    if policy.allow_unsigned_plugins:
         return
     raise PluginTrustError(
         f"warning: refusing external plugin {plugin_dir}; "
-        "plugin catalog trust is not verified. Use --force to bypass."
+        "plugin signature is missing or plugin catalog trust is not verified. "
+        "Use --allow-unsigned-plugins for unsigned development plugins, or "
+        "--allow-untrusted-plugins to bypass all plugin trust checks."
     )
 
 
 def load_plugins_path(path: Path) -> tuple[Commandlet, ...]:
     """Load external commandlets from a concrete Python file path."""
+    return load_plugins(load_module_path(path))
+
+
+def load_module_path(path: Path) -> ModuleType:
+    """Load an external Python module from a concrete file path."""
     if not path.exists():
         raise FileNotFoundError(f"{path} not found")
     module_name = f"bywaf_external_{path.parent.name}_{abs(hash(path))}"
@@ -156,7 +264,118 @@ def load_plugins_path(path: Path) -> tuple[Commandlet, ...]:
         raise ImportError(f"could not load plugin from {path}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return load_plugins(module)
+    return module
+
+
+def load_verified_plugin_catalog(
+    catalog_path: Path,
+    public_key_path: Path | None,
+    *,
+    trust_policy: PluginTrustPolicy | None = None,
+) -> VerifiedPluginCatalog:
+    """Load a plugin catalog accepted by the supplied trust policy."""
+    policy = trust_policy or PluginTrustPolicy()
+    catalog = load_json(catalog_path)
+    signature = catalog.get("signature")
+    verified_signature = False
+    if not isinstance(signature, dict):
+        if not policy.allow_unsigned_plugins:
+            raise PluginTrustError(
+                f"warning: refusing plugin catalog {catalog_path}; catalog signature is missing. "
+                "Use --allow-unsigned-plugins for unsigned development catalogs."
+            )
+    elif public_key_path is None:
+        if not policy.allow_missing_plugin_keys:
+            raise PluginTrustError(
+                f"warning: refusing plugin catalog {catalog_path}; trusted plugin catalog key is missing. "
+                "Use --allow-missing-plugin-keys only for reviewed development catalogs."
+            )
+    else:
+        verify_catalog_signature(catalog, public_key_path, policy)
+        verified_signature = True
+    plugins = catalog.get("plugins")
+    if not isinstance(plugins, list):
+        raise PluginTrustError(f"warning: refusing plugin catalog {catalog_path}; plugins must be a list")
+    entries: dict[str, dict[str, Any]] = {}
+    for row in plugins:
+        if not isinstance(row, dict) or not isinstance(row.get("entry"), str):
+            raise PluginTrustError(f"warning: refusing plugin catalog {catalog_path}; plugin entries must include entry")
+        entries[str(row["entry"])] = row
+    return VerifiedPluginCatalog(catalog_path, entries, verified_signature)
+
+
+def verify_catalog_signature(
+    catalog: dict[str, Any],
+    public_key_path: Path,
+    policy: PluginTrustPolicy,
+) -> None:
+    """Verify a signed runtime plugin catalog against one public key."""
+    signature = catalog.get("signature")
+    if not isinstance(signature, dict):
+        raise PluginTrustError("warning: refusing plugin catalog; catalog signature is missing")
+    if signature.get("algorithm") != "ed25519":
+        raise PluginTrustError(f"warning: refusing plugin catalog; unsupported signature algorithm: {signature.get('algorithm')}")
+    primitives = cryptography_primitives()
+    invalid_signature, serialization, public_cls = primitives
+    public_bytes = public_key_path.read_bytes()
+    actual_key_hash = hashlib.sha256(public_bytes).hexdigest()
+    declared_key_hash = str(signature.get("public_key_sha256") or "")
+    if declared_key_hash and declared_key_hash != actual_key_hash and not policy.allow_plugin_key_mismatch:
+        raise PluginTrustError(
+            "warning: refusing plugin catalog; signer key fingerprint does not match trusted key. "
+            "Use --allow-mismatched-plugin-keys only for reviewed development catalogs."
+        )
+    public_key = serialization.load_pem_public_key(public_bytes)
+    if not isinstance(public_key, public_cls):
+        raise PluginTrustError("warning: refusing plugin catalog; public key is not an Ed25519 key")
+    try:
+        public_key.verify(base64.b64decode(str(signature["value"])), canonical_catalog_bytes(catalog))
+    except invalid_signature as exc:
+        raise PluginTrustError("warning: refusing plugin catalog; signature is invalid") from exc
+
+
+def cryptography_primitives():
+    """Import optional signing primitives for runtime catalog verification."""
+    try:
+        from cryptography.exceptions import InvalidSignature  # type: ignore[import-not-found]
+        from cryptography.hazmat.primitives import serialization  # type: ignore[import-not-found]
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise PluginTrustError("warning: cannot verify plugin catalog; install cryptography signing support") from exc
+    return InvalidSignature, serialization, Ed25519PublicKey
+
+
+def load_json(path: Path) -> dict[str, Any]:
+    """Load a JSON object from disk."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise PluginTrustError(f"warning: refusing plugin catalog {path}; expected JSON object")
+    return data
+
+
+def canonical_catalog_bytes(catalog: dict[str, Any]) -> bytes:
+    """Return stable bytes used for catalog signature verification."""
+    unsigned = {key: value for key, value in catalog.items() if key != "signature"}
+    return json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def canonical_manifest_bytes(data: dict[str, Any]) -> bytes:
+    """Return order-insensitive canonical bytes for plugin manifest signing."""
+    return canonical_config_bytes(data)
+
+
+def plugin_manifest_digest(data: dict[str, Any]) -> str:
+    """Return the SHA-256 digest of canonical plugin manifest values."""
+    return config_digest(data)
+
+
+def sha256_file(path: Path) -> str:
+    """Return the SHA-256 hash of one file."""
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 @dataclass(frozen=True, slots=True)
@@ -164,6 +383,7 @@ class PluginManifest:
     """Pre-import metadata that controls filesystem plugin exposure."""
 
     commandlets: frozenset[str]
+    triggers: tuple[TriggerSpec, ...] = ()
     commandlet_capabilities: dict[str, tuple[str, ...]] = field(default_factory=dict)
     commandlet_secret_options: dict[str, tuple[str, ...]] = field(default_factory=dict)
     library_backed: bool = False
@@ -174,12 +394,20 @@ class PluginManifest:
 
 
 def load_filesystem_plugins(plugin_dir: Path) -> tuple[Commandlet, ...]:
-    """Load a filesystem plugin package and enforce `bywaf.plugin.toml` if present."""
-    plugins = load_plugins_path(plugin_dir / "plugin.py")
+    """Load a filesystem plugin package and enforce its required manifest."""
+    return load_filesystem_plugin_package(plugin_dir)[0]
+
+
+def load_filesystem_plugin_package(plugin_dir: Path) -> tuple[tuple[Commandlet, ...], tuple[TriggerSpec, ...]]:
+    """Load filesystem commandlets and provider-owned trigger specs."""
     manifest_path = plugin_dir / "bywaf.plugin.toml"
     if not manifest_path.exists():
-        return plugins
-    return enforce_plugin_manifest(parse_plugin_manifest(manifest_path), plugins, manifest_path)
+        raise FileNotFoundError(f"{manifest_path} not found")
+    manifest = parse_plugin_manifest(manifest_path)
+    module = load_module_path(plugin_dir / "plugin.py")
+    plugins = enforce_plugin_manifest(manifest, load_plugins(module), manifest_path)
+    triggers = enforce_trigger_manifest(manifest, load_trigger_specs(module), manifest_path)
+    return plugins, triggers
 
 
 def parse_plugin_manifest(path: Path) -> PluginManifest:
@@ -203,17 +431,20 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
         if not isinstance(name, str) or not name:
             raise ValueError(f"{source} commandlets entry {index} requires name")
         commandlets.add(name)
-        commandlet_capabilities[name] = tuple(str(value) for value in list_field(row, "capabilities", source))
-        commandlet_secret_options[name] = tuple(str(value) for value in list_field(row, "secret_options", source))
-    library_backed = bool_field(plugin_data, "library_backed", source)
-    process_wrapped = bool_field(plugin_data, "process_wrapped", source)
-    service = bool_field(plugin_data, "service", source)
-    native = bool_field(plugin_data, "native", source)
+        context = f"commandlets entry {index}"
+        commandlet_capabilities[name] = string_list_field(row, "capabilities", source, context)
+        commandlet_secret_options[name] = string_list_field(row, "secret_options", source, context)
+    library_backed = bool_field(plugin_data, "library_backed", source, "plugin")
+    process_wrapped = bool_field(plugin_data, "process_wrapped", source, "plugin")
+    service = bool_field(plugin_data, "service", source, "plugin")
+    native = bool_field(plugin_data, "native", source, "plugin")
     if native and (library_backed or process_wrapped):
         raise ValueError(f"{source} native=true conflicts with library_backed or process_wrapped")
-    roles = tuple(str(role) for role in list_field(plugin_data, "roles", source))
+    roles = string_list_field(plugin_data, "roles", source, "plugin")
+    triggers = parse_trigger_rows(data.get("triggers", []), source)
     return PluginManifest(
         commandlets=frozenset(commandlets),
+        triggers=triggers,
         commandlet_capabilities=commandlet_capabilities,
         commandlet_secret_options=commandlet_secret_options,
         library_backed=library_backed,
@@ -222,6 +453,82 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
         native=native or not (library_backed or process_wrapped),
         roles=roles,
     )
+
+
+def parse_trigger_rows(value: Any, source: str) -> tuple[TriggerSpec, ...]:
+    """Parse optional [[triggers]] manifest entries."""
+    if value in (None, []):
+        return ()
+    if not isinstance(value, list):
+        raise ValueError(f"{source} triggers must be a list")
+    triggers: list[TriggerSpec] = []
+    names: set[str] = set()
+    for index, row in enumerate(value, start=1):
+        if not isinstance(row, dict):
+            raise ValueError(f"{source} triggers entry {index} must be a table")
+        name = string_field(row, "name", source, f"triggers entry {index}")
+        if name in names:
+            raise ValueError(f"{source} duplicate trigger: {name}")
+        names.add(name)
+        topic = string_field(row, "topic", source, f"triggers entry {index}")
+        action_command = string_field(row, "action_command", source, f"triggers entry {index}")
+        action_mode = optional_string_field(row, "action_mode", source, f"triggers entry {index}", default="service")
+        assert action_mode is not None
+        if action_mode not in {"foreground", "background", "service"}:
+            raise ValueError(f"{source} triggers entry {index} action_mode must be foreground, background, or service")
+        payload_equals = row.get("payload_equals", {})
+        if not isinstance(payload_equals, dict):
+            raise ValueError(f"{source} triggers entry {index} payload_equals must be a table")
+        for key, item in payload_equals.items():
+            if not isinstance(key, str) or not key:
+                raise ValueError(f"{source} triggers entry {index} payload_equals keys must be strings")
+            if not isinstance(item, str):
+                raise ValueError(f"{source} triggers entry {index} payload_equals values must be strings")
+        suppress_self_trigger = row.get("suppress_self_trigger", True)
+        if not isinstance(suppress_self_trigger, bool):
+            raise ValueError(f"{source} triggers entry {index} suppress_self_trigger must be true or false")
+        description = optional_string_field(row, "description", source, f"triggers entry {index}", default="")
+        capability = optional_string_field(row, "capability", source, f"triggers entry {index}")
+        triggers.append(
+            TriggerSpec(
+                name=name,
+                topic=topic,
+                action_command=action_command,
+                description=description or "",
+                action_mode=action_mode,
+                capability=capability,
+                payload_equals=tuple(sorted(payload_equals.items())),
+                active_job=bool_field(row, "active_job", source, f"triggers entry {index}"),
+                exclude_commandlets=string_list_field(row, "exclude_commandlets", source, f"triggers entry {index}"),
+                suppress_self_trigger=suppress_self_trigger,
+            )
+        )
+    return tuple(triggers)
+
+
+def string_field(data: dict[str, Any], key: str, source: str, context: str) -> str:
+    """Return a required string field."""
+    value = data.get(key)
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"{source} {context} requires {key}")
+    return value
+
+
+def optional_string_field(
+    data: dict[str, Any],
+    key: str,
+    source: str,
+    context: str,
+    *,
+    default: str | None = None,
+) -> str | None:
+    """Return an optional string manifest field."""
+    value = data.get(key, default)
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"{source} {context}.{key} must be a string")
+    return value
 
 
 def enforce_plugin_manifest(
@@ -260,6 +567,30 @@ def enforce_plugin_manifest(
     return tuple(by_name[name] for name in sorted(manifest.commandlets))
 
 
+def enforce_trigger_manifest(
+    manifest: PluginManifest,
+    triggers: tuple[TriggerSpec, ...],
+    path: Path,
+) -> tuple[TriggerSpec, ...]:
+    """Return manifest-declared trigger specs and reject drift from code."""
+    declared = {trigger.name: trigger for trigger in manifest.triggers}
+    exposed: dict[str, TriggerSpec] = {}
+    for trigger in triggers:
+        if trigger.name in exposed:
+            raise ValueError(f"{path} duplicate trigger from code: {trigger.name}")
+        exposed[trigger.name] = trigger
+    missing = sorted(declared.keys() - exposed.keys())
+    if missing:
+        raise ValueError(f"{path} declares missing triggers: {', '.join(missing)}")
+    undeclared = sorted(exposed.keys() - declared.keys())
+    if undeclared:
+        raise ValueError(f"{path} exposes undeclared triggers: {', '.join(undeclared)}")
+    for name in sorted(declared):
+        if declared[name] != exposed[name]:
+            raise ValueError(f"{path} trigger mismatch for {name}")
+    return tuple(declared[name] for name in sorted(declared))
+
+
 def load_package_manifest(package_name: str, entry: str) -> PluginManifest | None:
     """Load a bundled sidecar manifest before importing plugin code."""
     parts = entry.split(".")
@@ -282,11 +613,11 @@ def table_value(data: dict[str, Any], key: str, source: str) -> dict[str, Any]:
     return value
 
 
-def bool_field(data: dict[str, Any], key: str, source: str) -> bool:
+def bool_field(data: dict[str, Any], key: str, source: str, context: str = "plugin") -> bool:
     """Return a boolean manifest field."""
     value = data.get(key, False)
     if not isinstance(value, bool):
-        raise ValueError(f"{source} plugin.{key} must be true or false")
+        raise ValueError(f"{source} {context}.{key} must be true or false")
     return value
 
 
@@ -296,6 +627,17 @@ def list_field(data: dict[str, Any], key: str, source: str) -> list[Any]:
     if not isinstance(value, list):
         raise ValueError(f"{source} plugin.{key} must be a list")
     return value
+
+
+def string_list_field(data: dict[str, Any], key: str, source: str, context: str) -> tuple[str, ...]:
+    """Return an optional list field that must contain only non-empty strings."""
+    value = data.get(key, [])
+    if not isinstance(value, list):
+        raise ValueError(f"{source} {context}.{key} must be a list")
+    for index, item in enumerate(value, start=1):
+        if not isinstance(item, str) or not item:
+            raise ValueError(f"{source} {context}.{key} entry {index} must be a string")
+    return tuple(value)
 
 
 def load_module_defaults(module: ModuleType, plugin: Commandlet, varstore: VarStore) -> None:

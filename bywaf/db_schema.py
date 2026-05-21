@@ -72,6 +72,14 @@ CREATE TABLE IF NOT EXISTS secrets (
     updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_secrets_name ON secrets(name);
+
+CREATE TABLE IF NOT EXISTS trigger_state (
+    name TEXT PRIMARY KEY,
+    enabled INTEGER NOT NULL,
+    last_event_id INTEGER NOT NULL DEFAULT 0,
+    last_fired_event_id INTEGER,
+    updated_at TEXT NOT NULL
+);
 """
 
 
@@ -146,5 +154,17 @@ def ensure_event_columns(conn: sqlite3.Connection) -> None:
                 updated_at TEXT NOT NULL
             );
             CREATE INDEX IF NOT EXISTS idx_secrets_name ON secrets(name);
+            """
+        )
+    if "trigger_state" not in tables:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS trigger_state (
+                name TEXT PRIMARY KEY,
+                enabled INTEGER NOT NULL,
+                last_event_id INTEGER NOT NULL DEFAULT 0,
+                last_fired_event_id INTEGER,
+                updated_at TEXT NOT NULL
+            );
             """
         )

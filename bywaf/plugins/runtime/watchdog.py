@@ -10,12 +10,28 @@ import time
 from typing import Any
 
 from bywaf.events import Event
-from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, TriggerSpec, commandlet, option
 from bywaf.plugins._args import key_value_to_long_options
 
 ACTIVE_STATUSES = {"queued", "claimed", "running", "pausing", "paused", "cancelling"}
 ERROR_TOPICS = {"command.run.failed", "job.failed", "tool.error"}
 OPTION_KEYS = {"error-threshold", "interval", "stall-threshold", "timeout"}
+
+
+def triggers() -> tuple[TriggerSpec, ...]:
+    """Return provider-owned trigger rules for the watchdog service."""
+    return (
+        TriggerSpec(
+            name="network-access-starts-watchdog",
+            topic="plugin.capability.used",
+            action_command="watchdog --session-service",
+            description="ON network.connect capability use by an active job DO start the session watchdog",
+            action_mode="service",
+            capability="network.connect",
+            active_job=True,
+            exclude_commandlets=("watchdog",),
+        ),
+    )
 
 
 @commandlet(

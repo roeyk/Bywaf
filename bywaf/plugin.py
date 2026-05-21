@@ -71,6 +71,22 @@ class CommandSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class TriggerSpec:
+    """Provider-owned ON event DO command rule consumed by the framework."""
+
+    name: str
+    topic: str
+    action_command: str
+    description: str = ""
+    action_mode: str = "service"
+    capability: str | None = None
+    payload_equals: tuple[tuple[str, str], ...] = ()
+    active_job: bool = False
+    exclude_commandlets: tuple[str, ...] = ()
+    suppress_self_trigger: bool = True
+
+
+@dataclass(frozen=True, slots=True)
 class PlanItem:
     """One structured item in a pre-run plan."""
 

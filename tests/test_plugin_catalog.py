@@ -29,6 +29,97 @@ class PluginCatalogTests(unittest.TestCase):
 
             self.assertEqual(check_catalog_tree(catalog_path), [])
 
+    def test_built_catalog_includes_trigger_metadata(self):
+        catalog = build_catalog()
+        watchdog = next(row for row in catalog["plugins"] if row["entry"] == "runtime.watchdog")
+
+        self.assertEqual(watchdog["triggers"][0]["name"], "network-access-starts-watchdog")
+        self.assertEqual(watchdog["triggers"][0]["action_mode"], "service")
+
+    def test_catalog_reads_triggers_from_manifest_without_importing_plugin(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plugin_root = root / "plugins"
+            plugin_dir = plugin_root / "scanners" / "example"
+            plugin_dir.mkdir(parents=True)
+            (plugin_dir / "plugin.py").write_text("raise RuntimeError('catalog imported plugin code')\n")
+            (plugin_dir / "bywaf.plugin.toml").write_text(
+                "[[commandlets]]\n"
+                'name = "example"\n\n'
+                "[[triggers]]\n"
+                'name = "example-trigger"\n'
+                'topic = "example.event"\n'
+                'action_command = "example"\n'
+                'action_mode = "background"\n'
+            )
+            config = root / "plugins.toml"
+            config.write_text('default_plugins = ["scanners/example"]\n')
+
+            catalog = build_catalog(root, plugin_root=plugin_root, plugin_config=config, source="test")
+
+            self.assertEqual(catalog["plugins"][0]["triggers"][0]["name"], "example-trigger")
+
+    def test_catalog_treats_single_segment_filesystem_entry_as_plugin_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plugin_root = root / "plugins"
+            plugin_dir = plugin_root / "myplugin"
+            plugin_dir.mkdir(parents=True)
+            (plugin_dir / "plugin.py").write_text("def plugin():\n    raise RuntimeError('not imported')\n")
+            (plugin_dir / "bywaf.plugin.toml").write_text(
+                "[[commandlets]]\n"
+                'name = "example"\n'
+                "capabilities = []\n"
+            )
+            config = root / "plugins.toml"
+            config.write_text('default_plugins = ["myplugin"]\n')
+
+            catalog = build_catalog(root, plugin_root=plugin_root, plugin_config=config, source="test")
+
+            self.assertEqual(catalog["plugins"][0]["module"], "plugins/myplugin/plugin.py")
+            self.assertEqual(catalog["plugins"][0]["manifest"], "plugins/myplugin/bywaf.plugin.toml")
+
+    def test_catalog_rejects_string_boolean_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, plugin_root = write_catalog_fixture(
+                tmp,
+                "[plugin]\n"
+                'service = "false"\n\n'
+                "[[commandlets]]\n"
+                'name = "example"\n',
+            )
+
+            with self.assertRaisesRegex(ValueError, "plugin.service must be true or false"):
+                build_catalog(root, plugin_root=plugin_root, plugin_config=root / "plugins.toml", source="test")
+
+    def test_catalog_rejects_non_string_capability_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, plugin_root = write_catalog_fixture(
+                tmp,
+                "[[commandlets]]\n"
+                'name = "example"\n'
+                "capabilities = [123]\n",
+            )
+
+            with self.assertRaisesRegex(ValueError, "capabilities entry 1 must be a string"):
+                build_catalog(root, plugin_root=plugin_root, plugin_config=root / "plugins.toml", source="test")
+
+    def test_catalog_rejects_non_string_trigger_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, plugin_root = write_catalog_fixture(
+                tmp,
+                "[[commandlets]]\n"
+                'name = "example"\n\n'
+                "[[triggers]]\n"
+                'name = "example-trigger"\n'
+                'topic = "example.event"\n'
+                'action_command = "example"\n'
+                "payload_equals = { count = 3 }\n",
+            )
+
+            with self.assertRaisesRegex(ValueError, "payload_equals values must be strings"):
+                build_catalog(root, plugin_root=plugin_root, plugin_config=root / "plugins.toml", source="test")
+
     def test_catalog_check_reports_tampered_hash(self):
         with tempfile.TemporaryDirectory() as tmp:
             catalog = build_catalog()
@@ -107,3 +198,14 @@ class PluginCatalogTests(unittest.TestCase):
             write_json(signed_path, tampered)
 
             self.assertFalse(verify_catalog(signed_path, public_path))
+
+
+def write_catalog_fixture(tmp: str, manifest: str) -> tuple[Path, Path]:
+    root = Path(tmp)
+    plugin_root = root / "plugins"
+    plugin_dir = plugin_root / "myplugin"
+    plugin_dir.mkdir(parents=True)
+    (plugin_dir / "plugin.py").write_text("def plugin():\n    raise RuntimeError('not imported')\n")
+    (plugin_dir / "bywaf.plugin.toml").write_text(manifest)
+    (root / "plugins.toml").write_text('default_plugins = ["myplugin"]\n')
+    return root, plugin_root

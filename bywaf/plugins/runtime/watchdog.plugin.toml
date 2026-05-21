@@ -12,3 +12,14 @@ capabilities = [
   "framework.console.alert",
 ]
 module = "bywaf.plugins.runtime.watchdog"
+
+[[triggers]]
+name = "network-access-starts-watchdog"
+topic = "plugin.capability.used"
+action_command = "watchdog --session-service"
+action_mode = "service"
+description = "ON network.connect capability use by an active job DO start the session watchdog"
+capability = "network.connect"
+active_job = true
+exclude_commandlets = ["watchdog"]
+suppress_self_trigger = true

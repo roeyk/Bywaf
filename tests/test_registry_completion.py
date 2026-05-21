@@ -26,11 +26,14 @@ from bywaf.plugin import ArgumentSpec, CommandSpec, CompletionSpec, OptionSpec
 from bywaf.registry import (
     PluginRegistry,
     PluginTrustError,
+    PluginTrustPolicy,
+    canonical_manifest_bytes,
     load_package_manifest,
     load_plugin,
     parse_package_plugin_config,
     parse_plugin_config,
     parse_plugin_manifest,
+    plugin_manifest_digest,
 )
 from bywaf.tools.plugin_manifest import manifest_from_plugins
 
@@ -133,6 +136,62 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertEqual(manifest.commandlets, frozenset({"watchdog"}))
         self.assertTrue(manifest.service)
         self.assertTrue(manifest.native)
+
+    def test_canonical_manifest_bytes_ignore_order_and_signature_block(self):
+        first = {
+            "plugin": {"roles": ["beta", "alpha"], "native": True},
+            "trusted_keys": ["key-b", "key-a"],
+            "commandlets": [
+                {"name": "two", "capabilities": ["b", "a"]},
+                {"name": "one", "secret_options": ["token", "password"]},
+            ],
+            "triggers": [
+                {
+                    "name": "network",
+                    "topic": "plugin.capability.used",
+                    "action_command": "watchdog --session-service",
+                    "exclude_commandlets": ["watchdog", "audit"],
+                    "payload_equals": {"b": "2", "a": "1"},
+                }
+            ],
+            "bywaf_signature": {"digest": "old", "signature": "old"},
+        }
+        second = {
+            "bywaf_signature": {"digest": "new", "signature": "new"},
+            "triggers": [
+                {
+                    "payload_equals": {"a": "1", "b": "2"},
+                    "exclude_commandlets": ["audit", "watchdog"],
+                    "action_command": "watchdog --session-service",
+                    "topic": "plugin.capability.used",
+                    "name": "network",
+                }
+            ],
+            "commandlets": [
+                {"secret_options": ["password", "token"], "name": "one"},
+                {"capabilities": ["a", "b"], "name": "two"},
+            ],
+            "trusted_keys": ["key-a", "key-b"],
+            "plugin": {"native": True, "roles": ["alpha", "beta"]},
+        }
+
+        self.assertEqual(canonical_manifest_bytes(first), canonical_manifest_bytes(second))
+        self.assertEqual(plugin_manifest_digest(first), plugin_manifest_digest(second))
+
+    def test_canonical_manifest_digest_changes_when_values_change(self):
+        first = {"commandlets": [{"name": "example", "capabilities": ["network.connect"]}]}
+        second = {"commandlets": [{"name": "example", "capabilities": ["filesystem.read"]}]}
+
+        self.assertNotEqual(plugin_manifest_digest(first), plugin_manifest_digest(second))
+
+    def test_bundled_watchdog_provides_network_trigger(self):
+        triggers = {trigger.name: trigger for trigger in self.registry.triggers}
+        trigger = triggers["network-access-starts-watchdog"]
+        self.assertEqual(trigger.topic, "plugin.capability.used")
+        self.assertEqual(trigger.capability, "network.connect")
+        self.assertEqual(trigger.action_command, "watchdog --session-service")
+        self.assertEqual(trigger.action_mode, "service")
+        self.assertTrue(trigger.active_job)
 
     def test_bundled_sidecar_manifest_declares_secret_options(self):
         manifest = load_package_manifest("bywaf.plugins", "network.ssh_probe")
@@ -650,6 +709,13 @@ class RegistryCompletionTests(unittest.TestCase):
                 "    return Example()\n"
             )
             (plugin_dir / "defaults.toml").write_text("[defaults]\nanswer = 42\n")
+            (plugin_dir / "bywaf.plugin.toml").write_text(
+                "[plugin]\n"
+                "native = true\n\n"
+                "[[commandlets]]\n"
+                'name = "example"\n'
+                "capabilities = []\n"
+            )
             config = Path(tmp, "plugins.toml")
             config.write_text('default_plugins = ["scanners/example"]\n')
             registry = PluginRegistry.from_config(root, config, forced=True)
@@ -676,6 +742,38 @@ class RegistryCompletionTests(unittest.TestCase):
             with self.assertRaisesRegex(PluginTrustError, "refusing external plugin"):
                 PluginRegistry.from_config(root, config)
 
+    def test_filesystem_plugin_loads_with_unsigned_developer_bypass(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp, "plugins")
+            plugin_dir = root / "scanners" / "example"
+            plugin_dir.mkdir(parents=True)
+            (plugin_dir / "plugin.py").write_text(
+                "from bywaf.plugin import CommandSpec\n"
+                "class Example:\n"
+                "    spec = CommandSpec('example', 'example plugin')\n"
+                "    def run(self, context, args, input_events):\n"
+                "        yield {'ok': True}\n"
+                "def plugin():\n"
+                "    return Example()\n"
+            )
+            (plugin_dir / "bywaf.plugin.toml").write_text(
+                "[plugin]\n"
+                "native = true\n\n"
+                "[[commandlets]]\n"
+                'name = "example"\n'
+                "capabilities = []\n"
+            )
+            config = Path(tmp, "plugins.toml")
+            config.write_text('default_plugins = ["scanners/example"]\n')
+
+            registry = PluginRegistry.from_config(
+                root,
+                config,
+                trust_policy=PluginTrustPolicy(allow_unsigned_plugins=True),
+            )
+
+            self.assertIn("example", registry.names())
+
     def test_loads_legacy_filesystem_plugin_json_defaults(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "plugins")
@@ -691,6 +789,13 @@ class RegistryCompletionTests(unittest.TestCase):
                 "    return Example()\n"
             )
             (plugin_dir / "defaults.json").write_text('{"answer": 42}')
+            (plugin_dir / "bywaf.plugin.toml").write_text(
+                "[plugin]\n"
+                "native = true\n\n"
+                "[[commandlets]]\n"
+                'name = "example"\n'
+                "capabilities = []\n"
+            )
             config = Path(tmp, "plugins.yaml")
             config.write_text("default_plugins:\n  - scanners/example\n")
             registry = PluginRegistry.from_config(root, config, forced=True)
@@ -757,6 +862,26 @@ class RegistryCompletionTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "missing commandlets"):
                 PluginRegistry.from_config(root, config, forced=True)
 
+    def test_filesystem_plugins_require_manifest(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp, "plugins")
+            plugin_dir = root / "scanners" / "example"
+            plugin_dir.mkdir(parents=True)
+            (plugin_dir / "plugin.py").write_text(
+                "from bywaf.plugin import CommandSpec\n"
+                "class Example:\n"
+                "    spec = CommandSpec('example', 'example plugin')\n"
+                "    def run(self, context, args, input_events):\n"
+                "        yield {'ok': True}\n"
+                "def plugin():\n"
+                "    return Example()\n"
+            )
+            config = Path(tmp, "plugins.toml")
+            config.write_text('default_plugins = ["scanners/example"]\n')
+
+            with self.assertRaisesRegex(FileNotFoundError, "bywaf.plugin.toml"):
+                PluginRegistry.from_config(root, config, forced=True)
+
     def test_filesystem_manifest_rejects_conflicting_native_trait(self):
         with tempfile.TemporaryDirectory() as tmp:
             manifest = Path(tmp, "bywaf.plugin.toml")
@@ -768,6 +893,63 @@ class RegistryCompletionTests(unittest.TestCase):
                 'name = "example"\n'
             )
             with self.assertRaisesRegex(ValueError, "native=true conflicts"):
+                parse_plugin_manifest(manifest)
+
+    def test_filesystem_manifest_rejects_non_string_capability(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = Path(tmp, "bywaf.plugin.toml")
+            manifest.write_text(
+                "[[commandlets]]\n"
+                'name = "example"\n'
+                "capabilities = [123]\n"
+            )
+
+            with self.assertRaisesRegex(ValueError, "capabilities entry 1 must be a string"):
+                parse_plugin_manifest(manifest)
+
+    def test_filesystem_manifest_rejects_string_boolean(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = Path(tmp, "bywaf.plugin.toml")
+            manifest.write_text(
+                "[plugin]\n"
+                'service = "false"\n\n'
+                "[[commandlets]]\n"
+                'name = "example"\n'
+            )
+
+            with self.assertRaisesRegex(ValueError, "plugin.service must be true or false"):
+                parse_plugin_manifest(manifest)
+
+    def test_filesystem_manifest_rejects_non_string_trigger_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = Path(tmp, "bywaf.plugin.toml")
+            manifest.write_text(
+                "[[commandlets]]\n"
+                'name = "example"\n\n'
+                "[[triggers]]\n"
+                'name = "example-trigger"\n'
+                'topic = "example.event"\n'
+                'action_command = "example"\n'
+                "capability = 123\n"
+            )
+
+            with self.assertRaisesRegex(ValueError, "capability must be a string"):
+                parse_plugin_manifest(manifest)
+
+    def test_filesystem_manifest_rejects_non_string_payload_equals_value(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = Path(tmp, "bywaf.plugin.toml")
+            manifest.write_text(
+                "[[commandlets]]\n"
+                'name = "example"\n\n'
+                "[[triggers]]\n"
+                'name = "example-trigger"\n'
+                'topic = "example.event"\n'
+                'action_command = "example"\n'
+                "payload_equals = { count = 3 }\n"
+            )
+
+            with self.assertRaisesRegex(ValueError, "payload_equals values must be strings"):
                 parse_plugin_manifest(manifest)
 
     def test_filesystem_manifest_rejects_capability_mismatch(self):
@@ -821,6 +1003,70 @@ class RegistryCompletionTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "secret_options mismatch"):
                 PluginRegistry.from_config(root, config, forced=True)
 
+    def test_bundled_watchdog_manifest_declares_trigger_metadata(self):
+        manifest = load_package_manifest("bywaf.plugins", "runtime.watchdog")
+        self.assertIsNotNone(manifest)
+        assert manifest is not None
+
+        trigger = {item.name: item for item in manifest.triggers}["network-access-starts-watchdog"]
+
+        self.assertEqual(trigger.topic, "plugin.capability.used")
+        self.assertEqual(trigger.action_command, "watchdog --session-service")
+        self.assertEqual(trigger.capability, "network.connect")
+        self.assertTrue(trigger.active_job)
+        self.assertEqual(trigger.exclude_commandlets, ("watchdog",))
+
+    def test_filesystem_manifest_rejects_trigger_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp, "plugins")
+            plugin_dir = root / "scanners" / "example"
+            plugin_dir.mkdir(parents=True)
+            write_trigger_plugin(plugin_dir)
+            write_trigger_manifest(plugin_dir, action_command="example --wrong")
+            config = Path(tmp, "plugins.toml")
+            config.write_text('default_plugins = ["scanners/example"]\n')
+
+            with self.assertRaisesRegex(ValueError, "trigger mismatch"):
+                PluginRegistry.from_config(root, config, forced=True)
+
+    def test_filesystem_manifest_rejects_missing_trigger(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp, "plugins")
+            plugin_dir = root / "scanners" / "example"
+            plugin_dir.mkdir(parents=True)
+            (plugin_dir / "plugin.py").write_text(
+                "from bywaf.plugin import CommandSpec\n"
+                "class Example:\n"
+                "    spec = CommandSpec('example', 'example plugin')\n"
+                "    def run(self, context, args, input_events):\n"
+                "        yield {'ok': True}\n"
+                "def plugin():\n"
+                "    return Example()\n"
+            )
+            write_trigger_manifest(plugin_dir)
+            config = Path(tmp, "plugins.toml")
+            config.write_text('default_plugins = ["scanners/example"]\n')
+
+            with self.assertRaisesRegex(ValueError, "declares missing triggers"):
+                PluginRegistry.from_config(root, config, forced=True)
+
+    def test_filesystem_manifest_rejects_undeclared_trigger(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp, "plugins")
+            plugin_dir = root / "scanners" / "example"
+            plugin_dir.mkdir(parents=True)
+            write_trigger_plugin(plugin_dir)
+            (plugin_dir / "bywaf.plugin.toml").write_text(
+                "[[commandlets]]\n"
+                'name = "example"\n'
+                "capabilities = []\n"
+            )
+            config = Path(tmp, "plugins.toml")
+            config.write_text('default_plugins = ["scanners/example"]\n')
+
+            with self.assertRaisesRegex(ValueError, "exposes undeclared triggers"):
+                PluginRegistry.from_config(root, config, forced=True)
+
     def test_plugin_manifest_tool_infers_secret_options(self):
         class Example:
             spec = CommandSpec(
@@ -837,6 +1083,42 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn('name = "example"', text)
         self.assertIn('  "framework.secret.resolve",', text)
         self.assertIn('secret_options = ["password"]', text)
+
+
+def write_trigger_plugin(plugin_dir: Path) -> None:
+    (plugin_dir / "plugin.py").write_text(
+        "from bywaf.plugin import CommandSpec, TriggerSpec\n"
+        "class Example:\n"
+        "    spec = CommandSpec('example', 'example plugin')\n"
+        "    def run(self, context, args, input_events):\n"
+        "        yield {'ok': True}\n"
+        "def plugin():\n"
+        "    return Example()\n"
+        "def triggers():\n"
+        "    return (TriggerSpec(\n"
+        "        name='example-trigger',\n"
+        "        topic='example.event',\n"
+        "        action_command='example',\n"
+        "        description='ON example.event DO example',\n"
+        "        action_mode='background',\n"
+        "        payload_equals=(('kind', 'demo'),),\n"
+        "    ),)\n"
+    )
+
+
+def write_trigger_manifest(plugin_dir: Path, *, action_command: str = "example") -> None:
+    (plugin_dir / "bywaf.plugin.toml").write_text(
+        "[[commandlets]]\n"
+        'name = "example"\n'
+        "capabilities = []\n\n"
+        "[[triggers]]\n"
+        'name = "example-trigger"\n'
+        'topic = "example.event"\n'
+        f'action_command = "{action_command}"\n'
+        'description = "ON example.event DO example"\n'
+        'action_mode = "background"\n'
+        'payload_equals = { kind = "demo" }\n'
+    )
 
 
 if __name__ == "__main__":

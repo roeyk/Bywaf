@@ -27,10 +27,17 @@ from .config import Settings
 from .db import EventStore, Subscription, database_appears_encrypted, export_encrypted_database, export_plaintext_database
 from .events import Event
 from .nmap_backend import NmapScanError, NmapUnavailableError
-from .plugin import CommandContext, normalize_argv, run_process_argv
+from .plugin import CommandContext, TriggerSpec, normalize_argv, run_process_argv
 from .projects import ProjectPaths, create_project, list_projects, require_project
-from .registry import PluginRegistry, PluginTrustError, parse_plugin_manifest
-from .rendering import Table, render_console_table
+from .registry import (
+    PluginRegistry,
+    PluginTrustError,
+    PluginTrustPolicy,
+    load_verified_plugin_catalog,
+    parse_plugin_config,
+    parse_plugin_manifest,
+)
+from .rendering import Column, Table, render_console_table
 from .runtime_display import (
     ACTIVE_LISTING_FORMAT_VAR,
     display_runtime_serial,
@@ -65,6 +72,7 @@ HELP_COMMANDS = (
     HelpEntry("help, ?", "show this help", "help [command]"),
     HelpEntry("plugins", "list loaded plugin providers", "plugins"),
     HelpEntry("cmds", "show commandlets grouped by plugin provider", "cmds"),
+    HelpEntry("triggers", "show provider-owned trigger rules", "triggers"),
     HelpEntry("history", "show command history", "history"),
     HelpEntry("info", "show active jobs, pipelines, and runs", "info"),
     HelpEntry("jobs", "alias for job list", "jobs"),
@@ -128,16 +136,44 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--encrypted", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--plugin-root", help="directory containing filesystem plugins")
     parser.add_argument("--plugin-config", help="JSON or simple YAML plugin config")
+    parser.add_argument("--plugin-catalog", help="signed JSON catalog for filesystem plugin trust")
+    parser.add_argument("--plugin-catalog-key", help="trusted public key for --plugin-catalog")
     parser.add_argument(
         "--force-plugins",
         action="store_true",
-        help="load filesystem plugins even when plugin catalog trust is not verified",
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "--allow-untrusted-plugins",
+        action="store_true",
+        help="load plugins despite missing signatures, missing trusted keys, or mismatched trusted keys",
+    )
+    parser.add_argument(
+        "--allow-unsigned-plugins",
+        action="store_true",
+        help="load filesystem plugins even when plugin signatures are missing",
+    )
+    parser.add_argument(
+        "--allow-unsigned-plugin-manifests",
+        action="store_true",
+        help="allow development plugin manifests without manifest signatures",
+    )
+    parser.add_argument(
+        "--allow-missing-plugin-keys",
+        action="store_true",
+        help="allow plugin signature verification to continue when trusted public keys are missing",
+    )
+    parser.add_argument(
+        "--allow-mismatched-plugin-keys",
+        action="store_true",
+        help="allow plugin signature verification to continue when signer keys do not match trusted keys",
     )
     parser.add_argument("--version", action="store_true", help="print version and exit")
     subparsers = parser.add_subparsers(dest="subcommand")
     add_runner_arguments(subparsers.add_parser("run", help="run a commandlet pipeline"))
     subparsers.add_parser("plugins", help="list loaded plugin providers")
     subparsers.add_parser("cmds", help="show commandlets grouped by plugin provider").add_argument("--page", action="store_true")
+    subparsers.add_parser("triggers", help="show provider-owned trigger rules")
     subparsers.add_parser("history", help="show command history")
     subparsers.add_parser("jobs", help="show background jobs")
     subparsers.add_parser("pipelines", help="show pipelines")
@@ -150,7 +186,10 @@ def make_runner(
     *,
     plugin_root: str | Path | None = None,
     plugin_config: str | Path | None = None,
+    plugin_catalog: str | Path | None = None,
+    plugin_catalog_key: str | Path | None = None,
     forced_plugins: bool = False,
+    plugin_trust_policy: PluginTrustPolicy | None = None,
     encrypted: bool = False,
     passphrase: str | None = None,
     project: ProjectPaths | None = None,
@@ -162,18 +201,128 @@ def make_runner(
     if db_passphrase is None and (encrypted or database_appears_encrypted(database_path)):
         db_passphrase = prompt_database_passphrase(database_path, creating=encrypted)
     registry = PluginRegistry.discover()
-    if plugin_root and plugin_config:
-        filesystem = PluginRegistry.from_config(
-            Path(plugin_root),
-            Path(plugin_config),
-            varstore=registry.varstore,
-            forced=forced_plugins,
-        )
-        registry.plugins.update(filesystem.plugins)
     db = EventStore(database_path, passphrase=db_passphrase)
     db.mark_stale_jobs()
+    if plugin_root and plugin_config:
+        filesystem = load_filesystem_registry(
+            db,
+            Path(plugin_root),
+            Path(plugin_config),
+            plugin_catalog=Path(plugin_catalog) if plugin_catalog else None,
+            plugin_catalog_key=Path(plugin_catalog_key) if plugin_catalog_key else None,
+            forced_plugins=forced_plugins,
+            plugin_trust_policy=plugin_trust_policy,
+            varstore=registry.varstore,
+        )
+        registry.plugins.update(filesystem.plugins)
+        for provider, commandlets in filesystem.providers.items():
+            registry.providers.setdefault(provider, []).extend(commandlets)
+        for trigger in filesystem.triggers:
+            provider = filesystem.trigger_provider(trigger) or trigger_action_name(trigger)
+            registry.add_triggers(provider, (trigger,))
     hydrate_persistent_secrets(db, registry)
     return Runner(db, registry, project=project)
+
+
+def load_filesystem_registry(
+    db: EventStore,
+    plugin_root: Path,
+    plugin_config: Path,
+    *,
+    plugin_catalog: Path | None,
+    plugin_catalog_key: Path | None,
+    forced_plugins: bool,
+    plugin_trust_policy: PluginTrustPolicy | None,
+    varstore,
+) -> PluginRegistry:
+    """Load filesystem plugins and audit catalog trust decisions."""
+    catalog = None
+    if plugin_catalog is not None:
+        try:
+            catalog = load_verified_plugin_catalog(
+                plugin_catalog,
+                plugin_catalog_key,
+                trust_policy=plugin_trust_policy,
+            )
+        except PluginTrustError as exc:
+            db.publish(
+                "plugin.catalog.rejected",
+                plugin_catalog_payload(plugin_catalog, plugin_catalog_key, reason=str(exc)),
+                "framework",
+            )
+            raise
+        db.publish(
+            "plugin.catalog.verified",
+            plugin_catalog_payload(
+                plugin_catalog,
+                plugin_catalog_key,
+                verified_signature=catalog.verified_signature,
+                entries=len(catalog.plugins),
+            ),
+            "framework",
+        )
+    registry = PluginRegistry({}, varstore)
+    policy = PluginTrustPolicy.developer_bypass() if forced_plugins else plugin_trust_policy
+    for entry in parse_plugin_config(plugin_config):
+        plugin_dir = plugin_root / entry
+        if catalog is not None:
+            if catalog.verifies_entry(plugin_dir, entry):
+                db.publish(
+                    "plugin.catalog.entry.verified",
+                    plugin_catalog_entry_payload(catalog.path, plugin_dir, entry),
+                    "framework",
+                )
+            else:
+                db.publish(
+                    "plugin.catalog.entry.rejected",
+                    plugin_catalog_entry_payload(catalog.path, plugin_dir, entry, reason="catalog entry missing or hash mismatch"),
+                    "framework",
+                )
+                raise PluginTrustError(f"warning: refusing external plugin {plugin_dir}; catalog entry missing or hash mismatch")
+        registry.load_filesystem_entry(plugin_root, entry, trust_policy=policy, catalog=catalog)
+    return registry
+
+
+def plugin_catalog_payload(
+    catalog: Path,
+    public_key: Path | None,
+    *,
+    reason: str | None = None,
+    verified_signature: bool | None = None,
+    entries: int | None = None,
+) -> dict[str, object]:
+    """Return audit payload for catalog-level trust events."""
+    payload: dict[str, object] = {
+        "catalog": str(catalog),
+        "public_key": str(public_key) if public_key is not None else None,
+    }
+    if reason is not None:
+        payload["reason"] = reason
+    if verified_signature is not None:
+        payload["verified_signature"] = verified_signature
+    if entries is not None:
+        payload["entries"] = entries
+    return payload
+
+
+def plugin_catalog_entry_payload(
+    catalog: Path,
+    plugin_dir: Path,
+    entry: str,
+    *,
+    reason: str | None = None,
+) -> dict[str, object]:
+    """Return audit payload for plugin-catalog entry trust events."""
+    payload: dict[str, object] = {
+        "catalog": str(catalog),
+        "entry": entry,
+        "plugin": str(plugin_dir),
+        "module": str(plugin_dir / "plugin.py"),
+        "manifest": str(plugin_dir / "bywaf.plugin.toml"),
+    }
+    if reason is not None:
+        payload["reason"] = reason
+    return payload
 
 
 def hydrate_persistent_secrets(db: EventStore, registry: PluginRegistry) -> None:
@@ -193,6 +342,7 @@ def shutdown_runner(runner: Runner) -> None:
     """Flush SQLite WAL state before the process exits."""
 
     stop_session_services(runner)
+    disable_session_triggers(runner)
     runner.maintenance.checkpoint()
 
 
@@ -206,6 +356,7 @@ def repl(runner: Runner) -> None:
     try:
         while True:
             process_framework_requests(runner, state)
+            start_default_services(runner)
             try:
                 line = read_logical_input(state, input_reader).strip()
             except EOFError:
@@ -305,6 +456,8 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
                 print_commandlets(runner)
             case ["cmds", "--page"]:
                 print_commandlets(runner, page=True)
+            case ["triggers"]:
+                print_triggers(runner)
             case ["history"]:
                 print_history(state.session_history)
             case ["history", selectors]:
@@ -1138,6 +1291,43 @@ def print_commandlets(runner: Runner, *, page: bool = False) -> None:
     print("\n".join(lines))
 
 
+def print_triggers(runner: Runner) -> None:
+    """Print provider-owned trigger rules."""
+    if not runner.registry.triggers:
+        print("no triggers loaded")
+        return
+    states = {str(row["name"]): row for row in runner.db.trigger_states()}
+    rows = []
+    for trigger in sorted(runner.registry.triggers, key=lambda item: runner.registry.trigger_id(item)):
+        trigger_id = runner.registry.trigger_id(trigger)
+        state = states.get(trigger_id)
+        rows.append(
+            {
+                "provider": runner.registry.trigger_provider(trigger) or "",
+                "name": trigger.name,
+                "topic": trigger.topic,
+                "action": trigger.action_command,
+                "mode": trigger.action_mode,
+                "cursor": str(state["last_event_id"]) if state is not None else "0",
+            }
+        )
+    print(
+        render_console_table(
+            Table(
+                (
+                    Column("provider", "PROVIDER"),
+                    Column("name", "TRIGGER"),
+                    Column("topic", "TOPIC"),
+                    Column("action", "ACTION"),
+                    Column("mode", "MODE"),
+                    Column("cursor", "CURSOR"),
+                ),
+                tuple(rows),
+            )
+        )
+    )
+
+
 def render_commandlets(runner: Runner) -> list[str]:
     """Return commandlets grouped under their plugin providers."""
     lines: list[str] = []
@@ -1166,17 +1356,132 @@ def page_generated_text(text: str) -> None:
 
 
 def start_default_services(runner: Runner) -> None:
-    """Start session-scoped service commandlets that should run by default."""
-    if runner.session_service_job_ids:
+    """Run framework trigger providers for session-scoped services."""
+    for trigger in runner.registry.triggers:
+        enable_session_trigger(runner, trigger)
+        if framework_trigger_fired(runner, trigger):
+            start_trigger_action(runner, trigger)
+
+
+def framework_trigger_fired(runner: Runner, trigger: TriggerSpec) -> bool:
+    """Return whether a provider-owned trigger has matched new event history."""
+    trigger_id = runner.registry.trigger_id(trigger)
+    after_id = runner.trigger_event_cursors.get(trigger_id, runner.db.trigger_cursor(trigger_id))
+    latest_seen = after_id
+    fired = False
+    for event in runner.db.events_matching(topic=trigger.topic, after_id=after_id, limit=10000):
+        event_id = int(event.id or 0)
+        latest_seen = max(latest_seen, event_id)
+        fire_key = (trigger_id, event_id)
+        if fire_key in runner.fired_session_trigger_events:
+            continue
+        if not trigger_matches(runner, trigger, event):
+            continue
+        runner.fired_session_trigger_events.add(fire_key)
+        payload = trigger_payload(runner, trigger)
+        payload.update(
+            {
+                "trigger_event_id": event_id,
+                "trigger_event_topic": event.topic,
+                "trigger_event_source": event.source,
+            }
+        )
+        runner.db.publish("framework.trigger.fired", payload, "framework")
+        runner.db.update_trigger_state(trigger_id, enabled=True, last_event_id=event_id, last_fired_event_id=event_id)
+        fired = True
+        break
+    runner.trigger_event_cursors[trigger_id] = latest_seen
+    runner.db.update_trigger_state(trigger_id, enabled=True, last_event_id=latest_seen)
+    return fired
+
+
+def start_trigger_action(runner: Runner, trigger: TriggerSpec) -> None:
+    """Start or run a trigger action command according to its mode."""
+    if trigger.action_mode not in {"service", "background", "foreground"}:
+        raise ValueError(f"unknown trigger action mode: {trigger.action_mode}")
+    if trigger.action_mode == "foreground":
+        runner.execute(trigger.action_command)
         return
-    if "watchdog" not in runner.registry.names():
+    if trigger.action_mode == "service" and any(str(row["command_line"] or "") == trigger.action_command for row in runner.db.jobs(active_only=True)):
         return
-    if any(str(row["command_line"] or "") == "watchdog --session-service" for row in runner.db.jobs(active_only=True)):
-        return
-    event = runner.start_background("watchdog --session-service")
+    event = runner.start_background(trigger.action_command)
+    if trigger.action_mode == "service":
+        job_id = event.payload.get("job_id")
+        if isinstance(job_id, int):
+            runner.session_service_job_ids.add(job_id)
+
+
+def trigger_matches(runner: Runner, trigger: TriggerSpec, event: Event) -> bool:
+    """Return whether one event satisfies a provider-owned trigger spec."""
+    if trigger.capability is not None and event.payload.get("capability") != trigger.capability:
+        return False
+    for key, expected in trigger.payload_equals:
+        if str(event.payload.get(key, "")) != expected:
+            return False
+    if event.payload.get("commandlet") in trigger.exclude_commandlets:
+        return False
+    if trigger.suppress_self_trigger and event.source == trigger_action_name(trigger):
+        return False
+    if not trigger.active_job:
+        return True
     job_id = event.payload.get("job_id")
-    if isinstance(job_id, int):
-        runner.session_service_job_ids.add(job_id)
+    if not isinstance(job_id, int):
+        return False
+    active_job_ids = {int(row["id"]) for row in runner.db.jobs(active_only=True)}
+    return job_id in active_job_ids
+
+
+def enable_session_trigger(runner: Runner, trigger: TriggerSpec) -> None:
+    """Audit that a provider-owned trigger is active for this session."""
+    trigger_id = runner.registry.trigger_id(trigger)
+    if trigger_id in runner.enabled_session_triggers:
+        return
+    runner.enabled_session_triggers.add(trigger_id)
+    cursor = runner.db.trigger_cursor(trigger_id)
+    if cursor:
+        runner.trigger_event_cursors.setdefault(trigger_id, cursor)
+    runner.db.update_trigger_state(trigger_id, enabled=True, last_event_id=cursor)
+    runner.db.publish("framework.trigger.enabled", trigger_payload(runner, trigger), "framework")
+
+
+def disable_session_triggers(runner: Runner) -> None:
+    """Audit provider-owned trigger deactivation for this session."""
+    if not runner.enabled_session_triggers:
+        return
+    triggers_by_id = {runner.registry.trigger_id(trigger): trigger for trigger in runner.registry.triggers}
+    for trigger_id in sorted(runner.enabled_session_triggers):
+        trigger = triggers_by_id.get(trigger_id)
+        payload = trigger_payload(runner, trigger) if trigger is not None else {"trigger_id": trigger_id}
+        runner.db.update_trigger_state(trigger_id, enabled=False)
+        runner.db.publish("framework.trigger.disabled", payload, "framework")
+    runner.enabled_session_triggers.clear()
+
+
+def trigger_payload(runner: Runner, trigger: TriggerSpec) -> dict[str, object]:
+    """Return audit payload metadata for one provider-owned trigger."""
+    payload: dict[str, object] = {
+        "trigger_id": runner.registry.trigger_id(trigger),
+        "name": trigger.name,
+        "topic": trigger.topic,
+        "action_command": trigger.action_command,
+        "action_mode": trigger.action_mode,
+        "description": trigger.description,
+        "active_job": trigger.active_job,
+        "payload_equals": dict(trigger.payload_equals),
+        "exclude_commandlets": list(trigger.exclude_commandlets),
+        "suppress_self_trigger": trigger.suppress_self_trigger,
+    }
+    provider = runner.registry.trigger_provider(trigger)
+    if provider is not None:
+        payload["provider"] = provider
+    if trigger.capability is not None:
+        payload["capability"] = trigger.capability
+    return payload
+
+
+def trigger_action_name(trigger: TriggerSpec) -> str:
+    """Return the commandlet name invoked by a trigger action."""
+    return shlex.split(trigger.action_command)[0] if trigger.action_command.strip() else ""
 
 
 def stop_session_services(runner: Runner) -> None:
@@ -1780,7 +2085,10 @@ def main(argv: list[str] | None = None) -> int:
             settings.database,
             plugin_root=args.plugin_root,
             plugin_config=args.plugin_config,
+            plugin_catalog=args.plugin_catalog,
+            plugin_catalog_key=args.plugin_catalog_key,
             forced_plugins=args.force_plugins,
+            plugin_trust_policy=plugin_trust_policy_from_args(args),
             encrypted=args.encrypt or args.encrypted,
             project=project,
         )
@@ -1800,6 +2108,8 @@ def main(argv: list[str] | None = None) -> int:
                 print("\n".join(runner.registry.provider_names()))
             case "cmds":
                 print_commandlets(runner, page=args.page)
+            case "triggers":
+                print_triggers(runner)
             case "history":
                 print_history()
             case "jobs":
@@ -1811,6 +2121,20 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     finally:
         shutdown_runner(runner)
+
+
+def plugin_trust_policy_from_args(args: argparse.Namespace) -> PluginTrustPolicy:
+    """Return explicit plugin trust bypasses selected on the CLI."""
+    if args.force_plugins:
+        return PluginTrustPolicy.developer_bypass()
+    if args.allow_untrusted_plugins:
+        return PluginTrustPolicy.developer_bypass()
+    return PluginTrustPolicy(
+        allow_unsigned_plugins=args.allow_unsigned_plugins,
+        allow_unsigned_plugin_manifests=args.allow_unsigned_plugin_manifests,
+        allow_missing_plugin_keys=args.allow_missing_plugin_keys,
+        allow_plugin_key_mismatch=args.allow_mismatched_plugin_keys,
+    )
 
 
 def extract_startup_project(argv: list[str]) -> tuple[str | None, list[str]]:

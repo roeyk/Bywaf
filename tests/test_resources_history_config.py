@@ -316,6 +316,13 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
                 "def plugin():\n"
                 "    return Example()\n"
             )
+            (plugin_dir / "bywaf.plugin.toml").write_text(
+                "[plugin]\n"
+                "native = true\n\n"
+                "[[commandlets]]\n"
+                'name = "example"\n'
+                "capabilities = []\n"
+            )
             with contextlib.redirect_stdout(io.StringIO()):
                 dispatch_repl_line(runner, f"load --force plugin={plugin_dir}")
             self.assertIn("example", runner.registry.names())

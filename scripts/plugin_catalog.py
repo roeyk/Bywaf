@@ -24,26 +24,47 @@ CATALOG_SCHEMA = "bywaf.plugin-catalog.v1"
 SIGNATURE_ALGORITHM = "ed25519"
 
 
-def build_catalog(root: Path = ROOT) -> dict[str, Any]:
-    """Build an unsigned catalog from bundled plugin config and sidecars."""
-    plugins_root = root / "bywaf" / "plugins"
-    config = tomllib.loads((plugins_root / "plugins.toml").read_text(encoding="utf-8"))
+def build_catalog(
+    root: Path = ROOT,
+    *,
+    plugin_root: Path | None = None,
+    plugin_config: Path | None = None,
+    source: str = "bundled",
+) -> dict[str, Any]:
+    """Build an unsigned catalog from plugin config and sidecars."""
+    plugins_root = plugin_root or root / "bywaf" / "plugins"
+    config_path = plugin_config or plugins_root / "plugins.toml"
+    config = tomllib.loads(config_path.read_text(encoding="utf-8"))
     entries = config.get("default_plugins", [])
     if not isinstance(entries, list):
-        raise ValueError("bywaf/plugins/plugins.toml default_plugins must be a list")
+        raise ValueError(f"{config_path} default_plugins must be a list")
+    filesystem_layout = plugin_root is not None
     return {
         "schema": CATALOG_SCHEMA,
         "created_at": datetime.now(timezone.utc).isoformat(),
-        "source": "bundled",
-        "plugins": [catalog_plugin_entry(plugins_root, str(entry)) for entry in entries],
+        "source": source,
+        "plugins": [
+            catalog_plugin_entry(plugins_root, str(entry), root=root, filesystem_layout=filesystem_layout)
+            for entry in entries
+        ],
     }
 
 
-def catalog_plugin_entry(plugins_root: Path, dotted_entry: str) -> dict[str, Any]:
+def catalog_plugin_entry(
+    plugins_root: Path,
+    dotted_entry: str,
+    *,
+    root: Path = ROOT,
+    filesystem_layout: bool = False,
+) -> dict[str, Any]:
     """Return one plugin catalog row from source and sidecar metadata."""
-    parts = dotted_entry.split(".")
-    module_path = plugins_root.joinpath(*parts).with_suffix(".py")
-    manifest_path = plugins_root.joinpath(*parts[:-1], f"{parts[-1]}.plugin.toml")
+    if filesystem_layout:
+        module_path = plugins_root / dotted_entry / "plugin.py"
+        manifest_path = plugins_root / dotted_entry / "bywaf.plugin.toml"
+    else:
+        parts = dotted_entry.split(".")
+        module_path = plugins_root.joinpath(*parts).with_suffix(".py")
+        manifest_path = plugins_root.joinpath(*parts[:-1], f"{parts[-1]}.plugin.toml")
     if not module_path.exists():
         raise FileNotFoundError(f"missing plugin module: {module_path}")
     if not manifest_path.exists():
@@ -53,28 +74,121 @@ def catalog_plugin_entry(plugins_root: Path, dotted_entry: str) -> dict[str, Any
     commandlet_rows = manifest_data.get("commandlets", [])
     if not isinstance(commandlet_rows, list):
         raise ValueError(f"{manifest_path} commandlets must be a list")
+    library_backed = bool_value(plugin_data, "library_backed", manifest_path, "plugin")
+    process_wrapped = bool_value(plugin_data, "process_wrapped", manifest_path, "plugin")
+    native = bool_value(plugin_data, "native", manifest_path, "plugin", default=not (library_backed or process_wrapped))
     return {
         "entry": dotted_entry,
-        "module": relative_posix(module_path),
-        "manifest": relative_posix(manifest_path),
+        "module": relative_posix(module_path, root=root),
+        "manifest": relative_posix(manifest_path, root=root),
         "module_sha256": sha256_file(module_path),
         "manifest_sha256": sha256_file(manifest_path),
         "traits": {
-            "native": bool(plugin_data.get("native", not (plugin_data.get("library_backed") or plugin_data.get("process_wrapped")))),
-            "library_backed": bool(plugin_data.get("library_backed", False)),
-            "process_wrapped": bool(plugin_data.get("process_wrapped", False)),
-            "service": bool(plugin_data.get("service", False)),
+            "native": native,
+            "library_backed": library_backed,
+            "process_wrapped": process_wrapped,
+            "service": bool_value(plugin_data, "service", manifest_path, "plugin"),
         },
-        "roles": [str(role) for role in plugin_data.get("roles", [])],
-        "commandlets": [
-            {
-                "name": str(row["name"]),
-                "capabilities": [str(value) for value in row.get("capabilities", [])],
-                "secret_options": [str(value) for value in row.get("secret_options", [])],
-            }
-            for row in commandlet_rows
-        ],
+        "roles": list(string_list_value(plugin_data, "roles", manifest_path, "plugin")),
+        "commandlets": catalog_commandlet_entries(commandlet_rows, manifest_path),
+        "triggers": catalog_trigger_entries(manifest_data, manifest_path),
     }
+
+
+def catalog_commandlet_entries(commandlet_rows: list[Any], manifest_path: Path) -> list[dict[str, Any]]:
+    """Return strict commandlet metadata rows from one sidecar manifest."""
+    rows: list[dict[str, Any]] = []
+    for index, row in enumerate(commandlet_rows, start=1):
+        if not isinstance(row, dict):
+            raise ValueError(f"{manifest_path} commandlets entry {index} must be a table")
+        context = f"commandlets entry {index}"
+        rows.append(
+            {
+                "name": required_string(row, "name", manifest_path, context),
+                "capabilities": list(string_list_value(row, "capabilities", manifest_path, context)),
+                "secret_options": list(string_list_value(row, "secret_options", manifest_path, context)),
+            }
+        )
+    return rows
+
+
+def catalog_trigger_entries(manifest_data: dict[str, Any], manifest_path: Path) -> list[dict[str, Any]]:
+    """Return trigger metadata declared by one plugin sidecar manifest."""
+    trigger_rows = manifest_data.get("triggers", [])
+    if not isinstance(trigger_rows, list):
+        raise ValueError(f"{manifest_path} triggers must be a list")
+    rows: list[dict[str, Any]] = []
+    for index, trigger in enumerate(trigger_rows, start=1):
+        if not isinstance(trigger, dict):
+            raise ValueError(f"{manifest_path} triggers entry {index} must be a table")
+        context = f"triggers entry {index}"
+        payload_equals = trigger.get("payload_equals", {})
+        if not isinstance(payload_equals, dict):
+            raise ValueError(f"{manifest_path} {context}.payload_equals must be a table")
+        for key, value in payload_equals.items():
+            if not isinstance(key, str) or not key:
+                raise ValueError(f"{manifest_path} {context}.payload_equals keys must be strings")
+            if not isinstance(value, str):
+                raise ValueError(f"{manifest_path} {context}.payload_equals values must be strings")
+        rows.append(
+            {
+                "name": required_string(trigger, "name", manifest_path, context),
+                "topic": required_string(trigger, "topic", manifest_path, context),
+                "action_command": required_string(trigger, "action_command", manifest_path, context),
+                "action_mode": optional_string(trigger, "action_mode", manifest_path, context, default="service"),
+                "description": optional_string(trigger, "description", manifest_path, context, default=""),
+                "capability": optional_string(trigger, "capability", manifest_path, context),
+                "payload_equals": payload_equals,
+                "active_job": bool_value(trigger, "active_job", manifest_path, context),
+                "exclude_commandlets": list(string_list_value(trigger, "exclude_commandlets", manifest_path, context)),
+                "suppress_self_trigger": bool_value(trigger, "suppress_self_trigger", manifest_path, context, default=True),
+            }
+        )
+    return rows
+
+
+def required_string(data: dict[str, Any], key: str, source: Path, context: str) -> str:
+    """Return a required non-empty string metadata field."""
+    value = data.get(key)
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"{source} {context}.{key} must be a string")
+    return value
+
+
+def optional_string(
+    data: dict[str, Any],
+    key: str,
+    source: Path,
+    context: str,
+    *,
+    default: str | None = None,
+) -> str | None:
+    """Return an optional string metadata field."""
+    value = data.get(key, default)
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"{source} {context}.{key} must be a string")
+    return value
+
+
+def bool_value(data: dict[str, Any], key: str, source: Path, context: str, *, default: bool = False) -> bool:
+    """Return an optional boolean metadata field."""
+    value = data.get(key, default)
+    if not isinstance(value, bool):
+        raise ValueError(f"{source} {context}.{key} must be true or false")
+    return value
+
+
+def string_list_value(data: dict[str, Any], key: str, source: Path, context: str) -> tuple[str, ...]:
+    """Return an optional list containing only non-empty strings."""
+    value = data.get(key, [])
+    if not isinstance(value, list):
+        raise ValueError(f"{source} {context}.{key} must be a list")
+    for index, item in enumerate(value, start=1):
+        if not isinstance(item, str) or not item:
+            raise ValueError(f"{source} {context}.{key} entry {index} must be a string")
+    return tuple(value)
 
 
 def table_value(data: dict[str, Any], key: str) -> dict[str, Any]:
@@ -94,9 +208,12 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def relative_posix(path: Path) -> str:
+def relative_posix(path: Path, *, root: Path = ROOT) -> str:
     """Return a repository-relative POSIX path."""
-    return path.relative_to(ROOT).as_posix()
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        return path.as_posix()
 
 
 def canonical_catalog_bytes(catalog: dict[str, Any]) -> bytes:
@@ -205,7 +322,8 @@ def verify_catalog(catalog_path: Path, public_path: Path) -> bool:
 def check_catalog_tree(catalog_path: Path, root: Path = ROOT) -> list[str]:
     """Return problems if a catalog no longer matches the plugin tree."""
     catalog = load_json(catalog_path)
-    current = build_catalog(root)
+    source = str(catalog.get("source") or "bundled")
+    current = build_catalog(root, source=source)
     problems: list[str] = []
     if catalog.get("schema") != CATALOG_SCHEMA:
         problems.append(f"unsupported schema: {catalog.get('schema')}")
@@ -251,6 +369,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     build = subparsers.add_parser("build", help="build an unsigned bundled plugin catalog")
     build.add_argument("--output", "-o", required=True, type=Path)
+    build.add_argument("--plugin-root", type=Path, help="filesystem plugin root to catalog")
+    build.add_argument("--plugin-config", type=Path, help="plugin config to catalog")
+    build.add_argument("--source", default="bundled", help="catalog source label")
 
     generate = subparsers.add_parser("generate-key", help="generate an encrypted Ed25519 keypair")
     generate.add_argument("--private", required=True, type=Path)
@@ -276,7 +397,10 @@ def main(argv: list[str] | None = None) -> int:
     """Run the maintainer catalog tool."""
     args = build_parser().parse_args(argv)
     if args.command == "build":
-        write_json(args.output, build_catalog())
+        write_json(
+            args.output,
+            build_catalog(plugin_root=args.plugin_root, plugin_config=args.plugin_config, source=args.source),
+        )
         return 0
     if args.command == "generate-key":
         generate_key(args.private, args.public)

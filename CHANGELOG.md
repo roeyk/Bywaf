@@ -5,7 +5,56 @@ so compatibility may change between testing releases.
 
 ## [0.10.0] - 2026-05-19
 
-Last updated: 2026-05-19 19:10:00 EDT
+Last updated: 2026-05-20 16:55:00 EDT
+
+### 2026-05-20 16:55:00 EDT
+
+#### Added
+
+- Added explicit startup trust bypass flags for external plugin development:
+  `--allow-unsigned-plugins`, `--allow-missing-plugin-keys`, and
+  `--allow-mismatched-plugin-keys`.
+- Added provider-owned trigger specs through the plugin API.
+- Added trigger lifecycle audit events: `framework.trigger.enabled`,
+  `framework.trigger.fired`, and `framework.trigger.disabled`.
+- Added runtime signed plugin catalog verification for filesystem plugin
+  roots through `--plugin-catalog` and `--plugin-catalog-key`.
+- Added plugin catalog trust audit events:
+  `plugin.catalog.verified`, `plugin.catalog.rejected`,
+  `plugin.catalog.entry.verified`, and `plugin.catalog.entry.rejected`.
+- Added the `triggers` built-in command for listing provider-owned trigger
+  rules.
+- Added `--allow-unsigned-plugin-manifests` as the narrow development bypass
+  for future framework-signed plugin manifests.
+- Added `scripts/plugin_check.py` for validating filesystem plugin packages
+  outside the Bywaf interpreter.
+
+#### Changed
+
+- Filesystem plugin packages now require `bywaf.plugin.toml`; the manifest is
+  enforced as package metadata before commandlets are exposed.
+- Trigger provider metadata is now declared in `[[triggers]]` manifest rows and
+  enforced against plugin `triggers()` output before rules are exposed.
+- Trigger cursor state now uses provider-scoped trigger identities so separate
+  providers can reuse local trigger names without colliding.
+- Added canonical config digest helpers for future framework-managed config
+  signatures; comments and formatting are ignored, and config lists are treated
+  as unordered sets.
+- Tightened plugin manifest and catalog metadata parsing so trust metadata
+  rejects wrong TOML value types instead of coercing them.
+- Added `--allow-untrusted-plugins` as the broad command-line argument for
+  explicitly waiving plugin signature, missing-key, and key-mismatch checks;
+  kept `--force-plugins` as a hidden compatibility alias.
+- Changed automatic watchdog startup to fire from the watchdog plugin's
+  network capability trigger instead of starting unconditionally for every
+  interactive session.
+- Added persisted per-trigger cursors, action modes, payload equality
+  predicates, and self-trigger suppression for trigger providers.
+- Extended the plugin catalog builder so external filesystem plugin roots can
+  be cataloged with `--plugin-root` and `--plugin-config`, including trigger
+  metadata read from sidecar manifests without importing plugin code.
+- Fixed filesystem catalog generation for single-segment plugin entries such
+  as `default_plugins = ["myplugin"]`.
 
 ### 2026-05-19 19:10:00 EDT
 

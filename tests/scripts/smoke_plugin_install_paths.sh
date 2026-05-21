@@ -41,7 +41,7 @@ run_probe() {
       --database "$WORKDIR/$commandlet.sqlite3" \
       --plugin-root "$root" \
       --plugin-config "$config" \
-      --force-plugins \
+      --allow-unsigned-plugins \
       run "$commandlet"
   )
   grep -q "$expected" <<<"$output"

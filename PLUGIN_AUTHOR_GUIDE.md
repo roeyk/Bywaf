@@ -705,9 +705,54 @@ for event in context.events.follow(
 Long-running service plugins should leave `until_parent_done` false and use
 `context.cancelled()`, `context.signals`, or their own configured stop
 condition. The bundled `watchdog` commandlet is the current service-plugin
-example: it is marked `service = true`, is started automatically for
-interactive sessions, and loops until the framework requests cancellation
-during shutdown.
+example: it is marked `service = true`, provides a trigger rule through its
+plugin API, and loops until the framework requests cancellation during
+shutdown. The trigger rule is provider-owned, not user-authored:
+
+```text
+ON plugin.capability.used capability=network.connect job_id=<active job>
+DO watchdog --session-service
+```
+
+Trigger providers should expose rules through plugin API calls so users do not
+define framework triggers directly. A trigger rule should name the event topic
+it observes, the exact condition it matches, and the framework action command
+it starts. Rules can use narrow built-in predicates such as a required
+capability, payload equality checks, active-job matching, excluded commandlets,
+and self-trigger suppression. Rules also declare an action mode:
+`foreground`, `background`, or `service`.
+
+Trigger rules must also be declared in the provider sidecar manifest with
+`[[triggers]]`. Bywaf compares manifest trigger metadata against the plugin's
+`triggers()` output before exposing the provider. This keeps catalog builds
+pre-import: release tooling can describe trigger behavior from
+`bywaf.plugin.toml` without executing plugin code.
+
+Trigger names are provider-local. The framework derives the durable trigger
+identity from the provider entry and local trigger name, such as
+`runtime.watchdog.network-access-starts-watchdog`. Cursors, fired-event
+tracking, and lifecycle audit events use that provider-scoped identity, while
+audit payloads also include the local `name` and `provider` separately.
+
+```toml
+[[triggers]]
+name = "network-access-starts-watchdog"
+topic = "plugin.capability.used"
+action_command = "watchdog --session-service"
+action_mode = "service"
+description = "ON network.connect capability use by an active job DO start the session watchdog"
+capability = "network.connect"
+active_job = true
+exclude_commandlets = ["watchdog"]
+suppress_self_trigger = true
+```
+
+Bywaf emits `framework.trigger.enabled` when a trigger rule becomes active,
+`framework.trigger.fired` when an event matches the rule, and
+`framework.trigger.disabled` when the session disables the rule. Fired events
+include the source event ID so auditors can trace what caused the action.
+Trigger evaluation uses per-trigger cursors so each rule only inspects events
+newer than its last high-water mark.
 
 Plugins should also avoid direct process execution with `subprocess`,
 `os.system`, or `os.spawn*`. External tool wrappers should declare
@@ -1107,23 +1152,88 @@ bywaf> load --force plugin=./scratch/file_info
 bywaf> load --force plugin=~/bywaf-plugins/file_info
 ```
 
-`--force` is required for filesystem plugins unless a future runtime catalog
-trust check verifies the plugin first. Filesystem plugins are arbitrary local
-Python code, so forcing a load is an explicit operator acknowledgement that the
-plugin has been reviewed.
+Filesystem plugin packages must include `plugin.py` and `bywaf.plugin.toml`.
+The manifest is required so Bywaf has commandlet names, capabilities, secret
+options, trigger rules, and plugin traits available as package metadata instead
+of treating imports as discovery.
+
+`--force` is required for REPL-loaded filesystem plugins unless a future
+runtime catalog trust check verifies the plugin first. Filesystem plugins are
+arbitrary local Python code, so forcing a load is an explicit operator
+acknowledgement that every plugin trust check is being bypassed for reviewed
+local code.
 
 Startup plugin roots use the same policy. If you start Bywaf with
-`--plugin-root` and `--plugin-config`, add `--force-plugins` only when that
-plugin tree has been reviewed:
+`--plugin-root` and `--plugin-config`, use `--allow-unsigned-plugins` for
+unsigned development plugins:
 
 ```text
-bywaf --plugin-root ~/.bywaf/plugins --plugin-config ~/.bywaf/plugins/plugins.toml --force-plugins
+bywaf --plugin-root ~/.bywaf/plugins --plugin-config ~/.bywaf/plugins/plugins.toml --allow-unsigned-plugins
 ```
+
+The plugin catalog builder uses the same filesystem entry layout as runtime
+loading. A config entry such as `default_plugins = ["myplugin"]` describes
+`~/.bywaf/plugins/myplugin/plugin.py` plus
+`~/.bywaf/plugins/myplugin/bywaf.plugin.toml`.
+
+For reviewed external plugin trees, build and sign a catalog, then provide the
+catalog and trusted public key at startup. Runtime verification checks the
+catalog signature and the `plugin.py` / `bywaf.plugin.toml` hashes before
+loading code:
+
+```text
+bywaf --plugin-root ~/.bywaf/plugins \
+  --plugin-config ~/.bywaf/plugins/plugins.toml \
+  --plugin-catalog ~/.bywaf/plugins/plugin-catalog.signed.json \
+  --plugin-catalog-key ~/.bywaf/plugins/plugin-catalog.pub.pem
+```
+
+Runtime catalog trust decisions are audited with
+`plugin.catalog.verified`, `plugin.catalog.rejected`,
+`plugin.catalog.entry.verified`, and `plugin.catalog.entry.rejected`.
+
+Framework-managed config signatures are planned to sign a digest of canonical
+parsed values, not raw TOML bytes. Comments, whitespace, and formatting can
+change freely without disturbing the signature; changes to the actual
+declarative values change the digest. Lists in framework-managed config are
+treated as unordered sets by policy, including capability lists, commandlet
+rows, trigger rows, roles, excluded commandlets, and key lists.
+
+Manifest metadata uses strict TOML types. Strings must be strings, booleans
+must be `true` or `false`, and string lists must contain only strings. Bywaf
+rejects malformed trust metadata instead of converting values such as
+`"false"` or `123` into plausible catalog entries.
+
+`--allow-missing-plugin-keys` and `--allow-mismatched-plugin-keys` are narrower
+developer bypasses for future signed external plugin catalogs when the trusted
+verification key is absent or does not match the plugin signature.
+`--allow-unsigned-plugin-manifests` is the narrow development bypass for future
+framework-signed `bywaf.plugin.toml` files when the manifest signature is
+absent. The legacy
+`--force-plugins` startup flag is a hidden compatibility alias for
+`--allow-untrusted-plugins`, a command-line argument that states the full
+tradeoff directly: load the plugin even though Bywaf cannot verify its
+signature, signing key, or key match.
 
 Bundled plugins live under `bywaf/plugins/` and are loaded from
 `bywaf/plugins/plugins.toml`. To make a bundled commandlet load automatically,
 add its dotted module path to `default_plugins` and add or update the matching
 sidecar manifest, for example `bywaf/plugins/http/nikto.plugin.toml`.
+
+# Standalone Plugin Checking
+
+Development plugin validation is done outside the Bywaf interpreter. Use the
+standalone checker before loading a filesystem plugin with development trust
+bypasses:
+
+```bash
+python3 scripts/plugin_check.py path/to/plugin-dir
+python3 scripts/plugin_check.py path/to/plugin-dir --json
+```
+
+The checker requires `plugin.py` and `bywaf.plugin.toml`, parses strict manifest
+metadata, imports the plugin factory, and verifies that declared commandlets,
+capabilities, secret options, and trigger specs match the code.
 
 # Plugin Catalog Signing
 

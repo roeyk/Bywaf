@@ -459,7 +459,8 @@ or update its sidecar manifest, such as `bywaf/plugins/http/nikto.plugin.toml`.
 
 External filesystem plugins are arbitrary local Python code. Bywaf refuses to
 load them unless plugin catalog trust is verified or the operator explicitly
-forces the load. Use `--force` only for code you have reviewed:
+allows an unsigned development plugin. Use `--force` only when you want to
+bypass every plugin trust check for reviewed local code:
 
 ```text
 bywaf> load --force plugin=myplugin
@@ -473,12 +474,41 @@ bywaf> load --force plugin=~/bywaf-plugins/myplugin
 ```
 
 Startup plugin roots use the same policy. If you start Bywaf with
-`--plugin-root` and `--plugin-config`, add `--force-plugins` only when that
-plugin tree has been reviewed:
+`--plugin-root` and `--plugin-config`, use `--allow-unsigned-plugins` for
+unsigned development plugins:
 
 ```text
-bywaf --plugin-root ~/.bywaf/plugins --plugin-config ~/.bywaf/plugins/plugins.toml --force-plugins
+bywaf --plugin-root ~/.bywaf/plugins --plugin-config ~/.bywaf/plugins/plugins.toml --allow-unsigned-plugins
 ```
+
+Filesystem catalog builds use the same entry layout as runtime loading. A
+single-segment config entry such as `default_plugins = ["myplugin"]` points to
+`~/.bywaf/plugins/myplugin/plugin.py` and
+`~/.bywaf/plugins/myplugin/bywaf.plugin.toml`.
+
+For reviewed external plugin trees, build and sign a catalog, then provide the
+catalog and trusted public key at startup:
+
+```text
+bywaf --plugin-root ~/.bywaf/plugins \
+  --plugin-config ~/.bywaf/plugins/plugins.toml \
+  --plugin-catalog ~/.bywaf/plugins/plugin-catalog.signed.json \
+  --plugin-catalog-key ~/.bywaf/plugins/plugin-catalog.pub.pem
+```
+
+Runtime catalog trust decisions are audited with
+`plugin.catalog.verified`, `plugin.catalog.rejected`,
+`plugin.catalog.entry.verified`, and `plugin.catalog.entry.rejected`.
+
+`--allow-missing-plugin-keys` and `--allow-mismatched-plugin-keys` are narrower
+developer bypasses for future signed external plugin catalogs when the trusted
+verification key is absent or does not match the plugin signature.
+`--allow-unsigned-plugin-manifests` is the narrow development bypass for future
+framework-signed `bywaf.plugin.toml` files when the manifest signature is
+absent. The legacy
+`--force-plugins` startup flag is a hidden compatibility alias for
+`--allow-untrusted-plugins`, which states the full tradeoff directly: load the
+plugin even though Bywaf cannot verify its signature, signing key, or key match.
 
 # Pipelines
 
@@ -807,10 +837,17 @@ state column; set it to `short` for compact lifecycle labels. Use `--page` on
 list actions such as `job list`, `pipeline list`, and `artifact list` to view
 long output through the framework pager.
 
-`watchdog` is Bywaf's default service-style runtime monitor. Interactive
-sessions start one session-scoped watchdog automatically and stop it during
-orderly shutdown. You can also run it manually to tune thresholds or test the
-current DB:
+`watchdog` is Bywaf's default service-style runtime monitor. Its plugin also
+provides a framework trigger:
+
+```text
+ON plugin.capability.used capability=network.connect job_id=<active job>
+DO watchdog --session-service
+```
+
+Interactive sessions evaluate provider-owned triggers and stop any
+session-scoped services during orderly shutdown. You can also run `watchdog`
+manually to tune thresholds or test the current DB:
 
 ```text
 bywaf> watchdog --once
@@ -819,6 +856,11 @@ bywaf> watchdog interval=10 timeout=300 stall-threshold=120 error-threshold=10 &
 
 The watchdog emits `watchdog.timeout`, `watchdog.stalled`, and
 `watchdog.error_rate` events when active jobs exceed the configured limits.
+Trigger lifecycle events are also auditable: `framework.trigger.enabled`,
+`framework.trigger.fired`, and `framework.trigger.disabled`. Fired events
+include the source event ID that caused the trigger to fire.
+Use `triggers` to list loaded provider-owned trigger rules and their current
+cursors.
 
 For live runtime control, `signal` is the canonical command for a concrete
 receiver: a job, a command run, or a `serial=` that resolves to one of those.
@@ -1579,6 +1621,13 @@ python3 tests/scripts/run_user_flow.py tests/user_flows/basic_runtime.bywaf
 User flows are ordinary `.bywaf` scripts with optional `# EXPECT:` and
 `# EXPECT-EVENT:` assertions. They exercise real REPL/script commands from the
 operator's point of view and double as executable examples.
+
+Validate a filesystem plugin package outside the Bywaf interpreter:
+
+```bash
+python3 scripts/plugin_check.py path/to/plugin-dir
+python3 scripts/plugin_check.py path/to/plugin-dir --json
+```
 
 Build and verify a maintainer-side signed plugin catalog:
 
