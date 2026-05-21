@@ -44,6 +44,7 @@ where = ["."]
 include = ["bywaf*"]
 
 [tool.setuptools.package-data]
+"bywaf.keys" = ["*.pem", "*.pub.pem", "*.example", "README.md"]
 "bywaf.plugins" = ["plugins.toml", "plugins.json"]
 "bywaf.plugins.analysis" = ["*.plugin.toml"]
 "bywaf.plugins.discovery" = ["*.plugin.toml"]

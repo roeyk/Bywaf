@@ -17,6 +17,10 @@ Use Bywaf only on systems and networks where you have explicit authorization.
 
 Common task examples are collected in [FAQ.md](FAQ.md).
 Evolving framework design notes are tracked in [DESIGN.md](DESIGN.md).
+Maintainer signing-key policy is recorded in
+[docs/KEY_MANAGEMENT.md](docs/KEY_MANAGEMENT.md).
+Base capabilities, triggers, and audit/event topics are listed in
+[docs/FRAMEWORK_SURFACE.md](docs/FRAMEWORK_SURFACE.md).
 Core architectural references:
 
 - [TERMINOLOGY.md](TERMINOLOGY.md) defines jobs, pipelines, runs, events,
@@ -509,6 +513,14 @@ development bypass for unsigned manifests. The legacy
 `--force-plugins` startup flag is a hidden compatibility alias for
 `--allow-untrusted-plugins`, which states the full tradeoff directly: load the
 plugin even though Bywaf cannot verify its signature, signing key, or key match.
+Official release public keys are reserved for `bywaf/keys/`; private signing
+keys are maintainer release material and must stay outside the repository and
+built packages. Official manifest-signing keys rotate annually with a staggered
+60-day transition: publish the next public key, temporarily trust both keys,
+switch signing to the next key, re-sign and release official plugin manifests,
+then retire the old key. Revocation is reserved for suspected compromise or
+emergency distrust. Use `--plugin-manifest-key` to trust a local or third-party
+public key.
 
 # Pipelines
 
@@ -1630,6 +1642,14 @@ python3 scripts/plugin_check.py path/to/plugin-dir --manifest-key manifest-signi
 python3 scripts/plugin_check.py path/to/plugin-dir --json
 python3 scripts/plugin_manifest_sign.py --manifest path/to/plugin-dir/bywaf.plugin.toml --private manifest-signing.pem --in-place
 ```
+
+The maintainer keeps private manifest-signing keys outside the repository.
+Official public verification keys are packaged under `bywaf/keys/` when
+released. Official manifest-signing keys rotate annually with a 60-day
+staggered transition; official plugin manifests are re-signed and released with
+the new key, and old keys are retired after the transition window. Revocation
+is reserved for suspected compromise or emergency distrust.
+`--plugin-manifest-key` can point at another trusted public key.
 
 Build and verify a maintainer-side signed plugin catalog:
 

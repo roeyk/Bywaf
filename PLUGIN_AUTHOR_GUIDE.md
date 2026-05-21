@@ -1215,6 +1215,28 @@ development bypass for unsigned manifests. The legacy
 tradeoff directly: load the plugin even though Bywaf cannot verify its
 signature, signing key, or key match.
 
+Official Bywaf releases reserve `bywaf/keys/plugin-manifest.pub.pem` for the
+framework public verification key. Only public keys belong in that package;
+private manifest-signing keys are maintainer release material and must stay
+outside the repository and built packages. Operators can use
+`--plugin-manifest-key` to trust a different public key for local or
+third-party plugin ecosystems.
+
+Official manifest-signing keys rotate annually with a 60-day staggered
+transition. Bywaf publishes the next public verification key before it is used
+for signing, temporarily trusts both the current and next public keys during
+the transition window, starts signing new manifests with the next private key
+on the rotation date, re-signs official plugin manifests with that key for the
+rotation release, and retires the old public key after the transition window.
+Retired keys are no longer part of the official trusted key set for normal
+annual rotation. Revocation is reserved for suspected compromise or emergency
+distrust and removes the affected key from trust immediately.
+
+Maintainer storage controls for private signing keys are recorded in
+`docs/KEY_MANAGEMENT.md`. In short: private keys stay encrypted, outside the
+repository and package tree, with permissions no broader than `0600`; public
+verification keys can be committed and packaged.
+
 Bundled plugins live under `bywaf/plugins/` and are loaded from
 `bywaf/plugins/plugins.toml`. To make a bundled commandlet load automatically,
 add its dotted module path to `default_plugins` and add or update the matching

@@ -3,6 +3,7 @@
 from pathlib import Path
 import contextlib
 import io
+import importlib.resources
 import importlib.util
 import json
 import tempfile
@@ -126,6 +127,17 @@ def sign_plugin_manifest(manifest_path: Path, private_path: Path) -> None:
 
 
 class PackagingInstallPathTests(unittest.TestCase):
+    def test_packaged_key_namespace_contains_public_key_policy_docs(self):
+        key_docs = importlib.resources.files("bywaf.keys").joinpath("README.md")
+        key_placeholder = importlib.resources.files("bywaf.keys").joinpath(
+            "plugin-manifest.pub.pem.example"
+        )
+
+        self.assertTrue(key_docs.is_file())
+        self.assertIn("Private manifest-signing keys", key_docs.read_text(encoding="utf-8"))
+        self.assertTrue(key_placeholder.is_file())
+        self.assertIn("not a public key", key_placeholder.read_text(encoding="utf-8"))
+
     def test_user_local_shaped_plugin_root_loads_from_config(self):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp, "home", "alice")

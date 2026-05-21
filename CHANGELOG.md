@@ -5,7 +5,24 @@ so compatibility may change between testing releases.
 
 ## [0.10.0] - 2026-05-19
 
-Last updated: 2026-05-20 16:55:00 EDT
+Last updated: 2026-05-21 14:27:13 EDT
+
+### 2026-05-21 14:27:13 EDT
+
+#### Added
+
+- Added a packaged `bywaf.keys` namespace for official public verification
+  keys and documented that private manifest-signing keys stay outside the
+  repository and built packages.
+- Documented annual rotation, a 60-day staggered transition, normal old-key
+  retirement, and emergency revocation as the official manifest-signing key
+  policy.
+- Documented that official plugin manifests are re-signed and released when
+  new official manifest-signing keys are published.
+- Added `docs/KEY_MANAGEMENT.md` with maintainer storage controls for private
+  manifest-signing keys and public verification keys.
+- Added `docs/FRAMEWORK_SURFACE.md` documenting base capabilities, trigger
+  rules, and audit/event topics.
 
 ### 2026-05-20 16:55:00 EDT
 

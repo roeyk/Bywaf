@@ -21,11 +21,11 @@ from bywaf.app import (
     repl,
     shutdown_runner,
     confirm_repl_exit,
-    start_default_services,
 )
 from bywaf.db import EventStore
 from bywaf.events import Event
 from bywaf.plugin import TriggerSpec
+from bywaf.triggers import start_default_services
 class AppDispatchTests(unittest.TestCase):
     def test_build_parser_accepts_run(self):
         parser = build_parser()
