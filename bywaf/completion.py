@@ -34,7 +34,8 @@ except ImportError:  # pragma: no cover - exercised only on minimal installs.
 
 from .config import Settings
 from .db import EventStore
-from .plugin import CompletionContext, CompletionSpec
+from .plugin import CompletionContext
+from .specs import CompletionSpec
 from .registry import PluginRegistry
 from .utils import complete_path
 

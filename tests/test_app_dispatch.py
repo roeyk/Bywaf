@@ -24,7 +24,7 @@ from bywaf.app import (
 )
 from bywaf.db import EventStore
 from bywaf.events import Event
-from bywaf.plugin import TriggerSpec
+from bywaf.specs import TriggerSpec
 from bywaf.triggers import start_default_services
 class AppDispatchTests(unittest.TestCase):
     def test_build_parser_accepts_run(self):

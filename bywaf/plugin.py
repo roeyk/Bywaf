@@ -17,105 +17,18 @@ from .db import EventStore, Subscription
 from .events import Event
 from .rendering import Column, Table, render_console_table
 from .secrets import InMemorySecretStore
+from .specs import (
+    ArgumentSpec,
+    CommandSpec,
+    CompletionSpec,
+    OptionSpec,
+    PlanItem,
+    PlanRepair,
+    PlanReport,
+    TriggerSpec,
+)
 from .stores import ArtifactStoreProtocol, EventStoreProtocol, MaintenanceStoreProtocol, RuntimeStoreProtocol
 from .varstore import ScopedVarStore, VarStore
-
-
-@dataclass(frozen=True, slots=True)
-class CompletionSpec:
-    """Declarative completion behavior for an option or argument."""
-
-    kind: str = "none"
-    values: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True, slots=True)
-class ArgumentSpec:
-    """Metadata for one positional argument.
-
-    Runtime validation still belongs to the commandlet's parser; this metadata
-    is for help, introspection, and shell completion.
-    """
-
-    name: str
-    description: str = ""
-    required: bool = True
-    completion: CompletionSpec = field(default_factory=CompletionSpec)
-
-
-@dataclass(frozen=True, slots=True)
-class OptionSpec:
-    """Metadata for one long option exposed by a commandlet."""
-
-    name: str
-    description: str
-    default: str | None = None
-    choices: tuple[str, ...] = ()
-    completion: CompletionSpec = field(default_factory=CompletionSpec)
-    secret: bool = False
-
-
-@dataclass(frozen=True, slots=True)
-class CommandSpec:
-    """Public commandlet contract consumed by help and completion."""
-
-    name: str
-    description: str
-    usage: str = ""
-    examples: tuple[str, ...] = ()
-    options: tuple[OptionSpec, ...] = ()
-    arguments: tuple[ArgumentSpec, ...] = ()
-    consumes: tuple[str, ...] = ()
-    emits: tuple[str, ...] = ()
-    capabilities: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True, slots=True)
-class TriggerSpec:
-    """Provider-owned ON event DO command rule consumed by the framework."""
-
-    name: str
-    topic: str
-    action_command: str
-    description: str = ""
-    action_mode: str = "service"
-    capability: str | None = None
-    payload_equals: tuple[tuple[str, str], ...] = ()
-    active_job: bool = False
-    exclude_commandlets: tuple[str, ...] = ()
-    suppress_self_trigger: bool = True
-
-
-@dataclass(frozen=True, slots=True)
-class PlanItem:
-    """One structured item in a pre-run plan."""
-
-    kind: str
-    value: str
-    details: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass(frozen=True, slots=True)
-class PlanRepair:
-    """A suggested per-run repair for a plan warning."""
-
-    name: str
-    description: str
-    patched_args: tuple[str, ...]
-    before: dict[str, Any] = field(default_factory=dict)
-    after: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass(frozen=True, slots=True)
-class PlanReport:
-    """Structured description of a commandlet's intended action."""
-
-    action: str
-    summary: str
-    items: tuple[PlanItem, ...] = ()
-    warnings: tuple[str, ...] = ()
-    repairs: tuple[PlanRepair, ...] = ()
-    requires_confirmation: bool = False
 
 
 def commandlet(

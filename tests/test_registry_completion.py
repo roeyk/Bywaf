@@ -22,7 +22,6 @@ from bywaf.completion import (
     tokens_after_last_pipe,
 )
 from bywaf.db import EventStore
-from bywaf.plugin import ArgumentSpec, CommandSpec, CompletionSpec, OptionSpec
 from bywaf.registry import (
     PluginRegistry,
     PluginTrustError,
@@ -35,6 +34,7 @@ from bywaf.registry import (
     parse_plugin_manifest,
     plugin_manifest_digest,
 )
+from bywaf.specs import ArgumentSpec, CommandSpec, CompletionSpec, OptionSpec
 from bywaf.tools.plugin_manifest import manifest_from_plugins
 
 

@@ -8,8 +8,8 @@ import signal
 import time
 
 from .events import Event
-from .plugin import TriggerSpec
 from .runner import Runner
+from .specs import TriggerSpec
 
 
 def start_default_services(runner: Runner) -> None:

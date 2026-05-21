@@ -15,7 +15,8 @@ from types import ModuleType
 from typing import Any
 
 from .config_canonical import canonical_config_bytes, config_digest
-from .plugin import Commandlet, TriggerSpec
+from .plugin import Commandlet
+from .specs import TriggerSpec
 from .secrets import InMemorySecretStore
 from .toml_support import load_data_file
 from .varstore import VarStore

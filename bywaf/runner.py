@@ -14,9 +14,10 @@ from typing import Callable, Literal
 from .command_parser import CommandInvocation, Pipeline, parse_invocation, parse_pipeline
 from .db import EventStore, Subscription
 from .events import Event
-from .plugin import CommandContext, PlanRepair, PlanReport, implied_capabilities
+from .plugin import CommandContext, implied_capabilities
 from .registry import PluginRegistry
 from .secrets import REDACTED_VALUE, fingerprint_secret, load_or_create_fingerprint_key
+from .specs import PlanRepair, PlanReport
 from .stores import EventStoreProtocol, MaintenanceStoreProtocol, RuntimeStoreProtocol
 from .varstore import VarStore
 

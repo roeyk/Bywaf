@@ -8,12 +8,8 @@ import unittest
 from bywaf.config import Settings, default_settings
 from bywaf.db import EventStore
 from bywaf.plugin import (
-    ArgumentSpec,
     CommandContext,
     CommandletBase,
-    CommandSpec,
-    CompletionSpec,
-    OptionSpec,
     argument,
     commandlet,
     format_table,
@@ -24,6 +20,7 @@ from bywaf.secrets import InMemorySecretStore
 from bywaf.messages import Host, Progress
 from bywaf.registry import PluginRegistry
 from bywaf.runner import redact_commandlet_args
+from bywaf.specs import ArgumentSpec, CommandSpec, CompletionSpec, OptionSpec
 from bywaf.varstore import ScopedVarStore, VarStore
 
 
