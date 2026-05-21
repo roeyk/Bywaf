@@ -15,7 +15,6 @@ from .core import Runner
 from .core import StageResult
 from .core import StageRun
 from .core import add_runner_arguments
-from .core import attach_cursor_event_id
 from .core import build_context
 from .core import effective_run_vars
 from .core import ensure_run_var_snapshot
@@ -23,14 +22,10 @@ from .core import execute_stage
 from .core import is_management_pipeline
 from .core import new_run_id
 from .core import normalize_valued_option_args
-from .core import pipeline_exists
 from .core import pipeline_visible_stage_events
 from .core import prepare_stage_runs
 from .core import publish_command_run_arguments
 from .core import publish_command_run_lifecycle
-from .core import publish_note_if_present
-from .core import publish_runtime_name
-from .core import publish_variable_expansion
 from .core import redact_commandlet_args
 from .core import run_stage_process
 from .core import secret_arg_metadata
@@ -46,3 +41,8 @@ from .plans import publish_plan_decision
 from .plans import publish_plan_repair
 from .plans import publish_plan_requested
 from .plans import publish_policy_evaluated
+from .runtime_events import attach_cursor_event_id
+from .runtime_events import pipeline_exists
+from .runtime_events import publish_note_if_present
+from .runtime_events import publish_runtime_name
+from .runtime_events import publish_variable_expansion
