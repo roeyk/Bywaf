@@ -138,6 +138,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--plugin-config", help="JSON or simple YAML plugin config")
     parser.add_argument("--plugin-catalog", help="signed JSON catalog for filesystem plugin trust")
     parser.add_argument("--plugin-catalog-key", help="trusted public key for --plugin-catalog")
+    parser.add_argument("--plugin-manifest-key", help="trusted public key for filesystem plugin manifest signatures")
     parser.add_argument(
         "--force-plugins",
         action="store_true",
@@ -188,6 +189,7 @@ def make_runner(
     plugin_config: str | Path | None = None,
     plugin_catalog: str | Path | None = None,
     plugin_catalog_key: str | Path | None = None,
+    plugin_manifest_key: str | Path | None = None,
     forced_plugins: bool = False,
     plugin_trust_policy: PluginTrustPolicy | None = None,
     encrypted: bool = False,
@@ -210,6 +212,7 @@ def make_runner(
             Path(plugin_config),
             plugin_catalog=Path(plugin_catalog) if plugin_catalog else None,
             plugin_catalog_key=Path(plugin_catalog_key) if plugin_catalog_key else None,
+            plugin_manifest_key=Path(plugin_manifest_key) if plugin_manifest_key else None,
             forced_plugins=forced_plugins,
             plugin_trust_policy=plugin_trust_policy,
             varstore=registry.varstore,
@@ -231,6 +234,7 @@ def load_filesystem_registry(
     *,
     plugin_catalog: Path | None,
     plugin_catalog_key: Path | None,
+    plugin_manifest_key: Path | None,
     forced_plugins: bool,
     plugin_trust_policy: PluginTrustPolicy | None,
     varstore,
@@ -265,8 +269,10 @@ def load_filesystem_registry(
     policy = PluginTrustPolicy.developer_bypass() if forced_plugins else plugin_trust_policy
     for entry in parse_plugin_config(plugin_config):
         plugin_dir = plugin_root / entry
+        catalog_entry_verified = False
         if catalog is not None:
             if catalog.verifies_entry(plugin_dir, entry):
+                catalog_entry_verified = True
                 db.publish(
                     "plugin.catalog.entry.verified",
                     plugin_catalog_entry_payload(catalog.path, plugin_dir, entry),
@@ -279,7 +285,22 @@ def load_filesystem_registry(
                     "framework",
                 )
                 raise PluginTrustError(f"warning: refusing external plugin {plugin_dir}; catalog entry missing or hash mismatch")
-        registry.load_filesystem_entry(plugin_root, entry, trust_policy=policy, catalog=catalog)
+        try:
+            registry.load_filesystem_entry(plugin_root, entry, trust_policy=policy, catalog=catalog, manifest_key=plugin_manifest_key)
+        except PluginTrustError as exc:
+            if not catalog_entry_verified:
+                db.publish(
+                    "plugin.manifest.rejected",
+                    plugin_manifest_payload(plugin_dir / "bywaf.plugin.toml", plugin_manifest_key, entry, reason=str(exc)),
+                    "framework",
+                )
+            raise
+        if plugin_manifest_key is not None and not catalog_entry_verified and not (policy and policy.allow_unsigned_plugin_manifests):
+            db.publish(
+                "plugin.manifest.verified",
+                plugin_manifest_payload(plugin_dir / "bywaf.plugin.toml", plugin_manifest_key, entry),
+                "framework",
+            )
     return registry
 
 
@@ -319,6 +340,24 @@ def plugin_catalog_entry_payload(
         "plugin": str(plugin_dir),
         "module": str(plugin_dir / "plugin.py"),
         "manifest": str(plugin_dir / "bywaf.plugin.toml"),
+    }
+    if reason is not None:
+        payload["reason"] = reason
+    return payload
+
+
+def plugin_manifest_payload(
+    manifest: Path,
+    public_key: Path | None,
+    entry: str,
+    *,
+    reason: str | None = None,
+) -> dict[str, object]:
+    """Return audit payload for manifest-level trust events."""
+    payload: dict[str, object] = {
+        "entry": entry,
+        "manifest": str(manifest),
+        "public_key": str(public_key) if public_key is not None else None,
     }
     if reason is not None:
         payload["reason"] = reason
@@ -2087,6 +2126,7 @@ def main(argv: list[str] | None = None) -> int:
             plugin_config=args.plugin_config,
             plugin_catalog=args.plugin_catalog,
             plugin_catalog_key=args.plugin_catalog_key,
+            plugin_manifest_key=args.plugin_manifest_key,
             forced_plugins=args.force_plugins,
             plugin_trust_policy=plugin_trust_policy_from_args(args),
             encrypted=args.encrypt or args.encrypted,

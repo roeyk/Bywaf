@@ -1,13 +1,21 @@
 """Tests for the standalone filesystem plugin checker."""
+# pyright: reportMissingImports=false
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts.plugin_check import check_plugin, main, render_text
+from scripts.plugin_manifest_sign import main as sign_manifest_main
+
+
+def cryptography_available() -> bool:
+    return importlib.util.find_spec("cryptography") is not None
 
 
 class PluginCheckTests(unittest.TestCase):
@@ -40,6 +48,40 @@ class PluginCheckTests(unittest.TestCase):
             data = json.loads(output)
             self.assertTrue(data["ok"])
             self.assertEqual(data["commandlets"], ["example"])
+
+    @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
+    def test_check_plugin_verifies_signed_manifest(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            plugin_dir = write_plugin_fixture(tmp_path, capabilities=())
+            private_path, public_path = write_manifest_signing_key(tmp_path)
+            with patch("getpass.getpass", return_value="passphrase"):
+                self.assertEqual(
+                    sign_manifest_main(
+                        [
+                            "--manifest",
+                            str(plugin_dir / "bywaf.plugin.toml"),
+                            "--private",
+                            str(private_path),
+                            "--in-place",
+                        ]
+                    ),
+                    0,
+                )
+
+            report = check_plugin(plugin_dir, manifest_key=public_path)
+
+            self.assertTrue(report["ok"])
+            self.assertEqual(report["manifest_signature"], "verified")
+
+    def test_check_plugin_verify_requires_manifest_key(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(Path(tmp), capabilities=())
+
+            report = check_plugin(plugin_dir, verify_manifest=True)
+
+            self.assertFalse(report["ok"])
+            self.assertIn("--verify requires --manifest-key", report["errors"])
 
     def test_check_plugin_text_output(self):
         report = {"ok": False, "plugin": "/tmp/missing", "commandlets": [], "triggers": [], "errors": ["missing"]}
@@ -78,6 +120,29 @@ def write_plugin_fixture(
         "]\n"
     )
     return plugin_dir
+
+
+def write_manifest_signing_key(tmp_path: Path) -> tuple[Path, Path]:
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    private_path = tmp_path / "manifest-signing.pem"
+    public_path = tmp_path / "manifest-signing.pub.pem"
+    private_key = Ed25519PrivateKey.generate()
+    private_path.write_bytes(
+        private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.BestAvailableEncryption(b"passphrase"),
+        )
+    )
+    public_path.write_bytes(
+        private_key.public_key().public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+    )
+    return private_path, public_path
 
 
 def capture_stdout(fn):

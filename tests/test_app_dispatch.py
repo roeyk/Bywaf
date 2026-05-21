@@ -84,9 +84,19 @@ class AppDispatchTests(unittest.TestCase):
 
     def test_build_parser_accepts_plugin_catalog_trust_inputs(self):
         parser = build_parser()
-        args = parser.parse_args(["--plugin-catalog", "catalog.json", "--plugin-catalog-key", "catalog.pub"])
+        args = parser.parse_args(
+            [
+                "--plugin-catalog",
+                "catalog.json",
+                "--plugin-catalog-key",
+                "catalog.pub",
+                "--plugin-manifest-key",
+                "manifest.pub",
+            ]
+        )
         self.assertEqual(args.plugin_catalog, "catalog.json")
         self.assertEqual(args.plugin_catalog_key, "catalog.pub")
+        self.assertEqual(args.plugin_manifest_key, "manifest.pub")
 
     def test_build_parser_rejects_direct_os_commandlets(self):
         parser = build_parser()

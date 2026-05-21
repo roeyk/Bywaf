@@ -28,6 +28,10 @@ Last updated: 2026-05-20 16:55:00 EDT
   for future framework-signed plugin manifests.
 - Added `scripts/plugin_check.py` for validating filesystem plugin packages
   outside the Bywaf interpreter.
+- Added plugin manifest signature verification through `--plugin-manifest-key`
+  and `scripts/plugin_manifest_sign.py`.
+- Added `scripts/plugin_check.py --verify` for requiring manifest signature
+  verification during development preflight checks.
 
 #### Changed
 
@@ -40,6 +44,8 @@ Last updated: 2026-05-20 16:55:00 EDT
 - Added canonical config digest helpers for future framework-managed config
   signatures; comments and formatting are ignored, and config lists are treated
   as unordered sets.
+- Added plugin manifest trust audit events: `plugin.manifest.verified` and
+  `plugin.manifest.rejected`.
 - Tightened plugin manifest and catalog metadata parsing so trust metadata
   rejects wrong TOML value types instead of coercing them.
 - Added `--allow-untrusted-plugins` as the broad command-line argument for

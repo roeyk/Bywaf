@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 from bywaf.app import main, make_runner
 from bywaf.db import EventStore
+from bywaf.registry import plugin_manifest_signature_block
 from scripts.plugin_catalog import build_catalog, sign_catalog, write_json
 
 
@@ -88,6 +89,42 @@ def write_signed_catalog(tmp_path: Path, root: Path, config: Path) -> tuple[Path
     return signed, public_path
 
 
+def write_manifest_signing_key(tmp_path: Path) -> tuple[Path, Path]:
+    """Create an encrypted manifest signing keypair and return (private, public)."""
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    private_path = tmp_path / "manifest-signing.pem"
+    public_path = tmp_path / "manifest-signing.pub.pem"
+    private_key = Ed25519PrivateKey.generate()
+    private_path.write_bytes(
+        private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.BestAvailableEncryption(b"passphrase"),
+        )
+    )
+    public_path.write_bytes(
+        private_key.public_key().public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+    )
+    return private_path, public_path
+
+
+def sign_plugin_manifest(manifest_path: Path, private_path: Path) -> None:
+    """Append a framework manifest signature block to one manifest."""
+    import tomllib
+
+    data = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
+    block = plugin_manifest_signature_block(data, private_path, passphrase="passphrase")
+    lines = ["", "[bywaf_signature]"]
+    for key in ("schema", "algorithm", "digest_algorithm", "digest", "value"):
+        lines.append(f'{key} = "{block[key]}"')
+    manifest_path.write_text(manifest_path.read_text(encoding="utf-8").rstrip() + "\n" + "\n".join(lines) + "\n")
+
+
 class PackagingInstallPathTests(unittest.TestCase):
     def test_user_local_shaped_plugin_root_loads_from_config(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -132,6 +169,7 @@ class PackagingInstallPathTests(unittest.TestCase):
                         "--plugin-config",
                         str(config),
                         "--allow-unsigned-plugins",
+                        "--allow-unsigned-plugin-manifests",
                         "run",
                         "userprobe",
                     ]
@@ -139,6 +177,101 @@ class PackagingInstallPathTests(unittest.TestCase):
 
             self.assertEqual(status, 0)
             self.assertIn("'source': 'user-local'", output.getvalue())
+
+    def test_cli_run_rejects_unsigned_manifest_without_manifest_bypass(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp, "home", "alice", ".bywaf", "plugins")
+            write_plugin(root, "local/userprobe", "userprobe", "user-local")
+            config = root / "plugins.toml"
+            config.write_text('default_plugins = ["local/userprobe"]\n')
+            db_path = Path(tmp, "db.sqlite3")
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                status = main(
+                    [
+                        "--database",
+                        str(db_path),
+                        "--plugin-root",
+                        str(root),
+                        "--plugin-config",
+                        str(config),
+                        "--allow-unsigned-plugins",
+                        "run",
+                        "userprobe",
+                    ]
+                )
+
+            self.assertEqual(status, 1)
+            rejected = EventStore(db_path).events_for_topic("plugin.manifest.rejected")[0]
+            self.assertIn("manifest signature is missing", rejected.payload["reason"])
+
+    @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
+    def test_cli_run_loads_external_plugin_with_signed_manifest(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            root = tmp_path / "plugins"
+            plugin_dir = write_plugin(root, "local/userprobe", "userprobe", "user-local")
+            config = root / "plugins.toml"
+            config.write_text('default_plugins = ["local/userprobe"]\n')
+            private_path, public_path = write_manifest_signing_key(tmp_path)
+            sign_plugin_manifest(plugin_dir / "bywaf.plugin.toml", private_path)
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                status = main(
+                    [
+                        "--database",
+                        str(tmp_path / "db.sqlite3"),
+                        "--plugin-root",
+                        str(root),
+                        "--plugin-config",
+                        str(config),
+                        "--plugin-manifest-key",
+                        str(public_path),
+                        "--allow-unsigned-plugins",
+                        "run",
+                        "userprobe",
+                    ]
+                )
+
+            self.assertEqual(status, 0)
+            self.assertIn("'source': 'user-local'", output.getvalue())
+            verified = EventStore(tmp_path / "db.sqlite3").events_for_topic("plugin.manifest.verified")[0]
+            self.assertEqual(verified.payload["entry"], "local/userprobe")
+
+    @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
+    def test_cli_run_rejects_tampered_signed_manifest(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            root = tmp_path / "plugins"
+            plugin_dir = write_plugin(root, "local/userprobe", "userprobe", "user-local")
+            config = root / "plugins.toml"
+            config.write_text('default_plugins = ["local/userprobe"]\n')
+            private_path, public_path = write_manifest_signing_key(tmp_path)
+            manifest_path = plugin_dir / "bywaf.plugin.toml"
+            sign_plugin_manifest(manifest_path, private_path)
+            manifest_path.write_text(manifest_path.read_text(encoding="utf-8").replace("native = true", "native = false"))
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                status = main(
+                    [
+                        "--database",
+                        str(tmp_path / "db.sqlite3"),
+                        "--plugin-root",
+                        str(root),
+                        "--plugin-config",
+                        str(config),
+                        "--plugin-manifest-key",
+                        str(public_path),
+                        "--allow-unsigned-plugins",
+                        "run",
+                        "userprobe",
+                    ]
+                )
+
+            self.assertEqual(status, 1)
+            rejected = EventStore(tmp_path / "db.sqlite3").events_for_topic("plugin.manifest.rejected")[0]
+            self.assertIn("manifest digest mismatch", rejected.payload["reason"])
 
     @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
     def test_cli_run_loads_external_plugin_with_signed_catalog(self):

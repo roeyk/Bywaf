@@ -769,7 +769,7 @@ class RegistryCompletionTests(unittest.TestCase):
             registry = PluginRegistry.from_config(
                 root,
                 config,
-                trust_policy=PluginTrustPolicy(allow_unsigned_plugins=True),
+                trust_policy=PluginTrustPolicy(allow_unsigned_plugins=True, allow_unsigned_plugin_manifests=True),
             )
 
             self.assertIn("example", registry.names())

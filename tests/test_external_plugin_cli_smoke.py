@@ -64,6 +64,39 @@ class ExternalPluginCliSmokeTests(unittest.TestCase):
             self.assertTrue(data["plugins"][0]["module"].endswith("/plugins/myplugin/plugin.py"))
 
     @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
+    def test_plugin_manifest_sign_script_signs_manifest_for_plugin_check(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            plugin_root = tmp_path / "plugins"
+            plugin_dir = write_external_plugin(plugin_root, "myplugin", "smokeprobe", "manifest-sign")
+            private_key, public_key = write_signing_key(tmp_path, "manifest-signing")
+
+            sign_result = run_python_script(
+                "scripts/plugin_manifest_sign.py",
+                "--manifest",
+                str(plugin_dir / "bywaf.plugin.toml"),
+                "--private",
+                str(private_key),
+                "--passphrase-env",
+                "BYWAF_TEST_KEY_PASSPHRASE",
+                "--in-place",
+            )
+
+            self.assertEqual(sign_result.returncode, 0, sign_result.stdout + sign_result.stderr)
+            self.assertIn("[bywaf_signature]", (plugin_dir / "bywaf.plugin.toml").read_text())
+            check_result = run_python_script(
+                "scripts/plugin_check.py",
+                str(plugin_dir),
+                "--manifest-key",
+                str(public_key),
+                "--verify",
+                "--json",
+            )
+            self.assertEqual(check_result.returncode, 0, check_result.stdout + check_result.stderr)
+            report = json.loads(check_result.stdout)
+            self.assertEqual(report["manifest_signature"], "verified")
+
+    @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
     def test_bywaf_cli_runs_external_plugin_with_signed_catalog(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
@@ -117,13 +150,21 @@ def write_external_plugin(root: Path, entry: str, commandlet: str, source: str) 
 
 
 def write_signed_catalog(tmp_path: Path, plugin_root: Path, config: Path) -> tuple[Path, Path]:
+    catalog = tmp_path / "catalog.json"
+    signed = tmp_path / "catalog.signed.json"
+    private_path, public_path = write_signing_key(tmp_path, "catalog-signing")
+    write_json(catalog, build_catalog(tmp_path, plugin_root=plugin_root, plugin_config=config, source="smoke"))
+    with patch("getpass.getpass", return_value="passphrase"):
+        sign_catalog(catalog, private_path, "smoke-test", signed)
+    return signed, public_path
+
+
+def write_signing_key(tmp_path: Path, name: str) -> tuple[Path, Path]:
     from cryptography.hazmat.primitives import serialization
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-    catalog = tmp_path / "catalog.json"
-    signed = tmp_path / "catalog.signed.json"
-    private_path = tmp_path / "catalog-signing.pem"
-    public_path = tmp_path / "catalog-signing.pub.pem"
+    private_path = tmp_path / f"{name}.pem"
+    public_path = tmp_path / f"{name}.pub.pem"
     private_key = Ed25519PrivateKey.generate()
     private_path.write_bytes(
         private_key.private_bytes(
@@ -138,10 +179,7 @@ def write_signed_catalog(tmp_path: Path, plugin_root: Path, config: Path) -> tup
             format=serialization.PublicFormat.SubjectPublicKeyInfo,
         )
     )
-    write_json(catalog, build_catalog(tmp_path, plugin_root=plugin_root, plugin_config=config, source="smoke"))
-    with patch("getpass.getpass", return_value="passphrase"):
-        sign_catalog(catalog, private_path, "smoke-test", signed)
-    return signed, public_path
+    return private_path, public_path
 
 
 def run_python_script(*args: str) -> subprocess.CompletedProcess[str]:
@@ -169,6 +207,7 @@ def run_module(module: str, *args: str) -> subprocess.CompletedProcess[str]:
 def smoke_env() -> dict[str, str]:
     env = os.environ.copy()
     env["PYTHONPATH"] = str(ROOT)
+    env["BYWAF_TEST_KEY_PASSPHRASE"] = "passphrase"
     return env
 
 

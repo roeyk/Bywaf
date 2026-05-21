@@ -552,9 +552,9 @@ Runtime catalog trust decisions are audited with
 `--allow-missing-plugin-keys` and `--allow-mismatched-plugin-keys` are narrower
 developer bypasses for future signed external plugin catalogs when the trusted
 verification key is absent or does not match the plugin signature.
-`--allow-unsigned-plugin-manifests` is the narrow development bypass for future
-framework-signed `bywaf.plugin.toml` files when the manifest signature is
-absent. The legacy
+`--plugin-manifest-key` supplies the trusted public key for signed
+`bywaf.plugin.toml` files. `--allow-unsigned-plugin-manifests` is the narrow
+development bypass for unsigned manifests. The legacy
 `--force-plugins` startup flag is a hidden compatibility alias for
 `--allow-untrusted-plugins`, which states the full tradeoff directly: load the
 plugin even though Bywaf cannot verify its signature, signing key, or key match.
@@ -1675,7 +1675,9 @@ Validate a filesystem plugin package outside the Bywaf interpreter:
 
 ```bash
 python3 scripts/plugin_check.py path/to/plugin-dir
+python3 scripts/plugin_check.py path/to/plugin-dir --manifest-key manifest-signing.pub.pem --verify
 python3 scripts/plugin_check.py path/to/plugin-dir --json
+python3 scripts/plugin_manifest_sign.py --manifest path/to/plugin-dir/bywaf.plugin.toml --private manifest-signing.pem --in-place
 ```
 
 Build and verify a maintainer-side signed plugin catalog:
