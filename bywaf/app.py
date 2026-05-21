@@ -26,7 +26,8 @@ from .config import Settings
 from .db import EventStore, Subscription, database_appears_encrypted, export_encrypted_database, export_plaintext_database
 from .events import Event
 from .nmap_backend import NmapScanError, NmapUnavailableError
-from .plugin import CommandContext, normalize_argv, run_process_argv
+from .plugin import CommandContext
+from .plugin_process import normalize_argv, run_process_argv
 from .projects import ProjectPaths, create_project, list_projects, require_project
 from .registry import (
     PluginRegistry,

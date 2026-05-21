@@ -13,9 +13,9 @@ from bywaf.plugin import (
     argument,
     commandlet,
     format_table,
-    normalize_argv,
     option,
 )
+from bywaf.plugin_process import normalize_argv
 from bywaf.secrets import InMemorySecretStore
 from bywaf.messages import Host, Progress
 from bywaf.registry import PluginRegistry
