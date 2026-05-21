@@ -12,22 +12,22 @@ Used by:
 from __future__ import annotations
 
 import argparse
-import getpass
 import multiprocessing as mp
 import os
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Literal
+from typing import Callable
 
 from ..command_parser import CommandInvocation, Pipeline, parse_invocation, parse_pipeline
+from .at_files import expand_at_file_args
 from .jobs import JobLifecycle, run_attached_pipeline_job, run_background_job
+from .plans import handle_plan_if_needed
 from ..db import EventStore, Subscription
 from ..events import Event
 from ..plugin import CommandContext, implied_capabilities
 from ..registry import PluginRegistry
 from ..secrets import REDACTED_VALUE, fingerprint_secret, load_or_create_fingerprint_key
-from ..specs import PlanRepair, PlanReport
 from ..stores import EventStoreProtocol, MaintenanceStoreProtocol, RuntimeStoreProtocol
 from ..varstore import VarStore
 
@@ -46,16 +46,6 @@ class StageResult:
     """Events produced by one executed pipeline stage."""
 
     events: list[Event]
-
-
-@dataclass(frozen=True, slots=True)
-class AtFileExpansion:
-    """One framework-level at-file expansion applied to commandlet args."""
-
-    token: str
-    mode: Literal["text", "lines", "raw"]
-    path: Path
-    produced: int
 
 
 class Runner:
@@ -678,295 +668,6 @@ def secret_arg_metadata(context: CommandContext, name: str, value: str) -> dict[
         "option": name,
         "fingerprint": fingerprint_secret(value, load_or_create_fingerprint_key()).format(),
     }
-
-
-def handle_plan_if_needed(
-    context: CommandContext,
-    plugin,
-    args: list[str],
-    input_events: list[Event],
-    invocation: CommandInvocation,
-) -> list[str] | None:
-    """Run a commandlet plan hook, audit it, and enforce approval if needed."""
-    planner = getattr(plugin, "plan", None)
-    if planner is None:
-        if invocation.plan_only:
-            context.output(f"{plugin.spec.name}: no plan available")
-            return None
-        return args
-    report = planner(context, args, input_events)
-    if not isinstance(report, PlanReport):
-        raise ValueError(f"{plugin.spec.name} plan() must return PlanReport")
-    must_approve = report.requires_confirmation or bool(report.warnings)
-    if not invocation.plan_only and not must_approve:
-        return args
-    request = publish_plan_requested(context, report)
-    publish_policy_evaluated(context, request, report)
-    context.output(format_plan_report(report))
-    repaired_args = maybe_apply_plan_repair(context, request, report, invocation)
-    if invocation.plan_only:
-        return None
-    if not must_approve:
-        return repaired_args or args
-    if invocation.approved:
-        publish_plan_decision(context, request, True, "cli-yes", "--yes")
-        return repaired_args or args
-    if context.background:
-        publish_plan_decision(context, request, False, "background", "missing --yes")
-        raise ValueError(f"{plugin.spec.name} plan requires --yes for background execution")
-    answer = input("Approve this plan? type YES: ")
-    approved = answer == "YES"
-    publish_plan_decision(context, request, approved, "interactive", answer)
-    if not approved:
-        raise ValueError("plan denied")
-    return repaired_args or args
-
-
-def maybe_apply_plan_repair(
-    context: CommandContext,
-    request: Event,
-    report: PlanReport,
-    invocation: CommandInvocation,
-) -> list[str] | None:
-    """Apply the first suggested repair when the operator or --yes accepts it."""
-    if not report.repairs:
-        return None
-    repair = report.repairs[0]
-    if invocation.approved:
-        publish_plan_repair(context, request, repair, approved=True, method="cli-yes", answer="--yes")
-        return list(repair.patched_args)
-    if invocation.plan_only or context.background:
-        return None
-    answer = input(f"Apply suggested repair '{repair.name}'? type YES: ")
-    approved = answer == "YES"
-    publish_plan_repair(context, request, repair, approved=approved, method="interactive", answer=answer)
-    return list(repair.patched_args) if approved else None
-
-
-def publish_plan_requested(context: CommandContext, report: PlanReport) -> Event:
-    """Persist the plan report shown to the operator."""
-    if context._db is None:
-        raise ValueError("plan auditing requires an active database")
-    return context._db.publish(
-        "plan.requested",
-        {
-            "commandlet": context.source,
-            "action": report.action,
-            "summary": report.summary,
-            "items": [
-                {"kind": item.kind, "value": item.value, "details": item.details}
-                for item in report.items
-            ],
-            "warnings": list(report.warnings),
-            "repairs": [
-                {
-                    "name": repair.name,
-                    "description": repair.description,
-                    "before": repair.before,
-                    "after": repair.after,
-                }
-                for repair in report.repairs
-            ],
-            "requires_confirmation": report.requires_confirmation,
-            "job_id": context.job_id,
-            "pipeline_id": context.pipeline_id,
-            "command_run_id": context.command_run_id,
-        },
-        "framework",
-        pipeline_id=context.pipeline_id,
-        command_run_id=context.command_run_id,
-        parent_command_run_id=context.parent_command_run_id,
-    )
-
-
-def publish_policy_evaluated(context: CommandContext, request: Event, report: PlanReport) -> Event:
-    """Persist the framework policy decision for a plan."""
-    if context._db is None:
-        raise ValueError("policy auditing requires an active database")
-    decision = "warn" if report.warnings else "allow"
-    return context._db.publish(
-        "policy.evaluated",
-        {
-            "request_event_id": request.id,
-            "decision": decision,
-            "warnings": list(report.warnings),
-            "repairs": [repair.name for repair in report.repairs],
-            "job_id": context.job_id,
-            "pipeline_id": context.pipeline_id,
-            "command_run_id": context.command_run_id,
-        },
-        "framework",
-        pipeline_id=context.pipeline_id,
-        command_run_id=context.command_run_id,
-        parent_command_run_id=context.parent_command_run_id,
-    )
-
-
-def publish_plan_decision(context: CommandContext, request: Event, approved: bool, method: str, answer: str) -> Event:
-    """Persist the operator's approval or denial of a plan."""
-    if context._db is None:
-        raise ValueError("plan approval auditing requires an active database")
-    return context._db.publish(
-        "plan.approved" if approved else "plan.denied",
-        {
-            "request_event_id": request.id,
-            "approved": approved,
-            "approval_method": method,
-            "answer": answer,
-            "approved_by": getpass.getuser(),
-            "job_id": context.job_id,
-            "pipeline_id": context.pipeline_id,
-            "command_run_id": context.command_run_id,
-        },
-        "framework",
-        pipeline_id=context.pipeline_id,
-        command_run_id=context.command_run_id,
-        parent_command_run_id=context.parent_command_run_id,
-    )
-
-
-def publish_plan_repair(
-    context: CommandContext,
-    request: Event,
-    repair: PlanRepair,
-    *,
-    approved: bool,
-    method: str,
-    answer: str,
-) -> Event:
-    """Persist the operator's decision about a suggested plan repair."""
-    if context._db is None:
-        raise ValueError("plan repair auditing requires an active database")
-    return context._db.publish(
-        "plan.repair.applied" if approved else "plan.repair.denied",
-        {
-            "request_event_id": request.id,
-            "repair": repair.name,
-            "description": repair.description,
-            "approved": approved,
-            "approval_method": method,
-            "answer": answer,
-            "approved_by": getpass.getuser(),
-            "before": repair.before,
-            "after": repair.after,
-        },
-        "framework",
-        pipeline_id=context.pipeline_id,
-        command_run_id=context.command_run_id,
-        parent_command_run_id=context.parent_command_run_id,
-    )
-
-
-def format_plan_report(report: PlanReport) -> str:
-    """Return a compact human-readable plan report."""
-    lines = [f"Plan: {report.action}", report.summary]
-    if report.items:
-        lines.append("Items:")
-        lines.extend(f"  {item.kind}: {item.value}" for item in report.items)
-    if report.warnings:
-        lines.append("Warnings:")
-        lines.extend(f"  {warning}" for warning in report.warnings)
-    if report.repairs:
-        lines.append("Suggested repairs:")
-        lines.extend(f"  {repair.name}: {repair.description}" for repair in report.repairs)
-    return "\n".join(lines)
-
-
-def expand_at_file_args(context: CommandContext, args: list[str]) -> list[str]:
-    """Expand framework-level at-file arguments before plugin parsing."""
-    expanded: list[str] = []
-    for arg in args:
-        values, expansion = expand_at_file_arg(arg)
-        expanded.extend(values)
-        if expansion is not None:
-            context.audit_capability("filesystem.read")
-            artifact_id = attach_at_file_artifact(context, expansion)
-            publish_at_file_expansion(context, expansion, artifact_id=artifact_id)
-    return expanded
-
-
-def expand_at_file_arg(arg: str) -> tuple[list[str], AtFileExpansion | None]:
-    """Expand one `@` argument or return it unchanged."""
-    if "=@" in arg and not arg.startswith("@"):
-        key, value = arg.split("=", 1)
-        values, expansion = expand_at_file_arg(value)
-        return [f"{key}={','.join(values)}"], expansion
-    if not arg.startswith("@"):
-        return [arg], None
-    if arg.startswith("@@"):
-        return [arg[1:]], None
-    mode, raw_path = parse_at_file_token(arg)
-    path = Path(raw_path).expanduser()
-    if not path.exists():
-        raise ValueError(f"at-file path does not exist: {path}")
-    if path.is_dir():
-        raise ValueError(f"at-file path is a directory: {path}")
-    text = path.read_text(errors="replace")
-    values = at_file_expanders()[mode](text)
-    return values, AtFileExpansion(arg, mode, path, len(values))
-
-
-def parse_at_file_token(arg: str) -> tuple[Literal["text", "lines", "raw"], str]:
-    """Return expansion mode and path for one at-file token."""
-    if arg.startswith("@lines:"):
-        return "lines", arg.removeprefix("@lines:")
-    if arg.startswith("@raw:"):
-        return "raw", arg.removeprefix("@raw:")
-    return "text", arg.removeprefix("@")
-
-
-def at_file_expanders() -> dict[str, Callable[[str], list[str]]]:
-    """Return at-file content expanders keyed by expansion mode."""
-    return {
-        "lines": lambda text: [line.strip() for line in text.splitlines() if line.strip()],
-        "raw": lambda text: [text],
-        "text": lambda text: [text],
-    }
-
-
-def attach_at_file_artifact(context: CommandContext, expansion: AtFileExpansion) -> str | None:
-    """Attach an expanded input file as provenance when artifact storage works."""
-    try:
-        artifact = context.artifacts.attach_file(
-            expansion.path,
-            name=expansion.path.name,
-            note=f"framework argument expansion {expansion.mode} from {expansion.token}",
-        )
-    except (RuntimeError, ValueError):
-        return None
-    return artifact.artifact_id
-
-
-def publish_at_file_expansion(
-    context: CommandContext,
-    expansion: AtFileExpansion,
-    *,
-    artifact_id: str | None = None,
-) -> Event | None:
-    """Record one framework-owned at-file expansion."""
-    if context._db is None:
-        return None
-    payload = {
-        "operator": "@",
-        "token": expansion.token,
-        "mode": expansion.mode,
-        "path": str(expansion.path),
-        "produced": expansion.produced,
-        "job_id": context.job_id,
-        "pipeline_id": context.pipeline_id,
-        "command_run_id": context.command_run_id,
-        "commandlet": context.source,
-    }
-    if artifact_id is not None:
-        payload["artifact_id"] = artifact_id
-    return context._db.publish(
-        "framework.argument.expanded",
-        payload,
-        "framework",
-        pipeline_id=context.pipeline_id,
-        command_run_id=context.command_run_id,
-        parent_command_run_id=context.parent_command_run_id,
-    )
 
 
 def publish_variable_expansion(context: CommandContext, variable_names: tuple[str, ...]) -> Event | None:
