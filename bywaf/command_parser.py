@@ -400,26 +400,34 @@ def peel_context_selectors(args: list[str]) -> tuple[list[str], dict[str, str | 
     index = 0
     while index < len(args):
         token = args[index]
-        match token:
-            case "--from-run" | "--from":
-                selectors["from_run"] = require_selector_value(args, index, token)
-                index += 2
-            case "--from-pipeline" | "--pipeline":
-                selectors["from_pipeline"] = require_selector_value(args, index, token)
-                index += 2
-            case "--from-topic" | "--topic":
-                selectors["from_topic"] = require_selector_value(args, index, token)
-                index += 2
-            case "--test":
-                selectors["plan_only"] = "true"
-                index += 1
-            case "--yes":
-                selectors["approved"] = "true"
-                index += 1
-            case _:
-                cleaned.append(token)
-                index += 1
+        selector_key = CONTEXT_SELECTOR_VALUE_FLAGS.get(token)
+        if selector_key is not None:
+            selectors[selector_key] = require_selector_value(args, index, token)
+            index += 2
+            continue
+        selector_value = CONTEXT_SELECTOR_BOOL_FLAGS.get(token)
+        if selector_value is not None:
+            key, value = selector_value
+            selectors[key] = value
+            index += 1
+            continue
+        cleaned.append(token)
+        index += 1
     return cleaned, selectors
+
+
+CONTEXT_SELECTOR_VALUE_FLAGS = {
+    "--from": "from_run",
+    "--from-pipeline": "from_pipeline",
+    "--from-run": "from_run",
+    "--from-topic": "from_topic",
+    "--pipeline": "from_pipeline",
+    "--topic": "from_topic",
+}
+CONTEXT_SELECTOR_BOOL_FLAGS = {
+    "--test": ("plan_only", "true"),
+    "--yes": ("approved", "true"),
+}
 
 
 def require_selector_value(args: list[str], index: int, token: str) -> str:

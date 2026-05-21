@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import getpass
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 
 from bywaf.events import Event
@@ -72,23 +72,10 @@ class Key(CommandletBase):
             raise ValueError("usage: key <list|show|generate|import|export|remove|test>")
         action = args[0]
         rest = args[1:]
-        match action:
-            case "list":
-                list_keys(context)
-            case "show":
-                show_key(context, selector(rest, "name", required=True))
-            case "generate":
-                generate_key_action(context, rest)
-            case "import":
-                import_key_action(context, rest)
-            case "export":
-                export_key_action(context, rest)
-            case "remove":
-                remove_key_action(context, rest)
-            case "test":
-                test_key_action(context, selector(rest, "name", required=True))
-            case _:
-                raise ValueError(f"unknown key action: {action}")
+        handler = KEY_ACTION_HANDLERS.get(action)
+        if handler is None:
+            raise ValueError(f"unknown key action: {action}")
+        handler(context, rest)
         return ()
 
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
@@ -201,6 +188,36 @@ def test_key_action(context: CommandContext, name: str) -> None:
     state = test_key(name, passphrase)
     context.events.publish("key.tested", {**key_event_payload(record), "signing": state})
     context.output(f"key ok name={name} signing={state}")
+
+
+KeyActionHandler = Callable[[CommandContext, list[str]], None]
+
+
+def list_key_action(context: CommandContext, args: list[str]) -> None:
+    """List key records."""
+    del args
+    list_keys(context)
+
+
+def show_key_action(context: CommandContext, args: list[str]) -> None:
+    """Show one key record."""
+    show_key(context, selector(args, "name", required=True))
+
+
+def test_key_selector_action(context: CommandContext, args: list[str]) -> None:
+    """Run signing/verification self-test for one key."""
+    test_key_action(context, selector(args, "name", required=True))
+
+
+KEY_ACTION_HANDLERS: dict[str, KeyActionHandler] = {
+    "export": export_key_action,
+    "generate": generate_key_action,
+    "import": import_key_action,
+    "list": list_key_action,
+    "remove": remove_key_action,
+    "show": show_key_action,
+    "test": test_key_selector_action,
+}
 
 
 def key_event_payload(record: KeyRecord) -> dict[str, str]:

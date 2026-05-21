@@ -6,9 +6,8 @@ from __future__ import annotations
 
 import readline
 import shlex
-from os.path import commonprefix
 from collections.abc import Sequence
-from dataclasses import dataclass
+from os.path import commonprefix
 from typing import Any
 
 try:
@@ -32,342 +31,33 @@ except ImportError:  # pragma: no cover - exercised only on minimal installs.
     PromptSession = None
     CompleteStyle = None
 
-from .config import Settings
-from .db import EventStore
-from .plugin import CompletionContext
-from .specs import CompletionSpec
-from .registry import PluginRegistry
-from .utils import complete_path
+from .completion_core import BINARY_OPTION_NAMES
+from .completion_core import CoreCompleter
+from .completion_core import bundle_candidates
+from .completion_core import complete_at_file_prefix
+from .completion_core import complete_resource_value
+from .completion_core import history_candidates
+from .completion_core import is_explicit_path
+from .completion_core import key_candidates
+from .completion_core import option_is_binary
+from .completion_core import positional_index
+from .completion_core import preserve_explicit_prefix
+from .completion_core import resource_candidates
+from .completion_core import runtime_completion_target
+from .completion_core import tokens_after_last_pipe
+from .completion_core import variable_reference_candidates
 
-DEFAULT_SETTINGS = Settings()
-FRAMEWORK_OPTION_COMPLETIONS = {
-    "--from-run": CompletionSpec("run"),
-    "--from-pipeline": CompletionSpec("pipeline"),
-    "--from-topic": CompletionSpec("topic"),
-}
-BINARY_OPTION_NAMES = {"listen", "silent"}
 COMPLETION_SELECT_KEY_VAR = "completion.select-key"
 COMPLETION_WASD_SELECTION_VAR = "completion.wasd-selection"
 DEFAULT_COMPLETION_SELECT_KEY = "c-space"
 
 
-@dataclass(slots=True)
-class Completer:
-    """Readline completer backed by command specs and runtime state."""
-
-    registry: PluginRegistry
-    db: EventStore | None = None
-    active_context: str | None = None
-    builtins: tuple[str, ...] = (
-        "help",
-        "?",
-        "history",
-        "info",
-        "jobs",
-        "pipelines",
-        "cmds",
-        "load",
-        "plugins",
-        "project",
-        "prompt",
-        "run",
-        "runs",
-        "save",
-        "topics",
-        "use",
-        "vars",
-        "exit",
-        "event",
-        "events",
-        "quit",
-        "q",
-    )
-
-    def candidates(self, line: str) -> list[str]:
-        """Return raw completion candidates for a full input line."""
-        try:
-            tokens = shlex.split(line)
-        except ValueError:
-            tokens = line.split()
-        tokens = tokens_after_last_pipe(tokens)
-        prefix = "" if line.endswith(" ") else (tokens[-1] if tokens else "")
-        match tokens:
-            case []:
-                base = [*self.builtins, *self.registry.names()]
-            case [_] if not line.endswith(" "):
-                base = [*self.builtins, *self.registry.names()]
-            case ["event", *_]:
-                base = self.event_candidates(prefix)
-            case ["events", *_]:
-                base = ["tail", "--tail", "last="]
-            case ["history", *_]:
-                base = history_candidates(prefix)
-            case ["prompt", *_]:
-                base = []
-            case ["run", *_]:
-                base = self.pipeline_expression_candidates(prefix)
-            case ["use", *_]:
-                base = ["global", *self.registry.names()]
-            case [name, *rest] if name in self.registry.plugins:
-                base = self.plugin_candidates(name, prefix, rest)
-            case ["load", *_]:
-                base = self.load_candidates(prefix)
-            case ["save", *_]:
-                base = self.save_candidates(prefix)
-            case ["vars", *_]:
-                base = self.vars_candidates(prefix)
-            case _:
-                base = [*self.builtins, *self.registry.names()]
-        if prefix == "--":
-            return sorted(candidate for candidate in set(base) if candidate.startswith("--"))
-        return [
-            candidate
-            for candidate in sorted(set(base))
-            if candidate.startswith(prefix) and candidate != prefix
-        ]
-
-    def plugin_candidates(self, name: str, prefix: str, args: list[str]) -> list[str]:
-        """Return candidates owned by a plugin commandlet.
-
-        Completion is intentionally layered: custom plugin hook, option values,
-        positional argument specs, then generic framework/plugin metadata. This
-        keeps command-specific behavior out of the core completer.
-        """
-        if prefix.startswith("@"):
-            return complete_at_file_prefix(prefix)
-        plugin = self.registry.get(name)
-        variable_candidates = self.plugin_variable_candidates(name, prefix)
-        if variable_candidates:
-            return variable_candidates
-        if "=" in prefix and not prefix.startswith("--"):
-            key_value_candidates = self.plugin_key_value_candidates(name, prefix)
-            if key_value_candidates:
-                return key_value_candidates
-        if args and not prefix.startswith("--"):
-            previous = args[-2] if prefix and args[-1] == prefix and len(args) >= 2 else args[-1]
-            value_candidates = self.plugin_option_value_candidates(name, previous, prefix)
-            if value_candidates:
-                return value_candidates
-        if not prefix.startswith("--"):
-            custom_candidates = self.plugin_custom_candidates(name, prefix, args)
-            matching_custom_candidates = [candidate for candidate in custom_candidates if candidate.startswith(prefix)]
-            if matching_custom_candidates:
-                return matching_custom_candidates
-        if not prefix.startswith("--"):
-            positional_candidates = self.plugin_positional_candidates(name, prefix, args)
-            matching_positional_candidates = [candidate for candidate in positional_candidates if candidate.startswith(prefix)]
-            if matching_positional_candidates:
-                return matching_positional_candidates
-        binary_flags = [f"--{option.name}" for option in plugin.spec.options if option_is_binary(option.name)]
-        valued_options = [f"{option.name}=" for option in plugin.spec.options if not option_is_binary(option.name)]
-        options = ["-h", "--help", *binary_flags]
-        options.extend(("--from-run", "--from-pipeline", "--from-topic"))
-        if prefix.startswith(".") or "/" in prefix:
-            return complete_path(prefix)
-        return [*valued_options, *options, *plugin.spec.consumes, *plugin.spec.emits]
-
-    def plugin_variable_candidates(self, plugin_name: str, prefix: str) -> list[str]:
-        """Complete variable references in positional or key=value arguments."""
-        key = ""
-        value_prefix = prefix
-        if "=" in prefix and not prefix.startswith("--"):
-            key, value_prefix = prefix.split("=", 1)
-        if not value_prefix.startswith("$"):
-            return []
-        variable_prefix = value_prefix[1:]
-        candidates = variable_reference_candidates(self.registry.varstore.names(), plugin_name, variable_prefix)
-        if key:
-            return [f"{key}={candidate}" for candidate in candidates]
-        return candidates
-
-    def plugin_key_value_candidates(self, plugin_name: str, prefix: str) -> list[str]:
-        """Complete explicit `name=value` arguments for valued commandlet options."""
-        key, value_prefix = prefix.split("=", 1)
-        plugin = self.registry.get(plugin_name)
-        for option in plugin.spec.options:
-            if option.name != key or option_is_binary(option.name):
-                continue
-            completion_candidates = self.complete_by_spec(option.completion, value_prefix)
-            if completion_candidates:
-                return [f"{key}={candidate}" for candidate in completion_candidates]
-            candidates = [*option.choices]
-            stored = self.registry.varstore.get(f"{plugin_name}.{option.name}")
-            if stored:
-                candidates.append(stored)
-            if option.default:
-                candidates.append(option.default)
-            return [f"{key}={candidate}" for candidate in candidates]
-        return []
-
-    def plugin_option_value_candidates(self, plugin_name: str, option_token: str, prefix: str) -> list[str]:
-        """Complete a value for a plugin option or framework selector."""
-        if option_token in FRAMEWORK_OPTION_COMPLETIONS:
-            return self.complete_by_spec(FRAMEWORK_OPTION_COMPLETIONS[option_token], prefix)
-        if not option_token.startswith("--"):
-            return []
-        option_name = option_token[2:]
-        plugin = self.registry.get(plugin_name)
-        for option in plugin.spec.options:
-            if option.name != option_name:
-                continue
-            completion_candidates = self.complete_by_spec(option.completion, prefix)
-            if completion_candidates:
-                return completion_candidates
-            candidates = [*option.choices]
-            stored = self.registry.varstore.get(f"{plugin_name}.{option.name}")
-            if stored:
-                candidates.append(stored)
-            if option.default:
-                candidates.append(option.default)
-            return candidates
-        return []
-
-    def plugin_custom_candidates(self, plugin_name: str, prefix: str, args: list[str]) -> list[str]:
-        """Ask a plugin's optional `complete()` hook for candidates."""
-        plugin = self.registry.get(plugin_name)
-        completer = getattr(plugin, "complete", None)
-        if completer is None:
-            return []
-        context = CompletionContext(
-            db=self.db,
-            varstore=self.registry.varstore,
-            metadata={"commandlets": tuple(self.registry.names())},
-        )
-        candidates = completer(context, args, prefix)
-        return list(candidates) if candidates else []
-
-    def plugin_positional_candidates(self, plugin_name: str, prefix: str, args: list[str]) -> list[str]:
-        """Complete the current positional argument from CommandSpec metadata."""
-        plugin = self.registry.get(plugin_name)
-        position = positional_index(args, prefix)
-        if position >= len(plugin.spec.arguments):
-            return []
-        return self.complete_by_spec(plugin.spec.arguments[position].completion, prefix)
-
-    def topic_candidates(self) -> list[str]:
-        """Return topic-like candidates from plugin specs and the active DB."""
-        plugin_topics = {topic for plugin in self.registry.plugins.values() for topic in plugin.spec.emits}
-        db_topics = set(self.db.topics()) if self.db else set()
-        job_candidates = [f"job={row['id']}" for row in self.db.jobs()] if self.db else []
-        return [*plugin_topics, *db_topics, *job_candidates]
-
-    def event_candidates(self, prefix: str) -> list[str]:
-        """Complete `event` selectors and selector values."""
-        selectors = ("job=", "run=", "pipeline=", "serial=", "topic=")
-        for selector in selectors:
-            if prefix.startswith(selector):
-                value_prefix = prefix.split("=", 1)[1]
-                kind = selector[:-1]
-                return [f"{selector}{value}" for value in self.complete_by_spec(CompletionSpec(kind), value_prefix)]
-        if prefix:
-            selector_matches = [selector for selector in selectors if selector.startswith(prefix)]
-            if selector_matches:
-                return selector_matches
-        return [*self.topic_candidates(), *selectors]
-
-    def run_candidates(self) -> list[str]:
-        """Complete command run IDs from the active database."""
-        if not self.db:
-            return []
-        return [row["command_run_id"] for row in self.db.runs()]
-
-    def pipeline_candidates(self) -> list[str]:
-        """Complete pipeline IDs from the active database."""
-        if not self.db:
-            return []
-        return sorted({row["pipeline_id"] for row in self.db.runs() if row["pipeline_id"]})
-
-    def run_alias_candidates(self) -> list[str]:
-        """Complete user-facing run IDs."""
-        if not self.db:
-            return []
-        return list(self.db.run_aliases().values())
-
-    def pipeline_alias_candidates(self) -> list[str]:
-        """Complete user-facing pipeline IDs."""
-        if not self.db:
-            return []
-        return list(self.db.pipeline_aliases().values())
-
-    def serial_candidates(self) -> list[str]:
-        """Complete durable serial values."""
-        if not self.db:
-            return []
-        return self.db.serials()
-
-    def job_candidates(self) -> list[str]:
-        """Complete job IDs from the active database."""
-        if not self.db:
-            return []
-        return [str(row["id"]) for row in self.db.jobs()]
-
-    def pipeline_expression_candidates(self, prefix: str) -> list[str]:
-        """Complete commandlet names after the built-in `run` command."""
-        if prefix.startswith("@"):
-            return complete_at_file_prefix(prefix)
-        if prefix.startswith(".") or "/" in prefix:
-            return complete_path(prefix)
-        return self.registry.names()
-
-    def complete_by_spec(self, spec: CompletionSpec, prefix: str) -> list[str]:
-        """Resolve a CompletionSpec into concrete candidates."""
-        match spec.kind:
-            case "path" | "file" | "directory":
-                return complete_path(prefix or ".")
-            case "choice":
-                return list(spec.values)
-            case "topic":
-                plugin_topics = {topic for plugin in self.registry.plugins.values() for topic in plugin.spec.emits}
-                db_topics = set(self.db.topics()) if self.db else set()
-                return [*plugin_topics, *db_topics]
-            case "run":
-                return self.run_alias_candidates()
-            case "pipeline":
-                return self.pipeline_alias_candidates()
-            case "job":
-                return self.job_candidates()
-            case "serial":
-                return self.serial_candidates()
-            case "bundle":
-                return bundle_candidates(self.db)
-            case "key.any":
-                return key_candidates()
-            case "key.signing":
-                return key_candidates(signing=True)
-            case "key.verify":
-                return key_candidates(verify=True)
-            case "plugin":
-                return self.registry.names()
-            case _:
-                return []
-
-    def load_candidates(self, prefix: str) -> list[str]:
-        """Complete `load` resource keys and values."""
-        return resource_candidates(prefix, ("--force", "config=", "db=", "history=", "plugin=", "script="))
-
-    def save_candidates(self, prefix: str) -> list[str]:
-        """Complete `save` resource keys and values."""
-        return resource_candidates(prefix, ("config=", "db=", "history="))
-
-    def vars_candidates(self, prefix: str) -> list[str]:
-        """Complete variables, preferring the active `use` context."""
-        names = list(self.registry.varstore.names())
-        if "." in prefix or prefix.startswith("global."):
-            return [f"{name}=" for name in names]
-        if self.active_context:
-            scoped_prefix = f"{self.active_context}."
-            short_names = [
-                f"{name.removeprefix(scoped_prefix)}="
-                for name in names
-                if name.startswith(scoped_prefix)
-            ]
-            if short_names:
-                return short_names
-        namespaces = sorted({name.split(".", 1)[0] for name in names if "." in name})
-        return [f"{namespace}." for namespace in namespaces] + [f"{name}=" for name in names if "." not in name]
+class Completer(CoreCompleter):
+    """Readline adapter around Bywaf's command-aware completion core."""
 
     def complete(self, text: str, state: int) -> str | None:
         """Readline callback: return one candidate per requested state."""
+        del text
         line = readline.get_line_buffer()
         candidates = self.candidates(line)
         common = common_completion_prefix(line, candidates)
@@ -380,41 +70,12 @@ class Completer:
         return results[state] if state < len(results) else None
 
     def format_candidate(self, candidate: str) -> str:
-        if candidate.startswith("--") or candidate.endswith("=") or candidate.endswith("/"):
-            return candidate
-        return candidate + " "
+        """Return a readline-formatted candidate."""
+        return format_candidate(candidate)
 
     def format_common_prefix(self, candidate: str) -> str:
+        """Return a shared prefix without adding completion suffixes."""
         return candidate
-
-    def completion_meta(self, candidate: str, line: str, prefix: str) -> str:
-        """Return prompt-toolkit metadata for runtime entity completions."""
-        if self.db is None:
-            return ""
-        kind, value = runtime_completion_target(candidate, line, prefix)
-        match kind:
-            case "job":
-                try:
-                    row = self.db.job(int(value))
-                except ValueError:
-                    return ""
-                if row is None:
-                    return ""
-                artifacts = self.db.artifact_counts_by_job().get(str(row["id"]), 0)
-                return f"serial={row['serial']} status={row['status']} artifacts={artifacts} command={row['command_line']}"
-            case "run":
-                serial = self.db.resolve_run_serial(value)
-                artifacts = self.db.artifact_counts_by_run().get(serial, 0)
-                for row in self.db.runs(active_only=False):
-                    if row["command_run_id"] == serial:
-                        return f"serial={serial} source={row['source']} artifacts={artifacts} events={row['events']}"
-            case "pipeline":
-                serial = self.db.resolve_pipeline_serial(value)
-                artifacts = self.db.artifact_counts_by_pipeline().get(serial, 0)
-                for row in self.db.pipelines(active_only=False):
-                    if row["pipeline_id"] == serial:
-                        return f"serial={serial} artifacts={artifacts} runs={row['runs']} events={row['events']}"
-        return ""
 
 
 class PromptToolkitCompleter(PromptToolkitCompleterBase):
@@ -444,58 +105,6 @@ class PromptToolkitCompleter(PromptToolkitCompleterBase):
 def prompt_toolkit_available() -> bool:
     """Return whether the richer prompt-toolkit REPL can be used."""
     return PromptSession is not None and KeyBindings is not None
-
-
-def key_candidates(*, signing: bool = False, verify: bool = False) -> list[str]:
-    """Return key names for completion without making cryptography mandatory."""
-    try:
-        from .keyring import load_key_records, signing_key_names, verification_key_names
-    except Exception:
-        return []
-    try:
-        if signing:
-            return signing_key_names()
-        if verify:
-            return verification_key_names()
-        return [record.name for record in load_key_records()]
-    except Exception:
-        return []
-
-
-def bundle_candidates(db: EventStore | None) -> list[str]:
-    """Return known bundle names for completion."""
-    if db is None:
-        return []
-    try:
-        return sorted(
-            {
-                str(event.payload["name"])
-                for event in db.events_matching(topic="bundle.created", limit=100000)
-                if "name" in event.payload
-            }
-        )
-    except Exception:
-        return []
-
-
-def runtime_completion_target(candidate: str, line: str, prefix: str) -> tuple[str | None, str]:
-    """Infer whether a completion candidate represents a job, run, or pipeline."""
-    for kind in ("job", "run", "pipeline"):
-        selector = f"{kind}="
-        if candidate.startswith(selector):
-            return kind, candidate.removeprefix(selector)
-        if prefix.startswith(selector):
-            return kind, candidate
-    try:
-        tokens = shlex.split(line)
-    except ValueError:
-        tokens = line.split()
-    tokens = tokens_after_last_pipe(tokens)
-    if len(tokens) >= 2 and tokens[0] == "pipeline" and tokens[1] in {"attach", "show", "cancel", "end", "kill"}:
-        return "pipeline", candidate
-    if len(tokens) >= 2 and tokens[0] == "job" and tokens[1] in {"show", "cancel", "end", "kill"}:
-        return "job", candidate
-    return None, candidate
 
 
 def build_prompt_session(completer: Completer):
@@ -633,27 +242,6 @@ def framework_bool(value: str | None, *, default: bool) -> bool:
     return default
 
 
-def option_is_binary(option_name: str) -> bool:
-    """Return whether an option should complete as a binary `--flag`."""
-    return option_name in BINARY_OPTION_NAMES
-
-
-def variable_reference_candidates(names: Sequence[str], commandlet: str, prefix: str) -> list[str]:
-    """Return `$variable` completions using commandlet and global shorthand."""
-    candidates: set[str] = set()
-    commandlet_prefix = f"{commandlet}."
-    for name in names:
-        if name.startswith(commandlet_prefix):
-            candidates.add(f"${name.removeprefix(commandlet_prefix)}")
-        if name.startswith("global."):
-            candidates.add(f"${name.removeprefix('global.')}")
-        candidates.add(f"${{{name}}}")
-        if "." not in name:
-            candidates.add(f"${name}")
-    full_prefix = f"${prefix}"
-    return sorted(candidate for candidate in candidates if candidate.startswith(full_prefix))
-
-
 def completion_select_key_display(completer: Completer) -> str:
     """Return a human-readable label for the configured selection key."""
     key = completion_select_key(completer)
@@ -662,71 +250,6 @@ def completion_select_key_display(completer: Completer) -> str:
     if key.startswith("c-") and len(key) > 2:
         return f"Ctrl-{key[2:].upper()}"
     return key
-
-
-def resource_candidates(prefix: str, keywords: tuple[str, ...]) -> list[str]:
-    """Complete key=value resource expressions used by load/save."""
-    for keyword in keywords:
-        if keyword.endswith("=") and prefix.startswith(keyword):
-            value = prefix.split("=", 1)[1]
-            return [f"{keyword}{path}" for path in complete_resource_value(keyword[:-1], value)]
-    keyword_matches = [keyword for keyword in keywords if keyword.startswith(prefix)]
-    if keyword_matches:
-        return keyword_matches
-    if prefix:
-        return complete_path(prefix)
-    return list(keywords)
-
-
-def complete_at_file_prefix(prefix: str) -> list[str]:
-    """Complete framework at-file path prefixes while preserving operators."""
-    if prefix.startswith("@@"):
-        value = prefix[2:]
-        return [f"@@{candidate}" for candidate in complete_path(value)]
-    for operator in ("@lines:", "@raw:"):
-        if prefix.startswith(operator):
-            value = prefix.removeprefix(operator)
-            return [f"{operator}{candidate}" for candidate in complete_path(value)]
-    value = prefix.removeprefix("@")
-    return [f"@{candidate}" for candidate in complete_path(value)]
-
-
-def complete_resource_value(kind: str, value: str) -> list[str]:
-    """Complete the value side of a load/save resource expression."""
-    if is_explicit_path(value):
-        return preserve_explicit_prefix(value, complete_path(value or "."))
-    match kind:
-        case "plugin":
-            return complete_path(value, DEFAULT_SETTINGS.plugin_dir)
-        case "script" | "db" | "config" | "history":
-            return complete_path(value)
-        case _:
-            return complete_path(value)
-
-
-def positional_index(args: list[str], prefix: str) -> int:
-    """Return the positional argument index currently being completed."""
-    if not args:
-        return 0
-    positional = [
-        arg for arg in args
-        if not arg.startswith("-") and arg not in {"|", "&"}
-    ]
-    if prefix and positional and positional[-1] == prefix:
-        return len(positional) - 1
-    return len(positional)
-
-
-def is_explicit_path(value: str) -> bool:
-    """Return True when a resource value should be treated as a path."""
-    return value.startswith(("./", "../", "~/", "/"))
-
-
-def preserve_explicit_prefix(value: str, candidates: list[str]) -> list[str]:
-    """Keep leading `./` visible so readline replaces the token correctly."""
-    if value.startswith("./"):
-        return [candidate if candidate.startswith("./") else f"./{candidate}" for candidate in candidates]
-    return candidates
 
 
 def install_readline(completer: Completer) -> None:
@@ -740,20 +263,6 @@ def configure_readline_delimiters() -> None:
     """Keep option dashes and key/value equals signs inside completion tokens."""
     delimiters = readline.get_completer_delims()
     readline.set_completer_delims(delimiters.replace("-", "").replace("=", ""))
-
-
-def tokens_after_last_pipe(tokens: list[str]) -> list[str]:
-    """Return tokens belonging to the command after the last pipeline marker."""
-    if "|" not in tokens:
-        return tokens
-    last_pipe = len(tokens) - 1 - tokens[::-1].index("|")
-    return tokens[last_pipe + 1 :]
-
-
-def history_candidates(prefix: str) -> list[str]:
-    """Complete timestamp-window selectors for the built-in history command."""
-    selectors = ("since=", "until=")
-    return [selector for selector in selectors if selector.startswith(prefix)]
 
 
 def should_print_completion_menu(line: str, candidates: Sequence[str]) -> bool:

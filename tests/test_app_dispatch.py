@@ -15,13 +15,13 @@ from bywaf.app import (
     make_runner,
     command_from_remainder,
     parse_load_spec,
-    plugin_trust_policy_from_args,
     process_framework_requests,
     read_logical_input,
     repl,
     shutdown_runner,
     confirm_repl_exit,
 )
+from bywaf.cli_trust import plugin_trust_policy_from_args
 from bywaf.db import EventStore
 from bywaf.events import Event
 from bywaf.specs import TriggerSpec
@@ -271,10 +271,10 @@ class AppDispatchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with (
-                patch("bywaf.app.shutil.which", return_value="/usr/bin/less"),
-                patch("bywaf.app.sys.stdin.isatty", return_value=True),
-                patch("bywaf.app.sys.stdout.isatty", return_value=True),
-                patch("bywaf.app.subprocess.run") as run,
+                patch("bywaf.repl.shutil.which", return_value="/usr/bin/less"),
+                patch("bywaf.repl.sys.stdin.isatty", return_value=True),
+                patch("bywaf.repl.sys.stdout.isatty", return_value=True),
+                patch("bywaf.repl.subprocess.run") as run,
             ):
                 dispatch_repl_line(runner, "cmds --page")
             run.assert_called_once()
@@ -598,7 +598,7 @@ class AppDispatchTests(unittest.TestCase):
             state = ShellState()
             output = io.StringIO()
             with (
-                patch("bywaf.app.load_or_create_fingerprint_key", return_value=b"k" * 32),
+                patch("bywaf.repl.load_or_create_fingerprint_key", return_value=b"k" * 32),
                 contextlib.redirect_stdout(output),
             ):
                 dispatch_repl_line(runner, "vars password=supersecret", state)
@@ -619,7 +619,7 @@ class AppDispatchTests(unittest.TestCase):
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
             with (
-                patch("bywaf.app.load_or_create_fingerprint_key", return_value=b"k" * 32),
+                patch("bywaf.repl.load_or_create_fingerprint_key", return_value=b"k" * 32),
                 contextlib.redirect_stdout(io.StringIO()),
             ):
                 dispatch_repl_line(runner, "use ssh_probe", state)
@@ -634,7 +634,7 @@ class AppDispatchTests(unittest.TestCase):
             db_path = Path(tmp, "db.sqlite3")
             first = make_runner(db_path)
             with (
-                patch("bywaf.app.load_or_create_fingerprint_key", return_value=b"k" * 32),
+                patch("bywaf.repl.load_or_create_fingerprint_key", return_value=b"k" * 32),
                 contextlib.redirect_stdout(io.StringIO()),
             ):
                 dispatch_repl_line(first, "vars ssh_probe.password=supersecret", ShellState())
@@ -685,10 +685,10 @@ class AppDispatchTests(unittest.TestCase):
             path.write_text("hello\n")
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with (
-                patch("bywaf.app.shutil.which", return_value="/usr/bin/less"),
-                patch("bywaf.app.sys.stdin.isatty", return_value=True),
-                patch("bywaf.app.sys.stdout.isatty", return_value=True),
-                patch("bywaf.app.subprocess.run") as run,
+                patch("bywaf.repl.shutil.which", return_value="/usr/bin/less"),
+                patch("bywaf.repl.sys.stdin.isatty", return_value=True),
+                patch("bywaf.repl.sys.stdout.isatty", return_value=True),
+                patch("bywaf.repl.subprocess.run") as run,
             ):
                 dispatch_repl_line(runner, f"less {path}")
             run.assert_called_once_with(["/usr/bin/less", str(path)], check=False)
@@ -698,10 +698,10 @@ class AppDispatchTests(unittest.TestCase):
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.record_job("hostscanner 127.0.0.1", 123, "running")
             with (
-                patch("bywaf.app.shutil.which", return_value="/usr/bin/less"),
-                patch("bywaf.app.sys.stdin.isatty", return_value=True),
-                patch("bywaf.app.sys.stdout.isatty", return_value=True),
-                patch("bywaf.app.subprocess.run") as run,
+                patch("bywaf.repl.shutil.which", return_value="/usr/bin/less"),
+                patch("bywaf.repl.sys.stdin.isatty", return_value=True),
+                patch("bywaf.repl.sys.stdout.isatty", return_value=True),
+                patch("bywaf.repl.subprocess.run") as run,
             ):
                 dispatch_repl_line(runner, "job list --page")
             run.assert_called_once()

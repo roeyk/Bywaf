@@ -408,6 +408,30 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             self.assertEqual(runner.registry.varstore.get("test.value"), "before")
             self.assertIn("[variables]", config.read_text())
 
+    def test_save_config_empty_value_uses_default_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            default_config = Path(tmp, "default.toml")
+            dispatch_repl_line(runner, "vars test.value=default")
+            with (
+                patch("bywaf.repl_resources.DEFAULT_CONFIG", default_config),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                dispatch_repl_line(runner, "save config=")
+            self.assertIn('"test.value" = "default"', default_config.read_text())
+
+    def test_load_config_empty_value_uses_default_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            default_config = Path(tmp, "default.toml")
+            default_config.write_text("[variables]\n\"test.value\" = \"default\"\n", encoding="utf-8")
+            with (
+                patch("bywaf.repl_resources.DEFAULT_CONFIG", default_config),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                dispatch_repl_line(runner, "load config=")
+            self.assertEqual(runner.registry.varstore.get("test.value"), "default")
+
     def test_load_legacy_json_config(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -429,6 +453,31 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
                 dispatch_repl_line(other, f"load db={saved}")
             self.assertEqual(other.db.path, saved)
             self.assertEqual(other.db.topics(), ["custom.topic"])
+
+    def test_save_history_empty_value_uses_default_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = ShellState(session_history=["help  # 2026-05-21 12:00:00 EDT"])
+            default_history = Path(tmp, "history.bywaf")
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            with (
+                patch("bywaf.repl_resources.DEFAULT_HISTORY", default_history),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                dispatch_repl_line(runner, "save history=", state)
+            self.assertIn("help", default_history.read_text())
+
+    def test_load_history_empty_value_uses_default_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            default_history = Path(tmp, "history.bywaf")
+            default_history.write_text("help  # 2026-05-21 12:00:00 EDT\n", encoding="utf-8")
+            state = ShellState()
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            with (
+                patch("bywaf.repl_resources.DEFAULT_HISTORY", default_history),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                dispatch_repl_line(runner, "load history=", state)
+            self.assertEqual(state.session_history, ["help  # 2026-05-21 12:00:00 EDT"])
 
     def test_dispatch_plugin_help_does_not_exit_repl(self):
         with tempfile.TemporaryDirectory() as tmp:

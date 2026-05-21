@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import signal
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from typing import cast
 
 from bywaf.events import Event
@@ -35,54 +35,10 @@ class Control(CommandletBase):
         validate_control_mode(self.action, soft=parsed.soft, hard=parsed.hard)
         kind, target_id = resolve_control_target(context, *parse_target(parsed.target), allow_pipeline=True)
         hard = parsed.hard
-        match (self.action, kind):
-            case ("cancel", "job"):
-                publish_runtime_signal(context, "job", target_id, "stop", {}, mode="soft")
-                cancel_job(context, require_job(context, target_id))
-            case ("cancel", "pipeline"):
-                publish_runtime_signal(context, "pipeline", target_id, "stop", {}, mode="soft")
-                cancel_pipeline(context, target_id)
-            case ("cancel", "run"):
-                publish_runtime_signal(context, "run", target_id, "stop", {}, mode="soft")
-                cancel_run(context, target_id)
-            case ("end", "job"):
-                publish_runtime_signal(context, "job", target_id, "end", {}, mode="hard" if hard else "soft")
-                if hard:
-                    kill_job(context, require_job(context, target_id))
-                else:
-                    cancel_job(context, require_job(context, target_id))
-            case ("end", "pipeline"):
-                publish_runtime_signal(context, "pipeline", target_id, "end", {}, mode="hard" if hard else "soft")
-                if hard:
-                    kill_pipeline(context, target_id)
-                else:
-                    cancel_pipeline(context, target_id)
-            case ("end", "run"):
-                publish_runtime_signal(context, "run", target_id, "end", {}, mode="hard" if hard else "soft")
-                if hard:
-                    kill_run(context, target_id)
-                else:
-                    cancel_run(context, target_id)
-            case ("pause", "job"):
-                pause_job(context, require_job(context, target_id), hard=hard)
-            case ("pause", "pipeline"):
-                pause_pipeline(context, target_id, hard=hard)
-            case ("pause", "run"):
-                pause_run(context, target_id, hard=hard)
-            case ("resume", "job"):
-                resume_job(context, require_job(context, target_id), hard=hard, listonly=parsed.listonly)
-            case ("resume", "pipeline"):
-                resume_pipeline(context, target_id, hard=hard, listonly=parsed.listonly)
-            case ("resume", "run"):
-                resume_run(context, target_id, hard=hard, listonly=parsed.listonly)
-            case ("stop", "job"):
-                stop_job(context, require_job(context, target_id), hard=hard)
-            case ("stop", "pipeline"):
-                stop_pipeline(context, target_id, hard=hard)
-            case ("stop", "run"):
-                stop_run(context, target_id, hard=hard)
-            case _:
-                raise ValueError(f"unsupported target: {parsed.target}")
+        handler = CONTROL_HANDLERS.get((self.action, kind))
+        if handler is None:
+            raise ValueError(f"unsupported target: {parsed.target}")
+        handler(context, target_id, hard, parsed.listonly)
         return ()
 
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
@@ -424,42 +380,211 @@ def dispatch_framework_signal(context: CommandContext, parsed: dict[str, object]
     kind = str(parsed["kind"])
     target_id = str(parsed["target_id"])
     hard = parsed["mode"] == "hard"
-    match (action, kind):
-        case ("pause", "job"):
-            pause_job(context, require_job(context, target_id), hard=hard, publish_signal=False)
-        case ("pause", "pipeline"):
-            pause_pipeline(context, target_id, hard=hard, publish_signal=False)
-        case ("pause", "run"):
-            pause_run(context, target_id, hard=hard, publish_signal=False)
-        case ("resume", "job"):
-            resume_job(context, require_job(context, target_id), hard=hard, listonly=False, publish_signal=False)
-        case ("resume", "pipeline"):
-            resume_pipeline(context, target_id, hard=hard, listonly=False, publish_signal=False)
-        case ("resume", "run"):
-            resume_run(context, target_id, hard=hard, listonly=False, publish_signal=False)
-        case ("stop", "job"):
-            stop_job(context, require_job(context, target_id), hard=hard, publish_signal=False)
-        case ("stop", "pipeline"):
-            stop_pipeline(context, target_id, hard=hard, publish_signal=False)
-        case ("stop", "run"):
-            stop_run(context, target_id, hard=hard, publish_signal=False)
-        case ("end", "job"):
-            if hard:
-                kill_job(context, require_job(context, target_id))
-            else:
-                cancel_job(context, require_job(context, target_id))
-        case ("end", "pipeline"):
-            if hard:
-                kill_pipeline(context, target_id)
-            else:
-                cancel_pipeline(context, target_id)
-        case ("end", "run"):
-            if hard:
-                kill_run(context, target_id)
-            else:
-                cancel_run(context, target_id)
-        case _:
-            raise ValueError(f"unsupported signal target: {kind}={target_id}")
+    handler = FRAMEWORK_SIGNAL_HANDLERS.get((action, kind))
+    if handler is None:
+        raise ValueError(f"unsupported signal target: {kind}={target_id}")
+    handler(context, target_id, hard)
+
+
+ControlHandler = Callable[[CommandContext, str, bool, bool], None]
+SignalHandler = Callable[[CommandContext, str, bool], None]
+
+
+def control_cancel_job(context: CommandContext, target_id: str, hard: bool, listonly: bool) -> None:
+    """Cancel one job."""
+    del hard, listonly
+    publish_runtime_signal(context, "job", target_id, "stop", {}, mode="soft")
+    cancel_job(context, require_job(context, target_id))
+
+
+def control_cancel_pipeline(context: CommandContext, target_id: str, hard: bool, listonly: bool) -> None:
+    """Cancel one pipeline."""
+    del hard, listonly
+    publish_runtime_signal(context, "pipeline", target_id, "stop", {}, mode="soft")
+    cancel_pipeline(context, target_id)
+
+
+def control_cancel_run(context: CommandContext, target_id: str, hard: bool, listonly: bool) -> None:
+    """Cancel one command run."""
+    del hard, listonly
+    publish_runtime_signal(context, "run", target_id, "stop", {}, mode="soft")
+    cancel_run(context, target_id)
+
+
+def control_end_job(context: CommandContext, target_id: str, hard: bool, listonly: bool) -> None:
+    """End one job."""
+    del listonly
+    publish_runtime_signal(context, "job", target_id, "end", {}, mode="hard" if hard else "soft")
+    signal_end_job(context, target_id, hard)
+
+
+def control_end_pipeline(context: CommandContext, target_id: str, hard: bool, listonly: bool) -> None:
+    """End one pipeline."""
+    del listonly
+    publish_runtime_signal(context, "pipeline", target_id, "end", {}, mode="hard" if hard else "soft")
+    signal_end_pipeline(context, target_id, hard)
+
+
+def control_end_run(context: CommandContext, target_id: str, hard: bool, listonly: bool) -> None:
+    """End one command run."""
+    del listonly
+    publish_runtime_signal(context, "run", target_id, "end", {}, mode="hard" if hard else "soft")
+    signal_end_run(context, target_id, hard)
+
+
+def control_pause_job(context: CommandContext, target_id: str, hard: bool, listonly: bool) -> None:
+    """Pause one job."""
+    del listonly
+    pause_job(context, require_job(context, target_id), hard=hard)
+
+
+def control_pause_pipeline(context: CommandContext, target_id: str, hard: bool, listonly: bool) -> None:
+    """Pause one pipeline."""
+    del listonly
+    pause_pipeline(context, target_id, hard=hard)
+
+
+def control_pause_run(context: CommandContext, target_id: str, hard: bool, listonly: bool) -> None:
+    """Pause one command run."""
+    del listonly
+    pause_run(context, target_id, hard=hard)
+
+
+def control_resume_job(context: CommandContext, target_id: str, hard: bool, listonly: bool) -> None:
+    """Resume one job."""
+    resume_job(context, require_job(context, target_id), hard=hard, listonly=listonly)
+
+
+def control_resume_pipeline(context: CommandContext, target_id: str, hard: bool, listonly: bool) -> None:
+    """Resume one pipeline."""
+    resume_pipeline(context, target_id, hard=hard, listonly=listonly)
+
+
+def control_resume_run(context: CommandContext, target_id: str, hard: bool, listonly: bool) -> None:
+    """Resume one command run."""
+    resume_run(context, target_id, hard=hard, listonly=listonly)
+
+
+def control_stop_job(context: CommandContext, target_id: str, hard: bool, listonly: bool) -> None:
+    """Stop one job."""
+    del listonly
+    stop_job(context, require_job(context, target_id), hard=hard)
+
+
+def control_stop_pipeline(context: CommandContext, target_id: str, hard: bool, listonly: bool) -> None:
+    """Stop one pipeline."""
+    del listonly
+    stop_pipeline(context, target_id, hard=hard)
+
+
+def control_stop_run(context: CommandContext, target_id: str, hard: bool, listonly: bool) -> None:
+    """Stop one command run."""
+    del listonly
+    stop_run(context, target_id, hard=hard)
+
+
+def signal_pause_job(context: CommandContext, target_id: str, hard: bool) -> None:
+    """Apply a framework pause signal to one job."""
+    pause_job(context, require_job(context, target_id), hard=hard, publish_signal=False)
+
+
+def signal_pause_pipeline(context: CommandContext, target_id: str, hard: bool) -> None:
+    """Apply a framework pause signal to one pipeline."""
+    pause_pipeline(context, target_id, hard=hard, publish_signal=False)
+
+
+def signal_pause_run(context: CommandContext, target_id: str, hard: bool) -> None:
+    """Apply a framework pause signal to one command run."""
+    pause_run(context, target_id, hard=hard, publish_signal=False)
+
+
+def signal_resume_job(context: CommandContext, target_id: str, hard: bool) -> None:
+    """Apply a framework resume signal to one job."""
+    resume_job(context, require_job(context, target_id), hard=hard, listonly=False, publish_signal=False)
+
+
+def signal_resume_pipeline(context: CommandContext, target_id: str, hard: bool) -> None:
+    """Apply a framework resume signal to one pipeline."""
+    resume_pipeline(context, target_id, hard=hard, listonly=False, publish_signal=False)
+
+
+def signal_resume_run(context: CommandContext, target_id: str, hard: bool) -> None:
+    """Apply a framework resume signal to one command run."""
+    resume_run(context, target_id, hard=hard, listonly=False, publish_signal=False)
+
+
+def signal_stop_job(context: CommandContext, target_id: str, hard: bool) -> None:
+    """Apply a framework stop signal to one job."""
+    stop_job(context, require_job(context, target_id), hard=hard, publish_signal=False)
+
+
+def signal_stop_pipeline(context: CommandContext, target_id: str, hard: bool) -> None:
+    """Apply a framework stop signal to one pipeline."""
+    stop_pipeline(context, target_id, hard=hard, publish_signal=False)
+
+
+def signal_stop_run(context: CommandContext, target_id: str, hard: bool) -> None:
+    """Apply a framework stop signal to one command run."""
+    stop_run(context, target_id, hard=hard, publish_signal=False)
+
+
+def signal_end_job(context: CommandContext, target_id: str, hard: bool) -> None:
+    """Apply a framework end signal to one job."""
+    if hard:
+        kill_job(context, require_job(context, target_id))
+    else:
+        cancel_job(context, require_job(context, target_id))
+
+
+def signal_end_pipeline(context: CommandContext, target_id: str, hard: bool) -> None:
+    """Apply a framework end signal to one pipeline."""
+    if hard:
+        kill_pipeline(context, target_id)
+    else:
+        cancel_pipeline(context, target_id)
+
+
+def signal_end_run(context: CommandContext, target_id: str, hard: bool) -> None:
+    """Apply a framework end signal to one command run."""
+    if hard:
+        kill_run(context, target_id)
+    else:
+        cancel_run(context, target_id)
+
+
+CONTROL_HANDLERS: dict[tuple[str, str], ControlHandler] = {
+    ("cancel", "job"): control_cancel_job,
+    ("cancel", "pipeline"): control_cancel_pipeline,
+    ("cancel", "run"): control_cancel_run,
+    ("end", "job"): control_end_job,
+    ("end", "pipeline"): control_end_pipeline,
+    ("end", "run"): control_end_run,
+    ("pause", "job"): control_pause_job,
+    ("pause", "pipeline"): control_pause_pipeline,
+    ("pause", "run"): control_pause_run,
+    ("resume", "job"): control_resume_job,
+    ("resume", "pipeline"): control_resume_pipeline,
+    ("resume", "run"): control_resume_run,
+    ("stop", "job"): control_stop_job,
+    ("stop", "pipeline"): control_stop_pipeline,
+    ("stop", "run"): control_stop_run,
+}
+
+
+FRAMEWORK_SIGNAL_HANDLERS: dict[tuple[str, str], SignalHandler] = {
+    ("end", "job"): signal_end_job,
+    ("end", "pipeline"): signal_end_pipeline,
+    ("end", "run"): signal_end_run,
+    ("pause", "job"): signal_pause_job,
+    ("pause", "pipeline"): signal_pause_pipeline,
+    ("pause", "run"): signal_pause_run,
+    ("resume", "job"): signal_resume_job,
+    ("resume", "pipeline"): signal_resume_pipeline,
+    ("resume", "run"): signal_resume_run,
+    ("stop", "job"): signal_stop_job,
+    ("stop", "pipeline"): signal_stop_pipeline,
+    ("stop", "run"): signal_stop_run,
+}
 
 
 def pause_job(context: CommandContext, row, *, hard: bool, publish_signal: bool = True) -> None:
@@ -655,25 +780,23 @@ def print_queued_actions(context: CommandContext, target_type: str, target_id: s
 
 def control_event_matches(event: Event, target_type: str, target_id: str) -> bool:
     """Return whether a control event belongs to a selected runtime target."""
-    match target_type:
-        case "job":
-            return str(event.payload.get("job_id")) == target_id or (
-                event.payload.get("target_type") == "job" and str(event.payload.get("target_id")) == target_id
-            )
-        case "pipeline":
-            return (
-                event.pipeline_id == target_id
-                or event.payload.get("pipeline_id") == target_id
-                or (event.payload.get("target_type") == "pipeline" and event.payload.get("target_id") == target_id)
-            )
-        case "run":
-            return (
-                event.command_run_id == target_id
-                or event.payload.get("command_run_id") == target_id
-                or (event.payload.get("target_type") == "run" and event.payload.get("target_id") == target_id)
-            )
-        case _:
-            return False
+    if target_type == "job":
+        return str(event.payload.get("job_id")) == target_id or (
+            event.payload.get("target_type") == "job" and str(event.payload.get("target_id")) == target_id
+        )
+    if target_type == "pipeline":
+        return (
+            event.pipeline_id == target_id
+            or event.payload.get("pipeline_id") == target_id
+            or (event.payload.get("target_type") == "pipeline" and event.payload.get("target_id") == target_id)
+        )
+    if target_type == "run":
+        return (
+            event.command_run_id == target_id
+            or event.payload.get("command_run_id") == target_id
+            or (event.payload.get("target_type") == "run" and event.payload.get("target_id") == target_id)
+        )
+    return False
 
 
 def run_ids(context: CompletionContext) -> list[str]:
