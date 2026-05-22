@@ -17,6 +17,7 @@ those dictionaries into SQLite under the first topic listed in `spec.emits`.
 - [Plugin Types](#plugin-types)
 - [Plugin Manifest](#plugin-manifest)
 - [Current API, Not Generic Plugin Patterns](#current-api-not-generic-plugin-patterns)
+- [Defining Inputs: Arguments vs Options](#defining-inputs-arguments-vs-options)
 - [A Minimal Commandlet](#a-minimal-commandlet)
 - [CommandSpec Fields](#commandspec-fields)
 - [Plans](#plans)
@@ -210,6 +211,84 @@ def plugin() -> Commandlet:
 Decorator metadata drives help, completion, manifests, and future introspection.
 The `argparse` parser inside `run()` still validates the actual command-line
 arguments at execution time. Keep the metadata and parser behavior aligned.
+
+# Defining Inputs: Arguments vs Options
+
+Bywaf splits command input metadata into positional arguments and named options.
+The distinction follows what the operator types:
+
+| User input shape | Decorator | Example |
+| --- | --- | --- |
+| Positional value | `@argument(...)` | `cat README.md` |
+| Optional positional value | `@argument(..., required=False)` | `hello` or `hello world` |
+| Named flag or setting | `@option(...)` | `portscanner --ports 22,80,443` |
+| Secret named setting | `@option(..., secret=True)` | `ssh_probe --password ...` |
+
+Use `@argument` for values the user supplies by position:
+
+```python
+@argument("path", "file to print", completion="file")
+@argument("target", "host, address range, or CIDR")
+```
+
+Use `@option` for values the user supplies by name, usually as `--name`:
+
+```python
+@option("port", "target port", default="443")
+@option("timeout", "timeout seconds", default="5")
+@option("password", "SSH password", secret=True)
+```
+
+Do not write option flags as arguments:
+
+| Wrong | Right |
+| --- | --- |
+| `@argument("--port", "target port")` | `@option("port", "target port", default="443")` |
+| `@argument("--timeout", "timeout")` | `@option("timeout", "timeout seconds", default="5")` |
+
+The decorators describe the public commandlet contract. They drive help,
+completion, manifest generation, plugin checking, and capability review. They
+do not replace runtime parsing. Inside `run()`, build the actual parser with
+`self.parser()` and keep it consistent with the decorator metadata:
+
+```python
+from collections.abc import Iterable
+
+from bywaf.events import Event
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
+
+
+@commandlet(
+    name="port_knocker",
+    description="Check one configured port on incoming hosts.",
+    consumes=("host.found",),
+    emits=("service.discovered",),
+    capabilities=("framework.console.alert", "network.connect"),
+)
+@option("port", "target port to check", default="443")
+class PortKnocker(CommandletBase):
+    def run(
+        self,
+        context: CommandContext,
+        args: list[str],
+        input_events: Iterable[Event],
+    ):
+        parser = self.parser()
+        parser.add_argument("--port", default=self.var_default(context, "port", "443"))
+        parsed = parser.parse_args(args)
+
+        for event in input_events:
+            host = event.payload.get("host")
+            if not host:
+                continue
+
+            context.alert(f"Checking port {parsed.port} on {host}")
+            yield {"host": host, "port": parsed.port, "status": "checked"}
+
+
+def plugin() -> Commandlet:
+    return PortKnocker()
+```
 
 # A Minimal Commandlet
 
