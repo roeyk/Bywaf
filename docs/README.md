@@ -11,6 +11,7 @@ detail without reading every design note first.
 - **Operator:** [Terminology](TERMINOLOGY.md) -> [Runtime Model](RUNTIME_MODEL.md) ->
   [Event Model](EVENT_MODEL.md) -> [Framework Surface](FRAMEWORK_SURFACE.md)
 - **Plugin author:** [Plugin Author Guide](PLUGIN_AUTHOR_GUIDE.md) ->
+  [Plugin Manifest Specification](MANIFEST_SPECIFICATION.md) ->
   [Capability Model](CAPABILITY_MODEL.md) -> [Framework Surface](FRAMEWORK_SURFACE.md)
 - **Maintainer:** [Changelog](../CHANGELOG.md) -> [TODO](TODO.md) ->
   [Key Management](KEY_MANAGEMENT.md) -> [Design Notes](DESIGN.md)
@@ -27,6 +28,8 @@ detail without reading every design note first.
   maintenance, and variable store contracts.
 - [Capability Model](CAPABILITY_MODEL.md): capability auditing, trust
   boundaries, policy direction, and plugin integration types.
+- [Plugin Manifest Specification](MANIFEST_SPECIFICATION.md): exact sidecar
+  TOML schema, manifest generation, validation behavior, and boundaries.
 - [Framework Surface](FRAMEWORK_SURFACE.md): enumerated base resources,
   including capabilities, trigger rules, plugin data topics, and framework
   audit/control topics.

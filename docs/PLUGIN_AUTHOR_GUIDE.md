@@ -16,6 +16,7 @@ those dictionaries into SQLite under the first topic listed in `spec.emits`.
 
 - [Plugin Types](#plugin-types)
 - [Plugin Manifest](#plugin-manifest)
+- [Manifest Generation And Inspection](#manifest-generation-and-inspection)
 - [Current API, Not Generic Plugin Patterns](#current-api-not-generic-plugin-patterns)
 - [Defining Inputs: Arguments vs Options](#defining-inputs-arguments-vs-options)
 - [A Minimal Commandlet](#a-minimal-commandlet)
@@ -93,6 +94,9 @@ the commandlets listed in `[[commandlets]]`. Extra commandlets returned by
 `plugin()` or `plugins()` are ignored, and commandlets declared in the manifest
 but missing from Python code cause plugin loading to fail.
 
+See `MANIFEST_SPECIFICATION.md` for the complete sidecar TOML schema and
+validation rules.
+
 ```toml
 [plugin]
 library_backed = true
@@ -125,6 +129,8 @@ check, not the only enforcement layer: runtime policy still audits and can deny
 actual framework API use if a plugin attempts behavior outside its declared
 capabilities.
 
+# Manifest Generation And Inspection
+
 Generate a starter manifest from an existing plugin with:
 
 ```text
@@ -132,9 +138,25 @@ bywaf-plugin-manifest path/to/plugin.py
 bywaf-plugin-manifest --library-backed path/to/plugin.py -o bywaf.plugin.toml
 ```
 
-The generator imports the plugin and reads its commandlet metadata, so use it
-for your own development tree or reviewed code. It is a convenience tool, not a
-substitute for manifest review.
+The generator uses runtime inspection. It imports the plugin module, loads
+commandlets and triggers, and writes the metadata that Bywaf sees at runtime.
+Use it for your own development tree or reviewed code. It is a convenience
+tool, not a substitute for manifest review.
+
+`--infer-capabilities` adds a static AST analysis pass. That pass looks for
+recognizable framework calls and direct Python APIs that imply capabilities.
+It does not parse the whole plugin API from decorators, and it is not a proof
+that the plugin cannot do anything else.
+
+Keep these boundaries clear:
+
+| Question | Source of truth |
+| --- | --- |
+| What commandlets and triggers does the manifest generator emit? | Runtime inspection of loaded plugin specs. |
+| What likely capabilities did the source code use? | Optional AST hints from `--infer-capabilities`. |
+| What commandlets, capabilities, secret options, and triggers may load? | `bywaf.plugin.toml` or bundled `*.plugin.toml`. |
+| How does a commandlet parse runtime args? | Python `run()` method using `self.parser()`. |
+| Does the manifest sandbox plugin code? | No. It records trust metadata and consistency expectations. |
 
 # Current API, Not Generic Plugin Patterns
 

@@ -61,6 +61,8 @@ Maintainer signing-key policy is recorded in
 [docs/KEY_MANAGEMENT.md](docs/KEY_MANAGEMENT.md).
 Base capabilities, triggers, and audit/event topics are listed in
 [docs/FRAMEWORK_SURFACE.md](docs/FRAMEWORK_SURFACE.md).
+Plugin sidecar TOML is specified in
+[docs/MANIFEST_SPECIFICATION.md](docs/MANIFEST_SPECIFICATION.md).
 Core architectural references:
 
 - [docs/TERMINOLOGY.md](docs/TERMINOLOGY.md) defines jobs, pipelines, runs, events,
@@ -73,6 +75,8 @@ Core architectural references:
   artifact, maintenance, and variable store contracts.
 - [docs/CAPABILITY_MODEL.md](docs/CAPABILITY_MODEL.md) explains capability auditing,
   policy direction, and plugin integration types.
+- [docs/MANIFEST_SPECIFICATION.md](docs/MANIFEST_SPECIFICATION.md) defines the
+  plugin sidecar schema, generation flow, validation checks, and boundaries.
 - [docs/SYSTEM_BLOCK_DIAGRAM.pdf](docs/SYSTEM_BLOCK_DIAGRAM.pdf) shows live runtime flow
   and durable data flow through the system.
 - [docs/SYSTEM_DATAFLOW_DIAGRAM.pdf](docs/SYSTEM_DATAFLOW_DIAGRAM.pdf) focuses on command
