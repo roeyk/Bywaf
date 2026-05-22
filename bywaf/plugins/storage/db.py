@@ -17,11 +17,12 @@ from datetime import datetime
 from pathlib import Path
 
 from bywaf.config import Settings
-from bywaf.db import EventStore, export_encrypted_database, export_plaintext_database
+from bywaf.db import EventStore, database_appears_encrypted, export_encrypted_database, export_plaintext_database
 from bywaf.events import Event
-from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionSpec, argument, commandlet
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
+from bywaf.utils import complete_path
 
-DB_ACTIONS = ("checkpoint", "decrypt", "encrypt", "new", "path", "rekey", "status", "vacuum")
+DB_ACTIONS = ("checkpoint", "decrypt", "encrypt", "export", "load", "new", "path", "rekey", "status", "vacuum")
 ENCRYPTION_VAR = "encryption"
 DbActionHandler = Callable[[CommandContext, Namespace], None]
 
@@ -29,8 +30,8 @@ DbActionHandler = Callable[[CommandContext, Namespace], None]
 @commandlet(
     name="db",
     description="Manage the active Bywaf SQLite database.",
-    usage="db <status|path|checkpoint|vacuum|new|encrypt|decrypt|rekey>",
-    examples=("db status", "db new --file=client.sqlite3", "db encrypt", "db rekey"),
+    usage="db <status|path|checkpoint|vacuum|new|load|export|encrypt|decrypt|rekey>",
+    examples=("db status", "db load file=client.sqlite3 --force", "db export file=snapshot.sqlite3", "db rekey"),
     capabilities=("db.manage", "db.raw", "filesystem.read", "filesystem.write", "framework.console.output"),
 )
 @argument("action", "database operation", completion=CompletionSpec("choice", DB_ACTIONS))
@@ -49,11 +50,24 @@ class Db(CommandletBase):
         parser.add_argument("--file")
         parser.add_argument("--encrypt", action="store_true")
         parser.add_argument("--force", action="store_true")
-        parsed = parser.parse_args(args)
+        parsed = parser.parse_args(normalize_db_args(args))
         context.require_foreground("database management commands")
         context.audit_capability("db.manage")
         db_action_handlers()[parsed.action](context, parsed)
         return ()
+
+    def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
+        """Complete DB actions and file selectors."""
+        del context
+        if not args:
+            return list(DB_ACTIONS)
+        if len(args) == 1 and args[0] not in DB_ACTIONS:
+            return [action for action in DB_ACTIONS if action.startswith(prefix)]
+        if args[0] in {"export", "load", "new"}:
+            if prefix.startswith("file="):
+                return [f"file={candidate}" for candidate in complete_path(prefix.removeprefix("file="))]
+            return [candidate for candidate in ("file=", "--encrypt", "--force") if candidate.startswith(prefix)]
+        return []
 
 
 def db_action_handlers() -> dict[str, DbActionHandler]:
@@ -62,6 +76,8 @@ def db_action_handlers() -> dict[str, DbActionHandler]:
         "checkpoint": checkpoint_database,
         "decrypt": decrypt_database,
         "encrypt": encrypt_database,
+        "export": export_database,
+        "load": load_database,
         "new": create_database,
         "path": print_database_path,
         "rekey": rekey_database,
@@ -102,6 +118,49 @@ def create_database(context: CommandContext, parsed: Namespace) -> None:
     context.output(f"created db={context.require_db().path}")
 
 
+def export_database(context: CommandContext, parsed: Namespace) -> None:
+    """Export the active database to a snapshot file."""
+    if not parsed.file:
+        raise ValueError("usage: db export file=<path> [--encrypt]")
+    db = context.require_db()
+    output = Path(parsed.file).expanduser()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    db.checkpoint()
+    if parsed.encrypt:
+        passphrase = prompt_new_passphrase("New database export passphrase: ", "Confirm database export passphrase: ")
+        export_encrypted_database(db.path, output, passphrase, source_passphrase=db.passphrase)
+    elif db.encrypted:
+        if db.passphrase is None:
+            raise RuntimeError("encrypted database is missing its in-memory passphrase")
+        export_plaintext_database(db.path, output, source_passphrase=db.passphrase)
+    else:
+        copy_plain_database(db.path, output)
+    context.output(f"exported db={output}")
+
+
+def load_database(context: CommandContext, parsed: Namespace) -> None:
+    """Switch the active database to another file."""
+    if not parsed.file:
+        raise ValueError("usage: db load file=<path> [--force]")
+    current = context.require_db()
+    path = Path(parsed.file).expanduser()
+    if not path.exists():
+        raise ValueError(f"database does not exist: {path}")
+    if is_same_path(path, current.path):
+        raise ValueError("db load target is already the active database")
+    if not parsed.force:
+        response = input(f"Switch active database from {current.path} to {path}? [y/N]: ")
+        if response.strip().lower() not in {"y", "yes"}:
+            raise ValueError("db load cancelled")
+    passphrase = None
+    if database_appears_encrypted(path):
+        passphrase = getpass.getpass(f"Passphrase for encrypted database {path}: ")
+    new_db = EventStore(path, passphrase=passphrase)
+    new_db.mark_stale_jobs()
+    replace_active_store(context, new_db)
+    context.output(f"loaded db={path}")
+
+
 def print_database_path(context: CommandContext, parsed: Namespace) -> None:
     """Print the active database path."""
     del parsed
@@ -137,6 +196,25 @@ def print_database_status(context: CommandContext) -> None:
     context.output(f"mode={mode}")
     context.output(f"events={counts['events']}")
     context.output(f"jobs={counts['jobs']}")
+
+
+def normalize_db_args(args: list[str]) -> list[str]:
+    """Accept selector-style `file=...` beside argparse-style `--file=...`."""
+    normalized: list[str] = []
+    for arg in args:
+        if arg.startswith("file="):
+            normalized.append(f"--file={arg.split('=', 1)[1]}")
+        else:
+            normalized.append(arg)
+    return normalized
+
+
+def copy_plain_database(source: Path, destination: Path) -> None:
+    """Copy a plaintext SQLite DB with the SQLite backup API."""
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with EventStore(source).connect() as source_conn:
+        with EventStore(destination).connect() as dest_conn:
+            source_conn.backup(dest_conn)
 
 
 def encrypt_active_database(context: CommandContext) -> None:

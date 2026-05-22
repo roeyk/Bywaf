@@ -191,7 +191,6 @@ class PackagingInstallPathTests(unittest.TestCase):
                         str(config),
                         "--allow-unsigned-plugins",
                         "--allow-unsigned-plugin-manifests",
-                        "run",
                         "userprobe",
                     ]
                 )
@@ -217,7 +216,6 @@ class PackagingInstallPathTests(unittest.TestCase):
                         "--plugin-config",
                         str(config),
                         "--allow-unsigned-plugins",
-                        "run",
                         "userprobe",
                     ]
                 )
@@ -250,7 +248,6 @@ class PackagingInstallPathTests(unittest.TestCase):
                         "--plugin-manifest-key",
                         str(public_path),
                         "--allow-unsigned-plugins",
-                        "run",
                         "userprobe",
                     ]
                 )
@@ -285,7 +282,6 @@ class PackagingInstallPathTests(unittest.TestCase):
                         "--plugin-manifest-key",
                         str(public_path),
                         "--allow-unsigned-plugins",
-                        "run",
                         "userprobe",
                     ]
                 )
@@ -319,7 +315,6 @@ class PackagingInstallPathTests(unittest.TestCase):
                         str(signed),
                         "--plugin-catalog-key",
                         str(public_path),
-                        "run",
                         "userprobe",
                     ]
                 )
@@ -355,7 +350,6 @@ class PackagingInstallPathTests(unittest.TestCase):
                         str(signed),
                         "--plugin-catalog-key",
                         str(public_path),
-                        "run",
                         "userprobe",
                     ]
                 )
@@ -389,7 +383,6 @@ class PackagingInstallPathTests(unittest.TestCase):
                         str(signed),
                         "--plugin-catalog-key",
                         str(public_path),
-                        "run",
                         "userprobe",
                     ]
                 )
@@ -420,7 +413,6 @@ class PackagingInstallPathTests(unittest.TestCase):
                         str(config),
                         "--plugin-catalog",
                         str(signed),
-                        "run",
                         "userprobe",
                     ]
                 )
@@ -452,7 +444,6 @@ class PackagingInstallPathTests(unittest.TestCase):
                         "--plugin-catalog",
                         str(signed),
                         "--allow-missing-plugin-keys",
-                        "run",
                         "userprobe",
                     ]
                 )
@@ -487,7 +478,6 @@ class PackagingInstallPathTests(unittest.TestCase):
                         str(signed),
                         "--plugin-catalog-key",
                         str(public_path),
-                        "run",
                         "userprobe",
                     ]
                 )
@@ -524,7 +514,6 @@ class PackagingInstallPathTests(unittest.TestCase):
                         "--plugin-catalog-key",
                         str(public_path),
                         "--allow-mismatched-plugin-keys",
-                        "run",
                         "userprobe",
                     ]
                 )
@@ -560,7 +549,6 @@ class PackagingInstallPathTests(unittest.TestCase):
                         "--plugin-catalog-key",
                         str(public_path),
                         "--allow-untrusted-plugins",
-                        "run",
                         "userprobe",
                     ]
                 )

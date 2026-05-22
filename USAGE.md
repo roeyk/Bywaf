@@ -20,6 +20,8 @@ The documentation roadmap starts at [docs/README.md](docs/README.md).
 Evolving framework design notes are tracked in [docs/DESIGN.md](docs/DESIGN.md).
 Maintainer signing-key policy is recorded in
 [docs/KEY_MANAGEMENT.md](docs/KEY_MANAGEMENT.md).
+Save/load/export/archive command semantics are explained in
+[docs/SAVE_EXPORT_MODEL.md](docs/SAVE_EXPORT_MODEL.md).
 Base capabilities, triggers, and audit/event topics are listed in
 [docs/FRAMEWORK_SURFACE.md](docs/FRAMEWORK_SURFACE.md).
 Core architectural references:
@@ -186,7 +188,7 @@ Runtime entities have two identities: local IDs for interactive typing
 Local IDs are stable inside the current database and are never reused there,
 but they are not portable across replay/import into another database. Use
 `event serial=<serial>` when you want to inspect by the durable identifier.
-Explicit `load plugin=...` and `load script=...` operations also receive
+Explicit `load plugin=...` and `script load file=...` operations also receive
 resource serials, so the load itself and the script commands it executed can be
 reviewed later.
 
@@ -194,9 +196,10 @@ Plugins that need interpreter-owned actions use request events instead of
 direct method calls. For example, a plugin can publish
 `shell.prompt.requested`; the foreground REPL validates the request and records
 either `shell.prompt.updated` or `framework.request.denied` for auditability.
-Plugins also declare intended capabilities on `CommandSpec`; Bywaf records
-audit-only `plugin.capability.used` and `plugin.capability.missing` events so
-operators can compare intended behavior with actual behavior.
+Plugins declare intended capabilities through `@commandlet(...)`, which builds
+the runtime `CommandSpec`; Bywaf records audit-only `plugin.capability.used` and
+`plugin.capability.missing` events so operators can compare intended behavior
+with actual behavior.
 Plugin event-bus access should go through `context.events`, which audits
 `db.read:<topic>` and `db.write:<topic>` capability usage. Raw `context.db`
 access is retained for privileged/internal framework commandlets during the
@@ -234,14 +237,21 @@ bywaf --database client.sqlite3 --encrypt
 Run one command non-interactively:
 
 ```bash
-bywaf run ls
-bywaf run cat README.md
-bywaf run 'hostscanner 127.0.0.1 | portscanner'
+bywaf ls
+bywaf cat README.md
+bywaf 'hostscanner 127.0.0.1 | portscanner'
 ```
 
-Simple `run` commands do not need quotes. Use quotes when the command contains
+Simple commandlet invocations do not need quotes. Use quotes when the command contains
 shell metacharacters such as `|`, `&`, `>`, or spaces that must be preserved
 inside a single argument.
+
+Use `exec` when you intentionally want to run an operating-system shell command
+instead of a Bywaf commandlet:
+
+```bash
+bywaf exec 'ls -la | head'
+```
 
 # REPL Basics
 
@@ -270,7 +280,7 @@ help
 help <command>
 plugins
 cmds
-var
+set
 history
 info
 job <list|show|cancel|end|kill>
@@ -282,13 +292,17 @@ kill [--soft|--hard] <job=id|pipeline=id|run=id>
 jobs
 runs
 run <id|serial>
-exec <commandlet-pipeline>
+exec <shell-command>
+<commandlet-pipeline>
 events [tail|--tail] [last=N]
 topics
-db <status|path|checkpoint|vacuum|new|encrypt|decrypt|rekey>
+db <status|path|checkpoint|vacuum|new|load|export|encrypt|decrypt|rekey>
 event <id|topic|job=id|run=id|pipeline=id|serial=id>
-load <resource>
-save <resource>
+load [--force] plugin=<path>
+config <load|save> file=<path> [--encrypt]
+history [since=... until=...]
+history <load|save> file=<path> [--encrypt]
+script <load|save> file=<path> [--encrypt]
 exit
 ```
 
@@ -347,9 +361,9 @@ Interactive shells use `prompt_toolkit` when a real terminal is available.
 the first candidate. Then arrow keys move through candidates, `Enter` selects
 the highlighted completion, and `Esc` returns to the command line. A bottom
 toolbar shows that hint while a completion menu is open. The selection-mode key
-is configurable with `var completion.select-key=<key>` using prompt-toolkit key
+is configurable with `set completion.select-key=<key>` using prompt-toolkit key
 names, because some desktop environments or terminal stacks reserve
-`Ctrl-Space`. `var completion.wasd-selection=true` enables optional
+`Ctrl-Space`. `set completion.wasd-selection=true` enables optional
 WASD-style menu navigation (`w`/`a` move backward, `s`/`d` move forward,
 following prompt-toolkit's flat completion order), but it is off by default so
 ordinary typing is not intercepted. Minimal
@@ -376,8 +390,8 @@ Bywaf enforces progress throttling in the framework. Configure it with global
 session variables:
 
 ```text
-bywaf> var global.progress.min-interval-ms=250
-bywaf> var global.progress.min-percent-delta=1
+bywaf> set global.progress.min-interval-ms=250
+bywaf> set global.progress.min-percent-delta=1
 ```
 
 Audit logs are stored as SQLite events, but `audit` has a different job than
@@ -641,15 +655,17 @@ Notes are append-only. Adding another note creates another timestamped
 
 # Artifacts
 
-Artifacts are evidence files attached to a run, pipeline, or job. Artifact
-bodies are stored in a separate artifact database next to the main database.
+Artifacts are evidence files stored in a separate artifact database next to the
+main database. They can be imported without external provenance, or attached to
+a run, pipeline, or job when you know what produced or justifies them. Artifact
+bodies are stored in the artifact database, not in the main event database.
 If the main database is encrypted, the artifact database is encrypted with the
 same session passphrase. If the main database is plaintext, the artifact
 database is plaintext too. The main database stores timestamped provenance
-events such as `artifact.attached` and `artifact.exported`; it does not store
-artifact bodies. Bywaf derives the artifact DB path from the active main DB path
-so the two files remain an integrity pair; arbitrary artifact DB switching is
-intentionally not exposed by default.
+events such as `artifact.imported`, `artifact.attached`, and
+`artifact.exported`. Bywaf derives the artifact DB path from the active main DB
+path so the two files remain an integrity pair; arbitrary artifact DB switching
+is intentionally not exposed by default.
 
 Start Bywaf with an encrypted database when you want SQLCipher-protected
 artifact bodies:
@@ -658,16 +674,24 @@ artifact bodies:
 bywaf --encrypt
 ```
 
-Attach one or more files:
+Import one or more files without attaching them to a run, pipeline, or job:
 
 ```text
+bywaf> artifact import file=snapshot.html name='Landing page'
+bywaf> artifact import file=headers.txt note=response headers
+```
+
+Attach existing artifacts, or import and attach files in one command:
+
+```text
+bywaf> artifact attach artifact=1 run=<command-run-id>
 bywaf> artifact attach run=<command-run-id> file=snapshot.html name='Landing page'
 bywaf> artifact attach serial=<run-or-pipeline-or-job-serial> file=snapshot.html
 bywaf> artifact attach run=<command-run-id> file=snapshot.html file=headers.txt
 bywaf> artifact attach pipeline=<pipeline-id> file=report.json note=initial report
 ```
 
-List, search, save, and verify artifacts:
+List, search, export, and verify artifacts:
 
 ```text
 bywaf> artifact list run=<command-run-id>
@@ -677,9 +701,9 @@ bywaf> search run=<command-run-id> content=csrf
 bywaf> artifact search run=<command-run-id> --regexp filename='.*\\.png'
 bywaf> artifact replace artifact=1 file=snapshot-v2.html
 bywaf> artifact remove artifact=1
-bywaf> artifact save artifact=1 file=snapshot.html
-bywaf> artifact save serial=<artifact-serial> file=snapshot.html
-bywaf> artifact save run=<command-run-id> dir=artifacts/
+bywaf> artifact export artifact=1 file=snapshot.html
+bywaf> artifact export serial=<artifact-serial> file=snapshot.html
+bywaf> artifact export run=<command-run-id> dir=artifacts/
 bywaf> artifact verify pipeline=<pipeline-id>
 ```
 
@@ -690,12 +714,13 @@ the search to artifact names, source filenames, notes, or decoded text contents.
 `--regexp` to treat those field values as Python regular expressions. Any
 commandlet whose main action is text search should follow the same `--regexp`
 convention. `since=` and `until=` restrict matches by artifact creation time.
-Use `file=` when saving exactly one artifact. Use `dir=` when saving a set. If
+Use `file=` when exporting exactly one artifact. Use `dir=` when exporting a set. If
 `file=` matches multiple artifacts, Bywaf reports that clearly and asks you to
 use `dir=` instead.
 For `artifact attach`, `serial=` may refer to a run, pipeline, or job serial.
 Artifact serials identify existing artifact rows for listing, searching,
-saving, and verifying; artifacts are not attached to other artifacts.
+exporting, and verifying; use `artifact=` when attaching an existing artifact
+to run, pipeline, or job provenance.
 
 # At-File Arguments
 
@@ -732,7 +757,7 @@ literally.
 
 ```text
 bywaf> use hostscanner
-bywaf> var targets=192.168.1.1 192.168.1.2
+bywaf> set targets=192.168.1.1 192.168.1.2
 bywaf> hostscanner $targets
 bywaf> hostscanner "$targets"
 bywaf> hostscanner '$targets'
@@ -762,9 +787,9 @@ are audited as `plan.repair.applied` or `plan.repair.denied`.
 Initial network policy variables:
 
 ```text
-bywaf> var global.policy.network.allow=192.168.1.0/24
-bywaf> var global.policy.network.deny=169.254.169.254/32,192.168.1.50
-bywaf> var global.plan.required=true
+bywaf> set global.policy.network.allow=192.168.1.0/24
+bywaf> set global.policy.network.deny=169.254.169.254/32,192.168.1.50
+bywaf> set global.plan.required=true
 ```
 
 The policy layer applies to the run being launched. Repairs do not mutate source
@@ -783,7 +808,7 @@ bywaf> hostscanner \
 Separate multiple commands with semicolons when they should run sequentially:
 
 ```text
-bywaf> var target=127.0.0.1; var; topics
+bywaf> set target=127.0.0.1; set; topics
 ```
 
 Semicolons inside quotes are preserved as part of the argument text.
@@ -874,7 +899,7 @@ bywaf> pipeline kill --hard <id>
 Use `--all` to include historical entries. These commands render table views
 with local ID, durable serial, lifecycle state, names, timestamps, and an
 `ARTIFACTS` column counting artifacts attached so far. Set
-`var global.listing.active-format=long` to include the state timestamp in the
+`set global.listing.active-format=long` to include the state timestamp in the
 state column; set it to `short` for compact lifecycle labels. Use `--page` on
 list actions such as `job list`, `pipeline list`, and `artifact list` to view
 long output through the framework pager.
@@ -1028,13 +1053,13 @@ bywaf> event serial=<durable-serial>
 Save a database snapshot:
 
 ```text
-bywaf> save db=snapshot.sqlite3
+bywaf> db export file=snapshot.sqlite3
 ```
 
 Save an encrypted snapshot:
 
 ```text
-bywaf> save --encrypt db=snapshot.sqlite3
+bywaf> db export --encrypt file=snapshot.sqlite3
 ```
 
 Inspect or maintain the active database:
@@ -1065,7 +1090,7 @@ The session variable `db.encryption=sqlcipher` makes `db new` encrypted by
 default:
 
 ```text
-bywaf> var db.encryption=sqlcipher
+bywaf> set db.encryption=sqlcipher
 bywaf> db new
 ```
 
@@ -1085,7 +1110,7 @@ SQLite after an explicit `YES` confirmation.
 Switch to another database:
 
 ```text
-bywaf> load db=snapshot.sqlite3
+bywaf> db load file=snapshot.sqlite3
 ```
 
 If the database is encrypted, Bywaf prompts for its passphrase when loading it.
@@ -1118,6 +1143,8 @@ bywaf> project list
 bywaf> project info
 bywaf> project new name=client-b
 bywaf> project use name=client-b
+bywaf> project archive file=client-b-project.zip
+bywaf> project archive file=client-b-project.bywaf-archive --encrypt
 ```
 
 Switching projects changes the active database, config, and history path. Bywaf
@@ -1129,6 +1156,13 @@ bywaf> project use name=client-b --force
 ```
 
 The forced stop is audited in the old project database before the switch.
+
+`project archive` snapshots the active project's framework-owned files: the main
+event database, paired artifact database, project config, project history, and
+SQLite sidecars if present. It does not package arbitrary working-directory
+files. Use evidence bundles or explicit artifact exports for curated client
+deliverables; use `project archive` when you want to preserve or hand off the
+whole Bywaf project state.
 
 # Resource Files
 
@@ -1169,12 +1203,12 @@ Explicit paths are used as filesystem paths for every resource type:
 Examples:
 
 ```text
-bywaf> load script=scan.bywaf
-bywaf> load script=./scripts/scan.bywaf
-bywaf> save config=session.toml
-bywaf> load config=session.toml
-bywaf> save history=session-history.bywaf
-bywaf> load history=session-history.bywaf
+bywaf> script load file=scan.bywaf
+bywaf> script load file=./scripts/scan.bywaf
+bywaf> config save file=session.toml
+bywaf> config load file=session.toml
+bywaf> history save file=session-history.bywaf
+bywaf> history load file=session-history.bywaf
 ```
 
 # Variables
@@ -1182,19 +1216,19 @@ bywaf> load history=session-history.bywaf
 List variables:
 
 ```text
-bywaf> var
+bywaf> set
 ```
 
 Set a variable:
 
 ```text
-bywaf> var name=value
+bywaf> set name=value
 ```
 
 Set an explicit secret variable:
 
 ```text
-bywaf> var --secret ssh_probe.password=client-password
+bywaf> set --secret ssh_probe.password=client-password
 ssh_probe.password=[REDACTED] fingerprint=hmac-sha256:...
 ```
 
@@ -1204,21 +1238,21 @@ method is a `[REDACTED]` block in the prompt; `getpass` uses a separate no-echo
 prompt instead.
 
 ```text
-bywaf> var --secret ssh_probe.password=
+bywaf> set --secret ssh_probe.password=
 ```
 
 ```text
-bywaf> var secret.input-mode=block
-bywaf> var secret.input-mode=getpass
-bywaf> var secret.input-mode=plain
+bywaf> set secret.input-mode=block
+bywaf> set secret.input-mode=getpass
+bywaf> set secret.input-mode=plain
 ```
 
 `plain` and `plaintext` allow visible typing in the prompt; after Enter, the
 stored value is still replaced with `[REDACTED]` and a fingerprint.
 
 Only explicit `--secret` assignments and commandlet options declared as secret
-metadata are stored as secret references. Plain `var password=value` is an
-ordinary variable. `var`, command history, and audit-friendly displays show
+metadata are stored as secret references. Plain `set password=value` is an
+ordinary variable. `set`, command history, and audit-friendly displays show
 `[REDACTED]` plus an HMAC fingerprint for secret references instead of the
 plaintext.
 
@@ -1235,28 +1269,28 @@ there.
 Show one variable:
 
 ```text
-bywaf> var name
+bywaf> set name
 ```
 
 Common examples:
 
 ```text
-bywaf> var http_probe.cookie-file=/tmp/cookies.txt
-bywaf> var history.timestamp-format=%Y-%m-%d %H:%M:%S %Z
-bywaf> var display.vars.color=auto
-bywaf> var display.vars.name-color=cyan
-bywaf> var display.vars.value-color=green
-bywaf> var display.events.color=auto
-bywaf> var display.events.key-color=green
-bywaf> var display.history.color=auto
-bywaf> var display.history.timestamp-color=green
-bywaf> var display.help.color=auto
-bywaf> var display.help.command-color=green
-bywaf> var hostscanner.targets=192.168.1.1-255
+bywaf> set http_probe.cookie-file=/tmp/cookies.txt
+bywaf> set history.timestamp-format=%Y-%m-%d %H:%M:%S %Z
+bywaf> set display.vars.color=auto
+bywaf> set display.vars.name-color=cyan
+bywaf> set display.vars.value-color=green
+bywaf> set display.events.color=auto
+bywaf> set display.events.key-color=green
+bywaf> set display.history.color=auto
+bywaf> set display.history.timestamp-color=green
+bywaf> set display.help.color=auto
+bywaf> set display.help.command-color=green
+bywaf> set hostscanner.targets=192.168.1.1-255
 bywaf> hostscanner
 ```
 
-`display.vars.color` controls `var` output. `display.events.color` controls
+`display.vars.color` controls `set` output. `display.events.color` controls
 `events`, `event <topic>`, `event <selector>`, and `event <id>` output.
 `display.history.color` controls `history` output. `display.help.color`
 controls the built-in `help` command list. These color modes accept `auto`,
@@ -1273,7 +1307,7 @@ preferred pagers/editors, prompt style, and plugin UX defaults like
 `plugins.portscanner.default-arguments`. Preferences should follow the user
 across projects and should not be stored in project databases.
 
-Use `var` for framework or plugin variables that affect the current project,
+Use `set` for framework or plugin variables that affect the current project,
 session, commandlet, or run. Variables can affect evidence-producing behavior,
 so their effective values are snapshotted with command runs and belong with the
 project/audit context. If a future plugin wants to change a preference, it
@@ -1285,7 +1319,7 @@ commandlet:
 
 ```text
 bywaf> use hostscanner
-bywaf> var targets=192.168.1.1-255
+bywaf> set targets=192.168.1.1-255
 bywaf> use global
 ```
 
@@ -1298,13 +1332,13 @@ falls back to it.
 Save variables:
 
 ```text
-bywaf> save config=config.toml
+bywaf> config save file=config.toml
 ```
 
 Load variables:
 
 ```text
-bywaf> load config=config.toml
+bywaf> config load file=config.toml
 ```
 
 Config files are TOML tables containing session variables. Legacy JSON config
@@ -1353,7 +1387,7 @@ commands as comments, so history lines can be copied into a script file.
 Change the timestamp format:
 
 ```text
-bywaf> var history.timestamp-format=%Y/%m/%d %H:%M:%S %Z
+bywaf> set history.timestamp-format=%Y/%m/%d %H:%M:%S %Z
 ```
 
 # Scripts
@@ -1376,7 +1410,7 @@ plugins  # list loaded plugin providers
 Run a script:
 
 ```text
-bywaf> load script=scan.bywaf
+bywaf> script load file=scan.bywaf
 ```
 
 # Bundled Commandlets
@@ -1459,7 +1493,7 @@ bywaf> dns_lookup record-type=MX example.com
 ```
 
 `shodan_lookup` uses the Shodan Python library. Set `SHODAN_API_KEY`, use
-`api-key=...`, or set `var shodan_lookup.api-key=...`.
+`api-key=...`, or set `set shodan_lookup.api-key=...`.
 
 ```text
 bywaf> shodan_lookup 8.8.8.8
@@ -1531,7 +1565,7 @@ bywaf> eyewitness --output-dir=client-shots https://example.com/
 For authorized session-aware testing, it can use cookies:
 
 ```text
-bywaf> var http_probe.cookie-file=/path/to/cookies.txt
+bywaf> set http_probe.cookie-file=/path/to/cookies.txt
 bywaf> http_probe https://example.com/
 bywaf> http_probe --firefox-profile ~/.mozilla/firefox/<profile>
 ```
@@ -1545,7 +1579,7 @@ output when present.
 
 ```text
 bywaf> wifi_scan interface=wlan0mon duration=60
-bywaf> var wifi_scan.interface=wlan0mon
+bywaf> set wifi_scan.interface=wlan0mon
 bywaf> wifi_scan duration=120
 ```
 
@@ -1627,15 +1661,15 @@ bywaf> hostscanner 127.0.0.1 | portscanner --ports 80,443 | http_probe --method 
 Save the current database:
 
 ```text
-bywaf> save db=scan-results.sqlite3
-bywaf> save --encrypt db=scan-results.sqlite3
+bywaf> db export file=scan-results.sqlite3
+bywaf> db export --encrypt file=scan-results.sqlite3
 ```
 
 Save variables and session history:
 
 ```text
-bywaf> save config=session.json
-bywaf> save history=session.bywaf
+bywaf> config save file=session.json
+bywaf> history save file=session.bywaf
 ```
 
 # Troubleshooting
@@ -1764,14 +1798,11 @@ sidecar manifest hashes, traits, commandlets, capabilities, and secret options.
 `--check-tree` proves the signed catalog still matches the files in the current
 checkout.
 
-Add a commandlet by defining a class with a `CommandSpec` and a `run()` method,
-then expose it through a `plugin()` factory. Add bundled commandlets to
-`bywaf/plugins/plugins.toml` when they should load by default.
-
-Commandlets can declare completion metadata with `ArgumentSpec`,
-`OptionSpec(..., completion=CompletionSpec(...))`, or an optional custom
-`complete(context, args, prefix)` method. See `docs/PLUGIN_AUTHOR_GUIDE.md` for
-a walkthrough and a small working example.
+Add a commandlet by defining a `CommandletBase` subclass decorated with
+`@commandlet(...)`, `@argument(...)`, and `@option(...)`, then expose it through
+a `plugin()` factory. Add bundled commandlets to `bywaf/plugins/plugins.toml`
+when they should load by default. See `docs/PLUGIN_AUTHOR_GUIDE.md` for a
+walkthrough and a small working example.
 
 # Reference
 
@@ -1781,7 +1812,7 @@ Useful built-ins:
 help [command]
 plugins
 cmds
-var [--secret] [name=value]
+set [--secret] [name=value]
 history
 job <list|show|cancel|end|kill>
 pipeline <list|show|cancel|end|kill|attach>
@@ -1791,13 +1822,14 @@ end [--soft|--hard] <job=id|pipeline=id|run=id>
 kill [--soft|--hard] <job=id|pipeline=id|run=id>
 name <run=id|pipeline=id|job=id> [name text]
 note [add] <run=id|pipeline=id|job=id> [text=note|file=path]
-artifact <attach|list|remove|replace|save|search|verify> [artifact=id|run=id|pipeline=id|job=id] [file=path|dir=path]
+artifact <import|attach|list|remove|replace|export|search|verify> [artifact=id|run=id|pipeline=id|job=id] [file=path|dir=path]
 search [--regexp] <name=text|filename=text|note=text|content=text> [artifact=id|run=id|pipeline=id|job=id] [since=time|until=time]
 jobs
 pipelines
 runs
 run <id|serial>
-exec <commandlet-pipeline>
+exec <shell-command>
+<commandlet-pipeline>
 events [tail|--tail] [last=N]
 topics
 event <topic>
@@ -1806,18 +1838,23 @@ event job=<id>
 event run=<id>
 event pipeline=<id>
 event serial=<id>
-db <status|path|checkpoint|vacuum|new|encrypt|decrypt|rekey>
+db <status|path|checkpoint|vacuum|new|load|export|encrypt|decrypt|rekey>
 key <list|show|generate|import|export|remove|test>
 bundle <create|add|list|show|seal|verify|export>
 load [--force] plugin=<resource>
-load script=<resource>
-load db=<resource>
-load config=<resource>
-load history=<resource>
-save db=<resource>
-save --encrypt db=<resource>
-save config=<resource>
-save history=<resource>
+db load file=<resource>
+db load file=<resource> --force
+config load file=<resource>
+history load file=<resource>
+script load file=<resource>
+db export file=<resource>
+db export --encrypt file=<resource>
+config save file=<resource>
+config save file=<resource> --encrypt
+history save file=<resource>
+history save file=<resource> --encrypt
+script save file=<resource>
+script save file=<resource> --encrypt
 prompt [pattern]
 exit
 ```

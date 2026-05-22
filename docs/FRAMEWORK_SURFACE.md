@@ -142,7 +142,7 @@ checks, resource commands, and runtime-control commandlets.
 
 | Topic group | Topics | Associated with | Used by / purpose |
 | --- | --- | --- | --- |
-| Artifact lifecycle | `artifact.attached`, `artifact.exported`, `artifact.removed`, `artifact.replaced` | Artifact commandlets and artifact-backed plugin output | Tracks evidence files, exported artifacts, replacement, and removal for audit and bundle/report consumers |
+| Artifact lifecycle | `artifact.imported`, `artifact.attached`, `artifact.exported`, `artifact.removed`, `artifact.replaced` | Artifact commandlets and artifact-backed plugin output | Tracks evidence files, provenance attachment, exported artifacts, replacement, and removal for audit and bundle/report consumers |
 | Bundle lifecycle | `bundle.created`, `bundle.exported`, `bundle.item.added`, `bundle.sealed` | `bundle` commandlet | Records client deliverable composition, sealing, and export activity |
 | Capability audit | `plugin.capability.used`, `plugin.capability.missing` | Plugin context helpers and capability enforcement | Shows observed privileged behavior; triggers can watch these topics, for example network access starting the watchdog |
 | Command run lifecycle | `command.run.arguments`, `command.run.completed`, `command.run.failed` | Runner and runtime store | Reconstructs command execution, captured arguments, and terminal run status |
@@ -157,6 +157,7 @@ checks, resource commands, and runtime-control commandlets.
 | Resource commands | `resource.plugin.loaded`, `resource.script.command` | `load` and script execution | Records plugin loads and script commands executed through the shell |
 | Runtime naming | `runtime.name.assigned` | `name` commandlet and runtime metadata | Associates human-friendly names with runtime objects |
 | Runtime signals | `runtime.signal.requested`, `runtime.signal.applied`, `runtime.signal.ignored` | `signal`, `pause`, `resume`, `cancel`, `kill`, `stop`, and cooperative commandlets | Traces requested runtime controls and whether target jobs/runs applied or ignored them |
+| Shell execution | `shell.exec.started`, `shell.exec.completed`, `shell.exec.failed` | `exec` command | Records operator-requested OS shell commands separately from Bywaf commandlet runs |
 | Trigger lifecycle | `framework.trigger.enabled`, `framework.trigger.fired`, `framework.trigger.disabled` | Trigger registry and provider-owned trigger rules | Shows which trigger rule became active, which source event fired it, and when it was disabled |
 
 ## Notes

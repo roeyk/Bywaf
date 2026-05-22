@@ -17,10 +17,20 @@ from ..db import EventStore
 from ..plugin import CompletionContext
 from ..projects import list_projects
 from ..registry import PluginRegistry
+from ..command_names import (
+    PROJECT_ACTIONS,
+    PROJECT_ALIAS_COMMAND,
+    PROJECT_ARCHIVE,
+    PROJECT_COMMAND,
+    PROJECT_EXPORT,
+    PROJECT_NEW,
+    PROJECT_USE,
+    SET_COMMAND,
+)
 from ..specs import CompletionSpec
 from ..utils import complete_path
 from .constants import FRAMEWORK_OPTION_COMPLETIONS, option_is_binary
-from .providers import bundle_candidates, history_candidates, key_candidates
+from .providers import bundle_candidates, key_candidates
 from .resources import complete_at_file_prefix, resource_candidates
 from .runtime import runtime_completion_target
 from .tokens import positional_index, tokens_after_last_pipe
@@ -38,6 +48,7 @@ class CoreCompleter:
         "help",
         "?",
         "history",
+        "config",
         "info",
         "jobs",
         "pipelines",
@@ -45,15 +56,16 @@ class CoreCompleter:
         "exec",
         "load",
         "plugins",
+        PROJECT_ALIAS_COMMAND,
         "project",
         "prompt",
         "run",
         "runs",
-        "save",
+        "script",
         "topics",
         "triggers",
         "use",
-        "var",
+        SET_COMMAND,
         "exit",
         "event",
         "events",
@@ -89,19 +101,21 @@ class CoreCompleter:
             return self.plugin_candidates(command, prefix, rest)
         dispatch = {
             "?": lambda current_prefix: self.help_candidates(current_prefix),
+            "config": self.config_candidates,
             "cmds": lambda current_prefix: self.option_candidates(current_prefix, ("--page",)),
             "event": self.event_candidates,
             "events": lambda _prefix: ["--tail", "last="],
-            "exec": self.pipeline_expression_candidates,
+            "exec": lambda _prefix: [],
             "exit": lambda _prefix: [],
             "help": lambda current_prefix: self.help_candidates(current_prefix),
-            "history": history_candidates,
+            "history": self.history_candidates,
             "info": lambda _prefix: [],
             "jobs": lambda current_prefix: self.option_candidates(current_prefix, ("--all", "--page")),
             "pipelines": lambda current_prefix: self.option_candidates(current_prefix, ("--page",)),
             "plugins": lambda _prefix: [],
             "prompt": lambda _prefix: [],
-            "project": lambda current_prefix: self.project_candidates(current_prefix, rest),
+            PROJECT_ALIAS_COMMAND: lambda current_prefix: self.project_candidates(current_prefix, rest),
+            PROJECT_COMMAND: lambda current_prefix: self.project_candidates(current_prefix, rest),
             "q": lambda _prefix: [],
             "quit": lambda _prefix: [],
             "run": lambda current_prefix: self.complete_by_spec(CompletionSpec("run"), current_prefix),
@@ -110,8 +124,8 @@ class CoreCompleter:
             "triggers": lambda _prefix: [],
             "use": lambda _prefix: ["global", *self.registry.names()],
             "load": self.load_candidates,
-            "save": self.save_candidates,
-            "var": lambda current_prefix: self.vars_candidates(current_prefix, rest),
+            "script": self.script_candidates,
+            SET_COMMAND: lambda current_prefix: self.vars_candidates(current_prefix, rest),
         }
         handler = dispatch.get(command)
         return handler(prefix) if handler is not None else root_candidates
@@ -340,23 +354,33 @@ class CoreCompleter:
         return [*plugin_topics, *db_topics]
 
     def load_candidates(self, prefix: str) -> list[str]:
-        """Complete `load` resource keys and values."""
-        return resource_candidates(prefix, ("--force", "config=", "db=", "history=", "plugin=", "script="))
+        """Complete `load` plugin resources."""
+        return resource_candidates(prefix, ("--force", "plugin="))
 
-    def save_candidates(self, prefix: str) -> list[str]:
-        """Complete `save` resource keys and values."""
-        return resource_candidates(prefix, ("config=", "db=", "history="))
+    def config_candidates(self, prefix: str) -> list[str]:
+        """Complete config subcommands and selectors."""
+        return resource_candidates(prefix, ("load", "save", "file=", "--encrypt"))
+
+    def history_candidates(self, prefix: str) -> list[str]:
+        """Complete history selectors and resource actions."""
+        return resource_candidates(prefix, ("since=", "until=", "load", "save", "file=", "--encrypt"))
+
+    def script_candidates(self, prefix: str) -> list[str]:
+        """Complete script load/save selectors."""
+        return resource_candidates(prefix, ("load", "save", "file=", "--encrypt"))
 
     def project_candidates(self, prefix: str, args: list[str]) -> list[str]:
         """Complete REPL project subcommands and selectors."""
-        actions = ("info", "list", "new", "use")
+        actions = PROJECT_ACTIONS
         if not args or (len(args) == 1 and args[0] == prefix):
             return list(actions)
         action = args[0]
-        if action == "new":
+        if action == PROJECT_NEW:
             return self.project_new_candidates(prefix)
-        if action == "use":
+        if action == PROJECT_USE:
             return self.project_use_candidates(prefix)
+        if action in {PROJECT_ARCHIVE, PROJECT_EXPORT}:
+            return resource_candidates(prefix, ("file=", "--encrypt"))
         return []
 
     def project_new_candidates(self, prefix: str) -> list[str]:

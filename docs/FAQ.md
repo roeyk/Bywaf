@@ -89,14 +89,14 @@ bywaf> artifact list
 Find the artifact attached by the `nikto` run, then save it:
 
 ```text
-bywaf> artifact save artifact=1 file=nikto.json
+bywaf> artifact export artifact=1 file=nikto.json
 ```
 
 If you know the run, list or save artifacts for that run:
 
 ```text
 bywaf> artifact list run=7
-bywaf> artifact save run=7 dir=artifacts/nikto-run-7/
+bywaf> artifact export run=7 dir=artifacts/nikto-run-7/
 ```
 
 For normalized Nikto findings, use the event or report flow:
@@ -168,6 +168,19 @@ Without `--force`, Bywaf refuses to switch while active jobs exist. With
 `--force`, Bywaf hard-stops active job processes, marks them killed, audits the
 forced stop in the old project database, and then switches to the new project.
 
+## How do I archive a project?
+
+```text
+bywaf> project archive file=client-a-project.zip
+bywaf> project archive file=client-a-project.bywaf-archive --encrypt
+```
+
+`project archive` snapshots framework-owned project state: the event database,
+paired artifact database, project config, project history, and SQLite sidecars
+if present. It does not include arbitrary files from the working directory.
+Use it to preserve or hand off the complete Bywaf project state; use `bundle`
+or `audit export` for curated evidence deliverables.
+
 ## How do I create or open an encrypted database?
 
 ```bash
@@ -182,16 +195,16 @@ instead of storing it in config or history.
 ## How do I save a copy of the current database?
 
 ```text
-bywaf> save db=snapshot.sqlite3
-bywaf> save --encrypt db=snapshot.sqlite3
+bywaf> db export file=snapshot.sqlite3
+bywaf> db export --encrypt file=snapshot.sqlite3
 ```
 
-`save db=...` makes a copy/export. It does not change the active database.
+`db export file=...` makes a copy/export. It does not change the active database.
 
 ## How do I load another database?
 
 ```text
-bywaf> load db=snapshot.sqlite3
+bywaf> db load file=snapshot.sqlite3
 ```
 
 If the database is encrypted, Bywaf prompts for the passphrase.
@@ -199,22 +212,22 @@ If the database is encrypted, Bywaf prompts for the passphrase.
 ## How do I set a commandlet variable?
 
 ```text
-bywaf> var http_probe.timeout=3
-bywaf> var http_probe.cookie-file=/tmp/cookies.sqlite
+bywaf> set http_probe.timeout=3
+bywaf> set http_probe.cookie-file=/tmp/cookies.sqlite
 ```
 
-Use `var <name>` to show one value:
+Use `set <name>` to show one value:
 
 ```text
-bywaf> var http_probe.timeout
+bywaf> set http_probe.timeout
 ```
 
 ## How do I set variables without typing the commandlet prefix each time?
 
 ```text
 bywaf> use http_probe
-bywaf> var timeout=3
-bywaf> var cookie-file=/tmp/cookies.sqlite
+bywaf> set timeout=3
+bywaf> set cookie-file=/tmp/cookies.sqlite
 ```
 
 `use <commandlet>` changes interactive variable/completion context. It does not
@@ -223,7 +236,7 @@ hide execution state.
 ## How do I set a secret such as a password?
 
 ```text
-bywaf> var --secret ssh_check.password=<secret-value>
+bywaf> set --secret ssh_check.password=<secret-value>
 ```
 
 `--secret` stores the value as an opaque reference in the session VarStore and
@@ -270,15 +283,20 @@ bywaf> note add pipeline=2 text=client approved extended scan window
 
 Notes are timestamped and attached to the selected runtime entity.
 
-## How do I attach a file as an artifact?
+## How do I import or attach a file as an artifact?
 
 ```text
+bywaf> artifact import file=snapshot.html name=homepage snapshot
 bywaf> artifact attach run=7 file=snapshot.html name=homepage snapshot
+bywaf> artifact attach artifact=1 run=7
 bywaf> artifact attach serial=<durable-serial> file=headers.txt name=headers
 ```
 
-Artifacts are stored in the artifact database and linked back to the main audit
-database through metadata and hashes.
+`artifact import` stores a file in the artifact database without linking it to a
+specific run, pipeline, or job. `artifact attach artifact=... run=...` links an
+existing artifact to provenance. `artifact attach run=... file=...` is the
+shortcut that imports and attaches in one command. Artifacts are linked back to
+the main audit database through metadata and hashes.
 
 ## How do I find which commandlet produced an artifact?
 
@@ -328,8 +346,8 @@ surrounding lifecycle records.
 ## How do I export one artifact?
 
 ```text
-bywaf> artifact save artifact=1 file=snapshot.html
-bywaf> artifact save serial=<artifact-serial> file=snapshot.html
+bywaf> artifact export artifact=1 file=snapshot.html
+bywaf> artifact export serial=<artifact-serial> file=snapshot.html
 ```
 
 Use `file=` when exactly one artifact matches. If your selector matches multiple
@@ -338,9 +356,9 @@ artifacts, Bywaf asks you to use `dir=` instead.
 ## How do I export all artifacts from a run or pipeline?
 
 ```text
-bywaf> artifact save run=7 dir=artifacts/run-7/
-bywaf> artifact save pipeline=2 dir=artifacts/pipeline-2/
-bywaf> artifact save serial=<run-or-pipeline-serial> dir=artifacts/export/
+bywaf> artifact export run=7 dir=artifacts/run-7/
+bywaf> artifact export pipeline=2 dir=artifacts/pipeline-2/
+bywaf> artifact export serial=<run-or-pipeline-serial> dir=artifacts/export/
 ```
 
 For completed work, prefer durable `serial=` selectors because local numeric IDs
@@ -351,7 +369,7 @@ are only stable inside the current database.
 Use a bare artifact when you only need the file itself:
 
 ```text
-bywaf> artifact save artifact=1 file=screenshot.png
+bywaf> artifact export artifact=1 file=screenshot.png
 ```
 
 Use an audit/evidence export when you need provenance: the commandlet run, audit
@@ -360,7 +378,7 @@ context. The fully signed evidence-bundle workflow is still tracked separately,
 but today you can export the audit trail alongside artifacts:
 
 ```text
-bywaf> artifact save run=7 dir=evidence/run-7-artifacts/
+bywaf> artifact export run=7 dir=evidence/run-7-artifacts/
 bywaf> audit export since=run=7 file=evidence/run-7-audit.jsonl
 bywaf> audit export since=run=7 file=evidence/run-7-audit.pdf
 ```
@@ -436,7 +454,7 @@ The reporter uses normalized finding events and the table-rendering provider.
 ## How do I run commands from a script?
 
 ```text
-bywaf> load script=scan.bywaf
+bywaf> script load file=scan.bywaf
 ```
 
 Scripts contain one command or pipeline per line. Lines beginning with `#` are

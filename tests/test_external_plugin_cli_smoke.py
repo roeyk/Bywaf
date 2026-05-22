@@ -126,7 +126,6 @@ class ExternalPluginCliSmokeTests(unittest.TestCase):
                 str(signed),
                 "--plugin-catalog-key",
                 str(public_key),
-                "run",
                 "smokeprobe",
             )
 

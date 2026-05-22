@@ -1,7 +1,7 @@
 """Project commands for the REPL resource layer.
 
-Provides `project` command dispatch, project listing/creation/switching, and
-forced active-job cleanup before switching project databases.
+Provides `project` command dispatch, project listing/creation/switching,
+project archiving, and forced active-job cleanup before switching databases.
 
 Used by:
 - bywaf.repl.commands: implements the `project` built-in.
@@ -13,22 +13,25 @@ from __future__ import annotations
 import os
 import signal
 from collections.abc import Callable
+from pathlib import Path
 
 from ..db import EventStore
+from ..command_names import PROJECT_ACTIONS, PROJECT_ARCHIVE, PROJECT_EXPORT, PROJECT_INFO, PROJECT_LIST, PROJECT_NEW, PROJECT_USE
 from ..projects import ProjectPaths, create_project, list_projects, require_project
 from ..runner import Runner
 from .persistence import apply_config, load_database, prompt_database_passphrase
+from .project_archive import archive_project
 from .state import ResourceState, hydrate_persistent_secrets
 
 
 def dispatch_project_command(runner: Runner, state: ResourceState, tokens: list[str]) -> None:
     """Handle project management commands in the REPL."""
     if not tokens:
-        print("usage: project list, project info, project new name=<name> [--encrypt], project use name=<name>")
+        print_project_usage()
         return
     handler = PROJECT_COMMAND_HANDLERS.get(tokens[0])
     if handler is None:
-        print("usage: project list, project info, project new name=<name> [--encrypt], project use name=<name>")
+        print_project_usage()
         return
     handler(runner, state, tokens[1:])
 
@@ -68,12 +71,39 @@ def project_use_command(runner: Runner, state: ResourceState, args: list[str]) -
     switch_project(runner, state, require_project(name), force="--force" in args)
 
 
+def project_archive_command(runner: Runner, state: ResourceState, args: list[str]) -> None:
+    """Archive active project-owned state."""
+    del state
+    output = selector_value(args, "file") or positional_value(args)
+    if not output:
+        raise ValueError("usage: project archive file=<path> [--encrypt]")
+    result = archive_project(runner, Path(output).expanduser(), encrypt="--encrypt" in args)
+    encrypted = "true" if result["encrypted"] else "false"
+    print(
+        f"archived project={result['project']} file={result['file']} "
+        f"files={result['files']} encrypted={encrypted} event={result['event_id']}"
+    )
+
+
 PROJECT_COMMAND_HANDLERS: dict[str, ProjectCommandHandler] = {
-    "info": project_info_command,
-    "list": project_list_command,
-    "new": project_new_command,
-    "use": project_use_command,
+    PROJECT_ARCHIVE: project_archive_command,
+    PROJECT_EXPORT: project_archive_command,
+    PROJECT_INFO: project_info_command,
+    PROJECT_LIST: project_list_command,
+    PROJECT_NEW: project_new_command,
+    PROJECT_USE: project_use_command,
 }
+
+assert tuple(PROJECT_COMMAND_HANDLERS) == PROJECT_ACTIONS
+
+
+def print_project_usage() -> None:
+    """Print supported project subcommands."""
+    print(
+        "usage: project list, project info, project new name=<name> [--encrypt], "
+        "project use name=<name> [--force], project archive file=<path> [--encrypt], "
+        "project export file=<path> [--encrypt]"
+    )
 
 
 def selector_value(tokens: list[str], key: str) -> str | None:
@@ -135,7 +165,7 @@ def switch_project(runner: Runner, state: ResourceState, project: ProjectPaths, 
                 f"use `project use name={project.name} --force` to hard-stop them and switch anyway"
             )
         stop_active_jobs_for_project_switch(runner, active_jobs)
-    load_database(runner, project.database)
+    load_database(runner, project.database, force=True)
     runner.project = project
     state.history_path = project.history
     runner.registry.varstore.values.clear()

@@ -26,6 +26,8 @@ detail without reading every design note first.
   requests, artifacts, notes, and provenance.
 - [Persistence Model](PERSISTENCE_MODEL.md): event, runtime, artifact,
   maintenance, and variable store contracts.
+- [Save/Export Model](SAVE_EXPORT_MODEL.md): when commands use `save`,
+  `load`, `export`, `import`, or `archive`.
 - [Capability Model](CAPABILITY_MODEL.md): capability auditing, trust
   boundaries, policy direction, and plugin integration types.
 - [Plugin Manifest Specification](MANIFEST_SPECIFICATION.md): exact sidecar
@@ -42,6 +44,9 @@ detail without reading every design note first.
 - [Key Management](KEY_MANAGEMENT.md): maintainer controls for official
   signing keys, public verification keys, rotation, overlap, retirement, and
   emergency revocation.
+- [Save/Export Model](SAVE_EXPORT_MODEL.md): operator-facing file verb
+  semantics across config, history, scripts, DBs, artifacts, bundles, keys, and
+  projects.
 - [FAQ](FAQ.md): common task examples and operational answers.
 - [Goals](GOALS.md): project direction and non-goals.
 

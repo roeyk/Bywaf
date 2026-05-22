@@ -39,7 +39,7 @@ class InteractiveCompletionSmokeTests(unittest.TestCase):
         )
 
     def expect_prompt(self, child) -> None:
-        child.expect_exact("bywaf> ")
+        child.expect(r"\d{8} \d{2}:\d{2}:\d{2} [A-Z]+> ")
 
     def close_repl(self, child) -> None:
         if pexpect is None:

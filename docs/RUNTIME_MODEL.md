@@ -91,7 +91,7 @@ Use pipeline selectors when the question is about the whole chain:
 ```text
 pipeline show 1
 pipeline cancel 1
-artifact save pipeline=1 dir=artifacts/
+artifact export pipeline=1 dir=artifacts/
 ```
 
 ## Runs
@@ -115,7 +115,7 @@ Use run selectors when the question is about one commandlet stage:
 
 ```text
 event run=2
-artifact save run=2 dir=artifacts/
+artifact export run=2 dir=artifacts/
 note run=2
 ```
 

@@ -248,6 +248,39 @@ class ArtifactStore:
         with self.connect() as conn:
             conn.execute("DELETE FROM artifacts WHERE id = ?", (artifact.id,))
 
+    def attach_existing(
+        self,
+        artifact: Artifact,
+        *,
+        job_id: int | str | None = None,
+        pipeline_id: str | None = None,
+        command_run_id: str | None = None,
+        parent_command_run_id: str | None = None,
+        note: str | None = None,
+    ) -> Artifact:
+        """Update one artifact's provenance attachment."""
+        with self.connect() as conn:
+            conn.execute(
+                """
+                UPDATE artifacts
+                SET job_id = ?,
+                    pipeline_id = ?,
+                    command_run_id = ?,
+                    parent_command_run_id = ?,
+                    note = ?
+                WHERE id = ?
+                """,
+                (
+                    str(job_id) if job_id is not None else None,
+                    pipeline_id,
+                    command_run_id,
+                    parent_command_run_id,
+                    note if note is not None else artifact.note,
+                    artifact.id,
+                ),
+            )
+        return self.get(artifact.id)
+
     def replace_file(
         self,
         artifact: Artifact,

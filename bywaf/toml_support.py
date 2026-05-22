@@ -18,13 +18,17 @@ from typing import Any
 
 def load_data_file(path: Path) -> dict[str, Any]:
     """Load a JSON or TOML mapping file."""
-    text = path.read_text(encoding="utf-8")
-    if path.suffix == ".toml":
+    return load_data_text(path.read_text(encoding="utf-8"), suffix=path.suffix, label=str(path))
+
+
+def load_data_text(text: str, *, suffix: str, label: str = "data") -> dict[str, Any]:
+    """Load a JSON or TOML mapping from text."""
+    if suffix == ".toml":
         data: Any = tomllib.loads(text)
     else:
         data = json.loads(text)
     if not isinstance(data, dict):
-        raise ValueError(f"{path} must contain an object/table")
+        raise ValueError(f"{label} must contain an object/table")
     return data
 
 

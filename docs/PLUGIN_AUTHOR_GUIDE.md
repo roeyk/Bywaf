@@ -630,8 +630,8 @@ Options that carry credentials should be declared with `secret=True`:
 @option("api-key", "service API key", secret=True)
 ```
 
-Operators can also set any variable as a secret with `var --secret name=value`.
-Bywaf does not guess based on variable names; plain `var password=value` is an
+Operators can also set any variable as a secret with `set --secret name=value`.
+Bywaf does not guess based on variable names; plain `set password=value` is an
 ordinary variable. Explicit secret assignments are redacted in command history
 and displayed as `[REDACTED]` with an HMAC fingerprint, so audit trails can
 correlate that a secret was supplied without exposing the plaintext in normal
@@ -998,7 +998,7 @@ and command-run IDs. A commandlet can attach multiple artifacts to the same run;
 that is the expected model for screenshots, raw responses, parsed reports, and
 notes produced by one action.
 
-Users can later `artifact replace`, `artifact remove`, `artifact save`, or
+Users can later `artifact replace`, `artifact remove`, `artifact export`, or
 `artifact verify` those records. Those mutations are audited in the main event
 database while artifact bodies remain in the paired artifact store.
 
@@ -1029,8 +1029,8 @@ unless the phase changes, enough time has passed, or the percent changed enough.
 Users configure that policy with:
 
 ```text
-var global.progress.min-interval-ms=250
-var global.progress.min-percent-delta=1
+set global.progress.min-interval-ms=250
+set global.progress.min-percent-delta=1
 ```
 
 Use `context.signals` for live-control requests that the framework delivers to
@@ -1228,7 +1228,7 @@ global.proxy
 Secret variables are different. If an operator sets:
 
 ```text
-bywaf> var --secret ssh_probe.password=client-password
+bywaf> set --secret ssh_probe.password=client-password
 ```
 
 ordinary `context.vars.get("password")` returns an opaque secret reference, not
@@ -1287,7 +1287,7 @@ class SecretDemo(CommandletBase):
 With:
 
 ```text
-bywaf> var --secret secret_demo.password=client-password
+bywaf> set --secret secret_demo.password=client-password
 secret_demo.password=[REDACTED] fingerprint=hmac-sha256:7e3...
 bywaf> secret_demo
 subprocess saw password=client-password
@@ -1500,7 +1500,7 @@ file_info.timeout=5
 Users can override values:
 
 ```text
-bywaf> var file_info.timeout=10
+bywaf> set file_info.timeout=10
 ```
 
 Use `CommandletBase.var_default()` when an argparse option should use a

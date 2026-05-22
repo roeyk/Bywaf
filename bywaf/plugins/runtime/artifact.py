@@ -30,7 +30,7 @@ from bywaf.plugin import (
 )
 from bywaf.utils import complete_path
 
-ARTIFACT_ACTIONS = ("attach", "list", "remove", "replace", "save", "search", "verify")
+ARTIFACT_ACTIONS = ("attach", "export", "import", "list", "remove", "replace", "search", "verify")
 SEARCH_FLAGS = ("--regexp",)
 SEARCH_FIELDS = ("name", "filename", "note", "content")
 ArtifactActionHandler = Callable[[CommandContext, list[str]], None]
@@ -38,17 +38,19 @@ ArtifactActionHandler = Callable[[CommandContext, list[str]], None]
 
 @commandlet(
     name="artifact",
-    description="Attach, list, save, replace, remove, and verify artifacts.",
-    usage="artifact <attach|list|save|replace|remove|search|verify> [serial=id|artifact=id|run=id|pipeline=id|job=id] [file=path|dir=path]",
+    description="Import, attach, list, export, replace, remove, and verify artifacts.",
+    usage="artifact <import|attach|list|export|replace|remove|search|verify> [serial=id|artifact=id|run=id|pipeline=id|job=id] [file=path|dir=path]",
     examples=(
         "artifact attach run=1 file=snapshot.html name='Landing page'",
         "artifact attach serial=run-... file=snapshot.html",
+        "artifact import file=snapshot.html name='Landing page'",
+        "artifact attach artifact=1 run=1",
         "artifact list run=1",
         "artifact search --regexp note='login|cookie'",
         "artifact replace artifact=1 file=snapshot-v2.html",
         "artifact remove artifact=1",
-        "artifact save artifact=1 file=snapshot.html",
-        "artifact save run=1 dir=artifacts/",
+        "artifact export artifact=1 file=snapshot.html",
+        "artifact export run=1 dir=artifacts/",
         "artifact verify pipeline=1",
     ),
     capabilities=(
@@ -74,7 +76,7 @@ class ArtifactCommand(CommandletBase):
         """Execute one artifact action."""
         del input_events
         if not args:
-            raise ValueError("artifact requires an action: attach, list, remove, replace, save, search, or verify")
+            raise ValueError("artifact requires an action: import, attach, export, list, remove, replace, search, or verify")
         action, *tokens = args
         handler = artifact_action_handlers().get(action)
         if handler is None:
@@ -110,9 +112,10 @@ def artifact_action_handlers() -> dict[str, ArtifactActionHandler]:
     return {
         "attach": attach_artifacts_command,
         "list": list_artifacts_command,
+        "import": import_artifacts_command,
         "remove": remove_artifacts_command,
         "replace": replace_artifact_command,
-        "save": save_artifacts_command,
+        "export": export_artifacts_command,
         "search": search_artifact_command,
         "verify": verify_artifacts_command,
     }
@@ -121,12 +124,13 @@ def artifact_action_handlers() -> dict[str, ArtifactActionHandler]:
 def artifact_completion_selectors() -> dict[str, list[str]]:
     """Return selector completions keyed by artifact action."""
     return {
-        "attach": ["serial=", "run=", "pipeline=", "job=", "file=", "name=", "note="],
+        "attach": ["artifact=", "serial=", "run=", "pipeline=", "job=", "file=", "name=", "note="],
+        "import": ["file=", "name=", "note="],
         "replace": ["artifact=", "file=", "name=", "note="],
         "remove": ["artifact=", "serial=", "run=", "pipeline=", "job="],
         "list": ["artifact=", "serial=", "run=", "pipeline=", "job=", "--page"],
         "verify": ["artifact=", "serial=", "run=", "pipeline=", "job="],
-        "save": ["artifact=", "serial=", "run=", "pipeline=", "job=", "file=", "dir="],
+        "export": ["artifact=", "serial=", "run=", "pipeline=", "job=", "file=", "dir="],
         "search": [
             "name=",
             "filename=",
@@ -149,6 +153,11 @@ def attach_artifacts_command(context: CommandContext, tokens: list[str]) -> None
     attach_artifacts(context, parse_artifact_selectors(tokens))
 
 
+def import_artifacts_command(context: CommandContext, tokens: list[str]) -> None:
+    """Parse and run artifact import."""
+    import_artifacts(context, parse_artifact_selectors(tokens))
+
+
 def list_artifacts_command(context: CommandContext, tokens: list[str]) -> None:
     """Parse and run artifact list."""
     selectors = parse_artifact_selectors(tokens, allow_page=True)
@@ -165,9 +174,9 @@ def replace_artifact_command(context: CommandContext, tokens: list[str]) -> None
     replace_artifact(context, parse_artifact_selectors(tokens))
 
 
-def save_artifacts_command(context: CommandContext, tokens: list[str]) -> None:
-    """Parse and run artifact save."""
-    save_artifacts(context, parse_artifact_selectors(tokens))
+def export_artifacts_command(context: CommandContext, tokens: list[str]) -> None:
+    """Parse and run artifact export."""
+    export_artifacts(context, parse_artifact_selectors(tokens))
 
 
 def verify_artifacts_command(context: CommandContext, tokens: list[str]) -> None:
@@ -279,24 +288,69 @@ def parse_search_selectors(tokens: list[str]) -> dict[str, list[str]]:
 
 
 def attach_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> None:
-    """Attach one or more files to a run, pipeline, or job."""
-    files = require_values(selectors, "file")
+    """Attach existing artifacts or import-and-attach files to provenance."""
+    files = selectors.get("file", [])
+    artifact_selector = single_value(selectors, "artifact")
+    if artifact_selector is not None and files:
+        raise ValueError("artifact attach accepts artifact= or file=, not both")
+    if artifact_selector is None and not files:
+        raise ValueError("artifact attach requires artifact= or file=")
     if len(files) > 1 and "name" in selectors:
         raise ValueError("artifact attach name= is only valid with one file=")
-    attached: list[Artifact] = []
     note = single_value(selectors, "note") or context.note
     scope = resolve_artifact_scope(context, selectors)
-    for file_name in files:
-        artifact = context.artifacts.attach_file(
-            Path(file_name),
-            name=single_value(selectors, "name"),
+    attached: list[Artifact] = []
+    if artifact_selector is not None:
+        if not any((scope.job_id, scope.pipeline_id, scope.command_run_id)):
+            raise ValueError("artifact attach artifact= requires run=, pipeline=, job=, or serial=")
+        store = context.artifact_store("artifact attach")
+        context.audit_capability("artifact.read")
+        context.audit_capability("artifact.write")
+        artifact = store.get(artifact_selector)
+        attached_artifact = store.attach_existing(
+            artifact,
             note=note,
             job_id=scope.job_id,
             pipeline_id=scope.pipeline_id,
             command_run_id=scope.command_run_id,
         )
-        attached.append(artifact)
+        context.artifacts.publish_attached(attached_artifact)
+        attached.append(attached_artifact)
+    else:
+        for file_name in files:
+            artifact = context.artifacts.attach_file(
+                Path(file_name),
+                name=single_value(selectors, "name"),
+                note=note,
+                job_id=scope.job_id,
+                pipeline_id=scope.pipeline_id,
+                command_run_id=scope.command_run_id,
+            )
+            attached.append(artifact)
     for artifact in attached:
+        context.output(format_artifact_row(artifact))
+
+
+def import_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> None:
+    """Import one or more files into the artifact DB without external provenance."""
+    files = require_values(selectors, "file")
+    if len(files) > 1 and "name" in selectors:
+        raise ValueError("artifact import name= is only valid with one file=")
+    events = context.event_store("artifact import")
+    store = context.artifact_store("artifact import")
+    context.audit_capability("filesystem.read")
+    context.audit_capability("artifact.write")
+    imported: list[Artifact] = []
+    for file_name in files:
+        artifact = store.attach_file(
+            Path(file_name),
+            name=single_value(selectors, "name"),
+            note=single_value(selectors, "note") or context.note,
+            commandlet=context.source,
+        )
+        imported.append(artifact)
+        events.publish("artifact.imported", artifact_event_payload(artifact), "framework")
+    for artifact in imported:
         context.output(format_artifact_row(artifact))
 
 
@@ -315,8 +369,8 @@ def pop_page_flag(selectors: dict[str, list[str]]) -> bool:
     return bool(selectors.pop("page", []))
 
 
-def save_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> None:
-    """Save selected artifacts back to the filesystem."""
+def export_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> None:
+    """Export selected artifacts back to the filesystem."""
     artifacts = select_artifacts(context, selectors)
     if not artifacts:
         context.output("no artifacts matched")
@@ -324,14 +378,14 @@ def save_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> 
     output_file = single_value(selectors, "file")
     output_dir = single_value(selectors, "dir")
     if output_file and output_dir:
-        raise ValueError("artifact save accepts file= or dir=, not both")
+        raise ValueError("artifact export accepts file= or dir=, not both")
     if output_file:
         if len(artifacts) != 1:
-            raise ValueError("artifact save file= matched multiple artifacts; use dir= to save a set")
+            raise ValueError("artifact export file= matched multiple artifacts; use dir= to export a set")
         write_artifact(context, artifacts[0], Path(output_file).expanduser())
         return
     if output_dir is None:
-        raise ValueError("artifact save requires file= for one artifact or dir= for multiple artifacts")
+        raise ValueError("artifact export requires file= for one artifact or dir= for multiple artifacts")
     directory = Path(output_dir).expanduser()
     directory.mkdir(parents=True, exist_ok=True)
     for artifact in artifacts:
@@ -404,27 +458,30 @@ def verify_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
     store = context.artifact_store("artifact")
     artifacts = select_artifacts(context, selectors)
     body_results = {result.artifact_id: result for result in store.verify(artifacts)}
-    attached_events = events.events_matching(topic="artifact.attached", limit=100000)
-    attached_by_id = {str(event.payload.get("artifact_id")): event for event in attached_events}
-    attached_ids = set(attached_by_id)
+    provenance_events = [
+        *events.events_matching(topic="artifact.attached", limit=100000),
+        *events.events_matching(topic="artifact.imported", limit=100000),
+    ]
+    provenance_by_id = {str(event.payload.get("artifact_id")): event for event in provenance_events}
+    provenance_ids = set(provenance_by_id)
     matched_ids = {artifact.artifact_id for artifact in artifacts}
     for artifact in artifacts:
         result = body_results[artifact.artifact_id]
         problems = list(result.problems)
-        attached_event = attached_by_id.get(artifact.artifact_id)
-        if attached_event is None:
-            problems.append("missing main-db artifact.attached event")
+        provenance_event = provenance_by_id.get(artifact.artifact_id)
+        if provenance_event is None:
+            problems.append("missing main-db artifact provenance event")
         else:
-            if attached_event.payload.get("sha256") != artifact.sha256:
+            if provenance_event.payload.get("sha256") != artifact.sha256:
                 problems.append("main-db sha256 mismatch")
-            if attached_event.payload.get("size") != artifact.size:
+            if provenance_event.payload.get("size") != artifact.size:
                 problems.append("main-db size mismatch")
         status = "ok" if not problems else "failed"
         detail = "" if not problems else f" problems={json.dumps(problems)}"
         context.output(f"{status} artifact={artifact.id} artifact_id={artifact.artifact_id}{detail}")
-    orphan_events = sorted(attached_ids - matched_ids) if selectors else []
+    orphan_events = sorted(provenance_ids - matched_ids) if selectors else []
     for artifact_id in orphan_events:
-        context.output(f"failed artifact_id={artifact_id} problems=[\"main-db event has no artifact row\"]")
+        context.output(f"failed artifact_id={artifact_id} problems=[\"main-db provenance event has no artifact row\"]")
 
 
 def select_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> list[Artifact]:
@@ -678,7 +735,7 @@ def artifact_event_payload(artifact: Artifact) -> dict[str, object]:
 
 
 def write_artifact(context: CommandContext, artifact: Artifact, path: Path) -> None:
-    """Write one artifact body to disk and audit the save."""
+    """Write one artifact body to disk and audit the export."""
     path.parent.mkdir(parents=True, exist_ok=True)
     context.audit_capability("filesystem.write")
     path.write_bytes(artifact.body)
@@ -696,7 +753,7 @@ def write_artifact(context: CommandContext, artifact: Artifact, path: Path) -> N
         command_run_id=artifact.command_run_id,
         parent_command_run_id=artifact.parent_command_run_id,
     )
-    context.output(f"saved artifact={artifact.id} file={path}")
+    context.output(f"exported artifact={artifact.id} file={path}")
 
 
 def require_values(selectors: dict[str, list[str]], name: str) -> list[str]:

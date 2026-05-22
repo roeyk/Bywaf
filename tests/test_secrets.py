@@ -62,28 +62,28 @@ class SecretTests(unittest.TestCase):
         self.assertEqual(result.secrets[0].name, "client-token")
 
     def test_redact_command_text_redacts_scoped_declared_secret_names(self):
-        result = redact_command_text("var ssh_probe.password=abc timeout=1", key=b"k" * 32, secret_names={"password"})
-        self.assertEqual(result.command, f"var ssh_probe.password={REDACTED_VALUE} timeout=1")
+        result = redact_command_text("set ssh_probe.password=abc timeout=1", key=b"k" * 32, secret_names={"password"})
+        self.assertEqual(result.command, f"set ssh_probe.password={REDACTED_VALUE} timeout=1")
         self.assertEqual(result.secrets[0].name, "ssh_probe.password")
 
     def test_redact_command_text_does_not_guess_secret_names(self):
-        result = redact_command_text("var ssh_probe.password=abc timeout=1", key=b"k" * 32)
-        self.assertEqual(result.command, "var ssh_probe.password=abc timeout=1")
+        result = redact_command_text("set ssh_probe.password=abc timeout=1", key=b"k" * 32)
+        self.assertEqual(result.command, "set ssh_probe.password=abc timeout=1")
         self.assertEqual(result.secrets, ())
 
     def test_redact_command_text_redacts_explicit_secret_assignment(self):
-        result = redact_command_text("var --secret session.ticket=abc timeout=1", key=b"k" * 32)
-        self.assertEqual(result.command, f"var --secret session.ticket={REDACTED_VALUE} timeout=1")
+        result = redact_command_text("set --secret session.ticket=abc timeout=1", key=b"k" * 32)
+        self.assertEqual(result.command, f"set --secret session.ticket={REDACTED_VALUE} timeout=1")
         self.assertEqual(result.secrets[0].name, "session.ticket")
 
     def test_redact_command_text_redacts_secret_flag_before_equals(self):
-        result = redact_command_text("var session.ticket --secret=abc timeout=1", key=b"k" * 32)
-        self.assertEqual(result.command, f"var session.ticket --secret={REDACTED_VALUE} timeout=1")
+        result = redact_command_text("set session.ticket --secret=abc timeout=1", key=b"k" * 32)
+        self.assertEqual(result.command, f"set session.ticket --secret={REDACTED_VALUE} timeout=1")
         self.assertEqual(result.secrets[0].name, "session.ticket")
 
     def test_redact_command_text_redacts_empty_explicit_secret_marker(self):
-        result = redact_command_text("var --secret pw=", key=b"k" * 32)
-        self.assertEqual(result.command, f"var --secret pw={REDACTED_VALUE}")
+        result = redact_command_text("set --secret pw=", key=b"k" * 32)
+        self.assertEqual(result.command, f"set --secret pw={REDACTED_VALUE}")
         self.assertEqual(result.secrets, ())
 
     def test_in_memory_secret_store_returns_opaque_reference(self):

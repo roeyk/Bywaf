@@ -1,7 +1,7 @@
 """Interactive REPL shell orchestration.
 
 Provides ShellState, prompt/input handling, command-history recording,
-line dispatch, and non-interactive `bywaf run` helpers. Built-in command
+line dispatch, and non-interactive `bywaf exec` helpers. Built-in command
 behavior, display formatting, and load/save resources live in sibling modules.
 
 Used by:
@@ -26,10 +26,9 @@ from pathlib import Path
 
 from ..completion import Completer, build_prompt_session, install_readline
 from ..framework_requests import process_framework_requests
-from .commands import REPL_COMMAND_HANDLERS, execute_repl_commandlet
+from .commands import REPL_COMMAND_HANDLERS, execute_repl_commandlet, execute_shell_command
 from .display import (
     friendly_error,
-    print_events,
 )
 from ..nmap_backend import NmapScanError, NmapUnavailableError
 from ..projects import ProjectPaths
@@ -49,7 +48,7 @@ HISTORY_TIMESTAMP_FORMAT_VAR = "history.timestamp-format"
 class ShellState:
     """Mutable REPL-only state that should not live in the database."""
 
-    prompt_pattern: str = "bywaf> "
+    prompt_pattern: str = "$Y$M$D $h:$m:$s $Z> "
     history_path: Path = field(default_factory=lambda: DEFAULT_HISTORY)
     session_history: list[str] = field(default_factory=list)
     handled_request_ids: set[int] = field(default_factory=set)
@@ -253,11 +252,18 @@ def new_shell_state(runner: Runner) -> ShellState:
 
 
 def execute_and_print(runner: Runner, command: str) -> int:
-    """Execute one command line for top-level `bywaf run` callers."""
+    """Execute one command line for top-level `bywaf exec` callers."""
+    return execute_shell_command(runner, command)
+
+
+def execute_commandlet_and_print(runner: Runner, command: str) -> int:
+    """Execute one commandlet line for direct non-interactive CLI callers."""
     try:
         state = new_shell_state(runner)
         events = runner.execute(command)
         process_framework_requests(runner, state)
+        from .display import print_events
+
         print_events(events, runner)
     except SystemExit as exc:
         if exc.code in (0, None):
@@ -277,25 +283,35 @@ def command_from_remainder(tokens: list[str]) -> str:
     """Build a command string from argparse REMAINDER tokens.
 
     A single token is already a shell-preserved command string, which matters
-    for quoted pipelines such as `bywaf run 'a | b'`.
+    for quoted pipelines such as `bywaf exec 'a | b'`.
     """
     if not tokens:
-        raise ValueError("run requires a command")
+        raise ValueError("exec requires a command")
     if len(tokens) == 1:
         return tokens[0]
     return " ".join(shlex.quote(token) for token in tokens)
 
 
 def run_remainder(runner: Runner, tokens: list[str]) -> int:
-    """Validate and run the token remainder from `bywaf run ...`."""
+    """Validate and run the token remainder from `bywaf exec ...`."""
     try:
         command = command_from_remainder(tokens)
     except ValueError as exc:
         print(f"error: {exc}")
         return 1
+    return execute_and_print(runner, command)
+
+
+def run_commandlet_remainder(runner: Runner, tokens: list[str]) -> int:
+    """Validate and run direct non-interactive commandlet arguments."""
+    try:
+        command = command_from_remainder(tokens)
+    except ValueError:
+        print("error: commandlet invocation requires a command")
+        return 1
     status = 0
     for one_command in split_command_sequence(command) or [command]:
-        status = execute_and_print(runner, one_command)
+        status = execute_commandlet_and_print(runner, one_command)
         if status != 0:
             return status
     return status

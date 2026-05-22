@@ -10,10 +10,13 @@ Used by:
 from pathlib import Path
 import contextlib
 import io
+import json
 import tempfile
 import unittest
+import zipfile
 from unittest.mock import patch
 
+from bywaf.artifacts import artifact_store_for_event_store
 from bywaf.app import (
     ShellState,
     build_parser,
@@ -33,14 +36,21 @@ from bywaf.app import (
 from bywaf.cli_trust import plugin_trust_policy_from_args
 from bywaf.db import EventStore
 from bywaf.events import Event
+from bywaf.projects import ProjectPaths
 from bywaf.specs import TriggerSpec
 from bywaf.triggers import start_default_services
 class AppDispatchTests(unittest.TestCase):
-    def test_build_parser_accepts_run(self):
+    def test_build_parser_accepts_exec(self):
         parser = build_parser()
-        args = parser.parse_args(["run", "hostscanner", "127.0.0.1"])
-        self.assertEqual(args.subcommand, "run")
-        self.assertEqual(args.command, ["hostscanner", "127.0.0.1"])
+        args = parser.parse_args(["exec", "echo", "hello"])
+        self.assertEqual(args.subcommand, "exec")
+        self.assertEqual(args.command, ["echo", "hello"])
+
+    def test_route_direct_commandlet_argv(self):
+        from bywaf.app import route_direct_commandlet_argv
+
+        self.assertEqual(route_direct_commandlet_argv(["hostscanner", "127.0.0.1"]), ["cmd", "hostscanner", "127.0.0.1"])
+        self.assertEqual(route_direct_commandlet_argv(["exec", "echo", "hello"]), ["exec", "echo", "hello"])
 
     def test_build_parser_accepts_cmds_page(self):
         parser = build_parser()
@@ -290,15 +300,15 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("Command: run <id|serial>", text)
             self.assertIn("Usage:   run <id|serial>", text)
 
-    def test_exec_without_pipeline_prints_help(self):
+    def test_exec_without_shell_command_prints_help(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "exec")
             text = output.getvalue()
-            self.assertIn("Command: exec <commandlet-pipeline>", text)
-            self.assertIn("Usage:   exec <commandlet-pipeline>", text)
+            self.assertIn("Command: exec <shell-command>", text)
+            self.assertIn("Usage:   exec <shell-command>", text)
 
     def test_run_inspects_command_run(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -391,15 +401,15 @@ class AppDispatchTests(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(main(["--version"]), 0)
 
-    def test_main_run_unknown_command_returns_error(self):
+    def test_main_direct_unknown_commandlet_returns_error(self):
         with contextlib.redirect_stdout(io.StringIO()) as output:
-            self.assertEqual(main(["run", "missing"]), 1)
+            self.assertEqual(main(["missing"]), 1)
         self.assertIn("error: unknown commandlet: missing", output.getvalue())
 
-    def test_main_run_without_command_returns_error(self):
+    def test_main_exec_without_command_returns_error(self):
         with contextlib.redirect_stdout(io.StringIO()) as output:
-            self.assertEqual(main(["run"]), 1)
-        self.assertIn("error: run requires a command", output.getvalue())
+            self.assertEqual(main(["exec"]), 1)
+        self.assertIn("error: exec requires a command", output.getvalue())
 
     def test_shutdown_runner_checkpoints_database(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -872,15 +882,64 @@ class AppDispatchTests(unittest.TestCase):
                 self.assertEqual(events[-1].payload["count"], 1)
                 self.assertEqual(events[-1].payload["jobs"][0]["job_id"], job_id)
 
+    def test_project_archive_includes_project_state_and_artifact_db(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            project_dir = root / ".bywaf" / "projects" / "client-a"
+            project_dir.mkdir(parents=True)
+            paths = ProjectPaths(
+                name="client-a",
+                root=root / ".bywaf" / "projects",
+                path=project_dir,
+                database=project_dir / "bywaf.sqlite3",
+                config=project_dir / "config.toml",
+                history=project_dir / "history.bywaf",
+            )
+            paths.config.write_text("[variables]\n", encoding="utf-8")
+            paths.history.write_text("set target=127.0.0.1\n", encoding="utf-8")
+            runner = make_runner(paths.database, project=paths)
+            runner.db.publish("host.found", {"host": "127.0.0.1"}, "test")
+            source = project_dir / "artifact.txt"
+            source.write_text("artifact body", encoding="utf-8")
+            artifact_store_for_event_store(runner.db).attach_file(source, commandlet="test")
+
+            archive = root / "client-a.zip"
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, f"project archive file={archive}", ShellState())
+
+            self.assertIn("archived project=client-a", output.getvalue())
+            self.assertTrue(archive.exists())
+            with zipfile.ZipFile(archive) as zipped:
+                names = set(zipped.namelist())
+                self.assertIn("bywaf.sqlite3", names)
+                self.assertIn("bywaf.artifacts.sqlite3", names)
+                self.assertIn("config.toml", names)
+                self.assertIn("history.bywaf", names)
+                manifest = json.loads(zipped.read("bywaf-archive-manifest.json"))
+            self.assertEqual(manifest["schema"], "bywaf.project-archive.v1")
+            self.assertEqual(manifest["project"], "client-a")
+            self.assertEqual({item["path"] for item in manifest["files"]}, names - {"bywaf-archive-manifest.json"})
+            events = runner.db.events_for_topic("project.archived")
+            self.assertEqual(events[-1].payload["file"], str(archive))
+
+    def test_project_archive_requires_active_project(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "adhoc.sqlite3"))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, f"project archive file={Path(tmp, 'archive.zip')}", ShellState())
+            self.assertIn("project archive requires an active project", output.getvalue())
+
     def test_use_context_scopes_short_vars_assignments(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
             with contextlib.redirect_stdout(io.StringIO()):
                 dispatch_repl_line(runner, "use hostscanner", state)
-                dispatch_repl_line(runner, "var targets=127.0.0.1", state)
+                dispatch_repl_line(runner, "set targets=127.0.0.1", state)
                 dispatch_repl_line(runner, "use global", state)
-                dispatch_repl_line(runner, "var target=global", state)
+                dispatch_repl_line(runner, "set target=global", state)
             self.assertEqual(runner.registry.varstore.get("hostscanner.targets"), "127.0.0.1")
             self.assertEqual(runner.registry.varstore.get("target"), "global")
 
@@ -890,12 +949,12 @@ class AppDispatchTests(unittest.TestCase):
             state = ShellState()
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "var global.proxy=http://127.0.0.1:8080", state)
-                dispatch_repl_line(runner, "var global.proxy", state)
+                dispatch_repl_line(runner, "set global.proxy=http://127.0.0.1:8080", state)
+                dispatch_repl_line(runner, "set global.proxy", state)
                 dispatch_repl_line(runner, "use hostscanner", state)
-                dispatch_repl_line(runner, "var targets=127.0.0.1", state)
-                dispatch_repl_line(runner, "var targets", state)
-                dispatch_repl_line(runner, "var missing", state)
+                dispatch_repl_line(runner, "set targets=127.0.0.1", state)
+                dispatch_repl_line(runner, "set targets", state)
+                dispatch_repl_line(runner, "set missing", state)
             text = output.getvalue()
             self.assertIn("global.proxy=http://127.0.0.1:8080", text)
             self.assertIn("hostscanner.targets=127.0.0.1", text)
@@ -907,8 +966,8 @@ class AppDispatchTests(unittest.TestCase):
             state = ShellState()
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "var password=supersecret", state)
-                dispatch_repl_line(runner, "var password", state)
+                dispatch_repl_line(runner, "set password=supersecret", state)
+                dispatch_repl_line(runner, "set password", state)
             text = output.getvalue()
             self.assertEqual(runner.registry.varstore.get("password"), "supersecret")
             self.assertIn("password=supersecret", text)
@@ -931,8 +990,8 @@ class AppDispatchTests(unittest.TestCase):
                 patch("bywaf.repl.commands.load_or_create_fingerprint_key", return_value=b"k" * 32),
                 contextlib.redirect_stdout(output),
             ):
-                dispatch_repl_line(runner, "var --secret session.ticket=supersecret", state)
-                dispatch_repl_line(runner, "var session.ticket", state)
+                dispatch_repl_line(runner, "set --secret session.ticket=supersecret", state)
+                dispatch_repl_line(runner, "set session.ticket", state)
             text = output.getvalue()
             stored = runner.registry.varstore.get("session.ticket")
             self.assertIsNotNone(stored)
@@ -951,8 +1010,8 @@ class AppDispatchTests(unittest.TestCase):
                 patch("bywaf.repl.commands.load_or_create_fingerprint_key", return_value=b"k" * 32),
                 contextlib.redirect_stdout(output),
             ):
-                dispatch_repl_line(runner, "var session.ticket --secret=supersecret", state)
-                dispatch_repl_line(runner, "var session.ticket", state)
+                dispatch_repl_line(runner, "set session.ticket --secret=supersecret", state)
+                dispatch_repl_line(runner, "set session.ticket", state)
             text = output.getvalue()
             stored = runner.registry.varstore.get("session.ticket")
             self.assertIsNotNone(stored)
@@ -972,8 +1031,8 @@ class AppDispatchTests(unittest.TestCase):
                 patch("bywaf.repl.commands.getpass.getpass", return_value="prompted-secret") as getpass,
                 contextlib.redirect_stdout(output),
             ):
-                dispatch_repl_line(runner, "var --secret pw=", state)
-                dispatch_repl_line(runner, "var pw", state)
+                dispatch_repl_line(runner, "set --secret pw=", state)
+                dispatch_repl_line(runner, "set pw", state)
             text = output.getvalue()
             getpass.assert_called_once_with("Secret for pw: ")
             stored = runner.registry.varstore.get("pw")
@@ -994,8 +1053,8 @@ class AppDispatchTests(unittest.TestCase):
                 patch("bywaf.repl.commands.getpass.getpass") as getpass,
                 contextlib.redirect_stdout(output),
             ):
-                dispatch_repl_line(runner, "var --secret pw=[REDACTED]", state)
-                dispatch_repl_line(runner, "var pw", state)
+                dispatch_repl_line(runner, "set --secret pw=[REDACTED]", state)
+                dispatch_repl_line(runner, "set pw", state)
             getpass.assert_not_called()
             text = output.getvalue()
             stored = runner.registry.varstore.get("pw")
@@ -1016,8 +1075,8 @@ class AppDispatchTests(unittest.TestCase):
                 patch("bywaf.repl.commands.getpass.getpass", return_value="prompted-secret") as getpass,
                 contextlib.redirect_stdout(output),
             ):
-                dispatch_repl_line(runner, "var session.ticket --secret=", state)
-                dispatch_repl_line(runner, "var session.ticket", state)
+                dispatch_repl_line(runner, "set session.ticket --secret=", state)
+                dispatch_repl_line(runner, "set session.ticket", state)
             text = output.getvalue()
             getpass.assert_called_once_with("Secret for session.ticket: ")
             stored = runner.registry.varstore.get("session.ticket")
@@ -1037,9 +1096,9 @@ class AppDispatchTests(unittest.TestCase):
             runner.registry.varstore.set("display.vars.value-color", "bright-blue")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "var target=127.0.0.1", state)
-                dispatch_repl_line(runner, "var target", state)
-                dispatch_repl_line(runner, "var target", state)
+                dispatch_repl_line(runner, "set target=127.0.0.1", state)
+                dispatch_repl_line(runner, "set target", state)
+                dispatch_repl_line(runner, "set target", state)
             self.assertIn("\x1b[33mtarget\x1b[0m=\x1b[94m127.0.0.1\x1b[0m", output.getvalue())
 
     def test_vars_accept_extended_color_specs(self):
@@ -1051,8 +1110,8 @@ class AppDispatchTests(unittest.TestCase):
             runner.registry.varstore.set("display.vars.value-color", "ansi:34")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "var target=127.0.0.1", state)
-                dispatch_repl_line(runner, "var target", state)
+                dispatch_repl_line(runner, "set target=127.0.0.1", state)
+                dispatch_repl_line(runner, "set target", state)
             self.assertIn("\x1b[38;2;80;180;90mtarget\x1b[0m=\x1b[38;5;34m127.0.0.1\x1b[0m", output.getvalue())
 
     def test_vars_ignore_invalid_extended_color_specs(self):
@@ -1064,8 +1123,8 @@ class AppDispatchTests(unittest.TestCase):
             runner.registry.varstore.set("display.vars.value-color", "ansi:999")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "var target=127.0.0.1", state)
-                dispatch_repl_line(runner, "var target", state)
+                dispatch_repl_line(runner, "set target=127.0.0.1", state)
+                dispatch_repl_line(runner, "set target", state)
             self.assertIn("target=127.0.0.1", output.getvalue())
             self.assertNotIn("\x1b[", output.getvalue())
 
@@ -1079,7 +1138,7 @@ class AppDispatchTests(unittest.TestCase):
                 patch("bywaf.repl.commands.load_or_create_fingerprint_key", return_value=b"k" * 32),
                 contextlib.redirect_stdout(output),
             ):
-                dispatch_repl_line(runner, "var --secret session.ticket=supersecret", state)
+                dispatch_repl_line(runner, "set --secret session.ticket=supersecret", state)
             self.assertIn("\x1b[37;48;5;52m[REDACTED]\x1b[0m", output.getvalue())
             self.assertNotIn("supersecret", output.getvalue())
 
@@ -1092,7 +1151,7 @@ class AppDispatchTests(unittest.TestCase):
                 contextlib.redirect_stdout(io.StringIO()),
             ):
                 dispatch_repl_line(runner, "use ssh_probe", state)
-                dispatch_repl_line(runner, "var --secret password=supersecret", state)
+                dispatch_repl_line(runner, "set --secret password=supersecret", state)
             stored = runner.registry.varstore.get("ssh_probe.password")
             self.assertIsNotNone(stored)
             assert stored is not None
@@ -1106,7 +1165,7 @@ class AppDispatchTests(unittest.TestCase):
                 patch("bywaf.repl.commands.load_or_create_fingerprint_key", return_value=b"k" * 32),
                 contextlib.redirect_stdout(io.StringIO()),
             ):
-                dispatch_repl_line(first, "var --secret ssh_probe.password=supersecret", ShellState())
+                dispatch_repl_line(first, "set --secret ssh_probe.password=supersecret", ShellState())
 
             second = make_runner(db_path)
             stored = second.registry.varstore.get("ssh_probe.password")
@@ -1194,7 +1253,7 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "?")
             self.assertIn("plugins", output.getvalue())
             self.assertIn("cmds", output.getvalue())
-            self.assertIn("load script=<path>", output.getvalue())
+            self.assertIn("script", output.getvalue())
 
     def test_dispatch_help_colors_commands_when_enabled(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -105,9 +105,9 @@ class CompletionRegressionTests(unittest.TestCase):
             ("finding_report --", "--help"),
             ("artifact search file", "filename="),
             ("events ", "--tail"),
-            ("run por", "portscanner"),
+            ("por", "portscanner"),
             ("load pl", "plugin="),
-            ("save hi", "history="),
+            ("history save ", "file="),
         )
         for line, expected in cases:
             with self.subTest(line=line):
@@ -149,15 +149,15 @@ class CompletionRegressionTests(unittest.TestCase):
                 completer = Completer(self.registry)
                 cases = (
                     ("load plugin=plug", "plugin=plugin_dir/"),
-                    ("load script=scr", "script=script.bywaf"),
-                    ("load db=byw", "db=bywaf.sqlite3"),
-                    ("load config=byw", "config=bywaf.config.toml"),
-                    ("load history=his", "history=history.bywaf"),
-                    ("save db=byw", "db=bywaf.sqlite3"),
-                    ("save config=byw", "config=bywaf.config.toml"),
-                    ("save history=his", "history=history.bywaf"),
+                    ("script load file=scr", "file=script.bywaf"),
+                    ("db load file=byw", "file=bywaf.sqlite3"),
+                    ("config load file=byw", "file=bywaf.config.toml"),
+                    ("history load file=his", "file=history.bywaf"),
+                    ("db export file=byw", "file=bywaf.sqlite3"),
+                    ("config save file=byw", "file=bywaf.config.toml"),
+                    ("history save file=his", "file=history.bywaf"),
                     ("artifact attach file=snap", "file=snapshot.html"),
-                    ("artifact save dir=art", "dir=artifacts/"),
+                    ("artifact export dir=art", "dir=artifacts/"),
                     ("finding_report export=snap", "export=snapshot.html"),
                     ("finding_dedupe file=snap", "file=snapshot.html"),
                     ("yara_scan rule=snap", "rule=snapshot.html"),

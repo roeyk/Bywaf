@@ -29,6 +29,7 @@ from .shell import redact_history_command
 from .shell import remove_line_continuation
 from .shell import render_prompt
 from .shell import repl
+from .shell import run_commandlet_remainder
 from .shell import run_remainder
 from .shell import shutdown_runner
 from .shell import split_command_sequence
@@ -60,6 +61,7 @@ __all__ = [
     "remove_line_continuation",
     "render_prompt",
     "repl",
+    "run_commandlet_remainder",
     "run_remainder",
     "set_prompt_pattern",
     "shutdown_runner",

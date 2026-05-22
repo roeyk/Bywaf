@@ -45,6 +45,7 @@ host.found
 name.resolved
 port.open
 http.endpoint
+artifact.imported
 artifact.attached
 framework.console.alert.requested
 console.alert
@@ -175,6 +176,7 @@ plugin.loaded
 script.loaded
 note.attached
 name.updated
+artifact.imported
 artifact.attached
 ```
 

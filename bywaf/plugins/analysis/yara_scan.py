@@ -42,7 +42,7 @@ class YaraScan(CommandletBase):
         if yara is None:
             return ()
         if not parsed.rule:
-            raise ValueError("yara_scan requires rule=<path> or var yara_scan.rule=<path>")
+            raise ValueError("yara_scan requires rule=<path> or set yara_scan.rule=<path>")
         context.audit_capability("filesystem.read")
         rules = yara.compile(filepath=str(Path(parsed.rule).expanduser()))
         for file_name in parsed.files:

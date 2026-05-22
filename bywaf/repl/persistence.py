@@ -1,10 +1,11 @@
 """Persistence helpers for REPL-managed resources.
 
-Provides database load/save, config apply/load/save, history load/save, SQLite
+Provides database export, config apply/load/save, history load/save, SQLite
 backup behavior, and encrypted database passphrase prompts.
 
 Used by:
-- resource facade: implements `load/save db|config|history`.
+- REPL command handlers: implement config/history resource commands.
+- DB commandlet: reuses database export helpers.
 - project switching and CLI startup: apply config and hydrate persistent state.
 """
 
@@ -15,13 +16,14 @@ import json
 from pathlib import Path
 
 from ..db import EventStore, database_appears_encrypted, export_encrypted_database, export_plaintext_database
+from ..encrypted_file import read_text_maybe_encrypted, write_encrypted_text
 from ..runner import Runner
-from ..toml_support import dump_variables_toml, load_data_file
+from ..toml_support import dump_variables_toml, load_data_text
 from .state import ResourceState
 
 
-def save_database(runner: Runner, path: Path, *, encrypt: bool = False) -> None:
-    """Copy the active SQLite database to a snapshot file."""
+def export_database(runner: Runner, path: Path, *, encrypt: bool = False) -> None:
+    """Export the active SQLite database to a snapshot file."""
     maintenance = runner.maintenance
     if encrypt:
         passphrase = prompt_database_passphrase(path, creating=True)
@@ -37,17 +39,26 @@ def save_database(runner: Runner, path: Path, *, encrypt: bool = False) -> None:
         export_plaintext_database(maintenance.path, path, source_passphrase=maintenance.passphrase)
     else:
         copy_sqlite_database(maintenance.path, path)
-    print(f"saved db={path}")
+    print(f"exported db={path}")
 
 
-def load_database(runner: Runner, path: Path) -> None:
+def load_database(runner: Runner, path: Path, *, force: bool = False) -> None:
     """Switch the runner to a different SQLite database file."""
+    if not force and not confirm_database_load(runner, path):
+        print("db load cancelled")
+        return
     passphrase = None
     if database_appears_encrypted(path):
         passphrase = prompt_database_passphrase(path, creating=False)
     runner.db = EventStore(path, passphrase=passphrase)
     runner.db.mark_stale_jobs()
     print(f"loaded db={path}")
+
+
+def confirm_database_load(runner: Runner, path: Path) -> bool:
+    """Prompt before switching the active DB."""
+    response = input(f"Switch active database from {runner.db.path} to {path}? [y/N]: ")
+    return response.strip().lower() in {"y", "yes"}
 
 
 def copy_sqlite_database(source: Path, destination: Path) -> None:
@@ -64,14 +75,17 @@ def prompt_database_passphrase(path: Path, *, creating: bool) -> str:
     return getpass.getpass(f"{action} {path}: ")
 
 
-def save_config(runner: Runner, path: Path) -> None:
+def save_config(runner: Runner, path: Path, *, encrypt: bool = False) -> None:
     """Persist session variables as TOML or JSON."""
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.suffix == ".toml":
         text = dump_variables_toml(runner.registry.varstore.values)
     else:
         text = json.dumps(runner.registry.varstore.values, indent=2, sort_keys=True) + "\n"
-    path.write_text(text, encoding="utf-8")
+    if encrypt:
+        write_encrypted_text(path, text, label="config save")
+    else:
+        path.write_text(text, encoding="utf-8")
     print(f"saved config={path}")
 
 
@@ -83,7 +97,8 @@ def load_config(runner: Runner, path: Path) -> None:
 
 def apply_config(runner: Runner, path: Path) -> None:
     """Replace session variables from config without user-facing output."""
-    data = load_data_file(path)
+    text = read_text_maybe_encrypted(path, label="config")
+    data = load_data_text(text, suffix=path.suffix, label=str(path))
     values = data.get("variables", data)
     if not isinstance(values, dict):
         raise ValueError(f"{path} variables must be an object/table")
@@ -92,16 +107,20 @@ def apply_config(runner: Runner, path: Path) -> None:
         runner.registry.varstore.set(str(key), value)
 
 
-def save_history(state: ResourceState, path: Path) -> None:
+def save_history(state: ResourceState, path: Path, *, encrypt: bool = False) -> None:
     """Save current-session history lines to a script-friendly file."""
     path.parent.mkdir(parents=True, exist_ok=True)
     text = "\n".join(state.session_history)
-    path.write_text(f"{text}\n" if text else "")
+    output = f"{text}\n" if text else ""
+    if encrypt:
+        write_encrypted_text(path, output, label="history save")
+    else:
+        path.write_text(output, encoding="utf-8")
     print(f"saved history={path}")
 
 
 def load_history(state: ResourceState, path: Path) -> None:
     """Load a history file as the current session history and append target."""
     state.history_path = path
-    state.session_history = path.read_text().splitlines() if path.exists() else []
+    state.session_history = read_text_maybe_encrypted(path, label="history").splitlines() if path.exists() else []
     print(f"loaded history={path}")

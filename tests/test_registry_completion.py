@@ -297,8 +297,8 @@ class RegistryCompletionTests(unittest.TestCase):
     def test_prompt_has_no_argument_completion(self):
         self.assertEqual(Completer(self.registry).candidates("prompt "), [])
 
-    def test_exec_completes_commandlet_pipeline_names(self):
-        self.assertEqual(Completer(self.registry).candidates("exec host"), ["hostscanner"])
+    def test_exec_does_not_complete_commandlet_pipeline_names(self):
+        self.assertEqual(Completer(self.registry).candidates("exec host"), [])
 
     def test_run_completes_run_ids(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -316,17 +316,17 @@ class RegistryCompletionTests(unittest.TestCase):
         self.registry.varstore.set("hostscanner.targets", "127.0.0.1")
         self.registry.varstore.set("global.proxy", "http://127.0.0.1:8080")
         completer = Completer(self.registry, active_context="hostscanner")
-        self.assertIn("targets=", completer.candidates("var "))
-        self.assertNotIn("hostscanner.targets=", completer.candidates("var "))
-        self.assertEqual(completer.candidates("var global.pro"), ["global.proxy="])
+        self.assertIn("targets=", completer.candidates("set "))
+        self.assertNotIn("hostscanner.targets=", completer.candidates("set "))
+        self.assertEqual(completer.candidates("set global.pro"), ["global.proxy="])
 
     def test_vars_completion_supports_secret_flag(self):
         self.registry.varstore.set("ssh_probe.password", "")
         completer = Completer(self.registry)
-        self.assertEqual(completer.candidates("var --s"), ["--secret"])
-        self.assertIn("ssh_probe.", completer.candidates("var --secret "))
-        self.assertEqual(completer.candidates("var --secret ssh_probe.pass"), ["ssh_probe.password="])
-        self.assertNotIn("--secret", completer.candidates("var --secret "))
+        self.assertEqual(completer.candidates("set --s"), ["--secret"])
+        self.assertIn("ssh_probe.", completer.candidates("set --secret "))
+        self.assertEqual(completer.candidates("set --secret ssh_probe.pass"), ["ssh_probe.password="])
+        self.assertNotIn("--secret", completer.candidates("set --secret "))
 
     def test_secret_input_mode_accepts_plain_modes(self):
         completer = Completer(self.registry)
@@ -336,13 +336,13 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertEqual(secret_input_mode(completer), "plaintext")
 
     def test_secret_input_block_opens_only_for_var_secret_assignments(self):
-        self.assertEqual(open_secret_assignment_name("var --secret ssh_probe.password="), "ssh_probe.password")
-        self.assertEqual(open_secret_assignment_name("var ssh_probe.password --secret="), "ssh_probe.password")
+        self.assertEqual(open_secret_assignment_name("set --secret ssh_probe.password="), "ssh_probe.password")
+        self.assertEqual(open_secret_assignment_name("set ssh_probe.password --secret="), "ssh_probe.password")
         self.assertIsNone(open_secret_assignment_name("vars --secret ssh_probe.password="))
-        self.assertIsNone(open_secret_assignment_name("var password="))
+        self.assertIsNone(open_secret_assignment_name("set password="))
 
     def test_secret_input_block_drops_when_assignment_prefix_is_edited(self):
-        text = f"var --secret pw={SECRET_BLOCK_VALUE}"
+        text = f"set --secret pw={SECRET_BLOCK_VALUE}"
         span_start = text.index(SECRET_BLOCK_VALUE)
         state = PromptSecretInputState()
         state.span = PromptSecretSpan("pw", span_start, span_start + len(SECRET_BLOCK_VALUE), "secret")
@@ -350,11 +350,11 @@ class RegistryCompletionTests(unittest.TestCase):
 
         state.delete_before_cursor(buffer)
 
-        self.assertEqual(buffer.text, "var --secret pw")
+        self.assertEqual(buffer.text, "set --secret pw")
         self.assertIsNone(state.span)
 
     def test_secret_input_block_drops_when_assignment_prefix_is_forward_deleted(self):
-        text = f"var --secret pw={SECRET_BLOCK_VALUE}"
+        text = f"set --secret pw={SECRET_BLOCK_VALUE}"
         span_start = text.index(SECRET_BLOCK_VALUE)
         state = PromptSecretInputState()
         state.span = PromptSecretSpan("pw", span_start, span_start + len(SECRET_BLOCK_VALUE), "secret")
@@ -362,11 +362,11 @@ class RegistryCompletionTests(unittest.TestCase):
 
         state.delete_at_cursor(buffer)
 
-        self.assertEqual(buffer.text, "var --secret pw")
+        self.assertEqual(buffer.text, "set --secret pw")
         self.assertIsNone(state.span)
 
     def test_secret_input_escape_semantics_leave_after_and_preserve_value(self):
-        text = f"var --secret pw={SECRET_BLOCK_VALUE}"
+        text = f"set --secret pw={SECRET_BLOCK_VALUE}"
         span_start = text.index(SECRET_BLOCK_VALUE)
         state = PromptSecretInputState()
         state.span = PromptSecretSpan("pw", span_start, span_start + len(SECRET_BLOCK_VALUE), "secret")
@@ -391,7 +391,7 @@ class RegistryCompletionTests(unittest.TestCase):
 
     def test_completes_history_time_window_selectors(self):
         completer = Completer(self.registry)
-        self.assertEqual(completer.candidates("history s"), ["since="])
+        self.assertEqual(completer.candidates("history si"), ["since="])
         self.assertEqual(completer.candidates("history u"), ["until="])
 
     def test_completes_file_commands(self):
@@ -535,11 +535,12 @@ class RegistryCompletionTests(unittest.TestCase):
 
     def test_artifact_completion_prefers_actions_first(self):
         completer = Completer(self.registry)
-        self.assertEqual(completer.candidates("artifact "), ["attach", "list", "remove", "replace", "save", "search", "verify"])
+        self.assertEqual(completer.candidates("artifact "), ["attach", "export", "import", "list", "remove", "replace", "search", "verify"])
         self.assertEqual(completer.candidates("artifact a"), ["attach"])
         self.assertIn("file=", completer.candidates("artifact attach "))
+        self.assertIn("file=", completer.candidates("artifact import "))
         self.assertIn("file=", completer.candidates("artifact replace "))
-        self.assertIn("dir=", completer.candidates("artifact save "))
+        self.assertIn("dir=", completer.candidates("artifact export "))
         self.assertIn("note=", completer.candidates("artifact search "))
         self.assertIn("--regexp", completer.candidates("search "))
         self.assertIn("filename=", completer.candidates("search "))
@@ -656,19 +657,14 @@ class RegistryCompletionTests(unittest.TestCase):
 
     def test_load_resource_keywords_complete_from_prefix(self):
         completer = Completer(self.registry)
-        self.assertEqual(completer.candidates("load co"), ["config="])
-        self.assertEqual(completer.candidates("load db"), ["db="])
-        self.assertEqual(completer.candidates("load hi"), ["history="])
         self.assertEqual(completer.candidates("load pl"), ["plugin="])
-        self.assertEqual(completer.candidates("load sc"), ["script="])
         self.assertEqual(completer.candidates("load --f"), ["--force"])
 
-    def test_save_resource_keywords_complete_from_prefix(self):
+    def test_domain_resource_keywords_complete_from_prefix(self):
         completer = Completer(self.registry)
-        self.assertIn("save", completer.candidates("sav"))
-        self.assertEqual(completer.candidates("save co"), ["config="])
-        self.assertEqual(completer.candidates("save db"), ["db="])
-        self.assertEqual(completer.candidates("save hi"), ["history="])
+        self.assertIn("save", completer.candidates("config sa"))
+        self.assertIn("load", completer.candidates("history lo"))
+        self.assertIn("file=", completer.candidates("script save "))
 
     def test_load_script_equals_completes_filesystem_paths(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -677,7 +673,7 @@ class RegistryCompletionTests(unittest.TestCase):
             try:
                 os.chdir(tmp)
                 completer = Completer(self.registry)
-                self.assertEqual(completer.candidates("load script=scr"), ["script=script.bywaf"])
+                self.assertEqual(completer.candidates("script load file=scr"), ["file=script.bywaf"])
             finally:
                 os.chdir(cwd)
 
@@ -688,7 +684,7 @@ class RegistryCompletionTests(unittest.TestCase):
             try:
                 os.chdir(tmp)
                 completer = Completer(self.registry)
-                self.assertEqual(completer.candidates("load history=his"), ["history=history.bywaf"])
+                self.assertEqual(completer.candidates("history load file=his"), ["file=history.bywaf"])
             finally:
                 os.chdir(cwd)
 
@@ -736,8 +732,8 @@ class RegistryCompletionTests(unittest.TestCase):
     def test_key_value_completion_uses_custom_menu(self):
         self.assertTrue(
             should_print_completion_menu(
-                "load script=",
-                ["script=README.md", "script=tests/"],
+                "script load file=",
+                ["file=README.md", "file=tests/"],
             )
         )
         self.assertFalse(should_print_completion_menu("por", ["portscanner"]))
@@ -798,13 +794,14 @@ class RegistryCompletionTests(unittest.TestCase):
             (project_root / "client-b").mkdir()
             completer = Completer(self.registry)
             with patch("pathlib.Path.home", return_value=Path(tmp)):
-                self.assertEqual(completer.candidates("project "), ["info", "list", "new", "use"])
+                self.assertEqual(completer.candidates("project "), ["archive", "export", "info", "list", "new", "use"])
                 self.assertEqual(completer.candidates("project i"), ["info"])
                 self.assertEqual(completer.candidates("project new "), ["--encrypt", "name="])
                 self.assertEqual(completer.candidates("project use "), ["--force", "name="])
                 self.assertEqual(completer.candidates("project use name=client-"), ["name=client-a", "name=client-b"])
                 self.assertEqual(completer.candidates("project use c"), ["client-a", "client-b"])
                 self.assertEqual(completer.candidates("project use --f"), ["--force"])
+                self.assertEqual(completer.candidates("project archive "), ["--encrypt", "file="])
 
     def test_builtin_commands_do_not_fall_back_to_root_completion(self):
         completer = Completer(self.registry)

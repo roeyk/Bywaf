@@ -45,7 +45,7 @@ class FrameworkHttpAppTests(unittest.TestCase):
             state = ShellState()
             request = runner.db.publish("shell.prompt.requested", {"prompt": ""}, "test")
             process_framework_requests(runner, state)
-            self.assertEqual(state.prompt_pattern, "bywaf> ")
+            self.assertEqual(state.prompt_pattern, "$Y$M$D $h:$m:$s $Z> ")
             denied = runner.db.events_for_topic("framework.request.denied")[0]
             self.assertEqual(denied.payload["request_event_id"], request.id)
 

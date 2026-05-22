@@ -319,7 +319,7 @@ class Runner:
 
 
 def add_runner_arguments(parser: argparse.ArgumentParser) -> None:
-    """Add `bywaf run ...` arguments without requiring quotes for simple cases."""
+    """Add `bywaf exec ...` OS command arguments without requiring quotes for simple cases."""
     parser.add_argument(
         "command",
         nargs=argparse.REMAINDER,

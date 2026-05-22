@@ -66,7 +66,7 @@ Use pipeline selectors when you want to inspect or control the whole chain:
 ```text
 pipeline show 1
 pipeline cancel 1
-artifact save pipeline=1 dir=artifacts/
+artifact export pipeline=1 dir=artifacts/
 ```
 
 ## Run
@@ -104,7 +104,7 @@ Use run selectors when you care about one stage of a workflow:
 
 ```text
 event run=2
-artifact save run=2 dir=artifacts/
+artifact export run=2 dir=artifacts/
 note run=2
 ```
 
@@ -164,6 +164,7 @@ Examples:
 ```text
 host.found
 port.open
+artifact.imported
 artifact.attached
 job.started
 policy.evaluated

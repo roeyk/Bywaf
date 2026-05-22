@@ -16,6 +16,7 @@ import shlex
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from .command_names import VARIABLE_COMMANDS
 from .secrets import REDACTED_VALUE
 
 try:
@@ -356,7 +357,7 @@ def open_secret_assignment_name(text_before_cursor: str) -> str | None:
         tokens = shlex.split(left)
     except ValueError:
         return None
-    if not tokens or tokens[0] != "var":
+    if not tokens or tokens[0] not in VARIABLE_COMMANDS:
         return None
     if len(tokens) >= 3 and tokens[-2] == "--secret":
         return tokens[-1]

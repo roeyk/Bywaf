@@ -35,6 +35,7 @@ from ..runtime_display import (
 from ..runner import Runner
 from ..secrets import SECRET_REF_PREFIX, REDACTED_VALUE
 from ..time_format import format_operator_timestamp, normalize_history_timestamp_for_display
+from ..command_names import SET_COMMAND
 
 VAR_COLOR_MODE_VAR = "display.vars.color"
 VAR_NAME_COLOR_VAR = "display.vars.name-color"
@@ -104,13 +105,20 @@ HELP_COMMANDS = (
     HelpEntry("runs", "show commandlet run IDs", "runs"),
     HelpEntry("run <id|serial>", "inspect one commandlet run", "run <id|serial>", ("run 1", "run run-...")),
     HelpEntry(
-        "var [--secret] [name[=value]]",
+        "set [--secret] [name[=value]]",
         "list, show, or set session variables",
-        "var [--secret] [name[=value]]",
-        ("var http_probe.cookie-file=/tmp/cookies.txt", "var --secret ssh_probe.password=client-password"),
+        "set [--secret] [name[=value]]",
+        (
+            "set http_probe.cookie-file=/tmp/cookies.txt",
+            "set --secret ssh_probe.password=client-password",
+        ),
     ),
     HelpEntry("topics", "list event topics in the active database", "topics"),
-    HelpEntry("project", "list, inspect, create, or switch project directories", "project <list|info|new|use>"),
+    HelpEntry(
+        "project, proj",
+        "list, inspect, create, switch, archive, or export project directories",
+        "project <list|info|new|use|archive|export>",
+    ),
     HelpEntry("use <commandlet|global>", "set the active variable context", "use <commandlet|global>"),
     HelpEntry(
         "event",
@@ -120,16 +128,12 @@ HELP_COMMANDS = (
         "event <selector>",
     ),
     HelpEntry("events [tail|--tail] [last=N]", "show recent events", "events [tail|--tail] [last=N]", ("events", "events tail", "events tail last=50")),
-    HelpEntry("prompt [pattern]", "show or set prompt pattern", "prompt [pattern]", ("prompt $u $Y-$M-$D $h:$m:$s $Z > ",)),
+    HelpEntry("prompt [pattern]", "show or set prompt pattern", "prompt [pattern]", ("prompt $Y$M$D $h:$m:$s $Z> ",)),
     HelpEntry("load [--force] plugin=<path>", "load a filesystem plugin", "load [--force] plugin=<path>"),
-    HelpEntry("load script=<path>", "run commands from a script file", "load script=<path>"),
-    HelpEntry("load db=<path>", "switch active SQLite database", "load db=<path>"),
-    HelpEntry("load config=<path>", "load session variables from JSON", "load config=<path>"),
-    HelpEntry("load history=<path>", "load command history for this session", "load history=<path>"),
-    HelpEntry("save [--encrypt] db=<path>", "save active SQLite database", "save [--encrypt] db=<path>"),
-    HelpEntry("save config=<path>", "save session variables to JSON", "save config=<path>"),
-    HelpEntry("save history=<path>", "save this session's command history", "save history=<path>"),
-    HelpEntry("exec <commandlet-pipeline>", "execute a commandlet pipeline", "exec <commandlet-pipeline>", ("exec 'hostscanner 127.0.0.1 | portscanner'",)),
+    HelpEntry("config", "load or save session configuration", "config <load|save> file=<path> [--encrypt]"),
+    HelpEntry("history", "show, load, or save command history", "history [since=... until=...] | history <load|save> file=<path> [--encrypt]"),
+    HelpEntry("script", "load/run or save REPL scripts", "script <load|save> file=<path> [--encrypt]"),
+    HelpEntry("exec <shell-command>", "execute an OS shell command", "exec <shell-command>", ("exec 'ls -la | head'",)),
     HelpEntry("<plugin pipeline>", "run commandlets directly", "<plugin pipeline>", ("hostscanner 127.0.0.1 | portscanner",)),
     HelpEntry("exit, quit, q", "exit the shell", "exit"),
 )

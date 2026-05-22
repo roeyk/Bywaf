@@ -1,7 +1,7 @@
 """Built-in REPL command handlers and mutable shell commands.
 
 Provides the dispatch table and handlers for built-ins such as help, history,
-var, use, event, load, save, prompt, jobs, runs, and project.
+set, use, event, load, config, script, prompt, jobs, runs, and project.
 
 Used by:
 - bywaf.repl.shell: dispatches parsed REPL lines to these handlers.
@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import shlex
 import getpass
+import subprocess
 from collections.abc import Callable, Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from ..framework_requests import process_framework_requests
@@ -31,10 +33,21 @@ from .display import (
     print_topics,
     print_triggers,
 )
-from .resources import dispatch_project_command, load_repl_resource, print_project_info, save_repl_resource
+from .persistence import load_config, load_history, save_config, save_history
+from .resources import (
+    DEFAULT_CONFIG,
+    DEFAULT_HISTORY,
+    DEFAULT_SCRIPT_DIR,
+    dispatch_project_command,
+    load_repl_resource,
+    print_project_info,
+    resolve_resource_path,
+    run_script,
+)
 from ..runner import Runner
 from ..secrets import load_or_create_fingerprint_key
 from ..secret_input import SECRET_BLOCK_VALUE
+from ..command_names import PROJECT_ALIAS_COMMAND, SET_COMMAND
 
 if TYPE_CHECKING:
     from .shell import ShellState
@@ -80,8 +93,65 @@ def handle_triggers_command(runner: Runner, state: ShellState, rest: str | None,
 def handle_history_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
     """Print command history."""
     del line
+    if rest and history_resource_command(runner, state, shlex.split(rest)):
+        return None
     selectors = parse_history_selectors(shlex.split(rest)) if rest else None
     print_history(state.session_history, selectors, runner)
+    return None
+
+
+def history_resource_command(runner: Runner, state: ShellState, tokens: list[str]) -> bool:
+    """Handle `history load/save` forms; return whether an action ran."""
+    action = tokens[0] if tokens else ""
+    if action not in {"load", "save"}:
+        return False
+    file_value = selector_value(tokens[1:], "file")
+    path = resolve_resource_path(file_value or "", Path("."), DEFAULT_HISTORY)
+    if action == "load":
+        del runner
+        load_history(state, path)
+    else:
+        save_history(state, path, encrypt="--encrypt" in tokens[1:])
+    return True
+
+
+def handle_config_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
+    """Load or save framework configuration."""
+    del state, line
+    tokens = shlex.split(rest) if rest else []
+    if not tokens:
+        print("usage: config load file=<path>, config save file=<path> [--encrypt]")
+        return None
+    action = tokens[0]
+    file_value = selector_value(tokens[1:], "file")
+    path = resolve_resource_path(file_value or "", Path("."), DEFAULT_CONFIG)
+    if action == "load":
+        load_config(runner, path)
+    elif action == "save":
+        save_config(runner, path, encrypt="--encrypt" in tokens[1:])
+    else:
+        print("usage: config load file=<path>, config save file=<path> [--encrypt]")
+    return None
+
+
+def handle_script_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
+    """Load/run or save REPL scripts."""
+    del line
+    tokens = shlex.split(rest) if rest else []
+    if not tokens:
+        print("usage: script load file=<path>, script save file=<path> [--encrypt]")
+        return None
+    action = tokens[0]
+    file_value = selector_value(tokens[1:], "file")
+    if action == "load":
+        if not file_value:
+            raise ValueError("usage: script load file=<path>")
+        run_script(runner, resolve_resource_path(file_value, DEFAULT_SCRIPT_DIR), state)
+    elif action == "save":
+        path = resolve_resource_path(file_value or "", Path("."), DEFAULT_HISTORY)
+        save_history(state, path, encrypt="--encrypt" in tokens[1:])
+    else:
+        print("usage: script load file=<path>, script save file=<path> [--encrypt]")
     return None
 
 
@@ -202,30 +272,22 @@ def handle_prompt_command(runner: Runner, state: ShellState, rest: str | None, l
 
 
 def handle_load_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
-    """Load a REPL resource."""
+    """Load a plugin resource."""
     del line
-    if rest is not None:
+    if rest is None:
+        print("usage: load [--force] plugin=<path>")
+    else:
         load_repl_resource(runner, rest, state)
     return None
 
 
-def handle_save_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
-    """Save a REPL resource."""
-    del line
-    if rest is None:
-        print("usage: save [--encrypt] db=<path>, save config=<path>, or save history=<path>")
-    else:
-        save_repl_resource(runner, rest, state)
-    return None
-
-
 def handle_exec_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
-    """Execute a commandlet pipeline."""
-    del line
+    """Execute an operating-system shell command."""
+    del state, line
     if rest is None:
         print_help(runner, "exec")
     else:
-        execute_repl_commandlet(runner, state, rest)
+        execute_shell_command(runner, rest)
     return None
 
 
@@ -248,9 +310,32 @@ def execute_repl_commandlet(runner: Runner, state: ShellState, command: str) -> 
     print_events(events, runner)
 
 
+def execute_shell_command(runner: Runner, command: str) -> int:
+    """Run an OS shell command and audit its lifecycle."""
+    started = runner.events.publish(
+        "shell.exec.started",
+        {"command": command},
+        "framework",
+    )
+    completed = subprocess.run(command, shell=True, check=False)
+    topic = "shell.exec.completed" if completed.returncode == 0 else "shell.exec.failed"
+    runner.events.publish(
+        topic,
+        {
+            "command": command,
+            "returncode": completed.returncode,
+            "ok": completed.returncode == 0,
+            "request_event_id": started.id,
+        },
+        "framework",
+    )
+    return completed.returncode
+
+
 REPL_COMMAND_HANDLERS: dict[str, ReplCommandHandler] = {
     "?": handle_help_command,
     "cmds": handle_cmds_command,
+    "config": handle_config_command,
     "event": handle_event_command,
     "events": handle_events_command,
     "exec": handle_exec_command,
@@ -263,16 +348,17 @@ REPL_COMMAND_HANDLERS: dict[str, ReplCommandHandler] = {
     "pipelines": handle_pipelines_command,
     "plugins": handle_plugins_command,
     "project": handle_project_command,
+    PROJECT_ALIAS_COMMAND: handle_project_command,
     "prompt": handle_prompt_command,
     "q": handle_exit_command,
     "quit": handle_exit_command,
     "run": handle_run_command,
     "runs": handle_runs_command,
-    "save": handle_save_command,
+    "script": handle_script_command,
     "topics": handle_topics_command,
     "triggers": handle_triggers_command,
     "use": handle_use_command,
-    "var": handle_vars_command,
+    SET_COMMAND: handle_vars_command,
 }
 
 
@@ -313,6 +399,15 @@ def parse_events_last_value(raw: str) -> int:
     if limit < 1:
         raise ValueError("events last= must be at least 1")
     return limit
+
+
+def selector_value(tokens: Sequence[str], key: str) -> str | None:
+    """Return selector value from `key=value` tokens."""
+    prefix = f"{key}="
+    for token in tokens:
+        if token.startswith(prefix):
+            return token.split("=", 1)[1]
+    return None
 
 
 def parse_history_selectors(tokens: Sequence[str]) -> dict[str, str]:
@@ -363,7 +458,7 @@ def set_var(runner: Runner, state: ShellState, assignment: str) -> None:
             resolved_key,
             cleaned_value,
             key=load_or_create_fingerprint_key(),
-            source="var",
+            source=SET_COMMAND,
         )
         runner.registry.varstore.set(resolved_key, secret_ref.ref)
         runner.db.store_secret(secret_ref, cleaned_value)
@@ -388,7 +483,7 @@ def parse_var_assignment_flags(assignment: str) -> tuple[str, bool]:
         if "--secret" in left_tokens:
             key_tokens = [token for token in left_tokens if token != "--secret"]
             if len(key_tokens) != 1:
-                raise ValueError("usage: var [--secret] name=value")
+                raise ValueError(f"usage: {SET_COMMAND} [--secret] name=value")
             return f"{key_tokens[0]}={right}", True
     if stripped.endswith(" --secret"):
         return stripped.removesuffix(" --secret").strip(), True

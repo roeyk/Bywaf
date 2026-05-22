@@ -390,7 +390,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 process_framework_requests(runner, ShellState())
                 runner.execute("artifact verify run=run-1")
                 process_framework_requests(runner, ShellState())
-                runner.execute(f"artifact save run=run-1 file={output_path}")
+                runner.execute(f"artifact export run=run-1 file={output_path}")
                 process_framework_requests(runner, ShellState())
             self.assertEqual(output_path.read_text(), "<html>ok</html>")
             artifacts = artifact_store_for_event_store(runner.db).list(command_run_id="run-1")
@@ -453,7 +453,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
             artifact = artifact_store_for_event_store(runner.db).list(command_run_id="run-1")[0]
             self.assertEqual(artifact.name, "Landing page")
             with contextlib.redirect_stdout(io.StringIO()):
-                runner.execute(f"artifact save serial={artifact.artifact_id} file={output_path}")
+                runner.execute(f"artifact export serial={artifact.artifact_id} file={output_path}")
                 process_framework_requests(runner, ShellState())
             self.assertEqual(output_path.read_text(), "<html>ok</html>")
             output = io.StringIO()
@@ -461,6 +461,27 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 runner.execute(f"search serial={artifact.artifact_id}")
                 process_framework_requests(runner, ShellState())
             self.assertIn("Landing page", output.getvalue())
+
+    @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
+    def test_artifact_import_and_attach_existing_artifact(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp, "db.sqlite3")
+            source = Path(tmp, "snapshot.html")
+            source.write_text("<html>ok</html>")
+            runner = make_runner(db_path, encrypted=True, passphrase="secret")
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute(f"artifact import file={source} name='Landing page'")
+                process_framework_requests(runner, ShellState())
+            imported = artifact_store_for_event_store(runner.db).list()[0]
+            self.assertIsNone(imported.command_run_id)
+            self.assertTrue(runner.db.events_for_topic("artifact.imported"))
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute(f"artifact attach artifact={imported.id} run=run-1")
+                process_framework_requests(runner, ShellState())
+            attached = artifact_store_for_event_store(runner.db).list(command_run_id="run-1")[0]
+            self.assertEqual(attached.id, imported.id)
+            self.assertEqual(attached.name, "Landing page")
+            self.assertTrue(runner.db.events_for_topic("artifact.attached"))
 
     @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
     def test_artifact_attach_rejects_artifact_parent_serial(self):
@@ -501,7 +522,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
             with contextlib.redirect_stdout(io.StringIO()):
                 runner.execute(f"artifact attach run=run-1 file={first} file={second}")
         with self.assertRaisesRegex(ValueError, "matched multiple artifacts"):
-            runner.execute(f"artifact save run=run-1 file={Path(tmp, 'out.txt')}")
+            runner.execute(f"artifact export run=run-1 file={Path(tmp, 'out.txt')}")
 
     @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
     def test_artifact_replace_and_remove_are_audited(self):

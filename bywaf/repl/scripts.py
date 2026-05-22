@@ -4,7 +4,7 @@ Provides Bywaf script parsing, inline-comment stripping, continuation handling,
 and command dispatch for commands loaded from script files.
 
 Used by:
-- resource facade: implements `load script=<path>`.
+- REPL command handlers: implement `script load file=<path>`.
 - CLI startup: runs scripts passed through command-line resource options.
 """
 

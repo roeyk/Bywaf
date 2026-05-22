@@ -113,8 +113,8 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "help var")
-            self.assertIn("Usage:   var [--secret] [name[=value]]", output.getvalue())
+                dispatch_repl_line(runner, "help set")
+            self.assertIn("Usage:   set [--secret] [name[=value]]", output.getvalue())
 
     def test_dispatch_help_for_unknown_command(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -144,12 +144,12 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             self.assertEqual(script_commands(path), [(3, "ls"), (4, "topics")])
 
     def test_script_commands_preserves_quoted_hashes(self):
-        self.assertEqual(strip_inline_comment("var name='a # b' # later").strip(), "var name='a # b'")
+        self.assertEqual(strip_inline_comment("set name='a # b' # later").strip(), "set name='a # b'")
 
     def test_split_command_sequence_respects_quoted_semicolons(self):
         self.assertEqual(
-            split_command_sequence("var a=1; var b='two; still two'; topics"),
-            ["var a=1", "var b='two; still two'", "topics"],
+            split_command_sequence("set a=1; set b='two; still two'; topics"),
+            ["set a=1", "set b='two; still two'", "topics"],
         )
 
     def test_line_continuation_helpers(self):
@@ -160,12 +160,12 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
     def test_script_commands_joins_continuations_and_splits_semicolons(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "script.bywaf")
-            path.write_text("var first=one; var second=two\nhostscanner \\\n  127.0.0.1\n")
+            path.write_text("set first=one; set second=two\nhostscanner \\\n  127.0.0.1\n")
             self.assertEqual(
                 script_commands(path),
                 [
-                    (1, "var first=one"),
-                    (1, "var second=two"),
+                    (1, "set first=one"),
+                    (1, "set second=two"),
                     (2, "hostscanner \n  127.0.0.1"),
                 ],
             )
@@ -189,9 +189,9 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
     def test_record_command_history_accepts_redacted_stored_command(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, ".bywaf", "history.bywaf")
-            record_command_history("var password=supersecret", path, stored_command="var password=[REDACTED]")
+            record_command_history("set password=supersecret", path, stored_command="set password=[REDACTED]")
             text = path.read_text()
-            self.assertIn("var password=[REDACTED]", text)
+            self.assertIn("set password=[REDACTED]", text)
             self.assertNotIn("supersecret", text)
 
     def test_format_history_entry_for_display_puts_timestamp_first(self):
@@ -233,7 +233,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
                 session_history=[
                     "plugins  # 2026-05-17 09:00:00 EDT",
                     "cmds  # 2026-05-17 10:00:00 EDT",
-                    "var  # 2026-05-17 11:00:00 EDT",
+                    "set  # 2026-05-17 11:00:00 EDT",
                 ],
             )
             output = io.StringIO()
@@ -241,7 +241,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
                 dispatch_repl_line(runner, "history since=202605171000 until=202605171059", state)
             self.assertNotIn("plugins", output.getvalue())
             self.assertIn("cmds", output.getvalue())
-            self.assertNotIn("var", output.getvalue())
+            self.assertNotIn("set", output.getvalue())
 
     def test_dispatch_history_accepts_explicit_time_prefix(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -272,10 +272,10 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
                 runner = make_runner(Path(tmp, "db.sqlite3"))
                 state = ShellState(session_history=["cmds  # now"])
                 with contextlib.redirect_stdout(io.StringIO()):
-                    dispatch_repl_line(runner, "save history=session.bywaf", state)
+                    dispatch_repl_line(runner, "history save file=session.bywaf", state)
                 state.session_history = []
                 with contextlib.redirect_stdout(io.StringIO()):
-                    dispatch_repl_line(runner, "load history=session.bywaf", state)
+                    dispatch_repl_line(runner, "history load file=session.bywaf", state)
                 self.assertEqual(state.session_history, ["cmds  # now"])
             finally:
                 os.chdir(cwd)
@@ -284,7 +284,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             script = Path(tmp, "script.bywaf")
-            script.write_text("# comment\nvar test.value=abc\nvar\n")
+            script.write_text("# comment\nset test.value=abc\nset\n")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 run_script(runner, script)
@@ -295,7 +295,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             script = Path(tmp, "script.bywaf")
-            script.write_text("var one.value=1; var two.value=2\n")
+            script.write_text("set one.value=1; set two.value=2\n")
             with contextlib.redirect_stdout(io.StringIO()):
                 run_script(runner, script)
             self.assertEqual(runner.registry.varstore.get("one.value"), "1")
@@ -305,25 +305,25 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             script = Path(tmp, "script.bywaf")
-            script.write_text("var loaded.value=yes\n")
+            script.write_text("set loaded.value=yes\n")
             with contextlib.redirect_stdout(io.StringIO()):
-                dispatch_repl_line(runner, f"load script={script}")
+                dispatch_repl_line(runner, f"script load file={script}")
             self.assertEqual(runner.registry.varstore.get("loaded.value"), "yes")
 
     def test_load_script_records_auditable_serial(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             script = Path(tmp, "script.bywaf")
-            script.write_text("var loaded.value=yes\n")
+            script.write_text("set loaded.value=yes\n")
             with contextlib.redirect_stdout(io.StringIO()):
-                dispatch_repl_line(runner, f"load script={script}")
+                dispatch_repl_line(runner, f"script load file={script}")
             loaded = runner.db.events_for_topic("resource.script.loaded")[0]
             serial = loaded.payload["serial"]
             self.assertTrue(str(serial).startswith("script-"))
             self.assertIn(str(serial), runner.db.serials())
             commands = runner.db.events_for_serial(str(serial))
             self.assertEqual([event.topic for event in commands], ["resource.script.loaded", "resource.script.command"])
-            self.assertEqual(commands[1].payload["command"], "var loaded.value=yes")
+            self.assertEqual(commands[1].payload["command"], "set loaded.value=yes")
 
     def test_load_plugin_records_auditable_serial(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -413,7 +413,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
                 patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]) as discover,
                 contextlib.redirect_stdout(output),
             ):
-                dispatch_repl_line(runner, f"load script={script}")
+                dispatch_repl_line(runner, f"script load file={script}")
             discover.assert_called_once_with("127.0.0.1", "-sn")
             self.assertIn("script variable expansion", output.getvalue())
             self.assertEqual(runner.db.events_for_topic("framework.variable.expanded")[0].payload["variables"], ["hostscanner.targets"])
@@ -422,12 +422,12 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             config = Path(tmp, "vars.toml")
-            dispatch_repl_line(runner, "var test.value=before")
+            dispatch_repl_line(runner, "set test.value=before")
             with contextlib.redirect_stdout(io.StringIO()):
-                dispatch_repl_line(runner, f"save config={config}")
-            dispatch_repl_line(runner, "var test.value=after")
+                dispatch_repl_line(runner, f"config save file={config}")
+            dispatch_repl_line(runner, "set test.value=after")
             with contextlib.redirect_stdout(io.StringIO()):
-                dispatch_repl_line(runner, f"load config={config}")
+                dispatch_repl_line(runner, f"config load file={config}")
             self.assertEqual(runner.registry.varstore.get("test.value"), "before")
             self.assertIn("[variables]", config.read_text())
 
@@ -435,12 +435,12 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             default_config = Path(tmp, "default.toml")
-            dispatch_repl_line(runner, "var test.value=default")
+            dispatch_repl_line(runner, "set test.value=default")
             with (
-                patch("bywaf.repl.resources.DEFAULT_CONFIG", default_config),
+                patch("bywaf.repl.commands.DEFAULT_CONFIG", default_config),
                 contextlib.redirect_stdout(io.StringIO()),
             ):
-                dispatch_repl_line(runner, "save config=")
+                dispatch_repl_line(runner, "config save file=")
             self.assertIn('"test.value" = "default"', default_config.read_text())
 
     def test_load_config_empty_value_uses_default_path(self):
@@ -449,10 +449,10 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             default_config = Path(tmp, "default.toml")
             default_config.write_text("[variables]\n\"test.value\" = \"default\"\n", encoding="utf-8")
             with (
-                patch("bywaf.repl.resources.DEFAULT_CONFIG", default_config),
+                patch("bywaf.repl.commands.DEFAULT_CONFIG", default_config),
                 contextlib.redirect_stdout(io.StringIO()),
             ):
-                dispatch_repl_line(runner, "load config=")
+                dispatch_repl_line(runner, "config load file=")
             self.assertEqual(runner.registry.varstore.get("test.value"), "default")
 
     def test_load_legacy_json_config(self):
@@ -461,7 +461,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             config = Path(tmp, "vars.json")
             config.write_text('{"test.value": "legacy"}\n')
             with contextlib.redirect_stdout(io.StringIO()):
-                dispatch_repl_line(runner, f"load config={config}")
+                dispatch_repl_line(runner, f"config load file={config}")
             self.assertEqual(runner.registry.varstore.get("test.value"), "legacy")
 
     def test_save_and_load_database(self):
@@ -470,12 +470,12 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             runner.db.publish("custom.topic", {"ok": True}, "test")
             saved = Path(tmp, "saved.sqlite3")
             with contextlib.redirect_stdout(io.StringIO()):
-                dispatch_repl_line(runner, f"save db={saved}")
+                dispatch_repl_line(runner, f"db export file={saved}")
             other = make_runner(Path(tmp, "other.sqlite3"))
             with contextlib.redirect_stdout(io.StringIO()):
-                dispatch_repl_line(other, f"load db={saved}")
+                dispatch_repl_line(other, f"db load file={saved} --force")
             self.assertEqual(other.db.path, saved)
-            self.assertEqual(other.db.topics(), ["custom.topic"])
+            self.assertIn("custom.topic", other.db.topics())
 
     def test_save_history_empty_value_uses_default_path(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -483,10 +483,10 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             default_history = Path(tmp, "history.bywaf")
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with (
-                patch("bywaf.repl.resources.DEFAULT_HISTORY", default_history),
+                patch("bywaf.repl.commands.DEFAULT_HISTORY", default_history),
                 contextlib.redirect_stdout(io.StringIO()),
             ):
-                dispatch_repl_line(runner, "save history=", state)
+                dispatch_repl_line(runner, "history save file=", state)
             self.assertIn("help", default_history.read_text())
 
     def test_load_history_empty_value_uses_default_path(self):
@@ -496,10 +496,10 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             state = ShellState()
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with (
-                patch("bywaf.repl.resources.DEFAULT_HISTORY", default_history),
+                patch("bywaf.repl.commands.DEFAULT_HISTORY", default_history),
                 contextlib.redirect_stdout(io.StringIO()),
             ):
-                dispatch_repl_line(runner, "load history=", state)
+                dispatch_repl_line(runner, "history load file=", state)
             self.assertEqual(state.session_history, ["help  # 2026-05-21 12:00:00 EDT"])
 
     def test_dispatch_plugin_help_does_not_exit_repl(self):
@@ -572,13 +572,13 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "var")
+                dispatch_repl_line(runner, "set")
             self.assertIn("portscanner.ports=", output.getvalue())
 
     def test_dispatch_vars_assignment_sets_value(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
-            dispatch_repl_line(runner, "var custom.value=abc")
+            dispatch_repl_line(runner, "set custom.value=abc")
             self.assertEqual(runner.registry.varstore.get("custom.value"), "abc")
 
     def test_dispatch_topics_and_show_use_database_events(self):
@@ -619,7 +619,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             state = ShellState()
             set_prompt_pattern(runner, state, "new> ", source="test")
             event = runner.db.events_for_topic("shell.prompt.updated")[0]
-            self.assertEqual(event.payload["old_prompt"], "bywaf> ")
+            self.assertEqual(event.payload["old_prompt"], "$Y$M$D $h:$m:$s $Z> ")
             self.assertEqual(event.payload["new_prompt"], "new> ")
 
 

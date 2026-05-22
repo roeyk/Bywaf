@@ -283,6 +283,19 @@ class ArtifactStoreProtocol(Protocol):
         """Delete one artifact."""
         ...
 
+    def attach_existing(
+        self,
+        artifact: Artifact,
+        *,
+        job_id: int | str | None = None,
+        pipeline_id: str | None = None,
+        command_run_id: str | None = None,
+        parent_command_run_id: str | None = None,
+        note: str | None = None,
+    ) -> Artifact:
+        """Update one artifact's provenance attachment."""
+        ...
+
     def replace_file(
         self,
         artifact: Artifact,

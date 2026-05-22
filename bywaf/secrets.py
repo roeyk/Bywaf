@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .config import default_settings
+from .command_names import VARIABLE_COMMANDS
 
 FINGERPRINT_ALGORITHM = "hmac-sha256"
 FINGERPRINT_HEX_CHARS = 24
@@ -53,7 +54,7 @@ class SecretRef:
     ref: str
     name: str
     fingerprint: SecretFingerprint
-    source: str = "var"
+    source: str = "set"
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,7 +76,7 @@ class InMemorySecretStore:
     values: dict[str, str] = field(default_factory=dict)
     refs: dict[str, SecretRef] = field(default_factory=dict)
 
-    def put(self, name: str, value: str, *, key: bytes, source: str = "var") -> SecretRef:
+    def put(self, name: str, value: str, *, key: bytes, source: str = "set") -> SecretRef:
         """Store a secret value and return an opaque reference for varstore use."""
         ref = f"{SECRET_REF_PREFIX}{os.urandom(8).hex()}"
         secret_ref = SecretRef(ref=ref, name=name, fingerprint=fingerprint_secret(value, key), source=source)
@@ -138,7 +139,7 @@ def redact_command_text(command: str, *, key: bytes, secret_names: set[str] | fr
     except ValueError:
         return RedactionResult(command)
 
-    if tokens and tokens[0] == "var":
+    if tokens and tokens[0] in VARIABLE_COMMANDS:
         explicit = redact_explicit_vars_secret(tokens, key=key)
         if explicit is not None:
             return explicit
@@ -159,7 +160,7 @@ def redact_command_text(command: str, *, key: bytes, secret_names: set[str] | fr
 
 
 def redact_explicit_vars_secret(tokens: list[str], *, key: bytes) -> RedactionResult | None:
-    """Redact `var --secret name=value` command text."""
+    """Redact explicit `set --secret name=value` command text."""
     if len(tokens) < 2 or ("--secret" not in tokens[1:] and not any(token.startswith("--secret=") for token in tokens[1:])):
         return None
     if "--secret" in tokens[1:]:

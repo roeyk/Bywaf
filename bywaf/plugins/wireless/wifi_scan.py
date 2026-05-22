@@ -37,7 +37,7 @@ OPTION_KEYS = {"binary", "duration", "interface", "log-types", "output-dir"}
     usage="wifi_scan interface=IFACE [duration=SECONDS]",
     examples=(
         "wifi_scan interface=wlan0mon duration=60",
-        "var wifi_scan.interface=wlan0mon",
+        "set wifi_scan.interface=wlan0mon",
     ),
     emits=("wifi.network", "kismet.network"),
     capabilities=(
@@ -84,7 +84,7 @@ class WifiScan(CommandletBase):
                 {
                     "tool": "kismet",
                     "severity": "error",
-                    "message": "wifi_scan requires --interface or var wifi_scan.interface=<iface>",
+                    "message": "wifi_scan requires --interface or set wifi_scan.interface=<iface>",
                 },
             )
             return ()

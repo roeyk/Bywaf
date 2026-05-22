@@ -1,11 +1,11 @@
-"""Public facade for REPL project and load/save resource helpers.
+"""Public facade for REPL project and resource helpers.
 
 Provides the stable resource API used by command handlers and CLI startup while
 delegating parsing, persistence, scripts, projects, and audit metadata to
 cohesive sibling modules.
 
 Used by:
-- REPL command handlers: implement `load`, `save`, and `project` built-ins.
+- REPL command handlers: implement plugin loading, scripts, and projects.
 - CLI startup: import resource defaults, config loading, secret hydration, and
   script execution helpers.
 """
@@ -17,12 +17,9 @@ from pathlib import Path
 
 from ..runner import Runner
 from .persistence import apply_config
-from .persistence import load_config
 from .persistence import load_database
 from .persistence import load_history
 from .persistence import prompt_database_passphrase
-from .persistence import save_config
-from .persistence import save_database
 from .persistence import save_history
 from .projects import dispatch_project_command
 from .projects import print_project_info
@@ -65,7 +62,6 @@ __all__ = [
     "default_resource_state",
     "dispatch_project_command",
     "hydrate_persistent_secrets",
-    "load_config",
     "load_database",
     "load_history",
     "load_repl_resource",
@@ -78,46 +74,25 @@ __all__ = [
     "publish_resource_loaded",
     "resolve_resource_path",
     "run_script",
-    "save_config",
-    "save_database",
     "save_history",
-    "save_repl_resource",
     "script_commands",
     "strip_inline_comment",
 ]
 
 
 def load_repl_resource(runner: Runner, spec: str, state: ResourceState | None = None) -> None:
-    """Handle `load key=value` resources from the REPL."""
+    """Handle `load plugin=<path>` resources from the REPL."""
     state = state or default_resource_state(runner)
     forced, resource = parse_load_spec(spec)
     key, value = parse_resource_assignment(resource)
     handler = LOAD_RESOURCE_HANDLERS.get(key)
-    if handler is None or (not value and key not in DEFAULT_LOAD_RESOURCE_KEYS):
-        print("usage: load [--force] plugin=<path>, load script=<path>, load db=<path>, load config=<path>, or load history=<path>")
+    if handler is None or not value:
+        print("usage: load [--force] plugin=<path>")
         return
     handler(runner, state, value, forced)
 
 
 LoadResourceHandler = Callable[[Runner, ResourceState, str, bool], None]
-
-
-def load_db_resource(runner: Runner, state: ResourceState, value: str, forced: bool) -> None:
-    """Load a database resource."""
-    del state, forced
-    load_database(runner, resolve_resource_path(value, Path("."), DEFAULT_DATABASE))
-
-
-def load_config_resource(runner: Runner, state: ResourceState, value: str, forced: bool) -> None:
-    """Load a config resource."""
-    del state, forced
-    load_config(runner, resolve_resource_path(value, Path("."), DEFAULT_CONFIG))
-
-
-def load_history_resource(runner: Runner, state: ResourceState, value: str, forced: bool) -> None:
-    """Load a history resource."""
-    del runner, forced
-    load_history(state, resolve_resource_path(value, Path("."), DEFAULT_HISTORY))
 
 
 def load_plugin_resource(runner: Runner, state: ResourceState, value: str, forced: bool) -> None:
@@ -141,56 +116,6 @@ def load_plugin_resource(runner: Runner, state: ResourceState, value: str, force
     print(f"loaded {', '.join(commandlets)} serial={event.payload['serial']}")
 
 
-def load_script_resource(runner: Runner, state: ResourceState, value: str, forced: bool) -> None:
-    """Load and execute a script resource."""
-    del forced
-    run_script(runner, resolve_resource_path(value, Path(".")), state)
-
-
 LOAD_RESOURCE_HANDLERS: dict[str, LoadResourceHandler] = {
-    "config": load_config_resource,
-    "db": load_db_resource,
-    "history": load_history_resource,
     "plugin": load_plugin_resource,
-    "script": load_script_resource,
-}
-
-
-def save_repl_resource(runner: Runner, spec: str, state: ResourceState | None = None) -> None:
-    """Handle `save key=value` resources from the REPL."""
-    state = state or default_resource_state(runner)
-    encrypt, resource = parse_save_spec(spec)
-    key, value = parse_resource_assignment(resource)
-    handler = SAVE_RESOURCE_HANDLERS.get(key)
-    if handler is None or (not value and key not in DEFAULT_SAVE_RESOURCE_KEYS):
-        print("usage: save [--encrypt] db=<path>, save config=<path>, or save history=<path>")
-        return
-    handler(runner, state, value, encrypt)
-
-
-SaveResourceHandler = Callable[[Runner, ResourceState, str, bool], None]
-
-
-def save_db_resource(runner: Runner, state: ResourceState, value: str, encrypt: bool) -> None:
-    """Save a database resource."""
-    del state
-    save_database(runner, resolve_resource_path(value, Path("."), DEFAULT_DATABASE), encrypt=encrypt)
-
-
-def save_config_resource(runner: Runner, state: ResourceState, value: str, encrypt: bool) -> None:
-    """Save a config resource."""
-    del state, encrypt
-    save_config(runner, resolve_resource_path(value, Path("."), DEFAULT_CONFIG))
-
-
-def save_history_resource(runner: Runner, state: ResourceState, value: str, encrypt: bool) -> None:
-    """Save a history resource."""
-    del runner, encrypt
-    save_history(state, resolve_resource_path(value, Path("."), DEFAULT_HISTORY))
-
-
-SAVE_RESOURCE_HANDLERS: dict[str, SaveResourceHandler] = {
-    "config": save_config_resource,
-    "db": save_db_resource,
-    "history": save_history_resource,
 }

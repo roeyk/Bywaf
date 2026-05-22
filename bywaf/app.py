@@ -42,6 +42,7 @@ from .repl import (
     remove_line_continuation,
     render_prompt,
     repl,
+    run_commandlet_remainder,
     run_remainder,
     set_prompt_pattern,
     shutdown_runner,
@@ -147,7 +148,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--version", action="store_true", help="print version and exit")
     subparsers = parser.add_subparsers(dest="subcommand")
-    add_runner_arguments(subparsers.add_parser("run", help="run a commandlet pipeline"))
+    add_runner_arguments(subparsers.add_parser("cmd", help=argparse.SUPPRESS))
+    add_runner_arguments(subparsers.add_parser("exec", help="run an OS shell command"))
     subparsers.add_parser("plugins", help="list loaded plugin providers")
     subparsers.add_parser("cmds", help="show commandlets grouped by plugin provider").add_argument("--page", action="store_true")
     subparsers.add_parser("triggers", help="show provider-owned trigger rules")
@@ -201,6 +203,7 @@ def make_runner(
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point used by `python -m bywaf` and the console script."""
     project_name, parsed_argv = extract_startup_project(sys.argv[1:] if argv is None else argv)
+    parsed_argv = route_direct_commandlet_argv(parsed_argv)
     parser = build_parser()
     args = parser.parse_args(parsed_argv)
     if args.version:
@@ -249,9 +252,14 @@ def main(argv: list[str] | None = None) -> int:
 CliSubcommandHandler = Callable[[Runner, argparse.Namespace], int]
 
 
-def run_cli_subcommand(runner: Runner, args: argparse.Namespace) -> int:
-    """Run a non-interactive commandlet pipeline."""
+def exec_cli_subcommand(runner: Runner, args: argparse.Namespace) -> int:
+    """Run a non-interactive OS shell command."""
     return run_remainder(runner, args.command)
+
+
+def cmd_cli_subcommand(runner: Runner, args: argparse.Namespace) -> int:
+    """Run a direct non-interactive commandlet invocation."""
+    return run_commandlet_remainder(runner, args.command)
 
 
 def plugins_cli_subcommand(runner: Runner, args: argparse.Namespace) -> int:
@@ -296,21 +304,60 @@ def pipelines_cli_subcommand(runner: Runner, args: argparse.Namespace) -> int:
 
 
 CLI_SUBCOMMAND_HANDLERS: dict[str | None, CliSubcommandHandler] = {
+    "cmd": cmd_cli_subcommand,
     "cmds": cmds_cli_subcommand,
     "history": history_cli_subcommand,
     "jobs": jobs_cli_subcommand,
     "pipelines": pipelines_cli_subcommand,
     "plugins": plugins_cli_subcommand,
-    "run": run_cli_subcommand,
+    "exec": exec_cli_subcommand,
     "triggers": triggers_cli_subcommand,
 }
+
+
+CLI_SUBCOMMANDS = frozenset(("cmd", "exec", "plugins", "cmds", "triggers", "history", "jobs", "pipelines", "repl"))
+GLOBAL_OPTIONS_WITH_VALUES = frozenset(
+    (
+        "--database",
+        "--plugin-root",
+        "--plugin-config",
+        "--plugin-catalog",
+        "--plugin-catalog-key",
+        "--plugin-manifest-key",
+    )
+)
+
+
+def route_direct_commandlet_argv(argv: list[str]) -> list[str]:
+    """Route `bywaf <commandlet> ...` through the hidden commandlet CLI path."""
+    routed: list[str] = []
+    skip_next = False
+    for index, token in enumerate(argv):
+        if skip_next:
+            routed.append(token)
+            skip_next = False
+            continue
+        if token in GLOBAL_OPTIONS_WITH_VALUES:
+            routed.append(token)
+            skip_next = True
+            continue
+        if any(token.startswith(f"{option}=") for option in GLOBAL_OPTIONS_WITH_VALUES):
+            routed.append(token)
+            continue
+        if token.startswith("-"):
+            routed.append(token)
+            continue
+        if token in CLI_SUBCOMMANDS:
+            return argv
+        return [*routed, "cmd", *argv[index:]]
+    return argv
 
 
 def extract_startup_project(argv: list[str]) -> tuple[str | None, list[str]]:
     """Remove a leading `project=name` selector from OS CLI argv."""
     project_name: str | None = None
     cleaned: list[str] = []
-    subcommands = {"run", "plugins", "cmds", "history", "jobs", "pipelines", "repl"}
+    subcommands = {"exec", "plugins", "cmds", "history", "jobs", "pipelines", "repl"}
     before_subcommand = True
     for token in argv:
         if before_subcommand and token.startswith("project="):
