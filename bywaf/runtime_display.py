@@ -11,7 +11,8 @@ Used by:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime
+from .command_parser import parse_pipeline
+from .time_format import format_compact_runtime_timestamp
 
 ACTIVE_LISTING_FORMAT_VAR = "listing.active-format"
 DEFAULT_ACTIVE_LISTING_FORMAT = "short"
@@ -74,15 +75,7 @@ def runtime_state_text(statuses: str | list[str] | tuple[str, ...] | None, times
 
 def format_runtime_timestamp(value: str | None) -> str:
     """Render an ISO timestamp compactly for runtime listings."""
-    if not value:
-        return "unknown"
-    try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
-        return value
-    timezone = parsed.tzname()
-    suffix = f" {timezone}" if timezone else ""
-    return f"{parsed:%H:%M:%S}{suffix}"
+    return format_compact_runtime_timestamp(value)
 
 
 def display_runtime_serial(value: object | None) -> str:
@@ -94,6 +87,17 @@ def display_runtime_serial(value: object | None) -> str:
         if text.startswith(prefix):
             return text.removeprefix(prefix)
     return text
+
+
+def commandlet_from_command_line(command_line: str) -> str:
+    """Return the first commandlet name in a stored command line."""
+    try:
+        pipeline = parse_pipeline(command_line)
+    except ValueError:
+        return command_line.split(maxsplit=1)[0] if command_line.split() else ""
+    if not pipeline.commands:
+        return ""
+    return pipeline.commands[0].name
 
 
 def render_table(headers: tuple[str, ...], rows: Sequence[Sequence[object]]) -> str:

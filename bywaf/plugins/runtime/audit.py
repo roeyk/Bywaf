@@ -23,6 +23,7 @@ from pathlib import Path
 from bywaf.db import export_encrypted_database
 from bywaf.events import Event
 from bywaf.plugin.capabilities import implied_capabilities
+from bywaf.time_format import format_operator_timestamp
 from bywaf.plugin import (
     CommandContext,
     Commandlet,
@@ -280,7 +281,7 @@ def capability_range(capability: str) -> str:
 
 def format_event_time(event: Event) -> str:
     """Return a user-facing timestamp with timezone."""
-    return event.created_at.astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
+    return format_operator_timestamp(event.created_at)
 
 
 def format_capability_inventory(rows: list[dict[str, str]]) -> str:

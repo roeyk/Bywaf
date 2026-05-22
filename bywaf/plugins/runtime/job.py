@@ -18,6 +18,7 @@ from bywaf.events import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
 from bywaf.runtime_display import (
     active_listing_format,
+    commandlet_from_command_line,
     display_runtime_serial,
     format_runtime_timestamp,
     render_table,
@@ -173,9 +174,15 @@ def format_job(row, *, display_name: str | None = None, show_active: bool = Fals
         prefix, detail = state_marker(label, timestamp, style=marker_style)
     name_part = f" name={display_name}" if display_name else ""
     serial = display_runtime_serial(row["serial"])
-    line = f"{prefix}#{row['id']} serial={serial} pid={row['pid']} status={row['status']}{name_part} {row['command_line']}"
+    command = str(row["command_line"])
+    line = (
+        f"{prefix}#{row['id']} serial={serial} pid={row['pid']} status={row['status']}{name_part}"
+        f" launched={format_runtime_timestamp(row['started_at'])}"
+        f" finished={format_runtime_timestamp(row['finished_at'])}"
+        f" commandlet={commandlet_from_command_line(command)}"
+        f" command={command}"
+    )
     return f"{line}\n{detail}" if detail else line
-
 
 def require_job(context: CommandContext, job_id: str | None):
     """Return a job row or raise a user-facing error."""

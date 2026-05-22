@@ -744,7 +744,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 runner.execute("note run=1")
                 process_framework_requests(runner, ShellState())
             line = output.getvalue().splitlines()[-1]
-            self.assertRegex(line, r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC")
+            self.assertRegex(line, r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [A-Z]+")
             self.assertIn("client approved target", line)
             self.assertIn(f"run={events[0].command_run_id}", line)
 
@@ -761,7 +761,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 runner.execute(f"note job={job_id} file={path}")
                 process_framework_requests(runner, ShellState())
             text = path.read_text()
-            self.assertRegex(text, r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC")
+            self.assertRegex(text, r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [A-Z]+")
             self.assertIn("file export note", text)
             self.assertIn(f"saved 1 notes to {path}", output.getvalue())
 
@@ -1199,6 +1199,8 @@ class StorageRunnerPluginTests(unittest.TestCase):
             self.assertEqual(job["status"], "failed")
             failure = db.events_for_topic("job.failed")[0]
             self.assertEqual(failure.payload["job_id"], job_id)
+            self.assertEqual(failure.payload["command"], "missing")
+            self.assertIn("started_at", failure.payload)
 
     def test_watchdog_emits_timeout_and_stall_warnings(self):
         with tempfile.TemporaryDirectory() as tmp:

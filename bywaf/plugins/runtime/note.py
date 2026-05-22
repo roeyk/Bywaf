@@ -13,6 +13,7 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from bywaf.events import Event
+from bywaf.time_format import format_operator_timestamp
 from bywaf.plugin import (
     CommandContext,
     Commandlet,
@@ -172,7 +173,7 @@ def select_note_events(context: CommandContext, selectors: dict[str, str]) -> li
 
 def format_note_event(event: Event) -> str:
     """Format one note with timestamp first."""
-    timestamp = event.created_at.strftime("%Y-%m-%d %H:%M:%S %Z")
+    timestamp = format_operator_timestamp(event.created_at)
     job_id = event.payload.get("job_id", "")
     pipeline_id = event.payload.get("pipeline_id") or event.pipeline_id or ""
     run_id = event.payload.get("command_run_id") or event.command_run_id or ""

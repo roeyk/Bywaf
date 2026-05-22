@@ -267,8 +267,8 @@ class ConfigPluginTests(unittest.TestCase):
             warnings = db.events_for_topic("process.secret.argv")
         self.assertNotIn("supersecret", str(request.payload))
         self.assertNotIn("supersecret", str(result.payload))
-        self.assertEqual(request.payload["argv"][-1], "password=<redacted>")
-        self.assertEqual(warnings[0].payload["argv"][-1], "password=<redacted>")
+        self.assertEqual(request.payload["argv"][-1], "password=[REDACTED]")
+        self.assertEqual(warnings[0].payload["argv"][-1], "password=[REDACTED]")
 
     def test_command_context_process_run_audits_redacted_secret_env(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -288,7 +288,7 @@ class ConfigPluginTests(unittest.TestCase):
             context.process.run([sys.executable, "-c", "print('ok')"], env={"TOOL_PASSWORD": password or ""})
             request = db.events_for_topic("framework.process.run.requested")[0]
         self.assertNotIn("supersecret", str(request.payload))
-        self.assertEqual(request.payload["env"]["TOOL_PASSWORD"], "<redacted>")
+        self.assertEqual(request.payload["env"]["TOOL_PASSWORD"], "[REDACTED]")
         self.assertEqual(request.payload["secrets"][0]["env"], "TOOL_PASSWORD")
         self.assertEqual(request.payload["secrets"][0]["name"], "test.password")
 
@@ -304,7 +304,7 @@ class ConfigPluginTests(unittest.TestCase):
                 plugin,
                 ["127.0.0.1", "--password", secret_ref.ref],
             )
-        self.assertEqual(redacted, ["127.0.0.1", "--password", "<redacted>"])
+        self.assertEqual(redacted, ["127.0.0.1", "--password", "[REDACTED]"])
         self.assertEqual(secret_args[0]["name"], "ssh_probe.password")
         self.assertEqual(secret_args[0]["option"], "password")
 

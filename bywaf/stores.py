@@ -68,6 +68,10 @@ class EventStoreProtocol(Protocol):
         """Return events for one topic."""
         ...
 
+    def event_by_id(self, event_id: int) -> Event | None:
+        """Return one event by durable id."""
+        ...
+
     def recent_events(self, limit: int = 25) -> list[Event]:
         """Return the latest events in chronological order."""
         ...

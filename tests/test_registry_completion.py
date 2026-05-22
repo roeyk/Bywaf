@@ -28,6 +28,8 @@ from bywaf.completion import (
     completion_wasd_selection_enabled,
     configure_readline_delimiters,
     display_label,
+    secret_input_mode,
+    secret_input_bottom_toolbar,
     should_print_completion_menu,
     tokens_after_last_pipe,
 )
@@ -44,9 +46,41 @@ from bywaf.registry import (
     parse_plugin_manifest,
     plugin_manifest_digest,
 )
-from bywaf.secret_input import open_secret_assignment_name
+from bywaf.secret_input import PromptSecretInputState, PromptSecretSpan, SECRET_BLOCK_VALUE, open_secret_assignment_name
 from bywaf.specs import ArgumentSpec, CommandSpec, CompletionSpec, OptionSpec, TriggerSpec
 from bywaf.tools.plugin_manifest import manifest_from_plugins
+
+
+class FakePromptBuffer:
+    def __init__(self, text: str, cursor_position: int) -> None:
+        self.text = text
+        self.cursor_position = cursor_position
+
+    def delete_before_cursor(self, count: int = 1) -> None:
+        start = max(0, self.cursor_position - count)
+        self.text = self.text[:start] + self.text[self.cursor_position :]
+        self.cursor_position = start
+
+    def delete(self, count: int = 1) -> None:
+        end = min(len(self.text), self.cursor_position + count)
+        self.text = self.text[: self.cursor_position] + self.text[end:]
+
+
+class FakePromptOutput:
+    def __init__(self) -> None:
+        self.shown = False
+
+    def show_cursor(self) -> None:
+        self.shown = True
+
+
+class FakePromptApp:
+    def __init__(self) -> None:
+        self.output = FakePromptOutput()
+        self.invalidated = False
+
+    def invalidate(self) -> None:
+        self.invalidated = True
 
 
 class RegistryCompletionTests(unittest.TestCase):
@@ -287,11 +321,66 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertEqual(completer.candidates("var --secret ssh_probe.pass"), ["ssh_probe.password="])
         self.assertNotIn("--secret", completer.candidates("var --secret "))
 
+    def test_secret_input_mode_accepts_plain_modes(self):
+        completer = Completer(self.registry)
+        self.registry.varstore.set("secret.input-mode", "plain")
+        self.assertEqual(secret_input_mode(completer), "plain")
+        self.registry.varstore.set("secret.input-mode", "plaintext")
+        self.assertEqual(secret_input_mode(completer), "plaintext")
+
     def test_secret_input_block_opens_only_for_var_secret_assignments(self):
         self.assertEqual(open_secret_assignment_name("var --secret ssh_probe.password="), "ssh_probe.password")
         self.assertEqual(open_secret_assignment_name("var ssh_probe.password --secret="), "ssh_probe.password")
         self.assertIsNone(open_secret_assignment_name("vars --secret ssh_probe.password="))
         self.assertIsNone(open_secret_assignment_name("var password="))
+
+    def test_secret_input_block_drops_when_assignment_prefix_is_edited(self):
+        text = f"var --secret pw={SECRET_BLOCK_VALUE}"
+        span_start = text.index(SECRET_BLOCK_VALUE)
+        state = PromptSecretInputState()
+        state.span = PromptSecretSpan("pw", span_start, span_start + len(SECRET_BLOCK_VALUE), "secret")
+        buffer = FakePromptBuffer(text, span_start)
+
+        state.delete_before_cursor(buffer)
+
+        self.assertEqual(buffer.text, "var --secret pw")
+        self.assertIsNone(state.span)
+
+    def test_secret_input_block_drops_when_assignment_prefix_is_forward_deleted(self):
+        text = f"var --secret pw={SECRET_BLOCK_VALUE}"
+        span_start = text.index(SECRET_BLOCK_VALUE)
+        state = PromptSecretInputState()
+        state.span = PromptSecretSpan("pw", span_start, span_start + len(SECRET_BLOCK_VALUE), "secret")
+        buffer = FakePromptBuffer(text, span_start - 1)
+
+        state.delete_at_cursor(buffer)
+
+        self.assertEqual(buffer.text, "var --secret pw")
+        self.assertIsNone(state.span)
+
+    def test_secret_input_escape_semantics_leave_after_and_preserve_value(self):
+        text = f"var --secret pw={SECRET_BLOCK_VALUE}"
+        span_start = text.index(SECRET_BLOCK_VALUE)
+        state = PromptSecretInputState()
+        state.span = PromptSecretSpan("pw", span_start, span_start + len(SECRET_BLOCK_VALUE), "secret")
+        buffer = FakePromptBuffer(text, span_start)
+        app = FakePromptApp()
+
+        state.leave_after(buffer, app)
+
+        self.assertEqual(buffer.cursor_position, span_start + len(SECRET_BLOCK_VALUE))
+        self.assertFalse(state.span.focused)
+        self.assertEqual(state.span.value, "secret")
+        self.assertTrue(app.output.shown)
+        self.assertTrue(app.invalidated)
+
+    def test_secret_input_toolbar_only_shows_while_secret_block_is_focused(self):
+        state = PromptSecretInputState()
+        self.assertIsNone(secret_input_bottom_toolbar(state))
+        state.span = PromptSecretSpan("pw", 16, 16 + len(SECRET_BLOCK_VALUE), "secret")
+        self.assertIn("Secret:", str(secret_input_bottom_toolbar(state)))
+        state.clear_focus()
+        self.assertIsNone(secret_input_bottom_toolbar(state))
 
     def test_completes_history_time_window_selectors(self):
         completer = Completer(self.registry)

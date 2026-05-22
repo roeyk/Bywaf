@@ -241,6 +241,10 @@ class CoreCompleter:
 
     def event_candidates(self, prefix: str) -> list[str]:
         """Complete `event` selectors and selector values."""
+        if prefix.isdigit():
+            if not self.db:
+                return []
+            return [str(event.id) for event in self.db.recent_events(50) if str(event.id).startswith(prefix)]
         selectors = ("job=", "run=", "pipeline=", "serial=", "topic=")
         for selector in selectors:
             if prefix.startswith(selector):

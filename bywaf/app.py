@@ -284,14 +284,14 @@ def history_cli_subcommand(runner: Runner, args: argparse.Namespace) -> int:
 def jobs_cli_subcommand(runner: Runner, args: argparse.Namespace) -> int:
     """Print background jobs."""
     del args
-    print_events(runner.execute("job list"))
+    print_events(runner.execute("job list"), runner)
     return 0
 
 
 def pipelines_cli_subcommand(runner: Runner, args: argparse.Namespace) -> int:
     """Print pipelines."""
     del args
-    print_events(runner.execute("pipeline list"))
+    print_events(runner.execute("pipeline list"), runner)
     return 0
 
 

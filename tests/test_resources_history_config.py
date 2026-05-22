@@ -189,14 +189,18 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
     def test_record_command_history_accepts_redacted_stored_command(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, ".bywaf", "history.bywaf")
-            record_command_history("var password=supersecret", path, stored_command="var password=<redacted>")
+            record_command_history("var password=supersecret", path, stored_command="var password=[REDACTED]")
             text = path.read_text()
-            self.assertIn("var password=<redacted>", text)
+            self.assertIn("var password=[REDACTED]", text)
             self.assertNotIn("supersecret", text)
 
     def test_format_history_entry_for_display_puts_timestamp_first(self):
         self.assertEqual(
             format_history_entry_for_display("plugins  # 2026-05-17 10:00:00 EDT"),
+            "2026-05-17 10:00:00 EDT  plugins",
+        )
+        self.assertEqual(
+            format_history_entry_for_display("plugins  # 2026-05-17 EDT 10:00:00"),
             "2026-05-17 10:00:00 EDT  plugins",
         )
 
@@ -211,6 +215,16 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
                 dispatch_repl_line(runner, "history", state)
             self.assertIn("2026-05-17 10:00:00 EDT  plugins", output.getvalue())
             self.assertNotIn("old-command", output.getvalue())
+
+    def test_dispatch_history_colors_timestamp_when_enabled(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.registry.varstore.set("display.history.color", "always")
+            state = ShellState(session_history=["plugins  # 2026-05-17 10:00:00 EDT"])
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "history", state)
+            self.assertIn("\x1b[32m2026-05-17 10:00:00 EDT\x1b[0m  plugins", output.getvalue())
 
     def test_dispatch_history_filters_since_until(self):
         with tempfile.TemporaryDirectory() as tmp:

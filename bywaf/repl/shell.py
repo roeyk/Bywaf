@@ -17,6 +17,8 @@ import platform
 import shlex
 import socket
 import sys
+import termios
+import tty
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -35,10 +37,11 @@ from ..registry import PluginTrustError
 from .resources import DEFAULT_HISTORY
 from ..runner import Runner
 from ..secrets import load_or_create_fingerprint_key, redact_command_text
+from ..time_format import OPERATOR_TIMESTAMP_FORMAT
 from ..triggers import disable_session_triggers, start_default_services, stop_session_services
 
 
-DEFAULT_HISTORY_TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S %Z"
+DEFAULT_HISTORY_TIMESTAMP_FORMAT = OPERATOR_TIMESTAMP_FORMAT
 HISTORY_TIMESTAMP_FORMAT_VAR = "history.timestamp-format"
 
 
@@ -126,8 +129,15 @@ def build_input_reader(completer: Completer, state: ShellState | None = None) ->
     return input
 
 
-def confirm_repl_exit(reader: Callable[[str], str]) -> bool:
+def confirm_repl_exit(
+    reader: Callable[[str], str] | None = None,
+    key_reader: Callable[[], str] | None = None,
+) -> bool:
     """Ask whether Ctrl-C should exit the REPL."""
+    if key_reader is not None or (sys.stdin.isatty() and sys.stdout.isatty()):
+        return confirm_repl_exit_keypress(key_reader or read_single_key)
+    if reader is None:
+        reader = input
     while True:
         try:
             answer = reader("Quit Bywaf? [y/N] ").strip().lower()
@@ -142,6 +152,39 @@ def confirm_repl_exit(reader: Callable[[str], str]) -> bool:
         if answer in {"y", "yes"}:
             return True
         print("please answer yes or no")
+
+
+def confirm_repl_exit_keypress(key_reader: Callable[[], str]) -> bool:
+    """Ask whether to exit, accepting one key without requiring Enter."""
+    while True:
+        print("Quit Bywaf? [y/N] ", end="", flush=True)
+        key = key_reader()
+        answer = key.casefold()
+        if key in {"\x03"}:
+            print()
+            return False
+        if key in {"\x04"}:
+            print()
+            return True
+        if key in {"\r", "\n"} or answer in {"", "n"}:
+            print("n" if key not in {"\r", "\n"} else "")
+            return False
+        if answer == "y":
+            print("y")
+            return True
+        print()
+        print("please press y or n")
+
+
+def read_single_key() -> str:
+    """Read one keypress from stdin without waiting for Enter."""
+    fd = sys.stdin.fileno()
+    previous = termios.tcgetattr(fd)
+    try:
+        tty.setraw(fd)
+        return sys.stdin.read(1)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, previous)
 
 
 def read_logical_input(state: ShellState, reader: Callable[[str], str] | None = None) -> str:
@@ -215,7 +258,7 @@ def execute_and_print(runner: Runner, command: str) -> int:
         state = new_shell_state(runner)
         events = runner.execute(command)
         process_framework_requests(runner, state)
-        print_events(events)
+        print_events(events, runner)
     except SystemExit as exc:
         if exc.code in (0, None):
             return 0
@@ -319,7 +362,7 @@ def record_command_history(
     if not command.strip():
         return None
     path.parent.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.now().strftime(timestamp_format).strip()
+    timestamp = datetime.now().astimezone().strftime(timestamp_format).strip()
     entry = f"{stored_command or command}  # {timestamp}"
     with path.open("a", encoding="utf-8") as handle:
         handle.write(f"{entry}\n")
@@ -340,12 +383,21 @@ def render_prompt(pattern: str) -> str:
     """Render prompt placeholders using local process and host metadata."""
     user = os.getenv("USER", "")
     host_full = socket.gethostname()
+    now = datetime.now().astimezone()
     replacements = {
         "%u": user,
         "%h": host_full.split(".", 1)[0],
         "%H": host_full,
         "%m": platform.machine(),
-        "%T": datetime.now().strftime("%H:%M:%S"),
+        "%T": now.strftime("%H:%M:%S"),
+        "$u": user,
+        "$Y": now.strftime("%Y"),
+        "$M": now.strftime("%m"),
+        "$D": now.strftime("%d"),
+        "$h": now.strftime("%H"),
+        "$m": now.strftime("%M"),
+        "$s": now.strftime("%S"),
+        "$Z": now.strftime("%Z"),
     }
     prompt = pattern
     for key, value in replacements.items():

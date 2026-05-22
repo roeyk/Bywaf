@@ -16,6 +16,7 @@ those dictionaries into SQLite under the first topic listed in `spec.emits`.
 
 - [Plugin Types](#plugin-types)
 - [Plugin Manifest](#plugin-manifest)
+- [Current API, Not Generic Plugin Patterns](#current-api-not-generic-plugin-patterns)
 - [A Minimal Commandlet](#a-minimal-commandlet)
 - [CommandSpec Fields](#commandspec-fields)
 - [Plans](#plans)
@@ -134,6 +135,82 @@ The generator imports the plugin and reads its commandlet metadata, so use it
 for your own development tree or reviewed code. It is a convenience tool, not a
 substitute for manifest review.
 
+# Current API, Not Generic Plugin Patterns
+
+Bywaf's current plugin API is decorator-driven and stream-oriented. Do not copy
+generic Python plugin examples that manage a session object, imperatively add
+arguments in `__init__`, or manually emit custom event objects. Those patterns
+look plausible, but they are not the Bywaf API.
+
+Use this API:
+
+| Task | Current Bywaf API |
+| --- | --- |
+| Base class | `CommandletBase` |
+| Metadata | `@commandlet(...)` |
+| Positional metadata | `@argument(...)` |
+| Option metadata | `@option(...)` |
+| Runtime entry point | `run(self, context: CommandContext, args: list[str], input_events: Iterable[Event])` |
+| Normal event emission | `yield {...}` |
+| Direct event-bus access | `context.events.publish(...)` only when direct event access is needed |
+| Console output | `context.output(...)` |
+| Operator alert | `context.alert(...)` |
+| Factory | `def plugin() -> Commandlet: return YourCommandlet()` |
+
+Do not use these generic or legacy-looking patterns:
+
+| Do not use | Use instead |
+| --- | --- |
+| `BaseCommandlet` | `CommandletBase` |
+| `CommandletType.NATIVE` | Manifest traits and `@commandlet(...)` metadata |
+| `BaseEvent` | `Event` for input rows; yielded dictionaries for normal output |
+| `self.add_argument(...)` | `@argument(...)` / `@option(...)` metadata plus `self.parser()` in `run()` |
+| `self.emit_event(...)` | `yield {...}` for normal commandlet output |
+| `self.log_info(...)` / `self.log_warning(...)` | `context.output(...)`, `context.alert(...)`, or structured events |
+| `self.session` | `context` |
+| `run(self, target, args)` | `run(self, context, args, input_events)` |
+| Class attributes `consumes = [...]` / `produces = [...]` | `@commandlet(consumes=(...), emits=(...))` |
+
+Here is the smallest decorator-based skeleton:
+
+```python
+from collections.abc import Iterable
+
+from bywaf.events import Event
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, argument, commandlet
+
+
+@commandlet(
+    name="hello",
+    description="Say hello and emit a greeting event.",
+    usage="hello [name]",
+    examples=("hello", "hello world"),
+    emits=("hello.greeting",),
+    capabilities=("framework.console.output",),
+)
+@argument("name", "name to greet", required=False)
+class Hello(CommandletBase):
+    def run(
+        self,
+        context: CommandContext,
+        args: list[str],
+        input_events: Iterable[Event],
+    ):
+        parser = self.parser()
+        parser.add_argument("name", nargs="?", default="world")
+        parsed = parser.parse_args(args)
+        context.output(f"hello, {parsed.name}")
+        yield {"name": parsed.name, "message": f"hello, {parsed.name}"}
+
+
+def plugin() -> Commandlet:
+    return Hello()
+```
+
+Decorator metadata drives help, completion, manifests, and future introspection.
+The `argparse` parser inside `run()` still validates the actual command-line
+arguments at execution time. Keep the metadata and parser behavior aligned.
+
 # A Minimal Commandlet
 
 Create a plugin directory:
@@ -201,7 +278,7 @@ bywaf> load --force plugin=hello
 loaded hello
 bywaf> hello world
 hello, world
-#1 hello.greeting {'name': 'world', 'message': 'hello, world'}
+1: hello.greeting {'name': 'world', 'message': 'hello, world'}
 ```
 
 Show the events:
@@ -289,7 +366,7 @@ Options that carry credentials should be declared with `secret=True`:
 Operators can also set any variable as a secret with `var --secret name=value`.
 Bywaf does not guess based on variable names; plain `var password=value` is an
 ordinary variable. Explicit secret assignments are redacted in command history
-and displayed as `<redacted>` with an HMAC fingerprint, so audit trails can
+and displayed as `[REDACTED]` with an HMAC fingerprint, so audit trails can
 correlate that a secret was supplied without exposing the plaintext in normal
 variable display. The plaintext is stored in the active database so it can
 survive restart. If the database is encrypted, the secret is protected by that
@@ -944,7 +1021,7 @@ With:
 
 ```text
 bywaf> var --secret secret_demo.password=client-password
-secret_demo.password=<redacted> fingerprint=hmac-sha256:7e3...
+secret_demo.password=[REDACTED] fingerprint=hmac-sha256:7e3...
 bywaf> secret_demo
 subprocess saw password=client-password
 ```
@@ -954,7 +1031,7 @@ receive the secret:
 
 ```text
 process.run {
-  "argv": ["python3", "-c", "...", "password=<redacted>"],
+  "argv": ["python3", "-c", "...", "password=[REDACTED]"],
   "stdout": "subprocess saw password=client-password\n",
   "stderr": "",
   "ok": true
@@ -965,7 +1042,7 @@ Bywaf also records the argv leak warning:
 
 ```text
 process.secret.argv {
-  "argv": ["python3", "-c", "...", "password=<redacted>"],
+  "argv": ["python3", "-c", "...", "password=[REDACTED]"],
   "secret_fingerprints": ["hmac-sha256:7e3..."]
 }
 ```
@@ -1133,7 +1210,7 @@ bywaf> load --force plugin=file_info
 loaded file_info
 bywaf> file_info READ<TAB>
 bywaf> file_info README.md
-#1 file.info {'path': 'README.md', 'size': 12345, 'is_dir': False}
+1: file.info {'path': 'README.md', 'size': 12345, 'is_dir': False}
 ```
 
 # Plugin Defaults

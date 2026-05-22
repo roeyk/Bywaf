@@ -16,12 +16,15 @@ import sys
 import tempfile
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from ..plugin import CommandContext
 from ..rendering import Column, Table, render_console_table
 from ..runtime_display import (
     ACTIVE_LISTING_FORMAT_VAR,
+    commandlet_from_command_line,
     display_runtime_serial,
     format_runtime_timestamp,
     normalize_active_listing_format,
@@ -31,13 +34,30 @@ from ..runtime_display import (
 )
 from ..runner import Runner
 from ..secrets import SECRET_REF_PREFIX, REDACTED_VALUE
+from ..time_format import format_operator_timestamp, normalize_history_timestamp_for_display
 
 VAR_COLOR_MODE_VAR = "display.vars.color"
 VAR_NAME_COLOR_VAR = "display.vars.name-color"
 VAR_VALUE_COLOR_VAR = "display.vars.value-color"
+EVENT_COLOR_MODE_VAR = "display.events.color"
+EVENT_KEY_COLOR_VAR = "display.events.key-color"
 DEFAULT_VAR_COLOR_MODE = "auto"
 DEFAULT_VAR_NAME_COLOR = "cyan"
 DEFAULT_VAR_VALUE_COLOR = "green"
+DEFAULT_EVENT_COLOR_MODE = "auto"
+DEFAULT_EVENT_KEY_COLOR = "green"
+EVENT_HEADING_KEY_COLOR = "yellow"
+EVENT_HEADING_VALUE_COLOR = "bright-blue"
+EVENT_ID_COLOR = "bright-blue"
+HISTORY_COLOR_MODE_VAR = "display.history.color"
+HISTORY_TIMESTAMP_COLOR_VAR = "display.history.timestamp-color"
+HELP_COLOR_MODE_VAR = "display.help.color"
+HELP_COMMAND_COLOR_VAR = "display.help.command-color"
+DEFAULT_HISTORY_COLOR_MODE = "auto"
+DEFAULT_HISTORY_TIMESTAMP_COLOR = "green"
+DEFAULT_HELP_COLOR_MODE = "auto"
+DEFAULT_HELP_COMMAND_COLOR = "green"
+EVENT_COMMANDLET_COLOR = "bright-yellow"
 
 ANSI_COLORS = {
     "black": "30",
@@ -48,10 +68,12 @@ ANSI_COLORS = {
     "magenta": "35",
     "cyan": "36",
     "white": "37",
+    "bold-green": "1;32",
+    "bold-yellow": "1;33",
     "bright-black": "90",
     "bright-red": "91",
-    "bright-green": "92",
-    "bright-yellow": "93",
+    "bright-green": "1;32",
+    "bright-yellow": "1;33",
     "bright-blue": "94",
     "bright-magenta": "95",
     "bright-cyan": "96",
@@ -89,9 +111,15 @@ HELP_COMMANDS = (
     HelpEntry("topics", "list event topics in the active database", "topics"),
     HelpEntry("project", "list, inspect, create, or switch project directories", "project <list|info|new|use>"),
     HelpEntry("use <commandlet|global>", "set the active variable context", "use <commandlet|global>"),
-    HelpEntry("event", "show events for a topic, job, run, pipeline, or serial", "event <topic|job=id|run=id|pipeline=id|serial=id>", ("event host.found", "event run=1", "event pipeline=1", "event serial=hostscanner-..."), "event <selector>"),
+    HelpEntry(
+        "event",
+        "show events for a topic, job, run, pipeline, serial, or event id",
+        "event <id|topic|job=id|run=id|pipeline=id|serial=id>",
+        ("event 123", "event host.found", "event run=1", "event pipeline=1", "event serial=hostscanner-..."),
+        "event <selector>",
+    ),
     HelpEntry("events [tail|--tail] [last=N]", "show recent events", "events [tail|--tail] [last=N]", ("events", "events tail", "events tail last=50")),
-    HelpEntry("prompt [pattern]", "show or set prompt pattern", "prompt [pattern]", ("prompt %u@%h %T > ",)),
+    HelpEntry("prompt [pattern]", "show or set prompt pattern", "prompt [pattern]", ("prompt $u $Y-$M-$D $h:$m:$s $Z > ",)),
     HelpEntry("load [--force] plugin=<path>", "load a filesystem plugin", "load [--force] plugin=<path>"),
     HelpEntry("load script=<path>", "run commands from a script file", "load script=<path>"),
     HelpEntry("load db=<path>", "switch active SQLite database", "load db=<path>"),
@@ -136,7 +164,7 @@ def format_event(event) -> str:
         return format_error_event(event)
     if event.topic == "runtime.name.assigned":
         return format_runtime_name_event(event)
-    return f"#{event.id} {event.topic} {event.payload}"
+    return f"{event.id}: {event.topic} {event.payload}"
 
 
 def format_port_open_event(event) -> str:
@@ -149,7 +177,7 @@ def format_port_open_event(event) -> str:
     reason = payload.get("reason", "")
     details = " ".join(str(value) for value in (service, reason) if value)
     suffix = f" {details}" if details else ""
-    return f"#{event.id} port.open {host}:{port}/{protocol}{suffix}".strip()
+    return f"{event.id}: port.open {host}:{port}/{protocol}{suffix}".strip()
 
 
 def format_host_found_event(event) -> str:
@@ -161,7 +189,7 @@ def format_host_found_event(event) -> str:
     scanner = payload.get("scanner", "")
     details = " ".join(str(value) for value in (name, status, scanner) if value)
     suffix = f" {details}" if details else ""
-    return f"#{event.id} host.found {host}{suffix}".strip()
+    return f"{event.id}: host.found {host}{suffix}".strip()
 
 
 def format_name_resolved_event(event) -> str:
@@ -173,7 +201,7 @@ def format_name_resolved_event(event) -> str:
         address_text = ", ".join(str(address) for address in addresses)
     else:
         address_text = str(addresses)
-    return f"#{event.id} name.resolved {name} -> {address_text}".strip()
+    return f"{event.id}: name.resolved {name} -> {address_text}".strip()
 
 
 def format_console_alert_event(event) -> str:
@@ -182,7 +210,7 @@ def format_console_alert_event(event) -> str:
     source = payload.get("source") or event.source
     level = payload.get("level", "alert")
     message = payload.get("message", "")
-    return f"#{event.id} {source} {level}: {message}".rstrip(": ")
+    return f"{event.id}: {source} {level}: {message}".rstrip(": ")
 
 
 def format_console_alert_requested_event(event) -> str:
@@ -191,7 +219,7 @@ def format_console_alert_requested_event(event) -> str:
     source = payload.get("source") or event.source
     level = payload.get("level", "alert")
     message = payload.get("message", "")
-    return f"#{event.id} {source} alert requested {level}: {message}".rstrip(": ")
+    return f"{event.id}: {source} alert requested {level}: {message}".rstrip(": ")
 
 
 def format_console_output_event(event) -> str:
@@ -200,7 +228,7 @@ def format_console_output_event(event) -> str:
     source = payload.get("source") or event.source
     text = summarize_text(str(payload.get("text", "")))
     label = "output requested" if event.topic == "framework.console.output.requested" else "output"
-    return f"#{event.id} {source} {label}: {text}".rstrip(": ")
+    return f"{event.id}: {source} {label}: {text}".rstrip(": ")
 
 
 def summarize_text(text: str, *, limit: int = 100) -> str:
@@ -220,7 +248,7 @@ def format_capability_event(event) -> str:
     status = "declared" if declared else "missing"
     if event.topic == "plugin.capability.missing":
         status = "missing"
-    return f"#{event.id} {commandlet} capability {capability} {status}".strip()
+    return f"{event.id}: {commandlet} capability {capability} {status}".strip()
 
 
 def format_progress_event(event) -> str:
@@ -239,7 +267,7 @@ def format_progress_event(event) -> str:
     ]
     summary = " ".join(part for part in summary_parts if part)
     tail = " ".join(part for part in (message, summary) if part)
-    return f"#{event.id} {commandlet} {phase} {status}: {tail}".rstrip(": ")
+    return f"{event.id}: {commandlet} {phase} {status}: {tail}".rstrip(": ")
 
 
 def format_command_run_event(event) -> str:
@@ -249,7 +277,7 @@ def format_command_run_event(event) -> str:
     status = payload.get("status") or event.topic.rsplit(".", 1)[-1]
     emitted = payload.get("emitted")
     emitted_text = f" emitted={emitted}" if emitted is not None else ""
-    return f"#{event.id} {commandlet} {status}{emitted_text}"
+    return f"{event.id}: {commandlet} {status}{emitted_text}"
 
 
 def format_job_event(event) -> str:
@@ -258,9 +286,13 @@ def format_job_event(event) -> str:
     job_id = payload.get("job_id", "")
     command = payload.get("command", "")
     topic = event.topic.removeprefix("job.")
-    command_text = f" {command}" if command else ""
-    return f"#{event.id} job {job_id} {topic}{command_text}".strip()
-
+    started_at = payload.get("started_at", "")
+    started_text = f" launched={format_runtime_timestamp(started_at)}" if started_at else ""
+    commandlet_text = f" commandlet={commandlet_from_command_line(str(command))}" if command else ""
+    command_text = f" command={command}" if command else ""
+    error = payload.get("error", "")
+    error_text = f" error={error}" if error else ""
+    return f"{event.id}: job {job_id} {topic}{started_text}{commandlet_text}{command_text}{error_text}".strip()
 
 def format_trigger_event(event) -> str:
     """Render trigger lifecycle events compactly."""
@@ -272,7 +304,7 @@ def format_trigger_event(event) -> str:
     suffix = f" -> {command}" if command else ""
     if caused_by:
         suffix += f" from {caused_by}"
-    return f"#{event.id} trigger {action} {trigger}{suffix}".strip()
+    return f"{event.id}: trigger {action} {trigger}{suffix}".strip()
 
 
 def format_process_request_event(event) -> str:
@@ -283,7 +315,7 @@ def format_process_request_event(event) -> str:
     command = " ".join(str(part) for part in argv) if isinstance(argv, list) else str(argv)
     timeout = payload.get("timeout")
     timeout_text = f" timeout={timeout}" if timeout is not None else ""
-    return f"#{event.id} {source} process requested: {summarize_text(command, limit=140)}{timeout_text}".rstrip()
+    return f"{event.id}: {source} process requested: {summarize_text(command, limit=140)}{timeout_text}".rstrip()
 
 
 def format_error_event(event) -> str:
@@ -292,7 +324,7 @@ def format_error_event(event) -> str:
     source = payload.get("tool") or payload.get("source") or event.source
     severity = payload.get("severity", "error")
     message = payload.get("message") or payload.get("error") or ""
-    return f"#{event.id} {source} {severity}: {message}".rstrip(": ")
+    return f"{event.id}: {source} {severity}: {message}".rstrip(": ")
 
 
 def format_runtime_name_event(event) -> str:
@@ -301,7 +333,7 @@ def format_runtime_name_event(event) -> str:
     target_type = payload.get("target_type", "")
     target_id = payload.get("target_id", "")
     name = payload.get("name", "")
-    return f"#{event.id} {target_type} {target_id} named {name}".strip()
+    return f"{event.id}: {target_type} {target_id} named {name}".strip()
 
 
 def friendly_error(exc: Exception) -> str:
@@ -311,10 +343,228 @@ def friendly_error(exc: Exception) -> str:
     return str(exc)
 
 
-def print_events(events) -> None:
+def print_events(events, runner: Runner | None = None) -> None:
     """Print persisted events in a compact inspectable form."""
     for event in events:
-        print(format_event(event))
+        print(format_event_listing_line(runner, event, format_event(event)))
+
+
+def format_event_listing_line(runner: Runner | None, event, line: str) -> str:
+    """Color the event id and commandlet name at the start of a compact event row."""
+    if runner is None or not event_color_enabled(runner):
+        return line
+    event_id, separator, rest = line.partition(": ")
+    if not separator:
+        return line
+    return f"{ansi_color(event_id, EVENT_ID_COLOR)}: {color_event_listing_commandlet(event, rest)}"
+
+
+def color_event_listing_commandlet(event, text: str) -> str:
+    """Color commandlet names in compact event rows when they are identifiable."""
+    commandlet = event.payload.get("commandlet") or event.payload.get("source")
+    if not commandlet and event.source not in {"framework", "runner", "test"}:
+        commandlet = event.source
+    if not commandlet:
+        return text
+    commandlet_text = str(commandlet)
+    colored = ansi_color(commandlet_text, EVENT_COMMANDLET_COLOR)
+    if text.startswith(f"{commandlet_text} "):
+        return f"{colored}{text[len(commandlet_text):]}"
+    if text.startswith(f"{commandlet_text}:"):
+        return f"{colored}{text[len(commandlet_text):]}"
+    return text.replace(f"commandlet={commandlet_text}", f"commandlet={colored}", 1)
+
+
+def print_event_info(runner: Runner, event_id_text: str) -> None:
+    """Print one event with runtime context and readable payload fields."""
+    try:
+        event_id = int(event_id_text)
+    except ValueError:
+        print(f"error: invalid event id: {event_id_text}")
+        return
+    event = runner.events.event_by_id(event_id)
+    if event is None:
+        print(f"error: unknown event: {event_id}")
+        return
+    payload = event.payload
+    print(format_event_heading(runner, event.id))
+    print(format_event_kv(runner, "Topic", event.topic))
+    print(format_event_kv(runner, "Created", format_event_timestamp(event.created_at)))
+    print(format_event_kv(runner, "Source", event.source))
+    print(format_event_kv(runner, "Actor", event_actor(event.source, event.topic, payload)))
+    print_event_scope(runner, event, payload)
+    print_event_job_context(runner, payload)
+    print_event_command_context(runner, payload, event.command_run_id)
+    print_event_causality(runner, payload)
+    print_event_payload(runner, payload)
+
+
+def format_event_timestamp(value: datetime) -> str:
+    """Render full event time in the operator's local timezone."""
+    return format_operator_timestamp(value)
+
+
+def format_event_heading(runner: Runner, event_id: int | None) -> str:
+    """Return the highlighted detail heading for one event."""
+    if not event_color_enabled(runner):
+        return f"Event ID: {event_id}"
+    return (
+        f"{ansi_color('Event ID', EVENT_HEADING_KEY_COLOR)}: "
+        f"{ansi_color(str(event_id), EVENT_HEADING_VALUE_COLOR)}"
+    )
+
+
+def event_actor(source: str, topic: str, payload: dict[str, Any]) -> str:
+    """Infer the component most likely responsible for an event."""
+    if topic.startswith("framework.trigger."):
+        trigger_id = payload.get("trigger_id") or payload.get("name")
+        return f"trigger:{trigger_id}" if trigger_id else "trigger"
+    commandlet = payload.get("commandlet")
+    if commandlet:
+        return f"commandlet:{commandlet}"
+    if source in {"framework", "runner"}:
+        return source
+    return f"plugin:{source}"
+
+
+def print_event_scope(runner: Runner, event, payload: dict[str, Any]) -> None:
+    """Print job, pipeline, run, and parent-run scope for an event."""
+    scope = {
+        "Job": payload.get("job_id"),
+        "Pipeline": event.pipeline_id or payload.get("pipeline_id"),
+        "Run": event.command_run_id or payload.get("command_run_id"),
+        "Parent run": event.parent_command_run_id or payload.get("parent_command_run_id"),
+    }
+    rows = [(label, value) for label, value in scope.items() if value not in (None, "")]
+    if not rows:
+        return
+    print(format_event_section_header(runner, "Scope"))
+    for label, value in rows:
+        print(format_event_kv(runner, label, value, prefix="  "))
+
+
+def print_event_job_context(runner: Runner, payload: dict[str, Any]) -> None:
+    """Print the job row associated with an event payload, when present."""
+    job_id = payload.get("job_id")
+    if job_id in (None, ""):
+        return
+    try:
+        job = runner.runtime.job(int(job_id))
+    except (TypeError, ValueError):
+        job = None
+    if job is None:
+        print(format_event_kv(runner, "Job", "missing"))
+        return
+    command = str(job["command_line"] or "")
+    print(format_event_section_header(runner, "Job"))
+    print(format_event_kv(runner, "ID", job["id"], prefix="  "))
+    print(format_event_kv(runner, "Serial", display_runtime_serial(job["serial"]), prefix="  "))
+    print(format_event_kv(runner, "Status", job["status"], prefix="  "))
+    if job["started_at"]:
+        print(format_event_kv(runner, "Launched", format_event_timestamp(datetime.fromisoformat(job["started_at"])), prefix="  "))
+    if job["finished_at"]:
+        print(format_event_kv(runner, "Finished", format_event_timestamp(datetime.fromisoformat(job["finished_at"])), prefix="  "))
+    if command:
+        print(format_event_kv(runner, "Commandlet", commandlet_from_command_line(command), prefix="  "))
+        print(format_event_kv(runner, "Command", command, prefix="  "))
+
+
+def print_event_command_context(runner: Runner, payload: dict[str, Any], command_run_id: str | None) -> None:
+    """Print command-run context from payload or its argument event."""
+    run_id = command_run_id or payload.get("command_run_id")
+    command = payload.get("command")
+    commandlet = payload.get("commandlet")
+    args: list[Any] | None = None
+    launched: str | None = None
+    if run_id and (commandlet is None or command is None):
+        matches = runner.events.events_matching(topic="command.run.arguments", command_run_id=str(run_id), limit=1)
+        if matches:
+            args_payload = matches[0].payload
+            commandlet = commandlet or args_payload.get("commandlet")
+            args_value = args_payload.get("args")
+            args = args_value if isinstance(args_value, list) else None
+            launched = format_event_timestamp(matches[0].created_at)
+    if not any((run_id, commandlet, command, args, launched)):
+        return
+    print(format_event_section_header(runner, "Command"))
+    if run_id:
+        print(format_event_kv(runner, "Run", run_id, prefix="  "))
+    if launched:
+        print(format_event_kv(runner, "Launched", launched, prefix="  "))
+    if commandlet:
+        print(format_event_kv(runner, "Commandlet", commandlet, prefix="  "))
+    if command:
+        print(format_event_kv(runner, "Line", command, prefix="  "))
+    if args is not None:
+        print(format_event_kv(runner, "Args", " ".join(str(arg) for arg in args), prefix="  "))
+
+
+def print_event_causality(runner: Runner, payload: dict[str, Any]) -> None:
+    """Print event ids that this event claims as its cause."""
+    cause_fields = (
+        ("Request event", "request_event_id"),
+        ("Trigger event", "trigger_event_id"),
+        ("Parent event", "parent_event_id"),
+    )
+    rows = [(label, payload[key]) for label, key in cause_fields if payload.get(key) not in (None, "")]
+    if not rows:
+        return
+    print(format_event_section_header(runner, "Cause"))
+    for label, value in rows:
+        print(format_event_kv(runner, label, value, prefix="  "))
+
+
+def print_event_payload(runner: Runner, payload: dict[str, Any]) -> None:
+    """Print payload fields as readable key/value rows."""
+    if not payload:
+        return
+    print(format_event_section_header(runner, "Payload"))
+    for key in sorted(payload):
+        print(format_event_kv(runner, key, format_payload_value(payload[key]), prefix="  "))
+
+
+def format_event_kv(runner: Runner, key: str, value: object, *, prefix: str = "") -> str:
+    """Return an event detail key/value row with optional colored keys."""
+    if not event_color_enabled(runner):
+        return f"{prefix}{key}: {value}"
+    key_color = runner.registry.varstore.get(EVENT_KEY_COLOR_VAR, DEFAULT_EVENT_KEY_COLOR) or DEFAULT_EVENT_KEY_COLOR
+    return f"{prefix}{ansi_color(key, key_color)}: {format_event_value(key, value)}"
+
+
+def format_event_value(key: str, value: object) -> str:
+    """Return special value styling for event detail fields."""
+    text = str(value)
+    if key.casefold() == "commandlet":
+        return ansi_color(text, EVENT_COMMANDLET_COLOR)
+    return text
+
+
+def format_event_section_header(runner: Runner, label: str) -> str:
+    """Return a highlighted section header for event detail output."""
+    if not event_color_enabled(runner):
+        return f"{label}:"
+    return f"{ansi_color(label, EVENT_HEADING_KEY_COLOR)}:"
+
+
+def event_color_enabled(runner: Runner) -> bool:
+    """Return whether event detail listings should include ANSI color escapes."""
+    mode = (
+        runner.registry.varstore.get(EVENT_COLOR_MODE_VAR, DEFAULT_EVENT_COLOR_MODE) or DEFAULT_EVENT_COLOR_MODE
+    ).casefold()
+    if mode in {"0", "false", "no", "never", "off", "plain"}:
+        return False
+    if mode in {"1", "true", "yes", "always", "on"}:
+        return True
+    return sys.stdout.isatty()
+
+
+def format_payload_value(value: Any) -> str:
+    """Render nested payload values without a one-line raw dict dump."""
+    if isinstance(value, list | tuple):
+        return ", ".join(format_payload_value(item) for item in value)
+    if isinstance(value, dict):
+        return ", ".join(f"{key}={format_payload_value(value[key])}" for key in sorted(value))
+    return str(value)
 
 
 def print_run_variables(runner: Runner, command_run_id: str) -> None:
@@ -327,20 +577,43 @@ def print_run_variables(runner: Runner, command_run_id: str) -> None:
         print(format_var_assignment(runner, row["name"], row["value"], prefix="  "))
 
 
-def print_history(entries: Sequence[str] = (), selectors: dict[str, str] | None = None) -> None:
+def print_history(
+    entries: Sequence[str] = (),
+    selectors: dict[str, str] | None = None,
+    runner: Runner | None = None,
+) -> None:
     """Print the current session history, optionally filtered by time bounds."""
     window = history_time_window(selectors or {})
     for entry in entries:
         if history_entry_in_window(entry, window):
-            print(format_history_entry_for_display(entry))
+            print(format_history_entry_for_display(entry, runner))
 
 
-def format_history_entry_for_display(entry: str) -> str:
+def format_history_entry_for_display(entry: str, runner: Runner | None = None) -> str:
     """Display script-friendly history as timestamp-first for readability."""
     command, separator, timestamp = entry.rpartition("  # ")
     if not separator or not timestamp:
         return entry
-    return f"{timestamp}  {command}"
+    display_timestamp = normalize_history_timestamp_for_display(timestamp)
+    if runner is not None and history_color_enabled(runner):
+        color = (
+            runner.registry.varstore.get(HISTORY_TIMESTAMP_COLOR_VAR, DEFAULT_HISTORY_TIMESTAMP_COLOR)
+            or DEFAULT_HISTORY_TIMESTAMP_COLOR
+        )
+        display_timestamp = ansi_color(display_timestamp, color)
+    return f"{display_timestamp}  {command}"
+
+
+def history_color_enabled(runner: Runner) -> bool:
+    """Return whether history listings should include ANSI color escapes."""
+    mode = (
+        runner.registry.varstore.get(HISTORY_COLOR_MODE_VAR, DEFAULT_HISTORY_COLOR_MODE) or DEFAULT_HISTORY_COLOR_MODE
+    ).casefold()
+    if mode in {"0", "false", "no", "never", "off", "plain"}:
+        return False
+    if mode in {"1", "true", "yes", "always", "on"}:
+        return True
+    return sys.stdout.isatty()
 
 
 def history_time_window(selectors: dict[str, str]) -> tuple[str | None, str | None]:
@@ -391,7 +664,8 @@ def print_help(runner: Runner, command: str | None = None) -> None:
     width = max(len(entry.summary or entry.command) for entry in HELP_COMMANDS)
     for entry in HELP_COMMANDS:
         command = entry.summary or entry.command
-        print(f"{command:<{width}}  {entry.description}")
+        command_text = f"{command:<{width}}"
+        print(f"{format_help_command(runner, command_text)}  {entry.description}")
 
 
 def print_command_help(runner: Runner, command: str) -> None:
@@ -402,7 +676,7 @@ def print_command_help(runner: Runner, command: str) -> None:
         return
     entry = find_help_entry(command)
     if entry:
-        print_help_entry(entry)
+        print_help_entry(runner, entry)
         return
     print(f"error: unknown command: {command}")
 
@@ -416,9 +690,9 @@ def find_help_entry(command: str) -> HelpEntry | None:
     return None
 
 
-def print_help_entry(entry: HelpEntry) -> None:
+def print_help_entry(runner: Runner, entry: HelpEntry) -> None:
     """Render one built-in help entry."""
-    print(f"Command: {entry.command}")
+    print(f"Command: {format_help_command(runner, entry.command)}")
     print(f"Usage:   {entry.usage}")
     if entry.examples:
         print("Examples:")
@@ -426,6 +700,26 @@ def print_help_entry(entry: HelpEntry) -> None:
             print(f"  {example}")
     print()
     print(entry.description)
+
+
+def format_help_command(runner: Runner | None, command: str) -> str:
+    """Return a built-in help command name with optional ANSI color."""
+    if runner is None or not help_color_enabled(runner):
+        return command
+    color = runner.registry.varstore.get(HELP_COMMAND_COLOR_VAR, DEFAULT_HELP_COMMAND_COLOR) or DEFAULT_HELP_COMMAND_COLOR
+    return ansi_color(command, color)
+
+
+def help_color_enabled(runner: Runner) -> bool:
+    """Return whether help listings should include ANSI color escapes."""
+    mode = (
+        runner.registry.varstore.get(HELP_COLOR_MODE_VAR, DEFAULT_HELP_COLOR_MODE) or DEFAULT_HELP_COLOR_MODE
+    ).casefold()
+    if mode in {"0", "false", "no", "never", "off", "plain"}:
+        return False
+    if mode in {"1", "true", "yes", "always", "on"}:
+        return True
+    return sys.stdout.isatty()
 
 
 def print_plugin_argparse_help(runner: Runner, plugin) -> None:
@@ -541,7 +835,11 @@ def print_job(runner: Runner, job_id: str) -> None:
         if str(row["id"]) == job_id:
             print(
                 f"#{row['id']} serial={row['serial']} pid={row['pid']} status={row['status']}"
-                f"{format_runtime_name(names.get(('job', str(row['id']))))} {row['command_line']}"
+                f"{format_runtime_name(names.get(('job', str(row['id']))))}"
+                f" launched={format_runtime_timestamp(row['started_at'])}"
+                f" finished={format_runtime_timestamp(row['finished_at'])}"
+                f" commandlet={commandlet_from_command_line(str(row['command_line']))}"
+                f" command={row['command_line']}"
             )
             return
     print(f"error: unknown job: {job_id}")
@@ -569,7 +867,7 @@ def format_var_assignment(runner: Runner, name: str, value: str, *, prefix: str 
         return f"{prefix}{name}={displayed_value}"
     name_color = runner.registry.varstore.get(VAR_NAME_COLOR_VAR, DEFAULT_VAR_NAME_COLOR) or DEFAULT_VAR_NAME_COLOR
     value_color = runner.registry.varstore.get(VAR_VALUE_COLOR_VAR, DEFAULT_VAR_VALUE_COLOR) or DEFAULT_VAR_VALUE_COLOR
-    return f"{prefix}{ansi_color(name, name_color)}={ansi_color(displayed_value, value_color)}"
+    return f"{prefix}{ansi_color(name, name_color)}={ansi_var_value(displayed_value, value_color)}"
 
 
 def vars_color_enabled(runner: Runner) -> bool:
@@ -584,10 +882,69 @@ def vars_color_enabled(runner: Runner) -> bool:
 
 def ansi_color(text: str, color: str) -> str:
     """Wrap text in an ANSI SGR color when the requested color is known."""
-    code = ANSI_COLORS.get(color.casefold())
+    code = ansi_color_code(color)
     if code is None:
         return text
     return f"\x1b[{code}m{text}\x1b[0m"
+
+
+def ansi_color_code(color: str) -> str | None:
+    """Return an SGR color code for a named, 256-color, or truecolor setting."""
+    normalized = color.strip().casefold()
+    if not normalized:
+        return None
+    if normalized in ANSI_COLORS:
+        return ANSI_COLORS[normalized]
+    if normalized.startswith("ansi:"):
+        number = parse_color_int(normalized.removeprefix("ansi:"), 0, 255)
+        return f"38;5;{number}" if number is not None else None
+    if normalized.startswith("bg-ansi:"):
+        number = parse_color_int(normalized.removeprefix("bg-ansi:"), 0, 255)
+        return f"48;5;{number}" if number is not None else None
+    if normalized.startswith("rgb:"):
+        rgb = parse_rgb_color(normalized.removeprefix("rgb:"))
+        return f"38;2;{rgb[0]};{rgb[1]};{rgb[2]}" if rgb is not None else None
+    if normalized.startswith("bg-rgb:"):
+        rgb = parse_rgb_color(normalized.removeprefix("bg-rgb:"))
+        return f"48;2;{rgb[0]};{rgb[1]};{rgb[2]}" if rgb is not None else None
+    return None
+
+
+def parse_rgb_color(raw: str) -> tuple[int, int, int] | None:
+    """Parse `R,G,B` values for truecolor terminal output."""
+    parts = raw.split(",")
+    if len(parts) != 3:
+        return None
+    red = parse_color_int(parts[0], 0, 255)
+    green = parse_color_int(parts[1], 0, 255)
+    blue = parse_color_int(parts[2], 0, 255)
+    if red is None or green is None or blue is None:
+        return None
+    return red, green, blue
+
+
+def parse_color_int(raw: str, minimum: int, maximum: int) -> int | None:
+    """Parse one bounded color integer."""
+    try:
+        value = int(raw.strip())
+    except ValueError:
+        return None
+    if minimum <= value <= maximum:
+        return value
+    return None
+
+
+def ansi_var_value(text: str, color: str) -> str:
+    """Wrap variable values, giving redacted secrets a warning-style badge."""
+    if not text.startswith(REDACTED_VALUE):
+        return ansi_color(text, color)
+    suffix = text.removeprefix(REDACTED_VALUE)
+    return f"{ansi_secret_redaction(REDACTED_VALUE)}{ansi_color(suffix, color)}"
+
+
+def ansi_secret_redaction(text: str) -> str:
+    """Render redacted secret text as white on a dark red background."""
+    return f"\x1b[37;48;5;52m{text}\x1b[0m"
 
 
 def print_topics(runner: Runner, prefix: str = "") -> None:

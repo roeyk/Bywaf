@@ -63,7 +63,7 @@ class JobLifecycle:
 
     def fail(self, error: str) -> None:
         """Mark the job failed and publish the failure event."""
-        self.db.publish("job.failed", self.payload({"error": error}), "runner")
+        self.db.publish("job.failed", self.payload({"command": self.command_line, "error": error}), "runner")
         self.db.finish_job(self.job_id, "failed")
 
     def finish(self) -> None:
@@ -75,12 +75,16 @@ class JobLifecycle:
         """Return job lifecycle payload values with local and serial IDs."""
         if self.job_serial is None:
             self.job_serial = self.db.job_serial(self.job_id)
-        return {
+        payload: dict[str, object] = {
             "job_id": self.job_id,
             "job_serial": self.job_serial,
             "serial": self.job_serial,
             **values,
         }
+        row = self.db.job(self.job_id)
+        if row is not None and row["started_at"]:
+            payload["started_at"] = row["started_at"]
+        return payload
 
 
 def run_background_job(

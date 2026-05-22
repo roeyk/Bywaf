@@ -151,6 +151,12 @@ class EventStoreEventMixin:
             )
             return [Event.from_row(row) for row in rows]
 
+    def event_by_id(self, event_id: int) -> Event | None:
+        """Return one event by durable id."""
+        with self.connect() as conn:
+            row = conn.execute("SELECT * FROM events WHERE id = ?", (event_id,)).fetchone()
+            return Event.from_row(row) if row is not None else None
+
     def recent_events(self, limit: int = 25) -> list[Event]:
         """Return the latest events as a chronological slice."""
         with self.connect() as conn:

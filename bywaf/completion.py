@@ -19,7 +19,6 @@ from os.path import commonprefix
 from typing import Any
 
 try:
-    from prompt_toolkit.application.current import get_app
     from prompt_toolkit.completion import Completion
     from prompt_toolkit.completion import Completer as PromptToolkitCompleterBase
     from prompt_toolkit.enums import DEFAULT_BUFFER
@@ -30,7 +29,6 @@ try:
     from prompt_toolkit.shortcuts import PromptSession
     from prompt_toolkit.shortcuts.prompt import CompleteStyle
 except ImportError:  # pragma: no cover - exercised only on minimal installs.
-    get_app = None
     Completion = None
     PromptToolkitCompleterBase = object
     DEFAULT_BUFFER = "DEFAULT_BUFFER"
@@ -58,6 +56,7 @@ from .completion_core import tokens_after_last_pipe
 from .completion_core import variable_reference_candidates
 from .secret_input import (
     DEFAULT_SECRET_INPUT_MODE,
+    SECRET_INPUT_MODES,
     SECRET_INPUT_MODE_VAR,
     PromptSecretInputState,
     PromptSecretLexer,
@@ -82,7 +81,6 @@ __all__ = [
     "common_completion_prefix",
     "complete_at_file_prefix",
     "complete_resource_value",
-    "completion_bottom_toolbar",
     "completion_key_bindings",
     "completion_prefix",
     "completion_results",
@@ -194,7 +192,7 @@ def build_prompt_session(completer: Completer):
         complete_while_typing=False,
         complete_style=CompleteStyle.MULTI_COLUMN,
         reserve_space_for_menu=8,
-        bottom_toolbar=lambda: completion_bottom_toolbar(completer),
+        bottom_toolbar=lambda: secret_input_bottom_toolbar(secret_state),
         key_bindings=key_bindings,
         **{key: value for key, value in session_kwargs.items() if value is not None},
     )
@@ -216,24 +214,14 @@ def secret_input_mode(completer: Completer) -> str:
     """Return the configured secret input method."""
     value = completer.registry.varstore.get(SECRET_INPUT_MODE_VAR, DEFAULT_SECRET_INPUT_MODE)
     mode = str(value or DEFAULT_SECRET_INPUT_MODE).strip().casefold()
-    return mode if mode in {"block", "getpass"} else DEFAULT_SECRET_INPUT_MODE
+    return mode if mode in SECRET_INPUT_MODES else DEFAULT_SECRET_INPUT_MODE
 
 
-def completion_bottom_toolbar(completer: Completer):
-    """Display completion menu help only while a menu is active."""
-    if get_app is None or HTML is None:
-        return ""
-    try:
-        if get_app().current_buffer.complete_state:
-            select_key = completion_select_key_display(completer)
-            wasd_hint = " | WASD navigates" if completion_wasd_selection_enabled(completer) else ""
-            return HTML(
-                f"<b>Completion:</b> <b>{select_key}</b> enters selection | "
-                f"arrows move | <b>Enter</b> selects | <b>Esc</b> cancels{wasd_hint}"
-            )
-    except RuntimeError:
-        return ""
-    return ""
+def secret_input_bottom_toolbar(secret_state: PromptSecretInputState):
+    """Show secret-block instructions only while the block is focused."""
+    if HTML is None or secret_state.focused() is None:
+        return None
+    return HTML("<b>Secret:</b> type value | <b>Tab</b> accepts | <b>Esc</b> leaves | <b>Enter</b> submits")
 
 
 def completion_key_bindings(completer: Completer):

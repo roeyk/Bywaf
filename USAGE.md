@@ -251,6 +251,10 @@ The REPL prompt is:
 bywaf>
 ```
 
+Set a custom prompt with `prompt <pattern>`. Prompt patterns support the older
+`%u`, `%h`, `%H`, `%m`, and `%T` placeholders, plus `$u` for user, `$Y` year,
+`$M` month, `$D` day, `$h` hour, `$m` minute, `$s` second, and `$Z` timezone.
+
 Commandlets can be run directly:
 
 ```text
@@ -280,7 +284,7 @@ runs
 events [tail|--tail] [last=N]
 topics
 db <status|path|checkpoint|vacuum|new|encrypt|decrypt|rekey>
-event <topic|job=id|run=id|pipeline=id|serial=id>
+event <id|topic|job=id|run=id|pipeline=id|serial=id>
 load <resource>
 save <resource>
 exit
@@ -289,6 +293,19 @@ exit
 `help <command>` shows the same help as `<command> --help` for commandlets.
 Ctrl-C in the interactive shell asks whether to quit; answering yes exits
 through the normal shutdown path, including the SQLite checkpoint.
+
+Use `event` for runtime inspection and `audit` for evidence review:
+
+| Need | Use | Why |
+| --- | --- | --- |
+| See recent runtime activity | `events` | Tails the live event bus. |
+| Inspect one event and its job/run context | `event <id>` | Explains what emitted it, when, and under which runtime scope. |
+| Debug a topic, job, run, pipeline, or serial | `event <selector>` | Stays close to raw event flow while keeping output readable. |
+| Review assessment evidence | `audit show ...` | Presents selected records as an audit trail. |
+| Inventory capability use | `audit list capabilities` | Compares declared capabilities with observed runtime behavior. |
+| Hand off records | `audit export ...` | Writes portable JSONL, PDF, or SQLite audit output. |
+
+The short rule is: `event` explains the bus; `audit` explains the assessment.
 
 # Commandlets
 
@@ -361,11 +378,17 @@ bywaf> var global.progress.min-interval-ms=250
 bywaf> var global.progress.min-percent-delta=1
 ```
 
-Audit logs are stored as SQLite events. Use `audit show ...` to inspect them
-and `audit export file=audit.jsonl`, `audit export file=audit.pdf`, or
-`audit export file=audit.sqlite3` to hand off a copy. Use
-`audit list capabilities` to inventory declared capabilities against observed
-runtime use.
+Audit logs are stored as SQLite events, but `audit` has a different job than
+`event`:
+
+| Need | Use | Why |
+| --- | --- | --- |
+| Runtime/provenance debugging | `event <id>` or `event <selector>` | Shows event-bus records and nearby job/run context. |
+| Evidence review | `audit show ...` | Shows selected records as an assessment audit trail. |
+| Capability inventory | `audit list capabilities` | Compares declared capabilities with observed runtime behavior. |
+| Handoff/export | `audit export ...` | Writes portable JSONL, PDF, or SQLite output. |
+
+The short rule is: `event` explains the bus; `audit` explains the assessment.
 
 ```text
 bywaf> audit show topic=console.alert since=20260517 until=20260518
@@ -978,9 +1001,10 @@ bywaf> events tail
 bywaf> events tail last=50
 ```
 
-Show recent events for a topic:
+Show detailed context for one event ID, or recent events for a topic:
 
 ```text
+bywaf> event 25342
 bywaf> event host.found
 bywaf> event port.open
 ```
@@ -1169,7 +1193,7 @@ Set an explicit secret variable:
 
 ```text
 bywaf> var --secret ssh_probe.password=client-password
-ssh_probe.password=<redacted> fingerprint=hmac-sha256:...
+ssh_probe.password=[REDACTED] fingerprint=hmac-sha256:...
 ```
 
 If the value is empty, Bywaf opens the configured secret input method and
@@ -1184,12 +1208,16 @@ bywaf> var --secret ssh_probe.password=
 ```text
 bywaf> var secret.input-mode=block
 bywaf> var secret.input-mode=getpass
+bywaf> var secret.input-mode=plain
 ```
+
+`plain` and `plaintext` allow visible typing in the prompt; after Enter, the
+stored value is still replaced with `[REDACTED]` and a fingerprint.
 
 Only explicit `--secret` assignments and commandlet options declared as secret
 metadata are stored as secret references. Plain `var password=value` is an
 ordinary variable. `var`, command history, and audit-friendly displays show
-`<redacted>` plus an HMAC fingerprint for secret references instead of the
+`[REDACTED]` plus an HMAC fingerprint for secret references instead of the
 plaintext.
 
 Credential-aware commandlets resolve those references through the framework
@@ -1216,13 +1244,39 @@ bywaf> var history.timestamp-format=%Y-%m-%d %H:%M:%S %Z
 bywaf> var display.vars.color=auto
 bywaf> var display.vars.name-color=cyan
 bywaf> var display.vars.value-color=green
+bywaf> var display.events.color=auto
+bywaf> var display.events.key-color=green
+bywaf> var display.history.color=auto
+bywaf> var display.history.timestamp-color=green
+bywaf> var display.help.color=auto
+bywaf> var display.help.command-color=green
 bywaf> var hostscanner.targets=192.168.1.1-255
 bywaf> hostscanner
 ```
 
-`display.vars.color` accepts `auto`, `always`, or `never`. Name and value
-colors accept standard ANSI color names such as `cyan`, `green`, `yellow`,
-`blue`, and their `bright-*` variants.
+`display.vars.color` controls `var` output. `display.events.color` controls
+`events`, `event <topic>`, `event <selector>`, and `event <id>` output.
+`display.history.color` controls `history` output. `display.help.color`
+controls the built-in `help` command list. These color modes accept `auto`,
+`always`, or `never`. Name, value, event key, history timestamp, and help command
+colors accept named colors such as `cyan`, `green`, `yellow`, `blue`,
+`bold-green`, and `bold-yellow`; 256-color values such as `ansi:34`; truecolor
+values such as `rgb:80,180,90`; and background forms such as `bg-ansi:52` and
+`bg-rgb:80,0,0`. Event-list IDs are bright blue; detailed event section headers
+are yellow; history timestamps and help commands are green.
+
+User preferences are separate from variables. The planned `pref` command is for
+operator-owned defaults that should live under `~/.bywaf`, such as colors,
+preferred pagers/editors, prompt style, and plugin UX defaults like
+`plugins.portscanner.default-arguments`. Preferences should follow the user
+across projects and should not be stored in project databases.
+
+Use `var` for framework or plugin variables that affect the current project,
+session, commandlet, or run. Variables can affect evidence-producing behavior,
+so their effective values are snapshotted with command runs and belong with the
+project/audit context. If a future plugin wants to change a preference, it
+should request a framework-mediated preference update for the user to approve;
+plugins should not silently mutate `~/.bywaf/preferences.toml`.
 
 Use a commandlet context to make short variable assignments target that
 commandlet:
@@ -1743,6 +1797,7 @@ runs
 events [tail|--tail] [last=N]
 topics
 event <topic>
+event <id>
 event job=<id>
 event run=<id>
 event pipeline=<id>

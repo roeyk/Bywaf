@@ -19,6 +19,7 @@ from ..framework_requests import process_framework_requests
 from .display import (
     format_var_assignment,
     print_commandlets,
+    print_event_info,
     print_events,
     print_help,
     print_history,
@@ -32,7 +33,7 @@ from .display import (
 )
 from .resources import dispatch_project_command, load_repl_resource, print_project_info, save_repl_resource
 from ..runner import Runner
-from ..secrets import REDACTED_VALUE, load_or_create_fingerprint_key
+from ..secrets import load_or_create_fingerprint_key
 from ..secret_input import SECRET_BLOCK_VALUE
 
 if TYPE_CHECKING:
@@ -78,9 +79,9 @@ def handle_triggers_command(runner: Runner, state: ShellState, rest: str | None,
 
 def handle_history_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
     """Print command history."""
-    del runner, line
+    del line
     selectors = parse_history_selectors(shlex.split(rest)) if rest else None
-    print_history(state.session_history, selectors)
+    print_history(state.session_history, selectors, runner)
     return None
 
 
@@ -97,7 +98,7 @@ def handle_jobs_command(runner: Runner, state: ShellState, rest: str | None, lin
     suffix = f" {rest}" if rest in {"--all", "--page"} else ""
     events = runner.execute(f"job list{suffix}")
     process_framework_requests(runner, state)
-    print_events(events)
+    print_events(events, runner)
     return None
 
 
@@ -107,7 +108,7 @@ def handle_pipelines_command(runner: Runner, state: ShellState, rest: str | None
     suffix = " --page" if rest == "--page" else ""
     events = runner.execute(f"pipeline list{suffix}")
     process_framework_requests(runner, state)
-    print_events(events)
+    print_events(events, runner)
     return None
 
 
@@ -161,22 +162,24 @@ def handle_event_command(runner: Runner, state: ShellState, rest: str | None, li
     """Print matching events."""
     del state, line
     if rest is None:
-        print("usage: event <topic>")
+        print("usage: event <id|topic|job=id|run=id|pipeline=id|serial=id>")
+    elif rest.isdigit():
+        print_event_info(runner, rest)
     elif rest.startswith("job="):
         print_job(runner, rest.split("=", 1)[1])
     elif rest.startswith("run="):
         run_id = runner.runtime.resolve_run_serial(rest.split("=", 1)[1])
         print_run_variables(runner, run_id)
-        print_events(runner.events.events_matching(command_run_id=run_id))
+        print_events(runner.events.events_matching(command_run_id=run_id), runner)
     elif rest.startswith("pipeline="):
         pipeline_id = runner.runtime.resolve_pipeline_serial(rest.split("=", 1)[1])
-        print_events(runner.events.events_matching(pipeline_id=pipeline_id))
+        print_events(runner.events.events_matching(pipeline_id=pipeline_id), runner)
     elif rest.startswith("serial="):
-        print_events(runner.events.events_for_serial(rest.split("=", 1)[1]))
+        print_events(runner.events.events_for_serial(rest.split("=", 1)[1]), runner)
     elif rest.startswith("topic="):
-        print_events(runner.events.events_matching(topic=rest.split("=", 1)[1]))
+        print_events(runner.events.events_matching(topic=rest.split("=", 1)[1]), runner)
     else:
-        print_events(runner.events.events_for_topic(rest))
+        print_events(runner.events.events_for_topic(rest), runner)
     return None
 
 
@@ -184,7 +187,7 @@ def handle_events_command(runner: Runner, state: ShellState, rest: str | None, l
     """Print recent events."""
     del state, line
     limit = parse_events_selectors(shlex.split(rest)) if rest else 25
-    print_events(runner.events.recent_events(limit))
+    print_events(runner.events.recent_events(limit), runner)
     return None
 
 
@@ -228,7 +231,7 @@ def execute_repl_commandlet(runner: Runner, state: ShellState, command: str) -> 
     """Run a commandlet line and print emitted events."""
     events = runner.execute(command)
     process_framework_requests(runner, state)
-    print_events(events)
+    print_events(events, runner)
 
 
 REPL_COMMAND_HANDLERS: dict[str, ReplCommandHandler] = {
@@ -351,7 +354,7 @@ def set_var(runner: Runner, state: ShellState, assignment: str) -> None:
         runner.db.store_secret(secret_ref, cleaned_value)
         if not runner.db.encrypted:
             print(f"warning: storing secret variable {resolved_key} in plaintext database {runner.db.path}")
-        print(f"{resolved_key}={REDACTED_VALUE} fingerprint={secret_ref.fingerprint.format()}")
+        print(format_var_assignment(runner, resolved_key, secret_ref.ref))
         return
     runner.registry.varstore.set(resolved_key, cleaned_value)
 

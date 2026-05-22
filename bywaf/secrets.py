@@ -21,7 +21,7 @@ from .config import default_settings
 
 FINGERPRINT_ALGORITHM = "hmac-sha256"
 FINGERPRINT_HEX_CHARS = 24
-REDACTED_VALUE = "<redacted>"
+REDACTED_VALUE = "[REDACTED]"
 SECRET_REF_PREFIX = "$__secret_"
 
 
@@ -209,7 +209,7 @@ def explicit_secret_records(name: str, value: str, *, key: bytes) -> tuple[Redac
 
 
 def quote_redacted_token(token: str) -> str:
-    """Quote normal shell tokens while keeping `<redacted>` readable."""
+    """Quote normal shell tokens while keeping `[REDACTED]` readable."""
     if token.endswith(f"={REDACTED_VALUE}"):
         return token
     return shlex.quote(token)

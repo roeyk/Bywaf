@@ -314,6 +314,12 @@ class FrameworkHttpAppTests(unittest.TestCase):
     def test_render_prompt_replaces_time_placeholder(self):
         self.assertNotIn("%T", render_prompt("%T> "))
 
+    def test_render_prompt_replaces_dollar_placeholders(self):
+        rendered = render_prompt("$u $Y-$M-$D $h:$m:$s $Z> ")
+        for placeholder in ("$u", "$Y", "$M", "$D", "$h", "$m", "$s", "$Z"):
+            self.assertNotIn(placeholder, rendered)
+        self.assertIn(">", rendered)
+
     def test_make_runner_loads_external_plugin_config(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "plugins")

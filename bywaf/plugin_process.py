@@ -18,6 +18,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
+from .secrets import REDACTED_VALUE
+
 if TYPE_CHECKING:
     from .plugin import CommandContext
 
@@ -55,15 +57,17 @@ def leaked_secret_arguments(context: CommandContext, argv: tuple[str, ...]) -> l
 
 def redact_process_argv(context: CommandContext, argv: tuple[str, ...]) -> tuple[str, ...]:
     """Redact any known secret values before argv is written to audit events."""
-    redacted: list[str] = []
-    for arg in argv:
-        value = arg
-        for ref in context._secrets.refs:
-            secret = context._secrets.get(ref)
-            if secret:
-                value = value.replace(secret, "<redacted>")
-        redacted.append(value)
-    return tuple(redacted)
+    return tuple(redact_known_secret_values(context, arg) for arg in argv)
+
+
+def redact_known_secret_values(context: CommandContext, text: str) -> str:
+    """Replace known plaintext secret values with the canonical redaction token."""
+    value = text
+    for ref in context._secrets.refs:
+        secret = context._secrets.get(ref)
+        if secret:
+            value = value.replace(secret, REDACTED_VALUE)
+    return value
 
 
 def audit_process_env(context: CommandContext, env: Mapping[str, str] | None) -> dict[str, Any] | None:
@@ -77,7 +81,6 @@ def audit_process_env(context: CommandContext, env: Mapping[str, str] | None) ->
         for ref, secret_ref in context._secrets.refs.items():
             secret = context._secrets.get(ref)
             if secret and secret in value:
-                value = value.replace(secret, "<redacted>")
                 secrets.append(
                     {
                         "env": str(key),
@@ -85,6 +88,7 @@ def audit_process_env(context: CommandContext, env: Mapping[str, str] | None) ->
                         "fingerprint": secret_ref.fingerprint.format(),
                     }
                 )
+        value = redact_known_secret_values(context, value)
         redacted[str(key)] = value
     return {"env": redacted, "secrets": secrets}
 

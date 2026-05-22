@@ -210,6 +210,32 @@ hostscanner 192.168.1.0/24 -s &
 hostscanner 10.0.0.0/24 &
 ```
 
+## Preferences
+
+Preferences are user-owned defaults, not runtime evidence. The intended `pref`
+model stores them outside project databases under `~/.bywaf`, for example in
+`~/.bywaf/preferences.toml`.
+
+Use preferences for operator experience and cross-project defaults:
+
+- display colors and table style;
+- prompt behavior;
+- preferred pager/editor/tool paths;
+- plugin UX defaults, such as `plugins.portscanner.default-arguments`.
+
+Use variables for execution state that can affect command behavior:
+
+- `global.policy.network.allow`;
+- `hostscanner.targets`;
+- `http_probe.cookie-file`;
+- commandlet arguments captured for a run.
+
+The boundary is audit-driven: preferences may influence defaults, but any
+effective value that changes evidence-producing execution should be captured in
+the run snapshot or emitted event payload. Plugins may read preferences for
+defaults. Plugin writes to preferences should be framework-mediated and
+user-approved, not silent writes to `~/.bywaf/preferences.toml`.
+
 ## Runtime Listings
 
 Runtime listing commands show table-oriented views:

@@ -158,7 +158,7 @@ class AppDispatchTests(unittest.TestCase):
             {"host": "192.0.2.10", "port": 443, "protocol": "tcp", "service": "https"},
             "portscanner",
         )
-        self.assertEqual(format_event(event), "#None port.open 192.0.2.10:443/tcp https")
+        self.assertEqual(format_event(event), "None: port.open 192.0.2.10:443/tcp https")
 
     def test_format_event_shows_console_alert_readably(self):
         event = Event.new(
@@ -173,7 +173,7 @@ class AppDispatchTests(unittest.TestCase):
             "framework",
         )
         text = format_event(event)
-        self.assertEqual(text, "#None portscanner alert: discovered port 80/tcp on host 142.251.153.119")
+        self.assertEqual(text, "None: portscanner alert: discovered port 80/tcp on host 142.251.153.119")
         self.assertNotIn("{", text)
 
     def test_format_event_shows_common_operator_events_without_dict_dump(self):
@@ -237,6 +237,16 @@ class AppDispatchTests(unittest.TestCase):
                 {"target_type": "pipeline", "target_id": "pipeline-1", "name": "client scan"},
                 "pipeline pipeline-1 named client scan",
             ),
+            (
+                "job.failed",
+                {
+                    "job_id": 376,
+                    "started_at": "2026-05-22T10:00:00+00:00",
+                    "command": "hostscanner 127.0.0.1",
+                    "error": "nmap unavailable",
+                },
+                "job 376 failed",
+            ),
         ]
         for topic, payload, expected in cases:
             with self.subTest(topic=topic):
@@ -269,6 +279,74 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("'n': 2", text)
             self.assertIn("'n': 3", text)
             self.assertIn("'n': 4", text)
+
+    def test_events_colors_event_ids_when_enabled(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.registry.varstore.set("display.events.color", "always")
+            event = runner.db.publish("plugin.progress.completed", {"commandlet": "hostscanner", "n": 1}, "hostscanner")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "events last=1")
+            text = output.getvalue()
+            self.assertIn(f"\x1b[94m{event.id}\x1b[0m:", text)
+            self.assertIn("\x1b[1;33mhostscanner\x1b[0m", text)
+
+    def test_event_id_prints_event_runtime_context(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("hostscanner 127.0.0.1", 123, "running")
+            runner.db.finish_job(job_id, "failed")
+            event = runner.db.publish(
+                "job.failed",
+                {"job_id": job_id, "command": "hostscanner 127.0.0.1", "error": "boom"},
+                "runner",
+            )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, f"event {event.id}")
+            text = output.getvalue()
+            self.assertIn(f"Event ID: {event.id}", text)
+            self.assertIn("Topic: job.failed", text)
+            self.assertIn("Source: runner", text)
+            self.assertIn("Created: ", text)
+            created = text.split("Created: ", 1)[1].splitlines()[0]
+            self.assertRegex(created, r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [A-Z]+")
+            self.assertIn("Job:", text)
+            self.assertIn("Commandlet: hostscanner", text)
+            self.assertIn("Command: hostscanner 127.0.0.1", text)
+            self.assertIn("error: boom", text)
+
+    def test_event_id_reports_unknown_event_id(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "event 999")
+            self.assertIn("error: unknown event: 999", output.getvalue())
+
+    def test_event_id_colors_detail_keys_when_enabled(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.registry.varstore.set("display.events.color", "always")
+            runner.registry.varstore.set("display.events.key-color", "green")
+            job_id = runner.db.record_job("hostscanner 127.0.0.1", 123, "running")
+            runner.db.finish_job(job_id, "failed")
+            event = runner.db.publish(
+                "job.failed",
+                {"job_id": job_id, "commandlet": "hostscanner", "error": "boom"},
+                "runner",
+            )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, f"event {event.id}")
+            text = output.getvalue()
+            self.assertIn(f"\x1b[33mEvent ID\x1b[0m: \x1b[94m{event.id}\x1b[0m", text)
+            self.assertIn("\x1b[32mTopic\x1b[0m: job.failed", text)
+            self.assertIn("\x1b[32mCommandlet\x1b[0m: \x1b[1;33mhostscanner\x1b[0m", text)
+            self.assertIn("\x1b[33mPayload\x1b[0m:", text)
+            self.assertIn("  \x1b[32mcommandlet\x1b[0m: \x1b[1;33mhostscanner\x1b[0m", text)
+            self.assertIn("  \x1b[32merror\x1b[0m: boom", text)
 
     def test_main_version_returns_success(self):
         with contextlib.redirect_stdout(io.StringIO()):
@@ -397,6 +475,25 @@ class AppDispatchTests(unittest.TestCase):
         with contextlib.redirect_stdout(output):
             self.assertTrue(confirm_repl_exit(reader))
         self.assertIn("please answer yes or no", output.getvalue())
+
+    def test_confirm_repl_exit_accepts_single_yes_keypress(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.assertTrue(confirm_repl_exit(key_reader=lambda: "y"))
+        self.assertIn("Quit Bywaf? [y/N] y", output.getvalue())
+
+    def test_confirm_repl_exit_accepts_single_no_keypress(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.assertFalse(confirm_repl_exit(key_reader=lambda: "n"))
+        self.assertIn("Quit Bywaf? [y/N] n", output.getvalue())
+
+    def test_confirm_repl_exit_reprompts_single_keypress_until_yes_or_no(self):
+        answers = iter(["x", "y"])
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.assertTrue(confirm_repl_exit(key_reader=lambda: next(answers)))
+        self.assertIn("please press y or n", output.getvalue())
 
     def test_read_logical_input_joins_backslash_continuations(self):
         state = ShellState()
@@ -804,7 +901,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertTrue(runner.registry.secrets.is_ref(stored))
             self.assertEqual(runner.registry.secrets.get(stored), "supersecret")
             self.assertNotIn("supersecret", text)
-            self.assertIn("session.ticket=<redacted> fingerprint=hmac-sha256:", text)
+            self.assertIn("session.ticket=[REDACTED] fingerprint=hmac-sha256:", text)
 
     def test_vars_secret_flag_before_equals_marks_assignment_secret(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -824,7 +921,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertTrue(runner.registry.secrets.is_ref(stored))
             self.assertEqual(runner.registry.secrets.get(stored), "supersecret")
             self.assertNotIn("supersecret", text)
-            self.assertIn("session.ticket=<redacted> fingerprint=hmac-sha256:", text)
+            self.assertIn("session.ticket=[REDACTED] fingerprint=hmac-sha256:", text)
 
     def test_vars_empty_explicit_secret_prompts_and_redacts(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -846,7 +943,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertTrue(runner.registry.secrets.is_ref(stored))
             self.assertEqual(runner.registry.secrets.get(stored), "prompted-secret")
             self.assertNotIn("prompted-secret", text)
-            self.assertIn("pw=<redacted> fingerprint=hmac-sha256:", text)
+            self.assertIn("pw=[REDACTED] fingerprint=hmac-sha256:", text)
 
     def test_vars_redacted_block_uses_hidden_secret_value(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -868,7 +965,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertTrue(runner.registry.secrets.is_ref(stored))
             self.assertEqual(runner.registry.secrets.get(stored), "block-secret")
             self.assertNotIn("block-secret", text)
-            self.assertIn("pw=<redacted> fingerprint=hmac-sha256:", text)
+            self.assertIn("pw=[REDACTED] fingerprint=hmac-sha256:", text)
 
     def test_vars_empty_secret_flag_before_equals_prompts_and_redacts(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -890,7 +987,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertTrue(runner.registry.secrets.is_ref(stored))
             self.assertEqual(runner.registry.secrets.get(stored), "prompted-secret")
             self.assertNotIn("prompted-secret", text)
-            self.assertIn("session.ticket=<redacted> fingerprint=hmac-sha256:", text)
+            self.assertIn("session.ticket=[REDACTED] fingerprint=hmac-sha256:", text)
 
     def test_vars_can_color_names_and_values(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -903,7 +1000,49 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "var target=127.0.0.1", state)
                 dispatch_repl_line(runner, "var target", state)
+                dispatch_repl_line(runner, "var target", state)
             self.assertIn("\x1b[33mtarget\x1b[0m=\x1b[94m127.0.0.1\x1b[0m", output.getvalue())
+
+    def test_vars_accept_extended_color_specs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            runner.registry.varstore.set("display.vars.color", "always")
+            runner.registry.varstore.set("display.vars.name-color", "rgb:80,180,90")
+            runner.registry.varstore.set("display.vars.value-color", "ansi:34")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "var target=127.0.0.1", state)
+                dispatch_repl_line(runner, "var target", state)
+            self.assertIn("\x1b[38;2;80;180;90mtarget\x1b[0m=\x1b[38;5;34m127.0.0.1\x1b[0m", output.getvalue())
+
+    def test_vars_ignore_invalid_extended_color_specs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            runner.registry.varstore.set("display.vars.color", "always")
+            runner.registry.varstore.set("display.vars.name-color", "rgb:999,0,0")
+            runner.registry.varstore.set("display.vars.value-color", "ansi:999")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "var target=127.0.0.1", state)
+                dispatch_repl_line(runner, "var target", state)
+            self.assertIn("target=127.0.0.1", output.getvalue())
+            self.assertNotIn("\x1b[", output.getvalue())
+
+    def test_vars_secret_redaction_uses_warning_style_when_colored(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            runner.registry.varstore.set("display.vars.color", "always")
+            output = io.StringIO()
+            with (
+                patch("bywaf.repl.commands.load_or_create_fingerprint_key", return_value=b"k" * 32),
+                contextlib.redirect_stdout(output),
+            ):
+                dispatch_repl_line(runner, "var --secret session.ticket=supersecret", state)
+            self.assertIn("\x1b[37;48;5;52m[REDACTED]\x1b[0m", output.getvalue())
+            self.assertNotIn("supersecret", output.getvalue())
 
     def test_vars_secret_assignment_respects_active_context(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1018,6 +1157,15 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("cmds", output.getvalue())
             self.assertIn("load script=<path>", output.getvalue())
 
+    def test_dispatch_help_colors_commands_when_enabled(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.registry.varstore.set("display.help.color", "always")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "?")
+            self.assertIn("\x1b[32mplugins", output.getvalue())
+
     def test_dispatch_runs_lists_command_runs(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -1093,6 +1241,8 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("run name", text)
             self.assertIn("pipeline name", text)
             self.assertIn("job name", text)
+            self.assertIn("commandlet=hostscanner", text)
+            self.assertIn("command=hostscanner 127.0.0.1", text)
             self.assertIn("ARTIFACTS", text)
 
     def test_dispatch_runs_defaults_to_active_unless_all_requested(self):

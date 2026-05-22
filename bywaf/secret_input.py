@@ -16,6 +16,8 @@ import shlex
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from .secrets import REDACTED_VALUE
+
 try:
     from prompt_toolkit.document import Document
     from prompt_toolkit.filters import Condition
@@ -36,8 +38,8 @@ except ImportError:  # pragma: no cover - exercised only on minimal installs.
 
 SECRET_INPUT_MODE_VAR = "secret.input-mode"
 DEFAULT_SECRET_INPUT_MODE = "block"
-SECRET_INPUT_MODES = {"block", "getpass"}
-SECRET_BLOCK_VALUE = "[REDACTED]"
+SECRET_INPUT_MODES = {"block", "getpass", "plain", "plaintext"}
+SECRET_BLOCK_VALUE = REDACTED_VALUE
 
 
 @dataclass(slots=True)
@@ -143,6 +145,17 @@ class PromptSecretInputState:
         """Drop the secret if visible edits invalidate the secret assignment."""
         if self.span is not None and buffer.cursor_position <= self.span.start:
             self.drop_span(buffer)
+
+    def delete_before_cursor(self, buffer) -> None:
+        """Backspace safely around a protected secret span."""
+        self.forget_if_editing_prefix(buffer)
+        buffer.delete_before_cursor(count=1)
+
+    def delete_at_cursor(self, buffer) -> None:
+        """Delete safely around a protected secret span."""
+        if self.span is not None and buffer.cursor_position < self.span.start:
+            self.drop_span(buffer)
+        buffer.delete(count=1)
 
     def values_for_command(self, text: str) -> dict[str, str]:
         """Return hidden secret values that correspond to a submitted line."""
@@ -272,7 +285,29 @@ def prompt_secret_key_bindings(state: PromptSecretInputState, enabled: Callable[
             span.value = ""
             event.app.invalidate()
             return
-        buffer.delete_before_cursor(count=1)
+        state.delete_before_cursor(buffer)
+
+    @bindings.add("delete", filter=span_focused, eager=True)
+    def _clear_secret_delete(event) -> None:
+        span = state.focused()
+        if span is not None:
+            span.value = ""
+            event.app.invalidate()
+
+    @bindings.add("delete", eager=True)
+    def _delete(event) -> None:
+        buffer = event.current_buffer
+        span = state.span
+        if span is not None and state.cursor_relation(buffer.document) == "start":
+            state.focus_span(event.app)
+            span.value = ""
+            event.app.invalidate()
+            return
+        state.delete_at_cursor(buffer)
+
+    @bindings.add("escape", filter=span_focused, eager=True)
+    def _leave_secret_focus(event) -> None:
+        state.leave_after(event.current_buffer, event.app)
 
     @bindings.add(Keys.Any, filter=span_focused, eager=True)
     def _secret_text(event) -> None:
