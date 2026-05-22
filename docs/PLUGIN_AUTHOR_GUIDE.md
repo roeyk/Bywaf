@@ -319,6 +319,7 @@ Create a plugin directory:
 ```text
 .bywaf/plugins/hello/
   plugin.py
+  bywaf.plugin.toml
 ```
 
 Put this in `.bywaf/plugins/hello/plugin.py`:
@@ -327,49 +328,49 @@ Put this in `.bywaf/plugins/hello/plugin.py`:
 from collections.abc import Iterable
 
 from bywaf.events import Event
-from bywaf.plugin import CommandContext, CommandSpec, Commandlet
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, argument, commandlet
 
 
-class Hello:
-    spec = CommandSpec(
-        name="hello",
-        description="Say hello and emit a greeting event.",
-        usage="hello [name]",
-        examples=("hello", "hello world"),
-        emits=("hello.greeting",),
-    )
-
+@commandlet(
+    name="hello",
+    description="Say hello and emit a greeting event.",
+    usage="hello [name]",
+    examples=("hello", "hello world"),
+    emits=("hello.greeting",),
+    capabilities=("framework.console.output",),
+)
+@argument("name", "name to greet", required=False)
+class Hello(CommandletBase):
     def run(
         self,
         context: CommandContext,
         args: list[str],
         input_events: Iterable[Event],
     ):
-        name = args[0] if args else "world"
-        context.output(f"hello, {name}")
-        yield {"name": name, "message": f"hello, {name}"}
+        del input_events
+        parser = self.parser()
+        parser.add_argument("name", nargs="?", default="world")
+        parsed = parser.parse_args(args)
+        message = f"hello, {parsed.name}"
+        context.output(message)
+        yield {"name": parsed.name, "message": message}
 
 
 def plugin() -> Commandlet:
     return Hello()
 ```
 
-If your commandlet uses `argparse`, inherit from `CommandletBase` and call
-`self.parser()` so the parser name stays consistent with the commandlet spec:
+Put this in `.bywaf/plugins/hello/bywaf.plugin.toml`:
 
-```python
-from bywaf.plugin import CommandletBase
+```toml
+[plugin]
+native = true
 
-
-class Hello(CommandletBase):
-    spec = CommandSpec(...)
-
-    def run(self, context, args, input_events):
-        parser = self.parser()
-        parser.add_argument("name", nargs="?", default="world")
-        parsed = parser.parse_args(args)
-        context.output(f"hello, {parsed.name}")
-        yield {"name": parsed.name}
+[[commandlets]]
+name = "hello"
+capabilities = [
+  "framework.console.output",
+]
 ```
 
 Load and run it:
@@ -385,7 +386,7 @@ hello, world
 Show the events:
 
 ```text
-bywaf> show hello.greeting
+bywaf> event hello.greeting
 ```
 
 # CommandSpec Fields

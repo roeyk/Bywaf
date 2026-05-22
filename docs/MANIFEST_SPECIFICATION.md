@@ -79,6 +79,9 @@ The `[plugin]` table describes plugin-level traits.
 # Commandlet Entries
 
 Each `[[commandlets]]` entry declares one commandlet exposed by the plugin.
+Only the keys below are used by Bywaf for commandlet manifest validation.
+Descriptions, examples, `emits`, `consumes`, and runtime argument metadata
+belong in Python `@commandlet`, `@argument`, and `@option` declarations.
 
 | Key | Type | Required | Meaning |
 | --- | --- | --- | --- |
@@ -135,6 +138,11 @@ behavior.
 Bywaf validates manifest fields using strict TOML types for the fields it
 understands. Strings must be strings, booleans must be booleans, and list fields
 must contain strings.
+
+Unknown keys are not a public extension mechanism. They may be tolerated by the
+current parser, but Bywaf does not use them for commandlet registration,
+completion, emitted topics, argument parsing, or help output. Keep commandlet
+metadata in Python unless this specification lists the field.
 
 The loader enforces these consistency checks:
 
