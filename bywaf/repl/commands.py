@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING, Any
 from ..framework_requests import process_framework_requests
 from .display import (
     display_var_value,
-    friendly_error,
     print_commandlets,
     print_events,
     print_help,

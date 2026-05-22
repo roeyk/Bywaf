@@ -55,6 +55,51 @@ from .completion_core import runtime_completion_target
 from .completion_core import tokens_after_last_pipe
 from .completion_core import variable_reference_candidates
 
+__all__ = [
+    "BINARY_OPTION_NAMES",
+    "COMPLETION_SELECT_KEY_VAR",
+    "COMPLETION_WASD_SELECTION_VAR",
+    "DEFAULT_COMPLETION_SELECT_KEY",
+    "Completer",
+    "CoreCompleter",
+    "PromptToolkitCompleter",
+    "apply_current_completion",
+    "build_prompt_session",
+    "bundle_candidates",
+    "common_completion_prefix",
+    "complete_at_file_prefix",
+    "complete_resource_value",
+    "completion_bottom_toolbar",
+    "completion_key_bindings",
+    "completion_prefix",
+    "completion_results",
+    "completion_select_key",
+    "completion_select_key_display",
+    "completion_wasd_selection_enabled",
+    "configure_readline_delimiters",
+    "display_label",
+    "enter_completion_selection_mode",
+    "format_candidate",
+    "framework_bool",
+    "history_candidates",
+    "install_readline",
+    "is_explicit_path",
+    "key_candidates",
+    "option_is_binary",
+    "positional_index",
+    "preserve_explicit_prefix",
+    "print_completion_menu",
+    "prompt_toolkit_available",
+    "register_select_completion_binding",
+    "register_wasd_completion_bindings",
+    "resource_candidates",
+    "runtime_completion_target",
+    "should_display_value_only",
+    "should_print_completion_menu",
+    "tokens_after_last_pipe",
+    "variable_reference_candidates",
+]
+
 COMPLETION_SELECT_KEY_VAR = "completion.select-key"
 COMPLETION_WASD_SELECTION_VAR = "completion.wasd-selection"
 DEFAULT_COMPLETION_SELECT_KEY = "c-space"

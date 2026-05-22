@@ -12,7 +12,6 @@ Used by:
 from __future__ import annotations
 
 import argparse
-import getpass
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -63,6 +62,44 @@ from .repl.resources import (
     strip_inline_comment,
 )
 from .runner import Runner, add_runner_arguments
+
+__all__ = [
+    "DEFAULT_DATABASE",
+    "ShellState",
+    "build_parser",
+    "command_from_remainder",
+    "confirm_repl_exit",
+    "dispatch_repl_line",
+    "format_event",
+    "format_history_entry_for_display",
+    "friendly_error",
+    "line_has_continuation",
+    "load_history",
+    "main",
+    "make_runner",
+    "new_shell_state",
+    "parse_load_spec",
+    "parse_save_spec",
+    "print_commandlets",
+    "print_events",
+    "print_history",
+    "print_triggers",
+    "process_framework_requests",
+    "read_logical_input",
+    "record_command_history",
+    "remove_line_continuation",
+    "render_prompt",
+    "repl",
+    "resolve_resource_path",
+    "run_remainder",
+    "run_script",
+    "save_history",
+    "script_commands",
+    "set_prompt_pattern",
+    "shutdown_runner",
+    "split_command_sequence",
+    "strip_inline_comment",
+]
 
 
 def build_parser() -> argparse.ArgumentParser:

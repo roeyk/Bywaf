@@ -21,7 +21,6 @@ from ..toml_support import load_data_file
 from .loading import load_module_path, load_plugins, load_trigger_specs
 from .trust import (
     PluginManifestTrust,
-    PluginTrustError,
     PluginTrustPolicy,
     enforce_plugin_manifest_signature,
 )

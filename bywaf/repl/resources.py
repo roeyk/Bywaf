@@ -49,6 +49,43 @@ from .state import ResourceState
 from .state import default_resource_state
 from .state import hydrate_persistent_secrets
 
+__all__ = [
+    "DEFAULT_CONFIG",
+    "DEFAULT_CONFIG_DIR",
+    "DEFAULT_DATABASE",
+    "DEFAULT_DATABASE_DIR",
+    "DEFAULT_HISTORY",
+    "DEFAULT_LOAD_RESOURCE_KEYS",
+    "DEFAULT_PLUGIN_DIR",
+    "DEFAULT_SAVE_RESOURCE_KEYS",
+    "DEFAULT_SCRIPT_DIR",
+    "DEFAULT_SETTINGS",
+    "ResourceState",
+    "apply_config",
+    "default_resource_state",
+    "dispatch_project_command",
+    "hydrate_persistent_secrets",
+    "load_config",
+    "load_database",
+    "load_history",
+    "load_repl_resource",
+    "parse_load_spec",
+    "parse_resource_assignment",
+    "parse_save_spec",
+    "plugin_manifest_audit_details",
+    "print_project_info",
+    "prompt_database_passphrase",
+    "publish_resource_loaded",
+    "resolve_resource_path",
+    "run_script",
+    "save_config",
+    "save_database",
+    "save_history",
+    "save_repl_resource",
+    "script_commands",
+    "strip_inline_comment",
+]
+
 
 def load_repl_resource(runner: Runner, spec: str, state: ResourceState | None = None) -> None:
     """Handle `load key=value` resources from the REPL."""

@@ -17,9 +17,8 @@ import multiprocessing as mp
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
 
-from ..command_parser import CommandInvocation, Pipeline, parse_invocation, parse_pipeline
+from ..command_parser import CommandInvocation, Pipeline, parse_pipeline
 from .at_files import expand_at_file_args
 from .context import StageRun
 from .context import build_context

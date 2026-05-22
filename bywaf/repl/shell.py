@@ -24,16 +24,10 @@ from pathlib import Path
 
 from ..completion import Completer, build_prompt_session, install_readline
 from ..framework_requests import process_framework_requests
-from .commands import REPL_COMMAND_HANDLERS, execute_repl_commandlet, set_prompt_pattern
+from .commands import REPL_COMMAND_HANDLERS, execute_repl_commandlet
 from .display import (
-    display_var_value,
-    format_event,
-    format_history_entry_for_display,
     friendly_error,
-    print_commandlets,
     print_events,
-    print_history,
-    print_triggers,
 )
 from ..nmap_backend import NmapScanError, NmapUnavailableError
 from ..projects import ProjectPaths
