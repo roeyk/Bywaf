@@ -104,7 +104,7 @@ class CompletionRegressionTests(unittest.TestCase):
             ("hostscanner 127.0.0.1 | por", "portscanner"),
             ("finding_report --", "--help"),
             ("artifact search file", "filename="),
-            ("events ", "tail"),
+            ("events ", "--tail"),
             ("run por", "portscanner"),
             ("load pl", "plugin="),
             ("save hi", "history="),

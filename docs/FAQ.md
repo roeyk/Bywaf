@@ -44,6 +44,62 @@ bywaf> hostscanner 192.168.1.0/24 | portscanner | http_probe
 Each stage emits structured events into the database. Later stages consume those
 events instead of scraping terminal output.
 
+## I started a port scanner. How do I see what it found?
+
+```text
+bywaf> event port.open
+```
+
+That shows the durable `port.open` evidence events. If you want the recent event
+tail first, use:
+
+```text
+bywaf> events
+```
+
+If the scan is still running, use runtime listings to find the active job or run:
+
+```text
+bywaf> jobs
+bywaf> runs
+```
+
+Then narrow the event view:
+
+```text
+bywaf> event run=7
+```
+
+`portscanner` does not emit one event for every closed port by default. It emits
+`port.open` evidence and scan progress/summary events, keeping the database
+useful for later correlation.
+
+## How do I see Nikto's raw output?
+
+```text
+bywaf> artifact list
+```
+
+Find the artifact attached by the `nikto` run, then save it:
+
+```text
+bywaf> artifact save artifact=1 file=nikto.json
+```
+
+If you know the run, list or save artifacts for that run:
+
+```text
+bywaf> artifact list run=7
+bywaf> artifact save run=7 dir=artifacts/nikto-run-7/
+```
+
+For normalized Nikto findings, use the event or report flow:
+
+```text
+bywaf> event nikto.finding
+bywaf> nikto https://example.com/ | finding_dedupe | finding_report
+```
+
 ## How do I run a pipeline in the background?
 
 ```text

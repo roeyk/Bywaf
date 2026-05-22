@@ -90,6 +90,7 @@ __all__ = [
     "completion_select_key_display",
     "completion_wasd_selection_enabled",
     "configure_readline_delimiters",
+    "cancel_completion_menu",
     "display_label",
     "enter_completion_selection_mode",
     "format_candidate",
@@ -263,9 +264,9 @@ def register_select_completion_binding(bindings, select_key: str) -> None:
     def _accept_completion(event) -> None:
         apply_current_completion(event)
 
-    @bindings.add("escape", filter=has_completions)
+    @bindings.add("escape", filter=has_completions, eager=True)
     def _cancel_completion(event) -> None:
-        event.current_buffer.cancel_completion()
+        cancel_completion_menu(event)
 
 
 def register_wasd_completion_bindings(bindings) -> None:
@@ -298,6 +299,11 @@ def apply_current_completion(event) -> None:
         completion = buffer.complete_state.completions[0]
     if completion is not None:
         buffer.apply_completion(completion)
+
+
+def cancel_completion_menu(event) -> None:
+    """Dismiss an active prompt-toolkit completion menu."""
+    event.current_buffer.cancel_completion()
 
 
 def enter_completion_selection_mode(event) -> None:

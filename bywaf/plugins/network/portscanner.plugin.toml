@@ -8,5 +8,6 @@ name = "portscanner"
 capabilities = [
   "framework.console.alert",
   "network.connect",
+  "plugin.progress",
 ]
 module = "bywaf.plugins.network.portscanner"

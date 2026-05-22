@@ -9,6 +9,7 @@ Used by:
 
 from __future__ import annotations
 
+import argparse
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
@@ -65,12 +66,13 @@ class FindingReport(CommandletBase):
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Render a findings report from dedupe output or raw tool events."""
         parser = self.parser()
+        parser.usage = self.spec.usage
         parser.add_argument("--candidates", action="store_true")
-        parser.add_argument("--export", default="")
-        parser.add_argument("--file", default="")
-        parser.add_argument("--format", choices=FORMAT_CHOICES, default="md")
-        parser.add_argument("--limit", type=int, default=1000)
-        parser.add_argument("--source", choices=SOURCE_CHOICES, default="auto")
+        parser.add_argument("--export", default="", help=argparse.SUPPRESS)
+        parser.add_argument("--file", default="", help=argparse.SUPPRESS)
+        parser.add_argument("--format", choices=FORMAT_CHOICES, default="md", help=argparse.SUPPRESS)
+        parser.add_argument("--limit", type=int, default=1000, help=argparse.SUPPRESS)
+        parser.add_argument("--source", choices=SOURCE_CHOICES, default="auto", help=argparse.SUPPRESS)
         parsed = parser.parse_args(key_value_to_long_options(args, OPTION_KEYS))
 
         events = select_report_events(

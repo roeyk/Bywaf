@@ -20,6 +20,7 @@ from bywaf.completion import (
     COMPLETION_WASD_SELECTION_VAR,
     Completer,
     PromptToolkitCompleter,
+    cancel_completion_menu,
     common_completion_prefix,
     completion_results,
     completion_select_key,
@@ -657,7 +658,8 @@ class RegistryCompletionTests(unittest.TestCase):
 
     def test_events_completes_tail_selectors(self):
         completer = Completer(self.registry)
-        self.assertIn("tail", completer.candidates("events "))
+        self.assertIn("--tail", completer.candidates("events "))
+        self.assertNotIn("tail", completer.candidates("events "))
         self.assertIn("last=", completer.candidates("events "))
 
     def test_job_completes_actions_and_job_ids(self):
@@ -692,6 +694,51 @@ class RegistryCompletionTests(unittest.TestCase):
             self.assertIn("serial=run-1", completer.candidates("signal serial="))
             self.assertIn("serial=pipe-1", completer.candidates("signal serial="))
             self.assertEqual(completer.candidates("cancel pipeline="), ["pipeline=1"])
+
+    def test_project_completes_actions_and_selectors(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = Path(tmp, ".bywaf", "projects")
+            (project_root / "client-a").mkdir(parents=True)
+            (project_root / "client-b").mkdir()
+            completer = Completer(self.registry)
+            with patch("pathlib.Path.home", return_value=Path(tmp)):
+                self.assertEqual(completer.candidates("project "), ["info", "list", "new", "use"])
+                self.assertEqual(completer.candidates("project i"), ["info"])
+                self.assertEqual(completer.candidates("project new "), ["--encrypt", "name="])
+                self.assertEqual(completer.candidates("project use "), ["--force", "name="])
+                self.assertEqual(completer.candidates("project use name=client-"), ["name=client-a", "name=client-b"])
+                self.assertEqual(completer.candidates("project use c"), ["client-a", "client-b"])
+                self.assertEqual(completer.candidates("project use --f"), ["--force"])
+
+    def test_builtin_commands_do_not_fall_back_to_root_completion(self):
+        completer = Completer(self.registry)
+        self.assertEqual(completer.candidates("plugins "), [])
+        self.assertEqual(completer.candidates("info "), [])
+        self.assertEqual(completer.candidates("triggers "), [])
+        self.assertEqual(completer.candidates("exit "), [])
+        self.assertEqual(completer.candidates("quit "), [])
+        self.assertEqual(completer.candidates("q "), [])
+        self.assertEqual(completer.candidates("cmds "), ["--page"])
+        self.assertEqual(completer.candidates("cmds --"), ["--page"])
+        self.assertEqual(completer.candidates("jobs "), ["--all", "--page"])
+        self.assertEqual(completer.candidates("pipelines "), ["--page"])
+        self.assertEqual(completer.candidates("runs "), ["--all"])
+        self.assertIn("plugins", completer.candidates("help plu"))
+        self.assertIn("project", completer.candidates("? pro"))
+
+    def test_cancel_completion_menu_dismisses_active_popup(self):
+        class Buffer:
+            cancelled = False
+
+            def cancel_completion(self):
+                self.cancelled = True
+
+        class Event:
+            current_buffer = Buffer()
+
+        event = Event()
+        cancel_completion_menu(event)
+        self.assertTrue(event.current_buffer.cancelled)
 
     def test_readline_delimiters_keep_hyphen_and_equals_in_completion_word(self):
         with (

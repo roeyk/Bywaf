@@ -154,6 +154,40 @@ class ConfigPluginTests(unittest.TestCase):
             self.assertEqual(used[0].payload["capability"], "framework.secret.resolve")
             self.assertTrue(used[0].payload["declared"])
 
+    def test_command_context_dedupes_repeated_capability_audit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="portscanner",
+                metadata={
+                    "command_run_id": "run-1",
+                    "capabilities": ("network.connect",),
+                },
+            )
+            context.audit_capability("network.connect")
+            context.audit_capability("network.connect")
+            used = db.events_for_topic("plugin.capability.used")
+            self.assertEqual(len(used), 1)
+            self.assertEqual(used[0].payload["capability"], "network.connect")
+
+    def test_command_context_keeps_request_specific_capability_audit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="test",
+                metadata={
+                    "command_run_id": "run-1",
+                    "capabilities": ("framework.console.output",),
+                },
+            )
+            context.audit_capability("framework.console.output", request_event_id=1)
+            context.audit_capability("framework.console.output", request_event_id=2)
+            used = db.events_for_topic("plugin.capability.used")
+            self.assertEqual(len(used), 2)
+            self.assertEqual([event.payload["request_event_id"] for event in used], [1, 2])
+
     def test_command_context_alert_prints_without_database(self):
         context = CommandContext(db=None, source="test", metadata={"command_run_id": "run-1"})
         output = io.StringIO()

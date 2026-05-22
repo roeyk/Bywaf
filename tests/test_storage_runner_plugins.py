@@ -912,6 +912,25 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 self.assertIn(">: discovered port 8080/tcp on host 127.0.0.1", output.getvalue())
                 alerts = runner.db.events_for_topic("console.alert")
                 self.assertTrue(any("discovered port 8080/tcp" in event.payload["message"] for event in alerts))
+                completed = runner.db.events_for_topic("plugin.progress.completed")
+                self.assertEqual(completed[-1].payload["phase"], "port_scan")
+                self.assertEqual(completed[-1].payload["open_ports"], 1)
+                self.assertEqual(len(runner.db.events_for_topic("port.open")), 1)
+
+    def test_portscanner_does_not_emit_events_for_closed_scanned_ports(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            with patch("bywaf.plugins.network.portscanner.scan_open_ports", return_value=[]):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    events = runner.execute("portscanner --ports 1-1000 127.0.0.1")
+            self.assertEqual(events, [])
+            self.assertEqual(runner.db.events_for_topic("port.open"), [])
+            topics = {event.topic for event in runner.db.recent_events(100)}
+            self.assertNotIn("port.closed", topics)
+            self.assertNotIn("port.filtered", topics)
+            completed = runner.db.events_for_topic("plugin.progress.completed")
+            self.assertEqual(completed[-1].payload["phase"], "port_scan")
+            self.assertEqual(completed[-1].payload["open_ports"], 0)
 
     def test_commandlet_can_use_events_from_prior_run(self):
         with tempfile.TemporaryDirectory() as tmp:

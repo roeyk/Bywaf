@@ -9,6 +9,7 @@ Used by:
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import re
@@ -194,11 +195,12 @@ class FindingDedupe(CommandletBase):
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Deduplicate input findings and publish normalized finding events."""
         parser = self.parser()
+        parser.usage = self.spec.usage
         parser.add_argument("-s", "--silent", action="store_true")
-        parser.add_argument("--file", default="")
-        parser.add_argument("--format", choices=("json", "md"), default="json")
-        parser.add_argument("--limit", type=int, default=1000)
-        parser.add_argument("--threshold", type=float, default=0.82)
+        parser.add_argument("--file", default="", help=argparse.SUPPRESS)
+        parser.add_argument("--format", choices=("json", "md"), default="json", help=argparse.SUPPRESS)
+        parser.add_argument("--limit", type=int, default=1000, help=argparse.SUPPRESS)
+        parser.add_argument("--threshold", type=float, default=0.82, help=argparse.SUPPRESS)
         parsed = parser.parse_args(key_value_to_long_options(args, OPTION_KEYS))
 
         events = selected_finding_events(context, list(input_events), parsed.limit)

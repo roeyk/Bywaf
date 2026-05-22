@@ -37,7 +37,7 @@ DEFAULTS = {
     ),
     consumes=("host.found",),
     emits=("port.open",),
-    capabilities=("framework.console.alert", "network.connect"),
+    capabilities=("framework.console.alert", "network.connect", "plugin.progress"),
 )
 @option("arguments", "nmap port scan arguments", "-sT")
 @option("except", "hosts to exclude from scans", "")
@@ -104,7 +104,26 @@ def scan_hosts(
     context.raise_if_cancelled()
     seen_hosts.update(new_hosts)
     context.audit_capability("network.connect")
-    for port in scan_open_ports(new_hosts, ports, arguments):
+    context.progress_started(
+        phase="port_scan",
+        total=len(new_hosts),
+        unit="hosts",
+        message="port scan started",
+        ports=ports or "",
+        arguments=arguments,
+    )
+    open_ports = scan_open_ports(new_hosts, ports, arguments)
+    context.progress_completed(
+        phase="port_scan",
+        current=len(new_hosts),
+        total=len(new_hosts),
+        unit="hosts",
+        message="port scan completed",
+        open_ports=len(open_ports),
+        ports=ports or "",
+        arguments=arguments,
+    )
+    for port in open_ports:
         context.raise_if_cancelled()
         context.alert(
             f"discovered port {port.port}/{port.protocol} on host {port.host}",

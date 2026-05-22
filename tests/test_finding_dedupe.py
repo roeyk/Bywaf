@@ -7,6 +7,8 @@ Used by:
 - pytest and CI: detect regressions in this subsystem.
 - maintainers: document expected behavior through executable examples."""
 
+import contextlib
+import io
 import tempfile
 import unittest
 from pathlib import Path
@@ -122,6 +124,19 @@ class FindingDedupeTests(unittest.TestCase):
             list(FindingDedupe().run(context_for(db), ["-s", f"file={summary}"], [event]))
             self.assertTrue(summary.exists())
             self.assertEqual(db.events_for_topic("artifact.attached")[0].payload["name"], "summary.json")
+
+    def test_argparse_usage_uses_bywaf_key_value_style(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit):
+                list(FindingDedupe().run(context_for(db), ["--bad"], []))
+            text = stderr.getvalue()
+            self.assertIn("finding_dedupe [file=summary.json|summary.md] [format=json|md] [threshold=0.82]", text)
+            self.assertNotIn("--file FILE", text)
+            self.assertNotIn("--format", text)
+            self.assertNotIn("--limit", text)
+            self.assertNotIn("--threshold", text)
 
     def test_normalizer_extracts_embedded_identifiers(self):
         with tempfile.TemporaryDirectory() as tmp:

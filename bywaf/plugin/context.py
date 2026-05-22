@@ -226,6 +226,12 @@ class CommandContext:
         if self._db is None:
             return
         declared = capability_declared(capability, self.declared_capabilities)
+        if request_event_id is None:
+            audited = self.metadata.setdefault("_audited_capabilities", set())
+            audit_key = (self.source, self.command_run_id, capability, declared)
+            if audit_key in audited:
+                return
+            audited.add(audit_key)
         payload = {
             "commandlet": self.source,
             "capability": capability,

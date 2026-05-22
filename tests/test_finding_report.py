@@ -7,6 +7,8 @@ Used by:
 - pytest and CI: detect regressions in this subsystem.
 - maintainers: document expected behavior through executable examples."""
 
+import contextlib
+import io
 import tempfile
 import unittest
 from pathlib import Path
@@ -91,6 +93,20 @@ class FindingReportTests(unittest.TestCase):
         self.assertEqual(infer_export_format(Path("report.xlsx"), "md"), "xlsx")
         self.assertEqual(infer_export_format(Path("report.json"), "md"), "jsonl")
         self.assertEqual(infer_export_format(Path("report.unknown"), "csv"), "csv")
+
+    def test_argparse_usage_uses_bywaf_key_value_style(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit):
+                list(FindingReport().run(context_for(db), ["--bad"], []))
+            text = stderr.getvalue()
+            self.assertIn("finding_report [source=auto|dedupe|tools|all] [export=report.md] [--candidates]", text)
+            self.assertNotIn("--export EXPORT", text)
+            self.assertNotIn("--file FILE", text)
+            self.assertNotIn("--format", text)
+            self.assertNotIn("--limit", text)
+            self.assertNotIn("--source", text)
 
     def test_pipeline_report_uses_preceding_dedupe_output(self):
         with tempfile.TemporaryDirectory() as tmp:

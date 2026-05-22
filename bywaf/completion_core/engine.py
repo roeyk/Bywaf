@@ -15,6 +15,7 @@ from dataclasses import dataclass
 
 from ..db import EventStore
 from ..plugin import CompletionContext
+from ..projects import list_projects
 from ..registry import PluginRegistry
 from ..specs import CompletionSpec
 from ..utils import complete_path
@@ -49,6 +50,7 @@ class CoreCompleter:
         "runs",
         "save",
         "topics",
+        "triggers",
         "use",
         "var",
         "exit",
@@ -85,11 +87,25 @@ class CoreCompleter:
         if command in self.registry.plugins:
             return self.plugin_candidates(command, prefix, rest)
         dispatch = {
+            "?": lambda current_prefix: self.help_candidates(current_prefix),
+            "cmds": lambda current_prefix: self.option_candidates(current_prefix, ("--page",)),
             "event": self.event_candidates,
-            "events": lambda _prefix: ["tail", "--tail", "last="],
+            "events": lambda _prefix: ["--tail", "last="],
+            "exit": lambda _prefix: [],
+            "help": lambda current_prefix: self.help_candidates(current_prefix),
             "history": history_candidates,
+            "info": lambda _prefix: [],
+            "jobs": lambda current_prefix: self.option_candidates(current_prefix, ("--all", "--page")),
+            "pipelines": lambda current_prefix: self.option_candidates(current_prefix, ("--page",)),
+            "plugins": lambda _prefix: [],
             "prompt": lambda _prefix: [],
+            "project": lambda current_prefix: self.project_candidates(current_prefix, rest),
+            "q": lambda _prefix: [],
+            "quit": lambda _prefix: [],
             "run": self.pipeline_expression_candidates,
+            "runs": lambda current_prefix: self.option_candidates(current_prefix, ("--all",)),
+            "topics": lambda _prefix: self.topic_completion_candidates(),
+            "triggers": lambda _prefix: [],
             "use": lambda _prefix: ["global", *self.registry.names()],
             "load": self.load_candidates,
             "save": self.save_candidates,
@@ -281,6 +297,15 @@ class CoreCompleter:
             return complete_path(prefix)
         return self.registry.names()
 
+    def help_candidates(self, prefix: str) -> list[str]:
+        """Complete visible commands and commandlets for `help`."""
+        del prefix
+        return [*self.builtins, *self.registry.names()]
+
+    def option_candidates(self, prefix: str, options: tuple[str, ...]) -> list[str]:
+        """Complete a small fixed option set for built-in commands."""
+        return [option for option in options if option.startswith(prefix)]
+
     def complete_by_spec(self, spec: CompletionSpec, prefix: str) -> list[str]:
         """Resolve a CompletionSpec into concrete candidates."""
         dispatch = {
@@ -315,6 +340,33 @@ class CoreCompleter:
     def save_candidates(self, prefix: str) -> list[str]:
         """Complete `save` resource keys and values."""
         return resource_candidates(prefix, ("config=", "db=", "history="))
+
+    def project_candidates(self, prefix: str, args: list[str]) -> list[str]:
+        """Complete REPL project subcommands and selectors."""
+        actions = ("info", "list", "new", "use")
+        if not args or (len(args) == 1 and args[0] == prefix):
+            return list(actions)
+        action = args[0]
+        if action == "new":
+            return self.project_new_candidates(prefix)
+        if action == "use":
+            return self.project_use_candidates(prefix)
+        return []
+
+    def project_new_candidates(self, prefix: str) -> list[str]:
+        """Complete `project new` selectors."""
+        candidates = ("name=", "--encrypt")
+        return [candidate for candidate in candidates if candidate.startswith(prefix)]
+
+    def project_use_candidates(self, prefix: str) -> list[str]:
+        """Complete `project use` selectors and known project names."""
+        if prefix.startswith("name="):
+            name_prefix = prefix.split("=", 1)[1]
+            return [f"name={project.name}" for project in list_projects() if project.name.startswith(name_prefix)]
+        candidates = ("name=", "--force")
+        if prefix and not prefix.startswith("-"):
+            candidates = (*candidates, *[project.name for project in list_projects()])
+        return [candidate for candidate in candidates if candidate.startswith(prefix)]
 
     def vars_candidates(self, prefix: str, args: list[str] | None = None) -> list[str]:
         """Complete variables, preferring the active `use` context."""
