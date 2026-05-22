@@ -16,6 +16,9 @@ Planning dates are release planning markers, not compatibility commitments.
   capabilities, trigger IDs, plugin data topics, and framework audit/control
   topics with their associated providers, commandlets, producers, consumers,
   purposes, or effects.
+- Core model documents now include top-of-file hyperlinked document indexes:
+  capability, design, event, framework surface, key management, persistence,
+  runtime, and terminology.
 - Plugin author guide now has a top guide index and explicit trigger-provider
   examples covering `TriggerSpec`, matching `[[triggers]]` manifest metadata,
   provider-scoped trigger IDs, lifecycle events, and cursor behavior.

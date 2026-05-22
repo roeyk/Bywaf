@@ -9,6 +9,16 @@ For the stable architecture model, see `RUNTIME_MODEL.md`, `EVENT_MODEL.md`,
 `CAPABILITY_MODEL.md`, `SYSTEM_BLOCK_DIAGRAM.pdf`, and
 `SYSTEM_DATAFLOW_DIAGRAM.pdf`.
 
+## Document Index
+
+- [Framework Request IPC](#framework-request-ipc)
+- [Cooperative Runtime Control](#cooperative-runtime-control)
+- [Plugin Capability Model](#plugin-capability-model)
+- [Framework Notes](#framework-notes)
+- [At-File Argument Expansion](#at-file-argument-expansion)
+- [Command Input Normalization](#command-input-normalization)
+- [Open Design Questions](#open-design-questions)
+
 ## Framework Request IPC
 
 Plugins should not directly control interpreter-owned behavior such as terminal

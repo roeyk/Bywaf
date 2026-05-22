@@ -3,6 +3,19 @@
 This document describes how Bywaf represents live and historical execution.
 For short definitions, see `TERMINOLOGY.md`.
 
+## Document Index
+
+- [Summary](#summary)
+- [Jobs](#jobs)
+- [Pipelines](#pipelines)
+- [Runs](#runs)
+- [Local IDs and Serials](#local-ids-and-serials)
+- [Foreground and Background Execution](#foreground-and-background-execution)
+- [Runtime Control](#runtime-control)
+- [Variables](#variables)
+- [Runtime Listings](#runtime-listings)
+- [Plugin Author Implications](#plugin-author-implications)
+
 ## Summary
 
 Bywaf separates runtime execution into three related entities:

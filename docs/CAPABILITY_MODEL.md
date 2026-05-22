@@ -8,6 +8,20 @@ trusted code. The near-term goal is to make intended behavior explicit, make
 actual behavior visible, and route sensitive actions through APIs that can be
 enforced later.
 
+## Document Index
+
+- [Why Capabilities Exist](#why-capabilities-exist)
+- [Declaring Capabilities](#declaring-capabilities)
+- [Common Capability Names](#common-capability-names)
+- [Capability Codes](#capability-codes)
+- [Plugin Integration Types](#plugin-integration-types)
+- [Audited Use](#audited-use)
+- [Preferred APIs](#preferred-apis)
+- [Policy and Test Mode](#policy-and-test-mode)
+- [Enforcement Modes](#enforcement-modes)
+- [Limits](#limits)
+- [Plugin Author Implications](#plugin-author-implications)
+
 ## Why Capabilities Exist
 
 Pentesting workflows often handle client targets, credentials, cookies,

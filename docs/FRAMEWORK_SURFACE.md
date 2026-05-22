@@ -10,6 +10,14 @@ Read each table as a resource map: the stable dotted name is the identifier,
 the associated provider or commandlet shows ownership, and the purpose or
 consumer columns describe why the name exists and what code normally uses it.
 
+## Document Index
+
+- [Capabilities](#capabilities)
+- [Trigger Rules](#trigger-rules)
+- [Plugin Data Topics](#plugin-data-topics)
+- [Framework Audit And Control Topics](#framework-audit-and-control-topics)
+- [Notes](#notes)
+
 ## Capabilities
 
 Capabilities are declared by commandlets and audited with

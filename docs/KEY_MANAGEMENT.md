@@ -3,6 +3,14 @@
 This document records Bywaf's maintainer policy for official plugin manifest
 signing keys and public verification keys.
 
+## Document Index
+
+- [Key Types](#key-types)
+- [Private Key Storage Controls](#private-key-storage-controls)
+- [Public Key Storage Controls](#public-key-storage-controls)
+- [Rotation Policy](#rotation-policy)
+- [Emergency Revocation](#emergency-revocation)
+
 ## Key Types
 
 Private manifest-signing keys are maintainer secrets. They are used only by

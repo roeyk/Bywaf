@@ -3,6 +3,19 @@
 Bywaf uses a small set of runtime terms consistently. These definitions are
 intended to keep the CLI, documentation, plugin API, and audit records aligned.
 
+## Document Index
+
+- [Job](#job)
+- [Pipeline](#pipeline)
+- [Run](#run)
+- [Local ID](#local-id)
+- [Serial](#serial)
+- [Event](#event)
+- [Topic](#topic)
+- [Commandlet](#commandlet)
+- [Plugin](#plugin)
+- [Capability](#capability)
+
 ## Job
 
 A job is the supervised execution lifecycle for foreground or background work.

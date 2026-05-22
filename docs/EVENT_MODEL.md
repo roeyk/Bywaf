@@ -4,6 +4,19 @@ Bywaf uses SQLite as an append-oriented event store. Commandlets cooperate by
 publishing and consuming structured events instead of passing ad hoc files or
 terminal output between tools.
 
+## Document Index
+
+- [Event Rows](#event-rows)
+- [Topics](#topics)
+- [Publishing](#publishing)
+- [Consuming](#consuming)
+- [Replay and Attachment](#replay-and-attachment)
+- [Framework Requests](#framework-requests)
+- [Runtime Control Events](#runtime-control-events)
+- [Artifacts and Notes](#artifacts-and-notes)
+- [Provenance](#provenance)
+- [Plugin Author Implications](#plugin-author-implications)
+
 ## Event Rows
 
 An event row records:

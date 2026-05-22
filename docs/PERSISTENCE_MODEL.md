@@ -4,6 +4,12 @@ Bywaf is local-first and SQLite remains the default storage implementation.
 The persistence model is still deliberately split into higher-level store
 contracts so framework code does not depend on SQLite details everywhere.
 
+## Document Index
+
+- [Store Contracts](#store-contracts)
+- [Plugin Boundary](#plugin-boundary)
+- [Backend Direction](#backend-direction)
+
 ## Store Contracts
 
 `EventStoreProtocol` describes the durable event bus and audit log. It covers
