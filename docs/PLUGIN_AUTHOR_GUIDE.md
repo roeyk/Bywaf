@@ -20,6 +20,7 @@ those dictionaries into SQLite under the first topic listed in `spec.emits`.
 - [Current API, Not Generic Plugin Patterns](#current-api-not-generic-plugin-patterns)
 - [Defining Inputs: Arguments vs Options](#defining-inputs-arguments-vs-options)
 - [A Minimal Commandlet](#a-minimal-commandlet)
+- [Complete External Plugin Example](#complete-external-plugin-example)
 - [CommandSpec Fields](#commandspec-fields)
 - [Plans](#plans)
 - [Parsing Arguments](#parsing-arguments)
@@ -387,6 +388,170 @@ Show the events:
 
 ```text
 bywaf> event hello.greeting
+```
+
+# Complete External Plugin Example
+
+This example shows a complete filesystem plugin package with both `plugin.py`
+and `bywaf.plugin.toml`. It checks common HTTP security headers and emits one
+structured event. It uses only the Python standard library, so
+`library_backed = false` is correct. If you replace the HTTP code with a
+third-party package such as `requests`, mark the manifest as
+`library_backed = true` and document that dependency.
+
+Create this package:
+
+```text
+.bywaf/plugins/http_header_check/
+  plugin.py
+  bywaf.plugin.toml
+```
+
+Put this in `.bywaf/plugins/http_header_check/bywaf.plugin.toml`:
+
+```toml
+[plugin]
+native = true
+library_backed = false
+process_wrapped = false
+service = false
+roles = ["command-provider"]
+
+[[commandlets]]
+name = "http_header_check"
+capabilities = [
+  "network.connect",
+  "framework.console.output",
+  "framework.console.alert",
+]
+```
+
+Put this in `.bywaf/plugins/http_header_check/plugin.py`:
+
+```python
+from collections.abc import Iterable
+import http.client
+import urllib.parse
+
+from bywaf.events import Event
+from bywaf.plugin import (
+    CommandContext,
+    Commandlet,
+    CommandletBase,
+    argument,
+    commandlet,
+)
+
+
+@commandlet(
+    name="http_header_check",
+    description="Check common HTTP security headers on a target URL.",
+    usage="http_header_check <url>",
+    examples=(
+        "http_header_check https://example.com",
+        "http_header_check https://google.com",
+    ),
+    emits=("http.headers.checked",),
+    capabilities=(
+        "network.connect",
+        "framework.console.output",
+        "framework.console.alert",
+    ),
+)
+@argument("url", "Target URL to check", required=True)
+class HttpHeaderCheck(CommandletBase):
+    """Check common security headers using only the standard library."""
+
+    def run(
+        self,
+        context: CommandContext,
+        args: list[str],
+        input_events: Iterable[Event],
+    ):
+        del input_events
+
+        parser = self.parser()
+        parser.add_argument("url", help="Target URL to check")
+        parsed = parser.parse_args(args)
+
+        url = parsed.url
+        context.output(f"Checking security headers for: {url}")
+
+        try:
+            parsed_url = urllib.parse.urlparse(url)
+            if not parsed_url.scheme:
+                parsed_url = urllib.parse.urlparse(f"https://{url}")
+
+            scheme = parsed_url.scheme.lower()
+            hostname = parsed_url.hostname
+            port = parsed_url.port
+
+            if hostname is None:
+                context.alert("Invalid URL: no hostname found")
+                return
+            if scheme not in {"http", "https"}:
+                context.alert("Invalid URL: scheme must be http or https")
+                return
+
+            if scheme == "https":
+                conn = http.client.HTTPSConnection(hostname, port, timeout=10)
+            else:
+                conn = http.client.HTTPConnection(hostname, port, timeout=10)
+
+            try:
+                path = urllib.parse.urlunparse(
+                    ("", "", parsed_url.path or "/", "", parsed_url.query, "")
+                )
+                conn.request("GET", path)
+                resp = conn.getresponse()
+
+                security_headers = {
+                    "Strict-Transport-Security": resp.getheader("strict-transport-security"),
+                    "X-Frame-Options": resp.getheader("x-frame-options"),
+                    "X-Content-Type-Options": resp.getheader("x-content-type-options"),
+                    "X-XSS-Protection": resp.getheader("x-xss-protection"),
+                    "Content-Security-Policy": resp.getheader("content-security-policy"),
+                    "Referrer-Policy": resp.getheader("referrer-policy"),
+                    "Permissions-Policy": resp.getheader("permissions-policy"),
+                }
+                missing = [key for key, value in security_headers.items() if not value]
+                score = max(0, 100 - len(missing) * 15)
+
+                context.output(f"Status: {resp.status} | Security Score: {score}/100")
+                if missing:
+                    context.alert(f"Missing security headers: {', '.join(missing)}")
+                else:
+                    context.output("All major security headers present.")
+
+                yield {
+                    "url": url,
+                    "status_code": resp.status,
+                    "headers": security_headers,
+                    "missing_headers": missing,
+                    "security_score": score,
+                }
+            finally:
+                conn.close()
+
+        except (OSError, http.client.HTTPException, ValueError) as exc:
+            context.alert(f"Request failed: {exc}")
+            yield {
+                "url": url,
+                "error": str(exc),
+                "status": "failed",
+            }
+
+
+def plugin() -> Commandlet:
+    return HttpHeaderCheck()
+```
+
+Load it, run it, and inspect emitted events:
+
+```text
+bywaf> load --force plugin=http_header_check
+bywaf> http_header_check https://example.com
+bywaf> event http.headers.checked
 ```
 
 # CommandSpec Fields
