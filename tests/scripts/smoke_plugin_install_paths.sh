@@ -26,6 +26,12 @@ class SmokePlugin:
 def plugin():
     return SmokePlugin()
 PY
+  cat >"$dir/bywaf.plugin.toml" <<TOML
+[[commandlets]]
+name = "$name"
+capabilities = []
+secret_options = []
+TOML
   printf '[defaults]\norigin = "%s"\n' "$source" >"$dir/defaults.toml"
 }
 

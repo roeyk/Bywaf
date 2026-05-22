@@ -12,6 +12,33 @@ Bywaf plugins provide commandlets. A commandlet is a small class with:
 Commandlets can publish events by yielding dictionaries. The runner inserts
 those dictionaries into SQLite under the first topic listed in `spec.emits`.
 
+## Guide Index
+
+- [Plugin Types](#plugin-types)
+- [Plugin Manifest](#plugin-manifest)
+- [A Minimal Commandlet](#a-minimal-commandlet)
+- [CommandSpec Fields](#commandspec-fields)
+- [Plans](#plans)
+- [Parsing Arguments](#parsing-arguments)
+- [Rendering Tables](#rendering-tables)
+- [Publishing Events](#publishing-events)
+- [Consuming Pipeline Input](#consuming-pipeline-input)
+- [Completion Specs](#completion-specs)
+- [Custom Completion](#custom-completion)
+- [Runtime Context](#runtime-context)
+- [Framework Requests and Audit Events](#framework-requests-and-audit-events)
+- [Trigger Providers](#trigger-providers)
+- [Process Execution](#process-execution)
+- [Secrets](#secrets)
+- [Embedding Bywaf](#embedding-bywaf)
+- [A Complete Example With Completion](#a-complete-example-with-completion)
+- [Plugin Defaults](#plugin-defaults)
+- [Loading and Packaging Plugins](#loading-and-packaging-plugins)
+- [Standalone Plugin Checking](#standalone-plugin-checking)
+- [Plugin Catalog Signing](#plugin-catalog-signing)
+- [Testing a Plugin](#testing-a-plugin)
+- [Practical Guidelines](#practical-guidelines)
+
 # Plugin Types
 
 Bywaf plugins can be described along two separate axes: how they integrate with
@@ -702,6 +729,8 @@ for event in context.events.follow(
     context.events.publish("example.seen_host", {"host": event.payload["host"]})
 ```
 
+## Trigger Providers
+
 Long-running service plugins should leave `until_parent_done` false and use
 `context.cancelled()`, `context.signals`, or their own configured stop
 condition. The bundled `watchdog` commandlet is the current service-plugin
@@ -734,6 +763,33 @@ identity from the provider entry and local trigger name, such as
 tracking, and lifecycle audit events use that provider-scoped identity, while
 audit payloads also include the local `name` and `provider` separately.
 
+The plugin module exposes trigger rules with a module-level `triggers()`
+function. The returned `TriggerSpec` objects are code-level provider metadata;
+they are not commands a user writes into the REPL:
+
+```python
+from bywaf.plugin import TriggerSpec
+
+
+def triggers() -> tuple[TriggerSpec, ...]:
+    return (
+        TriggerSpec(
+            name="network-access-starts-watchdog",
+            topic="plugin.capability.used",
+            action_command="watchdog --session-service",
+            description="ON network.connect capability use by an active job DO start the session watchdog",
+            action_mode="service",
+            capability="network.connect",
+            active_job=True,
+            exclude_commandlets=("watchdog",),
+            suppress_self_trigger=True,
+        ),
+    )
+```
+
+The sidecar manifest must declare the same trigger metadata so tooling can
+inspect the provider before importing plugin code:
+
 ```toml
 [[triggers]]
 name = "network-access-starts-watchdog"
@@ -754,7 +810,9 @@ include the source event ID so auditors can trace what caused the action.
 Trigger evaluation uses per-trigger cursors so each rule only inspects events
 newer than its last high-water mark.
 
-Plugins should also avoid direct process execution with `subprocess`,
+## Process Execution
+
+Plugins should avoid direct process execution with `subprocess`,
 `os.system`, or `os.spawn*`. External tool wrappers should declare
 `process.run`, go through `context.process`, and let Bywaf record the request
 and outcome for auditability.
@@ -819,6 +877,8 @@ which reads:
 ```text
 global.proxy
 ```
+
+## Secrets
 
 Secret variables are different. If an operator sets:
 

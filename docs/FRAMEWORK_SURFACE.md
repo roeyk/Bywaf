@@ -1,15 +1,21 @@
 # Framework Surface
 
-This document lists the named capabilities, trigger rules, and event/audit
-topics exposed by the base Bywaf installation. It is intended as an operator
-and plugin-author reference for names that appear in manifests, audit output,
+This document enumerates the named resources exposed by the base Bywaf
+installation: capabilities, trigger rules, plugin data topics, and
+framework-owned event/audit topics. It is intended as an operator and
+plugin-author reference for names that appear in manifests, audit output,
 trigger predicates, and commandlet code.
+
+Read each table as a resource map: the stable dotted name is the identifier,
+the associated provider or commandlet shows ownership, and the purpose or
+consumer columns describe why the name exists and what code normally uses it.
 
 ## Capabilities
 
 Capabilities are declared by commandlets and audited with
 `plugin.capability.used` or `plugin.capability.missing` when code asks the
-framework to perform privileged actions.
+framework to perform privileged actions. The associated commandlets are the
+base installation commandlets that declare or use each capability.
 
 | Capability | Base commandlets |
 | --- | --- |
@@ -83,16 +89,19 @@ framework to perform privileged actions.
 ## Trigger Rules
 
 Trigger ids are provider-scoped. The local trigger name only needs to be unique
-inside the provider that defines it.
+inside the provider that defines it. A fully qualified trigger id uses
+`<provider>.<local-trigger-name>` so plugin authors can keep local names concise
+without colliding with other providers.
 
-| Trigger id | Provider | Topic | Predicate | Action |
-| --- | --- | --- | --- | --- |
-| `runtime.watchdog.network-access-starts-watchdog` | `runtime.watchdog` | `plugin.capability.used` | `capability == "network.connect"` and the event belongs to an active job; excludes `watchdog`; suppresses self-triggering | `watchdog --session-service` as `service` |
+| Trigger id | Trigger for | Provider | Source topic | Predicate | Used by / effect |
+| --- | --- | --- | --- | --- | --- |
+| `runtime.watchdog.network-access-starts-watchdog` | Starting the session watchdog only after network activity is observed | `runtime.watchdog` | `plugin.capability.used` | `capability == "network.connect"` and the event belongs to an active job; excludes `watchdog`; suppresses self-triggering | Runs `watchdog --session-service` as a `service` action; operators inspect it with `triggers`; lifecycle is audited with `framework.trigger.*` topics |
 
 ## Plugin Data Topics
 
 These topics are declared by bundled commandlets through their `CommandSpec`
-`consumes` and `emits` fields.
+`consumes` and `emits` fields. In this table, `Emits` is the producer side of
+the association and `Consumes` is the normal consumer side.
 
 | Commandlet | Consumes | Emits |
 | --- | --- | --- |
@@ -122,24 +131,24 @@ These topics are declared by bundled commandlets through their `CommandSpec`
 Framework topics are emitted by the runtime, plugin context helpers, trust
 checks, resource commands, and runtime-control commandlets.
 
-| Class | Topics |
-| --- | --- |
-| Artifact lifecycle | `artifact.attached`, `artifact.exported`, `artifact.removed`, `artifact.replaced` |
-| Bundle lifecycle | `bundle.created`, `bundle.exported`, `bundle.item.added`, `bundle.sealed` |
-| Capability audit | `plugin.capability.used`, `plugin.capability.missing` |
-| Command run lifecycle | `command.run.arguments`, `command.run.completed`, `command.run.failed` |
-| Framework requests | `framework.console.alert.requested`, `framework.console.output.requested`, `framework.file.page.requested`, `framework.process.run.requested`, `framework.process.stream.requested`, `framework.render.table.requested`, `framework.request.denied` |
-| Framework expansion/audit | `framework.argument.expanded`, `framework.secret.argv`, `framework.variable.expanded` |
-| Job lifecycle | `job.requested`, `job.claimed`, `job.claim.denied`, `job.started`, `job.finished`, `job.failed`, `job.pause.requested`, `job.resume.requested`, `job.stop.requested` |
-| Plugin catalog trust | `plugin.catalog.verified`, `plugin.catalog.rejected`, `plugin.catalog.entry.verified`, `plugin.catalog.entry.rejected` |
-| Plugin manifest trust | `plugin.manifest.verified`, `plugin.manifest.rejected` |
-| Plugin progress | `plugin.progress` |
-| Policy | `policy.evaluated` |
-| Process audit | `process.started`, `process.exited`, `process.secret.argv` |
-| Resource commands | `resource.plugin.loaded`, `resource.script.command` |
-| Runtime naming | `runtime.name.assigned` |
-| Runtime signals | `runtime.signal.requested`, `runtime.signal.applied`, `runtime.signal.ignored` |
-| Trigger lifecycle | `framework.trigger.enabled`, `framework.trigger.fired`, `framework.trigger.disabled` |
+| Topic group | Topics | Associated with | Used by / purpose |
+| --- | --- | --- | --- |
+| Artifact lifecycle | `artifact.attached`, `artifact.exported`, `artifact.removed`, `artifact.replaced` | Artifact commandlets and artifact-backed plugin output | Tracks evidence files, exported artifacts, replacement, and removal for audit and bundle/report consumers |
+| Bundle lifecycle | `bundle.created`, `bundle.exported`, `bundle.item.added`, `bundle.sealed` | `bundle` commandlet | Records client deliverable composition, sealing, and export activity |
+| Capability audit | `plugin.capability.used`, `plugin.capability.missing` | Plugin context helpers and capability enforcement | Shows observed privileged behavior; triggers can watch these topics, for example network access starting the watchdog |
+| Command run lifecycle | `command.run.arguments`, `command.run.completed`, `command.run.failed` | Runner and runtime store | Reconstructs command execution, captured arguments, and terminal run status |
+| Framework requests | `framework.console.alert.requested`, `framework.console.output.requested`, `framework.file.page.requested`, `framework.process.run.requested`, `framework.process.stream.requested`, `framework.render.table.requested`, `framework.request.denied` | Plugin context request helpers | Lets plugins ask the interpreter/frontend for privileged actions without directly owning terminal, process, paging, or rendering behavior |
+| Framework expansion/audit | `framework.argument.expanded`, `framework.secret.argv`, `framework.variable.expanded` | Shell parser, secret resolver, variable expansion | Explains how command input changed before a commandlet received it, with secret-safe audit metadata |
+| Job lifecycle | `job.requested`, `job.claimed`, `job.claim.denied`, `job.started`, `job.finished`, `job.failed`, `job.pause.requested`, `job.resume.requested`, `job.stop.requested` | Shell, runner, job-control commandlets | Records scheduling, ownership, execution status, and operator control requests |
+| Plugin catalog trust | `plugin.catalog.verified`, `plugin.catalog.rejected`, `plugin.catalog.entry.verified`, `plugin.catalog.entry.rejected` | Plugin catalog verifier | Audits catalog and per-entry trust decisions before plugin loading |
+| Plugin manifest trust | `plugin.manifest.verified`, `plugin.manifest.rejected` | Plugin manifest verifier | Audits signed manifest decisions before plugin import |
+| Plugin progress | `plugin.progress` | Long-running commandlets | Provides structured progress updates for the shell, logs, and future frontends |
+| Policy | `policy.evaluated` | Policy and plan approval flow | Records whether a requested action was allowed, denied, or required approval |
+| Process audit | `process.started`, `process.exited`, `process.secret.argv` | Framework-mediated process execution | Tracks external tools, exit status, and secret-safe argument handling |
+| Resource commands | `resource.plugin.loaded`, `resource.script.command` | `load` and script execution | Records plugin loads and script commands executed through the shell |
+| Runtime naming | `runtime.name.assigned` | `name` commandlet and runtime metadata | Associates human-friendly names with runtime objects |
+| Runtime signals | `runtime.signal.requested`, `runtime.signal.applied`, `runtime.signal.ignored` | `signal`, `pause`, `resume`, `cancel`, `kill`, `stop`, and cooperative commandlets | Traces requested runtime controls and whether target jobs/runs applied or ignored them |
+| Trigger lifecycle | `framework.trigger.enabled`, `framework.trigger.fired`, `framework.trigger.disabled` | Trigger registry and provider-owned trigger rules | Shows which trigger rule became active, which source event fired it, and when it was disabled |
 
 ## Notes
 

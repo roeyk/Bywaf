@@ -3,6 +3,55 @@
 All notable project changes are tracked here. Bywaf is still pre-1.0 software,
 so compatibility may change between testing releases.
 
+## [0.11.0] - 2026-05-22
+
+Last updated: 2026-05-22 12:00:00 EDT
+
+### Added
+
+- Added provider-owned trigger rules declared through plugin manifests and the
+  plugin API, including provider-scoped trigger identities, persisted cursors,
+  foreground/background/service action modes, payload predicates, loop
+  prevention, and trigger lifecycle audit events.
+- Added runtime trigger discovery through the `triggers` built-in command.
+- Added signed plugin manifest verification with
+  `--plugin-manifest-key` and maintainer/developer tooling through
+  `scripts/plugin_manifest_sign.py` and `scripts/plugin_check.py --verify`.
+- Added signed plugin catalog verification for filesystem plugin roots with
+  `--plugin-catalog` and `--plugin-catalog-key`.
+- Added explicit development trust bypasses:
+  `--allow-untrusted-plugins`, `--allow-unsigned-plugins`,
+  `--allow-unsigned-plugin-manifests`, `--allow-missing-plugin-keys`, and
+  `--allow-mismatched-plugin-keys`.
+- Added official public verification key packaging and documented maintainer
+  key storage, annual rotation, 60-day overlap, retirement, and emergency
+  revocation policy.
+- Added `docs/FRAMEWORK_SURFACE.md` documenting base capabilities, trigger
+  rules, and audit/event topics.
+
+### Changed
+
+- Refactored major runtime modules into cohesive packages and helper modules,
+  including app dispatch, runner parsing, REPL shell/resources/history,
+  plugin, DB, registry, completion core, and keyring internals.
+- Changed watchdog startup to be triggered by network-capability events rather
+  than starting automatically for every interactive session.
+- Required filesystem plugin packages to provide enforced manifest metadata
+  before exposing commandlets.
+- Tightened plugin manifest and catalog trust parsing so malformed metadata is
+  rejected instead of silently coerced.
+- Updated package metadata and release builders for the 0.11.0 testing
+  release.
+
+### Fixed
+
+- Fixed signed catalog generation for single-segment external plugin
+  directories such as `default_plugins = ["myplugin"]`.
+- Fixed trigger cursor collisions by scoping cursor state to provider-owned
+  trigger identities.
+- Preserved existing completion, keyring, and public facade imports across the
+  package refactors.
+
 ## [0.10.0] - 2026-05-19
 
 Last updated: 2026-05-21 14:27:13 EDT

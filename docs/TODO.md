@@ -4,9 +4,51 @@ Planning dates are release planning markers, not compatibility commitments.
 
 ## Current Release
 
-- Bywaf 0.9.2 testing release: 2026-05-18.
+- Bywaf 0.11.0 testing release: 2026-05-22.
+- Release package metadata updated to 0.11.0 across Python, Debian, RPM,
+  README, usage guide, and changelog.
+- Release highlights captured: major internal refactors, provider-owned
+  triggers, plugin manifest signing, signed plugin catalogs, explicit
+  development trust bypasses, and key-management policy.
+- Documentation roadmap added at `docs/README.md`; root README and usage guide
+  link to it.
+- Framework surface inventory enumerates base resources, including
+  capabilities, trigger IDs, plugin data topics, and framework audit/control
+  topics with their associated providers, commandlets, producers, consumers,
+  purposes, or effects.
+- Plugin author guide now has a top guide index and explicit trigger-provider
+  examples covering `TriggerSpec`, matching `[[triggers]]` manifest metadata,
+  provider-scoped trigger IDs, lifecycle events, and cursor behavior.
+- Release artifacts rebuilt for pip, Debian, and RPM. Package smoke checks
+  passed for pip, RPM, and filesystem plugin install paths.
 
-## Target: 0.10.0
+## Target: Next Testing Release
+
+### Item: Rock-Solid MVP Plugins
+
+- Harden the MVP plugin suite around realistic end-to-end assessment chains:
+  discovery, port scanning, HTTP probing, fingerprinting, vulnerability
+  probing, dedupe, reporting, artifacts, notes, and bundle export.
+- Add focused fixture-based tests for each MVP plugin so regressions are caught
+  without requiring live third-party services for ordinary CI.
+- Review commandlet output, event payloads, completion specs, manifests,
+  capabilities, secret options, and error messages for consistency.
+- Make the native, library-backed, process-wrapped, helper/provider, listener,
+  and service-plugin examples clearly visible in documentation and tests.
+
+### Item: CVE Detection And Confirmation Plugins
+
+- Research a short list of high-value, low-hanging-fruit CVE checks from
+  current authoritative advisories before implementation.
+- Prefer safe confirmation plugins that use version/banner/header/config
+  evidence and non-destructive probes over exploit-style behavior.
+- For each selected CVE, document affected products/versions, required
+  authorization, probe method, false-positive limits, emitted topics, and
+  artifact evidence.
+- Emit normalized vulnerability events that downstream plugins can dedupe,
+  report, and bundle without scraper-specific parsing.
+- Keep CVE checks small and composable so they can be run after existing HTTP,
+  SSH, SMB, LDAP, DNS, or fingerprinting commandlets.
 
 ### Framework Request IPC
 

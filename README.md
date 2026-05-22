@@ -53,6 +53,7 @@ Use Bywaf only on systems and networks where you have explicit authorization.
 
 ## Project References
 
+The documentation roadmap starts at [docs/README.md](docs/README.md).
 Project changes are summarized in [CHANGELOG.md](CHANGELOG.md).
 Common task examples are collected in [docs/FAQ.md](docs/FAQ.md).
 Evolving framework design notes are tracked in [docs/DESIGN.md](docs/DESIGN.md).
@@ -99,7 +100,7 @@ For a local pip package build:
 
 ```bash
 scripts/build_pip_package.sh
-python3 -m pip install dist/bywaf-0.10.0-py3-none-any.whl
+python3 -m pip install dist/bywaf-0.11.0-py3-none-any.whl
 bywaf --help
 ```
 
@@ -109,7 +110,7 @@ write artifacts under `dist/deb/`:
 ```bash
 sudo apt install debhelper dh-python pybuild-plugin-pyproject python3-all python3-setuptools python3-prompt-toolkit
 scripts/build_deb_package.sh
-sudo apt install dist/deb/bywaf_0.10.0-1_all.deb
+sudo apt install dist/deb/bywaf_0.11.0-1_all.deb
 bywaf --help
 ```
 

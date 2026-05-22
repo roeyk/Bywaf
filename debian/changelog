@@ -1,3 +1,12 @@
+bywaf (0.11.0-1) unstable; urgency=medium
+
+  * Testing release with provider-owned triggers, signed plugin manifests,
+    signed plugin catalogs, explicit development trust bypasses, official
+    key-management policy documentation, and major internal refactors across
+    app, runner, REPL, plugin, registry, DB, completion, and keyring modules.
+
+ -- Roey Katz <roey.katz@gmail.com>  Fri, 22 May 2026 12:00:00 -0400
+
 bywaf (0.10.0-1) unstable; urgency=medium
 
   * Feature-complete testing release with project workspaces, signed
