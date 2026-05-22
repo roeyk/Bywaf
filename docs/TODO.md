@@ -97,6 +97,26 @@ Planning dates are release planning markers, not compatibility commitments.
 - Improve cancellation tests so background child-process failures do not print
   noisy tracebacks during otherwise passing test runs.
 
+### Bundle Deliverable Export
+
+- Treat `bundle export` as a client-facing deliverable/evidence package, not a
+  database export.
+- Exclude SQLite databases and internal runtime state from normal client
+  bundles.
+- Include selected reports, artifacts, screenshots, scan outputs, delivery
+  notes, and provenance summaries.
+- Produce password-protected `.bywaf.zip` files when requested. Accept passwords
+  through an interactive prompt or existing secret variables such as
+  `password=$bundle_password`; reject plaintext literal passwords.
+- Sign a manifest inside the zip rather than signing the zip container. The
+  manifest should list each included file path, SHA-256 digest, size, type, and
+  provenance.
+- Provide recipient-friendly verification, for example
+  `bundle verify file=client-a.bywaf.zip key=...`, that checks the manifest
+  signature and file hashes after password entry when the bundle is encrypted.
+- If internal archival with databases is needed later, make it an explicit
+  separate mode such as `bundle archive`, not the default client export.
+
 ### Packaging
 
 - Upload the 0.9.x source and wheel artifacts to TestPyPI, then PyPI, and
