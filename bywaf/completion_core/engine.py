@@ -11,23 +11,19 @@ Used by:
 from __future__ import annotations
 
 import shlex
-from collections.abc import Sequence
 from dataclasses import dataclass
 
-from .config import Settings
-from .db import EventStore
-from .plugin import CompletionContext
-from .registry import PluginRegistry
-from .specs import CompletionSpec
-from .utils import complete_path
-
-DEFAULT_SETTINGS = Settings()
-FRAMEWORK_OPTION_COMPLETIONS = {
-    "--from-run": CompletionSpec("run"),
-    "--from-pipeline": CompletionSpec("pipeline"),
-    "--from-topic": CompletionSpec("topic"),
-}
-BINARY_OPTION_NAMES = {"listen", "silent"}
+from ..db import EventStore
+from ..plugin import CompletionContext
+from ..registry import PluginRegistry
+from ..specs import CompletionSpec
+from ..utils import complete_path
+from .constants import FRAMEWORK_OPTION_COMPLETIONS, option_is_binary
+from .providers import bundle_candidates, history_candidates, key_candidates
+from .resources import complete_at_file_prefix, resource_candidates
+from .runtime import runtime_completion_target
+from .tokens import positional_index, tokens_after_last_pipe
+from .variables import variable_reference_candidates
 
 
 @dataclass(slots=True)
@@ -386,151 +382,3 @@ class CoreCompleter:
             if row["pipeline_id"] == serial:
                 return f"serial={serial} artifacts={artifacts} runs={row['runs']} events={row['events']}"
         return ""
-
-
-def key_candidates(*, signing: bool = False, verify: bool = False) -> list[str]:
-    """Return key names for completion without making cryptography mandatory."""
-    try:
-        from .keyring import load_key_records, signing_key_names, verification_key_names
-    except Exception:
-        return []
-    try:
-        if signing:
-            return signing_key_names()
-        if verify:
-            return verification_key_names()
-        return [record.name for record in load_key_records()]
-    except Exception:
-        return []
-
-
-def bundle_candidates(db: EventStore | None) -> list[str]:
-    """Return known bundle names for completion."""
-    if db is None:
-        return []
-    try:
-        return sorted(
-            {
-                str(event.payload["name"])
-                for event in db.events_matching(topic="bundle.created", limit=100000)
-                if "name" in event.payload
-            }
-        )
-    except Exception:
-        return []
-
-
-def runtime_completion_target(candidate: str, line: str, prefix: str) -> tuple[str | None, str]:
-    """Infer whether a completion candidate represents a job, run, or pipeline."""
-    for kind in ("job", "run", "pipeline"):
-        selector = f"{kind}="
-        if candidate.startswith(selector):
-            return kind, candidate.removeprefix(selector)
-        if prefix.startswith(selector):
-            return kind, candidate
-    try:
-        tokens = shlex.split(line)
-    except ValueError:
-        tokens = line.split()
-    tokens = tokens_after_last_pipe(tokens)
-    if len(tokens) >= 2 and tokens[0] == "pipeline" and tokens[1] in {"attach", "show", "cancel", "end", "kill"}:
-        return "pipeline", candidate
-    if len(tokens) >= 2 and tokens[0] == "job" and tokens[1] in {"show", "cancel", "end", "kill"}:
-        return "job", candidate
-    return None, candidate
-
-
-def option_is_binary(option_name: str) -> bool:
-    """Return whether an option should complete as a binary `--flag`."""
-    return option_name in BINARY_OPTION_NAMES
-
-
-def variable_reference_candidates(names: Sequence[str], commandlet: str, prefix: str) -> list[str]:
-    """Return `$variable` completions using commandlet and global shorthand."""
-    candidates: set[str] = set()
-    commandlet_prefix = f"{commandlet}."
-    for name in names:
-        if name.startswith(commandlet_prefix):
-            candidates.add(f"${name.removeprefix(commandlet_prefix)}")
-        if name.startswith("global."):
-            candidates.add(f"${name.removeprefix('global.')}")
-        candidates.add(f"${{{name}}}")
-        if "." not in name:
-            candidates.add(f"${name}")
-    full_prefix = f"${prefix}"
-    return sorted(candidate for candidate in candidates if candidate.startswith(full_prefix))
-
-
-def resource_candidates(prefix: str, keywords: tuple[str, ...]) -> list[str]:
-    """Complete key=value resource expressions used by load/save."""
-    for keyword in keywords:
-        if keyword.endswith("=") and prefix.startswith(keyword):
-            value = prefix.split("=", 1)[1]
-            return [f"{keyword}{path}" for path in complete_resource_value(keyword[:-1], value)]
-    keyword_matches = [keyword for keyword in keywords if keyword.startswith(prefix)]
-    if keyword_matches:
-        return keyword_matches
-    if prefix:
-        return complete_path(prefix)
-    return list(keywords)
-
-
-def complete_at_file_prefix(prefix: str) -> list[str]:
-    """Complete framework at-file path prefixes while preserving operators."""
-    if prefix.startswith("@@"):
-        value = prefix[2:]
-        return [f"@@{candidate}" for candidate in complete_path(value)]
-    for operator in ("@lines:", "@raw:"):
-        if prefix.startswith(operator):
-            value = prefix.removeprefix(operator)
-            return [f"{operator}{candidate}" for candidate in complete_path(value)]
-    value = prefix.removeprefix("@")
-    return [f"@{candidate}" for candidate in complete_path(value)]
-
-
-def complete_resource_value(kind: str, value: str) -> list[str]:
-    """Complete the value side of a load/save resource expression."""
-    if is_explicit_path(value):
-        return preserve_explicit_prefix(value, complete_path(value or "."))
-    if kind == "plugin":
-        return complete_path(value, DEFAULT_SETTINGS.plugin_dir)
-    return complete_path(value)
-
-
-def positional_index(args: list[str], prefix: str) -> int:
-    """Return the positional argument index currently being completed."""
-    if not args:
-        return 0
-    positional = [
-        arg for arg in args
-        if not arg.startswith("-") and arg not in {"|", "&"}
-    ]
-    if prefix and positional and positional[-1] == prefix:
-        return len(positional) - 1
-    return len(positional)
-
-
-def is_explicit_path(value: str) -> bool:
-    """Return True when a resource value should be treated as a path."""
-    return value.startswith(("./", "../", "~/", "/"))
-
-
-def preserve_explicit_prefix(value: str, candidates: list[str]) -> list[str]:
-    """Keep leading `./` visible so readline replaces the token correctly."""
-    if value.startswith("./"):
-        return [candidate if candidate.startswith("./") else f"./{candidate}" for candidate in candidates]
-    return candidates
-
-
-def tokens_after_last_pipe(tokens: list[str]) -> list[str]:
-    """Return tokens belonging to the command after the last pipeline marker."""
-    if "|" not in tokens:
-        return tokens
-    last_pipe = len(tokens) - 1 - tokens[::-1].index("|")
-    return tokens[last_pipe + 1 :]
-
-
-def history_candidates(prefix: str) -> list[str]:
-    """Complete timestamp-window selectors for the built-in history command."""
-    selectors = ("since=", "until=")
-    return [selector for selector in selectors if selector.startswith(prefix)]
