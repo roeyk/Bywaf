@@ -219,11 +219,25 @@ def handle_save_command(runner: Runner, state: ShellState, rest: str | None, lin
     return None
 
 
-def handle_run_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
-    """Run a commandlet pipeline."""
+def handle_exec_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
+    """Execute a commandlet pipeline."""
     del line
-    if rest is not None:
+    if rest is None:
+        print_help(runner, "exec")
+    else:
         execute_repl_commandlet(runner, state, rest)
+    return None
+
+
+def handle_run_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
+    """Inspect one commandlet run."""
+    del state, line
+    if rest is None:
+        print_help(runner, "run")
+        return None
+    run_id = runner.runtime.resolve_run_serial(rest)
+    print_run_variables(runner, run_id)
+    print_events(runner.events.events_matching(command_run_id=run_id), runner)
     return None
 
 
@@ -239,6 +253,7 @@ REPL_COMMAND_HANDLERS: dict[str, ReplCommandHandler] = {
     "cmds": handle_cmds_command,
     "event": handle_event_command,
     "events": handle_events_command,
+    "exec": handle_exec_command,
     "exit": handle_exit_command,
     "help": handle_help_command,
     "history": handle_history_command,

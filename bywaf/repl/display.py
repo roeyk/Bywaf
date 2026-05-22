@@ -102,6 +102,7 @@ HELP_COMMANDS = (
     HelpEntry("jobs", "alias for job list", "jobs"),
     HelpEntry("pipelines", "alias for pipeline list", "pipelines"),
     HelpEntry("runs", "show commandlet run IDs", "runs"),
+    HelpEntry("run <id|serial>", "inspect one commandlet run", "run <id|serial>", ("run 1", "run run-...")),
     HelpEntry(
         "var [--secret] [name[=value]]",
         "list, show, or set session variables",
@@ -128,7 +129,7 @@ HELP_COMMANDS = (
     HelpEntry("save [--encrypt] db=<path>", "save active SQLite database", "save [--encrypt] db=<path>"),
     HelpEntry("save config=<path>", "save session variables to JSON", "save config=<path>"),
     HelpEntry("save history=<path>", "save this session's command history", "save history=<path>"),
-    HelpEntry("run <pipeline>", "run a commandlet pipeline", "run <pipeline>", ("run 'hostscanner 127.0.0.1 | portscanner'",)),
+    HelpEntry("exec <commandlet-pipeline>", "execute a commandlet pipeline", "exec <commandlet-pipeline>", ("exec 'hostscanner 127.0.0.1 | portscanner'",)),
     HelpEntry("<plugin pipeline>", "run commandlets directly", "<plugin pipeline>", ("hostscanner 127.0.0.1 | portscanner",)),
     HelpEntry("exit, quit, q", "exit the shell", "exit"),
 )

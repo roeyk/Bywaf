@@ -332,6 +332,8 @@ end [--soft|--hard] <job=id|pipeline=id|run=id>
 kill [--soft|--hard] <job=id|pipeline=id|run=id>
 jobs
 runs
+run <id|serial>
+exec <commandlet-pipeline>
 events [tail|--tail] [last=N]
 topics
 db <status|path|checkpoint|vacuum|new|encrypt|decrypt|rekey>
@@ -1847,6 +1849,8 @@ search [--regexp] <name=text|filename=text|note=text|content=text> [artifact=id|
 jobs
 pipelines
 runs
+run <id|serial>
+exec <commandlet-pipeline>
 events [tail|--tail] [last=N]
 topics
 event <topic>

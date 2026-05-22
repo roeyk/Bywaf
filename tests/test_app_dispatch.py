@@ -280,6 +280,45 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("'n': 3", text)
             self.assertIn("'n': 4", text)
 
+    def test_run_without_id_prints_help(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "run")
+            text = output.getvalue()
+            self.assertIn("Command: run <id|serial>", text)
+            self.assertIn("Usage:   run <id|serial>", text)
+
+    def test_exec_without_pipeline_prints_help(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "exec")
+            text = output.getvalue()
+            self.assertIn("Command: exec <commandlet-pipeline>", text)
+            self.assertIn("Usage:   exec <commandlet-pipeline>", text)
+
+    def test_run_inspects_command_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", pipeline_id="p", command_run_id="r")
+            runner.db.record_command_run_vars(
+                job_id=None,
+                pipeline_id="p",
+                command_run_id="r",
+                commandlet="hostscanner",
+                values={"test.marker": "1"},
+            )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "run 1")
+            text = output.getvalue()
+            self.assertIn("Variables:", text)
+            self.assertIn("test.marker=1", text)
+            self.assertIn("host.found 127.0.0.1", text)
+
     def test_events_colors_event_ids_when_enabled(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

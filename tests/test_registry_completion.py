@@ -297,8 +297,15 @@ class RegistryCompletionTests(unittest.TestCase):
     def test_prompt_has_no_argument_completion(self):
         self.assertEqual(Completer(self.registry).candidates("prompt "), [])
 
-    def test_run_completes_commandlet_pipeline_names(self):
-        self.assertEqual(Completer(self.registry).candidates("run host"), ["hostscanner"])
+    def test_exec_completes_commandlet_pipeline_names(self):
+        self.assertEqual(Completer(self.registry).candidates("exec host"), ["hostscanner"])
+
+    def test_run_completes_run_ids(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "events.sqlite3"))
+            db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", command_run_id="run-1")
+            completer = Completer(self.registry, db)
+            self.assertEqual(completer.candidates("run "), ["1"])
 
     def test_use_completes_contexts(self):
         completer = Completer(self.registry)
