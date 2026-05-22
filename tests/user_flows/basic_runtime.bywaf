@@ -6,7 +6,7 @@
 
 plugins
 cmds
-vars global.user_flow=hello
-vars global.user_flow
+var global.user_flow=hello
+var global.user_flow
 key list
 history

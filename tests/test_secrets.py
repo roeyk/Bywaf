@@ -37,16 +37,18 @@ class SecretTests(unittest.TestCase):
             self.assertEqual(load_or_create_fingerprint_key(path), key)
             self.assertEqual(path.stat().st_mode & 0o777, 0o600)
 
-    def test_is_secret_name_uses_declared_and_common_names(self):
-        self.assertTrue(is_secret_name("password"))
-        self.assertTrue(is_secret_name("api_key"))
+    def test_is_secret_name_uses_declared_names_only(self):
+        self.assertFalse(is_secret_name("password"))
+        self.assertFalse(is_secret_name("api_key"))
         self.assertTrue(is_secret_name("custom", {"custom"}))
+        self.assertTrue(is_secret_name("ssh_probe.custom", {"custom"}))
         self.assertFalse(is_secret_name("timeout"))
 
     def test_redact_command_text_replaces_secret_values_with_fingerprints(self):
         result = redact_command_text(
             "ssh_probe username=hello password='top secret' timeout=5",
             key=b"k" * 32,
+            secret_names={"password"},
         )
         self.assertEqual(result.command, f"ssh_probe username=hello password={REDACTED_VALUE} timeout=5")
         self.assertEqual(len(result.secrets), 1)
@@ -58,6 +60,31 @@ class SecretTests(unittest.TestCase):
         result = redact_command_text("cmd client-token=abc timeout=1", key=b"k" * 32, secret_names={"client-token"})
         self.assertEqual(result.command, f"cmd client-token={REDACTED_VALUE} timeout=1")
         self.assertEqual(result.secrets[0].name, "client-token")
+
+    def test_redact_command_text_redacts_scoped_declared_secret_names(self):
+        result = redact_command_text("var ssh_probe.password=abc timeout=1", key=b"k" * 32, secret_names={"password"})
+        self.assertEqual(result.command, f"var ssh_probe.password={REDACTED_VALUE} timeout=1")
+        self.assertEqual(result.secrets[0].name, "ssh_probe.password")
+
+    def test_redact_command_text_does_not_guess_secret_names(self):
+        result = redact_command_text("var ssh_probe.password=abc timeout=1", key=b"k" * 32)
+        self.assertEqual(result.command, "var ssh_probe.password=abc timeout=1")
+        self.assertEqual(result.secrets, ())
+
+    def test_redact_command_text_redacts_explicit_secret_assignment(self):
+        result = redact_command_text("var --secret session.ticket=abc timeout=1", key=b"k" * 32)
+        self.assertEqual(result.command, f"var --secret session.ticket={REDACTED_VALUE} timeout=1")
+        self.assertEqual(result.secrets[0].name, "session.ticket")
+
+    def test_redact_command_text_redacts_secret_flag_before_equals(self):
+        result = redact_command_text("var session.ticket --secret=abc timeout=1", key=b"k" * 32)
+        self.assertEqual(result.command, f"var session.ticket --secret={REDACTED_VALUE} timeout=1")
+        self.assertEqual(result.secrets[0].name, "session.ticket")
+
+    def test_redact_command_text_redacts_empty_explicit_secret_marker(self):
+        result = redact_command_text("var --secret pw=", key=b"k" * 32)
+        self.assertEqual(result.command, f"var --secret pw={REDACTED_VALUE}")
+        self.assertEqual(result.secrets, ())
 
     def test_in_memory_secret_store_returns_opaque_reference(self):
         store = InMemorySecretStore()

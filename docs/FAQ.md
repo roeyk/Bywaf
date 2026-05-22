@@ -137,22 +137,22 @@ If the database is encrypted, Bywaf prompts for the passphrase.
 ## How do I set a commandlet variable?
 
 ```text
-bywaf> vars http_probe.timeout=3
-bywaf> vars http_probe.cookie-file=/tmp/cookies.sqlite
+bywaf> var http_probe.timeout=3
+bywaf> var http_probe.cookie-file=/tmp/cookies.sqlite
 ```
 
-Use `vars <name>` to show one value:
+Use `var <name>` to show one value:
 
 ```text
-bywaf> vars http_probe.timeout
+bywaf> var http_probe.timeout
 ```
 
 ## How do I set variables without typing the commandlet prefix each time?
 
 ```text
 bywaf> use http_probe
-bywaf> vars timeout=3
-bywaf> vars cookie-file=/tmp/cookies.sqlite
+bywaf> var timeout=3
+bywaf> var cookie-file=/tmp/cookies.sqlite
 ```
 
 `use <commandlet>` changes interactive variable/completion context. It does not
@@ -161,12 +161,14 @@ hide execution state.
 ## How do I set a secret such as a password?
 
 ```text
-bywaf> vars ssh_check.password=<secret-value>
+bywaf> var --secret ssh_check.password=<secret-value>
 ```
 
-Secret-looking variable names are stored as opaque references in the session
-VarStore and persisted in the active DB. If the DB is plaintext, Bywaf warns
-that the secret will be stored without at-rest database encryption.
+`--secret` stores the value as an opaque reference in the session VarStore and
+persists the plaintext only in the active DB's secret table. Bywaf does not
+guess based on variable names; use `--secret` when the value is sensitive. If
+the DB is plaintext, Bywaf warns that the secret will be stored without
+at-rest database encryption.
 
 ## How do I stop or pause work?
 

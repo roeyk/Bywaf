@@ -1,3 +1,14 @@
+bywaf (0.11.1-1) unstable; urgency=medium
+
+  * Patch release with plugin checker AST capability inference, strict
+    inference mode, source evidence reporting, direct API warnings,
+    manifest generation for trigger specs and inferred single-commandlet
+    capabilities, audit capability inventory, readable plugin and commandlet
+    listings, explicit secret variable assignment, and configurable
+    variable-listing color.
+
+ -- Roey Katz <roey.katz@gmail.com>  Fri, 22 May 2026 21:45:00 -0400
+
 bywaf (0.11.0-1) unstable; urgency=medium
 
   * Testing release with provider-owned triggers, signed plugin manifests,

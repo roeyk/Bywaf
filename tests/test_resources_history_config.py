@@ -113,8 +113,8 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "help vars")
-            self.assertIn("Usage:   vars [name[=value]]", output.getvalue())
+                dispatch_repl_line(runner, "help var")
+            self.assertIn("Usage:   var [--secret] [name[=value]]", output.getvalue())
 
     def test_dispatch_help_for_unknown_command(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -144,12 +144,12 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             self.assertEqual(script_commands(path), [(3, "ls"), (4, "topics")])
 
     def test_script_commands_preserves_quoted_hashes(self):
-        self.assertEqual(strip_inline_comment("vars name='a # b' # later").strip(), "vars name='a # b'")
+        self.assertEqual(strip_inline_comment("var name='a # b' # later").strip(), "var name='a # b'")
 
     def test_split_command_sequence_respects_quoted_semicolons(self):
         self.assertEqual(
-            split_command_sequence("vars a=1; vars b='two; still two'; topics"),
-            ["vars a=1", "vars b='two; still two'", "topics"],
+            split_command_sequence("var a=1; var b='two; still two'; topics"),
+            ["var a=1", "var b='two; still two'", "topics"],
         )
 
     def test_line_continuation_helpers(self):
@@ -160,12 +160,12 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
     def test_script_commands_joins_continuations_and_splits_semicolons(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "script.bywaf")
-            path.write_text("vars first=one; vars second=two\nhostscanner \\\n  127.0.0.1\n")
+            path.write_text("var first=one; var second=two\nhostscanner \\\n  127.0.0.1\n")
             self.assertEqual(
                 script_commands(path),
                 [
-                    (1, "vars first=one"),
-                    (1, "vars second=two"),
+                    (1, "var first=one"),
+                    (1, "var second=two"),
                     (2, "hostscanner \n  127.0.0.1"),
                 ],
             )
@@ -189,9 +189,9 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
     def test_record_command_history_accepts_redacted_stored_command(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, ".bywaf", "history.bywaf")
-            record_command_history("vars password=supersecret", path, stored_command="vars password=<redacted>")
+            record_command_history("var password=supersecret", path, stored_command="var password=<redacted>")
             text = path.read_text()
-            self.assertIn("vars password=<redacted>", text)
+            self.assertIn("var password=<redacted>", text)
             self.assertNotIn("supersecret", text)
 
     def test_format_history_entry_for_display_puts_timestamp_first(self):
@@ -219,7 +219,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
                 session_history=[
                     "plugins  # 2026-05-17 09:00:00 EDT",
                     "cmds  # 2026-05-17 10:00:00 EDT",
-                    "vars  # 2026-05-17 11:00:00 EDT",
+                    "var  # 2026-05-17 11:00:00 EDT",
                 ],
             )
             output = io.StringIO()
@@ -227,7 +227,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
                 dispatch_repl_line(runner, "history since=202605171000 until=202605171059", state)
             self.assertNotIn("plugins", output.getvalue())
             self.assertIn("cmds", output.getvalue())
-            self.assertNotIn("vars", output.getvalue())
+            self.assertNotIn("var", output.getvalue())
 
     def test_dispatch_history_accepts_explicit_time_prefix(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -270,7 +270,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             script = Path(tmp, "script.bywaf")
-            script.write_text("# comment\nvars test.value=abc\nvars\n")
+            script.write_text("# comment\nvar test.value=abc\nvar\n")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 run_script(runner, script)
@@ -281,7 +281,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             script = Path(tmp, "script.bywaf")
-            script.write_text("vars one.value=1; vars two.value=2\n")
+            script.write_text("var one.value=1; var two.value=2\n")
             with contextlib.redirect_stdout(io.StringIO()):
                 run_script(runner, script)
             self.assertEqual(runner.registry.varstore.get("one.value"), "1")
@@ -291,7 +291,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             script = Path(tmp, "script.bywaf")
-            script.write_text("vars loaded.value=yes\n")
+            script.write_text("var loaded.value=yes\n")
             with contextlib.redirect_stdout(io.StringIO()):
                 dispatch_repl_line(runner, f"load script={script}")
             self.assertEqual(runner.registry.varstore.get("loaded.value"), "yes")
@@ -300,7 +300,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             script = Path(tmp, "script.bywaf")
-            script.write_text("vars loaded.value=yes\n")
+            script.write_text("var loaded.value=yes\n")
             with contextlib.redirect_stdout(io.StringIO()):
                 dispatch_repl_line(runner, f"load script={script}")
             loaded = runner.db.events_for_topic("resource.script.loaded")[0]
@@ -309,7 +309,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             self.assertIn(str(serial), runner.db.serials())
             commands = runner.db.events_for_serial(str(serial))
             self.assertEqual([event.topic for event in commands], ["resource.script.loaded", "resource.script.command"])
-            self.assertEqual(commands[1].payload["command"], "vars loaded.value=yes")
+            self.assertEqual(commands[1].payload["command"], "var loaded.value=yes")
 
     def test_load_plugin_records_auditable_serial(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -408,10 +408,10 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             config = Path(tmp, "vars.toml")
-            dispatch_repl_line(runner, "vars test.value=before")
+            dispatch_repl_line(runner, "var test.value=before")
             with contextlib.redirect_stdout(io.StringIO()):
                 dispatch_repl_line(runner, f"save config={config}")
-            dispatch_repl_line(runner, "vars test.value=after")
+            dispatch_repl_line(runner, "var test.value=after")
             with contextlib.redirect_stdout(io.StringIO()):
                 dispatch_repl_line(runner, f"load config={config}")
             self.assertEqual(runner.registry.varstore.get("test.value"), "before")
@@ -421,7 +421,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             default_config = Path(tmp, "default.toml")
-            dispatch_repl_line(runner, "vars test.value=default")
+            dispatch_repl_line(runner, "var test.value=default")
             with (
                 patch("bywaf.repl.resources.DEFAULT_CONFIG", default_config),
                 contextlib.redirect_stdout(io.StringIO()),
@@ -558,13 +558,13 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "vars")
+                dispatch_repl_line(runner, "var")
             self.assertIn("portscanner.ports=", output.getvalue())
 
     def test_dispatch_vars_assignment_sets_value(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
-            dispatch_repl_line(runner, "vars custom.value=abc")
+            dispatch_repl_line(runner, "var custom.value=abc")
             self.assertEqual(runner.registry.varstore.get("custom.value"), "abc")
 
     def test_dispatch_topics_and_show_use_database_events(self):

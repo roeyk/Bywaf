@@ -1,7 +1,7 @@
 """Built-in REPL command handlers and mutable shell commands.
 
 Provides the dispatch table and handlers for built-ins such as help, history,
-vars, use, event, load, save, prompt, jobs, runs, and project.
+var, use, event, load, save, prompt, jobs, runs, and project.
 
 Used by:
 - bywaf.repl.shell: dispatches parsed REPL lines to these handlers.
@@ -11,18 +11,20 @@ Used by:
 from __future__ import annotations
 
 import shlex
+import getpass
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any
 
 from ..framework_requests import process_framework_requests
 from .display import (
-    display_var_value,
+    format_var_assignment,
     print_commandlets,
     print_events,
     print_help,
     print_history,
     print_info,
     print_job,
+    print_plugins,
     print_run_variables,
     print_runs,
     print_topics,
@@ -30,7 +32,8 @@ from .display import (
 )
 from .resources import dispatch_project_command, load_repl_resource, print_project_info, save_repl_resource
 from ..runner import Runner
-from ..secrets import REDACTED_VALUE, is_secret_name, load_or_create_fingerprint_key
+from ..secrets import REDACTED_VALUE, load_or_create_fingerprint_key
+from ..secret_input import SECRET_BLOCK_VALUE
 
 if TYPE_CHECKING:
     from .shell import ShellState
@@ -55,7 +58,7 @@ def handle_help_command(runner: Runner, state: ShellState, rest: str | None, lin
 def handle_plugins_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
     """Print loaded plugin providers."""
     del state, rest, line
-    print("\n".join(runner.registry.provider_names()))
+    print_plugins(runner)
     return None
 
 
@@ -251,7 +254,7 @@ REPL_COMMAND_HANDLERS: dict[str, ReplCommandHandler] = {
     "topics": handle_topics_command,
     "triggers": handle_triggers_command,
     "use": handle_use_command,
-    "vars": handle_vars_command,
+    "var": handle_vars_command,
 }
 
 
@@ -313,7 +316,7 @@ def print_vars(runner: Runner, state: ShellState) -> None:
     """Print session variables in stable key order."""
     del state
     for key, value in runner.registry.varstore.items():
-        print(f"{key}={display_var_value(runner, value)}")
+        print(format_var_assignment(runner, key, value))
 
 
 def print_var(runner: Runner, state: ShellState, name: str) -> None:
@@ -323,20 +326,26 @@ def print_var(runner: Runner, state: ShellState, name: str) -> None:
     if value is None:
         print(f"error: variable not set: {key}")
         return
-    print(f"{key}={display_var_value(runner, value)}")
+    print(format_var_assignment(runner, key, value))
 
 
 def set_var(runner: Runner, state: ShellState, assignment: str) -> None:
-    """Set a REPL variable, keeping secret-looking values out of varstore."""
+    """Set a REPL variable, keeping explicitly secret values out of varstore."""
+    assignment, explicit_secret = parse_var_assignment_flags(assignment)
     key, value = assignment.split("=", 1)
     resolved_key = resolve_var_key(state, key.strip())
     cleaned_value = value.strip()
-    if is_secret_name(resolved_key.rsplit(".", 1)[-1]):
+    if explicit_secret:
+        hidden_value = getattr(state, "secret_values", {}).get(resolved_key)
+        if cleaned_value == SECRET_BLOCK_VALUE and hidden_value is not None:
+            cleaned_value = hidden_value
+        elif cleaned_value == "":
+            cleaned_value = read_secret_value(resolved_key)
         secret_ref = runner.registry.secrets.put(
             resolved_key,
             cleaned_value,
             key=load_or_create_fingerprint_key(),
-            source="vars",
+            source="var",
         )
         runner.registry.varstore.set(resolved_key, secret_ref.ref)
         runner.db.store_secret(secret_ref, cleaned_value)
@@ -345,6 +354,27 @@ def set_var(runner: Runner, state: ShellState, assignment: str) -> None:
         print(f"{resolved_key}={REDACTED_VALUE} fingerprint={secret_ref.fingerprint.format()}")
         return
     runner.registry.varstore.set(resolved_key, cleaned_value)
+
+
+def read_secret_value(name: str) -> str:
+    """Read one secret value without echoing it to the terminal."""
+    return getpass.getpass(f"Secret for {name}: ")
+
+
+def parse_var_assignment_flags(assignment: str) -> tuple[str, bool]:
+    """Return assignment text and whether it requested explicit secret storage."""
+    stripped = assignment.strip()
+    left, separator, right = stripped.partition("=")
+    if separator:
+        left_tokens = shlex.split(left)
+        if "--secret" in left_tokens:
+            key_tokens = [token for token in left_tokens if token != "--secret"]
+            if len(key_tokens) != 1:
+                raise ValueError("usage: var [--secret] name=value")
+            return f"{key_tokens[0]}={right}", True
+    if stripped.endswith(" --secret"):
+        return stripped.removesuffix(" --secret").strip(), True
+    return assignment, False
 
 
 def set_active_context(runner: Runner, state: ShellState, target: str) -> None:

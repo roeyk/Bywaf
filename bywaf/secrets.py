@@ -23,20 +23,6 @@ FINGERPRINT_ALGORITHM = "hmac-sha256"
 FINGERPRINT_HEX_CHARS = 24
 REDACTED_VALUE = "<redacted>"
 SECRET_REF_PREFIX = "$__secret_"
-SECRET_NAME_HINTS = frozenset(
-    {
-        "api-key",
-        "api_key",
-        "authorization",
-        "cookie",
-        "pass",
-        "passwd",
-        "password",
-        "pw",
-        "secret",
-        "token",
-    }
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,7 +53,7 @@ class SecretRef:
     ref: str
     name: str
     fingerprint: SecretFingerprint
-    source: str = "vars"
+    source: str = "var"
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,7 +75,7 @@ class InMemorySecretStore:
     values: dict[str, str] = field(default_factory=dict)
     refs: dict[str, SecretRef] = field(default_factory=dict)
 
-    def put(self, name: str, value: str, *, key: bytes, source: str = "vars") -> SecretRef:
+    def put(self, name: str, value: str, *, key: bytes, source: str = "var") -> SecretRef:
         """Store a secret value and return an opaque reference for varstore use."""
         ref = f"{SECRET_REF_PREFIX}{os.urandom(8).hex()}"
         secret_ref = SecretRef(ref=ref, name=name, fingerprint=fingerprint_secret(value, key), source=source)
@@ -134,10 +120,11 @@ def fingerprint_secret(secret: str, key: bytes) -> SecretFingerprint:
 
 
 def is_secret_name(name: str, declared: set[str] | frozenset[str] = frozenset()) -> bool:
-    """Return whether a command option name should be treated as secret."""
+    """Return whether a command option is declared as secret metadata."""
     normalized = name.strip().lower().replace("_", "-")
     declared_normalized = {item.strip().lower().replace("_", "-") for item in declared}
-    return normalized in declared_normalized or normalized in SECRET_NAME_HINTS
+    segments = tuple(part for dotted in normalized.split(".") for part in dotted.split("-") if part)
+    return normalized in declared_normalized or any(segment in declared_normalized for segment in segments)
 
 
 def redact_command_text(command: str, *, key: bytes, secret_names: set[str] | frozenset[str] = frozenset()) -> RedactionResult:
@@ -150,6 +137,11 @@ def redact_command_text(command: str, *, key: bytes, secret_names: set[str] | fr
         tokens = shlex.split(command)
     except ValueError:
         return RedactionResult(command)
+
+    if tokens and tokens[0] == "var":
+        explicit = redact_explicit_vars_secret(tokens, key=key)
+        if explicit is not None:
+            return explicit
 
     redacted_tokens: list[str] = []
     secrets: list[RedactedSecret] = []
@@ -164,6 +156,56 @@ def redact_command_text(command: str, *, key: bytes, secret_names: set[str] | fr
         else:
             redacted_tokens.append(token)
     return RedactionResult(" ".join(quote_redacted_token(token) for token in redacted_tokens), tuple(secrets))
+
+
+def redact_explicit_vars_secret(tokens: list[str], *, key: bytes) -> RedactionResult | None:
+    """Redact `var --secret name=value` command text."""
+    if len(tokens) < 2 or ("--secret" not in tokens[1:] and not any(token.startswith("--secret=") for token in tokens[1:])):
+        return None
+    if "--secret" in tokens[1:]:
+        secret_index = tokens.index("--secret", 1)
+        if secret_index + 1 < len(tokens) and "=" in tokens[secret_index + 1]:
+            name, value = tokens[secret_index + 1].split("=", 1)
+            redacted = tokens[:secret_index] + ["--secret", f"{name}={REDACTED_VALUE}"] + tokens[secret_index + 2 :]
+            return RedactionResult(
+                " ".join(quote_redacted_token(token) for token in redacted),
+                explicit_secret_records(name, value, key=key),
+            )
+    for index, token in enumerate(tokens[1:], start=1):
+        if not token.startswith("--secret="):
+            continue
+        if index == 1:
+            return None
+        name = tokens[index - 1]
+        value = token.split("=", 1)[1]
+        redacted = tokens[: index - 1] + [f"{name} --secret={REDACTED_VALUE}"] + tokens[index + 1 :]
+        return RedactionResult(
+            " ".join(quote_redacted_token(item) for item in redacted),
+            explicit_secret_records(name, value, key=key),
+        )
+    for index, token in enumerate(tokens[1:], start=1):
+        if "=" not in token:
+            continue
+        left, value = token.split("=", 1)
+        left_tokens = left.split()
+        if "--secret" not in left_tokens:
+            continue
+        key_tokens = [item for item in left_tokens if item != "--secret"]
+        if len(key_tokens) != 1:
+            return None
+        redacted = tokens[:index] + [f"{key_tokens[0]} --secret={REDACTED_VALUE}"] + tokens[index + 1 :]
+        return RedactionResult(
+            " ".join(quote_redacted_token(token) for token in redacted),
+            explicit_secret_records(key_tokens[0], value, key=key),
+        )
+    return None
+
+
+def explicit_secret_records(name: str, value: str, *, key: bytes) -> tuple[RedactedSecret, ...]:
+    """Return audit-safe metadata for an explicit secret assignment."""
+    if not value:
+        return ()
+    return (RedactedSecret(name=name, fingerprint=fingerprint_secret(value, key)),)
 
 
 def quote_redacted_token(token: str) -> str:

@@ -132,8 +132,11 @@ C800-C899   plugin/package management
 C900-C999   reserved/experimental/local
 ```
 
-`audit list capabilities` should display both the code and dotted name, and all
-timestamps in capability reports should include a timezone.
+`audit list capabilities` inventories declared capability names against runtime
+`plugin.capability.used` and `plugin.capability.missing` evidence. Until exact
+per-capability `C###` codes are assigned, the command displays the accepted
+family range, the dotted name, declaring commandlets, last observed use, and all
+timestamps with timezone.
 
 ## Plugin Integration Types
 

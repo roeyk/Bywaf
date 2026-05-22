@@ -59,7 +59,7 @@ For a local pip package build:
 
 ```bash
 scripts/build_pip_package.sh
-python3 -m pip install dist/bywaf-0.11.0-py3-none-any.whl
+python3 -m pip install dist/bywaf-0.11.1-py3-none-any.whl
 bywaf --help
 ```
 
@@ -69,7 +69,7 @@ write artifacts under `dist/deb/`:
 ```bash
 sudo apt install debhelper dh-python pybuild-plugin-pyproject python3-all python3-setuptools python3-prompt-toolkit
 scripts/build_deb_package.sh
-sudo apt install dist/deb/bywaf_0.11.0-1_all.deb
+sudo apt install dist/deb/bywaf_0.11.1-1_all.deb
 bywaf --help
 ```
 
@@ -266,7 +266,7 @@ help
 help <command>
 plugins
 cmds
-vars
+var
 history
 info
 job <list|show|cancel|end|kill>
@@ -328,9 +328,9 @@ Interactive shells use `prompt_toolkit` when a real terminal is available.
 the first candidate. Then arrow keys move through candidates, `Enter` selects
 the highlighted completion, and `Esc` returns to the command line. A bottom
 toolbar shows that hint while a completion menu is open. The selection-mode key
-is configurable with `vars completion.select-key=<key>` using prompt-toolkit key
+is configurable with `var completion.select-key=<key>` using prompt-toolkit key
 names, because some desktop environments or terminal stacks reserve
-`Ctrl-Space`. `vars completion.wasd-selection=true` enables optional
+`Ctrl-Space`. `var completion.wasd-selection=true` enables optional
 WASD-style menu navigation (`w`/`a` move backward, `s`/`d` move forward,
 following prompt-toolkit's flat completion order), but it is off by default so
 ordinary typing is not intercepted. Minimal
@@ -357,16 +357,20 @@ Bywaf enforces progress throttling in the framework. Configure it with global
 session variables:
 
 ```text
-bywaf> vars global.progress.min-interval-ms=250
-bywaf> vars global.progress.min-percent-delta=1
+bywaf> var global.progress.min-interval-ms=250
+bywaf> var global.progress.min-percent-delta=1
 ```
 
 Audit logs are stored as SQLite events. Use `audit show ...` to inspect them
 and `audit export file=audit.jsonl`, `audit export file=audit.pdf`, or
-`audit export file=audit.sqlite3` to hand off a copy.
+`audit export file=audit.sqlite3` to hand off a copy. Use
+`audit list capabilities` to inventory declared capabilities against observed
+runtime use.
 
 ```text
 bywaf> audit show topic=console.alert since=20260517 until=20260518
+bywaf> audit list capabilities
+bywaf> audit list capabilities plugin=nikto
 bywaf> audit export file=audit.pdf since=run=<command-run-id>
 bywaf> audit export --encrypt file=audit.sqlite3
 bywaf> audit export --encrypt file=audit.pdf
@@ -703,7 +707,7 @@ literally.
 
 ```text
 bywaf> use hostscanner
-bywaf> vars targets=192.168.1.1 192.168.1.2
+bywaf> var targets=192.168.1.1 192.168.1.2
 bywaf> hostscanner $targets
 bywaf> hostscanner "$targets"
 bywaf> hostscanner '$targets'
@@ -733,9 +737,9 @@ are audited as `plan.repair.applied` or `plan.repair.denied`.
 Initial network policy variables:
 
 ```text
-bywaf> vars global.policy.network.allow=192.168.1.0/24
-bywaf> vars global.policy.network.deny=169.254.169.254/32,192.168.1.50
-bywaf> vars global.plan.required=true
+bywaf> var global.policy.network.allow=192.168.1.0/24
+bywaf> var global.policy.network.deny=169.254.169.254/32,192.168.1.50
+bywaf> var global.plan.required=true
 ```
 
 The policy layer applies to the run being launched. Repairs do not mutate source
@@ -754,7 +758,7 @@ bywaf> hostscanner \
 Separate multiple commands with semicolons when they should run sequentially:
 
 ```text
-bywaf> vars target=127.0.0.1; vars; topics
+bywaf> var target=127.0.0.1; var; topics
 ```
 
 Semicolons inside quotes are preserved as part of the argument text.
@@ -845,7 +849,7 @@ bywaf> pipeline kill --hard <id>
 Use `--all` to include historical entries. These commands render table views
 with local ID, durable serial, lifecycle state, names, timestamps, and an
 `ARTIFACTS` column counting artifacts attached so far. Set
-`vars global.listing.active-format=long` to include the state timestamp in the
+`var global.listing.active-format=long` to include the state timestamp in the
 state column; set it to `short` for compact lifecycle labels. Use `--page` on
 list actions such as `job list`, `pipeline list`, and `artifact list` to view
 long output through the framework pager.
@@ -1035,7 +1039,7 @@ The session variable `db.encryption=sqlcipher` makes `db new` encrypted by
 default:
 
 ```text
-bywaf> vars db.encryption=sqlcipher
+bywaf> var db.encryption=sqlcipher
 bywaf> db new
 ```
 
@@ -1152,24 +1156,41 @@ bywaf> load history=session-history.bywaf
 List variables:
 
 ```text
-bywaf> vars
+bywaf> var
 ```
 
 Set a variable:
 
 ```text
-bywaf> vars name=value
+bywaf> var name=value
 ```
 
-Secret-looking variable names such as `password`, `pw`, `token`, `secret`,
-`api-key`, `authorization`, and `cookie` are stored as secret references in the
-normal variable store. `vars`, command history, and audit-friendly displays
-show `<redacted>` plus an HMAC fingerprint instead of the plaintext:
+Set an explicit secret variable:
 
 ```text
-bywaf> vars ssh_probe.password=client-password
+bywaf> var --secret ssh_probe.password=client-password
 ssh_probe.password=<redacted> fingerprint=hmac-sha256:...
 ```
+
+If the value is empty, Bywaf opens the configured secret input method and
+records the command in history with a redacted value. The default interactive
+method is a `[REDACTED]` block in the prompt; `getpass` uses a separate no-echo
+prompt instead.
+
+```text
+bywaf> var --secret ssh_probe.password=
+```
+
+```text
+bywaf> var secret.input-mode=block
+bywaf> var secret.input-mode=getpass
+```
+
+Only explicit `--secret` assignments and commandlet options declared as secret
+metadata are stored as secret references. Plain `var password=value` is an
+ordinary variable. `var`, command history, and audit-friendly displays show
+`<redacted>` plus an HMAC fingerprint for secret references instead of the
+plaintext.
 
 Credential-aware commandlets resolve those references through the framework
 secret API at run time. This keeps the normal variable store redacted while
@@ -1184,24 +1205,31 @@ there.
 Show one variable:
 
 ```text
-bywaf> vars name
+bywaf> var name
 ```
 
 Common examples:
 
 ```text
-bywaf> vars http_probe.cookie-file=/tmp/cookies.txt
-bywaf> vars history.timestamp-format=%Y-%m-%d %H:%M:%S %Z
-bywaf> vars hostscanner.targets=192.168.1.1-255
+bywaf> var http_probe.cookie-file=/tmp/cookies.txt
+bywaf> var history.timestamp-format=%Y-%m-%d %H:%M:%S %Z
+bywaf> var display.vars.color=auto
+bywaf> var display.vars.name-color=cyan
+bywaf> var display.vars.value-color=green
+bywaf> var hostscanner.targets=192.168.1.1-255
 bywaf> hostscanner
 ```
+
+`display.vars.color` accepts `auto`, `always`, or `never`. Name and value
+colors accept standard ANSI color names such as `cyan`, `green`, `yellow`,
+`blue`, and their `bright-*` variants.
 
 Use a commandlet context to make short variable assignments target that
 commandlet:
 
 ```text
 bywaf> use hostscanner
-bywaf> vars targets=192.168.1.1-255
+bywaf> var targets=192.168.1.1-255
 bywaf> use global
 ```
 
@@ -1269,7 +1297,7 @@ commands as comments, so history lines can be copied into a script file.
 Change the timestamp format:
 
 ```text
-bywaf> vars history.timestamp-format=%Y/%m/%d %H:%M:%S %Z
+bywaf> var history.timestamp-format=%Y/%m/%d %H:%M:%S %Z
 ```
 
 # Scripts
@@ -1375,7 +1403,7 @@ bywaf> dns_lookup record-type=MX example.com
 ```
 
 `shodan_lookup` uses the Shodan Python library. Set `SHODAN_API_KEY`, use
-`api-key=...`, or set `vars shodan_lookup.api-key=...`.
+`api-key=...`, or set `var shodan_lookup.api-key=...`.
 
 ```text
 bywaf> shodan_lookup 8.8.8.8
@@ -1447,7 +1475,7 @@ bywaf> eyewitness --output-dir=client-shots https://example.com/
 For authorized session-aware testing, it can use cookies:
 
 ```text
-bywaf> vars http_probe.cookie-file=/path/to/cookies.txt
+bywaf> var http_probe.cookie-file=/path/to/cookies.txt
 bywaf> http_probe https://example.com/
 bywaf> http_probe --firefox-profile ~/.mozilla/firefox/<profile>
 ```
@@ -1461,7 +1489,7 @@ output when present.
 
 ```text
 bywaf> wifi_scan interface=wlan0mon duration=60
-bywaf> vars wifi_scan.interface=wlan0mon
+bywaf> var wifi_scan.interface=wlan0mon
 bywaf> wifi_scan duration=120
 ```
 
@@ -1640,10 +1668,17 @@ Validate a filesystem plugin package outside the Bywaf interpreter:
 
 ```bash
 python3 scripts/plugin_check.py path/to/plugin-dir
+python3 scripts/plugin_check.py path/to/plugin-dir --strict-inference
 python3 scripts/plugin_check.py path/to/plugin-dir --manifest-key manifest-signing.pub.pem --verify
 python3 scripts/plugin_check.py path/to/plugin-dir --json
+python3 -m bywaf.tools.plugin_manifest path/to/plugin-dir/plugin.py --infer-capabilities
 python3 scripts/plugin_manifest_sign.py --manifest path/to/plugin-dir/bywaf.plugin.toml --private manifest-signing.pem --in-place
 ```
+
+The checker validates manifest/code drift and reports AST-inferred capability
+suggestions with file and line evidence. The manifest generator emits
+commandlets, secret options, trigger specs, and, for single-commandlet plugins,
+can merge inferred capabilities into a starter manifest.
 
 The maintainer keeps private manifest-signing keys outside the repository.
 Official public verification keys are packaged under `bywaf/keys/` when
@@ -1690,7 +1725,7 @@ Useful built-ins:
 help [command]
 plugins
 cmds
-vars [name=value]
+var [--secret] [name=value]
 history
 job <list|show|cancel|end|kill>
 pipeline <list|show|cancel|end|kill|attach>

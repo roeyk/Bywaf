@@ -21,8 +21,10 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from bywaf.plugin.capabilities import capability_declared  # noqa: E402
 from bywaf.registry import PluginManifestTrust, verify_plugin_manifest_signature_data, load_filesystem_plugin_package  # noqa: E402
 from bywaf.toml_support import load_data_file  # noqa: E402
+from bywaf.tools.plugin_check import analyze_plugin_source  # noqa: E402
 
 
 def check_plugin(
@@ -30,6 +32,7 @@ def check_plugin(
     *,
     manifest_key: Path | None = None,
     verify_manifest: bool = False,
+    strict_inference: bool = False,
 ) -> dict[str, Any]:
     """Return a validation report for one filesystem plugin directory."""
     report: dict[str, Any] = {
@@ -37,6 +40,12 @@ def check_plugin(
         "plugin": str(plugin_dir),
         "commandlets": [],
         "triggers": [],
+        "declared_capabilities": [],
+        "inferred_capabilities": [],
+        "missing_capabilities": [],
+        "unused_capabilities": [],
+        "evidence": [],
+        "warnings": [],
         "manifest_signature": "unchecked",
         "errors": [],
     }
@@ -50,6 +59,12 @@ def check_plugin(
     if missing:
         report["errors"].extend(f"{path} not found" for path in missing)
         return report
+    try:
+        source_analysis = analyze_plugin_source(plugin_dir)
+    except Exception as exc:  # noqa: BLE001 - this is a CLI validation report.
+        report["errors"].append(f"source analysis failed: {exc}")
+        return report
+    report.update(source_analysis.to_dict())
     if verify_manifest and manifest_key is None:
         report["errors"].append("--verify requires --manifest-key")
         return report
@@ -69,9 +84,26 @@ def check_plugin(
     except Exception as exc:  # noqa: BLE001 - this is a CLI validation report.
         report["errors"].append(str(exc))
         return report
-    report["ok"] = True
     report["commandlets"] = [plugin.spec.name for plugin in plugins]
     report["triggers"] = [trigger.name for trigger in triggers]
+    declared_capabilities = sorted({capability for plugin in plugins for capability in plugin.spec.capabilities})
+    report["declared_capabilities"] = declared_capabilities
+    inferred_capabilities = tuple(str(item) for item in report["inferred_capabilities"])
+    missing_capabilities = sorted(
+        capability
+        for capability in inferred_capabilities
+        if not capability_declared(capability, declared_capabilities)
+    )
+    unused_capabilities = sorted(
+        capability
+        for capability in declared_capabilities
+        if not capability_declared(capability, inferred_capabilities)
+    )
+    report["missing_capabilities"] = missing_capabilities
+    report["unused_capabilities"] = unused_capabilities
+    if strict_inference and missing_capabilities:
+        report["errors"].append("missing inferred capabilities: " + ", ".join(missing_capabilities))
+    report["ok"] = not report["errors"]
     return report
 
 
@@ -81,10 +113,26 @@ def render_text(report: dict[str, Any]) -> str:
     commandlets = report.get("commandlets") or []
     triggers = report.get("triggers") or []
     errors = report.get("errors") or []
+    missing_capabilities = report.get("missing_capabilities") or []
+    unused_capabilities = report.get("unused_capabilities") or []
+    inferred_capabilities = report.get("inferred_capabilities") or []
+    warnings = report.get("warnings") or []
     if commandlets:
         lines.append("commandlets: " + ", ".join(str(item) for item in commandlets))
     if triggers:
         lines.append("triggers: " + ", ".join(str(item) for item in triggers))
+    if inferred_capabilities:
+        lines.append("inferred capabilities: " + ", ".join(str(item) for item in inferred_capabilities))
+    if missing_capabilities:
+        lines.append("missing inferred capabilities: " + ", ".join(str(item) for item in missing_capabilities))
+    if unused_capabilities:
+        lines.append("unused declared capabilities: " + ", ".join(str(item) for item in unused_capabilities))
+    for warning in warnings:
+        lines.append(
+            "warning: "
+            f"{warning['capability']} {warning['kind']} "
+            f"{warning['path']}:{warning['line']} {warning['detail']}"
+        )
     for error in errors:
         lines.append(f"error: {error}")
     return "\n".join(lines)
@@ -96,6 +144,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("plugin", type=Path, help="filesystem plugin directory containing plugin.py and bywaf.plugin.toml")
     parser.add_argument("--manifest-key", type=Path, help="trusted public key for verifying bywaf.plugin.toml")
     parser.add_argument("--verify", action="store_true", help="require a verified manifest signature")
+    parser.add_argument(
+        "--strict-inference",
+        action="store_true",
+        help="fail when AST-inferred capabilities are missing from CommandSpec declarations",
+    )
     parser.add_argument("--json", action="store_true", help="emit a machine-readable validation report")
     return parser
 
@@ -103,7 +156,12 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     """Run plugin package validation."""
     args = build_parser().parse_args(argv)
-    report = check_plugin(args.plugin, manifest_key=args.manifest_key, verify_manifest=args.verify)
+    report = check_plugin(
+        args.plugin,
+        manifest_key=args.manifest_key,
+        verify_manifest=args.verify,
+        strict_inference=args.strict_inference,
+    )
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:

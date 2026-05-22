@@ -41,7 +41,7 @@ DEFAULTS = {
     usage="http_probe [options] [target ...]",
     examples=(
         "http_probe https://example.test/",
-        "vars http_probe.cookie-file=/tmp/cookies.txt",
+        "var http_probe.cookie-file=/tmp/cookies.txt",
         "hostscanner 127.0.0.1 | portscanner | http_probe --method GET",
     ),
     consumes=("port.open",),

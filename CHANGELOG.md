@@ -3,6 +3,35 @@
 All notable project changes are tracked here. Bywaf is still pre-1.0 software,
 so compatibility may change between testing releases.
 
+## [0.11.1] - 2026-05-22
+
+Last updated: 2026-05-22 21:45:00 EDT
+
+### Added
+
+- Added AST-based plugin checker inference with file/line evidence,
+  inferred capability reporting, missing/unused capability summaries,
+  direct network/process/filesystem API warnings, and `--strict-inference`.
+- Added `audit list capabilities` with optional `plugin=<commandlet>`
+  filtering to compare declared capabilities with observed runtime
+  `plugin.capability.used` and `plugin.capability.missing` evidence.
+- Added plugin manifest generation support for provider-owned trigger specs
+  and single-commandlet inferred capabilities through
+  `bywaf.tools.plugin_manifest --infer-capabilities`.
+- Added explicit `var --secret name=value` secret assignment support, including
+  `--secret` markers placed before the `=` sign, configurable
+  `secret.input-mode`, and `[REDACTED]` secret input blocks for empty values.
+- Added configurable color for `var` output through `display.vars.color`,
+  `display.vars.name-color`, and `display.vars.value-color`.
+
+### Changed
+
+- Made `plugins` output a compact provider-level table with command counts and
+  readable purpose summaries.
+- Made `cmds` output a commandlet-level table with descriptions from
+  `CommandSpec.description`.
+- Updated package metadata and release builders for the 0.11.1 patch release.
+
 ## [0.11.0] - 2026-05-22
 
 Last updated: 2026-05-22 12:00:00 EDT
@@ -267,7 +296,7 @@ Last updated: 2026-05-21 14:27:13 EDT
 - Added commandlet option metadata for `secret=True` and marked bundled
   password/API-key options as secret.
 - Added HMAC-based secret fingerprints and in-memory secret references for
-  manual `vars password=...` style assignments.
+  manual `var password=...` style assignments.
 - Added `context.secrets` so commandlets can explicitly resolve opaque secret
   references through an audited framework API.
 - Added manifest `secret_options` metadata, enforcement against Python
@@ -278,7 +307,7 @@ Last updated: 2026-05-21 14:27:13 EDT
 #### Changed
 
 - Redacted obvious secret `name=value` assignments in REPL command history and
-  `vars` output while preserving an audit-safe fingerprint.
+  `var` output while preserving an audit-safe fingerprint.
 - Updated bundled credential-aware commandlets to use `context.secrets` and
   declare `framework.secret.resolve`.
 - Redacted known in-memory secrets from process audit argv and emitted
@@ -597,8 +626,8 @@ completion regressions, runtime polish, and package release automation.
 
 #### Added
 
-- Added `vars <name>` lookup for printing a single session variable value,
-  using the same active-context scoping as `vars <name>=<value>`.
+- Added `var <name>` lookup for printing a single session variable value,
+  using the same active-context scoping as `var <name>=<value>`.
 
 ### 2026-05-17 22:59:17 EDT
 
@@ -819,7 +848,7 @@ completion regressions, runtime polish, and package release automation.
   SQLite/PDF export support.
 - Added `except=` scanner exclusion lists with file-backed `@lines:` support.
 - Added the `use` built-in for commandlet-scoped short variable assignments and
-  context-first `vars` completion.
+  context-first `var` completion.
 - Added artifact verification cross-checks against both the encrypted artifact
   DB hash and the main audit DB artifact metadata hash.
 - Added `pause`, `resume`, and `stop` runtime commandlets for jobs and
@@ -910,7 +939,7 @@ Initial testing release for the rewritten Bywaf framework.
 - Added plugin-owned completion specs for files, paths, options, choices,
   plugins, jobs, topics, runs, and pipelines.
 - Added script loading with `load script=<path>`.
-- Added session variables with `vars name=value`.
+- Added session variables with `var name=value`.
 - Added command history with configurable timestamp formatting.
 - Added default `.bywaf/` state directories for databases, config, history, and
   local plugins.

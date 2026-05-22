@@ -32,6 +32,32 @@ from ..runtime_display import (
 from ..runner import Runner
 from ..secrets import SECRET_REF_PREFIX, REDACTED_VALUE
 
+VAR_COLOR_MODE_VAR = "display.vars.color"
+VAR_NAME_COLOR_VAR = "display.vars.name-color"
+VAR_VALUE_COLOR_VAR = "display.vars.value-color"
+DEFAULT_VAR_COLOR_MODE = "auto"
+DEFAULT_VAR_NAME_COLOR = "cyan"
+DEFAULT_VAR_VALUE_COLOR = "green"
+
+ANSI_COLORS = {
+    "black": "30",
+    "red": "31",
+    "green": "32",
+    "yellow": "33",
+    "blue": "34",
+    "magenta": "35",
+    "cyan": "36",
+    "white": "37",
+    "bright-black": "90",
+    "bright-red": "91",
+    "bright-green": "92",
+    "bright-yellow": "93",
+    "bright-blue": "94",
+    "bright-magenta": "95",
+    "bright-cyan": "96",
+    "bright-white": "97",
+}
+
 
 @dataclass(frozen=True, slots=True)
 class HelpEntry:
@@ -54,7 +80,12 @@ HELP_COMMANDS = (
     HelpEntry("jobs", "alias for job list", "jobs"),
     HelpEntry("pipelines", "alias for pipeline list", "pipelines"),
     HelpEntry("runs", "show commandlet run IDs", "runs"),
-    HelpEntry("vars [name[=value]]", "list, show, or set session variables", "vars [name[=value]]", ("vars http_probe.cookie-file=/tmp/cookies.txt", "vars http_probe.cookie-file")),
+    HelpEntry(
+        "var [--secret] [name[=value]]",
+        "list, show, or set session variables",
+        "var [--secret] [name[=value]]",
+        ("var http_probe.cookie-file=/tmp/cookies.txt", "var --secret ssh_probe.password=client-password"),
+    ),
     HelpEntry("topics", "list event topics in the active database", "topics"),
     HelpEntry("project", "list, inspect, create, or switch project directories", "project <list|info|new|use>"),
     HelpEntry("use <commandlet|global>", "set the active variable context", "use <commandlet|global>"),
@@ -101,7 +132,7 @@ def print_run_variables(runner: Runner, command_run_id: str) -> None:
         return
     print("Variables:")
     for row in rows:
-        print(f"  {row['name']}={display_var_value(runner, row['value'])}")
+        print(format_var_assignment(runner, row["name"], row["value"], prefix="  "))
 
 
 def print_history(entries: Sequence[str] = (), selectors: dict[str, str] | None = None) -> None:
@@ -339,6 +370,34 @@ def display_var_value(runner: Runner, value: str) -> str:
     return f"{REDACTED_VALUE} fingerprint={secret_ref.fingerprint.format()}"
 
 
+def format_var_assignment(runner: Runner, name: str, value: str, *, prefix: str = "") -> str:
+    """Return a `name=value` variable row with optional ANSI color."""
+    displayed_value = display_var_value(runner, value)
+    if not vars_color_enabled(runner):
+        return f"{prefix}{name}={displayed_value}"
+    name_color = runner.registry.varstore.get(VAR_NAME_COLOR_VAR, DEFAULT_VAR_NAME_COLOR) or DEFAULT_VAR_NAME_COLOR
+    value_color = runner.registry.varstore.get(VAR_VALUE_COLOR_VAR, DEFAULT_VAR_VALUE_COLOR) or DEFAULT_VAR_VALUE_COLOR
+    return f"{prefix}{ansi_color(name, name_color)}={ansi_color(displayed_value, value_color)}"
+
+
+def vars_color_enabled(runner: Runner) -> bool:
+    """Return whether variable listings should include ANSI color escapes."""
+    mode = (runner.registry.varstore.get(VAR_COLOR_MODE_VAR, DEFAULT_VAR_COLOR_MODE) or DEFAULT_VAR_COLOR_MODE).casefold()
+    if mode in {"0", "false", "no", "never", "off", "plain"}:
+        return False
+    if mode in {"1", "true", "yes", "always", "on"}:
+        return True
+    return sys.stdout.isatty()
+
+
+def ansi_color(text: str, color: str) -> str:
+    """Wrap text in an ANSI SGR color when the requested color is known."""
+    code = ANSI_COLORS.get(color.casefold())
+    if code is None:
+        return text
+    return f"\x1b[{code}m{text}\x1b[0m"
+
+
 def print_topics(runner: Runner, prefix: str = "") -> None:
     """Print event topics known to the active database, optionally filtered."""
     matched = [topic for topic in runner.events.topics() if topic.startswith(prefix)]
@@ -346,6 +405,58 @@ def print_topics(runner: Runner, prefix: str = "") -> None:
         print(topic)
     if prefix and not matched:
         print(f"no matching topics: {prefix}")
+
+
+def print_plugins(runner: Runner) -> None:
+    """Print loaded plugin providers with compact purpose summaries."""
+    rows = []
+    for provider, commandlets in runner.registry.grouped_names().items():
+        rows.append(
+            {
+                "provider": provider,
+                "count": str(len(commandlets)),
+                "description": provider_description(provider, commandlets, runner),
+            }
+        )
+    if rows:
+        print(
+            render_console_table(
+                Table(
+                    (
+                        Column("provider", "PLUGIN"),
+                        Column("count", "CMDS"),
+                        Column("description", "WHAT IT DOES"),
+                    ),
+                    tuple(rows),
+                )
+            )
+        )
+
+
+def provider_description(provider: str, commandlets: list[str], runner: Runner) -> str:
+    """Return a compact readable provider description."""
+    override = provider_descriptions().get(provider)
+    if override is not None:
+        return override
+    if len(commandlets) == 1:
+        return runner.registry.plugins[commandlets[0]].spec.description
+    return f"{len(commandlets)} commandlets; run `cmds` for command-level details."
+
+
+def provider_descriptions() -> dict[str, str]:
+    """Return concise descriptions for bundled provider groups."""
+    return {
+        "analysis": "Finding normalization, reporting, and file-analysis helpers.",
+        "discovery": "Host and target discovery commandlets.",
+        "http": "HTTP probing, fingerprinting, screenshot, and Nikto wrappers.",
+        "identity": "Identity and directory-service probes.",
+        "network": "Network service discovery and protocol probes.",
+        "os": "Local filesystem inspection helpers.",
+        "recon": "External and DNS reconnaissance helpers.",
+        "runtime": "Core runtime, audit, artifact, bundle, key, and control commands.",
+        "storage": "Database storage management.",
+        "wireless": "Wireless scanning wrappers.",
+    }
 
 
 def print_commandlets(runner: Runner, *, page: bool = False) -> None:
@@ -395,13 +506,32 @@ def print_triggers(runner: Runner) -> None:
 
 
 def render_commandlets(runner: Runner) -> list[str]:
-    """Return commandlets grouped under their plugin providers."""
-    lines: list[str] = []
+    """Return commandlets grouped under their plugin providers as a table."""
+    rows = []
     for provider, commandlets in runner.registry.grouped_names().items():
-        lines.append(provider)
         for commandlet in commandlets:
-            lines.append(f"  {commandlet}")
-    return lines
+            plugin = runner.registry.plugins[commandlet]
+            rows.append(
+                {
+                    "provider": provider,
+                    "commandlet": commandlet,
+                    "description": plugin.spec.description,
+                }
+            )
+    if not rows:
+        return []
+    return [
+        render_console_table(
+            Table(
+                (
+                    Column("provider", "PLUGIN"),
+                    Column("commandlet", "COMMANDLET"),
+                    Column("description", "WHAT IT DOES"),
+                ),
+                tuple(rows),
+            )
+        )
+    ]
 
 
 def page_generated_text(text: str) -> None:

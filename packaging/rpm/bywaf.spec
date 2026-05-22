@@ -1,5 +1,5 @@
 Name:           bywaf
-%global bywaf_version %{!?bywaf_version:0.11.0}%{?bywaf_version}
+%global bywaf_version %{!?bywaf_version:0.11.1}%{?bywaf_version}
 Version:        %{bywaf_version}
 Release:        1%{?dist}
 Summary:        Highly-auditable Python 3 commandlet framework
@@ -63,6 +63,11 @@ PYTHONPATH=%{buildroot}%{python3_sitelib} %{buildroot}%{_bindir}/bywaf --version
 %{python3_sitelib}/bywaf-*.dist-info
 
 %changelog
+* Fri May 22 2026 Roey Katz <roey.katz@gmail.com> - 0.11.1-1
+- Patch release with plugin checker AST inference, capability inventory,
+  manifest generation improvements, readable plugin/commandlet listings,
+  explicit secret variable assignment, and configurable variable-listing color.
+
 * Fri May 22 2026 Roey Katz <roey.katz@gmail.com> - 0.11.0-1
 - Testing release with provider-owned triggers, signed plugin manifests and
   catalogs, explicit trust bypasses for development, key-management policy

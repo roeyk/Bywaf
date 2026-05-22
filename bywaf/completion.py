@@ -26,6 +26,7 @@ try:
     from prompt_toolkit.filters import has_completions
     from prompt_toolkit.formatted_text import HTML
     from prompt_toolkit.key_binding import KeyBindings
+    from prompt_toolkit.key_binding import merge_key_bindings
     from prompt_toolkit.shortcuts import PromptSession
     from prompt_toolkit.shortcuts.prompt import CompleteStyle
 except ImportError:  # pragma: no cover - exercised only on minimal installs.
@@ -36,6 +37,7 @@ except ImportError:  # pragma: no cover - exercised only on minimal installs.
     has_completions = None
     HTML = None
     KeyBindings = None
+    merge_key_bindings = None
     PromptSession = None
     CompleteStyle = None
 
@@ -54,12 +56,23 @@ from .completion_core import resource_candidates
 from .completion_core import runtime_completion_target
 from .completion_core import tokens_after_last_pipe
 from .completion_core import variable_reference_candidates
+from .secret_input import (
+    DEFAULT_SECRET_INPUT_MODE,
+    SECRET_INPUT_MODE_VAR,
+    PromptSecretInputState,
+    PromptSecretLexer,
+    prompt_secret_key_bindings,
+    prompt_secret_output,
+    prompt_secret_style,
+)
 
 __all__ = [
     "BINARY_OPTION_NAMES",
     "COMPLETION_SELECT_KEY_VAR",
     "COMPLETION_WASD_SELECTION_VAR",
     "DEFAULT_COMPLETION_SELECT_KEY",
+    "DEFAULT_SECRET_INPUT_MODE",
+    "SECRET_INPUT_MODE_VAR",
     "Completer",
     "CoreCompleter",
     "PromptToolkitCompleter",
@@ -166,14 +179,43 @@ def build_prompt_session(completer: Completer):
         return None
     assert PromptSession is not None
     assert CompleteStyle is not None
-    return PromptSession(
+    secret_state = PromptSecretInputState()
+    completion_bindings = completion_key_bindings(completer)
+    secret_bindings = prompt_secret_key_bindings(secret_state, enabled=lambda: secret_input_mode(completer) == "block")
+    key_bindings = merge_prompt_key_bindings(completion_bindings, secret_bindings)
+    session_kwargs = {
+        "lexer": PromptSecretLexer(secret_state),
+        "style": prompt_secret_style(),
+        "output": prompt_secret_output(secret_state),
+    }
+    session = PromptSession(
         completer=PromptToolkitCompleter(completer),
         complete_while_typing=False,
         complete_style=CompleteStyle.MULTI_COLUMN,
         reserve_space_for_menu=8,
         bottom_toolbar=lambda: completion_bottom_toolbar(completer),
-        key_bindings=completion_key_bindings(completer),
+        key_bindings=key_bindings,
+        **{key: value for key, value in session_kwargs.items() if value is not None},
     )
+    session.secret_state = secret_state
+    return session
+
+
+def merge_prompt_key_bindings(*bindings):
+    """Merge optional prompt-toolkit key binding sets."""
+    present = [binding for binding in bindings if binding is not None]
+    if not present:
+        return None
+    if len(present) == 1 or merge_key_bindings is None:
+        return present[0]
+    return merge_key_bindings(present)
+
+
+def secret_input_mode(completer: Completer) -> str:
+    """Return the configured secret input method."""
+    value = completer.registry.varstore.get(SECRET_INPUT_MODE_VAR, DEFAULT_SECRET_INPUT_MODE)
+    mode = str(value or DEFAULT_SECRET_INPUT_MODE).strip().casefold()
+    return mode if mode in {"block", "getpass"} else DEFAULT_SECRET_INPUT_MODE
 
 
 def completion_bottom_toolbar(completer: Completer):

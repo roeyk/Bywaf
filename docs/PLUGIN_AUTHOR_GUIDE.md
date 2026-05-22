@@ -286,14 +286,15 @@ Options that carry credentials should be declared with `secret=True`:
 @option("api-key", "service API key", secret=True)
 ```
 
-Bywaf also treats common names such as `password`, `pw`, `token`, `secret`,
-`api-key`, `authorization`, and `cookie` as secret-looking manual `vars`
-assignments. Those values are redacted in command history and displayed as
-`<redacted>` with an HMAC fingerprint, so audit trails can correlate that a
-secret was supplied without exposing the plaintext in normal variable display.
-The plaintext is stored in the active database so it can survive restart. If
-the database is encrypted, the secret is protected by that encryption at rest;
-if the database is plaintext, Bywaf warns the operator before storing it.
+Operators can also set any variable as a secret with `var --secret name=value`.
+Bywaf does not guess based on variable names; plain `var password=value` is an
+ordinary variable. Explicit secret assignments are redacted in command history
+and displayed as `<redacted>` with an HMAC fingerprint, so audit trails can
+correlate that a secret was supplied without exposing the plaintext in normal
+variable display. The plaintext is stored in the active database so it can
+survive restart. If the database is encrypted, the secret is protected by that
+encryption at rest; if the database is plaintext, Bywaf warns the operator
+before storing it.
 
 Do not pass resolved secrets as process arguments. Command-line arguments can
 be visible in OS process listings and often end up in tool logs. If a
@@ -684,8 +685,8 @@ unless the phase changes, enough time has passed, or the percent changed enough.
 Users configure that policy with:
 
 ```text
-vars global.progress.min-interval-ms=250
-vars global.progress.min-percent-delta=1
+var global.progress.min-interval-ms=250
+var global.progress.min-percent-delta=1
 ```
 
 Use `context.signals` for live-control requests that the framework delivers to
@@ -883,7 +884,7 @@ global.proxy
 Secret variables are different. If an operator sets:
 
 ```text
-bywaf> vars ssh_probe.password=client-password
+bywaf> var --secret ssh_probe.password=client-password
 ```
 
 ordinary `context.vars.get("password")` returns an opaque secret reference, not
@@ -942,7 +943,7 @@ class SecretDemo(CommandletBase):
 With:
 
 ```text
-bywaf> vars secret_demo.password=client-password
+bywaf> var --secret secret_demo.password=client-password
 secret_demo.password=<redacted> fingerprint=hmac-sha256:7e3...
 bywaf> secret_demo
 subprocess saw password=client-password
@@ -1155,7 +1156,7 @@ file_info.timeout=5
 Users can override values:
 
 ```text
-bywaf> vars file_info.timeout=10
+bywaf> var file_info.timeout=10
 ```
 
 Use `CommandletBase.var_default()` when an argparse option should use a
@@ -1310,14 +1311,33 @@ bypasses:
 
 ```bash
 python3 scripts/plugin_check.py path/to/plugin-dir
+python3 scripts/plugin_check.py path/to/plugin-dir --strict-inference
 python3 scripts/plugin_check.py path/to/plugin-dir --manifest-key manifest-signing.pub.pem --verify
 python3 scripts/plugin_check.py path/to/plugin-dir --json
 ```
 
 The checker requires `plugin.py` and `bywaf.plugin.toml`, parses strict manifest
 metadata, imports the plugin factory, and verifies that declared commandlets,
-capabilities, secret options, and trigger specs match the code. When
-`--manifest-key` is supplied, it also verifies the manifest signature.
+capabilities, secret options, and trigger specs match the code. It also runs a
+lightweight AST pass over plugin source and reports inferred capabilities,
+missing inferred declarations, unused declarations, and warnings for direct
+network, process, and filesystem APIs that bypass framework mediation.
+Inference is advisory by default; `--strict-inference` turns missing inferred
+capabilities into a failed check. When `--manifest-key` is supplied, it also
+verifies the manifest signature.
+
+Generate a starter manifest from Python metadata:
+
+```bash
+python3 -m bywaf.tools.plugin_manifest path/to/plugin-dir/plugin.py
+python3 -m bywaf.tools.plugin_manifest path/to/plugin-dir/plugin.py --infer-capabilities
+```
+
+The generator emits commandlet rows, declared capabilities, secret options, and
+provider-owned trigger specs. With `--infer-capabilities`, AST-inferred
+capabilities are merged into the manifest only when the plugin exposes exactly
+one commandlet; multi-commandlet plugins still need the author to assign
+inferred capabilities to the right commandlet manually.
 
 Sign a plugin manifest outside the Bywaf interpreter:
 

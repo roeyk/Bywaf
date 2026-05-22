@@ -230,6 +230,48 @@ class AppDispatchTests(unittest.TestCase):
             checkpoint.assert_called_once_with()
             self.assertIn("Quit Bywaf?", output.getvalue())
 
+    def test_repl_confirms_eof_before_exit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            answers = iter([EOFError, "n", "q"])
+
+            def reader(prompt=""):
+                print(prompt, end="")
+                answer = next(answers)
+                if answer is EOFError:
+                    raise EOFError
+                return answer
+
+            with (
+                patch("builtins.input", side_effect=reader),
+                patch.object(runner.db, "checkpoint") as checkpoint,
+                contextlib.redirect_stdout(io.StringIO()) as output,
+            ):
+                repl(runner)
+            checkpoint.assert_called_once_with()
+            self.assertIn("Quit Bywaf?", output.getvalue())
+
+    def test_repl_exits_after_confirmed_eof(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            answers = iter([EOFError, "yes"])
+
+            def reader(prompt=""):
+                print(prompt, end="")
+                answer = next(answers)
+                if answer is EOFError:
+                    raise EOFError
+                return answer
+
+            with (
+                patch("builtins.input", side_effect=reader),
+                patch.object(runner.db, "checkpoint") as checkpoint,
+                contextlib.redirect_stdout(io.StringIO()) as output,
+            ):
+                repl(runner)
+            checkpoint.assert_called_once_with()
+            self.assertIn("Quit Bywaf?", output.getvalue())
+
     def test_confirm_repl_exit_reprompts_until_yes_or_no(self):
         answers = iter(["maybe", "Y"])
 
@@ -253,8 +295,12 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "plugins")
-            self.assertIn("discovery", output.getvalue())
-            self.assertIn("os", output.getvalue())
+            text = output.getvalue()
+            self.assertIn("PLUGIN", text)
+            self.assertIn("CMDS", text)
+            self.assertIn("WHAT IT DOES", text)
+            self.assertIn("discovery", text)
+            self.assertIn("Host and target discovery commandlets.", text)
 
     def test_dispatch_cmds_lists_commandlets_grouped_by_plugin(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -262,9 +308,13 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "cmds")
-            self.assertIn("os\n", output.getvalue())
-            self.assertIn("  ls\n", output.getvalue())
-            self.assertIn("  cat\n", output.getvalue())
+            text = output.getvalue()
+            self.assertIn("PLUGIN", text)
+            self.assertIn("COMMANDLET", text)
+            self.assertIn("WHAT IT DOES", text)
+            self.assertIn("os", text)
+            self.assertIn("ls", text)
+            self.assertIn("List files in a local directory.", text)
 
     def test_dispatch_triggers_lists_provider_rules(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -578,9 +628,9 @@ class AppDispatchTests(unittest.TestCase):
             state = ShellState()
             with contextlib.redirect_stdout(io.StringIO()):
                 dispatch_repl_line(runner, "use hostscanner", state)
-                dispatch_repl_line(runner, "vars targets=127.0.0.1", state)
+                dispatch_repl_line(runner, "var targets=127.0.0.1", state)
                 dispatch_repl_line(runner, "use global", state)
-                dispatch_repl_line(runner, "vars target=global", state)
+                dispatch_repl_line(runner, "var target=global", state)
             self.assertEqual(runner.registry.varstore.get("hostscanner.targets"), "127.0.0.1")
             self.assertEqual(runner.registry.varstore.get("target"), "global")
 
@@ -590,18 +640,39 @@ class AppDispatchTests(unittest.TestCase):
             state = ShellState()
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "vars global.proxy=http://127.0.0.1:8080", state)
-                dispatch_repl_line(runner, "vars global.proxy", state)
+                dispatch_repl_line(runner, "var global.proxy=http://127.0.0.1:8080", state)
+                dispatch_repl_line(runner, "var global.proxy", state)
                 dispatch_repl_line(runner, "use hostscanner", state)
-                dispatch_repl_line(runner, "vars targets=127.0.0.1", state)
-                dispatch_repl_line(runner, "vars targets", state)
-                dispatch_repl_line(runner, "vars missing", state)
+                dispatch_repl_line(runner, "var targets=127.0.0.1", state)
+                dispatch_repl_line(runner, "var targets", state)
+                dispatch_repl_line(runner, "var missing", state)
             text = output.getvalue()
             self.assertIn("global.proxy=http://127.0.0.1:8080", text)
             self.assertIn("hostscanner.targets=127.0.0.1", text)
             self.assertIn("error: variable not set: hostscanner.missing", text)
 
-    def test_vars_secret_assignment_is_redacted(self):
+    def test_vars_plain_password_assignment_is_not_implicitly_secret(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "var password=supersecret", state)
+                dispatch_repl_line(runner, "var password", state)
+            text = output.getvalue()
+            self.assertEqual(runner.registry.varstore.get("password"), "supersecret")
+            self.assertIn("password=supersecret", text)
+
+    def test_vars_command_name_is_not_supported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "vars password=supersecret", ShellState())
+            self.assertIn("error: unknown command or commandlet: vars", output.getvalue())
+            self.assertIsNone(runner.registry.varstore.get("password"))
+
+    def test_vars_explicit_secret_assignment_is_redacted(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -610,18 +681,115 @@ class AppDispatchTests(unittest.TestCase):
                 patch("bywaf.repl.commands.load_or_create_fingerprint_key", return_value=b"k" * 32),
                 contextlib.redirect_stdout(output),
             ):
-                dispatch_repl_line(runner, "vars password=supersecret", state)
-                dispatch_repl_line(runner, "vars password", state)
-                dispatch_repl_line(runner, "vars", state)
+                dispatch_repl_line(runner, "var --secret session.ticket=supersecret", state)
+                dispatch_repl_line(runner, "var session.ticket", state)
             text = output.getvalue()
-            stored = runner.registry.varstore.get("password")
+            stored = runner.registry.varstore.get("session.ticket")
             self.assertIsNotNone(stored)
             assert stored is not None
             self.assertTrue(runner.registry.secrets.is_ref(stored))
             self.assertEqual(runner.registry.secrets.get(stored), "supersecret")
             self.assertNotIn("supersecret", text)
-            self.assertIn("password=<redacted> fingerprint=hmac-sha256:", text)
-            self.assertIn("warning: storing secret variable password in plaintext database", text)
+            self.assertIn("session.ticket=<redacted> fingerprint=hmac-sha256:", text)
+
+    def test_vars_secret_flag_before_equals_marks_assignment_secret(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            output = io.StringIO()
+            with (
+                patch("bywaf.repl.commands.load_or_create_fingerprint_key", return_value=b"k" * 32),
+                contextlib.redirect_stdout(output),
+            ):
+                dispatch_repl_line(runner, "var session.ticket --secret=supersecret", state)
+                dispatch_repl_line(runner, "var session.ticket", state)
+            text = output.getvalue()
+            stored = runner.registry.varstore.get("session.ticket")
+            self.assertIsNotNone(stored)
+            assert stored is not None
+            self.assertTrue(runner.registry.secrets.is_ref(stored))
+            self.assertEqual(runner.registry.secrets.get(stored), "supersecret")
+            self.assertNotIn("supersecret", text)
+            self.assertIn("session.ticket=<redacted> fingerprint=hmac-sha256:", text)
+
+    def test_vars_empty_explicit_secret_prompts_and_redacts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            output = io.StringIO()
+            with (
+                patch("bywaf.repl.commands.load_or_create_fingerprint_key", return_value=b"k" * 32),
+                patch("bywaf.repl.commands.getpass.getpass", return_value="prompted-secret") as getpass,
+                contextlib.redirect_stdout(output),
+            ):
+                dispatch_repl_line(runner, "var --secret pw=", state)
+                dispatch_repl_line(runner, "var pw", state)
+            text = output.getvalue()
+            getpass.assert_called_once_with("Secret for pw: ")
+            stored = runner.registry.varstore.get("pw")
+            self.assertIsNotNone(stored)
+            assert stored is not None
+            self.assertTrue(runner.registry.secrets.is_ref(stored))
+            self.assertEqual(runner.registry.secrets.get(stored), "prompted-secret")
+            self.assertNotIn("prompted-secret", text)
+            self.assertIn("pw=<redacted> fingerprint=hmac-sha256:", text)
+
+    def test_vars_redacted_block_uses_hidden_secret_value(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState(secret_values={"pw": "block-secret"})
+            output = io.StringIO()
+            with (
+                patch("bywaf.repl.commands.load_or_create_fingerprint_key", return_value=b"k" * 32),
+                patch("bywaf.repl.commands.getpass.getpass") as getpass,
+                contextlib.redirect_stdout(output),
+            ):
+                dispatch_repl_line(runner, "var --secret pw=[REDACTED]", state)
+                dispatch_repl_line(runner, "var pw", state)
+            getpass.assert_not_called()
+            text = output.getvalue()
+            stored = runner.registry.varstore.get("pw")
+            self.assertIsNotNone(stored)
+            assert stored is not None
+            self.assertTrue(runner.registry.secrets.is_ref(stored))
+            self.assertEqual(runner.registry.secrets.get(stored), "block-secret")
+            self.assertNotIn("block-secret", text)
+            self.assertIn("pw=<redacted> fingerprint=hmac-sha256:", text)
+
+    def test_vars_empty_secret_flag_before_equals_prompts_and_redacts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            output = io.StringIO()
+            with (
+                patch("bywaf.repl.commands.load_or_create_fingerprint_key", return_value=b"k" * 32),
+                patch("bywaf.repl.commands.getpass.getpass", return_value="prompted-secret") as getpass,
+                contextlib.redirect_stdout(output),
+            ):
+                dispatch_repl_line(runner, "var session.ticket --secret=", state)
+                dispatch_repl_line(runner, "var session.ticket", state)
+            text = output.getvalue()
+            getpass.assert_called_once_with("Secret for session.ticket: ")
+            stored = runner.registry.varstore.get("session.ticket")
+            self.assertIsNotNone(stored)
+            assert stored is not None
+            self.assertTrue(runner.registry.secrets.is_ref(stored))
+            self.assertEqual(runner.registry.secrets.get(stored), "prompted-secret")
+            self.assertNotIn("prompted-secret", text)
+            self.assertIn("session.ticket=<redacted> fingerprint=hmac-sha256:", text)
+
+    def test_vars_can_color_names_and_values(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            runner.registry.varstore.set("display.vars.color", "always")
+            runner.registry.varstore.set("display.vars.name-color", "yellow")
+            runner.registry.varstore.set("display.vars.value-color", "bright-blue")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "var target=127.0.0.1", state)
+                dispatch_repl_line(runner, "var target", state)
+            self.assertIn("\x1b[33mtarget\x1b[0m=\x1b[94m127.0.0.1\x1b[0m", output.getvalue())
 
     def test_vars_secret_assignment_respects_active_context(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -632,7 +800,7 @@ class AppDispatchTests(unittest.TestCase):
                 contextlib.redirect_stdout(io.StringIO()),
             ):
                 dispatch_repl_line(runner, "use ssh_probe", state)
-                dispatch_repl_line(runner, "vars password=supersecret", state)
+                dispatch_repl_line(runner, "var --secret password=supersecret", state)
             stored = runner.registry.varstore.get("ssh_probe.password")
             self.assertIsNotNone(stored)
             assert stored is not None
@@ -646,7 +814,7 @@ class AppDispatchTests(unittest.TestCase):
                 patch("bywaf.repl.commands.load_or_create_fingerprint_key", return_value=b"k" * 32),
                 contextlib.redirect_stdout(io.StringIO()),
             ):
-                dispatch_repl_line(first, "vars ssh_probe.password=supersecret", ShellState())
+                dispatch_repl_line(first, "var --secret ssh_probe.password=supersecret", ShellState())
 
             second = make_runner(db_path)
             stored = second.registry.varstore.get("ssh_probe.password")

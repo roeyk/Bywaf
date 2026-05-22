@@ -4,12 +4,13 @@ Planning dates are release planning markers, not compatibility commitments.
 
 ## Current Release
 
-- Bywaf 0.11.0 testing release: 2026-05-22.
-- Release package metadata updated to 0.11.0 across Python, Debian, RPM,
+- Bywaf 0.11.1 patch release: 2026-05-22.
+- Release package metadata updated to 0.11.1 across Python, Debian, RPM,
   README, usage guide, and changelog.
-- Release highlights captured: major internal refactors, provider-owned
-  triggers, plugin manifest signing, signed plugin catalogs, explicit
-  development trust bypasses, and key-management policy.
+- Release highlights captured: plugin checker AST inference, capability
+  inventory reporting, manifest generation improvements, and readable
+  plugin/commandlet listings, explicit secret variable assignment, and
+  configurable variable-listing color.
 - Documentation roadmap added at `docs/README.md`; root README and usage guide
   link to it.
 - Framework surface inventory enumerates base resources, including

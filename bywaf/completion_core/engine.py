@@ -50,7 +50,7 @@ class CoreCompleter:
         "save",
         "topics",
         "use",
-        "vars",
+        "var",
         "exit",
         "event",
         "events",
@@ -93,7 +93,7 @@ class CoreCompleter:
             "use": lambda _prefix: ["global", *self.registry.names()],
             "load": self.load_candidates,
             "save": self.save_candidates,
-            "vars": self.vars_candidates,
+            "var": lambda current_prefix: self.vars_candidates(current_prefix, rest),
         }
         handler = dispatch.get(command)
         return handler(prefix) if handler is not None else root_candidates
@@ -316,9 +316,14 @@ class CoreCompleter:
         """Complete `save` resource keys and values."""
         return resource_candidates(prefix, ("config=", "db=", "history="))
 
-    def vars_candidates(self, prefix: str) -> list[str]:
+    def vars_candidates(self, prefix: str, args: list[str] | None = None) -> list[str]:
         """Complete variables, preferring the active `use` context."""
+        args = args or []
+        secret_already_present = any(arg == "--secret" or arg.startswith("--secret=") for arg in args)
+        if prefix.startswith("-"):
+            return [] if secret_already_present else ["--secret"]
         names = list(self.registry.varstore.names())
+        secret_candidates = [] if secret_already_present else ["--secret"]
         if "." in prefix or prefix.startswith("global."):
             return [f"{name}=" for name in names]
         if self.active_context:
@@ -329,9 +334,9 @@ class CoreCompleter:
                 if name.startswith(scoped_prefix)
             ]
             if short_names:
-                return short_names
+                return [*secret_candidates, *short_names]
         namespaces = sorted({name.split(".", 1)[0] for name in names if "." in name})
-        return [f"{namespace}." for namespace in namespaces] + [f"{name}=" for name in names if "." not in name]
+        return [*secret_candidates, *[f"{namespace}." for namespace in namespaces], *[f"{name}=" for name in names if "." not in name]]
 
     def completion_meta(self, candidate: str, line: str, prefix: str) -> str:
         """Return prompt-toolkit metadata for runtime entity completions."""

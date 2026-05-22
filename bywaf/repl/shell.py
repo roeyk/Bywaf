@@ -53,6 +53,7 @@ class ShellState:
     framework_request_after_id: int = 0
     active_context: str | None = None
     completer: Completer | None = None
+    secret_values: dict[str, str] = field(default_factory=dict)
 
     def prompt(self) -> str:
         return render_prompt(self.prompt_pattern)
@@ -71,7 +72,7 @@ def repl(runner: Runner) -> None:
 
     state = new_shell_state(runner)
     state.completer = Completer(runner.registry, runner.db)
-    input_reader = build_input_reader(state.completer)
+    input_reader = build_input_reader(state.completer, state)
     start_default_services(runner)
     try:
         while True:
@@ -81,7 +82,9 @@ def repl(runner: Runner) -> None:
                 line = read_logical_input(state, input_reader).strip()
             except EOFError:
                 print()
-                return
+                if confirm_repl_exit(input_reader):
+                    return
+                continue
             except KeyboardInterrupt:
                 print()
                 if confirm_repl_exit(input_reader):
@@ -104,12 +107,21 @@ def repl(runner: Runner) -> None:
         shutdown_runner(runner)
 
 
-def build_input_reader(completer: Completer) -> Callable[[str], str]:
+def build_input_reader(completer: Completer, state: ShellState | None = None) -> Callable[[str], str]:
     """Return the best available line reader for the current terminal."""
     if os.environ.get("BYWAF_INPUT_READER", "").casefold() != "readline" and sys.stdin.isatty() and sys.stdout.isatty():
         session = build_prompt_session(completer)
         if session is not None:
-            return session.prompt
+            secret_state = getattr(session, "secret_state", None)
+
+            def prompt_with_secret_capture(prompt: str) -> str:
+                text = session.prompt(prompt)
+                if state is not None and secret_state is not None:
+                    state.secret_values = secret_state.values_for_command(text)
+                    secret_state.clear()
+                return text
+
+            return prompt_with_secret_capture
     install_readline(completer)
     return input
 

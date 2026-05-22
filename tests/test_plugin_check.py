@@ -47,6 +47,50 @@ class PluginCheckTests(unittest.TestCase):
             self.assertFalse(report["ok"])
             self.assertIn("capabilities mismatch", report["errors"][0])
 
+    def test_check_plugin_reports_ast_inferred_missing_capabilities(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(
+                Path(tmp),
+                capabilities=(),
+                run_body='        context.process.run(["echo", "ok"])\n',
+            )
+
+            report = check_plugin(plugin_dir)
+
+            self.assertTrue(report["ok"])
+            self.assertIn("process.run", report["inferred_capabilities"])
+            self.assertIn("process.run", report["missing_capabilities"])
+            self.assertEqual(report["errors"], [])
+            self.assertEqual(report["evidence"][0]["kind"], "framework_call")
+
+    def test_check_plugin_strict_inference_fails_on_missing_capabilities(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(
+                Path(tmp),
+                capabilities=(),
+                run_body='        context.events.publish("example.event", {})\n',
+            )
+
+            report = check_plugin(plugin_dir, strict_inference=True)
+
+            self.assertFalse(report["ok"])
+            self.assertIn("db.write:example.event", report["missing_capabilities"])
+            self.assertIn("missing inferred capabilities", report["errors"][0])
+
+    def test_check_plugin_warns_on_direct_network_import(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(
+                Path(tmp),
+                capabilities=(),
+                imports="import socket\n",
+            )
+
+            report = check_plugin(plugin_dir)
+
+            self.assertTrue(report["ok"])
+            self.assertEqual(report["warnings"][0]["capability"], "network.connect")
+            self.assertEqual(report["warnings"][0]["kind"], "direct_network_import")
+
     def test_check_plugin_json_output(self):
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(Path(tmp), capabilities=())
@@ -105,16 +149,19 @@ def write_plugin_fixture(
     *,
     capabilities: tuple[str, ...],
     manifest_capabilities: tuple[str, ...] | None = None,
+    imports: str = "",
+    run_body: str = "        yield {'ok': True}\n",
 ) -> Path:
     plugin_dir = root / "example"
     plugin_dir.mkdir()
     capability_text = repr(capabilities)
     plugin_dir.joinpath("plugin.py").write_text(
+        imports +
         "from bywaf.plugin import CommandSpec\n"
         "class Example:\n"
         f"    spec = CommandSpec('example', 'example plugin', capabilities={capability_text})\n"
         "    def run(self, context, args, input_events):\n"
-        "        yield {'ok': True}\n"
+        f"{run_body}"
         "def plugin():\n"
         "    return Example()\n"
     )

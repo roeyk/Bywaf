@@ -173,6 +173,26 @@ class StorageRunnerPluginTests(unittest.TestCase):
             self.assertIn('"topic": "topic"', output.getvalue())
             self.assertIn('"value": 1', output.getvalue())
 
+    def test_audit_list_capabilities_prints_inventory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish(
+                "plugin.capability.used",
+                {"commandlet": "hostscanner", "capability": "network.connect", "declared": True},
+                "hostscanner",
+            )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("audit list capabilities plugin=hostscanner")
+                process_framework_requests(runner, ShellState())
+            text = output.getvalue()
+            self.assertIn("Capability", text)
+            self.assertIn("Range", text)
+            self.assertIn("network.connect", text)
+            self.assertIn("C400-C499", text)
+            self.assertIn("hostscanner", text)
+            self.assertIn("observed", text)
+
     def test_audit_show_filters_since_until_time(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

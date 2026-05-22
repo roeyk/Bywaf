@@ -1,4 +1,4 @@
 # User-view regression script: variables, commandlet execution, and listings.
-vars hostscanner.targets=127.0.0.1
+var hostscanner.targets=127.0.0.1
 hostscanner $targets name=script variable expansion note=script regression smoke
 runs --all

@@ -43,7 +43,8 @@ from bywaf.registry import (
     parse_plugin_manifest,
     plugin_manifest_digest,
 )
-from bywaf.specs import ArgumentSpec, CommandSpec, CompletionSpec, OptionSpec
+from bywaf.secret_input import open_secret_assignment_name
+from bywaf.specs import ArgumentSpec, CommandSpec, CompletionSpec, OptionSpec, TriggerSpec
 from bywaf.tools.plugin_manifest import manifest_from_plugins
 
 
@@ -273,9 +274,23 @@ class RegistryCompletionTests(unittest.TestCase):
         self.registry.varstore.set("hostscanner.targets", "127.0.0.1")
         self.registry.varstore.set("global.proxy", "http://127.0.0.1:8080")
         completer = Completer(self.registry, active_context="hostscanner")
-        self.assertIn("targets=", completer.candidates("vars "))
-        self.assertNotIn("hostscanner.targets=", completer.candidates("vars "))
-        self.assertEqual(completer.candidates("vars global.pro"), ["global.proxy="])
+        self.assertIn("targets=", completer.candidates("var "))
+        self.assertNotIn("hostscanner.targets=", completer.candidates("var "))
+        self.assertEqual(completer.candidates("var global.pro"), ["global.proxy="])
+
+    def test_vars_completion_supports_secret_flag(self):
+        self.registry.varstore.set("ssh_probe.password", "")
+        completer = Completer(self.registry)
+        self.assertEqual(completer.candidates("var --s"), ["--secret"])
+        self.assertIn("ssh_probe.", completer.candidates("var --secret "))
+        self.assertEqual(completer.candidates("var --secret ssh_probe.pass"), ["ssh_probe.password="])
+        self.assertNotIn("--secret", completer.candidates("var --secret "))
+
+    def test_secret_input_block_opens_only_for_var_secret_assignments(self):
+        self.assertEqual(open_secret_assignment_name("var --secret ssh_probe.password="), "ssh_probe.password")
+        self.assertEqual(open_secret_assignment_name("var ssh_probe.password --secret="), "ssh_probe.password")
+        self.assertIsNone(open_secret_assignment_name("vars --secret ssh_probe.password="))
+        self.assertIsNone(open_secret_assignment_name("var password="))
 
     def test_completes_history_time_window_selectors(self):
         completer = Completer(self.registry)
@@ -1092,6 +1107,30 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn('name = "example"', text)
         self.assertIn('  "framework.secret.resolve",', text)
         self.assertIn('secret_options = ["password"]', text)
+
+    def test_plugin_manifest_tool_generates_trigger_specs(self):
+        class Example:
+            spec = CommandSpec("example", "example plugin")
+
+            def run(self, context, args, input_events):
+                yield {"ok": True}
+
+        trigger = TriggerSpec(
+            name="example-trigger",
+            topic="example.event",
+            action_command="example",
+            description="ON example.event DO example",
+            action_mode="background",
+            payload_equals=(("kind", "demo"),),
+        )
+
+        text = manifest_from_plugins((Example(),), (trigger,))
+
+        self.assertIn("[[triggers]]", text)
+        self.assertIn('name = "example-trigger"', text)
+        self.assertIn('topic = "example.event"', text)
+        self.assertIn('action_command = "example"', text)
+        self.assertIn('payload_equals = { kind = "demo" }', text)
 
 
 def write_trigger_plugin(plugin_dir: Path) -> None:
