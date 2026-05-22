@@ -10,6 +10,7 @@ Used by:
 from __future__ import annotations
 
 import ipaddress
+import socket
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
@@ -31,6 +32,14 @@ class HostScannerIntent:
     options: tuple[str, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class ExpandedTargets:
+    """Concrete scan targets plus hostname provenance."""
+
+    hosts: tuple[str, ...]
+    names_by_host: dict[str, str]
+
+
 @commandlet(
     name="hostscanner",
     description="Discover live hosts with nmap.",
@@ -40,7 +49,7 @@ class HostScannerIntent:
         "hostscanner 192.168.0.1-255",
         "hostscanner 192.168.0.1& | portscanner&",
     ),
-    emits=("host.found",),
+    emits=("host.found", "name.resolved"),
     capabilities=("framework.console.alert", "network.connect"),
 )
 @option("arguments", "nmap host discovery arguments", "-sn")
@@ -97,14 +106,20 @@ class HostScanner(CommandletBase):
         parser.add_argument("--limit", type=int, default=self.var_default(context, "limit", 256, cast=int))
         parsed = parser.parse_args(normalize_except_args(args))
         target_args = self.values_or_var(context, parsed.targets, "targets", required=True)
-        targets = expand_targets(target_args, parsed.limit)
+        expanded_targets = cached_target_details(context, target_args, parsed.limit)
+        targets = expanded_targets.hosts
         targets = exclude_hosts(targets, parsed.except_)
+        names_by_host = {host: name for host, name in expanded_targets.names_by_host.items() if host in targets}
+        publish_name_resolution_events(context, names_by_host)
         context.raise_if_cancelled()
         context.audit_capability("network.connect")
         for host in discover_live_hosts(" ".join(targets), parsed.arguments)[: parsed.limit]:
             context.raise_if_cancelled()
             context.alert(f"discovered host {host}", silent=parsed.silent)
-            yield {"host": host, "status": "up", "scanner": "nmap"}
+            event: dict[str, object] = {"host": host, "status": "up", "scanner": "nmap"}
+            if host in names_by_host:
+                event["name"] = names_by_host[host]
+            yield event
 
 
 def hostscanner_intent(commandlet: HostScanner, context: CommandContext, args: list[str]) -> HostScannerIntent:
@@ -117,7 +132,7 @@ def hostscanner_intent(commandlet: HostScanner, context: CommandContext, args: l
     parser.add_argument("--limit", type=int, default=commandlet.var_default(context, "limit", 256, cast=int))
     parsed = parser.parse_args(normalize_except_args(args))
     target_args = commandlet.values_or_var(context, parsed.targets, "targets", required=True)
-    targets = exclude_hosts(expand_targets(target_args, parsed.limit), parsed.except_)
+    targets = exclude_hosts(cached_target_details(context, target_args, parsed.limit).hosts, parsed.except_)
     options: list[str] = [f"--arguments={parsed.arguments}", f"--limit={parsed.limit}"]
     if parsed.silent:
         options.append("--silent")
@@ -127,13 +142,88 @@ def hostscanner_intent(commandlet: HostScanner, context: CommandContext, args: l
 
 
 def expand_targets(targets: list[str], limit: int) -> tuple[str, ...]:
-    """Expand user-friendly IPv4 ranges while enforcing a safety limit."""
+    """Expand user-friendly target expressions while enforcing a safety limit."""
+    return expand_target_details(targets, limit).hosts
+
+
+def cached_target_details(
+    context: CommandContext,
+    targets: list[str],
+    limit: int,
+) -> ExpandedTargets:
+    """Return per-command cached target expansion details."""
+    cache = context.metadata.setdefault("_hostscanner_target_cache", {})
+    key = (tuple(targets), limit)
+    if key not in cache:
+        cache[key] = expand_target_details(targets, limit)
+    return cache[key]
+
+
+def expand_target_details(targets: list[str], limit: int) -> ExpandedTargets:
+    """Expand IP ranges and hostnames into concrete scan targets."""
     expanded: list[str] = []
+    names_by_host: dict[str, str] = {}
     for target in targets:
-        expanded.extend(host_candidates(target))
+        for candidate in host_candidates(target):
+            addresses = resolve_target(candidate)
+            expanded.extend(addresses)
+            for address in addresses:
+                if address != candidate:
+                    names_by_host[address] = candidate
         if len(expanded) > limit:
             raise ValueError(f"expanded target list exceeds limit {limit}")
-    return tuple(expanded)
+    return ExpandedTargets(tuple(dict.fromkeys(expanded)), names_by_host)
+
+
+def resolve_target(target: str) -> tuple[str, ...]:
+    """Return an IP literal unchanged or resolve a DNS name to IP addresses."""
+    try:
+        ipaddress.ip_address(target)
+        return (target,)
+    except ValueError:
+        return resolve_name(target)
+
+
+def resolve_name(name: str) -> tuple[str, ...]:
+    """Resolve a DNS name to stable, unique IP address strings."""
+    try:
+        infos = socket.getaddrinfo(name, None, type=socket.SOCK_STREAM)
+    except socket.gaierror as exc:
+        raise ValueError(f"could not resolve host: {name}") from exc
+
+    addresses: list[str] = []
+    for family, _socktype, _proto, _canonname, sockaddr in infos:
+        if family not in {socket.AF_INET, socket.AF_INET6}:
+            continue
+        address = str(sockaddr[0])
+        try:
+            ipaddress.ip_address(address)
+        except ValueError:
+            continue
+        if address not in addresses:
+            addresses.append(address)
+    if not addresses:
+        raise ValueError(f"could not resolve host: {name}")
+    return tuple(addresses)
+
+
+def publish_name_resolution_events(context: CommandContext, names_by_host: dict[str, str]) -> None:
+    """Record DNS resolution provenance for scan targets."""
+    if context._db is None:
+        return
+    addresses_by_name: dict[str, list[str]] = {}
+    for address, name in names_by_host.items():
+        addresses_by_name.setdefault(name, []).append(address)
+    for name, addresses in addresses_by_name.items():
+        context.events.publish(
+            "name.resolved",
+            {
+                "name": name,
+                "addresses": addresses,
+                "resolver": "system",
+                "job_id": context.job_id,
+            },
+        )
 
 
 def normalize_except_args(args: list[str]) -> list[str]:
@@ -152,7 +242,7 @@ def exclude_hosts(hosts: Iterable[str], except_value: str) -> tuple[str, ...]:
     excluded = {
         host
         for value in split_var_values(except_value)
-        for host in host_candidates(value)
+        for host in expand_targets([value], DEFAULTS["limit"])
     }
     if not excluded:
         return tuple(hosts)
@@ -181,7 +271,7 @@ def parse_networks(value: str) -> tuple[Any, ...]:
         try:
             networks.append(ipaddress.ip_network(item, strict=False))
         except ValueError:
-            for host in host_candidates(item):
+            for host in expand_targets([item], DEFAULTS["limit"]):
                 networks.append(ipaddress.ip_network(host, strict=False))
     return tuple(networks)
 

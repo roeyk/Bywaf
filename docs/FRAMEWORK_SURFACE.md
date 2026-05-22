@@ -63,6 +63,7 @@ base installation commandlets that declare or use each capability.
 | `db.write:ldap.server` | `ldap_probe` |
 | `db.write:network.error` | `nikto` |
 | `db.write:nikto.finding` | `nikto` |
+| `db.write:name.resolved` | `hostscanner` |
 | `db.write:shodan.host` | `shodan_lookup` |
 | `db.write:shodan.result` | `shodan_lookup` |
 | `db.write:smb.server` | `smb_probe` |
@@ -118,7 +119,7 @@ the association and `Consumes` is the normal consumer side.
 | `eyewitness` | `http.endpoint` | `eyewitness.screenshot`, `web.screenshot` |
 | `finding_dedupe` | `nikto.finding`, `vulnerability.found`, `vulnerability.potential`, `vulnerability.confirmed`, `vulnerability.speculative`, `vulnerability.false_positive` | `finding.new`, `finding.duplicate`, `finding.updated`, `finding.merge_candidate` |
 | `finding_report` | `finding.new`, `finding.merge_candidate`, `nikto.finding`, `vulnerability.found`, `vulnerability.potential`, `vulnerability.confirmed`, `vulnerability.speculative`, `vulnerability.false_positive` | `framework.render.table.requested`, `artifact.attached` |
-| `hostscanner` | none | `host.found` |
+| `hostscanner` | none | `name.resolved`, `host.found` |
 | `http_headers` | `port.open` | `http.headers` |
 | `http_probe` | `port.open` | `http.endpoint` |
 | `key` | none | `key.generated`, `key.imported`, `key.removed`, `key.tested` |

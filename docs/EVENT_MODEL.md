@@ -42,6 +42,7 @@ Examples:
 
 ```text
 host.found
+name.resolved
 port.open
 http.endpoint
 artifact.attached
@@ -67,6 +68,10 @@ context.events.publish("host.found", {"host": "127.0.0.1"})
 ```
 
 The mediated API audits capability use such as `db.write:host.found`.
+
+Some commandlets publish supporting provenance topics directly. For example,
+`hostscanner` emits `name.resolved` when a DNS name is resolved into concrete
+addresses, then emits `host.found` only for live hosts discovered by nmap.
 
 ## Consuming
 

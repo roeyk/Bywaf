@@ -74,6 +74,12 @@ bywaf> event run=7
 `port.open` evidence and scan progress/summary events, keeping the database
 useful for later correlation.
 
+## Can hostscanner scan DNS names?
+
+Yes. `hostscanner example.com` resolves the name before invoking nmap, records a
+`name.resolved` provenance event with the resolved addresses, and emits
+`host.found` for any live hosts nmap reports.
+
 ## How do I see Nikto's raw output?
 
 ```text

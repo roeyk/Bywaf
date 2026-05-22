@@ -184,6 +184,11 @@ class AppDispatchTests(unittest.TestCase):
                 "host.found 192.0.2.10 up nmap",
             ),
             (
+                "name.resolved",
+                {"name": "example.test", "addresses": ["203.0.113.10", "203.0.113.11"]},
+                "name.resolved example.test -> 203.0.113.10, 203.0.113.11",
+            ),
+            (
                 "console.output",
                 {"source": "job", "text": "JOB  SERIAL\n---  ------\n1    abc"},
                 "job output: JOB  SERIAL",

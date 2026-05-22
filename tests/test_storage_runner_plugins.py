@@ -12,6 +12,7 @@ import contextlib
 import io
 import json
 import os
+import socket
 import tempfile
 import time
 import unittest
@@ -824,11 +825,54 @@ class StorageRunnerPluginTests(unittest.TestCase):
 
     def test_hostscanner_expands_range_before_nmap(self):
         with tempfile.TemporaryDirectory() as tmp:
-            with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["192.168.0.1"]) as discover:
+            with patch(
+                "bywaf.plugins.discovery.hostscanner.discover_live_hosts",
+                return_value=["192.168.0.1"],
+            ) as discover:
                 runner = make_runner(Path(tmp, "db.sqlite3"))
                 with contextlib.redirect_stdout(io.StringIO()):
                     runner.execute("hostscanner 192.168.0.1-2")
             discover.assert_called_once_with("192.168.0.1 192.168.0.2", "-sn")
+
+    def test_hostscanner_resolves_name_before_nmap(self):
+        address_info = [
+            (2, 1, 6, "", ("203.0.113.10", 0)),
+            (2, 1, 6, "", ("203.0.113.11", 0)),
+            (2, 1, 6, "", ("203.0.113.10", 0)),
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            with (
+                patch(
+                    "bywaf.plugins.discovery.hostscanner.socket.getaddrinfo",
+                    return_value=address_info,
+                ) as getaddrinfo,
+                patch(
+                    "bywaf.plugins.discovery.hostscanner.discover_live_hosts",
+                    return_value=["203.0.113.10"],
+                ) as discover,
+            ):
+                runner = make_runner(Path(tmp, "db.sqlite3"))
+                with contextlib.redirect_stdout(io.StringIO()):
+                    events = runner.execute("hostscanner example.test")
+            getaddrinfo.assert_called_once_with("example.test", None, type=socket.SOCK_STREAM)
+            discover.assert_called_once_with("203.0.113.10 203.0.113.11", "-sn")
+            host_events = [event for event in events if event.topic == "host.found"]
+            self.assertEqual(host_events[0].payload["host"], "203.0.113.10")
+            self.assertEqual(host_events[0].payload["name"], "example.test")
+            resolved = runner.db.events_for_topic("name.resolved")
+            self.assertEqual(resolved[0].payload["name"], "example.test")
+            self.assertEqual(resolved[0].payload["addresses"], ["203.0.113.10", "203.0.113.11"])
+
+    def test_hostscanner_rejects_unresolved_name(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch(
+                "bywaf.plugins.discovery.hostscanner.socket.getaddrinfo",
+                side_effect=socket.gaierror,
+            ):
+                runner = make_runner(Path(tmp, "db.sqlite3"))
+                with self.assertRaisesRegex(ValueError, "could not resolve host: missing.test"):
+                    with contextlib.redirect_stdout(io.StringIO()):
+                        runner.execute("hostscanner missing.test")
 
     def test_hostscanner_except_removes_targets_before_nmap(self):
         with tempfile.TemporaryDirectory() as tmp:

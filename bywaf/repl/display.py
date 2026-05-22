@@ -112,6 +112,8 @@ def format_event(event) -> str:
         return format_port_open_event(event)
     if event.topic == "host.found":
         return format_host_found_event(event)
+    if event.topic == "name.resolved":
+        return format_name_resolved_event(event)
     if event.topic == "console.alert":
         return format_console_alert_event(event)
     if event.topic in {"console.output", "framework.console.output.requested"}:
@@ -154,11 +156,24 @@ def format_host_found_event(event) -> str:
     """Render a discovered host as operator-facing evidence."""
     payload = event.payload
     host = payload.get("host", "")
+    name = payload.get("name", "")
     status = payload.get("status", "")
     scanner = payload.get("scanner", "")
-    details = " ".join(str(value) for value in (status, scanner) if value)
+    details = " ".join(str(value) for value in (name, status, scanner) if value)
     suffix = f" {details}" if details else ""
     return f"#{event.id} host.found {host}{suffix}".strip()
+
+
+def format_name_resolved_event(event) -> str:
+    """Render DNS resolution provenance for scan targets."""
+    payload = event.payload
+    name = payload.get("name", "")
+    addresses = payload.get("addresses", ())
+    if isinstance(addresses, list | tuple):
+        address_text = ", ".join(str(address) for address in addresses)
+    else:
+        address_text = str(addresses)
+    return f"#{event.id} name.resolved {name} -> {address_text}".strip()
 
 
 def format_console_alert_event(event) -> str:
