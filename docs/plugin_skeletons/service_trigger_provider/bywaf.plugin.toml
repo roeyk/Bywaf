@@ -1,0 +1,25 @@
+[plugin]
+native = true
+library_backed = false
+process_wrapped = false
+service = true
+roles = ["command-provider", "trigger-provider"]
+
+[[commandlets]]
+name = "example_service"
+capabilities = [
+  "db.read:*",
+  "framework.console.output",
+]
+
+[[triggers]]
+name = "start-example-service"
+description = "Start example service after network capability use."
+topic = "plugin.capability.used"
+capability = "network.connect"
+action_command = "example_service --session-service"
+action_mode = "service"
+active_job = true
+payload_equals = {}
+exclude_commandlets = ["example_service"]
+suppress_self_trigger = true

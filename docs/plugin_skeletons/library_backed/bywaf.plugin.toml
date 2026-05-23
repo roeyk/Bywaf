@@ -1,0 +1,13 @@
+[plugin]
+native = false
+library_backed = true
+process_wrapped = false
+service = false
+roles = ["command-provider"]
+
+[[commandlets]]
+name = "example_library_check"
+capabilities = [
+  "framework.console.output",
+  "network.connect",
+]

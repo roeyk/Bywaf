@@ -2,6 +2,7 @@ default_plugins = [
   "discovery.hostscanner",
   "analysis.finding_dedupe",
   "analysis.finding_report",
+  "analysis.report",
   "analysis.yara_scan",
   "identity.ldap_probe",
   "identity.smb_probe",

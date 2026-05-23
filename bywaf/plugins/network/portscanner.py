@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from bywaf.events import Event
+from bywaf.findings import telnet_open_candidate
 from bywaf.nmap_backend import scan_open_ports
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option, split_var_values
 
@@ -36,8 +37,8 @@ DEFAULTS = {
         "hostscanner 192.168.0.1-255& | portscanner&",
     ),
     consumes=("host.found",),
-    emits=("port.open",),
-    capabilities=("framework.console.alert", "network.connect", "plugin.progress"),
+    emits=("port.open", "finding.candidate"),
+    capabilities=("db.write:finding.candidate", "framework.console.alert", "network.connect", "plugin.progress"),
 )
 @option("arguments", "nmap port scan arguments", "-sT")
 @option("except", "hosts to exclude from scans", "")
@@ -129,7 +130,7 @@ def scan_hosts(
             f"discovered port {port.port}/{port.protocol} on host {port.host}",
             silent=silent,
         )
-        yield {
+        payload = {
             "host": port.host,
             "port": port.port,
             "protocol": port.protocol,
@@ -138,6 +139,10 @@ def scan_hosts(
             "reason": port.reason,
             "scanner": "nmap",
         }
+        candidate = telnet_open_candidate(payload)
+        if candidate:
+            context.events.publish("finding.candidate", candidate)
+        yield payload
 
 
 def listen_for_upstream_hosts(context: CommandContext, parsed, seen_hosts: set[str]):

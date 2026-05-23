@@ -104,6 +104,7 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn("wifi_scan", self.registry.names())
         self.assertIn("finding_dedupe", self.registry.names())
         self.assertIn("finding_report", self.registry.names())
+        self.assertIn("report", self.registry.names())
         self.assertIn("yara_scan", self.registry.names())
         self.assertIn("db", self.registry.names())
         self.assertIn("job", self.registry.names())
@@ -131,6 +132,7 @@ class RegistryCompletionTests(unittest.TestCase):
                 "discovery.hostscanner",
                 "analysis.finding_dedupe",
                 "analysis.finding_report",
+                "analysis.report",
                 "analysis.yara_scan",
                 "identity.ldap_probe",
                 "identity.smb_probe",
@@ -245,7 +247,7 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertEqual(manifest.commandlet_secret_options["ssh_probe"], ("password",))
 
     def test_registry_tracks_provider_groups(self):
-        self.assertEqual(self.registry.grouped_names()["analysis"], ["finding_dedupe", "finding_report", "yara_scan"])
+        self.assertEqual(self.registry.grouped_names()["analysis"], ["finding_dedupe", "finding_report", "report", "yara_scan"])
         self.assertEqual(self.registry.grouped_names()["identity"], ["ldap_probe", "smb_probe"])
         self.assertEqual(self.registry.grouped_names()["network"], ["portscanner", "snmp_get", "ssh_probe"])
         self.assertIn("os", self.registry.provider_names())

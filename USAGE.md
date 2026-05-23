@@ -1590,6 +1590,9 @@ finding lifecycle events: `finding.new`, `finding.duplicate`,
 `finding.updated`, and `finding.merge_candidate`. It preserves the original
 scanner output and points normalized findings back to their source events, so a
 reporter plugin can later render tables from the normalized event stream.
+Some commandlets also emit `finding.candidate` automatically when a concrete
+fact matches a small review-worthy rule, such as exposed Telnet or missing
+high-value HTTP security headers.
 
 ```text
 bywaf> nikto https://example.com/ | finding_dedupe
@@ -1613,6 +1616,23 @@ bywaf> finding_report source=tools
 bywaf> finding_report export=findings.md
 bywaf> finding_report export=findings.xlsx
 ```
+
+`report` is the operator-facing finding inbox. It renders grouped unreviewed
+findings from the latest pipeline that produced finding events, or from an
+explicit pipeline, job, or run scope. Use it when you want to quickly see what
+finished work produced without manually querying raw events.
+
+```text
+bywaf> report
+bywaf> report new
+bywaf> report pipeline=1,2,3
+bywaf> report job=7
+bywaf> report run=12
+bywaf> report status=all
+```
+
+See [Finding And Report Model](docs/FINDING_MODEL.md) for the difference
+between raw facts, finding candidates, deduplication, and report views.
 
 `yara_scan` uses yara-python and emits `yara.match`:
 

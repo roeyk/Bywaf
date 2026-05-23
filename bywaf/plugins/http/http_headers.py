@@ -13,6 +13,7 @@ import http.client
 from collections.abc import Iterable
 
 from bywaf.events import Event
+from bywaf.findings import missing_http_security_header_candidates
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
 
 DEFAULTS = {"port": "", "ssl": "false", "target": "", "timeout": 5}
@@ -27,8 +28,8 @@ DEFAULTS = {"port": "", "ssl": "false", "target": "", "timeout": 5}
         "hostscanner 127.0.0.1 | portscanner --ports 80,443 | http_headers",
     ),
     consumes=("port.open",),
-    emits=("http.headers",),
-    capabilities=("network.connect",),
+    emits=("http.headers", "finding.candidate"),
+    capabilities=("db.write:finding.candidate", "network.connect"),
 )
 @option("port", "target port")
 @option("ssl", "use HTTPS", "false", ("true", "false"))
@@ -56,7 +57,10 @@ class HttpHeaders(CommandletBase):
             try:
                 conn.request("HEAD", "/")
                 response = conn.getresponse()
-                yield {"host": host, "port": port, "status": response.status, "headers": dict(response.headers)}
+                payload = {"host": host, "port": port, "status": response.status, "headers": dict(response.headers)}
+                for candidate in missing_http_security_header_candidates(payload):
+                    context.events.publish("finding.candidate", candidate)
+                yield payload
             finally:
                 conn.close()
 

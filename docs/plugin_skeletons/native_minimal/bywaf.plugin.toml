@@ -1,0 +1,12 @@
+[plugin]
+native = true
+library_backed = false
+process_wrapped = false
+service = false
+roles = ["command-provider"]
+
+[[commandlets]]
+name = "example_minimal"
+capabilities = [
+  "framework.console.output",
+]

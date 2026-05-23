@@ -1,0 +1,15 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "report"
+capabilities = [
+  "db.read:finding.new",
+  "db.read:finding.candidate",
+  "db.read:finding.merge_candidate",
+  "db.read:finding.reviewed",
+  "db.write:report.rendered",
+  "framework.console.output",
+]
+module = "bywaf.plugins.analysis.report"

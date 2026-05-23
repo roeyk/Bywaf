@@ -104,7 +104,13 @@ For normalized Nikto findings, use the event or report flow:
 ```text
 bywaf> event nikto.finding
 bywaf> nikto https://example.com/ | finding_dedupe | finding_report
+bywaf> report
+bywaf> report pipeline=1
 ```
+
+Use `event` when you want raw event payloads. Use `report` when you want the
+operator-facing grouped finding inbox for recent, pipeline-scoped, job-scoped,
+or run-scoped work.
 
 ## How do I run a pipeline in the background?
 

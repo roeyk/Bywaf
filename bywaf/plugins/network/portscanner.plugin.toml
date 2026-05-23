@@ -6,6 +6,7 @@ service = false
 [[commandlets]]
 name = "portscanner"
 capabilities = [
+  "db.write:finding.candidate",
   "framework.console.alert",
   "network.connect",
   "plugin.progress",

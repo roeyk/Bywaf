@@ -24,6 +24,8 @@ detail without reading every design note first.
   foreground/background execution, control signals, and variable snapshots.
 - [Event Model](EVENT_MODEL.md): event rows, topics, replay, framework
   requests, artifacts, notes, and provenance.
+- [Finding And Report Model](FINDING_MODEL.md): facts, finding candidates,
+  normalized finding payloads, deduplication, and the `report` inbox.
 - [Persistence Model](PERSISTENCE_MODEL.md): event, runtime, artifact,
   maintenance, and variable store contracts.
 - [Save/Export Model](SAVE_EXPORT_MODEL.md): when commands use `save`,
@@ -41,6 +43,9 @@ detail without reading every design note first.
 - [Plugin Author Guide](PLUGIN_AUTHOR_GUIDE.md): commandlets, manifests,
   capabilities, triggers, plugin signing, catalog trust, completion metadata,
   and packaging expectations.
+- [Plugin Skeletons](plugin_skeletons/README.md): copyable plugin layouts for
+  minimal native, vulnerability, library-backed vulnerability,
+  process-wrapped vulnerability, and service trigger-provider plugins.
 - [Key Management](KEY_MANAGEMENT.md): maintainer controls for official
   signing keys, public verification keys, rotation, overlap, retirement, and
   emergency revocation.

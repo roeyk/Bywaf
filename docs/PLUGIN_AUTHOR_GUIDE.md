@@ -21,6 +21,8 @@ those dictionaries into SQLite under the first topic listed in `spec.emits`.
 - [Defining Inputs: Arguments vs Options](#defining-inputs-arguments-vs-options)
 - [A Minimal Commandlet](#a-minimal-commandlet)
 - [Complete External Plugin Example](#complete-external-plugin-example)
+- [Plugin Skeletons](#plugin-skeletons)
+- [Vulnerability Detection Plugin Layout](#vulnerability-detection-plugin-layout)
 - [CommandSpec Fields](#commandspec-fields)
 - [Plans](#plans)
 - [Parsing Arguments](#parsing-arguments)
@@ -553,6 +555,133 @@ bywaf> load --force plugin=http_header_check
 bywaf> http_header_check https://example.com
 bywaf> event http.headers.checked
 ```
+
+# Plugin Skeletons
+
+Copyable plugin skeletons live under `docs/plugin_skeletons/`. They are
+intentionally comment-heavy so developers and AI assistants can see exactly
+where registration, Bywaf orchestration, detection, finding packaging, and
+tests belong.
+
+Use them as fill-in templates. Copy the closest skeleton directory, rename the
+plugin and commandlet, then replace the marked sections that say where to place
+detection, verification, parsing, process-wrapping, or finding-packaging code.
+Prefer filling in the existing functions/classes over starting from a blank
+file or inventing a new structure.
+
+| Skeleton | Use when |
+| --- | --- |
+| `native_minimal` | One small native commandlet is enough. |
+| `native_vulnerability` | A vulnerability or CVE plugin needs detection, confirmation, finding packaging, and tests. |
+| `library_backed` | The plugin imports a third-party Python library in-process. |
+| `library_backed_vulnerability` | A vulnerability or CVE plugin uses a third-party Python library to collect evidence. |
+| `process_wrapped` | The plugin invokes an external binary/tool and parses its output. |
+| `process_wrapped_vulnerability` | A vulnerability or CVE plugin wraps an external tool and promotes parsed results into findings. |
+| `service_trigger_provider` | The plugin provides a long-running service started by provider-owned triggers. |
+
+These skeletons are guidance, not loader requirements. Small one-file plugins
+are still valid. Larger vulnerability plugins should follow the split because
+it makes detection code easier to test and review.
+
+# Vulnerability Detection Plugin Layout
+
+For vulnerability and CVE plugins, prefer this multi-file shape. Use
+`native_vulnerability` when the plugin probes directly, `library_backed_vulnerability`
+when it uses a third-party Python library, and `process_wrapped_vulnerability`
+when it wraps an external tool.
+
+```text
+my_vuln_plugin/
+  plugin.py
+  command.py
+  detect.py
+  findings.py
+  models.py
+  tests/
+    test_detect.py
+  bywaf.plugin.toml
+```
+
+Recommended responsibilities:
+
+| File | Owns | Should avoid |
+| --- | --- | --- |
+| `plugin.py` | `@commandlet`, `@argument`, `@option`, commandlet class, `plugin()` factory | Detection logic, probing, payload assembly |
+| `command.py` | `CommandContext`, parsing, input event selection, cancellation checks, publishing events | Vulnerability-specific decision logic |
+| `detect.py` | `probe()`, `detect()`, optional `confirm()` and verification logic | Bywaf imports, event publishing, database access |
+| `parser.py` | Process-wrapped parser helpers for stable tool output formats | Bywaf imports, subprocess execution, event publishing |
+| `findings.py` | `candidate_from_detection()` and `confirmed_from_detection()` payload mapping | Network probing, parser state, command-line args |
+| `models.py` | `Target`, `ProbeResult`, `DetectionStatus`, `DetectionResult` | Bywaf framework objects |
+| `tests/` | Plain unit tests for `detect.py` and focused integration tests for commandlet behavior | Live network dependency unless explicitly marked |
+
+The important rule is: **Bywaf-specific code at the edges, detection logic in
+the middle.** `detect.py` should be testable without Bywaf. It should return
+typed results, not publish events. `findings.py` is the translation layer that
+turns a `DetectionResult` into `finding.candidate` or future
+`finding.confirmed` payloads. `command.py` is where the plugin uses
+`CommandContext` to parse args, consume input events, call detection functions,
+and publish events.
+
+Recommended names for vulnerability plugins:
+
+```python
+class DetectionStatus(Enum):
+    NOT_APPLICABLE = "not_applicable"
+    CANDIDATE = "candidate"
+    CONFIRMED = "confirmed"
+    FALSE_POSITIVE = "false_positive"
+    ERROR = "error"
+
+@dataclass(frozen=True)
+class Target:
+    host: str
+    port: int
+    scheme: str = "https"
+    path: str = "/"
+
+@dataclass(frozen=True)
+class ProbeResult:
+    target: Target
+    reachable: bool
+    status_code: int | None = None
+    headers: dict[str, str] = field(default_factory=dict)
+    body_sample: str = ""
+    error: str = ""
+
+@dataclass(frozen=True)
+class DetectionResult:
+    status: DetectionStatus
+    target: Target
+    title: str
+    finding_class: str
+    severity: str
+    confidence: str
+    evidence: str
+    recommendation: str
+    identifiers: dict[str, list[str]] = field(default_factory=dict)
+```
+
+Recommended function names:
+
+```python
+# command.py
+def parse_args(commandlet, context, args): ...
+def input_targets(parsed, input_events): ...
+def run_checks(context, parsed, targets): ...
+
+# detect.py
+def probe(target, *, timeout=5.0): ...
+def detect(result): ...
+def confirm(target, *, timeout=5.0): ...
+
+# findings.py
+def candidate_from_detection(result): ...
+def confirmed_from_detection(result): ...
+```
+
+Keep this split pragmatic. A tiny plugin can be one file. A vulnerability
+plugin that performs probing, parsing, confirmation, and finding packaging
+should use the split so each piece can be tested independently.
 
 # CommandSpec Fields
 

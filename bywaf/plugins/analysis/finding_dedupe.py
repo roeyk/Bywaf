@@ -25,6 +25,7 @@ from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet,
 from bywaf.plugins._args import key_value_to_long_options
 
 FINDING_INPUT_TOPICS = (
+    "finding.candidate",
     "nikto.finding",
     "vulnerability.found",
     "vulnerability.potential",
@@ -170,6 +171,7 @@ class CanonicalFinding:
     emits=FINDING_OUTPUT_TOPICS,
     capabilities=(
         "artifact.write",
+        "db.read:finding.candidate",
         "db.read:nikto.finding",
         "db.read:vulnerability.found",
         "db.read:vulnerability.potential",

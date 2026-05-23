@@ -5,6 +5,7 @@ service = false
 [[commandlets]]
 name = "http_headers"
 capabilities = [
+  "db.write:finding.candidate",
   "network.connect",
 ]
 module = "bywaf.plugins.http.http_headers"

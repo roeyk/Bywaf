@@ -997,6 +997,76 @@ class StorageRunnerPluginTests(unittest.TestCase):
             self.assertEqual(completed[-1].payload["phase"], "port_scan")
             self.assertEqual(completed[-1].payload["open_ports"], 0)
 
+    def test_portscanner_promotes_telnet_open_candidate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            with patch(
+                "bywaf.plugins.network.portscanner.scan_open_ports",
+                return_value=[
+                    NmapPort(
+                        host="192.0.2.10",
+                        port=23,
+                        protocol="tcp",
+                        state="open",
+                        service="telnet",
+                    )
+                ],
+            ):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    runner.execute("portscanner --ports 23 192.0.2.10")
+
+            candidates = runner.db.events_for_topic("finding.candidate")
+            self.assertEqual(len(candidates), 1)
+            self.assertEqual(candidates[0].payload["title"], "Telnet service exposed")
+            self.assertEqual(candidates[0].payload["target"]["port"], "23")
+            self.assertEqual(candidates[0].payload["confidence"], "high")
+
+    def test_portscanner_promotes_telnet_on_nonstandard_port_from_service_detection(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            with patch(
+                "bywaf.plugins.network.portscanner.scan_open_ports",
+                return_value=[
+                    NmapPort(
+                        host="192.0.2.10",
+                        port=2323,
+                        protocol="tcp",
+                        state="open",
+                        service="telnet",
+                    )
+                ],
+            ):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    runner.execute("portscanner --ports 2323 192.0.2.10")
+
+            candidates = runner.db.events_for_topic("finding.candidate")
+            self.assertEqual(len(candidates), 1)
+            self.assertEqual(candidates[0].payload["target"]["port"], "2323")
+            self.assertEqual(candidates[0].payload["confidence"], "high")
+
+    def test_portscanner_default_telnet_port_without_service_detection_is_medium_confidence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            with patch(
+                "bywaf.plugins.network.portscanner.scan_open_ports",
+                return_value=[
+                    NmapPort(
+                        host="192.0.2.10",
+                        port=23,
+                        protocol="tcp",
+                        state="open",
+                        service="",
+                    )
+                ],
+            ):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    runner.execute("portscanner --ports 23 192.0.2.10")
+
+            candidates = runner.db.events_for_topic("finding.candidate")
+            self.assertEqual(len(candidates), 1)
+            self.assertEqual(candidates[0].payload["confidence"], "medium")
+            self.assertIn("confirm service identity", candidates[0].payload["evidence"])
+
     def test_commandlet_can_use_events_from_prior_run(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -1187,6 +1257,9 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 time.sleep(0.1)
             self.assertEqual(found[0].payload["host"], "127.0.0.1")
             topics = db.topics()
+            while "job.finished" not in topics and time.time() < deadline:
+                time.sleep(0.1)
+                topics = db.topics()
             self.assertIn("job.claimed", topics)
             self.assertIn("job.started", topics)
             self.assertIn("job.finished", topics)

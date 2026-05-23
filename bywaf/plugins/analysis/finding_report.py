@@ -22,6 +22,7 @@ from bywaf.rendering import Column, Table, render_table
 from bywaf.utils import complete_path
 
 DEDUP_FINDING_TOPICS = ("finding.new", "finding.merge_candidate")
+REPORT_FINDING_TOPICS = ("finding.candidate", *DEDUP_FINDING_TOPICS)
 SOURCE_CHOICES = ("auto", "dedupe", "tools", "all")
 FORMAT_CHOICES = ("md", "csv", "jsonl", "html", "docx", "xlsx")
 OPTION_KEYS = {"export", "file", "format", "limit", "source"}
@@ -38,10 +39,11 @@ OPTION_KEYS = {"export", "file", "format", "limit", "source"}
         "finding_report export=findings.md",
         "finding_report export=findings.xlsx",
     ),
-    consumes=(*DEDUP_FINDING_TOPICS, *FINDING_INPUT_TOPICS),
+    consumes=(*REPORT_FINDING_TOPICS, *FINDING_INPUT_TOPICS),
     emits=("framework.render.table.requested", "artifact.attached"),
     capabilities=(
         "artifact.write",
+        "db.read:finding.candidate",
         "db.read:finding.new",
         "db.read:finding.merge_candidate",
         "db.read:nikto.finding",
@@ -122,7 +124,7 @@ def select_report_events(
     if usable_input:
         return usable_input
 
-    dedupe_events = query_topics(context, DEDUP_FINDING_TOPICS, limit)
+    dedupe_events = query_topics(context, REPORT_FINDING_TOPICS, limit)
     if not include_candidates:
         dedupe_events = [event for event in dedupe_events if event.topic != "finding.merge_candidate"]
     tool_events = query_topics(context, FINDING_INPUT_TOPICS, limit)
@@ -151,10 +153,10 @@ def report_topic_allowed(topic: str, source: str, include_candidates: bool) -> b
     if topic == "finding.merge_candidate" and not include_candidates:
         return False
     if source == "dedupe":
-        return topic in DEDUP_FINDING_TOPICS
+        return topic in REPORT_FINDING_TOPICS
     if source == "tools":
         return topic in FINDING_INPUT_TOPICS
-    return topic in DEDUP_FINDING_TOPICS or topic in FINDING_INPUT_TOPICS
+    return topic in REPORT_FINDING_TOPICS or topic in FINDING_INPUT_TOPICS
 
 
 def finding_rows(events: list[Event], *, include_candidates: bool) -> list[dict[str, str]]:
@@ -166,7 +168,7 @@ def finding_rows(events: list[Event], *, include_candidates: bool) -> list[dict[
             continue
         row = row_from_event(event)
         finding_id = str(event.payload.get("finding_id") or "")
-        if finding_id and event.topic == "finding.new":
+        if finding_id and event.topic in {"finding.candidate", "finding.new"}:
             if finding_id in seen_finding_ids:
                 continue
             seen_finding_ids.add(finding_id)
@@ -176,7 +178,7 @@ def finding_rows(events: list[Event], *, include_candidates: bool) -> list[dict[
 
 def row_from_event(event: Event) -> dict[str, str]:
     """Return one reporting row from a normalized or raw finding event."""
-    if event.topic in DEDUP_FINDING_TOPICS:
+    if event.topic in REPORT_FINDING_TOPICS:
         payload = event.payload
         if event.topic == "finding.merge_candidate":
             payload = candidate_payload(payload)

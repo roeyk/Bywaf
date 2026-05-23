@@ -13,6 +13,7 @@ import io
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from bywaf.app import (
     ShellState,
@@ -358,6 +359,20 @@ class FrameworkHttpAppTests(unittest.TestCase):
         targets = HttpHeaders().targets(None, None, False, [event])
         self.assertEqual(targets, [("127.0.0.1", 443, True)])
 
+    def test_http_headers_promotes_missing_security_headers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            with patch("bywaf.plugins.http.http_headers.http.client.HTTPSConnection", FakeHttpConnection):
+                runner.execute("http_headers --ssl true example.test")
+
+            candidates = runner.db.events_for_topic("finding.candidate")
+            titles = {event.payload["title"] for event in candidates}
+            self.assertEqual(
+                titles,
+                {"Missing HTTP Strict Transport Security", "Missing X-Content-Type-Options"},
+            )
+            self.assertTrue(all(event.pipeline_id for event in candidates))
+
 
 class FakeHostResult:
     def state(self):
@@ -368,6 +383,28 @@ class FakeHostResult:
 
     def __getitem__(self, protocol):
         return {22: {"state": "open", "name": "ssh", "reason": "syn-ack"}}
+
+
+class FakeHttpResponse:
+    status = 200
+    headers = {"Server": "example"}
+
+
+class FakeHttpConnection:
+    def __init__(self, host, port=None, timeout=None):
+        self.host = host
+        self.port = port
+        self.timeout = timeout
+
+    def request(self, method, path):
+        self.method = method
+        self.path = path
+
+    def getresponse(self):
+        return FakeHttpResponse()
+
+    def close(self):
+        return None
 
 
 class FakePortScanner:
