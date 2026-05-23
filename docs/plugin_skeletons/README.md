@@ -10,6 +10,19 @@ commented sections that say where to place detection, verification, parsing,
 or finding-packaging code. Prefer filling in the existing functions/classes
 over inventing a new plugin layout from scratch.
 
+LLM Guardrails:
+
+- Decorate the `CommandletBase` class with `@commandlet`, `@argument`, and
+  `@option`; do not decorate the `plugin()` factory.
+- Publish normalized findings with `finding.candidate` or `finding.confirmed`
+  payloads built through `bywaf.findings.candidate_payload(...)`; do not invent
+  unrelated finding keys.
+- If code publishes `finding.candidate` or `finding.confirmed`, declare
+  `db.write:finding.candidate` or `db.write:finding.confirmed` in both the
+  decorator capabilities and `bywaf.plugin.toml`.
+- Use `event finding.candidate` or `report` to inspect results; do not use a
+  nonexistent `show finding.candidate` command.
+
 Use the smallest skeleton that fits:
 
 | Skeleton | Use when |

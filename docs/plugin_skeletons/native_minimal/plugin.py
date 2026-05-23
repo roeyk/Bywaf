@@ -10,6 +10,8 @@ from bywaf.events import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, argument, commandlet
 
 
+# LLM Guardrail: @commandlet decorates the CommandletBase class, not plugin().
+# Do not move @commandlet or @argument onto the plugin() factory function.
 @commandlet(
     name="example_minimal",
     description="Minimal example commandlet.",

@@ -569,6 +569,19 @@ detection, verification, parsing, process-wrapping, or finding-packaging code.
 Prefer filling in the existing functions/classes over starting from a blank
 file or inventing a new structure.
 
+LLM Guardrails:
+
+- Decorate the `CommandletBase` class with `@commandlet`, `@argument`, and
+  `@option`; do not decorate the `plugin()` factory function.
+- Publish normalized findings with `finding.candidate` or `finding.confirmed`
+  payloads built through `bywaf.findings.candidate_payload(...)`; do not invent
+  unrelated finding payload keys.
+- If code publishes `finding.candidate` or `finding.confirmed`, declare
+  `db.write:finding.candidate` or `db.write:finding.confirmed` in both the
+  decorator capabilities and `bywaf.plugin.toml`.
+- Use `event finding.candidate` or `report` to inspect results; do not use a
+  nonexistent `show finding.candidate` command.
+
 | Skeleton | Use when |
 | --- | --- |
 | `native_minimal` | One small native commandlet is enough. |
