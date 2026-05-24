@@ -5,6 +5,8 @@ from collections.abc import Iterable
 from bywaf.events import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet
 
+from .triggers import triggers as provider_triggers
+
 
 # LLM Guardrail: @commandlet decorates the CommandletBase class, not plugin().
 # Do not move @commandlet onto the plugin() factory function.
@@ -38,3 +40,8 @@ class ExampleService(CommandletBase):
 
 def plugin() -> Commandlet:
     return ExampleService()
+
+
+def triggers():
+    """Expose provider-owned trigger rules to the filesystem plugin loader."""
+    return provider_triggers()

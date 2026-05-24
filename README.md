@@ -538,7 +538,9 @@ http
   eyewitness
   http_headers
   http_probe
+  git_expose_check
   nikto
+  repo_exposure
   webfin
 network
   portscanner
@@ -1584,6 +1586,23 @@ bywaf> http_headers --ssl true example.com
 bywaf> http_probe https://example.com/
 ```
 
+`git_expose_check` checks HTTP endpoints for exposed `.git/config` repository
+metadata and promotes confirmed-looking exposures into `finding.candidate`:
+
+```text
+bywaf> git_expose_check https://example.com/
+bywaf> http_probe https://example.com/ | git_expose_check
+```
+
+`repo_exposure` is an orchestrator commandlet for repository metadata exposure
+checks. It currently runs the Git config exposure check and marks emitted
+payloads with `family=repo_exposure` and `check=git_config`:
+
+```text
+bywaf> repo_exposure https://example.com/
+bywaf> http_probe https://example.com/ | repo_exposure
+```
+
 `webfin` fingerprints HTTP endpoints and emits `web.fingerprint` events:
 
 ```text
@@ -1874,8 +1893,8 @@ checkout.
 Add a commandlet by defining a `CommandletBase` subclass decorated with
 `@commandlet(...)`, `@argument(...)`, and `@option(...)`, then expose it through
 a `plugin()` factory. Add bundled commandlets to `bywaf/plugins/plugins.toml`
-when they should load by default. See `docs/PLUGIN_AUTHOR_GUIDE.md` for a
-walkthrough and a small working example.
+when they should load by default. See `docs/plugin_author/README.md` for the plugin-author
+documentation set and first-plugin workflow.
 
 # Reference
 

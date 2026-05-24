@@ -18,7 +18,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from scripts.plugin_check import check_plugin, main, render_text
+from scripts.plugin_check import check_plugin, main, render_llm_feedback, render_text
 from scripts.plugin_manifest_sign import main as sign_manifest_main
 
 
@@ -101,6 +101,21 @@ class PluginCheckTests(unittest.TestCase):
             self.assertEqual(report["warnings"][0]["capability"], "network.connect")
             self.assertEqual(report["warnings"][0]["kind"], "direct_network_import")
 
+    def test_check_plugin_does_not_warn_on_urllib_parse_after_urllib_request_import(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(
+                Path(tmp),
+                capabilities=(),
+                imports="import urllib.request\nimport urllib.parse\n",
+                run_body='        urllib.parse.urlparse("https://example.test/")\n        yield {"ok": True}\n',
+            )
+
+            report = check_plugin(plugin_dir)
+
+            warning_details = [warning["detail"] for warning in report["warnings"]]
+            self.assertTrue(any("import urllib.request" in detail for detail in warning_details))
+            self.assertFalse(any("urlparse" in detail for detail in warning_details))
+
     def test_check_plugin_json_output(self):
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(Path(tmp), capabilities=())
@@ -153,6 +168,57 @@ class PluginCheckTests(unittest.TestCase):
         self.assertIn("failed plugin=/tmp/missing", text)
         self.assertIn("error: missing", text)
 
+    def test_check_plugin_reports_invalid_argument_decorator_keyword(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(
+                Path(tmp),
+                capabilities=(),
+                decorators='@argument("url", "target URL", required=True, nargs="+")\n',
+                imports="from bywaf.plugin import argument\n",
+            )
+
+            report = check_plugin(plugin_dir)
+
+            self.assertFalse(report["ok"])
+            self.assertEqual(report["diagnostics"][0]["code"], "invalid-argument-decorator-keyword")
+            feedback = render_llm_feedback(report)
+            self.assertIn("Put argparse behavior such as nargs", feedback)
+
+    def test_check_plugin_reports_decorator_on_plugin_factory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_decorated_factory_fixture(Path(tmp))
+
+            report = check_plugin(plugin_dir)
+
+            self.assertFalse(report["ok"])
+            self.assertEqual(report["diagnostics"][0]["code"], "decorator-on-plugin-factory")
+
+    def test_check_plugin_reports_invalid_candidate_payload_keyword(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(
+                Path(tmp),
+                capabilities=(),
+                imports="from bywaf.findings import candidate_payload\n",
+                run_body="        yield candidate_payload(title='t', classification='wrong', target={})\n",
+            )
+
+            report = check_plugin(plugin_dir)
+
+            self.assertFalse(report["ok"])
+            self.assertEqual(report["diagnostics"][0]["code"], "invalid-candidate-payload-keyword")
+
+    def test_plugin_skeletons_validate(self):
+        skeleton_root = Path(__file__).resolve().parents[1] / "docs" / "plugin_skeletons"
+        failures: list[str] = []
+        for plugin_dir in sorted(path for path in skeleton_root.iterdir() if path.is_dir()):
+            if not (plugin_dir / "plugin.py").exists():
+                continue
+            report = check_plugin(plugin_dir, strict_inference=True)
+            if not report["ok"]:
+                failures.append(render_text(report))
+
+        self.assertEqual([], failures)
+
 
 def write_plugin_fixture(
     root: Path,
@@ -160,6 +226,8 @@ def write_plugin_fixture(
     capabilities: tuple[str, ...],
     manifest_capabilities: tuple[str, ...] | None = None,
     imports: str = "",
+    decorators: str = "",
+    parser_import: str = "from bywaf.plugin import CommandSpec\n",
     run_body: str = "        yield {'ok': True}\n",
 ) -> Path:
     plugin_dir = root / "example"
@@ -167,7 +235,8 @@ def write_plugin_fixture(
     capability_text = repr(capabilities)
     plugin_dir.joinpath("plugin.py").write_text(
         imports +
-        "from bywaf.plugin import CommandSpec\n"
+        parser_import +
+        decorators +
         "class Example:\n"
         f"    spec = CommandSpec('example', 'example plugin', capabilities={capability_text})\n"
         "    def run(self, context, args, input_events):\n"
@@ -183,6 +252,21 @@ def write_plugin_fixture(
         "capabilities = [\n"
         f"{manifest_capability_lines}"
         "]\n"
+    )
+    return plugin_dir
+
+
+def write_decorated_factory_fixture(root: Path) -> Path:
+    plugin_dir = write_plugin_fixture(root, capabilities=())
+    plugin_dir.joinpath("plugin.py").write_text(
+        "from bywaf.plugin import CommandSpec, commandlet\n"
+        "class Example:\n"
+        "    spec = CommandSpec('example', 'example plugin')\n"
+        "    def run(self, context, args, input_events):\n"
+        "        yield {'ok': True}\n"
+        "@commandlet(name='wrong', description='wrong')\n"
+        "def plugin():\n"
+        "    return Example()\n"
     )
     return plugin_dir
 

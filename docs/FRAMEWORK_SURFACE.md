@@ -53,7 +53,7 @@ base installation commandlets that declare or use each capability.
 | `db.write:dns.error` | `dns_lookup` |
 | `db.write:dns.record` | `dns_lookup` |
 | `db.write:eyewitness.screenshot` | `eyewitness` |
-| `db.write:finding.candidate` | `http_headers`, `portscanner` |
+| `db.write:finding.candidate` | `git_expose_check`, `http_headers`, `portscanner` |
 | `db.write:finding.duplicate` | `finding_dedupe` |
 | `db.write:finding.merge_candidate` | `finding_dedupe` |
 | `db.write:finding.new` | `finding_dedupe` |
@@ -87,7 +87,7 @@ base installation commandlets that declare or use each capability.
 | `db.write:yara.match` | `yara_scan` |
 | `filesystem.read` | `artifact`, `cat`, `db`, `eyewitness`, `finding_dedupe`, `finding_report`, `http_probe`, `key`, `less`, `ls`, `nikto`, `note`, `wifi_scan`, `yara_scan` |
 | `filesystem.write` | `artifact`, `audit`, `bundle`, `db`, `eyewitness`, `finding_dedupe`, `finding_report`, `key`, `nikto`, `note`, `wifi_scan` |
-| `framework.console.alert` | `eyewitness`, `hostscanner`, `http_probe`, `nikto`, `portscanner`, `watchdog`, `webfin`, `wifi_scan` |
+| `framework.console.alert` | `eyewitness`, `git_expose_check`, `hostscanner`, `http_probe`, `nikto`, `portscanner`, `watchdog`, `webfin`, `wifi_scan` |
 | `framework.console.output` | `artifact`, `audit`, `bundle`, `cancel`, `cat`, `db`, `end`, `finding_dedupe`, `job`, `key`, `kill`, `ls`, `name`, `note`, `pause`, `pipeline`, `report`, `resume`, `search`, `signal`, `stop` |
 | `framework.file.page` | `less` |
 | `framework.job.control` | `cancel`, `end`, `job`, `kill`, `pause`, `pipeline`, `resume`, `signal`, `stop` |
@@ -95,7 +95,7 @@ base installation commandlets that declare or use each capability.
 | `framework.process.run` | `eyewitness`, `nikto`, `wifi_scan` |
 | `framework.render.table` | `finding_report` |
 | `framework.secret.resolve` | `ldap_probe`, `shodan_lookup`, `smb_probe`, `ssh_probe` |
-| `network.connect` | `dns_lookup`, `eyewitness`, `hostscanner`, `http_headers`, `http_probe`, `ldap_probe`, `nikto`, `portscanner`, `shodan_lookup`, `smb_probe`, `snmp_get`, `ssh_probe`, `webfin` |
+| `network.connect` | `dns_lookup`, `eyewitness`, `git_expose_check`, `hostscanner`, `http_headers`, `http_probe`, `ldap_probe`, `nikto`, `portscanner`, `shodan_lookup`, `smb_probe`, `snmp_get`, `ssh_probe`, `webfin` |
 | `network.listen` | `wifi_scan` |
 | `process.run` | `eyewitness`, `nikto`, `wifi_scan` |
 
@@ -123,6 +123,7 @@ the association and `Consumes` is the normal consumer side.
 | `eyewitness` | `http.endpoint` | `eyewitness.screenshot`, `web.screenshot` |
 | `finding_dedupe` | `finding.candidate`, `nikto.finding`, `vulnerability.found`, `vulnerability.potential`, `vulnerability.confirmed`, `vulnerability.speculative`, `vulnerability.false_positive` | `finding.new`, `finding.duplicate`, `finding.updated`, `finding.merge_candidate` |
 | `finding_report` | `finding.candidate`, `finding.new`, `finding.merge_candidate`, `nikto.finding`, `vulnerability.found`, `vulnerability.potential`, `vulnerability.confirmed`, `vulnerability.speculative`, `vulnerability.false_positive` | `framework.render.table.requested`, `artifact.attached` |
+| `git_expose_check` | `http.endpoint` | `repo.git_config.checked`, `finding.candidate` |
 | `hostscanner` | none | `name.resolved`, `host.found` |
 | `http_headers` | `port.open` | `http.headers`, `finding.candidate` |
 | `http_probe` | `port.open` | `http.endpoint` |
@@ -131,6 +132,7 @@ the association and `Consumes` is the normal consumer side.
 | `nikto` | `http.endpoint`, `web.fingerprint` | `nikto.finding`, `vulnerability.found`, `vulnerability.potential` |
 | `portscanner` | `host.found` | `port.open`, `finding.candidate` |
 | `report` | `finding.candidate`, `finding.new`, `finding.merge_candidate` | `report.rendered` |
+| `repo_exposure` | `http.endpoint` | `repo.git_config.checked`, `finding.candidate` |
 | `shodan_lookup` | none | `shodan.host`, `shodan.result` |
 | `smb_probe` | none | `smb.server` |
 | `snmp_get` | none | `snmp.value` |

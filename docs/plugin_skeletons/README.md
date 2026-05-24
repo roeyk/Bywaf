@@ -70,3 +70,20 @@ The split is guidance, not a loader requirement. Bywaf still loads any valid
 plugin package with `plugin.py`, `plugin()`, and a matching `bywaf.plugin.toml`.
 The skeletons exist to make the preferred structure easy to copy, especially
 for vulnerability-detection plugins and AI-assisted plugin generation.
+
+Before loading or sharing a generated plugin, run:
+
+```bash
+python3 scripts/plugin_check.py path/to/plugin-dir --strict-inference
+python3 scripts/plugin_check.py path/to/plugin-dir --strict-inference --llm-feedback
+```
+
+Use `--llm-feedback` when working with a chat-based assistant. Paste the full
+checker output back into the assistant and ask it to regenerate the complete
+plugin directory. The checker catches common LLM drift such as unsupported
+decorator keywords, decorators on `plugin()`, nonexistent finding helpers,
+manifest/capability mismatches, and unsupported context APIs.
+
+These skeleton directories are themselves validated by Bywaf tests. Treat that
+as part of their contract: if a skeleton stops passing `scripts/plugin_check.py`,
+fix the skeleton before copying it into a real plugin.

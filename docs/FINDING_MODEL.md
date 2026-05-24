@@ -80,8 +80,9 @@ The first implementation uses these normalized topics:
 
 Bundled commandlets may emit `finding.candidate` when a fact matches a small
 review-worthy rule. For example, `portscanner` promotes exposed Telnet, and
-`http_headers` promotes missing high-value HTTP security headers. Future work
-may add explicit `finding.confirmed` topics for stronger verification.
+`http_headers` promotes missing high-value HTTP security headers.
+`git_expose_check` promotes exposed `.git/config` repository metadata. Future
+work may add explicit `finding.confirmed` topics for stronger verification.
 
 ## Report Command
 

@@ -1,0 +1,21 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "git_expose_check"
+capabilities = [
+  "db.write:finding.candidate",
+  "framework.console.alert",
+  "network.connect",
+]
+module = "bywaf.plugins.http.repo_exposure"
+
+[[commandlets]]
+name = "repo_exposure"
+capabilities = [
+  "db.write:finding.candidate",
+  "framework.console.alert",
+  "network.connect",
+]
+module = "bywaf.plugins.http.repo_exposure"

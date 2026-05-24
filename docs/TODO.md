@@ -54,6 +54,38 @@ Planning dates are release planning markers, not compatibility commitments.
 - Keep CVE checks small and composable so they can be run after existing HTTP,
   SSH, SMB, LDAP, DNS, or fingerprinting commandlets.
 
+### Item: Repository And Cloud Exposure Plugin Families
+
+- Build a small family of repository-exposure plugins for HTTP-accessible
+  source-control metadata and repository artifacts, starting with
+  `git_expose_check` for exposed `.git/config`.
+- Consider follow-up checks for exposed `.svn/`, `.hg/`, `.bzr/`, source maps,
+  repository archives, backup trees, and cloud-hosted revision-control metadata
+  where safe passive probes can confirm exposure.
+- Build a separate cloud-exposure family for misconfigured cloud assets such as
+  public object buckets, default or absent access controls, overly broad
+  anonymous permissions, and exposed cloud metadata or configuration endpoints.
+- Keep cloud checks authorization-first and provider-aware. Prefer
+  non-destructive listing, HEAD, metadata, and policy-inspection probes over
+  write tests unless explicitly enabled by the operator.
+- Normalize both families into `finding.candidate` / future
+  `finding.confirmed` events so report, dedupe, and artifact workflows can
+  treat them consistently.
+
+### Item: Orchestrator Commandlets For Related Check Sets
+
+- Expose related sets of checks as normal commandlets, not a separate `scan`,
+  `profile`, or `playbook` execution verb.
+- Examples: `repo_exposure @urls.txt`, `cloud_exposure @assets.txt`, and
+  `web_baseline example.com`.
+- Let orchestrator commandlets coordinate lower-level commandlets or shared
+  detection logic while preserving normal pipeline/job/run provenance.
+- Improve target-file ergonomics so target-taking commandlets can treat
+  `@targets.txt` as line-wise target input by default, without requiring users
+  to type `@lines:targets.txt`.
+- Defer named target-set storage until plain files and existing `@file`
+  expansion are proven insufficient.
+
 ### Framework Request IPC
 
 - Expand framework-owned request helpers beyond prompt, output, alerts, file
@@ -123,6 +155,18 @@ Planning dates are release planning markers, not compatibility commitments.
 - Add at least one documented end-to-end chain showing discovery, port
   scanning, HTTP probing, screenshots, Nikto scanning, table/report output,
   notes, and artifacts.
+
+### Item: Plugin Helper Abstraction After Real Plugin Experience
+
+- Implement more real vulnerability-detection plugins before adding a shared
+  helper abstraction for target iteration, cancellation, variable defaults,
+  finding publication, or JSON-safe result conversion.
+- Track repeated boilerplate across native, library-backed, and
+  process-wrapped vulnerability plugins.
+- If the same orchestration code appears in several production plugins, add
+  small documented helper functions rather than a large abstract base class.
+- Keep the current expanded skeletons as teaching references until real plugin
+  implementations show which parts can be safely collapsed.
 
 ### GUI/Web Frontend
 

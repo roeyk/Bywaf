@@ -46,6 +46,7 @@ def check_plugin(
         "unused_capabilities": [],
         "evidence": [],
         "warnings": [],
+        "diagnostics": [],
         "manifest_signature": "unchecked",
         "errors": [],
     }
@@ -65,6 +66,8 @@ def check_plugin(
         report["errors"].append(f"source analysis failed: {exc}")
         return report
     report.update(source_analysis.to_dict())
+    source_errors = [item for item in report["diagnostics"] if item.get("severity") == "error"]
+    report["errors"].extend(f"{item['code']}: {item['message']}" for item in source_errors)
     if verify_manifest and manifest_key is None:
         report["errors"].append("--verify requires --manifest-key")
         return report
@@ -94,10 +97,18 @@ def check_plugin(
         for capability in inferred_capabilities
         if not capability_declared(capability, declared_capabilities)
     )
+    observed_capabilities = tuple(
+        sorted(
+            {
+                *inferred_capabilities,
+                *(str(item.get("capability")) for item in report.get("warnings", ())),
+            }
+        )
+    )
     unused_capabilities = sorted(
         capability
         for capability in declared_capabilities
-        if not capability_declared(capability, inferred_capabilities)
+        if not capability_declared(capability, observed_capabilities)
     )
     report["missing_capabilities"] = missing_capabilities
     report["unused_capabilities"] = unused_capabilities
@@ -117,6 +128,7 @@ def render_text(report: dict[str, Any]) -> str:
     unused_capabilities = report.get("unused_capabilities") or []
     inferred_capabilities = report.get("inferred_capabilities") or []
     warnings = report.get("warnings") or []
+    diagnostics = report.get("diagnostics") or []
     if commandlets:
         lines.append("commandlets: " + ", ".join(str(item) for item in commandlets))
     if triggers:
@@ -133,8 +145,83 @@ def render_text(report: dict[str, Any]) -> str:
             f"{warning['capability']} {warning['kind']} "
             f"{warning['path']}:{warning['line']} {warning['detail']}"
         )
+    for diagnostic in diagnostics:
+        lines.append(
+            f"{diagnostic['severity']}: {diagnostic['code']} "
+            f"{diagnostic['path']}:{diagnostic['line']} {diagnostic['message']}"
+        )
     for error in errors:
         lines.append(f"error: {error}")
+    return "\n".join(lines)
+
+
+def render_llm_feedback(report: dict[str, Any]) -> str:
+    """Return concise feedback suitable for pasting into an LLM chat."""
+    lines = [f"{'PASSED' if report['ok'] else 'FAILED'}: Bywaf plugin check", f"Plugin: {report['plugin']}"]
+    diagnostics = report.get("diagnostics") or []
+    errors = report.get("errors") or []
+    warnings = report.get("warnings") or []
+    missing_capabilities = report.get("missing_capabilities") or []
+    unused_capabilities = report.get("unused_capabilities") or []
+    if not diagnostics and not errors and not warnings and not missing_capabilities and not unused_capabilities:
+        lines.append("No checker feedback.")
+        return "\n".join(lines)
+    lines.append("")
+    if report["ok"]:
+        lines.append("Review these notes before regenerating or publishing the plugin:")
+    else:
+        lines.append("Apply these corrections, then output the complete plugin directory again:")
+    item_number = 1
+    for diagnostic in diagnostics:
+        lines.extend(
+            [
+                f"{item_number}. {diagnostic['path']}:{diagnostic['line']} [{diagnostic['code']}]",
+                f"   Problem: {diagnostic['message']}",
+                f"   Fix: {diagnostic['guidance']}",
+            ]
+        )
+        item_number += 1
+    for capability in missing_capabilities:
+        lines.extend(
+            [
+                f"{item_number}. Missing capability declaration: {capability}",
+                "   Problem: source analysis inferred this capability but it is not declared.",
+                "   Fix: add the capability to the @commandlet(..., capabilities=(...)) tuple and the matching "
+                "bywaf.plugin.toml [[commandlets]] capabilities list.",
+            ]
+        )
+        item_number += 1
+    for warning in warnings:
+        lines.extend(
+            [
+                f"{item_number}. {warning['path']}:{warning['line']} [{warning['kind']}]",
+                f"   Problem: direct {warning['capability']} use detected: {warning['detail']}",
+                "   Fix: prefer the documented mediated Bywaf context API when one exists, or make sure the "
+                "matching capability is declared and the direct API use is intentional.",
+            ]
+        )
+        item_number += 1
+    for capability in unused_capabilities:
+        lines.extend(
+            [
+                f"{item_number}. Possibly unused declared capability: {capability}",
+                "   Problem: the checker did not infer source evidence for this declaration.",
+                "   Fix: remove it if it is unnecessary, or keep it if it is required by runtime behavior the "
+                "static checker cannot see.",
+            ]
+        )
+        item_number += 1
+    for error in errors:
+        if any(str(error).startswith(f"{diagnostic['code']}:") for diagnostic in diagnostics):
+            continue
+        lines.extend(
+            [
+                f"{item_number}. Checker error",
+                f"   Problem: {error}",
+                "   Fix: correct the plugin so scripts/plugin_check.py can import and validate it.",
+            ]
+        )
+        item_number += 1
     return "\n".join(lines)
 
 
@@ -150,6 +237,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="fail when AST-inferred capabilities are missing from CommandSpec declarations",
     )
     parser.add_argument("--json", action="store_true", help="emit a machine-readable validation report")
+    parser.add_argument("--llm-feedback", action="store_true", help="emit concise feedback suitable for pasting into an LLM chat")
     return parser
 
 
@@ -164,6 +252,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
+    elif args.llm_feedback:
+        print(render_llm_feedback(report))
     else:
         print(render_text(report))
     return 0 if report["ok"] else 1

@@ -100,6 +100,8 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn("http_headers", self.registry.names())
         self.assertIn("http_probe", self.registry.names())
         self.assertIn("nikto", self.registry.names())
+        self.assertIn("git_expose_check", self.registry.names())
+        self.assertIn("repo_exposure", self.registry.names())
         self.assertIn("webfin", self.registry.names())
         self.assertIn("wifi_scan", self.registry.names())
         self.assertIn("finding_dedupe", self.registry.names())
@@ -145,6 +147,7 @@ class RegistryCompletionTests(unittest.TestCase):
                 "http.eyewitness",
                 "http.http_probe",
                 "http.nikto",
+                "http.repo_exposure",
                 "http.webfin",
                 "wireless.wifi_scan",
                 "runtime.job",

@@ -16,6 +16,7 @@
     "http.eyewitness",
     "http.http_probe",
     "http.nikto",
+    "http.repo_exposure",
     "http.webfin",
     "wireless.wifi_scan",
     "runtime.job",

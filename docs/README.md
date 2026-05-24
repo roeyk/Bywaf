@@ -10,9 +10,10 @@ detail without reading every design note first.
   [FAQ](FAQ.md)
 - **Operator:** [Terminology](TERMINOLOGY.md) -> [Runtime Model](RUNTIME_MODEL.md) ->
   [Event Model](EVENT_MODEL.md) -> [Framework Surface](FRAMEWORK_SURFACE.md)
-- **Plugin author:** [Plugin Author Guide](PLUGIN_AUTHOR_GUIDE.md) ->
-  [Plugin Manifest Specification](MANIFEST_SPECIFICATION.md) ->
-  [Capability Model](CAPABILITY_MODEL.md) -> [Framework Surface](FRAMEWORK_SURFACE.md)
+- **Plugin author:** [Plugin Author Guide](plugin_author/README.md) ->
+  [Plugin Fundamentals](plugin_author/fundamentals.md) ->
+  [Commandlet API Reference](plugin_author/commandlet-api.md) ->
+  [Plugin Packaging And Checking](plugin_author/packaging-and-checking.md)
 - **Maintainer:** [Changelog](../CHANGELOG.md) -> [TODO](TODO.md) ->
   [Key Management](KEY_MANAGEMENT.md) -> [Design Notes](DESIGN.md)
 
@@ -40,9 +41,18 @@ detail without reading every design note first.
 
 ## Authoring And Operations
 
-- [Plugin Author Guide](PLUGIN_AUTHOR_GUIDE.md): commandlets, manifests,
-  capabilities, triggers, plugin signing, catalog trust, completion metadata,
-  and packaging expectations.
+- [Plugin Author Guide](plugin_author/README.md): short entry point for the
+  plugin author documentation set.
+- [Plugin Fundamentals](plugin_author/fundamentals.md): plugin types, manifests,
+  current API, arguments/options, and small examples.
+- [Commandlet API Reference](plugin_author/commandlet-api.md): command specs, parsing,
+  rendering, event publishing, completion, runtime context, and defaults.
+- [Vulnerability Plugin Guide](plugin_author/vulnerability-plugins.md): vulnerability
+  plugin layout, finding packaging, and skeleton intent.
+- [Plugin Packaging And Checking](plugin_author/packaging-and-checking.md): loading,
+  packaging, AI-assisted development, checker usage, and catalog signing.
+- [Plugin Testing And Guidelines](plugin_author/testing-and-guidelines.md): plugin
+  tests and practical implementation guidance.
 - [Plugin Skeletons](plugin_skeletons/README.md): copyable plugin layouts for
   minimal native, vulnerability, library-backed vulnerability,
   process-wrapped vulnerability, and service trigger-provider plugins.

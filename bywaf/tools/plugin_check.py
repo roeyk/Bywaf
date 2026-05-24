@@ -38,6 +38,7 @@ class SourceAnalysis:
     inferred_capabilities: tuple[str, ...]
     evidence: tuple[CapabilityEvidence, ...]
     warnings: tuple[CapabilityEvidence, ...]
+    diagnostics: tuple["SourceDiagnostic", ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable analysis result."""
@@ -45,13 +46,31 @@ class SourceAnalysis:
             "inferred_capabilities": list(self.inferred_capabilities),
             "evidence": [item.to_dict() for item in self.evidence],
             "warnings": [item.to_dict() for item in self.warnings],
+            "diagnostics": [item.to_dict() for item in self.diagnostics],
         }
+
+
+@dataclass(frozen=True, slots=True)
+class SourceDiagnostic:
+    """One plugin-authoring diagnostic suitable for LLM feedback."""
+
+    severity: str
+    code: str
+    path: str
+    line: int
+    message: str
+    guidance: str
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-serializable diagnostic record."""
+        return asdict(self)
 
 
 def analyze_plugin_source(plugin_dir: Path) -> SourceAnalysis:
     """Infer likely capabilities from Python source without importing it."""
     evidence: list[CapabilityEvidence] = []
     warnings: list[CapabilityEvidence] = []
+    diagnostics: list[SourceDiagnostic] = []
     for path in sorted(plugin_dir.rglob("*.py")):
         if "__pycache__" in path.parts:
             continue
@@ -61,8 +80,9 @@ def analyze_plugin_source(plugin_dir: Path) -> SourceAnalysis:
         visitor.visit(tree)
         evidence.extend(visitor.evidence)
         warnings.extend(visitor.warnings)
+        diagnostics.extend(visitor.diagnostics)
     capabilities = sorted({item.capability for item in evidence})
-    return SourceAnalysis(tuple(capabilities), tuple(evidence), tuple(warnings))
+    return SourceAnalysis(tuple(capabilities), tuple(evidence), tuple(warnings), tuple(diagnostics))
 
 
 class CapabilityVisitor(ast.NodeVisitor):
@@ -74,12 +94,25 @@ class CapabilityVisitor(ast.NodeVisitor):
         self.aliases: dict[str, str] = {}
         self.evidence: list[CapabilityEvidence] = []
         self.warnings: list[CapabilityEvidence] = []
+        self.diagnostics: list[SourceDiagnostic] = []
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802 - ast API
+        """Detect decorators accidentally attached to plugin() factories."""
+        if node.name == "plugin":
+            self.inspect_plugin_factory_decorators(node)
+        self.generic_visit(node)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:  # noqa: N802 - ast API
+        """Detect decorators accidentally attached to async plugin() factories."""
+        if node.name == "plugin":
+            self.inspect_plugin_factory_decorators(node)
+        self.generic_visit(node)
 
     def visit_Import(self, node: ast.Import) -> None:  # noqa: N802 - ast API
         """Record import aliases and warn for direct network/process modules."""
         for alias in node.names:
             root = alias.name.split(".", 1)[0]
-            self.aliases[alias.asname or root] = alias.name
+            self.aliases[alias.asname or root] = alias.name if alias.asname else root
             self.record_import_warning(node, alias.name)
         self.generic_visit(node)
 
@@ -108,6 +141,7 @@ class CapabilityVisitor(ast.NodeVisitor):
 
     def inspect_call(self, node: ast.Call, path: str) -> None:
         """Inspect one call path and record capability evidence."""
+        self.inspect_authoring_call(node, path)
         framework_capability = framework_call_capability(path)
         if framework_capability is not None:
             self.add_evidence(framework_capability, "framework_call", node, path)
@@ -134,6 +168,89 @@ class CapabilityVisitor(ast.NodeVisitor):
             self.add_warning("network.connect", "direct_network", node, path, confidence="medium")
         if direct_process_call(path):
             self.add_warning("process.run", "direct_process", node, path, confidence="medium")
+
+    def inspect_plugin_factory_decorators(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+        """Report commandlet metadata decorators on plugin() instead of the commandlet class."""
+        for decorator in node.decorator_list:
+            path = self.call_path(decorator.func) if isinstance(decorator, ast.Call) else self.call_path(decorator)
+            if call_basename(path) in {"argument", "commandlet", "option"}:
+                self.add_diagnostic(
+                    "error",
+                    "decorator-on-plugin-factory",
+                    decorator,
+                    f"@{call_basename(path)} decorates plugin()",
+                    "@commandlet, @argument, and @option must decorate the CommandletBase class in plugin.py. "
+                    "Keep plugin() as an undecorated factory that only returns the commandlet instance.",
+                )
+
+    def inspect_authoring_call(self, node: ast.Call, path: str) -> None:
+        """Report common plugin-authoring mistakes before import/runtime failures."""
+        basename = call_basename(path)
+        if basename == "argument":
+            self.inspect_allowed_keywords(
+                node,
+                allowed={"required", "completion"},
+                code="invalid-argument-decorator-keyword",
+                guidance=(
+                    "@argument records positional metadata only. Put argparse behavior such as nargs, default, "
+                    "choices, or action in parser.add_argument(...) inside run()/parse_args()."
+                ),
+            )
+        if basename == "option":
+            self.inspect_allowed_keywords(
+                node,
+                allowed={"default", "choices", "completion", "secret"},
+                code="invalid-option-decorator-keyword",
+                guidance=(
+                    "@option records option metadata only. Supported keywords are default, choices, completion, "
+                    "and secret. Put argparse behavior such as action='store_true' in parser.add_argument(...)."
+                ),
+            )
+        if path in {"context.is_cancelled"}:
+            self.add_diagnostic(
+                "error",
+                "unsupported-context-is-cancelled",
+                node,
+                "context.is_cancelled() is not the documented cancellation API",
+                "Use context.raise_if_cancelled() inside long-running loops.",
+            )
+        if basename == "confirmed_payload":
+            self.add_diagnostic(
+                "error",
+                "no-confirmed-payload-helper",
+                node,
+                "bywaf.findings.confirmed_payload(...) does not exist",
+                "Use bywaf.findings.candidate_payload(...) and then set payload['status'] = 'confirmed'.",
+            )
+        if basename == "candidate_payload":
+            self.inspect_allowed_keywords(
+                node,
+                allowed={
+                    "title",
+                    "finding_class",
+                    "target",
+                    "severity",
+                    "confidence",
+                    "evidence",
+                    "recommendation",
+                    "identifiers",
+                    "source",
+                },
+                code="invalid-candidate-payload-keyword",
+                guidance="Use the exact bywaf.findings.candidate_payload(...) keyword names from the docs.",
+            )
+
+    def inspect_allowed_keywords(self, node: ast.Call, *, allowed: set[str], code: str, guidance: str) -> None:
+        """Report unsupported keyword arguments for known public helper APIs."""
+        for keyword in node.keywords:
+            if keyword.arg is not None and keyword.arg not in allowed:
+                self.add_diagnostic(
+                    "error",
+                    code,
+                    keyword.value,
+                    f"unsupported keyword {keyword.arg!r}",
+                    guidance,
+                )
 
     def add_event_topic_evidence(self, node: ast.Call, prefix: str) -> None:
         """Add exact or wildcard event capability evidence for publish calls."""
@@ -187,6 +304,26 @@ class CapabilityVisitor(ast.NodeVisitor):
     ) -> None:
         """Append one advisory warning record."""
         self.warnings.append(self.make_record(capability, kind, node, detail, confidence=confidence))
+
+    def add_diagnostic(
+        self,
+        severity: str,
+        code: str,
+        node: ast.AST,
+        message: str,
+        guidance: str,
+    ) -> None:
+        """Append one plugin-authoring diagnostic."""
+        self.diagnostics.append(
+            SourceDiagnostic(
+                severity=severity,
+                code=code,
+                path=str(self.path),
+                line=getattr(node, "lineno", 0),
+                message=message,
+                guidance=guidance,
+            )
+        )
 
     def make_record(
         self,
@@ -290,6 +427,11 @@ def literal_string_sequence(node: ast.AST) -> tuple[str, ...]:
             values.append(item.value)
         return tuple(values)
     return ()
+
+
+def call_basename(path: str) -> str:
+    """Return the final component of a dotted call path."""
+    return path.rsplit(".", 1)[-1] if path else ""
 
 
 def direct_network_module(path: str) -> bool:
