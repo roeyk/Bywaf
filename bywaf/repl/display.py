@@ -132,7 +132,7 @@ HELP_COMMANDS = (
     HelpEntry("config", "load or save session configuration", "config <load|save> file=<path> [--encrypt]"),
     HelpEntry("history", "show, load, or save command history", "history [since=... until=...] | history <load|save> file=<path> [--encrypt]"),
     HelpEntry("script", "load/run or save REPL scripts", "script <load|save> file=<path> [--encrypt]"),
-    HelpEntry("exec <shell-command>", "execute an OS shell command", "exec <shell-command>", ("exec 'ls -la | head'",)),
+    HelpEntry("exec <argv...>", "execute an OS command", "exec <argv...>", ("exec ls -la",)),
     HelpEntry("<plugin pipeline>", "run commandlets directly", "<plugin pipeline>", ("hostscanner 127.0.0.1 | portscanner",)),
     HelpEntry("exit, quit, q", "exit the shell", "exit"),
 )

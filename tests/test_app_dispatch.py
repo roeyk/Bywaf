@@ -11,6 +11,7 @@ from pathlib import Path
 import contextlib
 import io
 import json
+import subprocess
 import tempfile
 import unittest
 import zipfile
@@ -307,8 +308,19 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "exec")
             text = output.getvalue()
-            self.assertIn("Command: exec <shell-command>", text)
-            self.assertIn("Usage:   exec <shell-command>", text)
+            self.assertIn("Command: exec <argv...>", text)
+            self.assertIn("Usage:   exec <argv...>", text)
+
+    def test_exec_runs_argv_without_shell(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            completed = subprocess.CompletedProcess(["echo", "hello world"], 0)
+            with patch("bywaf.repl.commands.subprocess.run", return_value=completed) as run:
+                dispatch_repl_line(runner, "exec echo 'hello world'")
+
+            run.assert_called_once_with(["echo", "hello world"], check=False)
+            events = runner.events.events_matching(topic="shell.exec.completed")
+            self.assertEqual(events[-1].payload["argv"], ["echo", "hello world"])
 
     def test_run_inspects_command_run(self):
         with tempfile.TemporaryDirectory() as tmp:

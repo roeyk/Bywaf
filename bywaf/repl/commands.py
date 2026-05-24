@@ -282,7 +282,7 @@ def handle_load_command(runner: Runner, state: ShellState, rest: str | None, lin
 
 
 def handle_exec_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
-    """Execute an operating-system shell command."""
+    """Execute an operating-system command."""
     del state, line
     if rest is None:
         print_help(runner, "exec")
@@ -311,18 +311,27 @@ def execute_repl_commandlet(runner: Runner, state: ShellState, command: str) -> 
 
 
 def execute_shell_command(runner: Runner, command: str) -> int:
-    """Run an OS shell command and audit its lifecycle."""
+    """Run an OS command argv and audit its lifecycle."""
+    try:
+        argv = shlex.split(command)
+    except ValueError as exc:
+        print(f"error: {exc}")
+        return 2
+    if not argv:
+        print_help(runner, "exec")
+        return 2
     started = runner.events.publish(
         "shell.exec.started",
-        {"command": command},
+        {"command": command, "argv": argv},
         "framework",
     )
-    completed = subprocess.run(command, shell=True, check=False)
+    completed = subprocess.run(argv, check=False)
     topic = "shell.exec.completed" if completed.returncode == 0 else "shell.exec.failed"
     runner.events.publish(
         topic,
         {
             "command": command,
+            "argv": argv,
             "returncode": completed.returncode,
             "ok": completed.returncode == 0,
             "request_event_id": started.id,
