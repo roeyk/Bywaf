@@ -14,14 +14,45 @@ LLM Guardrails:
 
 - Decorate the `CommandletBase` class with `@commandlet`, `@argument`, and
   `@option`; do not decorate the `plugin()` factory.
+- In these skeletons, keep the decorated commandlet class in `plugin.py`.
+  `command.py` should provide orchestration functions, not registration.
 - Publish normalized findings with `finding.candidate` or `finding.confirmed`
   payloads built through `bywaf.findings.candidate_payload(...)`; do not invent
   unrelated finding keys.
+- There is no `bywaf.findings.confirmed_payload(...)` helper. For confirmed
+  findings, call `candidate_payload(...)` and then set `payload["status"] =
+  "confirmed"`, as shown in the skeleton.
 - If code publishes `finding.candidate` or `finding.confirmed`, declare
   `db.write:finding.candidate` or `db.write:finding.confirmed` in both the
   decorator capabilities and `bywaf.plugin.toml`.
+- `confidence`, `severity`, and `status` are separate. Use confidence labels
+  like `"low"`, `"medium"`, or `"high"`; do not put `"confirmed"` in
+  `confidence`.
+- Yielded event payloads must be JSON-serializable. Do not yield dataclass
+  instances, connection objects, exceptions, or other Python objects directly.
+- Only publish `finding.confirmed` when `--confirm` was requested or when the
+  check performed a genuinely confirmatory proof. Otherwise publish
+  `finding.candidate`.
 - Use `event finding.candidate` or `report` to inspect results; do not use a
   nonexistent `show finding.candidate` command.
+
+Exact finding helper shape:
+
+```python
+from bywaf.findings import candidate_payload
+
+payload = candidate_payload(
+    title="Missing Strict Transport Security",
+    finding_class="missing-hsts",
+    severity="medium",
+    confidence="medium",
+    target={"scheme": "https", "host": "example.test", "port": "443", "path": "/"},
+    identifiers={"cwe": ["CWE-319"]},
+    evidence="https://example.test/ did not return Strict-Transport-Security.",
+    recommendation="Enable HSTS after confirming HTTPS coverage.",
+    source={"tool": "my_plugin", "topic": "finding.candidate"},
+)
+```
 
 Use the smallest skeleton that fits:
 
