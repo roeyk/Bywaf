@@ -26,6 +26,9 @@ def candidate_payload(
     recommendation: str = "",
     identifiers: dict[str, list[str]] | None = None,
     source: dict[str, Any] | None = None,
+    finding_scope: str = "",
+    affected: list[dict[str, Any]] | None = None,
+    group_key: str = "",
 ) -> dict[str, Any]:
     """Return a normalized finding candidate payload."""
     payload = {
@@ -34,8 +37,11 @@ def candidate_payload(
         "severity": severity,
         "class": finding_class,
         "title": title,
+        "finding_scope": finding_scope,
         "target": compact(target),
         "identifiers": identifiers or {},
+        "affected": [compact(item) for item in affected or []],
+        "group_key": group_key,
         "evidence": evidence,
         "recommendation": recommendation,
         "sources": [compact(source or {})],

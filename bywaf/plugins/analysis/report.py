@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from argparse import Namespace
 from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
 from typing import Any
 
 from bywaf.events import Event
@@ -25,6 +26,19 @@ from bywaf.rendering import render_table
 REPORT_ACTIONS = ("new",)
 REPORT_OPTION_KEYS = {"job", "pipeline", "run", "limit", "status"}
 REPORT_STATUS_CHOICES = ("all", "unreviewed")
+
+
+@dataclass(frozen=True)
+class FindingGroup:
+    """A derived reporting group for one logical finding."""
+
+    finding_id: str
+    events: tuple[Event, ...]
+
+    @property
+    def representative(self) -> Event:
+        """Return the newest event to render for this group."""
+        return max(self.events, key=lambda event: event.id or 0)
 
 
 @commandlet(
@@ -195,13 +209,15 @@ def render_finding_report(context: CommandContext, events: list[Event], parsed: 
         context.output("no unreviewed findings" if parsed.status == "unreviewed" else "no findings")
         context.events.publish("report.rendered", report_rendered_payload(parsed, events, rows=0))
         return
-    context.output(report_heading(parsed, events))
-    table = findings_table(finding_rows(events, include_candidates=True))
+    groups = group_finding_events(events)
+    representatives = [group.representative for group in groups]
+    context.output(report_heading(parsed, events, groups))
+    table = findings_table(finding_rows(representatives, include_candidates=True))
     context.output(render_table(table, "console"))
-    context.events.publish("report.rendered", report_rendered_payload(parsed, events, rows=len(table.rows)))
+    context.events.publish("report.rendered", report_rendered_payload(parsed, events, groups=groups, rows=len(table.rows)))
 
 
-def report_heading(parsed: Namespace, events: list[Event]) -> str:
+def report_heading(parsed: Namespace, events: list[Event], groups: list[FindingGroup]) -> str:
     """Return a compact heading for one report view."""
     action = "new" if parsed.action == "new" else "scope"
     if parsed.job:
@@ -212,10 +228,22 @@ def report_heading(parsed: Namespace, events: list[Event]) -> str:
         scope = f"run={parsed.run}"
     else:
         scope = "latest completed pipeline"
-    return f"Report {action}: {scope} ({len(events)} finding event{'s' if len(events) != 1 else ''})"
+    event_count = len(events)
+    group_count = len(groups)
+    return (
+        f"Report {action}: {scope} "
+        f"({group_count} finding group{'s' if group_count != 1 else ''}, "
+        f"{event_count} event{'s' if event_count != 1 else ''})"
+    )
 
 
-def report_rendered_payload(parsed: Namespace, events: list[Event], *, rows: int) -> dict[str, object]:
+def report_rendered_payload(
+    parsed: Namespace,
+    events: list[Event],
+    *,
+    groups: list[FindingGroup] | None = None,
+    rows: int,
+) -> dict[str, object]:
     """Return a structured payload describing one rendered report."""
     return {
         "action": parsed.action or "show",
@@ -224,8 +252,39 @@ def report_rendered_payload(parsed: Namespace, events: list[Event], *, rows: int
         "run": parsed.run,
         "status": parsed.status,
         "events": [event.id for event in events if event.id is not None],
+        "groups": [group.finding_id for group in groups or []],
         "rows": rows,
     }
+
+
+def group_finding_events(events: list[Event]) -> list[FindingGroup]:
+    """Return derived finding groups keyed by normalized finding id."""
+    grouped: dict[str, list[Event]] = {}
+    ordered_keys: list[str] = []
+    for event in events:
+        key = finding_group_key(event)
+        if key not in grouped:
+            grouped[key] = []
+            ordered_keys.append(key)
+        grouped[key].append(event)
+    return [
+        FindingGroup(key, tuple(sorted(grouped[key], key=lambda event: event.id or 0)))
+        for key in ordered_keys
+    ]
+
+
+def finding_group_key(event: Event) -> str:
+    """Return the stable grouping key for one finding event."""
+    payload = effective_finding_payload(event)
+    group_key = str(payload.get("group_key") or "")
+    if group_key:
+        return group_key
+    finding_id = str(payload.get("finding_id") or "")
+    if finding_id:
+        return finding_id
+    if event.id is not None:
+        return f"event:{event.id}"
+    return f"event:{id(event)}"
 
 
 def effective_finding_payload(event: Event) -> Mapping[str, Any]:

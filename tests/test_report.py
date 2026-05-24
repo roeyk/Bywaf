@@ -52,11 +52,12 @@ class ReportTests(unittest.TestCase):
                 process_framework_requests(runner, ShellState())
 
             text = output.getvalue()
-            self.assertIn("Report scope: pipeline=pipeline-a (1 finding event)", text)
+            self.assertIn("Report scope: pipeline=pipeline-a (1 finding group, 1 event)", text)
             self.assertIn("Missing HSTS", text)
             self.assertNotIn("Other pipeline finding", text)
             rendered = runner.db.events_for_topic("report.rendered")[0]
             self.assertEqual(rendered.payload["events"], [finding.id])
+            self.assertEqual(rendered.payload["groups"], ["finding-1"])
             self.assertEqual(rendered.payload["rows"], 1)
 
     def test_report_pipeline_renders_candidate_findings(self):
@@ -85,6 +86,91 @@ class ReportTests(unittest.TestCase):
             self.assertIn("Telnet service exposed", text)
             rendered = runner.db.events_for_topic("report.rendered")[0]
             self.assertEqual(rendered.payload["events"], [candidate.id])
+            self.assertEqual(rendered.payload["groups"], ["candidate-1"])
+
+    def test_report_groups_duplicate_finding_events(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            first = runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "finding-1",
+                    "title": "Telnet service exposed",
+                    "target": {"host": "192.0.2.10", "port": "23"},
+                    "severity": "medium",
+                },
+                "portscanner",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+            second = runner.db.publish(
+                "finding.new",
+                {
+                    "finding_id": "finding-1",
+                    "title": "Telnet service exposed",
+                    "target": {"host": "192.0.2.10", "port": "23"},
+                    "severity": "medium",
+                },
+                "finding_dedupe",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report pipeline=pipeline-a")
+                process_framework_requests(runner, ShellState())
+
+            text = output.getvalue()
+            self.assertIn("Report scope: pipeline=pipeline-a (1 finding group, 2 events)", text)
+            rendered = runner.db.events_for_topic("report.rendered")[0]
+            self.assertEqual(rendered.payload["events"], [first.id, second.id])
+            self.assertEqual(rendered.payload["groups"], ["finding-1"])
+            self.assertEqual(rendered.payload["rows"], 1)
+
+    def test_report_groups_by_explicit_group_key_before_finding_id(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            first = runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "finding-page-1",
+                    "group_key": "service|CVE-2026-1234|192.0.2.10|443|tcp",
+                    "title": "Example service CVE",
+                    "target": {"ip": "192.0.2.10", "port": "443", "protocol": "tcp"},
+                    "affected": [{"url": "https://example.test/page1"}],
+                    "severity": "high",
+                },
+                "web_cve_check",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+            second = runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "finding-page-2",
+                    "group_key": "service|CVE-2026-1234|192.0.2.10|443|tcp",
+                    "title": "Example service CVE",
+                    "target": {"ip": "192.0.2.10", "port": "443", "protocol": "tcp"},
+                    "affected": [{"url": "https://example.test/admin"}],
+                    "severity": "high",
+                },
+                "web_cve_check",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report pipeline=pipeline-a")
+                process_framework_requests(runner, ShellState())
+
+            text = output.getvalue()
+            self.assertIn("Report scope: pipeline=pipeline-a (1 finding group, 2 events)", text)
+            rendered = runner.db.events_for_topic("report.rendered")[0]
+            self.assertEqual(rendered.payload["events"], [first.id, second.id])
+            self.assertEqual(rendered.payload["groups"], ["service|CVE-2026-1234|192.0.2.10|443|tcp"])
+            self.assertEqual(rendered.payload["rows"], 1)
 
     def test_report_new_uses_latest_completed_pipeline(self):
         with tempfile.TemporaryDirectory() as tmp:

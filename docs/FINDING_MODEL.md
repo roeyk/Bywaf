@@ -5,6 +5,7 @@
 - [Purpose](#purpose)
 - [Facts, Candidates, And Findings](#facts-candidates-and-findings)
 - [Finding Payload](#finding-payload)
+- [Finding Grouping](#finding-grouping)
 - [Promotion And Deduplication](#promotion-and-deduplication)
 - [Report Command](#report-command)
 - [Current Boundaries](#current-boundaries)
@@ -50,13 +51,99 @@ The current normalized finding payload is intentionally small:
 | `severity` | Severity label such as `info`, `low`, `medium`, `high`, or `critical`. |
 | `class` | Finding class, vulnerability class, or scanner category. |
 | `title` | Operator-facing finding title. |
+| `finding_scope` | Semantic scope for grouping, such as `host`, `service`, `application`, `endpoint`, or `cloud_resource`. |
 | `target` | Target identity, commonly host/port/path/scheme fields. |
 | `identifiers` | CVE, CWE, GHSA, vendor IDs, or other stable identifiers. |
+| `affected` | Specific affected locations or instances, such as URLs, paths, object names, or evidence references. |
+| `group_key` | Optional plugin-provided grouping key when the plugin knows the semantic grouping better than the generic id hash. |
 | `evidence` | Evidence snippets or references to artifact/event ids. |
 | `sources` | Commandlets, tools, or topics that contributed evidence. |
 
 Commandlets may emit richer fact payloads. The normalized finding layer keeps a
 stable subset so reporting does not depend on every tool's native schema.
+
+## Finding Grouping
+
+Grouping answers: "which finding events represent the same logical finding?"
+
+The detector or plugin is responsible for deciding the finding's semantic
+scope. The framework should not guess whether a CVE is host-wide, service-wide,
+application-wide, endpoint-specific, or cloud-resource-specific from a URL
+alone. The plugin should encode that decision in `finding_scope`, `target`, and
+optionally `group_key`.
+
+Report grouping is intentionally mechanical:
+
+1. Use `group_key` when present.
+2. Otherwise use `finding_id`.
+3. Otherwise fall back to the individual event id.
+
+This keeps domain knowledge close to the detector while keeping the reporting
+layer consistent.
+
+Recommended scopes:
+
+| Scope | Use when | Grouping target should usually include |
+| --- | --- | --- |
+| `host` | The risk applies to a host regardless of service. | IP or stable hostname. |
+| `service` | The risk applies to one network service. | IP/host, port, protocol, and sometimes scheme. |
+| `application` | The risk applies to one web app or virtual host. | Scheme, vhost/host, port, and app identity when known. |
+| `endpoint` | The risk is tied to one URL/path or route. | Scheme, host, port, normalized path, and relevant parameters. |
+| `cloud_resource` | The risk applies to one cloud object. | Provider, account/project, region, resource type, resource id/name. |
+
+For CVE-oriented findings, the natural grouping is usually:
+
+```text
+finding_scope + normalized target at that scope + CVE/GHSA/vendor id
+```
+
+For findings without a CVE, use the finding class instead of the CVE:
+
+```text
+finding_scope + normalized target at that scope + finding class
+```
+
+### Multi-Page Same-CVE Example
+
+Suppose a crawler observes the same CVE on several pages of one web server:
+
+```text
+https://example.test/
+https://example.test/admin
+https://example.test/login
+```
+
+If the vulnerability is really service-wide or application-wide, these should
+be one report finding with multiple affected locations, not three unrelated
+findings. The plugin should emit each observation with the same semantic
+grouping key:
+
+```json
+{
+  "finding_scope": "service",
+  "group_key": "service|CVE-2026-1234|192.0.2.10|443|tcp",
+  "identifiers": {"cve": ["CVE-2026-1234"]},
+  "target": {
+    "ip": "192.0.2.10",
+    "port": "443",
+    "protocol": "tcp",
+    "scheme": "https",
+    "host": "example.test"
+  },
+  "affected": [
+    {"url": "https://example.test/admin"}
+  ]
+}
+```
+
+The report layer groups events with that `group_key` and can render one logical
+finding. The `affected` entries remain as evidence or affected locations under
+that group.
+
+If the vulnerability is endpoint-specific, such as reflected XSS at a
+particular route, use `finding_scope="endpoint"` and include the normalized path
+in the grouping identity. In that case `/admin` and `/login` should usually be
+separate findings.
 
 ## Promotion And Deduplication
 
