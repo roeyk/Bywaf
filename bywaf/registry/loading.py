@@ -11,6 +11,7 @@ Used by:
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
 from types import ModuleType
 
@@ -52,6 +53,8 @@ def load_trigger_specs(module: ModuleType) -> tuple[TriggerSpec, ...]:
 def load_plugin_path(path: Path) -> Commandlet:
     """Load an external plugin module from a concrete Python file path."""
     return load_plugins_path(path)[0]
+
+
 def load_plugins_path(path: Path) -> tuple[Commandlet, ...]:
     """Load external commandlets from a concrete Python file path."""
     return load_plugins(load_module_path(path))
@@ -62,9 +65,14 @@ def load_module_path(path: Path) -> ModuleType:
     if not path.exists():
         raise FileNotFoundError(f"{path} not found")
     module_name = f"bywaf_external_{path.parent.name}_{abs(hash(path))}"
-    spec = importlib.util.spec_from_file_location(module_name, path)
+    spec = importlib.util.spec_from_file_location(
+        module_name,
+        path,
+        submodule_search_locations=[str(path.parent)],
+    )
     if spec is None or spec.loader is None:
         raise ImportError(f"could not load plugin from {path}")
     module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
     spec.loader.exec_module(module)
     return module

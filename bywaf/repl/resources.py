@@ -13,7 +13,6 @@ Used by:
 from __future__ import annotations
 
 from collections.abc import Callable
-from pathlib import Path
 
 from ..runner import Runner
 from .persistence import apply_config

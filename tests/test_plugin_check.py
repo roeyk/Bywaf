@@ -38,6 +38,16 @@ class PluginCheckTests(unittest.TestCase):
             self.assertEqual(report["triggers"], [])
             self.assertEqual(report["errors"], [])
 
+    def test_check_plugin_accepts_multifile_relative_imports(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_multifile_plugin_fixture(Path(tmp))
+
+            report = check_plugin(plugin_dir)
+
+            self.assertTrue(report["ok"])
+            self.assertEqual(report["commandlets"], ["example"])
+            self.assertEqual(report["errors"], [])
+
     def test_check_plugin_reports_manifest_drift(self):
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(Path(tmp), capabilities=("network.connect",), manifest_capabilities=())
@@ -173,6 +183,30 @@ def write_plugin_fixture(
         "capabilities = [\n"
         f"{manifest_capability_lines}"
         "]\n"
+    )
+    return plugin_dir
+
+
+def write_multifile_plugin_fixture(root: Path) -> Path:
+    plugin_dir = root / "example"
+    plugin_dir.mkdir()
+    plugin_dir.joinpath("plugin.py").write_text(
+        "from bywaf.plugin import CommandSpec\n"
+        "from .command import run\n"
+        "class Example:\n"
+        "    spec = CommandSpec('example', 'example plugin')\n"
+        "    def run(self, context, args, input_events):\n"
+        "        yield from run()\n"
+        "def plugin():\n"
+        "    return Example()\n"
+    )
+    plugin_dir.joinpath("command.py").write_text(
+        "def run():\n"
+        "    yield {'ok': True}\n"
+    )
+    plugin_dir.joinpath("bywaf.plugin.toml").write_text(
+        "[[commandlets]]\n"
+        'name = "example"\n'
     )
     return plugin_dir
 

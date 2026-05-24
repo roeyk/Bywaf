@@ -35,7 +35,6 @@ from ..runtime_display import (
 from ..runner import Runner
 from ..secrets import SECRET_REF_PREFIX, REDACTED_VALUE
 from ..time_format import format_operator_timestamp, normalize_history_timestamp_for_display
-from ..command_names import SET_COMMAND
 
 VAR_COLOR_MODE_VAR = "display.vars.color"
 VAR_NAME_COLOR_VAR = "display.vars.name-color"
