@@ -206,6 +206,7 @@ class CapabilityVisitor(ast.NodeVisitor):
                     "and secret. Put argparse behavior such as action='store_true' in parser.add_argument(...)."
                 ),
             )
+            self.inspect_boolean_like_option(node)
         if path in {"context.is_cancelled"}:
             self.add_diagnostic(
                 "error",
@@ -251,6 +252,24 @@ class CapabilityVisitor(ast.NodeVisitor):
                     f"unsupported keyword {keyword.arg!r}",
                     guidance,
                 )
+
+    def inspect_boolean_like_option(self, node: ast.Call) -> None:
+        """Report boolean-looking option metadata that omits explicit defaults."""
+        option_name = literal_string_argument(node, "name", 0)
+        if option_name is None or not boolean_like_option_name(option_name):
+            return
+        has_default = len(node.args) > 2 or any(keyword.arg == "default" for keyword in node.keywords)
+        if has_default:
+            return
+        self.add_diagnostic(
+            "error",
+            "boolean-option-missing-default",
+            node,
+            f"boolean-like option {option_name!r} has no documented default",
+            "For boolean-style options, declare metadata with an explicit string default and choices, for example "
+            "@option('confirm', 'perform confirmation', 'false', ('true', 'false')), then parse the runtime flag "
+            "inside run()/parse_args().",
+        )
 
     def add_event_topic_evidence(self, node: ast.Call, prefix: str) -> None:
         """Add exact or wildcard event capability evidence for publish calls."""
@@ -432,6 +451,14 @@ def literal_string_sequence(node: ast.AST) -> tuple[str, ...]:
 def call_basename(path: str) -> str:
     """Return the final component of a dotted call path."""
     return path.rsplit(".", 1)[-1] if path else ""
+
+
+def boolean_like_option_name(name: str) -> bool:
+    """Return whether an option name is usually modeled as a boolean toggle."""
+    normalized = name.replace("_", "-").lower()
+    if normalized in {"confirm", "force", "quiet", "silent", "ssl", "verbose"}:
+        return True
+    return normalized.startswith(("enable-", "disable-", "no-", "use-"))
 
 
 def direct_network_module(path: str) -> bool:

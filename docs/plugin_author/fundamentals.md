@@ -221,6 +221,15 @@ Use `@option` for values the user supplies by name, usually as `--name`:
 @option("password", "SSH password", secret=True)
 ```
 
+For boolean-style options, keep the metadata explicit. Use string defaults and
+choices so help, completion, manifests, and the plugin checker all see the
+same public contract:
+
+```python
+@option("confirm", "perform active confirmation", "false", ("true", "false"))
+@option("silent", "suppress alerts", "false", ("true", "false"))
+```
+
 Do not write option flags as arguments:
 
 | Wrong | Right |

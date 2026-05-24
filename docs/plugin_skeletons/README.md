@@ -28,6 +28,10 @@ LLM Guardrails:
 - `confidence`, `severity`, and `status` are separate. Use confidence labels
   like `"low"`, `"medium"`, or `"high"`; do not put `"confirmed"` in
   `confidence`.
+- Boolean-style `@option` metadata must include an explicit string default and
+  choices, such as `@option("confirm", "perform confirmation", "false",
+  ("true", "false"))`. Put `action="store_true"` or other argparse mechanics in
+  runtime parsing, not in the decorator.
 - Yielded event payloads must be JSON-serializable. Do not yield dataclass
   instances, connection objects, exceptions, or other Python objects directly.
 - Only publish `finding.confirmed` when `--confirm` was requested or when the
