@@ -196,7 +196,7 @@ def build_prompt_session(completer: Completer):
         key_bindings=key_bindings,
         **{key: value for key, value in session_kwargs.items() if value is not None},
     )
-    session.secret_state = secret_state
+    setattr(session, "secret_state", secret_state)
     return session
 
 
