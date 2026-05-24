@@ -11,9 +11,9 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from bywaf.events import Event
-from bywaf.findings import telnet_open_candidate
 from bywaf.nmap_backend import scan_open_ports
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option, split_var_values
+from bywaf.plugins.network.portscanner_findings import telnet_open_candidate
 
 DEFAULTS = {
     "arguments": "-sT",
