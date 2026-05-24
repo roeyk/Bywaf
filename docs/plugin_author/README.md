@@ -27,9 +27,9 @@ If you are writing a vulnerability or CVE check, also read:
 - [Plugin Skeletons](../plugin_skeletons/README.md)
 
 If you are using an AI assistant to draft a plugin, use the checker loop in
-[Plugin Packaging And Checking](packaging-and-checking.md#ai-assisted-plugin-development).
-The checker is the source of truth; assistant output is only a proposal until it
-passes `scripts/plugin_check.py --strict-inference`.
+[LLM-Assisted Plugin Authoring](llm-assisted-authoring.md). The checker is the
+source of truth; assistant output is only a proposal until it passes
+`scripts/plugin_check.py --strict-inference`.
 
 ## Choose A Starting Point
 
@@ -40,7 +40,7 @@ passes `scripts/plugin_check.py --strict-inference`.
 | External binary wrapper | `process_wrapped` skeleton | [Commandlet API Reference](commandlet-api.md#framework-requests-and-audit-events) |
 | Vulnerability or CVE detector | `native_vulnerability`, `library_backed_vulnerability`, or `process_wrapped_vulnerability` | [Vulnerability Plugin Guide](vulnerability-plugins.md) |
 | Long-running service with provider triggers | `service_trigger_provider` skeleton | [Plugin Packaging And Checking](packaging-and-checking.md) |
-| AI-generated plugin draft | closest skeleton in a scratch directory | [AI-Assisted Plugin Development](packaging-and-checking.md#ai-assisted-plugin-development) |
+| AI-generated plugin draft | closest skeleton in a scratch directory | [LLM-Assisted Plugin Authoring](llm-assisted-authoring.md) |
 
 ## Plugin Shape
 
@@ -67,5 +67,6 @@ those dictionaries into SQLite under the first topic listed in `spec.emits`.
 | Vulnerability plugin file split | [Vulnerability Plugin Guide](vulnerability-plugins.md#vulnerability-detection-plugin-layout) |
 | Finding payload helpers | [Vulnerability Plugin Guide](vulnerability-plugins.md#findingspy) |
 | Loading, packaging, and checker | [Plugin Packaging And Checking](packaging-and-checking.md) |
+| LLM-assisted plugin loop | [LLM-Assisted Plugin Authoring](llm-assisted-authoring.md) |
 | Testing expectations | [Plugin Testing And Guidelines](testing-and-guidelines.md) |
 | Copyable skeletons | [Plugin Skeletons](../plugin_skeletons/README.md) |

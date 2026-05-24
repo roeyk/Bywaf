@@ -121,45 +121,11 @@ sidecar manifest, for example `bywaf/plugins/http/nikto.plugin.toml`.
 
 ## AI-Assisted Plugin Development
 
-AI assistants can be useful for drafting plugin ideas, detection heuristics,
-test cases, and first-pass code, but the checker is the source of truth. Treat
-assistant output as a proposal until it passes `scripts/plugin_check.py`.
-
-Recommended workflow:
-
-1. Ask the assistant to read this guide and the closest skeleton under
-   `../plugin_skeletons/`.
-2. Require a complete plugin directory, including `plugin.py`,
-   `bywaf.plugin.toml`, and any split files such as `command.py`, `detect.py`,
-   `findings.py`, and `models.py`.
-3. Put the generated plugin in a scratch directory outside the repository, for
-   example `/tmp/bywaf-llm-plugins/git_expose_check`.
-4. Run the checker:
-
-   ```bash
-   python3 scripts/plugin_check.py /tmp/bywaf-llm-plugins/git_expose_check \
-     --strict-inference --llm-feedback
-   ```
-
-5. Paste the full checker output back into the assistant and ask it to
-   regenerate the complete plugin directory.
-6. Repeat until the checker passes, then review the detection logic manually
-   and add focused tests before copying the plugin into a real plugin root.
-
-Good tasks for an assistant:
-
-- propose plugin ideas and target edge cases
-- draft pure `detect.py` logic that can be tested without Bywaf
-- draft recommendation and evidence wording
-- identify likely capabilities and plugin type
-
-Do not trust assistant output without the checker for:
-
-- exact decorator signatures
-- manifest/decorator capability synchronization
-- finding payload helper arguments
-- Bywaf command examples
-- package layout and relative imports
+Use the dedicated [LLM-Assisted Plugin Authoring](llm-assisted-authoring.md)
+workflow. In short: generate into a scratch directory, run
+`scripts/plugin_check.py --strict-inference --llm-feedback`, paste the checker
+output back to the assistant, and repeat until the plugin passes. The checker is
+the source of truth; assistant output is only a proposal.
 
 ## Standalone Plugin Checking
 
