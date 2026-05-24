@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from bywaf.findings import candidate_payload
 
-from .http_headers_models import HeaderProbeResult
+from .models import HeaderProbeResult
 
 
 def missing_security_header_candidates(result: HeaderProbeResult) -> list[dict[str, object]]:

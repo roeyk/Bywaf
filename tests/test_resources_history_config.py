@@ -347,13 +347,87 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
                 "capabilities = []\n"
             )
             with contextlib.redirect_stdout(io.StringIO()):
-                dispatch_repl_line(runner, f"load --force plugin={plugin_dir}")
+                dispatch_repl_line(runner, f"plugin load={plugin_dir} --force")
             self.assertIn("example", runner.registry.names())
             loaded = runner.db.events_for_topic("resource.plugin.loaded")[0]
             serial = loaded.payload["serial"]
             self.assertTrue(str(serial).startswith("plugin-"))
             self.assertEqual(loaded.payload["commandlet"], "example")
             self.assertEqual(runner.db.events_for_serial(str(serial)), [loaded])
+
+    def test_pload_loads_plugin_resource(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            plugin_dir = Path(tmp, "example")
+            plugin_dir.mkdir()
+            (plugin_dir / "plugin.py").write_text(
+                "from bywaf.plugin import CommandSpec\n"
+                "class Example:\n"
+                "    spec = CommandSpec('example', 'example plugin')\n"
+                "    def run(self, context, args, input_events):\n"
+                "        return ()\n"
+                "def plugin():\n"
+                "    return Example()\n"
+            )
+            (plugin_dir / "bywaf.plugin.toml").write_text(
+                "[[commandlets]]\n"
+                'name = "example"\n'
+                "capabilities = []\n"
+            )
+            with contextlib.redirect_stdout(io.StringIO()):
+                dispatch_repl_line(runner, f"pload {plugin_dir} --force")
+            self.assertIn("example", runner.registry.names())
+
+    def test_plugin_load_use_selects_single_commandlet(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            plugin_dir = write_simple_external_plugin(Path(tmp), "example")
+            with contextlib.redirect_stdout(io.StringIO()):
+                dispatch_repl_line(runner, f"plugin load={plugin_dir} --force --use", state)
+            self.assertEqual(state.active_context, "example")
+
+    def test_plugin_load_use_lists_multiple_commandlets_without_guessing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            plugin_dir = write_multi_external_plugin(Path(tmp))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, f"plugin load={plugin_dir} --force --use", state)
+            self.assertIsNone(state.active_context)
+            self.assertIn("loaded plugin exposes multiple commandlets", output.getvalue())
+            self.assertIn("use first", output.getvalue())
+            self.assertIn("use second", output.getvalue())
+
+    def test_plugin_load_use_specific_commandlet_selects_context(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            plugin_dir = write_multi_external_plugin(Path(tmp))
+            with contextlib.redirect_stdout(io.StringIO()):
+                dispatch_repl_line(runner, f"plugin load={plugin_dir} --force --use=second", state)
+            self.assertEqual(state.active_context, "second")
+
+    def test_go_executes_active_commandlet(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            plugin_dir = write_simple_external_plugin(Path(tmp), "example")
+            with contextlib.redirect_stdout(io.StringIO()):
+                dispatch_repl_line(runner, f"pload {plugin_dir} --force --use", state)
+                dispatch_repl_line(runner, "go", state)
+            events = runner.db.events_for_topic("example.done")
+            self.assertEqual(len(events), 1)
+            self.assertEqual(events[0].payload["ok"], True)
+
+    def test_go_requires_active_commandlet(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "go", ShellState())
+            self.assertIn("no active commandlet", output.getvalue())
 
     def test_load_plugin_refuses_without_force(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -371,7 +445,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             )
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, f"load plugin={plugin_dir}")
+                dispatch_repl_line(runner, f"plugin load={plugin_dir}")
             self.assertIn("warning: refusing external plugin", output.getvalue())
             self.assertNotIn("example", runner.registry.names())
 
@@ -397,7 +471,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
                 'capabilities = ["network.connect"]\n'
             )
             with contextlib.redirect_stdout(io.StringIO()):
-                dispatch_repl_line(runner, f"load --force plugin={plugin_dir}")
+                dispatch_repl_line(runner, f"plugin load={plugin_dir} --force")
             loaded = runner.db.events_for_topic("resource.plugin.loaded")[0]
             self.assertEqual(loaded.payload["manifest"], str(plugin_dir / "bywaf.plugin.toml"))
             self.assertEqual(loaded.payload["traits"]["library_backed"], True)
@@ -622,6 +696,54 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             self.assertEqual(event.payload["old_prompt"], "$Y$M$D $h:$m:$s $Z> ")
             self.assertEqual(event.payload["new_prompt"], "new> ")
 
+
+
+def write_simple_external_plugin(root: Path, name: str) -> Path:
+    plugin_dir = root / name
+    plugin_dir.mkdir()
+    (plugin_dir / "plugin.py").write_text(
+        "from bywaf.plugin import CommandSpec\n"
+        f"class Example:\n"
+        f"    spec = CommandSpec('{name}', '{name} plugin', emits=('{name}.done',))\n"
+        "    def run(self, context, args, input_events):\n"
+        "        del context, args, input_events\n"
+        "        yield {'ok': True}\n"
+        "def plugin():\n"
+        "    return Example()\n"
+    )
+    (plugin_dir / "bywaf.plugin.toml").write_text(
+        "[[commandlets]]\n"
+        f'name = "{name}"\n'
+        "capabilities = []\n"
+    )
+    return plugin_dir
+
+
+def write_multi_external_plugin(root: Path) -> Path:
+    plugin_dir = root / "multi"
+    plugin_dir.mkdir()
+    (plugin_dir / "plugin.py").write_text(
+        "from bywaf.plugin import CommandSpec\n"
+        "class First:\n"
+        "    spec = CommandSpec('first', 'first plugin')\n"
+        "    def run(self, context, args, input_events):\n"
+        "        return ()\n"
+        "class Second:\n"
+        "    spec = CommandSpec('second', 'second plugin')\n"
+        "    def run(self, context, args, input_events):\n"
+        "        return ()\n"
+        "def plugins():\n"
+        "    return (First(), Second())\n"
+    )
+    (plugin_dir / "bywaf.plugin.toml").write_text(
+        "[[commandlets]]\n"
+        'name = "first"\n'
+        "capabilities = []\n\n"
+        "[[commandlets]]\n"
+        'name = "second"\n'
+        "capabilities = []\n"
+    )
+    return plugin_dir
 
 
 class FakeHostResult:

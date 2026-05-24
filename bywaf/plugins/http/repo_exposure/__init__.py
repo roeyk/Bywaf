@@ -15,10 +15,10 @@ from collections.abc import Iterable
 from bywaf.events import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
 
-from .repo_exposure_command import endpoint_from_target_text, git_targets, parse_bool, run_git_config_check
-from .repo_exposure_detect import base_result, default_port, git_config_url, looks_like_git_config, probe_git_config
-from .repo_exposure_findings import candidate_from_detection, result_payload
-from .repo_exposure_models import DetectionStatus, GitConfigProbeResult
+from .command import endpoint_from_target_text, git_targets, parse_bool, run_git_config_check
+from .detect import base_result, default_port, git_config_url, looks_like_git_config, probe_git_config
+from .findings import candidate_from_detection, result_payload
+from .models import DetectionStatus, GitConfigProbeResult
 
 __all__ = [
     "DEFAULTS",

@@ -1,7 +1,7 @@
 """Built-in REPL command handlers and mutable shell commands.
 
 Provides the dispatch table and handlers for built-ins such as help, history,
-set, use, event, load, config, script, prompt, jobs, runs, and project.
+set, use, go, event, plugin, config, script, prompt, jobs, steps, and project.
 
 Used by:
 - bywaf.repl.shell: dispatches parsed REPL lines to these handlers.
@@ -39,8 +39,9 @@ from .resources import (
     DEFAULT_HISTORY,
     DEFAULT_SCRIPT_DIR,
     dispatch_project_command,
-    load_repl_resource,
+    load_plugin_resource,
     print_project_info,
+    parse_resource_assignment,
     resolve_resource_path,
     run_script,
 )
@@ -182,8 +183,8 @@ def handle_pipelines_command(runner: Runner, state: ShellState, rest: str | None
     return None
 
 
-def handle_runs_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
-    """Print commandlet runs."""
+def handle_steps_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
+    """Print commandlet execution steps."""
     del state, line
     print_runs(runner, active_only=rest != "--all")
     return None
@@ -261,6 +262,19 @@ def handle_events_command(runner: Runner, state: ShellState, rest: str | None, l
     return None
 
 
+def handle_go_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
+    """Execute the active commandlet context."""
+    del line
+    if rest is not None:
+        print("usage: go")
+        return None
+    if not state.active_context:
+        print("no active commandlet; use <commandlet> first")
+        return None
+    execute_repl_commandlet(runner, state, state.active_context)
+    return None
+
+
 def handle_prompt_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
     """Show or set the prompt pattern."""
     del line
@@ -271,13 +285,58 @@ def handle_prompt_command(runner: Runner, state: ShellState, rest: str | None, l
     return None
 
 
-def handle_load_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
-    """Load a plugin resource."""
+def handle_plugin_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
+    """Load filesystem plugins."""
     del line
     if rest is None:
-        print("usage: load [--force] plugin=<path>")
-    else:
-        load_repl_resource(runner, rest, state)
+        print("usage: plugin load=<path> [--force] [--use[=<commandlet>]]")
+        return None
+    tokens = shlex.split(rest)
+    forced = "--force" in tokens
+    plugin_value = ""
+    use_target: str | None = None
+    for token in tokens:
+        key, value = parse_resource_assignment(token)
+        if key == "load":
+            plugin_value = value
+        elif key == "--use":
+            use_target = value or ""
+        elif token == "--use":
+            use_target = ""
+    if not plugin_value:
+        print("usage: plugin load=<path> [--force] [--use[=<commandlet>]]")
+        return None
+    commandlets = load_plugin_resource(runner, state, plugin_value, forced)
+    maybe_use_loaded_commandlet(runner, state, commandlets, use_target)
+    return None
+
+
+def handle_pload_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
+    """Short alias for loading filesystem plugins."""
+    del line
+    if rest is None:
+        print("usage: pload <path> [--force] [--use[=<commandlet>]]")
+        return None
+    tokens = shlex.split(rest)
+    forced = "--force" in tokens
+    use_target: str | None = None
+    paths: list[str] = []
+    for token in tokens:
+        key, value = parse_resource_assignment(token)
+        if token == "--force":
+            continue
+        if token == "--use":
+            use_target = ""
+            continue
+        if key == "--use":
+            use_target = value or ""
+            continue
+        paths.append(token)
+    if len(paths) != 1:
+        print("usage: pload <path> [--force] [--use[=<commandlet>]]")
+        return None
+    commandlets = load_plugin_resource(runner, state, paths[0], forced)
+    maybe_use_loaded_commandlet(runner, state, commandlets, use_target)
     return None
 
 
@@ -291,11 +350,11 @@ def handle_exec_command(runner: Runner, state: ShellState, rest: str | None, lin
     return None
 
 
-def handle_run_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
-    """Inspect one commandlet run."""
+def handle_step_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
+    """Inspect one commandlet execution step."""
     del state, line
     if rest is None:
-        print_help(runner, "run")
+        print_help(runner, "step")
         return None
     run_id = runner.runtime.resolve_run_serial(rest)
     print_run_variables(runner, run_id)
@@ -345,6 +404,7 @@ REPL_COMMAND_HANDLERS: dict[str, ReplCommandHandler] = {
     "?": handle_help_command,
     "cmds": handle_cmds_command,
     "config": handle_config_command,
+    "go": handle_go_command,
     "event": handle_event_command,
     "events": handle_events_command,
     "exec": handle_exec_command,
@@ -353,17 +413,18 @@ REPL_COMMAND_HANDLERS: dict[str, ReplCommandHandler] = {
     "history": handle_history_command,
     "info": handle_info_command,
     "jobs": handle_jobs_command,
-    "load": handle_load_command,
     "pipelines": handle_pipelines_command,
+    "plugin": handle_plugin_command,
     "plugins": handle_plugins_command,
+    "pload": handle_pload_command,
     "project": handle_project_command,
     PROJECT_ALIAS_COMMAND: handle_project_command,
     "prompt": handle_prompt_command,
     "q": handle_exit_command,
     "quit": handle_exit_command,
-    "run": handle_run_command,
-    "runs": handle_runs_command,
     "script": handle_script_command,
+    "step": handle_step_command,
+    "steps": handle_steps_command,
     "topics": handle_topics_command,
     "triggers": handle_triggers_command,
     "use": handle_use_command,
@@ -514,6 +575,32 @@ def set_active_context(runner: Runner, state: ShellState, target: str) -> None:
     if state.completer is not None:
         state.completer.active_context = commandlet
     print(f"using {commandlet}")
+
+
+def maybe_use_loaded_commandlet(
+    runner: Runner,
+    state: ShellState,
+    commandlets: Sequence[str],
+    target: str | None,
+) -> None:
+    """Optionally switch active context after loading a plugin provider."""
+    if target is None:
+        if commandlets:
+            print(f"try: use {commandlets[0]}")
+        return
+    if target:
+        set_active_context(runner, state, target)
+        return
+    if len(commandlets) == 1:
+        set_active_context(runner, state, commandlets[0])
+        return
+    if not commandlets:
+        print("loaded plugin exposes no commandlets")
+        return
+    print("loaded plugin exposes multiple commandlets; choose one:")
+    for commandlet in commandlets:
+        print(f"  use {commandlet}")
+    print("or reload with --use=<commandlet>")
 
 
 def resolve_var_key(state: ShellState, key: str) -> str:

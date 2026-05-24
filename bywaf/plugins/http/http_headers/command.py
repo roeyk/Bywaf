@@ -7,9 +7,9 @@ from collections.abc import Iterable
 from bywaf.events import Event
 from bywaf.plugin import CommandContext, CommandletBase
 
-from .http_headers_detect import fetch_headers
-from .http_headers_findings import missing_security_header_candidates, result_payload
-from .http_headers_models import HeaderTarget
+from .detect import fetch_headers
+from .findings import missing_security_header_candidates, result_payload
+from .models import HeaderTarget
 
 
 def run_http_headers(

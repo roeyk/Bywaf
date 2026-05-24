@@ -1,6 +1,6 @@
 """Display helpers for REPL help, events, and runtime state.
 
-Provides user-facing rendering for help text, event lists, history, jobs, runs,
+Provides user-facing rendering for help text, event lists, history, jobs, steps,
 triggers, commandlets, variables, and pager-backed generated output.
 
 Used by:
@@ -98,11 +98,12 @@ HELP_COMMANDS = (
     HelpEntry("cmds", "show commandlets grouped by plugin provider", "cmds"),
     HelpEntry("triggers", "show provider-owned trigger rules", "triggers"),
     HelpEntry("history", "show command history", "history"),
-    HelpEntry("info", "show active jobs, pipelines, and runs", "info"),
+    HelpEntry("info", "show active jobs, pipelines, and steps", "info"),
     HelpEntry("jobs", "alias for job list", "jobs"),
     HelpEntry("pipelines", "alias for pipeline list", "pipelines"),
-    HelpEntry("runs", "show commandlet run IDs", "runs"),
-    HelpEntry("run <id|serial>", "inspect one commandlet run", "run <id|serial>", ("run 1", "run run-...")),
+    HelpEntry("steps", "show commandlet pipeline steps", "steps"),
+    HelpEntry("step <id|serial>", "inspect one commandlet pipeline step", "step <id|serial>", ("step 1", "step run-...")),
+    HelpEntry("go", "execute the active commandlet selected by use", "go", ("use http_headers", "go")),
     HelpEntry(
         "set [--secret] [name[=value]]",
         "list, show, or set session variables",
@@ -128,7 +129,8 @@ HELP_COMMANDS = (
     ),
     HelpEntry("events [tail|--tail] [last=N]", "show recent events", "events [tail|--tail] [last=N]", ("events", "events tail", "events tail last=50")),
     HelpEntry("prompt [pattern]", "show or set prompt pattern", "prompt [pattern]", ("prompt $Y$M$D $h:$m:$s $Z> ",)),
-    HelpEntry("load [--force] plugin=<path>", "load a filesystem plugin", "load [--force] plugin=<path>"),
+    HelpEntry("plugin", "load filesystem plugins", "plugin load=<path> [--force]"),
+    HelpEntry("pload", "short alias for plugin load", "pload <path> [--force]"),
     HelpEntry("config", "load or save session configuration", "config <load|save> file=<path> [--encrypt]"),
     HelpEntry("history", "show, load, or save command history", "history [since=... until=...] | history <load|save> file=<path> [--encrypt]"),
     HelpEntry("script", "load/run or save REPL scripts", "script <load|save> file=<path> [--encrypt]"),
@@ -775,7 +777,7 @@ def print_info(runner: Runner) -> None:
     events = runner.execute("pipeline list")
     process_events_for_non_repl_info(runner, events)
     print()
-    print(f"Runs ({len(runtime.runs(active_only=True))})")
+    print(f"Steps ({len(runtime.runs(active_only=True))})")
     print_runs(runner)
 
 
@@ -788,11 +790,11 @@ def process_events_for_non_repl_info(runner: Runner, events) -> None:
 
 
 def print_runs(runner: Runner, *, active_only: bool = True) -> None:
-    """Print command run summaries."""
+    """Print commandlet step summaries."""
     runtime = runner.runtime
     rows = runtime.runs(active_only=active_only)
     if not rows:
-        print("no active runs" if active_only else "no runs")
+        print("no active steps" if active_only else "no steps")
         return
     marker_style = normalize_active_listing_format(
         runner.registry.varstore.get(f"global.{ACTIVE_LISTING_FORMAT_VAR}")
@@ -825,7 +827,7 @@ def print_runs(runner: Runner, *, active_only: bool = True) -> None:
         )
     print(
         render_table(
-            ("RUN", "SERIAL", "STATE", "NAME", "PIPELINE", "PIPELINE_SERIAL", "SOURCE", "EVENTS", "ARTIFACTS", "FIRST", "LAST"),
+            ("STEP", "SERIAL", "STATE", "NAME", "PIPELINE", "PIPELINE_SERIAL", "SOURCE", "EVENTS", "ARTIFACTS", "FIRST", "LAST"),
             table_rows,
         )
     )

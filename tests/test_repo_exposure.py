@@ -86,7 +86,7 @@ class RepoExposureTests(unittest.TestCase):
                 evidence="[core]\n\trepositoryformatversion = 0\n",
             )
             output = io.StringIO()
-            with patch("bywaf.plugins.http.repo_exposure_command.probe_git_config", return_value=result):
+            with patch("bywaf.plugins.http.repo_exposure.command.probe_git_config", return_value=result):
                 with contextlib.redirect_stdout(output):
                     events = list(GitExposeCheck().run(context, [], [event]))
 
@@ -104,7 +104,7 @@ class RepoExposureTests(unittest.TestCase):
             DetectionStatus.SAFE,
             http_status=404,
         )
-        with patch("bywaf.plugins.http.repo_exposure_command.probe_git_config", return_value=result):
+        with patch("bywaf.plugins.http.repo_exposure.command.probe_git_config", return_value=result):
             events = list(RepoExposure().run(context, [], [event]))
 
         self.assertEqual(events[0]["family"], "repo_exposure")

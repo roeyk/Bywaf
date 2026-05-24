@@ -14,10 +14,10 @@ from collections.abc import Iterable
 from bywaf.events import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
 
-from .http_headers_command import header_targets, run_http_headers
-from .http_headers_detect import fetch_headers
-from .http_headers_findings import missing_security_header_candidates, result_payload
-from .http_headers_models import HeaderProbeResult, HeaderTarget
+from .command import header_targets, run_http_headers
+from .detect import fetch_headers
+from .findings import missing_security_header_candidates, result_payload
+from .models import HeaderProbeResult, HeaderTarget
 
 __all__ = [
     "DEFAULTS",

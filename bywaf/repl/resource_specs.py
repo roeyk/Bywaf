@@ -4,7 +4,7 @@ Provides default resource paths, parsing for plugin load specs, and path
 resolution rules that preserve project defaults and explicit paths.
 
 Used by:
-- resource facade: route `load plugin=...` commands to concrete handlers.
+- resource facade: route `plugin load=...` commands to concrete handlers.
 - CLI startup and tests: resolve default database, config, history, and script paths.
 """
 
@@ -38,7 +38,7 @@ def parse_load_spec(spec: str) -> tuple[bool, str]:
         else:
             resource_tokens.append(token)
     if len(resource_tokens) != 1:
-        raise ValueError("usage: load [--force] plugin=<path>")
+        raise ValueError("usage: plugin load=<path> [--force]")
     return forced, resource_tokens[0]
 
 

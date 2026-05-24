@@ -283,6 +283,14 @@ def string_list_field(data: dict[str, Any], key: str, source: str, context: str)
 def load_package_manifest(package_name: str, entry: str) -> PluginManifest | None:
     """Load a bundled sidecar manifest before importing plugin code."""
     parts = entry.split(".")
+    package_local = resources.files(package_name)
+    for part in (*parts, "bywaf.plugin.toml"):
+        package_local = package_local.joinpath(part)
+    if package_local.is_file():
+        data = tomllib.loads(package_local.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            raise ValueError(f"{package_local} must contain TOML tables")
+        return parse_plugin_manifest_data(data, str(package_local))
     manifest = resources.files(package_name)
     for part in (*parts[:-1], f"{parts[-1]}.plugin.toml"):
         manifest = manifest.joinpath(part)

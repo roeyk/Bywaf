@@ -9,9 +9,9 @@ from bywaf.events import Event
 from bywaf.plugin import CommandContext, CommandletBase
 from bywaf.plugins.http.http_probe import build_opener, target_from_text
 
-from .repo_exposure_detect import probe_git_config
-from .repo_exposure_findings import candidate_from_detection, result_payload
-from .repo_exposure_models import DetectionStatus
+from .detect import probe_git_config
+from .findings import candidate_from_detection, result_payload
+from .models import DetectionStatus
 
 
 def run_git_config_check(

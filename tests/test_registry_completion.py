@@ -305,12 +305,12 @@ class RegistryCompletionTests(unittest.TestCase):
     def test_exec_does_not_complete_commandlet_pipeline_names(self):
         self.assertEqual(Completer(self.registry).candidates("exec host"), [])
 
-    def test_run_completes_run_ids(self):
+    def test_step_completes_step_ids(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "events.sqlite3"))
             db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", command_run_id="run-1")
             completer = Completer(self.registry, db)
-            self.assertEqual(completer.candidates("run "), ["1"])
+            self.assertEqual(completer.candidates("step "), ["1"])
 
     def test_use_completes_contexts(self):
         completer = Completer(self.registry)
@@ -633,10 +633,10 @@ class RegistryCompletionTests(unittest.TestCase):
         completer = Completer(self.registry)
         self.assertIn("-sT", completer.candidates("portscanner --arguments "))
 
-    def test_load_without_space_completes_command_name(self):
+    def test_plugin_without_space_completes_command_name(self):
         completer = Completer(self.registry)
-        self.assertEqual(completer.candidates("loa"), ["load"])
-        self.assertEqual(completer.candidates("load"), [])
+        self.assertEqual(completer.candidates("plu"), ["plugin", "plugins"])
+        self.assertEqual(completer.candidates("plugin"), ["plugins"])
 
     def test_load_plugin_equals_completes_filesystem_paths(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -645,7 +645,7 @@ class RegistryCompletionTests(unittest.TestCase):
             try:
                 os.chdir(tmp)
                 completer = Completer(self.registry)
-                self.assertEqual(completer.candidates("load plugin=plug"), ["plugin=plugin_dir/"])
+                self.assertEqual(completer.candidates("plugin load=plug"), ["load=plugin_dir/"])
             finally:
                 os.chdir(cwd)
 
@@ -656,14 +656,56 @@ class RegistryCompletionTests(unittest.TestCase):
             try:
                 os.chdir(tmp)
                 completer = Completer(self.registry)
-                self.assertEqual(completer.candidates("load plugin=./loc"), ["plugin=./local_plugin/"])
+                self.assertEqual(completer.candidates("plugin load=./loc"), ["load=./local_plugin/"])
+            finally:
+                os.chdir(cwd)
+
+    def test_load_plugin_equals_completes_local_plugin_directories(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            local_plugin = Path(tmp, "local_plugin")
+            local_plugin.mkdir()
+            (local_plugin / "plugin.py").write_text("def plugin():\n    pass\n")
+            Path(tmp, "ordinary_dir").mkdir()
+            cwd = Path.cwd()
+            try:
+                os.chdir(tmp)
+                completer = Completer(self.registry)
+                candidates = completer.candidates("plugin load=")
+                self.assertIn("load=./local_plugin/", candidates)
+                self.assertNotIn("load=./ordinary_dir/", candidates)
+            finally:
+                os.chdir(cwd)
+
+    def test_load_plugin_equals_offers_plugin_root_shortcuts(self):
+        completer = Completer(self.registry)
+        candidates = completer.candidates("plugin load=")
+        self.assertIn("load=./", candidates)
+        self.assertIn("load=./.bywaf/plugins/", candidates)
+        self.assertIn("load=~/.bywaf/plugins/", candidates)
+        self.assertIn("load=/usr/local/share/bywaf/plugins/", candidates)
+        self.assertIn("load=/usr/share/bywaf/plugins/", candidates)
+
+    def test_load_plugin_equals_filters_plugin_root_shortcuts(self):
+        completer = Completer(self.registry)
+        self.assertEqual(completer.candidates("plugin load=/usr/"), ["load=/usr/local/share/bywaf/plugins/", "load=/usr/share/bywaf/plugins/"])
+
+    def test_pload_completes_plugin_paths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, ".bywaf", "plugins", "plugin_dir").mkdir(parents=True)
+            cwd = Path.cwd()
+            try:
+                os.chdir(tmp)
+                completer = Completer(self.registry)
+                self.assertEqual(completer.candidates("pload plug"), ["plugin_dir/"])
+                self.assertIn("./.bywaf/plugins/", completer.candidates("pload "))
+                self.assertEqual(completer.candidates("pload --f"), ["--force"])
             finally:
                 os.chdir(cwd)
 
     def test_load_resource_keywords_complete_from_prefix(self):
         completer = Completer(self.registry)
-        self.assertEqual(completer.candidates("load pl"), ["plugin="])
-        self.assertEqual(completer.candidates("load --f"), ["--force"])
+        self.assertEqual(completer.candidates("plugin lo"), ["load="])
+        self.assertEqual(completer.candidates("plugin load --f"), ["--force"])
 
     def test_domain_resource_keywords_complete_from_prefix(self):
         completer = Completer(self.registry)
@@ -693,27 +735,15 @@ class RegistryCompletionTests(unittest.TestCase):
             finally:
                 os.chdir(cwd)
 
-    def test_load_raw_prefix_completes_filesystem_paths(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            Path(tmp, "bywaf.sqlite3").write_text("")
-            Path(tmp, "bywaf").mkdir()
-            cwd = Path.cwd()
-            try:
-                os.chdir(tmp)
-                completer = Completer(self.registry)
-                self.assertEqual(completer.candidates("load bywa"), ["bywaf.sqlite3", "bywaf/"])
-            finally:
-                os.chdir(cwd)
-
     def test_multiple_file_matches_complete_common_base_first(self):
         candidates = ["bywaf.sqlite3", "bywaf/"]
         self.assertEqual(common_completion_prefix("load byw", candidates), "bywaf")
         self.assertEqual(completion_results("load byw", candidates)[0], "bywaf")
 
     def test_key_value_file_matches_complete_common_base_first(self):
-        candidates = ["plugin=bywaf.sqlite3", "plugin=bywaf/"]
-        self.assertEqual(common_completion_prefix("load plugin=byw", candidates), "plugin=bywaf")
-        self.assertEqual(completion_results("load plugin=byw", candidates)[0], "plugin=bywaf")
+        candidates = ["load=bywaf.sqlite3", "load=bywaf/"]
+        self.assertEqual(common_completion_prefix("plugin load=byw", candidates), "load=bywaf")
+        self.assertEqual(completion_results("plugin load=byw", candidates)[0], "load=bywaf")
 
     def test_complete_returns_common_prefix_before_key_value_menu(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -725,8 +755,8 @@ class RegistryCompletionTests(unittest.TestCase):
             try:
                 os.chdir(tmp)
                 completer = Completer(self.registry)
-                with patch("bywaf.completion.readline.get_line_buffer", return_value="load plugin=by"):
-                    self.assertEqual(completer.complete("", 0), "plugin=bywaf")
+                with patch("bywaf.completion.readline.get_line_buffer", return_value="plugin load=by"):
+                    self.assertEqual(completer.complete("", 0), "load=bywaf")
             finally:
                 os.chdir(cwd)
 
@@ -820,7 +850,7 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertEqual(completer.candidates("cmds --"), ["--page"])
         self.assertEqual(completer.candidates("jobs "), ["--all", "--page"])
         self.assertEqual(completer.candidates("pipelines "), ["--page"])
-        self.assertEqual(completer.candidates("runs "), ["--all"])
+        self.assertEqual(completer.candidates("steps "), ["--all"])
         self.assertIn("plugins", completer.candidates("help plu"))
         self.assertIn("project", completer.candidates("? pro"))
 

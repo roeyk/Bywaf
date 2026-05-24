@@ -31,7 +31,7 @@ from ..specs import CompletionSpec
 from ..utils import complete_path
 from .constants import FRAMEWORK_OPTION_COMPLETIONS, option_is_binary
 from .providers import bundle_candidates, key_candidates
-from .resources import complete_at_file_prefix, resource_candidates
+from .resources import complete_at_file_prefix, complete_resource_value, resource_candidates
 from .runtime import runtime_completion_target
 from .tokens import positional_index, tokens_after_last_pipe
 from .variables import variable_reference_candidates
@@ -53,15 +53,17 @@ class CoreCompleter:
         "jobs",
         "pipelines",
         "cmds",
+        "go",
         "exec",
-        "load",
+        "plugin",
         "plugins",
+        "pload",
         PROJECT_ALIAS_COMMAND,
         "project",
         "prompt",
-        "run",
-        "runs",
         "script",
+        "step",
+        "steps",
         "topics",
         "triggers",
         "use",
@@ -103,6 +105,7 @@ class CoreCompleter:
             "?": lambda current_prefix: self.help_candidates(current_prefix),
             "config": self.config_candidates,
             "cmds": lambda current_prefix: self.option_candidates(current_prefix, ("--page",)),
+            "go": lambda _prefix: [],
             "event": self.event_candidates,
             "events": lambda _prefix: ["--tail", "last="],
             "exec": lambda _prefix: [],
@@ -112,18 +115,19 @@ class CoreCompleter:
             "info": lambda _prefix: [],
             "jobs": lambda current_prefix: self.option_candidates(current_prefix, ("--all", "--page")),
             "pipelines": lambda current_prefix: self.option_candidates(current_prefix, ("--page",)),
+            "plugin": lambda current_prefix: self.plugin_resource_candidates(current_prefix, rest),
             "plugins": lambda _prefix: [],
+            "pload": self.pload_candidates,
             "prompt": lambda _prefix: [],
             PROJECT_ALIAS_COMMAND: lambda current_prefix: self.project_candidates(current_prefix, rest),
             PROJECT_COMMAND: lambda current_prefix: self.project_candidates(current_prefix, rest),
             "q": lambda _prefix: [],
             "quit": lambda _prefix: [],
-            "run": lambda current_prefix: self.complete_by_spec(CompletionSpec("run"), current_prefix),
-            "runs": lambda current_prefix: self.option_candidates(current_prefix, ("--all",)),
+            "step": lambda current_prefix: self.complete_by_spec(CompletionSpec("run"), current_prefix),
+            "steps": lambda current_prefix: self.option_candidates(current_prefix, ("--all",)),
             "topics": lambda _prefix: self.topic_completion_candidates(),
             "triggers": lambda _prefix: [],
             "use": lambda _prefix: ["global", *self.registry.names()],
-            "load": self.load_candidates,
             "script": self.script_candidates,
             SET_COMMAND: lambda current_prefix: self.vars_candidates(current_prefix, rest),
         }
@@ -310,7 +314,7 @@ class CoreCompleter:
         return [str(row["id"]) for row in self.db.jobs()]
 
     def pipeline_expression_candidates(self, prefix: str) -> list[str]:
-        """Complete commandlet names after the built-in `run` command."""
+        """Complete commandlet names for commandlet pipeline expressions."""
         if prefix.startswith("@"):
             return complete_at_file_prefix(prefix)
         if prefix.startswith(".") or "/" in prefix:
@@ -353,9 +357,19 @@ class CoreCompleter:
         db_topics = set(self.db.topics()) if self.db else set()
         return [*plugin_topics, *db_topics]
 
-    def load_candidates(self, prefix: str) -> list[str]:
-        """Complete `load` plugin resources."""
-        return resource_candidates(prefix, ("--force", "plugin="))
+    def plugin_resource_candidates(self, prefix: str, args: list[str]) -> list[str]:
+        """Complete plugin resource actions."""
+        del args
+        if prefix.startswith("load="):
+            value = prefix.split("=", 1)[1]
+            return [f"load={candidate}" for candidate in complete_resource_value("plugin", value)]
+        return resource_candidates(prefix, ("--force", "--use", "--use=", "load="))
+
+    def pload_candidates(self, prefix: str) -> list[str]:
+        """Complete short-form plugin load paths."""
+        if prefix.startswith("-"):
+            return self.option_candidates(prefix, ("--force", "--use", "--use="))
+        return complete_resource_value("plugin", prefix)
 
     def config_candidates(self, prefix: str) -> list[str]:
         """Complete config subcommands and selectors."""

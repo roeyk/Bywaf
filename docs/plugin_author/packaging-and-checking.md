@@ -13,7 +13,7 @@ During development, plain plugin names resolve under:
 So:
 
 ```text
-bywaf> load --force plugin=file_info
+bywaf> plugin load=file_info --force
 ```
 
 loads:
@@ -25,8 +25,18 @@ loads:
 Explicit paths also work:
 
 ```text
-bywaf> load --force plugin=./scratch/file_info
-bywaf> load --force plugin=~/bywaf-plugins/file_info
+bywaf> plugin load=./scratch/file_info --force
+bywaf> plugin load=~/bywaf-plugins/file_info --force
+bywaf> pload ./scratch/file_info --force
+```
+
+Add `--use` to switch the interactive variable context to the loaded commandlet
+when the plugin exposes one commandlet. If it exposes multiple commandlets, use
+`--use=<commandlet>` so Bywaf does not guess:
+
+```text
+bywaf> pload ./scratch/file_info --force --use
+bywaf> plugin load=./scratch/repo_tools --force --use=git_expose_check
 ```
 
 Filesystem plugin packages must include `plugin.py` and `bywaf.plugin.toml`.

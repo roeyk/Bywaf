@@ -106,7 +106,7 @@ class CompletionRegressionTests(unittest.TestCase):
             ("artifact search file", "filename="),
             ("events ", "--tail"),
             ("por", "portscanner"),
-            ("load pl", "plugin="),
+            ("plugin lo", "load="),
             ("history save ", "file="),
         )
         for line, expected in cases:
@@ -148,7 +148,7 @@ class CompletionRegressionTests(unittest.TestCase):
                 os.chdir(root)
                 completer = Completer(self.registry)
                 cases = (
-                    ("load plugin=plug", "plugin=plugin_dir/"),
+                    ("plugin load=plug", "load=plugin_dir/"),
                     ("script load file=scr", "file=script.bywaf"),
                     ("db load file=byw", "file=bywaf.sqlite3"),
                     ("config load file=byw", "file=bywaf.config.toml"),

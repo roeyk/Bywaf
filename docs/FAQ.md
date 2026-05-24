@@ -61,7 +61,7 @@ If the scan is still running, use runtime listings to find the active job or run
 
 ```text
 bywaf> jobs
-bywaf> runs
+bywaf> steps
 ```
 
 Then narrow the event view:
@@ -118,19 +118,19 @@ or run-scoped work.
 bywaf> hostscanner 192.168.1.0/24& | portscanner&
 ```
 
-Use `jobs`, `runs`, and `pipelines` to inspect active runtime state:
+Use `jobs`, `steps`, and `pipelines` to inspect active runtime state:
 
 ```text
 bywaf> jobs
-bywaf> runs
+bywaf> steps
 bywaf> pipelines
 ```
 
-## How do I show historical jobs, runs, or pipelines?
+## How do I show historical jobs, steps, or pipelines?
 
 ```text
 bywaf> jobs --all
-bywaf> runs --all
+bywaf> steps --all
 bywaf> pipeline list --all
 ```
 
@@ -238,6 +238,21 @@ bywaf> set cookie-file=/tmp/cookies.sqlite
 
 `use <commandlet>` changes interactive variable/completion context. It does not
 hide execution state.
+
+Commandlet names are currently flat registry names. Call a commandlet directly
+by its registered name, such as `http_probe ...`; provider-qualified invocation
+such as `provider.commandlet ...` is not a separate execution namespace. Dotted
+names are used for variables, so `set http_probe.timeout=3` sets the `timeout`
+variable for the `http_probe` commandlet.
+
+Run the active commandlet with its stored/default variables:
+
+```text
+bywaf> go
+```
+
+`steps` still lists past commandlet executions, and `step <id>` still inspects one
+past execution.
 
 ## How do I set a secret such as a password?
 
@@ -418,7 +433,7 @@ bywaf> artifact list run=7
 bywaf> artifact search run=7 name=screenshot
 ```
 
-Use the run ID shown by `runs`, or use the durable run serial with `serial=...`.
+Use the step ID shown by `steps`, or use the durable run serial with `serial=...`.
 
 ## How do I find which events are associated with a pipeline?
 
@@ -431,10 +446,10 @@ bywaf> event serial=<pipeline-serial>
 `event pipeline=...` shows events scoped to that pipeline. `pipeline list --all`
 includes historical pipelines.
 
-## How do I find the results of a commandlet run?
+## How do I find the results of a commandlet step?
 
 ```text
-bywaf> runs
+bywaf> steps
 bywaf> event run=7
 bywaf> artifact list run=7
 ```
@@ -510,12 +525,23 @@ Date/time selectors default to time unless another selector type is specified.
 ## How do I load a local plugin?
 
 ```text
-bywaf> load plugin=./my_plugin
-bywaf> load plugin=~/bywaf-plugins/my_plugin
+bywaf> plugin load=./my_plugin
+bywaf> plugin load=~/bywaf-plugins/my_plugin
+bywaf> pload ./my_plugin --force
 ```
 
 Bundled plugins are loaded from the configured plugin list. Filesystem plugins
 can be loaded explicitly by path.
+
+Use `--use` to switch to the loaded commandlet when the plugin exposes one
+commandlet:
+
+```text
+bywaf> pload ./my_plugin --force --use
+```
+
+If a plugin exposes multiple commandlets, use `--use=<commandlet>` or select one
+after loading with `use <commandlet>`.
 
 ## How do I check a plugin manifest?
 

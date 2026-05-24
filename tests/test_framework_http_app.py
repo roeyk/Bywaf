@@ -362,7 +362,7 @@ class FrameworkHttpAppTests(unittest.TestCase):
     def test_http_headers_promotes_missing_security_headers(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
-            with patch("bywaf.plugins.http.http_headers_detect.http.client.HTTPSConnection", FakeHttpConnection):
+            with patch("bywaf.plugins.http.http_headers.detect.http.client.HTTPSConnection", FakeHttpConnection):
                 runner.execute("http_headers --ssl true example.test")
 
             candidates = runner.db.events_for_topic("finding.candidate")

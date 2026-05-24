@@ -291,15 +291,15 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("'n': 3", text)
             self.assertIn("'n': 4", text)
 
-    def test_run_without_id_prints_help(self):
+    def test_step_without_id_prints_help(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "run")
+                dispatch_repl_line(runner, "step")
             text = output.getvalue()
-            self.assertIn("Command: run <id|serial>", text)
-            self.assertIn("Usage:   run <id|serial>", text)
+            self.assertIn("Command: step <id|serial>", text)
+            self.assertIn("Usage:   step <id|serial>", text)
 
     def test_exec_without_shell_command_prints_help(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -322,7 +322,7 @@ class AppDispatchTests(unittest.TestCase):
             events = runner.events.events_matching(topic="shell.exec.completed")
             self.assertEqual(events[-1].payload["argv"], ["echo", "hello world"])
 
-    def test_run_inspects_command_run(self):
+    def test_step_inspects_command_run(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", pipeline_id="p", command_run_id="r")
@@ -335,7 +335,7 @@ class AppDispatchTests(unittest.TestCase):
             )
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "run 1")
+                dispatch_repl_line(runner, "step 1")
             text = output.getvalue()
             self.assertIn("Variables:", text)
             self.assertIn("test.marker=1", text)
@@ -1276,7 +1276,7 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "?")
             self.assertIn("\x1b[32mplugins", output.getvalue())
 
-    def test_dispatch_runs_lists_command_runs(self):
+    def test_dispatch_steps_lists_command_runs(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("hostscanner 127.0.0.1", 123, "running")
@@ -1297,9 +1297,9 @@ class AppDispatchTests(unittest.TestCase):
             )
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "runs")
+                dispatch_repl_line(runner, "steps")
             text = output.getvalue()
-            self.assertIn("RUN", text)
+            self.assertIn("STEP", text)
             self.assertIn("ARTIFACTS", text)
             self.assertRegex(text, r"\n1\s+r\s+active\s+\s*1\s+p\s+hostscanner\s+1\s+1\s+")
 
@@ -1321,7 +1321,7 @@ class AppDispatchTests(unittest.TestCase):
             text = output.getvalue()
             self.assertIn("Jobs (1)", text)
             self.assertIn("Pipelines (1)", text)
-            self.assertIn("Runs (1)", text)
+            self.assertIn("Steps (1)", text)
             self.assertIn("ARTIFACTS", text)
 
     def test_runtime_names_display_in_listings(self):
@@ -1341,7 +1341,7 @@ class AppDispatchTests(unittest.TestCase):
             runner.db.publish("runtime.name.assigned", {"target_type": "job", "target_id": str(job_id), "name": "job name"}, "framework")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "runs")
+                dispatch_repl_line(runner, "steps")
                 dispatch_repl_line(runner, "pipelines")
                 dispatch_repl_line(runner, "jobs")
                 dispatch_repl_line(runner, f"event job={job_id}")
@@ -1355,7 +1355,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("command=hostscanner 127.0.0.1", text)
             self.assertIn("ARTIFACTS", text)
 
-    def test_dispatch_runs_defaults_to_active_unless_all_requested(self):
+    def test_dispatch_steps_defaults_to_active_unless_all_requested(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("hostscanner done", 123, "finished")
@@ -1369,11 +1369,11 @@ class AppDispatchTests(unittest.TestCase):
             )
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "runs")
-            self.assertIn("no active runs", output.getvalue())
+                dispatch_repl_line(runner, "steps")
+            self.assertIn("no active steps", output.getvalue())
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "runs --all")
+                dispatch_repl_line(runner, "steps --all")
             self.assertRegex(output.getvalue(), r"\n1\s+r\s+completed\s+\s*1\s+p\s+hostscanner\s+1\s+0\s+")
 
     def test_make_runner_marks_dead_runtime_jobs_stale_on_startup(self):

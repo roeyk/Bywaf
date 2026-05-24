@@ -671,6 +671,14 @@ which reads:
 global.proxy
 ```
 
+The commandlet registry is flat: users invoke a commandlet by its registered
+`@commandlet(name=...)` value. A provider package may expose more than one
+commandlet, but `provider.commandlet` is not a separate execution namespace
+unless the commandlet was deliberately registered with that dotted name.
+Variable keys are the dotted namespaced surface: `set http_probe.timeout=3`
+stores the `timeout` value for `http_probe`, and `use http_probe` lets the user
+write `set timeout=3` as shorthand for the same scoped variable.
+
 ### Secrets
 
 Secret variables are different. If an operator sets:
@@ -921,7 +929,7 @@ Install it:
 Use it:
 
 ```text
-bywaf> load --force plugin=file_info
+bywaf> plugin load=file_info --force
 loaded file_info
 bywaf> file_info READ<TAB>
 bywaf> file_info README.md

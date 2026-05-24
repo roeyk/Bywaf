@@ -64,6 +64,7 @@ __all__ = [
     "load_database",
     "load_history",
     "load_repl_resource",
+    "load_plugin_resource",
     "parse_load_spec",
     "parse_resource_assignment",
     "parse_save_spec",
@@ -80,21 +81,21 @@ __all__ = [
 
 
 def load_repl_resource(runner: Runner, spec: str, state: ResourceState | None = None) -> None:
-    """Handle `load plugin=<path>` resources from the REPL."""
+    """Handle `plugin load=<path>` resources from the REPL."""
     state = state or default_resource_state(runner)
     forced, resource = parse_load_spec(spec)
     key, value = parse_resource_assignment(resource)
     handler = LOAD_RESOURCE_HANDLERS.get(key)
     if handler is None or not value:
-        print("usage: load [--force] plugin=<path>")
+        print("usage: plugin load=<path> [--force]")
         return
     handler(runner, state, value, forced)
 
 
-LoadResourceHandler = Callable[[Runner, ResourceState, str, bool], None]
+LoadResourceHandler = Callable[[Runner, ResourceState, str, bool], list[str]]
 
 
-def load_plugin_resource(runner: Runner, state: ResourceState, value: str, forced: bool) -> None:
+def load_plugin_resource(runner: Runner, state: ResourceState, value: str, forced: bool) -> list[str]:
     """Load a filesystem plugin resource."""
     del state
     plugin_path = resolve_resource_path(value, DEFAULT_PLUGIN_DIR)
@@ -113,6 +114,7 @@ def load_plugin_resource(runner: Runner, state: ResourceState, value: str, force
         },
     )
     print(f"loaded {', '.join(commandlets)} serial={event.payload['serial']}")
+    return commandlets
 
 
 LOAD_RESOURCE_HANDLERS: dict[str, LoadResourceHandler] = {

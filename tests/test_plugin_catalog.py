@@ -87,6 +87,26 @@ class PluginCatalogTests(unittest.TestCase):
             self.assertEqual(catalog["plugins"][0]["module"], "plugins/myplugin/plugin.py")
             self.assertEqual(catalog["plugins"][0]["manifest"], "plugins/myplugin/bywaf.plugin.toml")
 
+    def test_catalog_supports_bundled_package_plugin_layout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plugin_root = root / "bywaf" / "plugins"
+            plugin_dir = plugin_root / "http" / "example"
+            plugin_dir.mkdir(parents=True)
+            (plugin_dir / "__init__.py").write_text("def plugin():\n    raise RuntimeError('not imported')\n")
+            (plugin_dir / "bywaf.plugin.toml").write_text(
+                "[[commandlets]]\n"
+                'name = "example"\n'
+                "capabilities = []\n"
+            )
+            config = plugin_root / "plugins.toml"
+            config.write_text('default_plugins = ["http.example"]\n')
+
+            catalog = build_catalog(root, plugin_config=config, source="test")
+
+            self.assertEqual(catalog["plugins"][0]["module"], "bywaf/plugins/http/example/__init__.py")
+            self.assertEqual(catalog["plugins"][0]["manifest"], "bywaf/plugins/http/example/bywaf.plugin.toml")
+
     def test_catalog_rejects_string_boolean_metadata(self):
         with tempfile.TemporaryDirectory() as tmp:
             root, plugin_root = write_catalog_fixture(

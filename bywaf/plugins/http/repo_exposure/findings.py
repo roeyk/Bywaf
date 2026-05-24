@@ -6,7 +6,7 @@ from typing import Any
 
 from bywaf.findings import candidate_payload
 
-from .repo_exposure_models import DetectionStatus, GitConfigProbeResult
+from .models import DetectionStatus, GitConfigProbeResult
 
 
 def result_payload(result: GitConfigProbeResult, *, family: str = "git_expose_check", check: str = "git_config") -> dict[str, Any]:

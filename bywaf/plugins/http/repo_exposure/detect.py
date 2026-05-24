@@ -8,7 +8,7 @@ import urllib.parse
 import urllib.request
 from typing import Any
 
-from .repo_exposure_models import DetectionStatus, GitConfigProbeResult
+from .models import DetectionStatus, GitConfigProbeResult
 
 
 def git_config_url(base_url: str) -> str:

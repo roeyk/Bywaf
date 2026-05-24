@@ -6,10 +6,19 @@ Used by the completion engine and readline/prompt-toolkit adapter facade.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from ..config import Settings
 from ..utils import complete_path
 
 DEFAULT_SETTINGS = Settings()
+PLUGIN_ROOT_SHORTCUTS = (
+    "./",
+    "./.bywaf/plugins/",
+    "~/.bywaf/plugins/",
+    "/usr/local/share/bywaf/plugins/",
+    "/usr/share/bywaf/plugins/",
+)
 
 
 def resource_candidates(prefix: str, keywords: tuple[str, ...]) -> list[str]:
@@ -41,11 +50,38 @@ def complete_at_file_prefix(prefix: str) -> list[str]:
 
 def complete_resource_value(kind: str, value: str) -> list[str]:
     """Complete the value side of a load/save resource expression."""
+    root_shortcuts: list[str] = []
+    if kind == "plugin":
+        root_shortcuts = plugin_root_shortcut_candidates(value)
+        if root_shortcuts and value:
+            return root_shortcuts
     if is_explicit_path(value):
         return preserve_explicit_prefix(value, complete_path(value or "."))
     if kind == "plugin":
-        return complete_path(value, DEFAULT_SETTINGS.plugin_dir)
+        candidates = complete_path(value, DEFAULT_SETTINGS.plugin_dir)
+        if not value:
+            candidates.extend(root_shortcuts)
+            candidates.extend(local_plugin_directory_candidates())
+        return sorted(dict.fromkeys(candidates))
     return complete_path(value)
+
+
+def local_plugin_directory_candidates() -> list[str]:
+    """Return explicit local plugin directory candidates for `plugin load=`."""
+    candidates: list[str] = []
+    for child in Path(".").iterdir():
+        if not child.is_dir():
+            continue
+        if (child / "plugin.py").exists() or (child / "bywaf.plugin.toml").exists():
+            candidates.append(f"./{child.name}/")
+    return sorted(candidates)
+
+
+def plugin_root_shortcut_candidates(value: str) -> list[str]:
+    """Return memorable plugin-root shortcuts matching the current value."""
+    if not value:
+        return list(PLUGIN_ROOT_SHORTCUTS)
+    return [shortcut for shortcut in PLUGIN_ROOT_SHORTCUTS if shortcut.startswith(value)]
 
 
 def is_explicit_path(value: str) -> bool:

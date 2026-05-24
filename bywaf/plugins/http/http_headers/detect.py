@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import http.client
 
-from .http_headers_models import HeaderProbeResult, HeaderTarget
+from .models import HeaderProbeResult, HeaderTarget
 
 
 def fetch_headers(target: HeaderTarget, *, timeout: float) -> HeaderProbeResult:

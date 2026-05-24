@@ -345,7 +345,7 @@ capabilities = [
 Load and run it:
 
 ```text
-bywaf> load --force plugin=hello
+bywaf> plugin load=hello --force
 loaded hello
 bywaf> hello world
 hello, world
@@ -517,7 +517,7 @@ def plugin() -> Commandlet:
 Load it, run it, and inspect emitted events:
 
 ```text
-bywaf> load --force plugin=http_header_check
+bywaf> plugin load=http_header_check --force
 bywaf> http_header_check https://example.com
 bywaf> event http.headers.checked
 ```
