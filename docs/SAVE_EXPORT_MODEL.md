@@ -34,7 +34,7 @@ Short version:
 | `script load file=...` | `load` | A runnable `.bywaf` command script. | Loading a script executes operator-authored commands. |
 | `db export file=...` | `export` | A snapshot of the active event database. | The DB is managed state being materialized outward. |
 | `artifact import file=...` | `import` | A filesystem file added to the artifact database. | Import adds external material to a managed store. |
-| `artifact attach artifact=... run=...` | `attach` | Existing artifact linked to run/pipeline/job provenance. | Attach creates provenance association. |
+| `artifact attach artifact=... run=...` | `attach` | Existing artifact linked to step/pipeline/job provenance. | Attach creates provenance association. |
 | `artifact attach run=... file=...` | `attach` | Convenience form: import a file and attach it immediately. | Common workflow without forcing a separate import step. |
 | `artifact export ...` | `export` | Artifact body files from the artifact database. | Artifact bodies are managed records being extracted. |
 | `audit export file=...` | `export` | Audit trail output such as JSONL, Markdown, PDF, or SQLite. | Audit output is a durable external record of activity. |
@@ -81,7 +81,7 @@ state.
 ## Artifact Export Versus Bundle Export
 
 `artifact import` reads external files into the artifact database. If you also
-know the related run, pipeline, or job, `artifact attach run=... file=...` is a
+know the related step, pipeline, or job, `artifact attach run=... file=...` is a
 shortcut that imports and attaches in one command. `artifact attach
 artifact=... run=...` links an already-stored artifact to provenance.
 

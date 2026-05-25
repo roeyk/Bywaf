@@ -39,7 +39,7 @@ including scanners and exploit-support utilities, but the framework's central
 value is coordination and traceability rather than replacing every mature tool.
 Where Metasploit is strongest as an exploitation framework, Bywaf should be
 strongest as an auditable workflow framework that lets discovery, analysis,
-artifact capture, and reporting stages cooperate without manual handoffs.
+artifact capture, and reporting steps cooperate without manual handoffs.
 
 The framework should support:
 
@@ -82,7 +82,7 @@ The framework should provide:
 
 ---
 
-## 4. Remove manual handoffs between pipeline stages
+## 4. Remove manual handoffs between pipeline steps
 
 Bywaf should eliminate manual copy/paste workflows between tools.
 
@@ -114,7 +114,7 @@ findings
 reports
 ```
 
-with structured events flowing automatically between stages.
+with structured events flowing automatically between steps.
 
 Intermediate results should remain durable, queryable, and reusable.
 
@@ -160,7 +160,7 @@ The project should emphasize strong terminology and stable conceptual definition
 
 Bywaf should preserve a durable, inspectable history of:
 
-- runs;
+- pipeline steps;
 - jobs;
 - pipelines;
 - events;
@@ -228,7 +228,7 @@ Examples include:
 - commandlet;
 - internal command;
 - job;
-- run;
+- pipeline step;
 - pipeline;
 - listener;
 - service;

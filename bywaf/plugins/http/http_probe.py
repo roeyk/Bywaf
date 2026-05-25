@@ -18,7 +18,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 
 from bywaf.events import Event
-from bywaf.http_cookies import load_cookie_jar
+from bywaf.plugins.http.cookies import load_cookie_jar
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
 
 DEFAULTS = {

@@ -76,8 +76,8 @@ addresses, then emits `host.found` only for live hosts discovered by nmap.
 
 ## Consuming
 
-Pipeline input is scoped. A downstream run should consume upstream events from
-the same pipeline and, when applicable, from the parent run it is attached to.
+Pipeline input is scoped. A downstream step should consume upstream events from
+the same pipeline and, when applicable, from the parent step it is attached to.
 
 Plugins should use `context.events` for direct event access:
 
@@ -94,8 +94,8 @@ Because events are durable, later commands can inspect or attach to historical
 results:
 
 ```text
-show host.found
-pipeline attach run=2 since=beginning | http_probe
+event host.found
+pipeline attach 1 http_probe run=2 since=beginning
 ```
 
 `since=` accepts the same selector vocabulary used by related runtime commands.
@@ -152,7 +152,7 @@ events.
 Large or sensitive outputs should be stored as artifacts, with metadata and
 hashes recorded in the main event database. Artifact payloads may live in a
 separate encrypted artifact database. Notes are timestamped events attached to
-runs, pipelines, or jobs.
+steps, pipelines, or jobs.
 
 This gives Bywaf two useful integrity layers:
 

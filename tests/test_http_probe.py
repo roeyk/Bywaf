@@ -17,7 +17,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from bywaf.events import Event
-from bywaf.http_cookies import load_firefox_cookies
+from bywaf.plugins.http.cookies import load_firefox_cookies
 from bywaf.plugin import CommandContext
 from bywaf.plugins.http.http_probe import (
     HttpProbe,

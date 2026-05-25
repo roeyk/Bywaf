@@ -26,7 +26,7 @@ Base capabilities, triggers, and audit/event topics are listed in
 [docs/FRAMEWORK_SURFACE.md](docs/FRAMEWORK_SURFACE.md).
 Core architectural references:
 
-- [docs/TERMINOLOGY.md](docs/TERMINOLOGY.md) defines jobs, pipelines, runs, events,
+- [docs/TERMINOLOGY.md](docs/TERMINOLOGY.md) defines jobs, pipeline steps, pipelines, events,
   topics, commandlets, plugins, capabilities, local IDs, and serials.
 - [docs/RUNTIME_MODEL.md](docs/RUNTIME_MODEL.md) explains runtime entities, lifecycle,
   foreground/background execution, control signals, and variable snapshots.
@@ -181,16 +181,16 @@ Execution-time plugin variables are scoped by commandlet. A plugin uses
 plugin's variables through that API. Shared provider variables are explicit via
 `context.vars.get_provider(...)` for the immediate provider only; global
 variables are explicit via `context.vars.get_global("name")`. When a commandlet
-run starts, Bywaf snapshots the effective commandlet, immediate provider, and
+step starts, Bywaf snapshots the effective commandlet, immediate provider, and
 global variables into SQLite under that `command_run_id`; `event run=<id>`
-displays the captured variables so runs remain auditable and reproducible even
+displays the captured variables so steps remain auditable and reproducible even
 when session variables change later.
 Runtime entities have two identities: local IDs for interactive typing
 (`job=12`, `run=1`, `pipeline=2`) and durable serials for audit/provenance.
 Local IDs are stable inside the current database and are never reused there,
 but they are not portable across replay/import into another database. Use
 `event serial=<serial>` when you want to inspect by the durable identifier.
-Explicit `load plugin=...` and `script load file=...` operations also receive
+Explicit `plugin load=...` and `script load file=...` operations also receive
 resource serials, so the load itself and the script commands it executed can be
 reviewed later.
 
@@ -300,7 +300,7 @@ events [tail|--tail] [last=N]
 topics
 db <status|path|checkpoint|vacuum|new|load|export|encrypt|decrypt|rekey>
 event <id|topic|job=id|run=id|pipeline=id|serial=id>
-load [--force] plugin=<path>
+plugin load=<resource> [--force]
 config <load|save> file=<path> [--encrypt]
 history [since=... until=...]
 history <load|save> file=<path> [--encrypt]
@@ -317,8 +317,8 @@ Use `event` for runtime inspection and `audit` for evidence review:
 | Need | Use | Why |
 | --- | --- | --- |
 | See recent runtime activity | `events` | Tails the live event bus. |
-| Inspect one event and its job/run context | `event <id>` | Explains what emitted it, when, and under which runtime scope. |
-| Debug a topic, job, run, pipeline, or serial | `event <selector>` | Stays close to raw event flow while keeping output readable. |
+| Inspect one event and its job/step context | `event <id>` | Explains what emitted it, when, and under which runtime scope. |
+| Debug a topic, job, step, pipeline, or serial | `event <selector>` | Stays close to raw event flow while keeping output readable. |
 | Review assessment evidence | `audit show ...` | Presents selected records as an audit trail. |
 | Inventory capability use | `audit list capabilities` | Compares declared capabilities with observed runtime behavior. |
 | Hand off records | `audit export ...` | Writes portable JSONL, PDF, or SQLite audit output. |
@@ -401,7 +401,7 @@ Audit logs are stored as SQLite events, but `audit` has a different job than
 
 | Need | Use | Why |
 | --- | --- | --- |
-| Runtime/provenance debugging | `event <id>` or `event <selector>` | Shows event-bus records and nearby job/run context. |
+| Runtime/provenance debugging | `event <id>` or `event <selector>` | Shows event-bus records and nearby job/step context. |
 | Evidence review | `audit show ...` | Shows selected records as an assessment audit trail. |
 | Capability inventory | `audit list capabilities` | Compares declared capabilities with observed runtime behavior. |
 | Handoff/export | `audit export ...` | Writes portable JSONL, PDF, or SQLite output. |
@@ -515,14 +515,14 @@ allows an unsigned development plugin. Use `--force` only when you want to
 bypass every plugin trust check for reviewed local code:
 
 ```text
-bywaf> load --force plugin=myplugin
+bywaf> plugin load=myplugin --force
 ```
 
 Load a plugin from an explicit filesystem path:
 
 ```text
-bywaf> load --force plugin=./plugins/myplugin
-bywaf> load --force plugin=~/bywaf-plugins/myplugin
+bywaf> plugin load=./plugins/myplugin --force
+bywaf> plugin load=~/bywaf-plugins/myplugin --force
 ```
 
 Startup plugin roots use the same policy. If you start Bywaf with
@@ -580,9 +580,9 @@ bywaf> hostscanner 127.0.0.1 | portscanner
 bywaf> client subnet scan: hostscanner 127.0.0.1 | portscanner
 ```
 
-The runner executes each stage in order. Events emitted by one stage are passed
-to the next stage as input. Events are also stored in SQLite with a pipeline ID
-and command run ID.
+The runner executes each pipeline step in order. Events emitted by one
+pipeline step are passed to the next pipeline step as input. Events are
+also stored in SQLite with a pipeline ID and command run ID.
 
 This model allows downstream commandlets to consume only the output relevant to
 the current pipeline, rather than every historical event in the database.
@@ -596,8 +596,8 @@ bywaf> pipeline attach <pipeline-id> http_probe since=now
 
 The attach selectors are orthogonal:
 
-- `<pipeline-id>` chooses the pipeline the new command run joins.
-- `run=<producer-run-id>` optionally narrows input to one upstream producer run.
+- `<pipeline-id>` chooses the pipeline the new step joins.
+- `run=<producer-run-id>` optionally narrows input to one upstream producer step.
 - `since=beginning` replays matching historical events, then listens for new
   events.
 - `since=now` ignores historical events and starts from the current event
@@ -608,7 +608,7 @@ whole pipeline.
 
 # Runtime Names
 
-Name the current command run with a stage-local `name=` selector:
+Name the current command run with a step-local `name=` selector:
 
 ```text
 bywaf> hostscanner 127.0.0.1 name=localhost sweep
@@ -629,7 +629,7 @@ Assigned names appear in `steps`, `pipelines`, and `jobs` listings.
 
 # Framework Notes
 
-Any commandlet stage can include a framework-level `note=` selector. The runner
+Any pipeline step can include a framework-level `note=` selector. The runner
 strips it before the commandlet receives arguments and records an audited
 `note.attached` event with the job, pipeline, and command-run IDs.
 
@@ -637,8 +637,8 @@ strips it before the commandlet receives arguments and records an audited
 bywaf> hostscanner 10.0.0.0/24 note=client-approved internal subnet
 ```
 
-If `note=` is the last selector in a stage, it consumes the rest of that stage
-without requiring quotes:
+If `note=` is the last selector in a pipeline step, it consumes the rest
+of that pipeline step without requiring quotes:
 
 ```text
 bywaf> hostscanner targets note=scope approved | portscanner note=top ports
@@ -661,7 +661,7 @@ Notes are append-only. Adding another note creates another timestamped
 
 Artifacts are evidence files stored in a separate artifact database next to the
 main database. They can be imported without external provenance, or attached to
-a run, pipeline, or job when you know what produced or justifies them. Artifact
+a step, pipeline, or job when you know what produced or justifies them. Artifact
 bodies are stored in the artifact database, not in the main event database.
 If the main database is encrypted, the artifact database is encrypted with the
 same session passphrase. If the main database is plaintext, the artifact
@@ -678,7 +678,7 @@ artifact bodies:
 bywaf --encrypt
 ```
 
-Import one or more files without attaching them to a run, pipeline, or job:
+Import one or more files without attaching them to a step, pipeline, or job:
 
 ```text
 bywaf> artifact import file=snapshot.html name='Landing page'
@@ -690,7 +690,7 @@ Attach existing artifacts, or import and attach files in one command:
 ```text
 bywaf> artifact attach artifact=1 run=<command-run-id>
 bywaf> artifact attach run=<command-run-id> file=snapshot.html name='Landing page'
-bywaf> artifact attach serial=<run-or-pipeline-or-job-serial> file=snapshot.html
+bywaf> artifact attach serial=<step-or-pipeline-or-job-serial> file=snapshot.html
 bywaf> artifact attach run=<command-run-id> file=snapshot.html file=headers.txt
 bywaf> artifact attach pipeline=<pipeline-id> file=report.json note=initial report
 ```
@@ -721,10 +721,10 @@ convention. `since=` and `until=` restrict matches by artifact creation time.
 Use `file=` when exporting exactly one artifact. Use `dir=` when exporting a set. If
 `file=` matches multiple artifacts, Bywaf reports that clearly and asks you to
 use `dir=` instead.
-For `artifact attach`, `serial=` may refer to a run, pipeline, or job serial.
+For `artifact attach`, `serial=` may refer to a step, pipeline, or job serial.
 Artifact serials identify existing artifact rows for listing, searching,
 exporting, and verifying; use `artifact=` when attaching an existing artifact
-to run, pipeline, or job provenance.
+to step, pipeline, or job provenance.
 
 # At-File Arguments
 
@@ -785,7 +785,7 @@ bywaf> hostscanner 192.168.1.0/24 --yes
 
 Plans are audited as `plan.requested`, evaluated as `policy.evaluated`, and
 approved or denied as `plan.approved` / `plan.denied` with `approved_by=<os
-user>`. Suggested repairs, such as pruning out-of-scope targets for one run,
+user>`. Suggested repairs, such as pruning out-of-scope targets for one step,
 are audited as `plan.repair.applied` or `plan.repair.denied`.
 
 Initial network policy variables:
@@ -796,7 +796,7 @@ bywaf> set global.policy.network.deny=169.254.169.254/32,192.168.1.50
 bywaf> set global.plan.required=true
 ```
 
-The policy layer applies to the run being launched. Repairs do not mutate source
+The policy layer applies to the step being launched. Repairs do not mutate source
 files, saved variables, or command history.
 
 # Command Continuation And Sequences
@@ -831,24 +831,24 @@ commandlets run in-process but still record `job.requested`, `job.claimed`,
 job lifecycle, but a worker process claims and runs the queued job. Foreground
 management commands such as `db ...` and `job ...` run directly.
 
-Stage-level backgrounding works inside pipelines:
+Pipeline-step backgrounding works inside pipelines:
 
 ```text
 bywaf> hostscanner 192.168.0.1-255 & | portscanner &
 ```
 
 In that example, `portscanner` listens for `host.found` rows created by the
-immediately upstream `hostscanner` run in the same pipeline. It does not consume
+immediately upstream `hostscanner` step in the same pipeline. It does not consume
 unrelated `host.found` rows from older scans.
 
-A pipeline groups one or more runs in the same command expression or attached
-workflow. A run is one commandlet invocation inside that pipeline, such as the
-specific `hostscanner` stage or `portscanner` stage. A job is the supervised
+A pipeline groups one or more steps in the same command expression or attached
+workflow. A step is one commandlet invocation inside that pipeline, such as the
+specific `hostscanner` step or `portscanner` step. A job is the supervised
 foreground/background execution lifecycle that runs one or more of those
 commandlet invocations. Operationally, jobs are chained together into pipelines
-by the runs they supervise; one job may contribute the whole chain, or multiple
-jobs may contribute runs when commandlets are attached later. See
-`docs/TERMINOLOGY.md` for the canonical definitions of jobs, pipelines, runs, local
+by the steps they supervise; one job may contribute the whole chain, or multiple
+jobs may contribute steps when commandlets are attached later. See
+`docs/TERMINOLOGY.md` for the canonical definitions of jobs, pipelines, steps, local
 IDs, serials, events, and topics.
 
 Show the currently active runtime entities:
@@ -934,7 +934,7 @@ Use `triggers` to list loaded provider-owned trigger rules and their current
 cursors.
 
 For live runtime control, `signal` is the canonical command for a concrete
-receiver: a job, a command run, or a `serial=` that resolves to one of those.
+receiver: a job, a pipeline step, or a `serial=` that resolves to one of those.
 A pipeline is a grouping scope, not executing code, so it does not receive
 plugin-domain signals directly. Use pipeline-aware commands such as `pause
 pipeline=...` or `end --hard pipeline=...` when you want the framework to fan
@@ -946,7 +946,7 @@ controls; plugin-domain signals such as `prune`, `mute`, `unmute`, and
 ```text
 bywaf> signal run=<command-run-id> prune targets=192.168.1.0/24
 bywaf> signal run=<command-run-id> mute
-bywaf> signal serial=<run-or-job-serial> verbosity level=debug
+bywaf> signal serial=<step-or-job-serial> verbosity level=debug
 bywaf> signal run=<command-run-id> verbosity level=debug
 bywaf> signal run=<command-run-id> pause --hard
 ```
@@ -1046,7 +1046,7 @@ List commandlet steps:
 bywaf> steps
 ```
 
-Show events by command run or pipeline:
+Show events by pipeline step or pipeline:
 
 ```text
 bywaf> event run=1
@@ -1312,8 +1312,8 @@ preferred pagers/editors, prompt style, and plugin UX defaults like
 across projects and should not be stored in project databases.
 
 Use `set` for framework or plugin variables that affect the current project,
-session, commandlet, or run. Variables can affect evidence-producing behavior,
-so their effective values are snapshotted with command runs and belong with the
+session, commandlet, or step. Variables can affect evidence-producing behavior,
+so their effective values are snapshotted with command steps and belong with the
 project/audit context. If a future plugin wants to change a preference, it
 should request a framework-mediated preference update for the user to approve;
 plugins should not silently mutate `~/.bywaf/preferences.toml`.
@@ -1640,7 +1640,7 @@ bywaf> finding_report export=findings.xlsx
 
 `report` is the operator-facing finding inbox. It renders grouped unreviewed
 findings from the latest pipeline that produced finding events, or from an
-explicit pipeline, job, or run scope. Use it when you want to quickly see what
+explicit pipeline, job, or step scope. Use it when you want to quickly see what
 finished work produced without manually querying raw events.
 
 ```text
@@ -1882,7 +1882,7 @@ event serial=<id>
 db <status|path|checkpoint|vacuum|new|load|export|encrypt|decrypt|rekey>
 key <list|show|generate|import|export|remove|test>
 bundle <create|add|list|show|seal|verify|export>
-load [--force] plugin=<resource>
+plugin load=<resource> [--force]
 db load file=<resource>
 db load file=<resource> --force
 config load file=<resource>

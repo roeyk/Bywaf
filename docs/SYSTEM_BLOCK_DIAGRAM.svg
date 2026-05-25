@@ -83,7 +83,7 @@
 <title>runtime_manager&#45;&gt;pipeline</title>
 <path fill="none" stroke="#1d4ed8" stroke-width="1.9" d="M1144,-547C1204.08,-547 1259,-547 1259,-547 1259,-547 1259,-648.85 1259,-648.85"/>
 <polygon fill="#1d4ed8" stroke="#1d4ed8" stroke-width="1.9" points="1256.2,-648.85 1259,-656.85 1261.8,-648.85 1256.2,-648.85"/>
-<text text-anchor="middle" x="1187.93" y="-539" font-family="DejaVu Sans" font-size="10.00">pipeline serial + stage list</text>
+<text text-anchor="middle" x="1187.93" y="-539" font-family="DejaVu Sans" font-size="10.00">pipeline serial + step list</text>
 </g>
 <!-- runtime_manager&#45;&gt;process -->
 <g id="edge11" class="edge">
@@ -270,7 +270,7 @@
 <title>run</title>
 <path fill="#bfdbfe" stroke="#334155" stroke-width="1.4" d="M1545,-160C1545,-160 1275,-160 1275,-160 1269,-160 1263,-154 1263,-148 1263,-148 1263,-94 1263,-94 1263,-88 1269,-82 1275,-82 1275,-82 1545,-82 1545,-82 1551,-82 1557,-88 1557,-94 1557,-94 1557,-148 1557,-148 1557,-154 1551,-160 1545,-160"/>
 <text text-anchor="start" x="1381" y="-135.2" font-family="DejaVu Sans" font-size="12.00"> &#160;&#160;&#160;&#160;&#160;</text>
-<text text-anchor="start" x="1404" y="-135.2" font-family="DejaVu Sans" font-weight="bold" font-size="16.00">Run</text>
+<text text-anchor="start" x="1403" y="-135.2" font-family="DejaVu Sans" font-weight="bold" font-size="16.00">Step</text>
 <text text-anchor="start" x="1283" y="-110.4" font-family="DejaVu Sans" font-size="12.00"> &#160;&#160;&#160;&#160;&#160;One commandlet invocation with args,</text>
 <text text-anchor="start" x="1299.5" y="-98.4" font-family="DejaVu Sans" font-size="12.00"> &#160;&#160;&#160;&#160;&#160;variable snapshot, and events. &#160;&#160;&#160;</text>
 </g>
@@ -281,7 +281,7 @@
 <text text-anchor="start" x="1362.5" y="-548.2" font-family="DejaVu Sans" font-size="12.00"> &#160;&#160;&#160;&#160;&#160;</text>
 <text text-anchor="start" x="1385.5" y="-548.2" font-family="DejaVu Sans" font-weight="bold" font-size="16.00">Process</text>
 <text text-anchor="start" x="1293" y="-523.4" font-family="DejaVu Sans" font-size="12.00"> &#160;&#160;&#160;&#160;&#160;OS execution backing a foreground</text>
-<text text-anchor="start" x="1316.5" y="-511.4" font-family="DejaVu Sans" font-size="12.00"> &#160;&#160;&#160;&#160;&#160;job or background stage. &#160;&#160;&#160;</text>
+<text text-anchor="start" x="1316.5" y="-511.4" font-family="DejaVu Sans" font-size="12.00"> &#160;&#160;&#160;&#160;&#160;job or background step. &#160;&#160;&#160;</text>
 </g>
 <!-- sqlite -->
 <g id="node13" class="node">

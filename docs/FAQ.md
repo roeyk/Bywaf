@@ -41,7 +41,7 @@ bywaf> hostscanner --help
 bywaf> hostscanner 192.168.1.0/24 | portscanner | http_probe
 ```
 
-Each stage emits structured events into the database. Later stages consume those
+Each step emits structured events into the database. Later steps consume those
 events instead of scraping terminal output.
 
 ## I started a port scanner. How do I see what it found?
@@ -57,7 +57,7 @@ tail first, use:
 bywaf> events
 ```
 
-If the scan is still running, use runtime listings to find the active job or run:
+If the scan is still running, use runtime listings to find the active job or pipeline step:
 
 ```text
 bywaf> jobs
@@ -86,13 +86,13 @@ Yes. `hostscanner example.com` resolves the name before invoking nmap, records a
 bywaf> artifact list
 ```
 
-Find the artifact attached by the `nikto` run, then save it:
+Find the artifact attached by the `nikto` pipeline step, then save it:
 
 ```text
 bywaf> artifact export artifact=1 file=nikto.json
 ```
 
-If you know the run, list or save artifacts for that run:
+If you know the step ID, list or save artifacts with the `run=` selector:
 
 ```text
 bywaf> artifact list run=7
@@ -110,7 +110,7 @@ bywaf> report pipeline=1
 
 Use `event` when you want raw event payloads. Use `report` when you want the
 operator-facing grouped finding inbox for recent, pipeline-scoped, job-scoped,
-or run-scoped work.
+or step-scoped work.
 
 ## How do I run a pipeline in the background?
 
@@ -295,7 +295,7 @@ bywaf> signal run=7 verbosity level=quiet
 The audit trail records the selector, action, strength, arguments, and receiver
 response.
 
-## How do I add a note to a run, job, or pipeline?
+## How do I add a note to a step, job, or pipeline?
 
 ```text
 bywaf> note add run=7 text=checked manually in browser
@@ -314,7 +314,7 @@ bywaf> artifact attach serial=<durable-serial> file=headers.txt name=headers
 ```
 
 `artifact import` stores a file in the artifact database without linking it to a
-specific run, pipeline, or job. `artifact attach artifact=... run=...` links an
+specific step, pipeline, or job. `artifact attach artifact=... run=...` links an
 existing artifact to provenance. `artifact attach run=... file=...` is the
 shortcut that imports and attaches in one command. Artifacts are linked back to
 the main audit database through metadata and hashes.
@@ -326,7 +326,7 @@ bywaf> artifact list artifact=1
 bywaf> artifact list serial=<artifact-serial>
 ```
 
-Artifact rows show the producing `commandlet=`, attached `run=`,
+Artifact rows show the producing `commandlet=`, attached `run=` step selector,
 `pipeline=`, `job=`, `artifact_id=`, and `sha256=`.
 
 ## How do I see the producing commandlet's parameters and environment?
@@ -336,11 +336,11 @@ bywaf> artifact list artifact=1
 bywaf> event run=<run-id-from-artifact-list>
 ```
 
-`event run=...` shows the run's audit events. Look for:
+`event run=...` shows the step's audit events. Look for:
 
 - `command.run.arguments` for the commandlet arguments after framework
   expansion and redaction.
-- `Variables:` for the effective variable snapshot captured for that run.
+- `Variables:` for the effective variable snapshot captured for that step.
 - `framework.process.run.requested` or `framework.process.stream.requested`
   for process-wrapper argv/cwd/timeout/environment details.
 
@@ -349,7 +349,7 @@ secret variable or process environment value, the audit trail shows the secret
 name and fingerprint, for example `name=network/ssh_probe.password` and
 `fingerprint=hmac-sha256:...`, not the plaintext.
 
-## How do I verify that an artifact really came from that commandlet run?
+## How do I verify that an artifact really came from that commandlet step?
 
 ```text
 bywaf> artifact verify artifact=1
@@ -360,7 +360,7 @@ bywaf> event serial=<artifact-serial>
 
 `artifact verify` checks the artifact body hash and cross-checks the artifact
 metadata against the main database's `artifact.attached` audit event. Then use
-`event run=...` to inspect the producing run's events, source commandlet,
+`event run=...` to inspect the producing step's events, source commandlet,
 redacted parameters, captured variables, process environment metadata, and
 surrounding lifecycle records.
 
@@ -374,12 +374,12 @@ bywaf> artifact export serial=<artifact-serial> file=snapshot.html
 Use `file=` when exactly one artifact matches. If your selector matches multiple
 artifacts, Bywaf asks you to use `dir=` instead.
 
-## How do I export all artifacts from a run or pipeline?
+## How do I export all artifacts from a step or pipeline?
 
 ```text
-bywaf> artifact export run=7 dir=artifacts/run-7/
+bywaf> artifact export run=7 dir=artifacts/step-7/
 bywaf> artifact export pipeline=2 dir=artifacts/pipeline-2/
-bywaf> artifact export serial=<run-or-pipeline-serial> dir=artifacts/export/
+bywaf> artifact export serial=<step-or-pipeline-serial> dir=artifacts/export/
 ```
 
 For completed work, prefer durable `serial=` selectors because local numeric IDs
@@ -393,7 +393,7 @@ Use a bare artifact when you only need the file itself:
 bywaf> artifact export artifact=1 file=screenshot.png
 ```
 
-Use an audit/evidence export when you need provenance: the commandlet run, audit
+Use an audit/evidence export when you need provenance: the commandlet step, audit
 events, variables, notes, hashes, artifact metadata, and related pipeline
 context. The fully signed evidence-bundle workflow is still tracked separately,
 but today you can export the audit trail alongside artifacts:
@@ -426,14 +426,14 @@ bywaf> artifact search content=Server
 
 Use `name=`, `filename=`, `note=`, and `content=` to narrow searches.
 
-## How do I find artifacts produced by one commandlet run?
+## How do I find artifacts produced by one commandlet step?
 
 ```text
 bywaf> artifact list run=7
 bywaf> artifact search run=7 name=screenshot
 ```
 
-Use the step ID shown by `steps`, or use the durable run serial with `serial=...`.
+Use the step ID shown by `steps`; the selector is still `run=...`. For long-term references, use the durable step serial with `serial=...`.
 
 ## How do I find which events are associated with a pipeline?
 
@@ -454,7 +454,7 @@ bywaf> event run=7
 bywaf> artifact list run=7
 ```
 
-`event run=...` shows the run's events and captured variables. If the run saved
+`event run=...` shows the step's events and captured variables. If the step saved
 files, `artifact list run=...` shows the linked artifacts. For finding-producing
 tools, you can also render a findings table:
 

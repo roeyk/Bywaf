@@ -85,7 +85,7 @@
   ], fill: rgb("#f8f8f8")),
   arrow("feeds"),
   box("Subscribers", [
-    downstream pipeline stages \
+    downstream pipeline steps \
     late attach/replay \
     reports \
     search \

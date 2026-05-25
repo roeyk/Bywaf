@@ -19,7 +19,7 @@ detail without reading every design note first.
 
 ## Core References
 
-- [Terminology](TERMINOLOGY.md): shared vocabulary for jobs, runs, pipelines,
+- [Terminology](TERMINOLOGY.md): shared vocabulary for jobs, steps, pipelines,
   events, topics, commandlets, plugins, capabilities, local IDs, and serials.
 - [Runtime Model](RUNTIME_MODEL.md): runtime entities, lifecycle,
   foreground/background execution, control signals, and variable snapshots.

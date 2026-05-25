@@ -7,7 +7,7 @@ intended to keep the CLI, documentation, plugin API, and audit records aligned.
 
 - [Job](#job)
 - [Pipeline](#pipeline)
-- [Run](#run)
+- [Step](#step)
 - [Local ID](#local-id)
 - [Serial](#serial)
 - [Event](#event)
@@ -34,7 +34,7 @@ Foreground command lines and background command lines both create jobs. A
 background job usually maps to a worker process. A foreground job may run
 in-process but is still audited through the same lifecycle events. Jobs do not
 define the audit scope by themselves; they supervise work that may execute one
-or more commandlet runs.
+or more pipeline steps.
 
 Use job selectors when you want to control or inspect execution lifecycle:
 
@@ -46,7 +46,7 @@ job end --hard 1
 
 ## Pipeline
 
-A pipeline is a group of one or more commandlet runs that belong to the same
+A pipeline is a group of one or more commandlet steps that belong to the same
 command expression or attached workflow.
 
 The common case is a pipe expression:
@@ -55,11 +55,11 @@ The common case is a pipe expression:
 hostscanner 192.168.1.0/24 | portscanner | http_probe
 ```
 
-That creates one pipeline containing three commandlet runs. The pipeline is the
+That creates one pipeline containing three commandlet steps. The pipeline is the
 scope that lets downstream commandlets consume only the upstream events that
 belong to the same workflow. Operationally, jobs are chained together into a
-pipeline by the runs they supervise; one job may contribute the whole chain, or
-multiple jobs may contribute runs when commandlets are attached later.
+pipeline by the steps they supervise; one job may contribute the whole chain,
+or multiple jobs may contribute steps when commandlets are attached later.
 
 Use pipeline selectors when you want to inspect or control the whole chain:
 
@@ -69,9 +69,14 @@ pipeline cancel 1
 artifact export pipeline=1 dir=artifacts/
 ```
 
-## Run
+## Step
 
-A run is one invocation of one commandlet inside a pipeline.
+A step is one invocation of one commandlet inside a pipeline.
+
+The user-facing list and detail commands are `steps` and `step <id>`. The
+existing selector and storage/API names are still `run=...` and
+`command_run_id`. Treat those as historical identifier names for the same
+pipeline-step record.
 
 For this command:
 
@@ -84,23 +89,23 @@ Bywaf creates roughly:
 ```text
 job=1
   pipeline=1
-    run=1  hostscanner
-    run=2  portscanner
-    run=3  http_probe
+    step=1  hostscanner  (selected as run=1)
+    step=2  portscanner  (selected as run=2)
+    step=3  http_probe   (selected as run=3)
 ```
 
-A run is the audit scope for a specific commandlet invocation. It records the
+A step is the audit scope for a specific commandlet invocation. It records the
 commandlet, arguments, effective variable snapshot, emitted events, artifacts,
-upstream parent run, and pipeline membership.
+upstream parent step, and pipeline membership.
 
-Signals target concrete execution receivers. A run can receive plugin-domain
+Signals target concrete execution receivers. A step can receive plugin-domain
 signals because it is the commandlet execution context; plugin code reads those
 with `context.signals.pending(...)`. A job can receive framework lifecycle
 signals because it supervises a process or foreground execution. A pipeline does
 not receive plugin-domain signals directly because it is only a grouping scope;
-pipeline-level control commands fan out to associated jobs or runs.
+pipeline-level control commands fan out to associated jobs or steps.
 
-Use run selectors when you care about one stage of a workflow:
+Use `run=` selectors when you care about one pipeline step of a workflow:
 
 ```text
 event run=2

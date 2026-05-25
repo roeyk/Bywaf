@@ -14,10 +14,10 @@ contracts so framework code does not depend on SQLite details everywhere.
 
 `EventStoreProtocol` describes the durable event bus and audit log. It covers
 event publication, scoped event fetches, polling, topic discovery, recent event
-tailing, serial lookup, and event queries by job, run, pipeline, or serial.
+tailing, serial lookup, and event queries by job, step (`run=`), pipeline, or serial.
 Today this is implemented by `bywaf.db.EventStore`.
 
-`RuntimeStoreProtocol` describes runtime metadata for jobs, pipelines, runs,
+`RuntimeStoreProtocol` describes runtime metadata for jobs, pipelines, steps,
 local IDs, durable serials, cancellation requests, runtime names, variable
 snapshots, and artifact counts. Today this is also implemented by
 `bywaf.db.EventStore`; the contract exists because this metadata is not the
@@ -34,7 +34,7 @@ operations are intentionally separate from normal plugin event and artifact
 usage.
 
 `VariableStoreProtocol` describes session variable storage used by config,
-completion, defaults, and per-run variable snapshots.
+completion, defaults, and per-step variable snapshots.
 
 ## Plugin Boundary
 
@@ -55,7 +55,7 @@ more authority than the plugin-facing APIs but do not need raw SQL or
 maintenance behavior:
 
 - `context.event_store()` returns the event/audit contract;
-- `context.runtime_store()` returns the job/run/pipeline metadata contract;
+- `context.runtime_store()` returns the job/step/pipeline metadata contract;
 - `context.artifact_store()` returns the paired artifact body store;
 - `context.maintenance_store()` returns maintenance operations and is audited
   as raw DB access.

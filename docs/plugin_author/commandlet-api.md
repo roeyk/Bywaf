@@ -212,7 +212,7 @@ The event is stored with:
 ## Consuming Pipeline Input
 
 The third argument to `run()` is `input_events`. In a pipeline, it contains
-events from the previous stage:
+events from the previous pipeline step:
 
 ```python
 def run(self, context, args, input_events):
@@ -299,7 +299,7 @@ file        local files and paths
 directory   local directories and paths
 choice      fixed choices from CompletionSpec.values
 topic       event topics
-run         command run IDs
+run         pipeline-step IDs (`run=` selector)
 pipeline    pipeline IDs
 job         job IDs
 plugin      loaded commandlet names
@@ -359,9 +359,9 @@ At execution time, commandlets receive a `CommandContext`:
 - `context.db`: legacy/internal raw event database access, if available
 - `context.vars`: scoped variables for the current commandlet
 - `context.secrets`: resolve opaque secret references for credential use
-- `context.pipeline_id`, `context.command_run_id`, `context.job_id`: run scope
-- `context.parent_command_run_id`: upstream pipeline stage, if any
-- `context.note`: framework-level `note=` text for this command run, if any
+- `context.pipeline_id`, `context.command_run_id`, `context.job_id`: step scope
+- `context.parent_command_run_id`: upstream pipeline step, if any
+- `context.note`: framework-level `note=` text for this pipeline step, if any
 - `context.background`: whether the commandlet is running in the background
 - `context.input_high_watermark`: highest upstream event ID already consumed
 - `context.require_db()`: return the active DB or raise a clear error
@@ -378,20 +378,21 @@ At execution time, commandlets receive a `CommandContext`:
 - `context.process.stream(argv)`: stream stdout/stderr chunks incrementally
 - `context.artifacts.attach_file(path, name=..., note=...)`: attach one evidence file
 - `context.artifacts.attach_files(paths)`: attach several evidence files
-- `context.signals.pending(action=...)`: read live-control signals for this run
+- `context.signals.pending(action=...)`: read live-control signals for this step
 - `context.signals.applied(request, message, **details)`: acknowledge a signal
 - `context.signals.ignored(request, message, **details)`: decline a signal
 - `context.request(topic, payload)`: advanced escape hatch for framework requests
 - `context.cancelled()`: whether a soft-cancellation request is pending
 - `context.raise_if_cancelled()`: raise if cancellation is pending
 
-For terminology, a pipeline groups one or more commandlet runs, a run is one
+For terminology, a pipeline groups one or more commandlet steps, a step is one
 invocation of one commandlet, and a job supervises the foreground or background
-work that executes those runs. See `TERMINOLOGY.md` for the canonical
+work that executes those steps. The existing selector and storage/API names are
+still `run=...` and `command_run_id`. See `TERMINOLOGY.md` for the canonical
 definitions plugin authors should use in docs, emitted events, and user-facing
 messages.
 
-Plugin-domain signals should be designed around runs. A run is the commandlet
+Plugin-domain signals should be designed around steps. A step is the commandlet
 execution context that can poll `context.signals`; a job is the framework's
 supervised lifecycle wrapper, and a pipeline is a grouping scope rather than
 code that can receive a plugin signal.
@@ -442,7 +443,7 @@ event database. If the main DB is encrypted, the artifact DB is encrypted with
 the same session passphrase; if the main DB is plaintext, the artifact DB is
 plaintext too. The main event database records `artifact.attached` provenance
 events containing the artifact id, hash, name, note, timestamp, job, pipeline,
-and command-run IDs. A commandlet can attach multiple artifacts to the same run;
+and command-run IDs. A commandlet can attach multiple artifacts to the same step;
 that is the expected model for screenshots, raw responses, parsed reports, and
 notes produced by one action.
 
@@ -509,8 +510,8 @@ commandlets during the transition; accessing it records `db.raw`, and
 third-party plugins should avoid it.
 
 Finite listener commandlets should use `context.events.follow(...)` instead of
-hand-rolled polling loops. In a normal pipeline, a second-stage listener should
-stop after its parent run has completed or failed and all matching events have
+hand-rolled polling loops. In a normal pipeline, a downstream listener should
+stop after its parent step has completed or failed and all matching events have
 been drained:
 
 ```python
@@ -904,12 +905,13 @@ Bywaf intentionally does not record the supplied environment map. However, if
 that value still appears in captured `stdout`/`stderr`.
 
 At launch time, Bywaf captures the effective commandlet and global variables
-for each `command_run_id` and stores that snapshot in SQLite. During execution,
-`context.vars.get()` checks the run snapshot first, then falls back to the
-session variable store. This lets two background runs of the same commandlet
+for each pipeline step and stores that snapshot in SQLite under its
+`command_run_id`. During execution, `context.vars.get()` checks the step
+snapshot first, then falls back to the session variable store. This lets two
+background steps of the same commandlet
 keep different values even if the operator changes session variables after the
 first job starts. It also means `event run=<id>` can report the variables that
-were actually supplied to that run.
+were actually supplied to that step.
 
 Plugins should treat interpreter behavior, such as the prompt, as framework
 owned. A plugin running in a background process cannot directly call a method on

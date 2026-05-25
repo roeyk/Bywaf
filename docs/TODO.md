@@ -33,6 +33,21 @@ Planning dates are release planning markers, not compatibility commitments.
 - Harden the MVP plugin suite around realistic end-to-end assessment chains:
   discovery, port scanning, HTTP probing, fingerprinting, vulnerability
   probing, dedupe, reporting, artifacts, notes, and bundle export.
+- Manual finding/report testing checklist:
+  - Run built-in finding producers: `portscanner` for Telnet-like/open-port
+    cases, `http_headers` for HTTPS targets missing HSTS or
+    `X-Content-Type-Options`, and
+    `http/repo_exposure/git_expose_check` against a controlled server exposing
+    `/.git/config`.
+  - Inspect `event finding.candidate` and confirm each finding has `class`,
+    `target_scope`, `group_key`, `identifiers`, `target`, and `affected`.
+  - Run `report` and `report pipeline=<id>` and verify events with the same
+    `class + target_scope + CVE/CWE` collapse into one group.
+  - Simulate the same CVE on `/`, `/admin`, and `/login` with
+    `target_scope={"kind":"web_origin","value":"https://host"}` and confirm
+    reporting groups them together.
+  - Repeat the same route set with `target_scope.kind="web_route"` and confirm
+    reporting splits them into route-specific findings.
 - Add focused fixture-based tests for each MVP plugin so regressions are caught
   without requiring live third-party services for ordinary CI.
 - Review commandlet output, event payloads, completion specs, manifests,
@@ -79,7 +94,7 @@ Planning dates are release planning markers, not compatibility commitments.
 - Examples: `repo_exposure @urls.txt`, `cloud_exposure @assets.txt`, and
   `web_baseline example.com`.
 - Let orchestrator commandlets coordinate lower-level commandlets or shared
-  detection logic while preserving normal pipeline/job/run provenance.
+  detection logic while preserving normal pipeline/job/step provenance.
 - Improve target-file ergonomics so target-taking commandlets can treat
   `@targets.txt` as line-wise target input by default, without requiring users
   to type `@lines:targets.txt`.
@@ -252,9 +267,9 @@ Planning dates are release planning markers, not compatibility commitments.
 - 2026-05-14: Added framework-mediated process execution through
   `context.process.run()` and line-oriented `context.process.stream()`.
 - 2026-05-17: Added framework-level `note=` parsing and `note.attached` audit
-  events for command runs.
+  events for commandlet steps.
 - 2026-05-17: Added `note` commandlet for timestamped note review and
-  `file=` export by run, pipeline, or job.
+  `file=` export by step, pipeline, or job.
 - 2026-05-17: Added append-only post-hoc notes with `note add`.
 - 2026-05-17: Added framework-level at-file expansion and filename completion
   for `@`, `@@`, `@raw:`, and `@lines:`.

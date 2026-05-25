@@ -3,7 +3,7 @@
 These notes describe framework decisions that are still being refined. They are
 more specific than `TODO.md`, but less stable than the public usage guide.
 
-For canonical definitions of runtime terms such as job, pipeline, run, local
+For canonical definitions of runtime terms such as job, pipeline, step, local
 ID, serial, event, topic, commandlet, and capability, see `TERMINOLOGY.md`.
 For the stable architecture model, see `RUNTIME_MODEL.md`, `EVENT_MODEL.md`,
 `CAPABILITY_MODEL.md`, `SYSTEM_BLOCK_DIAGRAM.pdf`, and
@@ -131,7 +131,7 @@ This lets commandlet code stay frontend-neutral.
 Runtime mutation should be commandlet-mediated. If an operator asks to remove a
 host or target from an in-flight scanner, the framework should not reach into a
 plugin-owned list and edit it directly. Instead, the framework should persist a
-structured control request scoped to the job, pipeline, or command run. The
+structured control request scoped to the job, pipeline, or pipeline step. The
 commandlet is responsible for applying that request to pending work and for
 emitting an outcome event describing what it skipped, removed, or ignored.
 
@@ -281,16 +281,16 @@ process.exited
 
 ## Framework Notes
 
-`note=` is a framework-owned stage selector. The runner removes it before
-commandlet argument parsing, then writes a `note.attached` event once the stage
+`note=` is a framework-owned step selector. The runner removes it before
+commandlet argument parsing, then writes a `note.attached` event once the step
 has job, pipeline, and command-run IDs. This keeps note behavior consistent for
 all commandlets and avoids plugin-specific note parsing.
 
-If `note=` is the final selector in a command stage, it consumes the rest of
-that stage text without requiring quotes. In a pipeline, the note ends at the
+If `note=` is the final selector in a step, it consumes the rest of
+that step text without requiring quotes. In a pipeline, the note ends at the
 pipe boundary.
 
-The `note` runtime commandlet reads `note.attached` events by `run=`,
+The `note` runtime commandlet reads `note.attached` events by `run=` (step),
 `pipeline=`, or `job=` selector. Console output and `file=` exports use
 timestamp-first text lines so notes can be reviewed or copied into reports.
 Notes are append-only; `note add ... text=...` creates another event rather
@@ -303,7 +303,7 @@ parsing. The runner expands `@file`, `@raw:file`, and `@lines:file` after
 pipeline parsing and before commandlet `run()` receives arguments. `@@value`
 escapes a literal leading `@`.
 
-The framework records `framework.argument.expanded` with the command-run scope,
+The framework records `framework.argument.expanded` with the step scope,
 path, expansion mode, and number of produced arguments. File reads are audited
 through the normal capability audit path.
 

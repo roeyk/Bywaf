@@ -11,7 +11,7 @@ import types
 import unittest
 from unittest.mock import patch
 
-from bywaf.nmap_backend import (
+from bywaf.plugins.network.nmap_backend import (
     NmapPort,
     NmapScanError,
     NmapUnavailableError,
@@ -33,20 +33,20 @@ class NmapBackendTests(unittest.TestCase):
                 return fake
             raise ImportError(name)
 
-        with patch("bywaf.nmap_backend.importlib.import_module", side_effect=import_module):
+        with patch("bywaf.plugins.network.nmap_backend.importlib.import_module", side_effect=import_module):
             self.assertEqual(load_backend(), ("nmaplib", fake))
 
     def test_load_backend_raises_when_missing(self):
-        with patch("bywaf.nmap_backend.importlib.import_module", side_effect=ImportError):
+        with patch("bywaf.plugins.network.nmap_backend.importlib.import_module", side_effect=ImportError):
             with self.assertRaises(NmapUnavailableError):
                 load_backend()
 
     def test_discover_live_hosts_uses_portscanner_backend(self):
-        with patch("bywaf.nmap_backend.load_backend", return_value=("nmaplib", FakeNmapModule)):
+        with patch("bywaf.plugins.network.nmap_backend.load_backend", return_value=("nmaplib", FakeNmapModule)):
             self.assertEqual(discover_live_hosts("127.0.0.1"), ["127.0.0.1"])
 
     def test_scan_open_ports_uses_portscanner_backend(self):
-        with patch("bywaf.nmap_backend.load_backend", return_value=("nmaplib", FakeNmapModule)):
+        with patch("bywaf.plugins.network.nmap_backend.load_backend", return_value=("nmaplib", FakeNmapModule)):
             self.assertEqual(
                 scan_open_ports(["127.0.0.1"], "22"),
                 [NmapPort("127.0.0.1", 22, "tcp", "open", "ssh", "syn-ack")],
@@ -60,7 +60,7 @@ class NmapBackendTests(unittest.TestCase):
             def PortScanner():
                 return scanner
 
-        with patch("bywaf.nmap_backend.load_backend", return_value=("nmaplib", Module)):
+        with patch("bywaf.plugins.network.nmap_backend.load_backend", return_value=("nmaplib", Module)):
             scan_open_ports(["127.0.0.1"], None)
         self.assertNotIn("ports", scanner.kwargs)
 

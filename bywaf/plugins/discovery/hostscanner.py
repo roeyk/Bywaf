@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from bywaf.events import Event
-from bywaf.nmap_backend import discover_live_hosts
+from bywaf.plugins.network.nmap_backend import discover_live_hosts
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, PlanItem, PlanRepair, PlanReport, commandlet, option, split_var_values
 from bywaf.utils import host_candidates
 

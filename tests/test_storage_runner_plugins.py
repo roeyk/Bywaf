@@ -27,7 +27,7 @@ from bywaf.app import (
 from bywaf.artifacts import artifact_db_path, artifact_store_for_event_store
 from bywaf.db import EventStore, Subscription
 from bywaf.db import database_appears_encrypted, sqlcipher_available
-from bywaf.nmap_backend import NmapPort
+from bywaf.plugins.network.nmap_backend import NmapPort
 from bywaf.plugins.discovery.hostscanner import HostScanner
 from bywaf.plugins.discovery.hostscanner import expand_targets
 from bywaf.plugins.network.portscanner import PortScanner
@@ -1246,7 +1246,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             db_path = Path(tmp, "db.sqlite3")
             runner = make_runner(db_path)
-            with patch("bywaf.nmap_backend.load_backend", return_value=("fake", FakeNmapModule())):
+            with patch("bywaf.plugins.network.nmap_backend.load_backend", return_value=("fake", FakeNmapModule())):
                 with contextlib.redirect_stdout(io.StringIO()):
                     events = runner.execute("hostscanner 127.0.0.1 &")
             self.assertEqual(events[0].topic, "job.requested")

@@ -8,7 +8,7 @@ For short definitions, see `TERMINOLOGY.md`.
 - [Summary](#summary)
 - [Jobs](#jobs)
 - [Pipelines](#pipelines)
-- [Runs](#runs)
+- [Steps](#steps)
 - [Local IDs and Serials](#local-ids-and-serials)
 - [Foreground and Background Execution](#foreground-and-background-execution)
 - [Runtime Control](#runtime-control)
@@ -22,16 +22,16 @@ Bywaf separates runtime execution into three related entities:
 
 ```text
 pipeline
-  run
+  step
 
 job
-  supervises one or more runs
+  supervises one or more steps
 ```
 
 A pipeline is the event scope for one command expression or attached workflow.
-A run is one commandlet invocation inside that pipeline. A job is the
+A step is one commandlet invocation inside that pipeline. A job is the
 supervised lifecycle for foreground or background work that executes one or
-more runs.
+more steps.
 
 For example:
 
@@ -39,9 +39,9 @@ For example:
 hostscanner 192.168.1.0/24 | portscanner | http_probe
 ```
 
-creates one job, one pipeline, and three runs. If another commandlet is
+creates one job, one pipeline, and three steps. If another commandlet is
 attached to that pipeline later, the same pipeline can be associated with an
-additional job and additional runs.
+additional job and additional steps.
 
 ## Jobs
 
@@ -59,7 +59,7 @@ Foreground commands and background commands both create jobs. Background jobs
 normally run in child processes. Foreground jobs may run in the interpreter
 process, but they are still audited through the same lifecycle model. A job
 does not own the pipeline identity; it supervises execution work that is linked
-to pipeline and run IDs through the run variable snapshot and emitted events.
+to pipeline and step IDs through the step variable snapshot and emitted events.
 
 Use job selectors when the question is about execution lifecycle:
 
@@ -71,7 +71,7 @@ job end --hard 1
 
 ## Pipelines
 
-A pipeline groups runs that belong to the same command expression. This is the
+A pipeline groups steps that belong to the same command expression. This is the
 scope that lets downstream commandlets consume only relevant upstream events.
 
 ```text
@@ -79,11 +79,11 @@ hostscanner 127.0.0.1& | portscanner&
 ```
 
 In this expression, `portscanner` should consume host events produced by that
-specific `hostscanner` run, not every host event in the database. Pipeline and
-parent-run scope provide that boundary.
+specific `hostscanner` step, not every host event in the database. Pipeline and
+parent-step scope provide that boundary.
 
-Jobs are chained together into pipelines by the runs they supervise. For
-example, `pipeline attach` starts a new background job whose run joins an
+Jobs are chained together into pipelines by the steps they supervise. For
+example, `pipeline attach` starts a new background job whose step joins an
 existing pipeline.
 
 Use pipeline selectors when the question is about the whole chain:
@@ -94,12 +94,14 @@ pipeline cancel 1
 artifact export pipeline=1 dir=artifacts/
 ```
 
-## Runs
+## Steps
 
-A run is one invocation of one commandlet inside a pipeline. Runs are the main
-audit scope for plugin behavior.
+A step is one invocation of one commandlet inside a pipeline. Steps are the main
+audit scope for plugin behavior. The user-facing list and detail commands are
+`steps` and `step <id>`. The storage/API names are still `command_run_id`,
+`parent_command_run_id`, and `run=...` selectors.
 
-A run records:
+A step records:
 
 - commandlet name;
 - original and normalized arguments;
@@ -111,7 +113,7 @@ A run records:
 - attached artifacts and notes;
 - framework requests and control signals.
 
-Use run selectors when the question is about one commandlet stage:
+Use `run=` selectors when the question is about one pipeline step:
 
 ```text
 event run=2
@@ -142,7 +144,7 @@ event serial=<serial>
 ## Foreground and Background Execution
 
 A command line may run in the foreground or background. Individual pipeline
-stages can also be backgrounded:
+steps can also be backgrounded:
 
 ```text
 hostscanner 192.168.1.0/24 &
@@ -150,7 +152,7 @@ hostscanner 192.168.1.0/24& | portscanner&
 ```
 
 Backgrounding changes supervision and console behavior. It does not change the
-audit model: jobs, pipelines, runs, events, variables, notes, and artifacts are
+audit model: jobs, pipelines, steps, events, variables, notes, and artifacts are
 still recorded.
 
 ## Runtime Control
@@ -167,11 +169,11 @@ signal run=3 prune target=192.168.1.50
 signal run=3 verbosity level=quiet
 ```
 
-`signal run=...` is the normal route for plugin-domain messages because a run
+`signal run=...` is the normal route for plugin-domain messages because a step
 is the commandlet execution context. `signal job=...` is for supervisor-level
 framework lifecycle control. A pipeline is not an execution receiver, so
 plugin-domain signals are not sent to `pipeline=` directly; pipeline-aware
-commands fan out through the jobs or runs associated with the pipeline.
+commands fan out through the jobs or steps associated with the pipeline.
 
 `pause` defaults to soft/cooperative behavior. Add `--hard` when the framework
 should suspend the associated process. `end` and `kill` are synonyms: both
@@ -192,14 +194,14 @@ queued actions before taking more work.
 
 ## Variables
 
-Commandlet variables are resolved at run creation and snapshotted into SQLite.
+Commandlet variables are resolved at step creation and snapshotted into SQLite.
 That snapshot is part of the audit record. Later changes to session variables do
-not rewrite the recorded run context.
+not rewrite the recorded step context.
 
 The practical lookup model is:
 
 ```text
-run snapshot -> commandlet variables -> global variables -> defaults
+step snapshot -> commandlet variables -> global variables -> defaults
 ```
 
 This lets multiple instances of the same commandlet run concurrently with
@@ -228,11 +230,11 @@ Use variables for execution state that can affect command behavior:
 - `global.policy.network.allow`;
 - `discovery/hostscanner.targets`;
 - `http/http_probe.cookie-file`;
-- commandlet arguments captured for a run.
+- commandlet arguments captured for a step.
 
 The boundary is audit-driven: preferences may influence defaults, but any
 effective value that changes evidence-producing execution should be captured in
-the run snapshot or emitted event payload. Plugins may read preferences for
+the step snapshot or emitted event payload. Plugins may read preferences for
 defaults. Plugin writes to preferences should be framework-mediated and
 user-approved, not silent writes to `~/.bywaf/preferences.toml`.
 
@@ -253,7 +255,7 @@ stale. Listings also include artifact counts when available.
 
 ## Plugin Author Implications
 
-Plugin code should treat the `CommandContext` as the source of run state. Do
+Plugin code should treat the `CommandContext` as the source of step state. Do
 not store invocation-specific mutable state on the commandlet object unless the
 framework guarantees a fresh object for that invocation.
 

@@ -30,7 +30,7 @@ from .commands import REPL_COMMAND_HANDLERS, execute_repl_commandlet, execute_sh
 from .display import (
     friendly_error,
 )
-from ..nmap_backend import NmapScanError, NmapUnavailableError
+from ..plugins.network.nmap_backend import NmapScanError, NmapUnavailableError
 from ..projects import ProjectPaths
 from ..registry import PluginTrustError
 from .resources import DEFAULT_HISTORY

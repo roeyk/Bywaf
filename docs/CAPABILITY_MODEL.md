@@ -232,7 +232,7 @@ without running the real work:
 hostscanner 192.168.1.0/24 --test
 ```
 
-The test path should show policy conflicts and repairs just like the real run
+The test path should show policy conflicts and repairs just like real execution
 would. Operator approvals are audited with fields such as `approved_by`.
 
 ## Enforcement Modes
