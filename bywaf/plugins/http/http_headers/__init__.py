@@ -19,6 +19,9 @@ from .detect import fetch_headers
 from .findings import missing_security_header_candidates, result_payload
 from .models import HeaderProbeResult, HeaderTarget
 
+# Public compatibility surface for older imports and tests. The implementation
+# now lives in split files, but the provider package remains the stable import
+# point for PluginRegistry and callers.
 __all__ = [
     "DEFAULTS",
     "HeaderProbeResult",
@@ -50,6 +53,8 @@ DEFAULTS = {"port": "", "ssl": "false", "target": "", "timeout": 5}
 @option("ssl", "use HTTPS", "false", ("true", "false"))
 @option("timeout", "connection timeout", "5")
 class HttpHeaders(CommandletBase):
+    """Thin commandlet wrapper around split HTTP header check modules."""
+
     def run(
         self,
         context: CommandContext,

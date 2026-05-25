@@ -301,6 +301,8 @@ def attach_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
     scope = resolve_artifact_scope(context, selectors)
     attached: list[Artifact] = []
     if artifact_selector is not None:
+        # Re-attaching keeps the artifact body immutable and creates a new
+        # provenance edge to a job, pipeline, or step.
         if not any((scope.job_id, scope.pipeline_id, scope.command_run_id)):
             raise ValueError("artifact attach artifact= requires step=, pipeline=, job=, or serial=")
         store = context.artifact_store("artifact attach")
@@ -318,6 +320,8 @@ def attach_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
         attached.append(attached_artifact)
     else:
         for file_name in files:
+            # file= is the convenience path: import the body into the artifact
+            # store and attach it to the selected runtime scope in one action.
             artifact = context.artifacts.attach_file(
                 Path(file_name),
                 name=single_value(selectors, "name"),
@@ -458,6 +462,9 @@ def verify_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
     store = context.artifact_store("artifact")
     artifacts = select_artifacts(context, selectors)
     body_results = {result.artifact_id: result for result in store.verify(artifacts)}
+    # Artifact bodies live in the artifact DB, but provenance is mirrored in the
+    # main event DB. Verification checks both stores so export/report workflows
+    # can trust the link between evidence and runtime scope.
     provenance_events = [
         *events.events_matching(topic="artifact.attached", limit=100000),
         *events.events_matching(topic="artifact.imported", limit=100000),
@@ -598,6 +605,8 @@ def resolve_artifact_scope(context: CommandContext, selectors: dict[str, list[st
         return explicit
     if any((explicit.job_id, explicit.pipeline_id, explicit.command_run_id)):
         raise ValueError("serial= cannot be combined with step=, pipeline=, or job=")
+    # serial= is the durable selector form. It resolves to the same underlying
+    # provenance columns as the shorter local IDs.
     return resolve_serial_scope(context, serial)
 
 

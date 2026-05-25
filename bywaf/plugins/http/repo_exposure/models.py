@@ -16,6 +16,8 @@ from enum import Enum
 class DetectionStatus(Enum):
     """Detection result vocabulary for source repository exposure checks."""
 
+    # CANDIDATE means the probe observed enough proof for a finding candidate;
+    # confirmation/triage remains a reporting/operator decision.
     SAFE = "safe"
     CANDIDATE = "candidate"
     ERROR = "error"
@@ -25,6 +27,8 @@ class DetectionStatus(Enum):
 class GitConfigProbeResult:
     """Result from probing one endpoint for `/.git/config`."""
 
+    # Include both normalized target fields and raw evidence so findings.py can
+    # choose a grouping scope without re-parsing URLs or HTTP details.
     base_url: str
     checked_url: str
     host: str

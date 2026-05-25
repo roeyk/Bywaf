@@ -17,8 +17,8 @@ import shlex
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .config import default_settings
-from .command_names import VARIABLE_COMMANDS
+from ..config import default_settings
+from ..command.names import VARIABLE_COMMANDS
 
 FINGERPRINT_ALGORITHM = "hmac-sha256"
 FINGERPRINT_HEX_CHARS = 24
@@ -110,6 +110,8 @@ def load_or_create_fingerprint_key(path: Path | None = None) -> bytes:
     key = os.urandom(32)
     with key_path.open("xb") as handle:
         handle.write(key)
+    # This key does not decrypt secrets, but it should remain local so
+    # fingerprints cannot be recomputed by someone who only has audit logs.
     os.chmod(key_path, 0o600)
     return key
 
@@ -124,6 +126,8 @@ def is_secret_name(name: str, declared: set[str] | frozenset[str] = frozenset())
     """Return whether a command option is declared as secret metadata."""
     normalized = name.strip().lower().replace("_", "-")
     declared_normalized = {item.strip().lower().replace("_", "-") for item in declared}
+    # Accept common scoped forms such as plugin/path.password or
+    # plugin.path.api-key while comparing against short manifest names.
     segments = tuple(
         part
         for dotted in normalized.split(".")
@@ -143,6 +147,8 @@ def redact_command_text(command: str, *, key: bytes, secret_names: set[str] | fr
     try:
         tokens = shlex.split(command)
     except ValueError:
+        # If tokenization fails, leave the text untouched rather than guessing
+        # and possibly corrupting command history.
         return RedactionResult(command)
 
     if tokens and tokens[0] in VARIABLE_COMMANDS:

@@ -18,14 +18,20 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
-from .secrets import REDACTED_VALUE
+from ..secret.store import REDACTED_VALUE
 
 if TYPE_CHECKING:
-    from .plugin import CommandContext
+    from .context import CommandContext
 
 
 def check_process_argv_for_secrets(context: CommandContext, argv: tuple[str, ...]) -> None:
-    """Warn when resolved in-memory secrets appear in process argv."""
+    """Warn when resolved in-memory secrets appear in process argv.
+
+    Secrets in argv can be visible to process listings on many systems.  Bywaf
+    does not block the execution here, but it records a redacted audit event so
+    operators can see that a wrapper plugin passed a secret through an unsafe
+    channel.
+    """
     leaked = leaked_secret_arguments(context, argv)
     if not leaked:
         return
@@ -77,6 +83,8 @@ def audit_process_env(context: CommandContext, env: Mapping[str, str] | None) ->
     redacted: dict[str, str] = {}
     secrets: list[dict[str, str]] = []
     for key, raw_value in sorted(env.items()):
+        # Environment variables are usually a better secret channel than argv,
+        # but they still need redaction before they enter durable audit events.
         value = str(raw_value)
         for ref, secret_ref in context._secrets.refs.items():
             secret = context._secrets.get(ref)
@@ -154,6 +162,9 @@ class ContextProcess:
         check_process_argv_for_secrets(self.context, normalized)
         audit_argv = redact_process_argv(self.context, normalized)
         audit_env = audit_process_env(self.context, env)
+        # Publish the request before starting the process.  If execution fails
+        # or times out, the audit log still records what was attempted and which
+        # commandlet requested it.
         payload: dict[str, Any] = {
             "argv": list(audit_argv),
             "cwd": str(Path(cwd).expanduser()) if cwd is not None else None,
@@ -168,6 +179,9 @@ class ContextProcess:
             payload.update(audit_env)
         request = self.context.request("framework.process.run.requested", payload)
         completed = run_process_argv(normalized, cwd=payload["cwd"], env=env, timeout=timeout)
+        # Store redacted argv in the result object.  Plugin code gets stdout,
+        # stderr, and returncode, while audit-safe argv is carried forward to
+        # process.run events and exceptions.
         result = ProcessResult(
             argv=audit_argv,
             returncode=completed.returncode,
@@ -211,6 +225,8 @@ class ContextProcess:
         self.publish_started(audit_argv, request_id)
         process = popen_process_argv(normalized, cwd=payload["cwd"], env=env)
         selector = selectors.DefaultSelector()
+        # Use selectors so stdout and stderr can be streamed without blocking on
+        # one pipe while the child is writing to the other.
         if process.stdout is not None:
             selector.register(process.stdout, selectors.EVENT_READ, "stdout")
         if process.stderr is not None:
@@ -229,6 +245,8 @@ class ContextProcess:
                     pipe = cast(Any, key.fileobj)
                     line = pipe.readline()
                     if line:
+                        # Publish chunks as they arrive so long-running wrapper
+                        # plugins can expose progress/output before process exit.
                         stream = str(key.data)
                         chunk = ProcessChunk(audit_argv, stream, line, request_id)
                         self.publish_chunk(chunk)
@@ -237,6 +255,9 @@ class ContextProcess:
                         selector.unregister(key.fileobj)
             returncode = process.wait(timeout=1)
         finally:
+            # Always close pipes and the selector.  If the generator consumer
+            # stops early, terminate the child so process wrappers do not leak
+            # background subprocesses.
             for pipe in (process.stdout, process.stderr):
                 if pipe is not None and not pipe.closed:
                     pipe.close()

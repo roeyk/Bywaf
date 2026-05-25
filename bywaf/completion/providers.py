@@ -17,6 +17,8 @@ from ..db import EventStore
 def key_candidates(*, signing: bool = False, verify: bool = False) -> list[str]:
     """Return key names for completion without making cryptography mandatory."""
     try:
+        # Completion should degrade gracefully on minimal installs where the
+        # optional crypto stack or key files are unavailable.
         from ..keyring import load_key_records, signing_key_names, verification_key_names
     except Exception:
         return []
@@ -35,6 +37,8 @@ def bundle_candidates(db: EventStore | None) -> list[str]:
     if db is None:
         return []
     try:
+        # Bundles are event-sourced, so completion reads bundle.created events
+        # instead of a separate mutable bundle table.
         return sorted(
             {
                 str(event.payload["name"])

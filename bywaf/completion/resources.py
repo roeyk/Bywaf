@@ -56,6 +56,8 @@ def complete_resource_value(kind: str, value: str) -> list[str]:
     """Complete the value side of a load/save resource expression."""
     root_shortcuts: list[str] = []
     if kind == "plugin":
+        # Plugin loading is the one resource where users benefit from common
+        # root shortcuts before typing the full path.
         root_shortcuts = plugin_root_shortcut_candidates(value)
         if root_shortcuts and value:
             return root_shortcuts
@@ -76,6 +78,8 @@ def local_plugin_directory_candidates() -> list[str]:
     for child in Path(".").iterdir():
         if not child.is_dir():
             continue
+        # A directory counts as plugin-like when it has either executable code or
+        # a manifest; the checker can report finer problems after loading.
         if (child / "plugin.py").exists() or (child / "bywaf.plugin.toml").exists():
             candidates.append(f"./{child.name}/")
     return sorted(candidates)

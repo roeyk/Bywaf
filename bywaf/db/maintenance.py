@@ -8,11 +8,11 @@ Used by:
 
 from __future__ import annotations
 
-import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
+from .backends import DatabaseConnection
 from .support import sql_literal
 
 
@@ -21,7 +21,7 @@ class EventStoreMaintenanceMixin:
     passphrase: str | None
 
     @contextmanager
-    def connect(self) -> Iterator[sqlite3.Connection]:
+    def connect(self) -> Iterator[DatabaseConnection]:
         """Implemented by EventStore."""
         raise NotImplementedError
 
@@ -44,6 +44,8 @@ class EventStoreMaintenanceMixin:
         old_passphrase = self.passphrase
         self.passphrase = new_passphrase
         try:
+            # Force a read with the new key before accepting the in-memory
+            # passphrase change. If SQLCipher rejects the key, restore state.
             self.table_counts()
         except Exception:
             self.passphrase = old_passphrase

@@ -19,7 +19,7 @@ from unittest.mock import patch
 
 from bywaf.app import ShellState, make_runner, process_framework_requests
 from bywaf.keyring import generate_key
-from bywaf.command_parser import parse_invocation
+from bywaf.command.parser import parse_invocation
 
 
 def cryptography_available() -> bool:

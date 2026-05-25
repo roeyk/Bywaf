@@ -35,6 +35,9 @@ from .shell import shutdown_runner
 from .shell import split_command_sequence
 from .commands import set_prompt_pattern
 
+# Public REPL facade.  The shell, display, and command helpers are split into
+# separate modules, but `bywaf.app` and older tests import them from
+# `bywaf.repl` as the stable package boundary.
 __all__ = [
     "DEFAULT_HISTORY_TIMESTAMP_FORMAT",
     "HISTORY_TIMESTAMP_FORMAT_VAR",

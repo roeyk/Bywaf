@@ -8,6 +8,7 @@ from .command import ArgumentSpec, CommandSpec, CompletionSpec, OptionSpec
 from .plan import PlanItem, PlanRepair, PlanReport
 from .trigger import TriggerSpec
 
+# Public metadata dataclasses that plugin authors may import directly.
 __all__ = [
     "ArgumentSpec",
     "CommandSpec",

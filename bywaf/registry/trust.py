@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from ..config_canonical import canonical_config_bytes, config_digest
+from ..config.canonical import canonical_config_bytes, config_digest
 from ..toml_support import load_data_file
 
 
@@ -58,6 +58,8 @@ class VerifiedPluginCatalog:
         row = self.plugins.get(entry)
         if row is None:
             return False
+        # A trusted catalog binds both executable code and the sidecar manifest.
+        # If either file changes after signing, the plugin must be rejected.
         return (
             row.get("module_sha256") == sha256_file(plugin_dir / "plugin.py")
             and row.get("manifest_sha256") == sha256_file(plugin_dir / "bywaf.plugin.toml")
@@ -108,6 +110,8 @@ def load_verified_plugin_catalog(
     signature = catalog.get("signature")
     verified_signature = False
     if not isinstance(signature, dict):
+        # Unsigned catalogs are allowed only in explicit development bypass
+        # modes. Production trust should come from a signed catalog or manifest.
         if not policy.allow_unsigned_plugins:
             raise PluginTrustError(
                 f"warning: refusing plugin catalog {catalog_path}; catalog signature is missing. "
@@ -150,6 +154,8 @@ def verify_catalog_signature(
     actual_key_hash = hashlib.sha256(public_bytes).hexdigest()
     declared_key_hash = str(signature.get("public_key_sha256") or "")
     if declared_key_hash and declared_key_hash != actual_key_hash and not policy.allow_plugin_key_mismatch:
+        # The catalog may declare the signer key fingerprint. When present, it
+        # must match the operator-selected key unless a development bypass is on.
         raise PluginTrustError(
             "warning: refusing plugin catalog; signer key fingerprint does not match trusted key. "
             "Use --allow-mismatched-plugin-keys only for reviewed development catalogs."
@@ -219,6 +225,8 @@ def enforce_plugin_manifest_signature(
     policy = trust_policy or PluginTrustPolicy()
     trust = manifest_trust or PluginManifestTrust()
     if trust.catalog_verified:
+        # Catalog verification already covered the manifest hash, so avoid
+        # requiring every cataloged plugin to also carry an inline signature.
         return
     if policy.allow_unsigned_plugin_manifests:
         return

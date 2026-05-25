@@ -26,6 +26,8 @@ def export_database(runner: Runner, path: Path, *, encrypt: bool = False) -> Non
     """Export the active SQLite database to a snapshot file."""
     maintenance = runner.maintenance
     if encrypt:
+        # Encrypted export creates a new encrypted copy. It never changes the
+        # encryption state of the active database.
         passphrase = prompt_database_passphrase(path, creating=True)
         export_encrypted_database(
             maintenance.path,
@@ -36,6 +38,8 @@ def export_database(runner: Runner, path: Path, *, encrypt: bool = False) -> Non
     elif maintenance.encrypted:
         if maintenance.passphrase is None:
             raise RuntimeError("encrypted database is missing its in-memory passphrase")
+        # Exporting encrypted active DBs without --encrypt intentionally produces
+        # plaintext snapshots after the user has unlocked the active DB.
         export_plaintext_database(maintenance.path, path, source_passphrase=maintenance.passphrase)
     else:
         copy_sqlite_database(maintenance.path, path)
@@ -50,6 +54,8 @@ def load_database(runner: Runner, path: Path, *, force: bool = False) -> None:
     passphrase = None
     if database_appears_encrypted(path):
         passphrase = prompt_database_passphrase(path, creating=False)
+    # Replace the EventStore object in-place so the REPL runner keeps its
+    # registry/completion state while pointing at the selected database.
     runner.db = EventStore(path, passphrase=passphrase)
     runner.db.mark_stale_jobs()
     print(f"loaded db={path}")
@@ -102,6 +108,8 @@ def apply_config(runner: Runner, path: Path) -> None:
     values = data.get("variables", data)
     if not isinstance(values, dict):
         raise ValueError(f"{path} variables must be an object/table")
+    # Config load is a replacement operation, not a merge. This makes restoring
+    # a project config deterministic and avoids stale variables surviving.
     runner.registry.varstore.values.clear()
     for key, value in values.items():
         runner.registry.varstore.set(str(key), value)

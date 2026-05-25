@@ -50,6 +50,8 @@ class SmbProbe(CommandletBase):
         if smb_mod is None:
             return ()
         for host in parsed.hosts:
+            # Each host is independent. Publish partial metadata even when a
+            # later host fails so long sweeps still leave useful evidence.
             context.audit_capability("network.connect")
             conn = smb_mod.SMBConnection(host, host, sess_port=parsed.port, timeout=parsed.timeout)
             try:
@@ -76,6 +78,8 @@ def safe_call(obj, method: str) -> str:
     try:
         return str(getattr(obj, method)())
     except Exception:
+        # SMB servers frequently restrict anonymous metadata. Treat that as
+        # absent metadata, not as a failed probe.
         return ""
 
 
@@ -84,6 +88,7 @@ def safe_shares(conn) -> list[str]:
     try:
         return [str(share["shi1_netname"]).rstrip("\x00") for share in conn.listShares()]
     except Exception:
+        # Share enumeration is often blocked even when the service is alive.
         return []
 
 

@@ -1,7 +1,8 @@
-"""Public SQLite-backed event and runtime store facade.
+"""Public event and runtime store facade.
 
-Provides `EventStore` plus the stable database encryption/export helpers used by
-Bywaf runtime, plugins, API, and resource tooling.
+Provides `EventStore` plus stable database encryption/export helpers used by
+Bywaf runtime, plugins, API, and resource tooling. SQLite remains the default
+backend, but connection setup is isolated behind a backend interface.
 
 Used by:
 - runner and plugin contexts: publish/read events and runtime state.
@@ -10,17 +11,15 @@ Used by:
 
 from __future__ import annotations
 
-import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
 
+from .backends import DatabaseBackend, DatabaseConnection, SQLiteBackend
 from .events import EventStoreEventMixin
 from .jobs import EventStoreJobMixin
 from .maintenance import EventStoreMaintenanceMixin
 from .runtime import EventStoreRuntimeMixin
-from ..db_schema import SCHEMA, ensure_event_columns
 from .secrets import EventStoreSecretMixin
 from .support import (
     ACTIVE_JOB_STATUSES,
@@ -48,49 +47,63 @@ class EventStore(
     EventStoreJobMixin,
     EventStoreRuntimeMixin,
 ):
-    """SQLite implementation of Bywaf's event, runtime, and maintenance stores.
+    """Default implementation of Bywaf's event and runtime stores.
 
-    Connections are intentionally short-lived. Each operation opens its own
-    autocommit connection, which works well with multiprocessing and avoids
-    sharing SQLite connection objects across process boundaries.
+    The default backend is SQLite. Connections remain intentionally
+    short-lived, which works well with multiprocessing and avoids sharing DB
+    connection objects across process boundaries.
     """
 
-    def __init__(self, path: Path | str, *, passphrase: str | None = None):
-        self.path = Path(path)
-        self.passphrase = passphrase
+    def __init__(
+        self,
+        path: Path | str | None = None,
+        *,
+        passphrase: str | None = None,
+        backend: DatabaseBackend | None = None,
+    ):
+        if backend is None:
+            if path is None:
+                raise ValueError("EventStore requires either path= or backend=")
+            backend = SQLiteBackend(path, passphrase=passphrase)
+        self.backend = backend
+        self.path = backend.path
         self.initialize()
 
+    @property
+    def passphrase(self) -> str | None:
+        """Return the backend passphrase, when the backend supports one."""
+        return self.backend.passphrase
+
+    @passphrase.setter
+    def passphrase(self, value: str | None) -> None:
+        """Update the backend passphrase after operations such as rekey."""
+        self.backend.passphrase = value
+
     @contextmanager
-    def connect(self) -> Iterator[sqlite3.Connection]:
-        """Open a configured SQLite connection."""
-        driver: Any = sqlite3
-        if self.passphrase is not None:
-            if sqlcipher is None:
-                raise RuntimeError("encrypted databases require the sqlcipher3-binary package")
-            driver = sqlcipher
-        conn = driver.connect(str(self.path), timeout=30, isolation_level=None)
-        conn.row_factory = driver.Row
-        if self.passphrase is not None:
-            set_sqlcipher_key(conn, self.passphrase)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=30000")
-        try:
+    def connect(self) -> Iterator[DatabaseConnection]:
+        """Open a fresh configured connection from the active backend.
+
+        Multiprocessing depends on this being a per-operation connection, not
+        a cached object shared between foreground and background workers.
+        """
+        with self.backend.connect() as conn:
             yield conn
-        finally:
-            conn.close()
 
     def initialize(self) -> None:
-        """Create the schema and apply lightweight compatibility migrations."""
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self.connect() as conn:
-            conn.executescript(SCHEMA)
-            ensure_event_columns(conn)
+        """Initialize the active backend."""
+        self.backend.initialize()
 
 
+# Public database facade.  Most callers should import `EventStore` and database
+# export/encryption helpers from `bywaf.db`, not from the lower-level mixin
+# modules that implement individual event, job, trigger, and maintenance APIs.
 __all__ = [
     "ACTIVE_JOB_STATUSES",
+    "DatabaseBackend",
+    "DatabaseConnection",
     "EventStore",
     "SQLITE_HEADER",
+    "SQLiteBackend",
     "Subscription",
     "database_appears_encrypted",
     "export_encrypted_database",

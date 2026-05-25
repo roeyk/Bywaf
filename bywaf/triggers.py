@@ -29,20 +29,40 @@ def start_default_services(runner: Runner) -> None:
 
 
 def framework_trigger_fired(runner: Runner, trigger: TriggerSpec) -> bool:
-    """Return whether a provider-owned trigger has matched new event history."""
+    """Return whether a provider-owned trigger has matched new event history.
+
+    Trigger services poll the event log.  Each trigger keeps a durable cursor in
+    the database and an in-memory cursor for the current session, so restarts do
+    not replay old events while a single shell session also avoids duplicate
+    firings before the durable state is flushed.
+    """
     trigger_id = runner.registry.trigger_id(trigger)
     after_id = runner.trigger_event_cursors.get(trigger_id, runner.db.trigger_cursor(trigger_id))
     latest_seen = after_id
     fired = False
+
+    # Walk only event rows newer than the trigger cursor.  `latest_seen` moves
+    # forward even when an event does not match, so future checks do not keep
+    # rescanning irrelevant history.
     for event in runner.db.events_matching(topic=trigger.topic, after_id=after_id, limit=10000):
         event_id = int(event.id or 0)
         latest_seen = max(latest_seen, event_id)
+
+        # The durable cursor protects across process restarts.  This in-memory
+        # set protects within one interactive session if this function is called
+        # repeatedly before the trigger state is persisted or observed by every
+        # service loop.
         fire_key = (trigger_id, event_id)
         if fire_key in runner.fired_session_trigger_events:
             continue
         if not trigger_matches(runner, trigger, event):
             continue
         runner.fired_session_trigger_events.add(fire_key)
+
+        # Publish an audit event before starting the action.  The payload keeps
+        # both trigger metadata and the concrete source event that caused this
+        # firing, which is what later audit/report tooling needs to explain why
+        # a background service or action was launched.
         payload = trigger_payload(runner, trigger)
         payload.update(
             {
@@ -59,7 +79,15 @@ def framework_trigger_fired(runner: Runner, trigger: TriggerSpec) -> bool:
             last_fired_event_id=event_id,
         )
         fired = True
+
+        # Fire at most once per polling pass.  Service loops call this again
+        # after the action has been started, which prevents a large backlog from
+        # launching many copies of the same trigger action at once.
         break
+
+    # Persist the cursor whether or not a trigger fired.  Otherwise a non-match
+    # would be rechecked forever, and service triggers watching high-volume
+    # topics could spend most of their time rereading old rows.
     runner.trigger_event_cursors[trigger_id] = latest_seen
     runner.db.update_trigger_state(trigger_id, enabled=True, last_event_id=latest_seen)
     return fired
@@ -158,18 +186,35 @@ def trigger_action_name(trigger: TriggerSpec) -> str:
 
 
 def stop_session_services(runner: Runner) -> None:
-    """Stop default session-scoped services started by the interactive shell."""
+    """Stop default session-scoped services started by the interactive shell.
+
+    Session services are background jobs launched automatically by framework
+    triggers, such as watchdog-style helpers.  On shell shutdown we request a
+    cooperative cancellation first, wait briefly for the child process to exit,
+    and then force-kill only the jobs that ignore the graceful stop.
+    """
     if not runner.session_service_job_ids:
         return
+
+    # Only stop jobs that this session started as services.  Other active jobs
+    # may be user-launched scans and should survive ordinary trigger cleanup.
     for row in runner.db.jobs(active_only=True):
         if int(row["id"]) not in runner.session_service_job_ids:
             continue
         job_id = int(row["id"])
+
+        # Record the cancellation request in the runtime store before touching
+        # the OS process.  Cooperative commandlets can observe this request and
+        # exit cleanly, and audit output can explain why the job stopped.
         runner.db.request_cancellation("job", str(job_id), reason="session shutdown")
         runner.db.update_job_status(job_id, "cancelling")
         pid = row["pid"]
         if pid is None:
             continue
+
+        # Give cooperative services a short grace window.  The shell is already
+        # exiting at this point, so this needs to be long enough for cleanup but
+        # short enough not to make shutdown feel hung.
         deadline = time.monotonic() + 0.5
         while time.monotonic() < deadline:
             if not process_exists(int(pid)):
@@ -177,6 +222,9 @@ def stop_session_services(runner: Runner) -> None:
                 break
             time.sleep(0.05)
         else:
+            # If the service ignores cancellation, force termination and record
+            # that distinction.  A missing process is harmless because it may
+            # have exited between the final poll and the kill call.
             try:
                 os.kill(int(pid), signal.SIGKILL)
             except ProcessLookupError:

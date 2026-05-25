@@ -49,6 +49,8 @@ class SnmpGet(CommandletBase):
             return ()
         for host in parsed.hosts:
             context.audit_capability("network.connect")
+            # Keep one event per host/OID result so failed hosts do not mask
+            # successful responses from the same command invocation.
             publish_snmp_value(context, hlapi, host, parsed.port, parsed.community, parsed.oid, parsed.timeout)
         return ()
 
@@ -64,6 +66,8 @@ def publish_snmp_value(context: CommandContext, hlapi: Any, host: str, port: int
     )
     error_indication, error_status, error_index, var_binds = next(iterator)
     if error_indication:
+        # pysnmp separates transport/runtime failures from protocol-level
+        # error_status. Preserve the distinction in the payload.
         context.events.publish("snmp.value", {"host": host, "port": port, "oid": oid, "error": str(error_indication)})
         return
     if error_status:

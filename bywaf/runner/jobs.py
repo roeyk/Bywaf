@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ..command_parser import parse_pipeline
+from ..command.parser import parse_pipeline
 from ..db import EventStore
 from ..events import Event
 from ..registry import PluginRegistry
@@ -75,6 +75,8 @@ class JobLifecycle:
         """Return job lifecycle payload values with local and serial IDs."""
         if self.job_serial is None:
             self.job_serial = self.db.job_serial(self.job_id)
+        # Include both names for compatibility with older event consumers that
+        # read `serial` and newer code that reads `job_serial`.
         payload: dict[str, object] = {
             "job_id": self.job_id,
             "job_serial": self.job_serial,
@@ -115,6 +117,8 @@ def run_background_job(
         lifecycle.start(pid)
         from .core import Runner
 
+        # The child process rebuilds parser/registry state from the command
+        # line. Stage snapshots carry variable values captured by the parent.
         runner = Runner(db, PluginRegistry.discover(), job_id=job_id)
         pipeline = parse_pipeline(
             command_line,
@@ -152,6 +156,8 @@ def run_attached_pipeline_job(
         lifecycle.start(pid)
         from .core import Runner
 
+        # Attached stages inherit the parent pipeline id but execute in their
+        # own job process so long-running fan-out work can be tracked.
         runner = Runner(db, PluginRegistry.discover(), job_id=job_id)
         runner.run_pipeline((stage.invocation,), pipeline_id=pipeline_id, stages=(stage,))
     except Exception as exc:

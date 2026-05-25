@@ -10,6 +10,8 @@ Used by:
 
 from __future__ import annotations
 
+# Keep user-facing command spellings centralized so completion, dispatch, docs,
+# and secret-redaction logic do not drift.
 SET_COMMAND = "set"
 SETG_COMMAND = "setg"
 VARIABLE_COMMANDS = frozenset((SET_COMMAND, SETG_COMMAND))
@@ -22,4 +24,6 @@ PROJECT_INFO = "info"
 PROJECT_LIST = "list"
 PROJECT_NEW = "new"
 PROJECT_USE = "use"
+# The order here is part of help/completion display and is asserted against the
+# project dispatch table.
 PROJECT_ACTIONS = (PROJECT_ARCHIVE, PROJECT_EXPORT, PROJECT_INFO, PROJECT_LIST, PROJECT_NEW, PROJECT_USE)

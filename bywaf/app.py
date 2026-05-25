@@ -64,6 +64,10 @@ from .repl.resources import (
 )
 from .runner import Runner, add_runner_arguments
 
+# Compatibility export list for code that imports helpers from `bywaf.app`.
+# The implementation has been split across REPL/resource/runner modules, but
+# tests, scripts, and older integrations still use this module as the stable
+# top-level CLI facade.
 __all__ = [
     "DEFAULT_DATABASE",
     "ShellState",

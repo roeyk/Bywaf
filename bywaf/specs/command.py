@@ -17,6 +17,8 @@ from dataclasses import dataclass, field
 class CompletionSpec:
     """Declarative completion behavior for an option or argument."""
 
+    # `kind` is interpreted by the completion engine; `values` carries static
+    # choices when kind="choice".
     kind: str = "none"
     values: tuple[str, ...] = ()
 
@@ -51,6 +53,8 @@ class OptionSpec:
 class CommandSpec:
     """Public commandlet contract consumed by help and completion."""
 
+    # CommandSpec is metadata, not execution logic. Commandlets still build
+    # their runtime parser inside run().
     name: str
     description: str
     usage: str = ""

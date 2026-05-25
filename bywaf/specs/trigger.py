@@ -17,6 +17,8 @@ from dataclasses import dataclass
 class TriggerSpec:
     """Provider-owned ON event DO command rule consumed by the framework."""
 
+    # Trigger specs are declarative and provider-owned; runtime state such as
+    # cursors and enabled flags lives in the database.
     name: str
     topic: str
     action_command: str

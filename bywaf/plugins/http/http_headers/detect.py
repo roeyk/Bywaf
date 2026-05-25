@@ -19,6 +19,8 @@ def fetch_headers(target: HeaderTarget, *, timeout: float) -> HeaderProbeResult:
     connection_cls = http.client.HTTPSConnection if target.use_ssl else http.client.HTTPConnection
     conn = connection_cls(target.host, port=target.port, timeout=timeout)
     try:
+        # Use HEAD because this commandlet only needs response metadata; plugin
+        # authors can swap in GET in their own detect.py if body evidence matters.
         conn.request("HEAD", "/")
         response = conn.getresponse()
         return HeaderProbeResult(target=target, status=response.status, headers=dict(response.headers))

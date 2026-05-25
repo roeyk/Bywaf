@@ -44,6 +44,9 @@ class YaraScan(CommandletBase):
         if not parsed.rule:
             raise ValueError("yara_scan requires rule=<path> or set analysis/yara_scan.rule=<path>")
         context.audit_capability("filesystem.read")
+        # Compile once per invocation, then apply the ruleset to every requested
+        # file. The detection engine stays in yara-python; Bywaf only packages
+        # matches as events.
         rules = yara.compile(filepath=str(Path(parsed.rule).expanduser()))
         for file_name in parsed.files:
             path = Path(file_name).expanduser()

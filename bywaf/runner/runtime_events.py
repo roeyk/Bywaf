@@ -21,6 +21,8 @@ def publish_variable_expansion(context: CommandContext, variable_names: tuple[st
     """Record framework-owned `$variable` expansion for this pipeline step."""
     if not variable_names or context._db is None:
         return None
+    # Variable expansion happens before commandlet code sees args, so the
+    # framework owns both the capability audit and the provenance event.
     context.audit_capability("variable.read")
     return context._db.publish(
         "framework.variable.expanded",
@@ -98,6 +100,8 @@ def pipeline_exists(db: EventStore, pipeline_id: str) -> bool:
 
 def attach_cursor_event_id(db: EventStore, cursor: str) -> int:
     """Convert an attach `since=` cursor into an event high-water mark."""
+    # `beginning` replays historical events into the attached commandlet; `now`
+    # makes it a live tail from the current end of the event log.
     cursors: dict[str, Callable[[], int]] = {
         "beginning": lambda: 0,
         "now": db.latest_event_id,

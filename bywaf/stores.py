@@ -18,6 +18,9 @@ from .events import Event
 from .subscriptions import Subscription
 
 
+# These protocols are intentionally narrower than the concrete SQLite classes.
+# They document the framework contract we need to preserve if another backend is
+# introduced later.
 @runtime_checkable
 class EventStoreProtocol(Protocol):
     """Append-only event bus and audit-log storage."""

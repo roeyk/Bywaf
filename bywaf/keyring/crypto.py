@@ -61,12 +61,15 @@ def public_key_fingerprint(public_key) -> str:
         encoding=serialization.Encoding.Raw,
         format=serialization.PublicFormat.Raw,
     )
+    # Match the familiar OpenSSH SHA256:<base64-no-padding> display format.
     digest = base64.b64encode(hashlib.sha256(raw).digest()).decode("ascii").rstrip("=")
     return f"SHA256:{digest}"
 
 
 def private_key_is_encrypted(data: bytes) -> bool:
     """Return whether PEM private key data declares encryption."""
+    # PEM encryption markers live in the header block; no private key parse is
+    # needed just to decide whether to prompt for a passphrase.
     return b"ENCRYPTED" in data.splitlines()[0:2]
 
 

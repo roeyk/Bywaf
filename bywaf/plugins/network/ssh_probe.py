@@ -48,6 +48,8 @@ class SshProbe(CommandletBase):
         if paramiko is None:
             return ()
         for host, port in ssh_targets(parsed.hosts, parsed.port, input_events):
+            # Authentication success is not required for usefulness: failed
+            # auth still confirms an SSH service and often yields a banner.
             context.audit_capability("network.connect")
             client = paramiko.SSHClient()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -77,6 +79,8 @@ def ssh_targets(hosts: list[str], port: int, input_events: Iterable[Event]) -> l
     """Resolve SSH targets from args or `port.open` events."""
     if hosts:
         return [(host, port) for host in hosts]
+    # Pipeline mode narrows generic port.open input to the default SSH port.
+    # Operators can still override with explicit host args and port= above.
     return [
         (str(event.payload["host"]), int(event.payload["port"]))
         for event in input_events

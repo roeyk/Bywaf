@@ -90,6 +90,8 @@ class ScopedVarStore:
     def get_provider(self, key: str, default: str | None = None) -> str | None:
         """Read an explicitly provider-scoped variable such as `http/repo.proxy`."""
         if key not in self.__provider_variables:
+            # Provider variables cross the commandlet boundary, so manifests
+            # must declare them before plugin code can read them.
             raise PermissionError(f"provider variable not declared for this commandlet: {key}")
         scoped = provider_scoped_key(self.provider_scope, key)
         if scoped in self.__run_values:
@@ -107,6 +109,8 @@ def provider_scope_for(scope: str) -> str:
     """Return the provider path that owns one commandlet variable scope."""
     if "/" not in scope:
         return scope
+    # Commandlet variables live at catalog/path/commandlet.name. Provider
+    # variables intentionally stop one level above the commandlet.
     return scope.rsplit("/", 1)[0]
 
 

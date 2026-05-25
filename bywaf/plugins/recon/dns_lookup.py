@@ -49,6 +49,8 @@ class DnsLookup(CommandletBase):
         resolver.lifetime = parsed.timeout
         resolver.timeout = parsed.timeout
         if parsed.resolver:
+            # A user-specified resolver applies only to this invocation; it is
+            # not written back to global resolver configuration.
             resolver.nameservers = [parsed.resolver]
         for name in parsed.names:
             context.audit_capability("network.connect")
@@ -73,6 +75,8 @@ def optional_module(context: CommandContext, module_name: str, package_name: str
     try:
         return importlib.import_module(module_name)
     except ImportError:
+        # Optional integrations should fail as data, not as an import traceback,
+        # so pipelines can continue and the report can explain the gap.
         context.events.publish(
             "tool.error",
             {

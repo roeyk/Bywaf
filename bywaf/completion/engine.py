@@ -21,7 +21,7 @@ from ..registry import PluginRegistry
 from ..registry.config import normalize_catalog_path
 from ..registry.manifest import parse_plugin_manifest
 from ..toml_support import load_data_file
-from ..command_names import (
+from ..command.names import (
     PROJECT_ACTIONS,
     PROJECT_ALIAS_COMMAND,
     PROJECT_ARCHIVE,
@@ -44,7 +44,12 @@ from .variables import variable_reference_candidates
 
 @dataclass(slots=True)
 class CoreCompleter:
-    """Command-aware completion engine backed by specs and runtime state."""
+    """Command-aware completion engine backed by specs and runtime state.
+
+    This class returns semantic candidates only.  UI adapters in
+    `bywaf.completion` decide how to display or insert them for readline and
+    prompt-toolkit.
+    """
 
     registry: PluginRegistry
     db: EventStore | None = None
@@ -87,6 +92,8 @@ class CoreCompleter:
             tokens = shlex.split(line)
         except ValueError:
             tokens = line.split()
+        # Completion is stage-local.  For `a | b par<Tab>`, only tokens after
+        # the last pipe should influence command/argument completion.
         tokens = tokens_after_last_pipe(tokens)
         prefix = "" if line.endswith(" ") else (tokens[-1] if tokens else "")
         base = self.base_candidates(tokens, prefix, line.endswith(" "))
@@ -107,6 +114,9 @@ class CoreCompleter:
         rest = tokens[1:]
         if self.registry.has_commandlet(command):
             return self.plugin_candidates(command, prefix, rest)
+
+        # Built-in shell commands are completed here because they are not
+        # commandlets and therefore do not have CommandSpec metadata.
         dispatch = {
             "?": lambda current_prefix: self.help_candidates(current_prefix),
             "config": self.config_candidates,
@@ -151,23 +161,39 @@ class CoreCompleter:
         if prefix.startswith("@"):
             return complete_at_file_prefix(prefix)
         plugin = self.registry.get(name)
+
+        # `$var` completion happens before option/argument completion because
+        # variable references can appear anywhere a commandlet accepts text.
         variable_candidates = self.plugin_variable_candidates(name, prefix)
         if variable_candidates:
             return variable_candidates
+
+        # Prefer exact key=value option completions before plugin hooks so
+        # documented OptionSpec metadata stays authoritative for common options.
         if "=" in prefix and not prefix.startswith("--"):
             key_value_candidates = self.plugin_key_value_candidates(name, prefix)
             if key_value_candidates:
                 return key_value_candidates
+
+        # Complete the value after `--option <cursor>` using framework selector
+        # specs or commandlet OptionSpec metadata.
         if args and not prefix.startswith("--"):
             previous = args[-2] if prefix and args[-1] == prefix and len(args) >= 2 else args[-1]
             value_candidates = self.plugin_option_value_candidates(name, previous, prefix)
             if value_candidates:
                 return value_candidates
+
+        # Custom hooks let commandlets use live DB/project context.  They are
+        # consulted after generic option-value cases to avoid overriding
+        # framework selectors accidentally.
         if not prefix.startswith("--"):
             custom_candidates = self.plugin_custom_candidates(name, prefix, args)
             matching_custom_candidates = [candidate for candidate in custom_candidates if candidate.startswith(prefix)]
             if matching_custom_candidates:
                 return matching_custom_candidates
+
+        # Positional metadata provides the fallback for simple commandlets that
+        # do not need a custom completion hook.
         if not prefix.startswith("--"):
             positional_candidates = self.plugin_positional_candidates(name, prefix, args)
             matching_positional_candidates = [candidate for candidate in positional_candidates if candidate.startswith(prefix)]
@@ -179,6 +205,9 @@ class CoreCompleter:
         options.extend(("--from-step", "--from-pipeline", "--from-topic"))
         if prefix.startswith(".") or "/" in prefix:
             return complete_path(prefix)
+        # Final fallback includes valued option forms plus topic names from the
+        # commandlet contract, which helps users discover valid pipeline inputs
+        # and outputs while typing.
         return [*valued_options, *options, *plugin.spec.consumes, *plugin.spec.emits]
 
     def plugin_variable_candidates(self, plugin_name: str, prefix: str) -> list[str]:
@@ -479,6 +508,9 @@ class CoreCompleter:
         for manifest_path in plugin_root.rglob("bywaf.plugin.toml"):
             plugin_dir = manifest_path.parent
             try:
+                # Local manifests let completion expose variables before a
+                # plugin is imported.  Invalid manifests are ignored here; the
+                # actual load path will report the real validation error.
                 provider_path = normalize_catalog_path(plugin_dir.relative_to(plugin_root).as_posix())
                 manifest = parse_plugin_manifest(manifest_path)
             except (OSError, ValueError):

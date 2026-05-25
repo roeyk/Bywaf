@@ -65,6 +65,8 @@ def generate_key(name: str, passphrase: str, *, scope: str = "user", paths: KeyP
     public_path = paths.public_dir / key_filename(name, ".pub.pem")
     if private_path.exists() or public_path.exists():
         raise FileExistsError(f"key files already exist for {name}")
+    # Private material is always written encrypted; the public key and metadata
+    # are enough for verification and completion without unlocking the key.
     private_pem = serialize_private_key(private_key, passphrase)
     public_key = private_key.public_key()
     public_pem = serialize_public_key(public_key)
@@ -128,6 +130,8 @@ def import_private_key(
     if private_path.exists() or public_path.exists():
         raise FileExistsError(f"key files already exist for {name}")
     if private_key_is_encrypted(data) and existing_passphrase is not None and new_passphrase is None:
+        # Preserve already-encrypted material when the caller explicitly does
+        # not request re-encryption. Permissions are still normalized.
         shutil.copyfile(source.expanduser(), private_path)
         write_private_permissions(private_path)
     else:
@@ -167,6 +171,8 @@ def test_key(name: str, passphrase: str | None = None, paths: KeyPaths | None = 
     fingerprint = public_key_fingerprint(public_key)
     if fingerprint != record.fingerprint:
         raise ValueError(f"fingerprint mismatch for key: {name}")
+    # When private material exists, verify that it corresponds to the public key
+    # rather than trusting the metadata paths.
     if record.private_path is not None:
         private_public = load_public_key_from_private(record.private_path, passphrase)
         if public_key_fingerprint(private_public) != fingerprint:

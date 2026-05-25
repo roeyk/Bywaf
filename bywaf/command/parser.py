@@ -14,7 +14,7 @@ import shlex
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from .varstore import VarStore
+from ..varstore import VarStore
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +59,10 @@ def parse_invocation(
     commandlet_for_selectors = commandlet
     if commandlet is not None and command_resolver is not None:
         commandlet_for_selectors = command_resolver(commandlet)
+
+    # `name=` and `note=` are framework-level free-text selectors for most
+    # commandlets, but a few commandlets own those words as their own arguments.
+    # Peel them only when the commandlet has not reserved the selector.
     if commandlet_owns_text_selector(commandlet_for_selectors, "name"):
         display_name = None
     else:
@@ -69,6 +73,9 @@ def parse_invocation(
         text, note = peel_final_text_selector(text, "note")
     variable_expansions: tuple[str, ...] = ()
     if varstore is not None and commandlet is not None:
+        # Resolve aliases before variable expansion so `$timeout` in a scoped
+        # command uses the same commandlet variable namespace that execution
+        # will snapshot later.
         variable_scope = command_scope_resolver(commandlet) if command_scope_resolver is not None else commandlet
         text, variable_expansions = expand_variables_in_text(text, varstore, variable_scope)
     tokens = shlex.split(text)
@@ -79,6 +86,9 @@ def parse_invocation(
         raise ValueError("empty command")
     name, *args = tokens
     args, selectors = peel_context_selectors(args)
+    # Only plugin-owned args are left in `args`.  Framework selectors are stored
+    # separately so runner/context code can route input events, apply policy
+    # plan flags, attach notes, and audit variable expansion consistently.
     return CommandInvocation(
         name=name,
         args=args,
@@ -104,7 +114,12 @@ COMMANDLET_TEXT_SELECTORS = {
 
 
 def commandlet_owns_text_selector(commandlet: str | None, key: str) -> bool:
-    """Return whether a commandlet owns a selector that would otherwise be framework text."""
+    """Return whether a commandlet owns a selector that would otherwise be framework text.
+
+    This prevents the framework parser from consuming valid plugin arguments
+    such as `report defer 1 note=...` before the commandlet has a chance to
+    parse them.
+    """
     if commandlet is None:
         return False
     return key in COMMANDLET_TEXT_SELECTORS.get(commandlet, frozenset())
@@ -131,6 +146,9 @@ def parse_pipeline(
         for part in parts
     )
     if background and commands:
+        # A trailing `&` applies to the whole pipeline.  Store it on the final
+        # stage so Runner can classify the parsed pipeline as background while
+        # preserving each commandlet's own argument list.
         last = commands[-1]
         commands[-1] = CommandInvocation(
             last.name,
@@ -157,6 +175,9 @@ def split_pipeline_raw(command_line: str) -> tuple[list[str], bool]:
     quote: str | None = None
     escaped = False
     for index, char in enumerate(command_line):
+        # This is a tiny shell-like scanner.  We cannot split on every `|`
+        # because URLs, regexes, and shell snippets may contain quoted pipes
+        # that belong to a commandlet argument.
         if escaped:
             escaped = False
             continue
@@ -292,7 +313,13 @@ def provisional_command_name(text: str) -> str | None:
 
 
 def expand_variables_in_text(text: str, varstore: VarStore, commandlet: str) -> tuple[str, tuple[str, ...]]:
-    """Expand `$variables` outside single quotes before shell tokenization."""
+    """Expand `$variables` outside single quotes before shell tokenization.
+
+    Expansion happens before `shlex.split()` so variables can provide multiple
+    words when the operator intends that.  Single quotes suppress expansion,
+    while double quotes allow expansion with escaping suitable for the quoted
+    context.
+    """
     output: list[str] = []
     expanded: list[str] = []
     quote: str | None = None
@@ -336,6 +363,9 @@ def expand_variables_in_text(text: str, varstore: VarStore, commandlet: str) -> 
             index += 1
             continue
         name, end = parsed
+        # Store the resolved variable name for audit.  This lets a step record
+        # that `$target` expanded from, for example,
+        # `http/repo_exposure/git_expose_check.target`.
         value, resolved_name = resolve_variable_reference(varstore, commandlet, name)
         replacement = escape_double_quoted_value(value) if quote == '"' else value
         output.append(replacement)

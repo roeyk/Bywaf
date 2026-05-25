@@ -14,10 +14,17 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ..plugin import Commandlet
-from ..secrets import InMemorySecretStore
+from ..secret.store import InMemorySecretStore
 from ..specs import TriggerSpec
 from ..varstore import VarStore
-from .config import load_defaults_file, load_module_defaults, normalize_catalog_path, parse_package_plugin_config, parse_plugin_config, provider_name
+from .config import (
+    load_defaults_file,
+    load_module_defaults,
+    normalize_catalog_path,
+    parse_package_plugin_config,
+    parse_plugin_config,
+    provider_name,
+)
 from .loading import load_plugins, load_trigger_specs
 from .manifest import (
     enforce_plugin_manifest,
@@ -35,7 +42,13 @@ from .trust import (
 
 @dataclass(slots=True)
 class PluginRegistry:
-    """Loaded commandlets plus their provider grouping and shared variables."""
+    """Loaded commandlets plus their provider grouping and shared variables.
+
+    The registry is the in-memory catalog used by execution, completion, and
+    plugin loading.  It keeps flat commandlet names for direct invocation, slash
+    aliases for catalog paths, provider defaults for `use <provider>` flows,
+    and trigger ownership so durable trigger IDs remain stable.
+    """
 
     plugins: dict[str, Commandlet]
     varstore: VarStore = field(default_factory=VarStore)
@@ -79,7 +92,12 @@ class PluginRegistry:
         registry = cls({}, varstore or VarStore())
         policy = PluginTrustPolicy.developer_bypass() if forced else trust_policy
         for entry in parse_plugin_config(Path(config_file)):
-            registry.load_filesystem_entry(Path(plugin_root), entry, trust_policy=policy, catalog=catalog)
+            registry.load_filesystem_entry(
+                Path(plugin_root),
+                entry,
+                trust_policy=policy,
+                catalog=catalog,
+            )
         return registry
 
     def load_filesystem_entry(
@@ -93,18 +111,32 @@ class PluginRegistry:
         catalog: VerifiedPluginCatalog | None = None,
         manifest_key: Path | None = None,
     ) -> Commandlet:
-        """Load commandlets from `<plugin_root>/<entry>`, enforcing its manifest."""
+        """Load commandlets from `<plugin_root>/<entry>`, enforcing its manifest.
+
+        Filesystem plugins have two identities: their on-disk directory and
+        their catalog/provider path.  Local development may remap the catalog
+        path, but a verified catalog entry must keep the signed path binding so
+        untrusted config cannot present a plugin under a misleading namespace.
+        """
         plugin_dir = plugin_root / entry
         provider_path = normalize_catalog_path(catalog_path or entry)
         policy = PluginTrustPolicy.developer_bypass() if forced else trust_policy
         if catalog_path and catalog is not None and catalog.verifies_entry(plugin_dir, entry):
             raise ValueError("catalog-verified plugin paths cannot be remapped with path=")
+
+        # Trust enforcement happens before importing plugin.py.  That keeps the
+        # manifest/catalog path useful as pre-import metadata rather than only a
+        # post-import consistency check.
         enforce_filesystem_plugin_trust(plugin_dir, entry=entry, trust_policy=policy, catalog=catalog)
         manifest_trust = PluginManifestTrust(
             public_key_path=manifest_key,
             catalog_verified=catalog is not None and catalog.verifies_entry(plugin_dir, entry),
         )
-        plugins, triggers, manifest = load_filesystem_plugin_package(plugin_dir, trust_policy=policy, manifest_trust=manifest_trust)
+        plugins, triggers, manifest = load_filesystem_plugin_package(
+            plugin_dir,
+            trust_policy=policy,
+            manifest_trust=manifest_trust,
+        )
         for plugin in plugins:
             self.register_commandlet(provider_path, plugin)
             load_defaults_file(plugin_dir, plugin, self.varstore, scope=self.variable_scope(plugin.spec.name))
@@ -113,7 +145,12 @@ class PluginRegistry:
         return plugins[0]
 
     def load_package_entry(self, package_name: str, entry: str) -> Commandlet:
-        """Load one bundled plugin module by dotted entry name."""
+        """Load one bundled plugin module by dotted entry name.
+
+        Bundled plugins are trusted code, but their manifests still matter:
+        they keep capabilities, triggers, and provider defaults inspectable and
+        catch drift between declared plugin metadata and runtime objects.
+        """
         manifest = load_package_manifest(package_name, entry)
         provider_path = normalize_catalog_path(entry)
         module = importlib.import_module(f"{package_name}.{entry}")
@@ -139,6 +176,11 @@ class PluginRegistry:
         catalog_path = normalize_catalog_path(entry)
         self.providers.setdefault(provider_name(catalog_path), []).append(plugin.spec.name)
         self.provider_commandlets.setdefault(catalog_path, []).append(plugin.spec.name)
+
+        # A commandlet can always be called by its flat name, and also by its
+        # full catalog path.  If the provider path already ends in the same name
+        # as the commandlet, the provider path itself becomes the primary alias
+        # for variable scoping and completion display.
         full_alias = f"{catalog_path}/{plugin.spec.name}"
         self.add_alias(full_alias, plugin.spec.name)
         self.primary_aliases.setdefault(plugin.spec.name, full_alias)
@@ -168,7 +210,12 @@ class PluginRegistry:
         return self.aliases.get(name, name)
 
     def variable_scope(self, name: str) -> str:
-        """Return the canonical variable scope for a commandlet name or alias."""
+        """Return the canonical variable scope for a commandlet name or alias.
+
+        Variables use the commandlet's primary catalog alias when one exists,
+        so `set http/repo_exposure/git_expose_check.timeout=5` binds to the
+        same commandlet as `git_expose_check` without losing catalog context.
+        """
         canonical_name = self.resolve_commandlet_name(name)
         return self.primary_aliases.get(canonical_name, canonical_name)
 

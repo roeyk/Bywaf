@@ -73,7 +73,13 @@ def parse_plugin_manifest(path: Path) -> PluginManifest:
 
 
 def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManifest:
-    """Parse and validate plugin manifest data from TOML."""
+    """Parse and validate plugin manifest data from TOML.
+
+    The manifest is intentionally stricter than plugin.py metadata alone.  It
+    lets Bywaf inspect plugin shape before import, enforce declared
+    capabilities after import, and expose catalog variables for unloaded
+    plugins.
+    """
     plugin_data = table_value(data, "plugin", source)
     commandlet_rows = data.get("commandlets")
     if not isinstance(commandlet_rows, list) or not commandlet_rows:
@@ -84,6 +90,9 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
     commandlet_provider_variables: dict[str, tuple[str, ...]] = {}
     commandlet_secret_provider_variables: dict[str, tuple[str, ...]] = {}
     for index, row in enumerate(commandlet_rows, start=1):
+        # Each commandlet row is collected into per-commandlet maps so later
+        # enforcement can compare manifest declarations with the concrete
+        # CommandSpec produced by decorators or explicit plugin code.
         if not isinstance(row, dict):
             raise ValueError(f"{source} commandlets entry {index} must be a table")
         name = row.get("name")
@@ -99,6 +108,9 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
     process_wrapped = bool_field(plugin_data, "process_wrapped", source, "plugin")
     service = bool_field(plugin_data, "service", source, "plugin")
     native = bool_field(plugin_data, "native", source, "plugin")
+    # `native` means the plugin is pure in-process Python.  Library-backed and
+    # process-wrapped plugins are still Python plugins, but they carry extra
+    # dependency/process implications and should not also be marked native.
     if native and (library_backed or process_wrapped):
         raise ValueError(f"{source} native=true conflicts with library_backed or process_wrapped")
     roles = string_list_field(plugin_data, "roles", source, "plugin")
@@ -123,7 +135,12 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
 
 
 def parse_trigger_rows(value: Any, source: str) -> tuple[TriggerSpec, ...]:
-    """Parse optional [[triggers]] manifest entries."""
+    """Parse optional [[triggers]] manifest entries.
+
+    Trigger rows are provider-owned automation rules.  They are parsed from the
+    manifest so the registry can list and validate trigger behavior without
+    trusting arbitrary top-level plugin code first.
+    """
     if value in (None, []):
         return ()
     if not isinstance(value, list):
@@ -144,6 +161,9 @@ def parse_trigger_rows(value: Any, source: str) -> tuple[TriggerSpec, ...]:
         if action_mode not in {"foreground", "background", "service"}:
             raise ValueError(f"{source} triggers entry {index} action_mode must be foreground, background, or service")
         payload_equals = row.get("payload_equals", {})
+        # Keep manifest predicates simple and deterministic.  Complex matching
+        # belongs in explicit commandlets; trigger metadata should remain
+        # inspectable without importing plugin code.
         if not isinstance(payload_equals, dict):
             raise ValueError(f"{source} triggers entry {index} payload_equals must be a table")
         for key, item in payload_equals.items():
@@ -203,12 +223,22 @@ def enforce_plugin_manifest(
     plugins: tuple[Commandlet, ...],
     path: Path,
 ) -> tuple[Commandlet, ...]:
-    """Return only manifest-declared commandlets and reject missing declarations."""
+    """Return only manifest-declared commandlets and reject missing declarations.
+
+    This is the post-import half of the manifest contract.  The manifest says
+    what may be exposed; the loaded CommandSpec says what the code actually
+    exposes.  Any drift is rejected so docs, completion, trust prompts, and
+    runtime enforcement are reading the same contract.
+    """
     by_name = {plugin.spec.name: plugin for plugin in plugins}
     missing = sorted(manifest.commandlets.difference(by_name))
     if missing:
         raise ValueError(f"{path} declares missing commandlets: {', '.join(missing)}")
     for name in sorted(manifest.commandlets):
+        # Capabilities, secret options, and provider-variable declarations must
+        # match exactly.  Missing entries would weaken enforcement; stale entries
+        # would make the manifest claim permissions or secrets the code does not
+        # actually use.
         manifest_caps = set(manifest.commandlet_capabilities.get(name, ()))
         code_caps = set(by_name[name].spec.capabilities)
         if manifest_caps != code_caps:

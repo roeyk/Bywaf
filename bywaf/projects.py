@@ -47,6 +47,8 @@ def project_paths(name: str, *, root: Path | None = None) -> ProjectPaths:
     clean_name = validate_project_name(name)
     base = root or projects_root()
     path = base / clean_name
+    # A project is a directory boundary. Database, config, and history live
+    # beside each other so archiving/restoring a project is straightforward.
     return ProjectPaths(
         name=clean_name,
         root=base,
@@ -75,6 +77,8 @@ def create_project(name: str, *, root: Path | None = None) -> ProjectPaths:
     if paths.path.exists():
         raise FileExistsError(f"project already exists: {paths.name}")
     paths.path.mkdir(parents=True)
+    # Seed files make a new project immediately usable by the REPL resource
+    # loaders without special "missing config/history" cases.
     paths.config.write_text("[variables]\n", encoding="utf-8")
     paths.history.write_text("", encoding="utf-8")
     return paths

@@ -46,9 +46,9 @@ from .resources import (
     run_script,
 )
 from ..runner import Runner
-from ..secrets import load_or_create_fingerprint_key
-from ..secret_input import SECRET_BLOCK_VALUE
-from ..command_names import PROJECT_ALIAS_COMMAND, SET_COMMAND, SETG_COMMAND
+from ..secret.store import load_or_create_fingerprint_key
+from ..secret.input import SECRET_BLOCK_VALUE
+from ..command.names import PROJECT_ALIAS_COMMAND, SET_COMMAND, SETG_COMMAND
 
 if TYPE_CHECKING:
     from .shell import ShellState
@@ -167,6 +167,8 @@ def handle_jobs_command(runner: Runner, state: ShellState, rest: str | None, lin
     """Run the job-list commandlet shortcut."""
     del line
     suffix = f" {rest}" if rest in {"--all", "--page"} else ""
+    # Jobs/pipelines have commandlet implementations; the REPL aliases call
+    # those commandlets so output stays consistent with direct use.
     events = runner.execute(f"job list{suffix}")
     process_framework_requests(runner, state)
     print_events(events, runner)
@@ -283,6 +285,8 @@ def handle_run_command(runner: Runner, state: ShellState, rest: str | None, line
     if not state.active_context:
         print("no active commandlet; use <commandlet> first")
         return None
+    # `run` is a convenience for the active `use` context. It does not create a
+    # new command syntax path; direct commandlet invocation remains primary.
     execute_repl_commandlet(runner, state, state.active_context)
     return None
 
@@ -309,6 +313,8 @@ def handle_plugin_command(runner: Runner, state: ShellState, rest: str | None, l
     catalog_path: str | None = None
     use_target: str | None = None
     for token in tokens:
+        # `plugin load=` is the explicit form. path= optionally remaps the local
+        # filesystem plugin into a catalog path for development/testing.
         key, value = parse_resource_assignment(token)
         if key == "load":
             plugin_value = value
@@ -338,6 +344,8 @@ def handle_pload_command(runner: Runner, state: ShellState, rest: str | None, li
     use_target: str | None = None
     paths: list[str] = []
     for token in tokens:
+        # pload keeps the common path short: the sole positional token is the
+        # plugin path, while path=/--use/--force retain the same meanings.
         key, value = parse_resource_assignment(token)
         if token == "--force":
             continue
@@ -398,6 +406,8 @@ def execute_shell_command(runner: Runner, command: str) -> int:
     if not argv:
         print_help(runner, "exec")
         return 2
+    # Shell execution is intentionally explicit through `exec`; normal commandlet
+    # execution remains the default REPL behavior.
     started = runner.events.publish(
         "shell.exec.started",
         {"command": command, "argv": argv},
@@ -539,6 +549,9 @@ def set_var(runner: Runner, state: ShellState, assignment: str, *, source: str =
     resolved_key = resolve_var_key(runner, state, key.strip())
     cleaned_value = value.strip()
     if explicit_secret:
+        # Secrets store a fingerprinted reference in varstore and the cleartext
+        # in the DB secret table. This keeps command rendering/audit output from
+        # exposing the original value.
         hidden_values = getattr(state, "secret_values", {})
         hidden_value = hidden_values.get(resolved_key) or hidden_values.get(key.strip())
         if cleaned_value == SECRET_BLOCK_VALUE and hidden_value is not None:
@@ -614,6 +627,8 @@ def set_active_context(runner: Runner, state: ShellState, target: str) -> None:
         print("using global")
         return
     if not runner.registry.has_commandlet(target):
+        # A provider may expose a default commandlet. If it exposes multiple and
+        # none is marked default, require the user to choose explicitly.
         default = runner.registry.provider_default(target)
         if default is None:
             commandlets = runner.registry.provider_commandlet_names(target)
@@ -637,6 +652,8 @@ def maybe_use_loaded_commandlet(
 ) -> None:
     """Optionally switch active context after loading a plugin provider."""
     if target is None:
+        # Loading does not implicitly change `use`; print the likely next step
+        # while avoiding surprises for providers with multiple commandlets.
         if commandlets:
             print(f"try: use {commandlets[0]}")
         return
@@ -660,6 +677,8 @@ def resolve_var_key(runner: Runner, state: ShellState, key: str) -> str:
     if key.startswith("global."):
         return key
     if "/" in key and "." in key:
+        # Fully-qualified commandlet variables use catalog/path.command_var.
+        # Preserve unloaded catalog variables so they can apply after loading.
         scope, name = key.rsplit(".", 1)
         if runner.registry.has_commandlet(scope):
             return f"{runner.registry.variable_scope(scope)}.{name}"
@@ -669,5 +688,7 @@ def resolve_var_key(runner: Runner, state: ShellState, key: str) -> str:
         if runner.registry.has_commandlet(scope):
             return f"{runner.registry.variable_scope(scope)}.{name}"
     if state.active_context:
+        # In a `use` context, bare `set timeout=5` means
+        # set <active-commandlet>.timeout=5.
         return f"{state.active_context}.{key}"
     return key

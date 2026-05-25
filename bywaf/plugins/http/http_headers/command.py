@@ -34,6 +34,8 @@ def run_http_headers(
 ):
     """Fetch HEAD response metadata for explicit or pipeline targets."""
     parser = commandlet.parser()
+    # Decorators expose option metadata; argparse below is still the execution
+    # parser. Keep both in sync when adding plugin variables.
     parser.add_argument("target", nargs="?")
     parser.add_argument("--port", type=int, default=commandlet.var_default(context, "port", None, cast=int))
     parser.add_argument("--ssl", choices=("true", "false"), default=commandlet.var_default(context, "ssl", "false"))
@@ -42,6 +44,8 @@ def run_http_headers(
     target = parsed.target or commandlet.var_default(context, "target", None)
     targets = header_targets(target, parsed.port, parsed.ssl == "true", input_events)
     for header_target in targets:
+        # Detection returns a neutral fact. Finding packaging is a separate
+        # step so tests can exercise probe logic without Bywaf runtime context.
         context.audit_capability("network.connect")
         result = fetch_headers(header_target, timeout=parsed.timeout)
         payload = result_payload(result)

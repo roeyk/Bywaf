@@ -64,7 +64,7 @@ class EyeWitnessTests(unittest.TestCase):
                 Path(screenshot_dir, "example.png").write_bytes(b"png")
                 return subprocess.CompletedProcess(argv, 0, stdout="", stderr="")
 
-            with patch("bywaf.plugin_process.run_process_argv", side_effect=fake_run):
+            with patch("bywaf.plugin.process.run_process_argv", side_effect=fake_run):
                 list(EyeWitness().run(context, [f"--output-dir={output_dir}"], [event]))
 
             screenshot = db.events_for_topic("eyewitness.screenshot")[0].payload
@@ -119,7 +119,7 @@ class WifiScanTests(unittest.TestCase):
                 )
                 return subprocess.CompletedProcess(argv, 0, stdout="", stderr="")
 
-            with patch("bywaf.plugin_process.run_process_argv", side_effect=fake_run):
+            with patch("bywaf.plugin.process.run_process_argv", side_effect=fake_run):
                 list(WifiScan().run(context, [f"output-dir={output_dir}", "interface=wlan0mon"], []))
 
             network = db.events_for_topic("wifi.network")[0].payload["network"]

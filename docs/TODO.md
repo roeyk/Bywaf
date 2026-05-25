@@ -28,6 +28,25 @@ Planning dates are release planning markers, not compatibility commitments.
 
 ## Target: Next Testing Release
 
+### Item: Source Code Documentation Pass
+
+- Add phase-oriented comments and expanded public docstrings to dense runtime
+  paths, focusing on why each block exists rather than restating individual
+  assignments.
+- Prioritize functions with multiple responsibilities: parsing plus dispatch,
+  cursoring plus audit writes, database mutation plus process control, plugin
+  trust enforcement, and shell/completion adapters.
+- Initial high-value inventory from an AST scan includes:
+  `bywaf/triggers.py`, `bywaf/runner/core.py`, `bywaf/runner/context.py`,
+  `bywaf/registry/core.py`, `bywaf/registry/manifest.py`, `bywaf/db/events.py`,
+  `bywaf/db/runtime.py`, `bywaf/plugin/context.py`,
+  `bywaf/plugin/services.py`, `bywaf/plugin/process.py`,
+  `bywaf/command/parser.py`, `bywaf/completion/engine.py`, and bundled
+  vulnerability/reporting plugins.
+- Keep changes comment/docstring-only unless a function is too dense to explain
+  honestly without extracting helpers; if refactoring is needed, split it into
+  a separate behavioral review.
+
 ### Item: Rock-Solid MVP Plugins
 
 - Harden the MVP plugin suite around realistic end-to-end assessment chains:

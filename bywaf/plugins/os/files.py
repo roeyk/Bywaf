@@ -18,6 +18,7 @@ def list_path(path: Path) -> list[str]:
     if not path.exists():
         raise ValueError(f"{path} does not exist")
     if path.is_file():
+        # Mirror shell `ls file`: return the file name rather than reading it.
         return [path.name]
     return [
         f"{child.name}{'/' if child.is_dir() else ''}"
@@ -31,5 +32,7 @@ def read_text_file(path: Path) -> str:
     if not path.exists():
         raise ValueError(f"{path} does not exist")
     if path.is_dir():
+        # Keep file-display commandlets from accidentally dumping directory
+        # metadata through a text-file path.
         raise ValueError(f"{path} is a directory")
     return path.read_text()

@@ -23,6 +23,8 @@ class Settings:
     local to the working directory unless the user passes explicit paths.
     """
 
+    # These defaults are intentionally relative. Project mode and explicit CLI
+    # paths can redirect them, while ad hoc sessions stay self-contained.
     state_dir: Path = Path(".bywaf")
     database: Path = Path(".bywaf/bywaf.sqlite3")
     config: Path = Path(".bywaf/config.toml")
@@ -33,6 +35,8 @@ class Settings:
     database_dir: Path = Path(".bywaf/db")
     config_dir: Path = Path(".bywaf/config")
     plugin_package: str = "bywaf.plugins"
+    # Polling is used only for lightweight UI/background request loops; long
+    # commandlet work should use jobs/events rather than busy waiting here.
     poll_interval_seconds: float = 0.25
 
 

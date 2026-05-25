@@ -11,7 +11,7 @@ Used by:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from .command_parser import parse_pipeline
+from .command.parser import parse_pipeline
 from .time_format import format_compact_runtime_timestamp
 
 ACTIVE_LISTING_FORMAT_VAR = "listing.active-format"
@@ -39,6 +39,9 @@ DISPLAY_SERIAL_PREFIXES = ("pipeline-", "run-", "job-")
 def runtime_state_label(statuses: str | list[str] | tuple[str, ...] | None) -> str:
     """Collapse one or more runtime statuses into a listing label."""
     values = normalize_statuses(statuses)
+    # Pipelines can summarize several job statuses. Active/in-progress/failure
+    # labels intentionally dominate completed so operators notice work in flight
+    # or work needing attention.
     if any(status in ACTIVE_RUNTIME_STATUSES for status in values):
         return "active"
     if any(status in IN_PROGRESS_RUNTIME_STATUSES for status in values):

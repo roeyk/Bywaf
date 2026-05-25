@@ -14,9 +14,9 @@ import hashlib
 import json
 from typing import Any
 
-from .finding_grouping import finding_group_key as derived_finding_group_key
-from .finding_grouping import normalized_target_scope
-from .finding_taxonomy import validate_finding_class
+from .grouping import finding_group_key as derived_finding_group_key
+from .grouping import normalized_target_scope
+from .taxonomy import validate_finding_class
 
 
 def candidate_payload(
@@ -37,6 +37,8 @@ def candidate_payload(
 ) -> dict[str, Any]:
     """Return a normalized finding candidate payload."""
     finding_class = validate_finding_class(finding_class)
+    # Keep this constructor boring and explicit. Plugin authors should provide
+    # semantic fields, while grouping/reporting code derives operational keys.
     payload = {
         "status": "potential",
         "confidence": confidence,
@@ -54,10 +56,14 @@ def candidate_payload(
         "sources": [compact(source or {})],
     }
     if not payload["target_scope"] and finding_scope:
+        # Older/simple plugins may provide finding_scope instead of a full
+        # target_scope object; normalize it so reporting can group consistently.
         derived_scope = normalized_target_scope(payload)
         if derived_scope:
             payload["target_scope"] = derived_scope
     if not payload["group_key"]:
+        # group_key controls report grouping. finding_id below identifies this
+        # exact candidate shape, so the two values intentionally differ.
         payload["group_key"] = derived_finding_group_key(payload, fallback="")
     payload["finding_id"] = stable_finding_id(payload)
     return compact(payload)
@@ -65,15 +71,15 @@ def candidate_payload(
 
 def telnet_open_candidate(port_payload: dict[str, Any]) -> dict[str, Any] | None:
     """Return a finding candidate for an exposed Telnet service."""
-    from .plugins.network.portscanner_findings import telnet_open_candidate as plugin_candidate
+    from ..plugins.network.portscanner_findings import telnet_open_candidate as plugin_candidate
 
     return plugin_candidate(port_payload)
 
 
 def missing_http_security_header_candidates(headers_payload: dict[str, Any]) -> list[dict[str, Any]]:
     """Return finding candidates for missing high-value HTTP security headers."""
-    from .plugins.http.http_headers.findings import missing_security_header_candidates
-    from .plugins.http.http_headers.models import HeaderProbeResult, HeaderTarget
+    from ..plugins.http.http_headers.findings import missing_security_header_candidates
+    from ..plugins.http.http_headers.models import HeaderProbeResult, HeaderTarget
 
     port = int(headers_payload.get("port") or 0)
     result = HeaderProbeResult(
@@ -90,6 +96,8 @@ def missing_http_security_header_candidates(headers_payload: dict[str, Any]) -> 
 
 def stable_finding_id(payload: dict[str, Any]) -> str:
     """Return a deterministic id for one candidate payload."""
+    # Evidence is deliberately omitted so repeated observations of the same
+    # issue remain easy to connect even if proof snippets differ slightly.
     basis = {
         "class": payload.get("class"),
         "identifiers": payload.get("identifiers"),

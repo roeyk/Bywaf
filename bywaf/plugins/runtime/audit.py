@@ -178,6 +178,9 @@ def capability_inventory_rows(context: CommandContext, *, plugin_filter: str | N
     """Return declaration/runtime inventory rows for framework capabilities."""
     runner = context.metadata.get("runner")
     registry = runner.registry if runner is not None else PluginRegistry.discover()
+    # Compare manifest/spec declarations with actual capability audit events.
+    # This gives operators a quick view of drift between what plugins claimed
+    # and what they attempted during execution.
     declared = declared_capabilities(registry, plugin_filter=plugin_filter)
     used = capability_events(context, "plugin.capability.used", plugin_filter=plugin_filter)
     missing = capability_events(context, "plugin.capability.missing", plugin_filter=plugin_filter)
@@ -308,6 +311,9 @@ def require_selector(selectors: dict[str, str], name: str) -> str:
 def selected_events(context: CommandContext, selectors: dict[str, str], limit: int) -> list[Event]:
     """Fetch events matching audit selectors."""
     events_store = context.event_store("audit")
+    # serial= and job= require helper lookups because they may span several
+    # event columns. Direct topic/step/pipeline selection can use the generic
+    # event query path.
     if "serial" in selectors:
         events = events_store.events_for_serial(selectors["serial"], limit=100000)
     elif "job" in selectors:
@@ -343,6 +349,9 @@ def resolve_bound(
     if value is None:
         return None, None
     kind, raw = split_bound(value)
+    # Bounds can be wall-clock timestamps or runtime-relative anchors such as
+    # since=step:3. Resolve both to either event IDs or datetimes, then apply one
+    # common event_in_window predicate.
     resolver = audit_bound_resolvers().get(kind)
     if resolver is None:
         raise ValueError(f"unsupported audit bound type: {kind}")
@@ -482,6 +491,8 @@ def export_events(
     """Export selected audit events to JSON, JSONL, or SQLite."""
     export_format = choose_format(path, requested_format)
     path.parent.mkdir(parents=True, exist_ok=True)
+    # The command surface is `audit export file=...`; suffix-based format
+    # selection keeps the common path short while still allowing --format.
     handler = audit_export_handlers().get(export_format)
     if handler is None:
         raise ValueError(f"unsupported audit export format: {export_format}")

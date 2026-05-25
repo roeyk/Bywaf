@@ -124,6 +124,8 @@ def run_target(context: CommandContext, parsed: Any, target: dict[str, Any]) -> 
     context.audit_capability("network.connect")
     with tempfile.TemporaryDirectory(prefix="bywaf-nikto-") as temp_dir:
         output_path = Path(temp_dir, "nikto.json")
+        # Nikto writes structured output to a file. Run it shell-free, then
+        # import the produced JSON as both parse input and optional artifact.
         argv = nikto_argv(
             binary=str(parsed.binary),
             url=url,
@@ -329,6 +331,9 @@ def normalize_findings(target: dict[str, Any], data: Any, artifact_payload: dict
         severity = str(record.get("severity") or record.get("level") or "unknown")
         path = str(record.get("url") or record.get("uri") or record.get("path") or "")
         method = str(record.get("method") or "")
+        # This wrapper emits both Nikto-native and compatibility topics. The
+        # normalized fields below give finding_dedupe/report enough structure to
+        # group results even before a dedicated candidate_payload migration.
         finding = {
             "finding_id": finding_id,
             "scanner": "nikto",
@@ -374,6 +379,8 @@ def extract_finding_records(data: Any) -> list[dict[str, Any]]:
 
     for value in data.values():
         if isinstance(value, (dict, list)):
+            # Nikto JSON layouts vary across versions and wrappers. Recursing
+            # lets us support nested records without committing to one schema.
             records.extend(extract_finding_records(value))
     return unique_records(records)
 

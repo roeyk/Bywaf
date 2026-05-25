@@ -100,6 +100,8 @@ def endpoint_payloads(
 ) -> list[dict[str, Any]]:
     """Resolve endpoint payloads from explicit targets or upstream events."""
     if targets:
+        # Explicit targets have not necessarily passed through http_probe, so do
+        # a lightweight GET here to collect title/header evidence for inference.
         opener = build_opener(None, None, True)
         payloads: list[dict[str, Any]] = []
         for target in targets:
@@ -136,6 +138,8 @@ def fingerprint_endpoint(endpoint: dict[str, Any]) -> dict[str, Any]:
     url = str(endpoint.get("final_url") or endpoint.get("url") or "")
     technologies = infer_technologies(server, content_type, title, headers)
     observations = infer_observations(status, server, content_type, title, headers)
+    # This plugin emits facts and observations, not findings. Later plugins such
+    # as Nikto or report/dedupe can decide which observations are actionable.
     return {
         "url": url,
         "host": str(endpoint.get("host") or ""),
@@ -165,6 +169,8 @@ def infer_technologies(
     headers: dict[str, str],
 ) -> list[str]:
     """Infer lightweight technology tags from common HTTP metadata."""
+    # Keep rules intentionally shallow. This is a fast triage signal, not a full
+    # Wappalyzer-style signature engine.
     evidence = " ".join([server, content_type, title, " ".join(headers.values())]).lower()
     rules = (
         ("nginx", ("nginx",)),

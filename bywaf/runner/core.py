@@ -18,7 +18,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..command_parser import CommandInvocation, Pipeline, parse_pipeline
+from ..command.parser import CommandInvocation, Pipeline, parse_pipeline
 from .at_files import expand_at_file_args
 from .context import StageRun
 from .context import build_context
@@ -38,7 +38,7 @@ from ..db import EventStore, Subscription
 from ..events import Event
 from ..plugin import CommandContext
 from ..registry import PluginRegistry
-from ..secrets import REDACTED_VALUE, fingerprint_secret, load_or_create_fingerprint_key
+from ..secret.store import REDACTED_VALUE, fingerprint_secret, load_or_create_fingerprint_key
 from ..stores import EventStoreProtocol, MaintenanceStoreProtocol, RuntimeStoreProtocol
 
 
@@ -107,7 +107,12 @@ class Runner:
         *,
         pipeline_name: str | None = None,
     ) -> list[Event]:
-        """Run a foreground pipeline through the same job lifecycle."""
+        """Run a foreground pipeline through the same job lifecycle.
+
+        Foreground work still gets a job row so `jobs`, audit history, and
+        cancellation/review tooling see the same lifecycle shape for foreground
+        and background executions.
+        """
         pid = os.getpid()
         lifecycle = JobLifecycle.create(self.db, command_line, pid)
         if not lifecycle.claim(pid):
@@ -116,6 +121,8 @@ class Runner:
         previous_job_id = self.job_id
         self.job_id = lifecycle.job_id
         try:
+            # Temporarily attach this runner to the foreground job so all stage
+            # events inherit the job id while preserving any outer job context.
             events = self.run_pipeline(commands, pipeline_name=pipeline_name)
         except Exception as exc:
             lifecycle.fail(str(exc))
@@ -146,6 +153,9 @@ class Runner:
         input_events: list[Event] = []
         produced: list[Event] = []
         for stage in stages:
+            # Foreground pipelines are stream-like: each stage receives only the
+            # visible output of the previous stage, while all emitted events are
+            # still persisted for audit and later report queries.
             result = execute_stage(
                 self.db,
                 self.registry,
@@ -171,11 +181,20 @@ class Runner:
         pipeline_id: str | None = None,
         stages: tuple[StageRun, ...] | None = None,
     ) -> None:
-        """Run each stage in its own process for stage-level background jobs."""
+        """Run each stage in its own process for stage-level background jobs.
+
+        This is used for background pipelines where each commandlet stage should
+        have an independent process boundary.  Runtime variables are snapshotted
+        before child startup so later `set` changes do not silently alter a job
+        already in flight.
+        """
         pipeline_id = pipeline_id or new_run_id("pipeline")
         stages = stages or prepare_stage_runs(commands)
         processes: list[mp.Process] = []
         for stage in stages:
+            # Child processes do not share the parent registry state, so record
+            # the exact variables for this stage before the child reconstructs
+            # its execution context from the database.
             ensure_run_var_snapshot(
                 self.db,
                 self.registry.varstore,
@@ -210,11 +229,19 @@ class Runner:
             )
             process.start()
             processes.append(process)
+        # Wait for every stage process here because the containing job process
+        # owns the overall lifecycle and should not mark the job complete until
+        # all of its stage children have exited.
         for process in processes:
             process.join()
 
     def start_background(self, command_line: str, *, pipeline: Pipeline | None = None) -> Event:
-        """Start an entire command line in a child process and record a job."""
+        """Start an entire command line in a child process and record a job.
+
+        The REPL calls this for commands ending in `&`.  The parent records the
+        request event and process id; the child process owns stage execution and
+        final job lifecycle updates.
+        """
         foreground = command_line.strip()
         pipeline = pipeline or parse_pipeline(
             foreground,
@@ -228,6 +255,9 @@ class Runner:
         stages = prepare_stage_runs(pipeline.commands)
         lifecycle = JobLifecycle.create(self.db, foreground, None)
         for stage in stages:
+            # Snapshot stage variables before the background process starts for
+            # the same reason as `run_pipeline_processes`: background work must
+            # be reproducible even if the operator changes variables later.
             ensure_run_var_snapshot(
                 self.db,
                 self.registry.varstore,
@@ -242,6 +272,7 @@ class Runner:
             daemon=False,
         )
         process.start()
+        # Store the child pid after fork so control commands can signal the job.
         self.db.update_job_pid(lifecycle.job_id, process.pid)
         if lifecycle.request_event is None:
             raise RuntimeError("job request event was not recorded")
@@ -255,7 +286,13 @@ class Runner:
         upstream_run_id: str | None = None,
         since_cursor: str = "beginning",
     ) -> Event:
-        """Attach one background commandlet to an existing pipeline."""
+        """Attach one background commandlet to an existing pipeline.
+
+        Attached stages let an operator continue analysis after a pipeline has
+        already produced events.  The new stage reads from a chosen cursor and
+        writes back into the same pipeline provenance instead of creating a
+        disconnected job.
+        """
         if not pipeline_exists(self.db, pipeline_id):
             raise ValueError(f"unknown pipeline: {pipeline_id}")
         after_id = attach_cursor_event_id(self.db, since_cursor)
@@ -268,6 +305,10 @@ class Runner:
         if len(parsed.commands) != 1:
             raise ValueError("pipeline attach accepts exactly one commandlet")
         original = parsed.commands[0]
+        # Force the attached invocation to be background-scoped and bound to the
+        # target pipeline.  Other invocation fields are preserved so selectors,
+        # notes, display names, approvals, and variable-expansion audit remain
+        # attached to the operator's command.
         invocation = CommandInvocation(
             original.name,
             original.args,
@@ -296,6 +337,9 @@ class Runner:
             command_run_id=stage.command_run_id,
             commandlet=self.registry.variable_scope(invocation.name),
         )
+        # Publish an explicit attachment event before the child starts.  If the
+        # child fails early, audit/history still shows that the operator
+        # requested a continuation stage and which cursor it would have used.
         self.db.publish(
             "pipeline.attached",
             {
@@ -318,6 +362,7 @@ class Runner:
             daemon=False,
         )
         process.start()
+        # Store the pid for ordinary runtime controls (`cancel`, `kill`, etc.).
         self.db.update_job_pid(lifecycle.job_id, process.pid)
         if lifecycle.request_event is None:
             raise RuntimeError("job request event was not recorded")

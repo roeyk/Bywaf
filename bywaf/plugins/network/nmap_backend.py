@@ -108,6 +108,8 @@ def load_backend() -> tuple[str, Any]:
     The supported libraries expose different APIs, so callers receive both a
     backend name and an opaque backend object for the adapter-specific helpers.
     """
+    # Keep nmap imports lazy. Bywaf should start even when optional scanner
+    # libraries are absent, and tests can replace this function with a fake.
     for name in ("nmaplib", "nmap", "nmapthon", "libnmap"):
         try:
             module = importlib.import_module(name)
@@ -146,6 +148,8 @@ def collect_open_ports(scanner: Any) -> list[NmapPort]:
             for port in sorted(host_result[protocol].keys()):
                 data = host_result[protocol][port]
                 if data.get("state") == "open":
+                    # Normalize scanner-specific dictionaries into one record
+                    # shape before the network plugins emit port.open events.
                     ports.append(
                         NmapPort(
                             host=host,

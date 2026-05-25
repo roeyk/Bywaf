@@ -27,6 +27,8 @@ def publish_resource_loaded(
 ) -> Event:
     """Audit one explicitly loaded resource and return the persisted event."""
     serial = new_run_id(resource_type)
+    # Resource loads are not commandlet steps, but they still need stable
+    # serials so history and audit views can cite them later.
     payload: dict[str, object] = {
         "serial": serial,
         "resource_type": resource_type,
@@ -43,6 +45,8 @@ def plugin_manifest_audit_details(plugin_path: Path) -> dict[str, object]:
     if not manifest_path.exists():
         return {"manifest": None, "manifest_sha256": None}
     manifest = parse_plugin_manifest(manifest_path)
+    # Capture manifest claims without importing the plugin. This keeps load
+    # audit cheap and preserves exactly what trust validation saw.
     return {
         "manifest": str(manifest_path),
         "manifest_sha256": sha256_file(manifest_path),
@@ -69,6 +73,8 @@ def sha256_file(path: Path) -> str:
     """Return the SHA-256 hash for one file."""
     digest = hashlib.sha256()
     with path.open("rb") as handle:
+        # Stream large manifests/resources instead of reading whole files into
+        # memory. Manifests are small today, but this helper is generic.
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()

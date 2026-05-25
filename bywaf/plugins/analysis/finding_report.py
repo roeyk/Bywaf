@@ -124,6 +124,9 @@ def select_report_events(
     if usable_input:
         return usable_input
 
+    # In standalone use, prefer normalized dedupe output when it exists. Raw tool
+    # findings are still available through source=tools for troubleshooting or
+    # before a pipeline has adopted finding_dedupe.
     dedupe_events = query_topics(context, REPORT_FINDING_TOPICS, limit)
     if not include_candidates:
         dedupe_events = [event for event in dedupe_events if event.topic != "finding.merge_candidate"]
@@ -169,6 +172,8 @@ def finding_rows(events: list[Event], *, include_candidates: bool) -> list[dict[
         row = row_from_event(event)
         finding_id = str(event.payload.get("finding_id") or "")
         if finding_id and event.topic in {"finding.candidate", "finding.new"}:
+            # Keep the table readable when a commandlet emitted the same
+            # normalized finding more than once in the selected scope.
             if finding_id in seen_finding_ids:
                 continue
             seen_finding_ids.add(finding_id)

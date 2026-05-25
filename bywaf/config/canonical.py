@@ -24,6 +24,8 @@ def canonical_config_bytes(
     signature_keys: frozenset[str] = DEFAULT_SIGNATURE_KEYS,
 ) -> bytes:
     """Return order-insensitive canonical bytes for signing config values."""
+    # Signatures should cover semantic config content, not formatting or the
+    # signature block itself. Excluding signature keys prevents self-reference.
     unsigned = {key: value for key, value in data.items() if key not in signature_keys}
     return json.dumps(
         canonical_config_value(unsigned),
@@ -46,6 +48,8 @@ def canonical_config_value(value: Any) -> Any:
     if isinstance(value, dict):
         return {str(key): canonical_config_value(item) for key, item in value.items()}
     if isinstance(value, list):
+        # Lists in manifests are treated as unordered declarations for signing,
+        # so TOML reorderings do not invalidate otherwise equivalent metadata.
         normalized = [canonical_config_value(item) for item in value]
         return sorted(normalized, key=canonical_config_sort_key)
     if isinstance(value, (str, int, float, bool)) or value is None:

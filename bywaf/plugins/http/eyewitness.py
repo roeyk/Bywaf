@@ -118,6 +118,8 @@ def run_eyewitness(context: CommandContext, parsed: Any, targets: list[dict[str,
         publish_tool_problem(context, "system.error", "eyewitness", "could not execute EyeWitness", exc)
         return
     finally:
+        # The generated target list is just process input. Evidence comes from
+        # screenshot files attached below, so clean the temporary list promptly.
         if target_file is not None:
             target_file.unlink(missing_ok=True)
 
@@ -156,6 +158,8 @@ def eyewitness_argv(binary: str, targets: list[dict[str, Any]], output_dir: Path
         argv.extend(["--single", str(targets[0]["url"])])
         return argv, None
 
+    # EyeWitness expects many targets through a file. Keep this shell-free and
+    # return the file path so the caller can remove it after execution.
     target_file = output_dir / "bywaf-eyewitness-targets.txt"
     target_file.write_text("\n".join(str(target["url"]) for target in targets) + "\n", encoding="utf-8")
     argv.extend(["-f", str(target_file)])
@@ -203,6 +207,8 @@ def publish_screenshot(
 ) -> None:
     """Attach and publish one screenshot artifact event."""
     context.audit_capability("filesystem.read")
+    # The screenshot file remains discoverable even if artifact storage is not
+    # available; successful attachment enriches the event with artifact metadata.
     payload: dict[str, Any] = {
         "tool": "eyewitness",
         "file": str(screenshot),

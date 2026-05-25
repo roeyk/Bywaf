@@ -48,6 +48,8 @@ def archive_project(runner: Runner, output_path: Path, *, encrypt: bool = False)
     if project is None:
         raise ValueError("project archive requires an active project")
 
+    # Checkpoint before collecting files so SQLite WAL state is flushed enough
+    # for a portable archive snapshot.
     runner.db.checkpoint()
     members = list(project_archive_members(project))
     if not members:
@@ -82,6 +84,8 @@ def archive_project(runner: Runner, output_path: Path, *, encrypt: bool = False)
 
 def project_archive_members(project: ProjectPaths) -> Iterable[ArchiveMember]:
     """Yield existing framework-owned files for a project."""
+    # Archive only Bywaf-owned project files. Arbitrary user output belongs in
+    # artifacts or external deliverables, not in the project archive by default.
     paths = [
         project.database,
         *sqlite_sidecars(project.database),
@@ -170,6 +174,8 @@ def write_encrypted_project_archive(
     kdf = PBKDF2HMAC(algorithm=SHA256(), length=32, salt=salt, iterations=iterations)
     key = kdf.derive(passphrase.encode("utf-8"))
 
+    # Build a normal ZIP first, then encrypt the full byte stream. This keeps
+    # encrypted and unencrypted archives sharing one manifest format.
     with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as temp:
         temp_path = Path(temp.name)
     try:

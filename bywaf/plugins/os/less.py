@@ -52,6 +52,8 @@ def page_file(path: Path, context: CommandContext | None = None) -> None:
     if path.is_dir():
         raise ValueError(f"{path} is a directory")
     if context is not None:
+        # Context owns paging so tests, CLI, and future UIs can choose their
+        # own display backend without changing this plugin.
         context.page_file(path)
         return
     print(read_text_file(path), end="")

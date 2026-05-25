@@ -9,17 +9,18 @@ Used by:
 
 from __future__ import annotations
 
-import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from typing import Any
 
+from .backends import DatabaseConnection
 from .support import ACTIVE_JOB_STATUSES, new_serial, process_exists
 
 
 class EventStoreJobMixin:
     @contextmanager
-    def connect(self) -> Iterator[sqlite3.Connection]:
+    def connect(self) -> Iterator[DatabaseConnection]:
         """Implemented by EventStore."""
         raise NotImplementedError
 
@@ -44,6 +45,8 @@ class EventStoreJobMixin:
     def claim_job(self, job_id: int, pid: int | None) -> bool:
         """Atomically claim a queued job for one worker process."""
         with self.connect() as conn:
+            # The status predicate is the lock: competing workers can race this
+            # UPDATE, but only the one that changes a queued row gets rowcount 1.
             cursor = conn.execute(
                 """
                 UPDATE jobs
@@ -68,7 +71,7 @@ class EventStoreJobMixin:
         with self.connect() as conn:
             conn.execute("UPDATE jobs SET status = ? WHERE id = ?", (status, job_id))
 
-    def jobs(self, *, active_only: bool = False) -> list[sqlite3.Row]:
+    def jobs(self, *, active_only: bool = False) -> list[Any]:
         """Return known jobs with newest jobs first."""
         self.ensure_job_serials()
         with self.connect() as conn:
@@ -94,6 +97,9 @@ class EventStoreJobMixin:
             ).fetchall()
             for row in rows:
                 pid = row["pid"]
+                # PID checks are best-effort cleanup for abandoned background
+                # workers. They do not prove a job is healthy, only that the
+                # recorded process no longer exists.
                 if pid is None or not process_exists(int(pid)):
                     stale_ids.append(int(row["id"]))
             now = datetime.now(timezone.utc).isoformat()
@@ -104,7 +110,7 @@ class EventStoreJobMixin:
                 )
         return len(stale_ids)
 
-    def job(self, job_id: int) -> sqlite3.Row | None:
+    def job(self, job_id: int) -> Any | None:
         """Return one job row by ID."""
         self.ensure_job_serials()
         with self.connect() as conn:
@@ -129,9 +135,11 @@ class EventStoreJobMixin:
         with self.connect() as conn:
             rows = conn.execute("SELECT id FROM jobs WHERE serial IS NULL ORDER BY id").fetchall()
             for row in rows:
+                # Local numeric IDs are convenient for the active DB; serials
+                # survive export/import and are safer to cite externally.
                 conn.execute("UPDATE jobs SET serial = ? WHERE id = ?", (new_serial("job"), int(row["id"])))
 
-    def jobs_for_pipeline(self, pipeline_id: str) -> list[sqlite3.Row]:
+    def jobs_for_pipeline(self, pipeline_id: str) -> list[Any]:
         """Return jobs associated with a pipeline-step variable snapshot pipeline."""
         with self.connect() as conn:
             return list(
@@ -148,7 +156,7 @@ class EventStoreJobMixin:
                 )
             )
 
-    def jobs_for_run(self, command_run_id: str) -> list[sqlite3.Row]:
+    def jobs_for_run(self, command_run_id: str) -> list[Any]:
         """Return jobs associated with one pipeline-step variable snapshot."""
         with self.connect() as conn:
             return list(

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from bywaf.findings import candidate_payload
+from bywaf.finding import candidate_payload
 
 from .models import DetectionStatus, GitConfigProbeResult
 
@@ -39,6 +39,9 @@ def candidate_from_detection(result: GitConfigProbeResult, *, source_tool: str =
     """Return a normalized finding candidate for exposed Git config."""
     if result.status is not DetectionStatus.CANDIDATE:
         return None
+    # Exposed repository metadata is an origin-level issue. The affected URL is
+    # kept as evidence, while grouping uses the origin so future repository
+    # exposure checks on the same web service can collapse together.
     return candidate_payload(
         title="Exposed Git repository configuration",
         finding_class="web.exposure.git_config",

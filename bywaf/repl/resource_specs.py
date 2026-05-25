@@ -37,6 +37,8 @@ def parse_load_spec(spec: str) -> tuple[bool, str, str | None]:
         if token == "--force":
             forced = True
         elif token.startswith("path="):
+            # path= is a local-development catalog override, not a value the
+            # plugin can set for itself.
             catalog_path = token.split("=", 1)[1]
         else:
             resource_tokens.append(token)
@@ -91,5 +93,7 @@ def resolve_resource_path(value: str, root: Path, default: Path | None = None) -
         return default.expanduser()
     path = Path(value).expanduser()
     if is_explicit_path(value):
+        # Explicit paths mean "use exactly where I pointed", which is important
+        # for local plugin testing outside the configured plugin root.
         return path
     return root / path

@@ -10,12 +10,12 @@ Used by:
 from __future__ import annotations
 
 import json
-import sqlite3
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any, cast
 
+from .backends import DatabaseConnection
 from .support import artifact_count_queries
 from ..events import Event
 from ..subscriptions import Subscription
@@ -23,7 +23,7 @@ from ..subscriptions import Subscription
 
 class EventStoreEventMixin:
     @contextmanager
-    def connect(self) -> Iterator[sqlite3.Connection]:
+    def connect(self) -> Iterator[DatabaseConnection]:
         """Implemented by EventStore."""
         raise NotImplementedError
 
@@ -81,6 +81,10 @@ class EventStoreEventMixin:
                 event.command_run_id,
                 event.parent_command_run_id,
             )
+
+        # Events are also the source of truth for runtime object discovery.  As
+        # soon as an event names a pipeline or step, ensure it has a stable
+        # local ID for `pipelines`, `steps`, completion, and user selectors.
         runtime_store = cast(Any, self)
         if saved.pipeline_id:
             runtime_store.ensure_runtime_entity("pipeline", saved.pipeline_id, saved.created_at.isoformat())
@@ -129,7 +133,12 @@ class EventStoreEventMixin:
         timeout_seconds: float = 0,
         interval_seconds: float = 0.25,
     ) -> list[Event]:
-        """Poll until matching events arrive or the timeout expires."""
+        """Poll until matching events arrive or the timeout expires.
+
+        This is intentionally a small blocking loop over `fetch()`.  The event
+        store stays SQLite-backed and process-safe without introducing a
+        long-lived DB cursor or external notification service.
+        """
         deadline = time.monotonic() + timeout_seconds
         while True:
             events = self.fetch(subscription)
@@ -207,7 +216,12 @@ class EventStoreEventMixin:
             return [Event.from_row(row) for row in rows]
 
     def events_for_job(self, job_id: int, *, limit: int = 1000) -> list[Event]:
-        """Return events associated with a job id through scope or payload."""
+        """Return events associated with a job id through scope or payload.
+
+        Some events inherit job identity through command-run variable snapshots;
+        framework events may instead store `job_id` in their payload.  Reporting
+        and job inspection need both forms to reconstruct a full job timeline.
+        """
         with self.connect() as conn:
             rows = conn.execute(
                 """
@@ -249,6 +263,10 @@ class EventStoreEventMixin:
         """Return known durable runtime/resource/artifact serial values."""
         values: set[str] = set()
         with self.connect() as conn:
+            # Serials are scattered across first-class columns and JSON payloads
+            # because jobs, artifacts, and framework requests are different
+            # resource types.  This query intentionally gathers all of them for
+            # audit lookup and future cross-resource search.
             rows = conn.execute(
                 """
                 SELECT command_run_id AS serial FROM events WHERE command_run_id IS NOT NULL

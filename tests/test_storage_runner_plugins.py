@@ -34,7 +34,7 @@ from bywaf.plugins.network.portscanner import PortScanner
 from bywaf.plugins.runtime.watchdog import Watchdog
 from bywaf.plugins.storage.db import encrypt_active_database
 from bywaf.plugin import CommandContext
-from bywaf.command_parser import parse_invocation, parse_pipeline
+from bywaf.command.parser import parse_invocation, parse_pipeline
 from bywaf.runner import expand_at_file_arg, run_background_job
 from bywaf.varstore import VarStore
 

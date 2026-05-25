@@ -67,6 +67,9 @@ from .trust import (
     verify_plugin_manifest_signature_data,
 )
 
+# Public registry facade.  Keeping this list explicit lets callers import the
+# supported registry/trust helpers from `bywaf.registry` while internal modules
+# stay free to move as the registry implementation is refined.
 __all__ = [
     "MANIFEST_SIGNATURE_SCHEMA",
     "PluginManifest",

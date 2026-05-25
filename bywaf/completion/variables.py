@@ -18,6 +18,8 @@ def variable_reference_candidates(names: Sequence[str], commandlet: str, prefix:
     candidates: set[str] = set()
     commandlet_prefix = f"{commandlet}."
     for name in names:
+        # Prefer short `$timeout` style references for the active commandlet and
+        # globals, but always expose `${full.scope.name}` for unambiguous use.
         if name.startswith(commandlet_prefix):
             candidates.add(f"${name.removeprefix(commandlet_prefix)}")
         if name.startswith("global."):

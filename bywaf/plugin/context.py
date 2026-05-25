@@ -20,7 +20,7 @@ from ..artifacts import artifact_store_for_event_store
 from ..db import EventStore
 from ..events import Event
 from .capabilities import capability_declared, framework_request_capability
-from ..plugin_process import ContextProcess
+from .process import ContextProcess
 from .services import (
     ContextArtifacts,
     ContextEvents,
@@ -31,14 +31,20 @@ from .services import (
     should_emit_progress,
 )
 from ..rendering import Column, Table
-from ..secrets import InMemorySecretStore
+from ..secret.store import InMemorySecretStore
 from ..stores import ArtifactStoreProtocol, EventStoreProtocol, MaintenanceStoreProtocol, RuntimeStoreProtocol
 from ..varstore import ScopedVarStore, VarStore
 
 
 @dataclass(init=False, slots=True)
 class CommandContext:
-    """Runtime context passed into commandlets."""
+    """Runtime context passed into commandlets.
+
+    This is the plugin author's mediated view of Bywaf runtime state.  It
+    exposes scoped variables, event publishing, artifacts, rendering, signals,
+    and process helpers while keeping raw database access reserved for internal
+    commandlets that explicitly request it.
+    """
 
     _db: EventStore | None
     source: str
@@ -58,6 +64,9 @@ class CommandContext:
         self._db = db
         self.source = source
         self.metadata = metadata or {}
+        # Scope variables at context construction time.  The underlying
+        # VarStore remains shared, but `ScopedVarStore` enforces commandlet,
+        # provider, and snapshot lookup rules for this specific step.
         self._vars = ScopedVarStore(
             _varstore or VarStore(),
             str(self.metadata.get("var_scope") or self.source),
@@ -69,7 +78,12 @@ class CommandContext:
 
     @property
     def db(self) -> EventStore | None:
-        """Return raw database access for privileged/internal commandlets."""
+        """Return raw database access for privileged/internal commandlets.
+
+        Most plugins should use `context.events`, `context.artifacts`, and other
+        mediated services.  Accessing `db` is audited as `db.raw` because it
+        bypasses those narrower APIs.
+        """
         if self._db is not None:
             self.audit_capability("db.raw")
         return self._db
@@ -207,7 +221,12 @@ class CommandContext:
             raise RuntimeError("commandlet cancelled")
 
     def request(self, topic: str, payload: dict[str, Any]) -> Event | None:
-        """Write a framework request event with this commandlet's run scope."""
+        """Write a framework request event with this commandlet's run scope.
+
+        Framework requests are not just logs: they are durable requests for a
+        mediated framework action.  The matching capability is audited against
+        the commandlet declaration after the request event is written.
+        """
         if self._db is None:
             return None
         event = self._db.publish(
@@ -229,6 +248,9 @@ class CommandContext:
             return
         declared = capability_declared(capability, self.declared_capabilities)
         if request_event_id is None:
+            # Avoid spamming identical audit events for repeated ordinary reads
+            # or writes in the same commandlet step.  Request-linked capability
+            # events are not deduped because each request has its own event id.
             audited = self.metadata.setdefault("_audited_capabilities", set())
             audit_key = (self.source, self.command_run_id, capability, declared)
             if audit_key in audited:

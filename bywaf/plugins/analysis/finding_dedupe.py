@@ -258,6 +258,9 @@ def dedupe_findings(findings: Iterable[NormalizedFinding], *, fuzzy_threshold: f
     canonical: list[CanonicalFinding] = []
     decisions: list[dict[str, Any]] = []
     for finding in findings:
+        # Exact keys are intentionally conservative: target plus identifier when
+        # one exists, otherwise a fingerprint of stable evidence. Ambiguous
+        # similarity is emitted as a merge candidate for human review.
         key = finding.exact_key()
         existing = canonical_by_key.get(key)
         if existing is None:
@@ -282,6 +285,8 @@ def dedupe_findings(findings: Iterable[NormalizedFinding], *, fuzzy_threshold: f
 
         existing.add_source(finding)
         if status_rank(finding.status) > status_rank(existing.finding.status):
+            # A later source can upgrade the canonical record, for example from
+            # potential to confirmed. The original source trail remains attached.
             previous = existing.finding
             existing.finding = finding
             decisions.append(
@@ -456,6 +461,9 @@ def best_fuzzy_candidate(
 
 def normalize_target(payload: dict[str, Any]) -> TargetIdentity:
     """Normalize target identity from common finding payload shapes."""
+    # Dedupe accepts legacy/raw tool payloads, so target data may be embedded as
+    # a URL, split across fields, or nested under `target`. Normalize it once
+    # before comparing findings.
     target = payload.get("target")
     target_payload = target if isinstance(target, dict) else {}
     url = str(payload.get("url") or target_payload.get("url") or "")
@@ -484,6 +492,9 @@ def normalize_identifiers(payload: dict[str, Any]) -> dict[str, list[str]]:
         for key, value in raw.items():
             values = value if isinstance(value, list) else [value]
             identifiers[str(key).lower()] = sorted({str(item) for item in values if str(item)})
+    # Some older plugin payloads only mention CVEs/CWEs in text fields. Scan the
+    # JSON representation so those findings can still dedupe with normalized
+    # payloads that use the `identifiers` object.
     text = json.dumps(payload, sort_keys=True, default=str)
     add_identifiers(identifiers, "cve", re.findall(r"CVE-\d{4}-\d{4,}", text, re.IGNORECASE))
     add_identifiers(identifiers, "cwe", re.findall(r"CWE-\d+", text, re.IGNORECASE))

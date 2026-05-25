@@ -128,6 +128,8 @@ def print_jobs(context: CommandContext, *, active_only: bool = True, show_active
     artifact_counts = runtime.artifact_counts_by_job()
     table_rows: list[tuple[object, ...]] = []
     for row in rows:
+        # The STATE column is operator-oriented and time-aware; STATUS keeps the
+        # raw lifecycle value for scripts and debugging.
         label = runtime_state_label(row["status"])
         timestamp = row["started_at"] if label in {"active", "in progress"} else row["finished_at"]
         table_rows.append(
@@ -206,6 +208,8 @@ def kill_job(context: CommandContext, row) -> None:
     if pid is None:
         raise ValueError(f"job {row['id']} has no pid")
     try:
+        # Hard kill is intentionally separate from cooperative cancellation; it
+        # is the operator's escape hatch when a child process ignores requests.
         os.kill(int(pid), signal.SIGKILL)
     except ProcessLookupError:
         runtime.finish_job(int(row["id"]), "missing")

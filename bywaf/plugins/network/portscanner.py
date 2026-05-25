@@ -93,6 +93,9 @@ def scan_events_or_hosts(
     seen_hosts: set[str],
 ):
     """Choose explicit hosts first, otherwise consume upstream host events."""
+    # Direct CLI hosts are operator intent and win over pipeline input.  If no
+    # hosts were provided, this commandlet acts as a normal downstream consumer
+    # of `host.found` events.
     hosts = parsed.hosts or [event.payload["host"] for event in input_events if "host" in event.payload]
     hosts = [host for host in hosts if host not in parsed.excluded_hosts]
     yield from scan_hosts(context, hosts, parsed.ports, parsed.arguments, seen_hosts, parsed.silent)
@@ -113,6 +116,9 @@ def scan_hosts(
     context.raise_if_cancelled()
     seen_hosts.update(new_hosts)
     context.audit_capability("network.connect")
+    # Progress events are scoped around the nmap call, not around every yielded
+    # port.  UI/reporting layers get one operation boundary, followed by
+    # individual `port.open` facts as results.
     context.progress_started(
         phase="port_scan",
         total=len(new_hosts),
@@ -147,6 +153,9 @@ def scan_hosts(
             "reason": port.reason,
             "scanner": "nmap",
         }
+        # Plain open ports are facts.  Only clearly risk-relevant facts are
+        # promoted into finding candidates here; later plugins can add richer
+        # confirmation findings.
         candidate = telnet_open_candidate(payload)
         if candidate:
             context.events.publish("finding.candidate", candidate)
@@ -172,6 +181,9 @@ def listen_for_upstream_hosts(context: CommandContext, parsed, seen_hosts: set[s
             idle_interval=parsed.listen_interval,
             timeout=parsed.listen_timeout if parsed.listen_timeout > 0 else None,
     ):
+        # Live listeners must still honor exclusions and dedupe; otherwise a
+        # noisy upstream scanner could repeatedly rescan the same host or a host
+        # the operator removed from scope mid-workflow.
         if "host" not in event.payload or event.payload["host"] in parsed.excluded_hosts:
             continue
         yield from scan_hosts(

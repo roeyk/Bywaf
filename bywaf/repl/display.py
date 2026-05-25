@@ -33,7 +33,7 @@ from ..runtime_display import (
     runtime_state_text,
 )
 from ..runner import Runner
-from ..secrets import SECRET_REF_PREFIX, REDACTED_VALUE
+from ..secret.store import SECRET_REF_PREFIX, REDACTED_VALUE
 from ..time_format import format_operator_timestamp, normalize_history_timestamp_for_display
 
 VAR_COLOR_MODE_VAR = "display.vars.color"
@@ -81,6 +81,8 @@ ANSI_COLORS = {
 }
 
 
+# Built-in help lives here instead of in command handlers so display text,
+# aliases, examples, and commandlet-delegated help have one owner.
 @dataclass(frozen=True, slots=True)
 class HelpEntry:
     """Help text for REPL built-ins that are not backed by commandlets."""
@@ -142,6 +144,8 @@ HELP_COMMANDS = (
 
 def format_event(event) -> str:
     """Render one event row for human-readable console output."""
+    # Prefer topic-specific summaries for high-volume operational events. The
+    # fallback still exposes the raw payload for unknown third-party topics.
     if event.topic == "port.open":
         return format_port_open_event(event)
     if event.topic == "host.found":
@@ -393,6 +397,8 @@ def print_event_info(runner: Runner, event_id_text: str) -> None:
         print(f"error: unknown event: {event_id}")
         return
     payload = event.payload
+    # Detail view is deliberately layered: identity first, then provenance,
+    # then causality, then raw payload fields.
     print(format_event_heading(runner, event.id))
     print(format_event_kv(runner, "Topic", event.topic))
     print(format_event_kv(runner, "Created", format_event_timestamp(event.created_at)))
@@ -483,6 +489,8 @@ def print_event_command_context(runner: Runner, payload: dict[str, Any], command
     args: list[Any] | None = None
     launched: str | None = None
     if run_id and (commandlet is None or command is None):
+        # Many events only carry a step id. Look up the framework-owned
+        # command.run.arguments event to recover commandlet/arg context.
         matches = runner.events.events_matching(topic="command.run.arguments", command_run_id=str(run_id), limit=1)
         if matches:
             args_payload = matches[0].payload
@@ -569,6 +577,8 @@ def format_payload_value(value: Any) -> str:
     if isinstance(value, list | tuple):
         return ", ".join(format_payload_value(item) for item in value)
     if isinstance(value, dict):
+        # Sort nested keys so event detail output remains stable across Python
+        # versions and plugin payload construction order.
         return ", ".join(f"{key}={format_payload_value(value[key])}" for key in sorted(value))
     return str(value)
 
@@ -624,6 +634,8 @@ def history_color_enabled(runner: Runner) -> bool:
 
 def history_time_window(selectors: dict[str, str]) -> tuple[str | None, str | None]:
     """Convert history selectors to inclusive compact timestamp bounds."""
+    # Bounds compare as YYYYMMDDHHMMSS strings, which preserves chronological
+    # order without needing timezone reconstruction for history comments.
     since = normalize_history_time_bound(selectors["since"], until=False) if "since" in selectors else None
     until = normalize_history_time_bound(selectors["until"], until=True) if "until" in selectors else None
     return since, until
@@ -730,6 +742,9 @@ def help_color_enabled(runner: Runner) -> bool:
 
 def print_plugin_argparse_help(runner: Runner, plugin) -> None:
     """Ask a commandlet's argparse parser to print its native help."""
+    # Commandlets own their argparse help text. Running with --help keeps docs
+    # and runtime parsing aligned, while catching SystemExit below avoids
+    # tearing down the REPL on successful help output.
     context = CommandContext(
         runner.db,
         source=plugin.spec.name,
@@ -770,6 +785,8 @@ def print_info(runner: Runner) -> None:
     """Print a compact runtime dashboard for entities currently in play."""
     runtime = runner.runtime
     print(f"Jobs ({len(runtime.jobs(active_only=True))})")
+    # Reuse runtime commandlets for jobs/pipelines so `info` does not maintain
+    # a separate table format from the primary commands.
     events = runner.execute("job list")
     process_events_for_non_repl_info(runner, events)
     print()
@@ -809,6 +826,8 @@ def print_runs(runner: Runner, *, active_only: bool = True) -> None:
         pipeline_serial = str(row["pipeline_id"]) if row["pipeline_id"] is not None else ""
         pipeline_alias = pipeline_aliases.get(pipeline_serial, "")
         label = runtime_state_label(row["job_statuses"])
+        # Active rows are more useful with their first event time; completed
+        # rows are more useful with the latest event/finish time.
         timestamp = row["first_event"] if label in {"active", "in progress"} else row["last_event"]
         table_rows.append(
             (
@@ -861,6 +880,8 @@ def display_var_value(runner: Runner, value: str) -> str:
     secret_ref = runner.registry.secrets.metadata(value)
     if secret_ref is None:
         if value.startswith(SECRET_REF_PREFIX):
+            # A secret ref may exist in persisted config before the cleartext has
+            # been hydrated into this process.
             return f"{REDACTED_VALUE} fingerprint=unavailable"
         return value
     return f"{REDACTED_VALUE} fingerprint={secret_ref.fingerprint.format()}"
@@ -902,6 +923,8 @@ def ansi_color_code(color: str) -> str | None:
     if normalized in ANSI_COLORS:
         return ANSI_COLORS[normalized]
     if normalized.startswith("ansi:"):
+        # ansi:N and rgb:R,G,B let users customize colors without expanding the
+        # named-color table for every possible terminal.
         number = parse_color_int(normalized.removeprefix("ansi:"), 0, 255)
         return f"38;5;{number}" if number is not None else None
     if normalized.startswith("bg-ansi:"):
@@ -1099,6 +1122,8 @@ def page_generated_text(text: str) -> None:
     try:
         pager = shutil.which("less")
         if pager and sys.stdin.isatty() and sys.stdout.isatty():
+            # Use an external pager only for interactive terminals; test and
+            # redirected output should receive plain stdout.
             subprocess.run([pager, str(path)], check=False)
             return
         print(path.read_text(errors="replace"), end="", flush=True)

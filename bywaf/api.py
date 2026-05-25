@@ -48,6 +48,8 @@ class BywafSession:
             raise ValueError("encrypted database requires an explicit passphrase")
         registry = PluginRegistry.discover()
         if plugin_root and plugin_config:
+            # External filesystem plugins share the discovered registry's
+            # varstore so variables set before loading still apply afterward.
             filesystem = PluginRegistry.from_config(
                 Path(plugin_root),
                 Path(plugin_config),
@@ -84,6 +86,8 @@ class BywafSession:
 
     def run(self, command: str) -> list[Event]:
         """Run a commandlet expression in the foreground."""
+        # The embedding API intentionally accepts the same commandlet syntax as
+        # the REPL, keeping automation and interactive use aligned.
         return self.runner.execute(command)
 
     def run_background(self, command: str) -> Event:
@@ -135,6 +139,8 @@ class BywafSession:
         config_path = Path(path)
         config_path.parent.mkdir(parents=True, exist_ok=True)
         if config_path.suffix == ".toml":
+            # Prefer TOML for user-edited config, JSON for callers that want a
+            # machine-native structure.
             text = dump_variables_toml(self.registry.varstore.values)
         else:
             text = json.dumps(self.registry.varstore.values, indent=2, sort_keys=True) + "\n"
@@ -146,6 +152,7 @@ class BywafSession:
         values = data.get("variables", data)
         if not isinstance(values, dict):
             raise ValueError(f"{path} variables must be an object/table")
+        # Match REPL config load semantics: replace, do not merge.
         self.registry.varstore.values.clear()
         for key, value in values.items():
             self.registry.varstore.set(str(key), value)

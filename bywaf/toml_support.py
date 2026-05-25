@@ -41,6 +41,8 @@ def dump_variables_toml(values: dict[str, Any]) -> str:
 
 def toml_key(key: object) -> str:
     """Return a TOML quoted key so dotted variable names stay flat."""
+    # Quoting is important: unquoted `a.b` would become a nested TOML table, but
+    # Bywaf variables treat dots and slashes as literal scope syntax.
     return json.dumps(str(key))
 
 

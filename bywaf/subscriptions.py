@@ -18,6 +18,8 @@ class Subscription:
     """A scoped request for events newer than a known high-water mark."""
 
     topics: tuple[str, ...]
+    # `after_id` is the cursor used by polling pipelines and triggers. It keeps
+    # consumers from rereading events they already processed.
     after_id: int = 0
     limit: int = 100
     pipeline_id: str | None = None

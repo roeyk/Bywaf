@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import getpass
 
-from ..command_parser import CommandInvocation
+from ..command.parser import CommandInvocation
 from ..events import Event
 from ..plugin import CommandContext
 from ..specs import PlanRepair, PlanReport
@@ -38,6 +38,8 @@ def handle_plan_if_needed(
     must_approve = report.requires_confirmation or bool(report.warnings)
     if not invocation.plan_only and not must_approve:
         return args
+    # From this point onward, the plan is visible to the operator or policy
+    # layer, so publish a durable request before prompting or applying repairs.
     request = publish_plan_requested(context, report)
     publish_policy_evaluated(context, request, report)
     context.output(format_plan_report(report))
@@ -47,6 +49,8 @@ def handle_plan_if_needed(
     if not must_approve:
         return repaired_args or args
     if invocation.approved:
+        # --yes approves both the plan and any selected repair without an
+        # interactive prompt, which is required for background execution.
         publish_plan_decision(context, request, True, "cli-yes", "--yes")
         return repaired_args or args
     if context.background:
@@ -69,6 +73,8 @@ def maybe_apply_plan_repair(
     """Apply the first suggested repair when the operator or --yes accepts it."""
     if not report.repairs:
         return None
+    # Repairs are intentionally narrow: only the first suggested arg patch is
+    # considered until the UX supports choosing among multiple alternatives.
     repair = report.repairs[0]
     if invocation.approved:
         publish_plan_repair(context, request, repair, approved=True, method="cli-yes", answer="--yes")

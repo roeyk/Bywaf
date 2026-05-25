@@ -46,7 +46,7 @@ from bywaf.registry import (
     parse_plugin_manifest,
     plugin_manifest_digest,
 )
-from bywaf.secret_input import PromptSecretInputState, PromptSecretSpan, SECRET_BLOCK_VALUE, open_secret_assignment_name
+from bywaf.secret.input import PromptSecretInputState, PromptSecretSpan, SECRET_BLOCK_VALUE, open_secret_assignment_name
 from bywaf.specs import ArgumentSpec, CommandSpec, CompletionSpec, OptionSpec, TriggerSpec
 from bywaf.tools.plugin_manifest import manifest_from_plugins
 

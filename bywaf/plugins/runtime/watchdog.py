@@ -86,6 +86,8 @@ class Watchdog(CommandletBase):
         validate_thresholds(parsed)
         emitted: set[tuple[str, int]] = set()
         while True:
+            # Long-running mode keeps state in memory only to suppress repeated
+            # alerts during this invocation; durable evidence is the events.
             check_active_jobs(context, parsed, emitted)
             if parsed.once or context.cancelled():
                 return ()
@@ -111,6 +113,8 @@ def check_active_jobs(context: CommandContext, parsed: Namespace, emitted: set[t
     now = datetime.now(timezone.utc)
     for row in runtime.jobs(active_only=True):
         if str(row["command_line"] or "").startswith("watchdog"):
+            # Avoid recursive watchdog-on-watchdog alerts when the trigger
+            # starts the watchdog as a session service.
             continue
         job = job_snapshot(context, row)
         if job.status not in ACTIVE_STATUSES:
@@ -161,6 +165,8 @@ class JobSnapshot:
 def job_snapshot(context: CommandContext, row: Any) -> JobSnapshot:
     """Build a watchdog-friendly snapshot from a runtime job row."""
     job_id = int(row["id"])
+    # The job row has coarse lifecycle state; event history tells us whether
+    # work is still producing output and whether errors are accumulating.
     events = context.event_store("watchdog").events_for_job(job_id, limit=10000)
     last = events[-1] if events else None
     return JobSnapshot(
@@ -179,6 +185,8 @@ def count_error_events(events: Iterable[Event]) -> int:
     """Count events that represent runtime or tool failures."""
     count = 0
     for event in events:
+        # Include both framework failure topics and plugin-specific *.error
+        # conventions so watchdog remains useful for third-party plugins.
         if event.topic in ERROR_TOPICS or event.topic.endswith(".error") or event.topic.endswith(".failed"):
             count += 1
     return count

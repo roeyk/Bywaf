@@ -45,7 +45,7 @@ from .services import (
     should_emit_progress,
     signal_applies_to_context,
 )
-from ..plugin_process import (
+from .process import (
     ContextProcess,
     ProcessChunk,
     ProcessResult,
@@ -70,6 +70,10 @@ from ..specs import (
     TriggerSpec,
 )
 
+# This package is the public plugin-authoring API.  Keep plugin-facing imports
+# here even when the implementation lives in submodules, so external plugins can
+# depend on `from bywaf.plugin import CommandletBase, commandlet, option, ...`
+# without tracking framework internals.
 __all__ = [
     "ArgumentSpec",
     "CommandContext",

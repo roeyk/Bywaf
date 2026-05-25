@@ -62,6 +62,8 @@ class Note(CommandletBase):
         events = select_note_events(context, selectors)
         lines = [format_note_event(event) for event in events]
         if "file" in selectors:
+            # Showing notes and saving notes share selection logic; file= only
+            # changes the sink from console output to a project artifact path.
             path = Path(selectors["file"]).expanduser()
             path.parent.mkdir(parents=True, exist_ok=True)
             context.audit_capability("filesystem.write")
@@ -133,6 +135,8 @@ def add_note(context: CommandContext, selectors: dict[str, str]) -> None:
     selectors = resolve_note_selectors(context, selectors)
     note_text = selectors.get("text")
     if note_text is None:
+        # file= imports operator-authored text into the audit stream; the file
+        # itself is not retained unless separately attached as an artifact.
         path = Path(selectors["file"]).expanduser()
         context.audit_capability("filesystem.read")
         note_text = path.read_text(errors="replace").strip()

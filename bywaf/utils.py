@@ -27,6 +27,8 @@ def split_pipeline(command_line: str) -> tuple[list[str], bool]:
     for token in tokens:
         match token:
             case "|":
+                # shlex makes | a token only when surrounded by whitespace,
+                # matching the command syntax documented for Bywaf pipelines.
                 parts.append([])
             case _:
                 parts[-1].append(token)
@@ -114,6 +116,8 @@ def complete_path(prefix: str, root: Path | str = ".") -> list[str]:
     results = []
     for child in directory.iterdir():
         if child.name.startswith(stem):
+            # Append slash for directories so users can keep completing deeper
+            # paths without guessing the entry type.
             suffix = "/" if child.is_dir() else ""
             results.append(str(path.parent / f"{child.name}{suffix}") if str(path.parent) != "." else f"{child.name}{suffix}")
     return sorted(results)

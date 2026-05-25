@@ -30,6 +30,8 @@ def manifest_from_plugins(
     inferred_capabilities: tuple[str, ...] = (),
 ) -> str:
     """Return TOML text describing commandlets discovered from Python code."""
+    # Manifest generation uses runtime inspection: the plugin module has
+    # already been imported and its factory called before this function runs.
     lines = [
         "[plugin]",
         f"native = {toml_bool(native)}",
@@ -39,6 +41,9 @@ def manifest_from_plugins(
         "",
     ]
     for plugin in plugins:
+        # Inferred capabilities are only safe to apply automatically when one
+        # commandlet is present; otherwise the AST cannot attribute use to a
+        # specific commandlet.
         extra = inferred_capabilities if len(plugins) == 1 else ()
         lines.extend(commandlet_manifest_lines(plugin, inferred_capabilities=extra))
     for trigger in triggers:
@@ -53,6 +58,8 @@ def commandlet_manifest_lines(
 ) -> list[str]:
     """Return TOML lines for one commandlet."""
     spec = plugin.spec
+    # The generated manifest is a trust/checking sidecar. Keep the capability
+    # list deterministic so signing and review diffs stay stable.
     capabilities = tuple(sorted(set(spec.capabilities).union(inferred_capabilities)))
     lines = [
         "[[commandlets]]",
@@ -87,6 +94,8 @@ def trigger_manifest_lines(trigger: TriggerSpec) -> list[str]:
     if trigger.capability:
         lines.append(f'capability = "{escape_toml_string(trigger.capability)}"')
     if trigger.payload_equals:
+        # payload_equals is rendered as an inline TOML table because it is a
+        # small exact-match condition, not a nested trigger object.
         pairs = ", ".join(
             f'{escape_toml_string(key)} = "{escape_toml_string(value)}"'
             for key, value in trigger.payload_equals
@@ -138,6 +147,8 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     plugin_path = Path(args.plugin)
     module = load_module_path(plugin_path)
+    # This import/factory path intentionally mirrors real plugin loading. AST
+    # inference below is only an optional supplement for capability hints.
     plugins = load_plugins(module)
     triggers = load_trigger_specs(module)
     inferred_capabilities: tuple[str, ...] = ()

@@ -70,7 +70,7 @@ Rules:
 - Keep decorator metadata and runtime argparse parsing separate.
 - For boolean-style options, use explicit string metadata defaults and choices,
   such as @option("confirm", "perform confirmation", "false", ("true", "false")).
-- Use bywaf.findings.candidate_payload(...) for normalized findings.
+- Use bywaf.finding.candidate_payload(...) for normalized findings.
 - Do not use a nonexistent confirmed_payload helper.
 - Yield only JSON-serializable dictionaries.
 - Include usage examples using real Bywaf commands.

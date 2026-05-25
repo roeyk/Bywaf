@@ -52,6 +52,8 @@ from .storage import (
     validate_key_name,
 )
 
+# Keep keyring internals split by concern while preserving the original public
+# import surface for runtime commandlets, bundle signing, and tests.
 __all__ = [
     "KEY_NAME_RE",
     "SUPPORTED_ALGORITHM",

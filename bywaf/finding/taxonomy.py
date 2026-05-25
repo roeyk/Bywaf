@@ -26,6 +26,8 @@ class FindingClassInfo:
 
 
 STARTER_FINDING_CLASSES: dict[str, FindingClassInfo] = {
+    # This is a starter vocabulary, not a closed enum. Unknown but syntactically
+    # valid classes are allowed so third-party plugins can grow new domains.
     "web.header.missing_hsts": FindingClassInfo(
         "web.header.missing_hsts",
         "Missing Strict-Transport-Security header.",
@@ -86,6 +88,8 @@ STARTER_FINDING_CLASSES: dict[str, FindingClassInfo] = {
 
 def validate_finding_class(name: str) -> str:
     """Return a normalized finding class name or raise ValueError."""
+    # Finding classes use dots, like event topics and capabilities. Catalog
+    # paths and user variable scopes intentionally use different separators.
     if not isinstance(name, str) or not FINDING_CLASS_RE.fullmatch(name):
         raise ValueError(
             "finding_class must use lowercase dot-separated tokens, "

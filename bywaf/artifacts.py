@@ -157,6 +157,9 @@ class ArtifactStore:
         content_type = mimetypes.guess_type(source_path.name)[0] or "application/octet-stream"
         digest = hashlib.sha256(data).hexdigest()
         created_at = datetime.now(timezone.utc).isoformat()
+        # Store the artifact body and provenance together.  The main event DB
+        # gets a separate `artifact.attached` event, but the artifact DB must be
+        # useful on its own during archive/recovery workflows.
         with self.connect() as conn:
             cursor = conn.execute(
                 """
@@ -222,6 +225,9 @@ class ArtifactStore:
         with self.connect() as conn:
             rows = conn.execute("SELECT * FROM artifacts ORDER BY id ASC").fetchall()
         artifacts = [Artifact.from_row(row) for row in rows]
+        # Filtering happens in Python because artifact selectors are small and
+        # optional.  This keeps the storage query simple while preserving exact
+        # provenance matching across job, pipeline, and step scopes.
         if job_id is not None:
             artifacts = [artifact for artifact in artifacts if artifact.job_id == str(job_id)]
         if pipeline_id is not None:
@@ -295,6 +301,8 @@ class ArtifactStore:
         content_type = mimetypes.guess_type(source_path.name)[0] or "application/octet-stream"
         digest = hashlib.sha256(data).hexdigest()
         created_at = datetime.now(timezone.utc).isoformat()
+        # Keep `artifact_id` stable so report/bundle references remain valid,
+        # but update integrity fields to describe the new body.
         with self.connect() as conn:
             conn.execute(
                 """

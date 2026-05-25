@@ -51,6 +51,8 @@ class Db(CommandletBase):
         parser.add_argument("--encrypt", action="store_true")
         parser.add_argument("--force", action="store_true")
         parsed = parser.parse_args(normalize_db_args(args))
+        # DB management can replace the active store object. Keep it foreground
+        # so the parent REPL/API process observes that replacement.
         context.require_foreground("database management commands")
         context.audit_capability("db.manage")
         db_action_handlers()[parsed.action](context, parsed)
@@ -125,6 +127,7 @@ def export_database(context: CommandContext, parsed: Namespace) -> None:
     db = context.require_db()
     output = Path(parsed.file).expanduser()
     output.parent.mkdir(parents=True, exist_ok=True)
+    # Checkpoint first so a copied/exported SQLite file includes WAL contents.
     db.checkpoint()
     if parsed.encrypt:
         passphrase = prompt_new_passphrase("New database export passphrase: ", "Confirm database export passphrase: ")
@@ -156,6 +159,8 @@ def load_database(context: CommandContext, parsed: Namespace) -> None:
     if database_appears_encrypted(path):
         passphrase = getpass.getpass(f"Passphrase for encrypted database {path}: ")
     new_db = EventStore(path, passphrase=passphrase)
+    # On load, mark orphaned jobs before exposing the DB so status/report views
+    # do not present stale background work as live.
     new_db.mark_stale_jobs()
     replace_active_store(context, new_db)
     context.output(f"loaded db={path}")
@@ -212,6 +217,8 @@ def normalize_db_args(args: list[str]) -> list[str]:
 def copy_plain_database(source: Path, destination: Path) -> None:
     """Copy a plaintext SQLite DB with the SQLite backup API."""
     destination.parent.mkdir(parents=True, exist_ok=True)
+    # backup() is safer than filesystem copying while the source may have an
+    # open connection or WAL sidecars.
     with EventStore(source).connect() as source_conn:
         with EventStore(destination).connect() as dest_conn:
             source_conn.backup(dest_conn)
@@ -226,6 +233,8 @@ def encrypt_active_database(context: CommandContext) -> None:
     passphrase = prompt_new_passphrase("New database passphrase: ", "Confirm database passphrase: ")
     temp_path = temporary_database_path(db.path, "encrypt")
     db.checkpoint()
+    # Convert into a sidecar first, validate it, then atomically replace the
+    # active DB file.
     export_encrypted_database(db.path, temp_path, passphrase)
     EventStore(temp_path, passphrase=passphrase).table_counts()
     replace_database_file(db.path, temp_path)
@@ -243,6 +252,8 @@ def decrypt_active_database(context: CommandContext) -> None:
         raise ValueError("decryption cancelled")
     temp_path = temporary_database_path(db.path, "decrypt")
     db.checkpoint()
+    # As with encryption, write and validate a replacement before touching the
+    # active file.
     export_plaintext_database(db.path, temp_path, source_passphrase=db.passphrase)
     EventStore(temp_path).table_counts()
     replace_database_file(db.path, temp_path)
@@ -277,6 +288,7 @@ def new_active_database(
     if database_files_exist(path):
         if not force:
             raise ValueError(f"{path} already exists")
+        # Preserve the main DB and sidecars before creating over the target.
         backup_existing_database(path)
     passphrase = None
     if encrypt or default_encryption_enabled(context):
@@ -368,6 +380,8 @@ def replace_active_store(context: CommandContext, db: EventStore) -> None:
     """Update the parent runner when the command is running in-process."""
     replacer = context.metadata.get("replace_db")
     if callable(replacer):
+        # The REPL/API injects this callback so commandlets do not reach into
+        # Runner internals directly.
         replacer(db)
     context.db = db
 

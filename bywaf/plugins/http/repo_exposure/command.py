@@ -36,6 +36,8 @@ def run_git_config_check(
 ):
     """Run the Git config exposure check for one commandlet invocation."""
     parser = commandlet.parser()
+    # Keep parser construction close to the commandlet invocation boundary.
+    # The probe and finding modules should stay free of argparse/Bywaf context.
     parser.add_argument("targets", nargs="*")
     parser.add_argument("-s", "--silent", action="store_true", default=commandlet.var_default(context, "silent", False, cast=parse_bool))
     parser.add_argument("--timeout", type=float, default=commandlet.var_default(context, "timeout", 5, cast=float))
@@ -46,6 +48,8 @@ def run_git_config_check(
     for target in git_targets(parsed.targets, input_events):
         context.raise_if_cancelled()
         context.audit_capability("network.connect")
+        # The command layer bridges pure detection to framework events: first
+        # emit the observed fact, then optionally promote it to a finding.
         result = probe_git_config(opener, target, timeout=parsed.timeout, user_agent=parsed.user_agent)
         payload = result_payload(result, family=context.source, check="git_config")
         finding = candidate_from_detection(result, source_tool=context.source)
@@ -68,6 +72,8 @@ def git_targets(targets: list[str], input_events: Iterable[Event]) -> list[dict[
     """Return normalized HTTP endpoint payloads to check."""
     if targets:
         return [endpoint_from_target_text(target) for target in targets]
+    # Pipeline use consumes only HTTP endpoint facts. Other upstream events pass
+    # through the pipeline but are not meaningful for repository exposure checks.
     return [dict(event.payload) for event in input_events if event.topic == "http.endpoint" and event.payload.get("url")]
 
 

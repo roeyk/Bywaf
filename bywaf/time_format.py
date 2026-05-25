@@ -46,5 +46,7 @@ def normalize_history_timestamp_for_display(timestamp: str) -> str:
     """Normalize known history timestamp layouts to `YYYY-MM-DD HH:MM:SS TZ`."""
     parts = timestamp.split()
     if len(parts) == 3 and len(parts[0]) == 10 and ":" in parts[2]:
+        # Older history entries stored date timezone time. New display prefers
+        # date time timezone, but the file remains script-friendly either way.
         return f"{parts[0]} {parts[2]} {parts[1]}"
     return timestamp

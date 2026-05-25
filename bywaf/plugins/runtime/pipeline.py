@@ -67,6 +67,9 @@ class Pipeline(CommandletBase):
         """Parse and execute one pipeline-management operation."""
         parser = self.parser()
         if args and args[0] == "attach":
+            # `pipeline attach` has a commandlet tail after its selectors. Parse
+            # it separately so commandlet arguments are not mistaken for
+            # pipeline-management options.
             attach_pipeline(context, args[1:])
             return ()
         parser.add_argument("action", choices=PIPELINE_ACTIONS)
@@ -262,6 +265,8 @@ def attach_pipeline(context: CommandContext, args: list[str]) -> None:
     if runner is None:
         raise ValueError("pipeline attach requires a live runner")
     command_line = " ".join(shlex.quote(token) for token in [commandlet_name, *commandlet_args])
+    # The runner owns the attached background execution so it can replay prior
+    # pipeline events from the requested cursor and keep runtime metadata stable.
     event = runner.start_attached_pipeline(
         resolved_pipeline_id,
         command_line,
@@ -278,6 +283,8 @@ def parse_attach_tail(tokens: list[str]) -> tuple[dict[str, str], list[str]]:
     selectors: dict[str, str] = {}
     commandlet_args: list[str] = []
     for token in tokens:
+        # Only these selectors belong to pipeline attach. Everything else is
+        # passed through verbatim to the commandlet being attached.
         if token.startswith("step="):
             selectors["step"] = require_selector_value(token)
         elif token.startswith("since="):

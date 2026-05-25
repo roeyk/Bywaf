@@ -39,6 +39,8 @@ def commandlet(
     without hand-writing a full `CommandSpec` block.
     """
     def decorate(cls):
+        # @option/@argument decorators run before @commandlet and stash metadata
+        # on the class. Build the final immutable spec here.
         cls.spec = CommandSpec(
             name=name,
             description=description,
@@ -68,6 +70,8 @@ def option(
     """Decorate a commandlet class with one option metadata entry."""
     def decorate(cls):
         options = list(cast(tuple[OptionSpec, ...], getattr(cls, "_bywaf_options", ())))
+        # Insert at the front so stacked decorators preserve source order in the
+        # resulting CommandSpec.
         options.insert(
             0,
             OptionSpec(
@@ -95,6 +99,8 @@ def argument(
     """Decorate a commandlet class with one positional argument metadata entry."""
     def decorate(cls):
         arguments = list(cast(tuple[ArgumentSpec, ...], getattr(cls, "_bywaf_arguments", ())))
+        # Insert at the front for the same reason as options: decorator
+        # execution order is bottom-up, but help text should read top-down.
         arguments.insert(
             0,
             ArgumentSpec(
@@ -120,6 +126,8 @@ def normalize_completion(completion: CompletionSpec | str | None) -> CompletionS
 
 
 class Commandlet(Protocol):
+    """Runtime protocol every commandlet instance must satisfy."""
+
     spec: CommandSpec
 
     def run(
@@ -193,6 +201,8 @@ class CommandletBase:
 
 def split_var_values(value: str) -> list[str]:
     """Split comma and whitespace separated variable values."""
+    # This is deliberately simple and shell-agnostic; quoted parsing belongs in
+    # the command parser, while variables are treated as lightweight lists.
     return [part for chunk in value.split(",") for part in chunk.split() if part]
 
 

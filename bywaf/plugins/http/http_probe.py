@@ -89,6 +89,8 @@ class HttpProbe(CommandletBase):
         remember_option(context, "firefox-profile", parsed.firefox_profile)
         if parsed.cookie_file or parsed.firefox_profile:
             context.audit_capability("filesystem.read")
+        # Build one opener per invocation so cookies and redirect policy apply
+        # consistently across all explicit and pipeline-derived targets.
         opener = build_opener(parsed.cookie_file, parsed.firefox_profile, parsed.follow_redirects == "true")
         targets = self.values_or_var(context, parsed.targets, "targets")
         for target in probe_targets(targets, input_events, parsed.scheme, parsed.path):
@@ -131,6 +133,8 @@ def build_opener(cookie_file: str | None, firefox_profile: str | None, follow_re
 def remember_option(context: CommandContext, name: str, explicit: str | None) -> None:
     """Persist explicitly supplied options into the session varstore."""
     if explicit:
+        # Cookie/profile settings are often reused across several HTTP tools, so
+        # an explicit value becomes the commandlet-scoped default for later runs.
         context.vars.set(name, explicit)
 
 
@@ -206,6 +210,8 @@ def probe_url(opener, url: str, method: str, timeout: float, user_agent: str) ->
     start = time.monotonic()
     try:
         with opener.open(request, timeout=timeout) as response:
+            # For GET requests we keep only a bounded body sample. It is enough
+            # for title/fingerprint extraction and avoids storing full pages.
             body = response.read(65536) if method == "GET" else b""
             return response_payload(response, body, time.monotonic() - start)
     except urllib.error.HTTPError as exc:

@@ -27,6 +27,8 @@ class PlanItem:
 class PlanRepair:
     """A suggested per-run repair for a plan warning."""
 
+    # Repairs patch the current invocation's args. They must not mutate saved
+    # variables, source files, or command history.
     name: str
     description: str
     patched_args: tuple[str, ...]
@@ -38,6 +40,8 @@ class PlanRepair:
 class PlanReport:
     """Structured description of a commandlet's intended action."""
 
+    # requires_confirmation is separate from warnings so harmless previews can
+    # still display warnings without forcing approval in every code path.
     action: str
     summary: str
     items: tuple[PlanItem, ...] = ()

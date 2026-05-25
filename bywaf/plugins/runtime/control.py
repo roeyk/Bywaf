@@ -40,6 +40,9 @@ class Control(CommandletBase):
         parsed = parser.parse_args(args)
         context.require_foreground(f"{self.action} commands")
         validate_control_mode(self.action, soft=parsed.soft, hard=parsed.hard)
+        # User-facing selectors are local IDs or durable serials. Normalize them
+        # before dispatch so handlers only deal with canonical job/pipeline/run
+        # coordinates.
         kind, target_id = resolve_control_target(context, *parse_target(parsed.target), allow_pipeline=True)
         hard = parsed.hard
         handler = CONTROL_HANDLERS.get((self.action, kind))
@@ -270,6 +273,8 @@ def resolve_control_target(
     """Resolve local IDs and durable serials to canonical runtime control targets."""
     runtime = context.runtime_store("control")
     if kind == "serial":
+        # serial= is durable and can identify several runtime entity kinds. The
+        # caller decides whether pipeline serials are meaningful for its command.
         resolved = resolve_runtime_serial_target(context, target_id)
         if resolved[0] == "pipeline" and not allow_pipeline:
             raise ValueError("signal serial= must resolve to a job or run, not a pipeline")
@@ -358,6 +363,9 @@ def publish_runtime_signal(
 ) -> Event:
     """Publish the canonical audited runtime signal event."""
     events = context.event_store("signal")
+    # Signals are durable coordination records first. Some actions are also
+    # applied immediately by the framework, but commandlets can independently
+    # observe these events for cooperative live control.
     if target_type in {"job", "run"}:
         context.audit_capability("framework.job.control")
     if target_type in {"pipeline", "run"}:
@@ -395,6 +403,8 @@ def dispatch_framework_signal(context: CommandContext, parsed: dict[str, object]
     handler = FRAMEWORK_SIGNAL_HANDLERS.get((action, kind))
     if handler is None:
         raise ValueError(f"unsupported signal target: {kind}={target_id}")
+    # Keep publication and application separate so the audit trail records the
+    # requested action even when a framework-level handler fails.
     handler(context, target_id, hard)
 
 

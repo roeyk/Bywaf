@@ -60,6 +60,8 @@ def run_script(runner: Runner, path: Path, state: ResourceState | None = None) -
     serial = str(event.payload["serial"])
     print(f"loaded script={path} serial={serial}")
     for line_number, command in commands:
+        # Each script command is audited before execution so partial script runs
+        # can be reconstructed even if a later command fails or exits.
         runner.events.publish(
             "resource.script.command",
             {
@@ -88,6 +90,8 @@ def script_commands(path: Path) -> list[tuple[int, str]]:
         if not buffer:
             start_line = line_number
         if repl_line_has_continuation(line):
+            # Continuations preserve the original starting line number for every
+            # command produced by the final logical line.
             buffer.append(repl_remove_line_continuation(line))
             continue
         buffer.append(line)

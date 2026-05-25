@@ -39,6 +39,8 @@ class Cat(CommandletBase):
         parser = self.parser()
         parser.add_argument("path")
         parsed = parser.parse_args(args)
+        # The filesystem read is explicit even though the helper performs the
+        # actual IO; this keeps capability audit close to command intent.
         context.audit_capability("filesystem.read")
         context.output(read_text_file(Path(parsed.path)), end="")
         return ()

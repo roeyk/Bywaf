@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Protocol
 
 from .db import Subscription
-from .plugin_process import normalize_argv, run_process_argv
+from .plugin.process import normalize_argv, run_process_argv
 from .rendering import Table, render_console_table
 from .runner import Runner
 
@@ -51,6 +51,8 @@ def process_framework_requests(runner: Runner, state: FrameworkRequestState) -> 
             state.framework_request_after_id = max(state.framework_request_after_id, event.id)
         if event.id is None or event.id in state.handled_request_ids:
             continue
+        # Request events are durable; this in-memory handled set prevents a REPL
+        # drain cycle from applying the same request twice.
         state.handled_request_ids.add(event.id)
         handle_framework_request(runner, state, event)
 
@@ -239,6 +241,8 @@ def handle_process_run_request(runner: Runner, state: FrameworkRequestState, eve
     except (TypeError, ValueError) as exc:
         deny_framework_request(runner, event, str(exc))
         return
+    # Process requests are validated in the shell process, even though the
+    # commandlet asked for them. This keeps subprocess execution mediated.
     raw_cwd = event.payload.get("cwd")
     if raw_cwd is not None and not isinstance(raw_cwd, str):
         deny_framework_request(runner, event, "process cwd must be a string")

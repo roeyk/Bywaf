@@ -24,8 +24,8 @@ from bywaf.plugin import (
     format_table,
     option,
 )
-from bywaf.plugin_process import normalize_argv
-from bywaf.secrets import InMemorySecretStore
+from bywaf.plugin.process import normalize_argv
+from bywaf.secret.store import InMemorySecretStore
 from bywaf.messages import Host, Progress
 from bywaf.registry import PluginRegistry
 from bywaf.runner import redact_commandlet_args

@@ -61,6 +61,9 @@ class Table:
 
     def to_payload(self) -> dict[str, object]:
         """Return a JSON-safe payload for framework request events."""
+        # Tables can cross the plugin/framework boundary as events. Keep the
+        # payload simple so commandlets can request rendering without importing
+        # terminal-specific code.
         return {
             "title": self.title,
             "columns": [
@@ -234,6 +237,8 @@ def render_html_table(table: Table) -> str:
 def render_docx_table(table: Table) -> bytes:
     """Render a DOCX document containing one table."""
     try:
+        # Optional exporters are imported lazily so the core CLI remains light
+        # unless a user actually asks for DOCX output.
         document_class = importlib.import_module("docx").Document
     except ImportError as exc:  # pragma: no cover - depends on optional package
         raise RuntimeError("DOCX rendering requires python-docx") from exc
@@ -256,6 +261,8 @@ def render_docx_table(table: Table) -> bytes:
 def render_xlsx_table(table: Table) -> bytes:
     """Render an XLSX workbook containing one worksheet table."""
     try:
+        # Keep openpyxl optional for the same reason as DOCX rendering: most
+        # operator workflows only need console/Markdown/CSV output.
         workbook_class = importlib.import_module("openpyxl").Workbook
         font_class = importlib.import_module("openpyxl.styles").Font
     except ImportError as exc:  # pragma: no cover - depends on optional package

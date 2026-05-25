@@ -198,7 +198,7 @@ class PluginCheckTests(unittest.TestCase):
             plugin_dir = write_plugin_fixture(
                 Path(tmp),
                 capabilities=(),
-                imports="from bywaf.findings import candidate_payload\n",
+                imports="from bywaf.finding import candidate_payload\n",
                 run_body="        yield candidate_payload(title='t', classification='wrong', target={})\n",
             )
 

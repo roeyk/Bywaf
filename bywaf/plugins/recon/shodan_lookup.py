@@ -47,12 +47,16 @@ class ShodanLookup(CommandletBase):
             return ()
         api_key = context.secrets.resolve(parsed.api_key, "") or os.environ.get("SHODAN_API_KEY", "")
         if not api_key:
+            # Shodan needs credentials, but missing credentials are an
+            # operational error rather than a command parser failure.
             context.events.publish("tool.error", {"tool": "shodan", "severity": "error", "message": "missing Shodan API key"})
             return ()
         api = shodan_mod.Shodan(api_key)
         context.audit_capability("network.connect")
         if parsed.mode == "host":
             for host in parsed.query:
+                # Host mode preserves Shodan's host payload because the API
+                # already returns a structured document.
                 context.events.publish("shodan.host", api.host(host))
         else:
             result = api.search(" ".join(parsed.query), limit=parsed.limit)

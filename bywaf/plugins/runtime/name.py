@@ -42,6 +42,8 @@ class Name(CommandletBase):
         selectors = parse_name_selectors(args)
         target_type, target_id = selected_target(context, selectors)
         if "value" in selectors:
+            # Names are non-destructive labels stored as events. Runtime tables
+            # reconstruct the latest label rather than mutating job/pipeline rows.
             context.event_store("name").publish(
                 "runtime.name.assigned",
                 {
@@ -82,6 +84,8 @@ def parse_name_selectors(args: list[str]) -> dict[str, str]:
     while index < len(args):
         arg = args[index]
         if "=" not in arg:
+            # Allow natural command input such as `name job=12 nightly scan`
+            # without requiring text= for every human-entered label.
             selectors["value"] = " ".join(args[index:]).strip()
             break
         key, value = arg.split("=", 1)

@@ -20,6 +20,9 @@ from .detect import base_result, default_port, git_config_url, looks_like_git_co
 from .findings import candidate_from_detection, result_payload
 from .models import DetectionStatus, GitConfigProbeResult
 
+# Stable package facade for the repository-exposure family. The split modules
+# keep detection, orchestration, and finding mapping testable in isolation while
+# this package remains the provider entry point.
 __all__ = [
     "DEFAULTS",
     "REPO_EXPOSURE_CHECKS",

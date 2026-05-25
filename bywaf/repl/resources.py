@@ -45,6 +45,8 @@ from .state import ResourceState
 from .state import default_resource_state
 from .state import hydrate_persistent_secrets
 
+# This facade keeps older imports stable after the resource layer was split
+# across persistence, scripts, projects, specs, state, and audit-event modules.
 __all__ = [
     "DEFAULT_CONFIG",
     "DEFAULT_CONFIG_DIR",
@@ -90,6 +92,8 @@ def load_repl_resource(runner: Runner, spec: str, state: ResourceState | None = 
         print("usage: plugin load=<path> [--force]")
         return
     if key == "plugin":
+        # Plugin loading has extra catalog-path and manifest audit details, so
+        # keep it on a dedicated path rather than the generic handler signature.
         load_plugin_resource(runner, state, value, forced, catalog_path=catalog_path)
         return
     handler(runner, state, value, forced)
@@ -109,6 +113,8 @@ def load_plugin_resource(
     """Load a filesystem plugin resource."""
     del state
     plugin_path = resolve_resource_path(value, DEFAULT_PLUGIN_DIR)
+    # The filesystem path is where the plugin lives on disk. catalog_path, when
+    # supplied, is the logical provider path exposed to users and variables.
     runner.registry.load_filesystem_entry(plugin_path.parent, plugin_path.name, catalog_path=catalog_path, forced=forced)
     provider = catalog_path or plugin_path.name
     commandlets = runner.registry.provider_commandlet_names(provider)

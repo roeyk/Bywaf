@@ -13,7 +13,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 
-from ..command_parser import CommandInvocation
+from ..command.parser import CommandInvocation
 from ..db import EventStore
 from ..events import Event
 from ..plugin import CommandContext, implied_capabilities
@@ -41,7 +41,12 @@ def select_input_events(
     invocation: CommandInvocation,
     fallback_events: list[Event],
 ) -> list[Event]:
-    """Choose pipeline input events or DB-selected events for one invocation."""
+    """Choose pipeline input events or DB-selected events for one invocation.
+
+    Normal foreground pipelines pass in-memory events from the previous stage.
+    Replay/attach selectors (`step=`, `pipeline=`, `topic=`) instead read from
+    the database so a new stage can continue from historical work.
+    """
     if not any((invocation.from_step, invocation.from_pipeline, invocation.from_topic)):
         return fallback_events
     return db.events_matching(
@@ -69,7 +74,13 @@ def is_management_pipeline(commands: tuple[CommandInvocation, ...]) -> bool:
 
 
 def effective_run_vars(varstore: VarStore, commandlet: str) -> dict[str, str]:
-    """Return the session variables visible to one commandlet at launch time."""
+    """Return the session variables visible to one commandlet at launch time.
+
+    Commandlet variables are most specific, provider variables are shared by
+    commandlets in the same provider, and `global.*` values are the last broad
+    layer.  The returned snapshot is stored per step so background work does
+    not change under an operator's later `set` commands.
+    """
     prefix = f"{commandlet}."
     provider_prefix = f"{provider_scope_for_commandlet_scope(commandlet)}."
     return {
@@ -99,6 +110,9 @@ def ensure_run_var_snapshot(
     existing = db.command_run_vars(command_run_id)
     if existing:
         return existing
+    # The first executor to prepare the step records the snapshot.  Child
+    # processes and later report/debug views read the same row instead of
+    # recomputing from mutable session state.
     values = effective_run_vars(varstore, commandlet)
     db.record_command_run_vars(
         job_id=job_id,
@@ -121,11 +135,21 @@ def build_context(
     replace_db,
     runner=None,
 ) -> CommandContext:
-    """Build the runtime context for one commandlet stage."""
+    """Build the runtime context for one commandlet stage.
+
+    CommandContext is the mediated framework API passed to plugins.  This
+    function gathers the stable execution metadata the plugin should see:
+    provenance IDs, variable scopes, provider-variable declarations, input
+    watermarks, capabilities, and optional runner hooks for management
+    commandlets.
+    """
     invocation = stage.invocation
     plugin = registry.get(invocation.name)
     variable_scope = registry.variable_scope(invocation.name)
     provider_scope = provider_scope_for_commandlet_scope(variable_scope)
+    # Snapshot variables before constructing the context so plugin code sees a
+    # consistent view even if execution moves to another process or the
+    # operator changes variables while the step is running.
     run_vars = ensure_run_var_snapshot(
         db,
         registry.varstore,

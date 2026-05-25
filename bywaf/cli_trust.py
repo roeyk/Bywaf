@@ -28,6 +28,8 @@ from .varstore import VarStore
 def plugin_trust_policy_from_args(args: argparse.Namespace) -> PluginTrustPolicy:
     """Return explicit plugin trust bypasses selected on the CLI."""
     if args.force_plugins:
+        # --force-plugins is a development escape hatch that skips all plugin
+        # trust checks for local iteration.
         return PluginTrustPolicy.developer_bypass()
     if args.allow_untrusted_plugins:
         return PluginTrustPolicy.developer_bypass()
@@ -55,6 +57,8 @@ def load_filesystem_registry(
     catalog = None
     if plugin_catalog is not None:
         try:
+            # Catalog verification happens before loading individual plugin
+            # modules so trust decisions do not execute plugin code first.
             catalog = load_verified_plugin_catalog(
                 plugin_catalog,
                 plugin_catalog_key,
@@ -83,6 +87,8 @@ def load_filesystem_registry(
         plugin_dir = plugin_root / entry
         catalog_entry_verified = False
         if catalog is not None:
+            # A signed catalog binds entry name to plugin directory contents.
+            # Manual path overrides are intentionally outside this path.
             if catalog.verifies_entry(plugin_dir, entry):
                 catalog_entry_verified = True
                 db.publish(
@@ -98,6 +104,8 @@ def load_filesystem_registry(
                 )
                 raise PluginTrustError(f"warning: refusing external plugin {plugin_dir}; catalog entry missing or hash mismatch")
         try:
+            # Manifest trust is checked by the registry loader. This wrapper
+            # adds CLI/audit context around success or rejection.
             registry.load_filesystem_entry(plugin_root, entry, trust_policy=policy, catalog=catalog, manifest_key=plugin_manifest_key)
         except PluginTrustError as exc:
             if not catalog_entry_verified:
@@ -120,6 +128,8 @@ def merge_filesystem_registry(registry: PluginRegistry, filesystem: PluginRegist
     """Merge loaded filesystem plugin providers and triggers into a registry."""
     registry.plugins.update(filesystem.plugins)
     for provider, commandlets in filesystem.providers.items():
+        # Providers can expose multiple commandlets; merge by provider path
+        # instead of overwriting the bundled registry's provider table.
         registry.providers.setdefault(provider, []).extend(commandlets)
     for trigger in filesystem.triggers:
         provider = filesystem.trigger_provider(trigger) or trigger_action_name(trigger)

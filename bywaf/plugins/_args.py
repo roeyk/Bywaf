@@ -17,6 +17,9 @@ def key_value_to_long_options(args: list[str], keys: set[str]) -> list[str]:
     for arg in args:
         key, separator, value = arg.partition("=")
         if separator and key in keys:
+            # Bywaf users type option=value, while argparse commandlets often
+            # define --option. Convert only declared keys so positional values
+            # containing '=' are left alone.
             normalized.extend([f"--{key}", value])
         else:
             normalized.append(arg)

@@ -67,7 +67,12 @@ class SourceDiagnostic:
 
 
 def analyze_plugin_source(plugin_dir: Path) -> SourceAnalysis:
-    """Infer likely capabilities from Python source without importing it."""
+    """Infer likely capabilities from Python source without importing it.
+
+    This is deliberately static.  The checker should be safe to run on a plugin
+    with missing dependencies or risky import-time side effects, while still
+    giving authors and LLMs concrete feedback before Bywaf imports plugin.py.
+    """
     evidence: list[CapabilityEvidence] = []
     warnings: list[CapabilityEvidence] = []
     diagnostics: list[SourceDiagnostic] = []
@@ -86,7 +91,12 @@ def analyze_plugin_source(plugin_dir: Path) -> SourceAnalysis:
 
 
 class CapabilityVisitor(ast.NodeVisitor):
-    """AST visitor for recognizable framework and direct Python API use."""
+    """AST visitor for recognizable framework and direct Python API use.
+
+    The visitor has two jobs: infer capabilities from documented framework
+    calls, and flag common plugin-authoring mistakes that are hard for generic
+    code generators to get right from prose alone.
+    """
 
     def __init__(self, *, path: Path, source: str) -> None:
         self.path = path
@@ -111,6 +121,8 @@ class CapabilityVisitor(ast.NodeVisitor):
     def visit_Import(self, node: ast.Import) -> None:  # noqa: N802 - ast API
         """Record import aliases and warn for direct network/process modules."""
         for alias in node.names:
+            # Keep a simple alias table so later calls like `requests.get(...)`
+            # can be recognized even if the module was imported as `rq`.
             root = alias.name.split(".", 1)[0]
             self.aliases[alias.asname or root] = alias.name if alias.asname else root
             self.record_import_warning(node, alias.name)
@@ -145,6 +157,11 @@ class CapabilityVisitor(ast.NodeVisitor):
         framework_capability = framework_call_capability(path)
         if framework_capability is not None:
             self.add_evidence(framework_capability, "framework_call", node, path)
+
+        # Calls through CommandContext are high-confidence evidence because they
+        # map directly to Bywaf capabilities.  Direct Python libraries are
+        # warnings, not hard errors, because native plugins may intentionally
+        # use stdlib APIs while still declaring the right capability.
         if path == "context.audit_capability":
             capability = literal_string_argument(node, "capability", 0)
             if capability is not None:
@@ -184,7 +201,12 @@ class CapabilityVisitor(ast.NodeVisitor):
                 )
 
     def inspect_authoring_call(self, node: ast.Call, path: str) -> None:
-        """Report common plugin-authoring mistakes before import/runtime failures."""
+        """Report common plugin-authoring mistakes before import/runtime failures.
+
+        These diagnostics are intentionally opinionated guardrails.  They catch
+        mistakes repeatedly made by LLM-generated plugins, such as putting
+        argparse keywords in metadata decorators or inventing helper APIs.
+        """
         basename = call_basename(path)
         if basename == "argument":
             self.inspect_allowed_keywords(
@@ -220,8 +242,8 @@ class CapabilityVisitor(ast.NodeVisitor):
                 "error",
                 "no-confirmed-payload-helper",
                 node,
-                "bywaf.findings.confirmed_payload(...) does not exist",
-                "Use bywaf.findings.candidate_payload(...) and then set payload['status'] = 'confirmed'.",
+                "bywaf.finding.confirmed_payload(...) does not exist",
+                "Use bywaf.finding.candidate_payload(...) and then set payload['status'] = 'confirmed'.",
             )
         if basename == "candidate_payload":
             self.inspect_allowed_keywords(
@@ -242,7 +264,7 @@ class CapabilityVisitor(ast.NodeVisitor):
                     "source",
                 },
                 code="invalid-candidate-payload-keyword",
-                guidance="Use the exact bywaf.findings.candidate_payload(...) keyword names from the docs.",
+                guidance="Use the exact bywaf.finding.candidate_payload(...) keyword names from the docs.",
             )
 
     def inspect_allowed_keywords(self, node: ast.Call, *, allowed: set[str], code: str, guidance: str) -> None:
@@ -265,6 +287,9 @@ class CapabilityVisitor(ast.NodeVisitor):
         has_default = len(node.args) > 2 or any(keyword.arg == "default" for keyword in node.keywords)
         if has_default:
             return
+        # Boolean options are ambiguous in metadata unless the default and
+        # choices are explicit.  Runtime argparse may still use store_true, but
+        # the manifest/checker/completion layer needs declarative values.
         self.add_diagnostic(
             "error",
             "boolean-option-missing-default",
@@ -278,6 +303,8 @@ class CapabilityVisitor(ast.NodeVisitor):
     def add_event_topic_evidence(self, node: ast.Call, prefix: str) -> None:
         """Add exact or wildcard event capability evidence for publish calls."""
         topic = literal_string_argument(node, "topic", 0)
+        # If the topic is dynamic, infer a wildcard capability.  The checker is
+        # advisory; manifest enforcement remains the authoritative gate.
         self.add_evidence(f"{prefix}:{topic}" if topic else f"{prefix}:*", "framework_call", node, self.call_path(node.func) or "")
 
     def add_event_topics_evidence(self, node: ast.Call, prefix: str) -> None:

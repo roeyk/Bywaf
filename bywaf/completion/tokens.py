@@ -15,6 +15,8 @@ def positional_index(args: list[str], prefix: str) -> int:
     """Return the positional argument index currently being completed."""
     if not args:
         return 0
+    # Completion metadata counts only positional arguments. Options, pipeline
+    # separators, and background markers should not shift positional indexes.
     positional = [
         arg for arg in args
         if not arg.startswith("-") and arg not in {"|", "&"}

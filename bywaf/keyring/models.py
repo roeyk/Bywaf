@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 KEY_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+# Keep algorithm support intentionally narrow until verification, signing, and
+# packaging policies need additional key types.
 SUPPORTED_ALGORITHM = "ed25519"
 
 

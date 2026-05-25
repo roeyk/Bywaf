@@ -22,6 +22,8 @@ from .permissions import chmod_private_dir
 def default_key_paths() -> KeyPaths:
     """Return the default user-local Bywaf keyring layout."""
     configured = os.environ.get("BYWAF_KEY_ROOT")
+    # BYWAF_KEY_ROOT is primarily for tests and controlled deployments. Normal
+    # interactive use keeps keys in the user's home-scoped Bywaf directory.
     root = Path(configured).expanduser() if configured else Path.home() / ".bywaf" / "keys"
     return KeyPaths(
         root=root,
@@ -98,6 +100,7 @@ def save_key_records(records: list[KeyRecord], paths: KeyPaths | None = None) ->
     """Write key metadata as human-readable TOML."""
     paths = ensure_key_dirs(paths)
     lines = ["# Bywaf signing and verification keys", ""]
+    # Sort records by name so metadata diffs are stable and easy to review.
     for record in sorted(records, key=lambda key: key.name):
         lines.append("[[keys]]")
         lines.append(f'name = "{escape_toml(record.name)}"')
@@ -115,6 +118,8 @@ def save_key_records(records: list[KeyRecord], paths: KeyPaths | None = None) ->
         lines.append("")
     paths.metadata.write_text("\n".join(lines), encoding="utf-8")
     try:
+        # Metadata contains paths and fingerprints but no private key bytes.
+        # Keep it private anyway because it describes operator trust material.
         paths.metadata.chmod(0o600)
     except PermissionError:
         pass

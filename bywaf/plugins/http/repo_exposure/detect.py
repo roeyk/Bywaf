@@ -32,10 +32,14 @@ def probe_git_config(opener, endpoint: dict[str, Any], *, timeout: float, user_a
     start = time.monotonic()
     request = urllib.request.Request(checked_url, method="GET", headers={"User-Agent": user_agent})
     try:
+        # Read only a bounded sample. The signature is near the top of real Git
+        # config files, and keeping the sample small protects the event store.
         with opener.open(request, timeout=timeout) as response:
             body = response.read(4096)
             return classify_response(endpoint, checked_url, response.status, response.geturl(), body, elapsed_ms(start))
     except urllib.error.HTTPError as exc:
+        # Some servers expose sensitive content with an error status or branded
+        # error wrapper; classify the bounded body the same way as a 2xx response.
         body = exc.read(4096)
         return classify_response(endpoint, checked_url, exc.code, exc.geturl(), body, elapsed_ms(start))
     except urllib.error.URLError as exc:

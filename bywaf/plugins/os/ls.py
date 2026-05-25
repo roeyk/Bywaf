@@ -39,6 +39,7 @@ class Ls(CommandletBase):
         parser = self.parser()
         parser.add_argument("path", nargs="?", default=".")
         parsed = parser.parse_args(args)
+        # Listing metadata still counts as filesystem read capability.
         context.audit_capability("filesystem.read")
         for line in list_path(Path(parsed.path)):
             context.output(line)

@@ -119,7 +119,7 @@ class NiktoTests(unittest.TestCase):
                 )
                 return subprocess.CompletedProcess(argv, 0, stdout="ok", stderr="")
 
-            with patch("bywaf.plugin_process.run_process_argv", side_effect=fake_run) as run_process:
+            with patch("bywaf.plugin.process.run_process_argv", side_effect=fake_run) as run_process:
                 list(Nikto().run(context, ["https://example.test/"], []))
 
             self.assertEqual(run_process.call_count, 1)
@@ -137,7 +137,7 @@ class NiktoTests(unittest.TestCase):
                 source="nikto",
                 metadata={"command_run_id": "run-1", "capabilities": Nikto().spec.capabilities},
             )
-            with patch("bywaf.plugin_process.run_process_argv", side_effect=FileNotFoundError("nikto")):
+            with patch("bywaf.plugin.process.run_process_argv", side_effect=FileNotFoundError("nikto")):
                 list(Nikto().run(context, ["https://example.test/"], []))
 
             system_error = db.events_for_topic("system.error")[0].payload

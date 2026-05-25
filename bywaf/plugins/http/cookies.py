@@ -21,6 +21,8 @@ def load_cookie_jar(
 ) -> http.cookiejar.CookieJar:
     """Load cookies from optional Netscape and Firefox sources."""
     jar = http.cookiejar.CookieJar()
+    # Sources are additive so users can combine exported cookies and a browser
+    # profile when a target application needs session continuity.
     if cookie_file:
         load_netscape_cookie_file(Path(cookie_file), jar)
     if firefox_profile:
@@ -44,6 +46,8 @@ def load_firefox_cookies(profile: Path, jar: http.cookiejar.CookieJar) -> None:
     uri = f"file:{db_path}?mode=ro&immutable=1"
     conn = sqlite3.connect(uri, uri=True)
     try:
+        # Copy rows into a normal CookieJar. After this point HTTP tools do not
+        # hold a live connection to the browser profile database.
         rows = conn.execute(
             """
             SELECT host, path, isSecure, expiry, name, value

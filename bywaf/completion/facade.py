@@ -39,22 +39,20 @@ except ImportError:  # pragma: no cover - exercised only on minimal installs.
     PromptSession = None
     CompleteStyle = None
 
-from .completion_core import BINARY_OPTION_NAMES
-from .completion_core import CoreCompleter
-from .completion_core import bundle_candidates
-from .completion_core import complete_at_file_prefix
-from .completion_core import complete_resource_value
-from .completion_core import history_candidates
-from .completion_core import is_explicit_path
-from .completion_core import key_candidates
-from .completion_core import option_is_binary
-from .completion_core import positional_index
-from .completion_core import preserve_explicit_prefix
-from .completion_core import resource_candidates
-from .completion_core import runtime_completion_target
-from .completion_core import tokens_after_last_pipe
-from .completion_core import variable_reference_candidates
-from .secret_input import (
+from .constants import BINARY_OPTION_NAMES, option_is_binary
+from .engine import CoreCompleter
+from .providers import bundle_candidates, history_candidates, key_candidates
+from .resources import (
+    complete_at_file_prefix,
+    complete_resource_value,
+    is_explicit_path,
+    preserve_explicit_prefix,
+    resource_candidates,
+)
+from .runtime import runtime_completion_target
+from .tokens import positional_index, tokens_after_last_pipe
+from .variables import variable_reference_candidates
+from ..secret.input import (
     DEFAULT_SECRET_INPUT_MODE,
     SECRET_INPUT_MODES,
     SECRET_INPUT_MODE_VAR,
@@ -65,12 +63,17 @@ from .secret_input import (
     prompt_secret_style,
 )
 
+# Public re-export surface for this module.  Importers can use
+# `from bywaf.completion import ...` without needing to know which helpers live
+# in the candidate-generation modules versus this adapter module.  It also
+# makes wildcard imports deterministic for tests and older integrations.
 __all__ = [
     "BINARY_OPTION_NAMES",
     "COMPLETION_SELECT_KEY_VAR",
     "COMPLETION_WASD_SELECTION_VAR",
     "DEFAULT_COMPLETION_SELECT_KEY",
     "DEFAULT_SECRET_INPUT_MODE",
+    "SECRET_INPUT_MODES",
     "SECRET_INPUT_MODE_VAR",
     "Completer",
     "CoreCompleter",
@@ -104,8 +107,11 @@ __all__ = [
     "prompt_toolkit_available",
     "register_select_completion_binding",
     "register_wasd_completion_bindings",
+    "readline",
     "resource_candidates",
     "runtime_completion_target",
+    "secret_input_bottom_toolbar",
+    "secret_input_mode",
     "should_display_value_only",
     "should_print_completion_menu",
     "tokens_after_last_pipe",
@@ -118,16 +124,33 @@ DEFAULT_COMPLETION_SELECT_KEY = "c-space"
 
 
 class Completer(CoreCompleter):
-    """Readline adapter around Bywaf's command-aware completion core."""
+    """Readline adapter around Bywaf's command-aware completion core.
+
+    `CoreCompleter` knows what Bywaf candidates exist.  This subclass translates
+    those candidates into the callback protocol expected by Python's `readline`
+    module, which asks for one completion candidate at a time by numeric state.
+    """
 
     def complete(self, text: str, state: int) -> str | None:
-        """Readline callback: return one candidate per requested state."""
+        """Readline callback: return one candidate per requested state.
+
+        Readline calls this repeatedly with `state == 0`, `state == 1`, and so
+        on until it receives `None`.  The callback ignores `text` because Bywaf
+        needs the whole input buffer, not only the current token, to complete
+        scoped commands, key=value selectors, and pipeline stages.
+        """
         del text
         line = readline.get_line_buffer()
         candidates = self.candidates(line)
         common = common_completion_prefix(line, candidates)
+        # First prefer extending the token when every candidate shares a longer
+        # prefix, so `plugin lo<Tab>` can become `plugin load=` before showing a
+        # menu.
         if state == 0 and common:
             return common
+        # Readline does not have a rich popup-menu API.  For key=value choices
+        # we print a compact value-only menu on the first callback, then let a
+        # second Tab cycle through the actual insertion candidates.
         if state == 0 and should_print_completion_menu(line, candidates):
             print_completion_menu(line, candidates)
             return None
@@ -144,7 +167,13 @@ class Completer(CoreCompleter):
 
 
 class PromptToolkitCompleter(PromptToolkitCompleterBase):
-    """Prompt-toolkit adapter around Bywaf's command-aware completer."""
+    """Prompt-toolkit adapter around Bywaf's command-aware completer.
+
+    Prompt-toolkit has a richer completion model than readline: one method can
+    yield candidate objects with insertion text, display text, and metadata.
+    This adapter keeps candidate discovery in `Completer` while translating the
+    result into prompt-toolkit's UI objects.
+    """
 
     def __init__(self, completer: Completer):
         self.completer = completer
@@ -173,7 +202,13 @@ def prompt_toolkit_available() -> bool:
 
 
 def build_prompt_session(completer: Completer):
-    """Create a prompt-toolkit session with Bywaf completion behavior."""
+    """Create a prompt-toolkit session with Bywaf completion behavior.
+
+    The REPL uses this when prompt-toolkit is installed.  The session wires
+    together completion, secret-input masking, the bottom toolbar, and custom
+    keybindings so the shell can offer a richer UI without changing commandlet
+    parsing semantics.
+    """
     if not prompt_toolkit_available():
         return None
     assert PromptSession is not None
@@ -196,6 +231,9 @@ def build_prompt_session(completer: Completer):
         key_bindings=key_bindings,
         **{key: value for key, value in session_kwargs.items() if value is not None},
     )
+    # `PromptSession` does not know about Bywaf's secret-input state, but tests
+    # and REPL code need access to it.  Attaching it here keeps the state beside
+    # the session that owns the corresponding lexer/output objects.
     setattr(session, "secret_state", secret_state)
     return session
 
@@ -242,7 +280,12 @@ def completion_key_bindings(completer: Completer):
 
 
 def register_select_completion_binding(bindings, select_key: str) -> None:
-    """Register the configured completion-selection-mode key."""
+    """Register the configured completion-selection-mode key.
+
+    Prompt-toolkit normally completes on Tab.  Bywaf also supports an explicit
+    "selection mode" key so users can open the menu, move through entries, and
+    accept the highlighted value without inserting partial text accidentally.
+    """
 
     @bindings.add(select_key)
     def _select_completion(event) -> None:
@@ -278,7 +321,12 @@ def register_wasd_completion_bindings(bindings) -> None:
 
 
 def apply_current_completion(event) -> None:
-    """Accept the highlighted completion, or the first completion if none selected."""
+    """Accept the highlighted completion, or the first completion if none selected.
+
+    This is called from the prompt-toolkit Enter binding while the completion
+    menu is open.  If the UI has not highlighted an item yet, Bywaf treats the
+    first visible candidate as the selected candidate.
+    """
     buffer = event.app.layout.get_buffer_by_name(DEFAULT_BUFFER)
     if buffer is None or buffer.complete_state is None:
         return
@@ -349,7 +397,13 @@ def install_readline(completer: Completer) -> None:
 
 
 def configure_readline_delimiters() -> None:
-    """Keep option dashes and key/value equals signs inside completion tokens."""
+    """Keep option dashes and key/value equals signs inside completion tokens.
+
+    Python readline otherwise treats characters like `-` and `=` as token
+    boundaries.  Bywaf completions need `--flag`, `key=value`, and scoped
+    selector text to remain one token so the completion core sees the same
+    shape the command parser will later receive.
+    """
     delimiters = readline.get_completer_delims()
     readline.set_completer_delims(delimiters.replace("-", "").replace("=", ""))
 
@@ -395,7 +449,13 @@ def completion_prefix(line: str) -> str:
 
 
 def completion_results(line: str, candidates: Sequence[str]) -> list[str]:
-    """Return readline-formatted completion results."""
+    """Return readline-formatted completion results.
+
+    Readline cannot separately say "insert this shared prefix first, then show
+    these candidates"; it only sees a sequence of candidate strings.  Returning
+    the shared prefix as the first candidate gives the normal shell behavior of
+    extending as much text as possible before cycling through alternatives.
+    """
     common = common_completion_prefix(line, candidates)
     if common:
         return [common, *[format_candidate(candidate) for candidate in candidates]]

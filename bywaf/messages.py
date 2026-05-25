@@ -34,6 +34,8 @@ class Message:
 
         data = json.loads(payload)
         names = {field.name for field in fields(cls)}
+        # Ignore unknown fields so older message classes can read newer event
+        # payloads during upgrades or tests with historical fixtures.
         return cls(**{key: value for key, value in data.items() if key in names})
 
     def to_payload(self) -> dict[str, Any]:
@@ -71,5 +73,6 @@ class Progress(Message):
         """Return integer completion percentage without dividing by zero."""
 
         if self.total <= 0:
+            # Unknown totals render as 0% rather than raising in UI code.
             return 0
         return int((self.completed / self.total) * 100)

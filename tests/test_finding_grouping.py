@@ -2,9 +2,9 @@
 
 import unittest
 
-from bywaf.finding_grouping import finding_group_key, normalized_target_scope
-from bywaf.finding_taxonomy import validate_finding_class
-from bywaf.findings import candidate_payload
+from bywaf.finding.grouping import finding_group_key, normalized_target_scope
+from bywaf.finding.taxonomy import validate_finding_class
+from bywaf.finding import candidate_payload
 
 
 class FindingGroupingTests(unittest.TestCase):

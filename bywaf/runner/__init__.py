@@ -48,6 +48,9 @@ from .runtime_events import publish_note_if_present
 from .runtime_events import publish_runtime_name
 from .runtime_events import publish_variable_expansion
 
+# Public runner facade.  Command execution spans several focused modules, but
+# commandlets, tests, and CLI startup code should continue importing runner
+# primitives from this package root.
 __all__ = [
     "AtFileExpansion",
     "JobLifecycle",

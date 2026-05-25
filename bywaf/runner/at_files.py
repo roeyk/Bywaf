@@ -45,12 +45,15 @@ def expand_at_file_args(context: CommandContext, args: list[str]) -> list[str]:
 def expand_at_file_arg(arg: str) -> tuple[list[str], AtFileExpansion | None]:
     """Expand one `@` argument or return it unchanged."""
     if "=@" in arg and not arg.startswith("@"):
+        # Selector-style args keep their key and join expanded line values with
+        # commas, e.g. target=@hosts.txt -> target=a,b,c.
         key, value = arg.split("=", 1)
         values, expansion = expand_at_file_arg(value)
         return [f"{key}={','.join(values)}"], expansion
     if not arg.startswith("@"):
         return [arg], None
     if arg.startswith("@@"):
+        # @@ escapes a literal @ for commandlets that need it.
         return [arg[1:]], None
     mode, raw_path = parse_at_file_token(arg)
     path = Path(raw_path).expanduser()
@@ -90,6 +93,8 @@ def attach_at_file_artifact(context: CommandContext, expansion: AtFileExpansion)
             note=f"framework argument expansion {expansion.mode} from {expansion.token}",
         )
     except (RuntimeError, ValueError):
+        # Argument expansion should still work in contexts without an artifact
+        # store; the audit event below records the read when possible.
         return None
     return artifact.artifact_id
 

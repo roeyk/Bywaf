@@ -116,6 +116,8 @@ def run_wifi_scan(context: CommandContext, parsed: Any, output_dir: Path) -> Non
         result = context.process.run(argv, timeout=timeout)
     except subprocess.TimeoutExpired:
         result = None
+        # A timeout is the normal "stop after duration" path for Kismet, not a
+        # scanner crash. Emit it as informational tool state.
         context.events.publish(
             "tool.error",
             {
@@ -148,6 +150,8 @@ def run_wifi_scan(context: CommandContext, parsed: Any, output_dir: Path) -> Non
     attached = attach_output_files(context, output_dir)
     networks = networks_from_output(output_dir)
     for network in networks:
+        # Publish both the tool-specific and generic Wi-Fi topics so consumers
+        # can choose raw Kismet details or normalized wireless observations.
         payload = {
             "tool": "kismet",
             "interface": parsed.interface,
@@ -237,6 +241,8 @@ def extract_networks(data: Any) -> list[dict[str, Any]]:
     for key in ("networks", "devices", "kismet.devices"):
         value = data.get(key)
         if isinstance(value, list):
+            # Kismet JSON has changed shape across versions; accept several
+            # common container keys before recursively searching nested values.
             return [normalize_network(item) for item in value if isinstance(item, dict)]
     if looks_like_network(data):
         return [normalize_network(data)]
@@ -285,6 +291,7 @@ def dedupe_networks(networks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     seen: set[tuple[str, str]] = set()
     deduped: list[dict[str, Any]] = []
     for network in networks:
+        # Hidden SSIDs may share an empty name, so include BSSID when present.
         marker = (str(network.get("bssid") or ""), str(network.get("ssid") or ""))
         if marker in seen:
             continue

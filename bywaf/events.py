@@ -55,6 +55,8 @@ class Event:
     @classmethod
     def from_row(cls, row: Any) -> "Event":
         """Rehydrate an Event from a sqlite3.Row."""
+        # Older DB rows/tests may not have newer provenance columns, so check
+        # row.keys() instead of assuming every schema-era field exists.
         return cls(
             id=row["id"],
             topic=row["topic"],
@@ -70,4 +72,6 @@ class Event:
 
     def payload_json(self) -> str:
         """Serialize payloads deterministically for storage and tests."""
+        # Stable key ordering keeps event comparisons and signed/exported
+        # payloads predictable.
         return json.dumps(self.payload, sort_keys=True, separators=(",", ":"))

@@ -19,6 +19,8 @@ def framework_request_capability(topic: str) -> str | None:
     exact = framework_request_capability_map().get(topic)
     if exact is not None:
         return exact
+    # Prefix mappings let plugin progress/job-control families grow without
+    # adding a one-off entry for every event topic.
     for prefix, capability in framework_request_prefix_capabilities().items():
         if topic.startswith(prefix):
             return capability
@@ -55,6 +57,8 @@ def capability_declared(capability: str, declarations: Iterable[str]) -> bool:
         if capability == declaration:
             return True
         if declaration.endswith(":*") and capability.startswith(declaration[:-1]):
+            # Wildcards are prefix wildcards for capability families such as
+            # db.read:*; they are not general glob patterns.
             return True
     return False
 
@@ -62,6 +66,8 @@ def capability_declared(capability: str, declarations: Iterable[str]) -> bool:
 def implied_capabilities(spec: CommandSpec) -> tuple[str, ...]:
     """Return capabilities implied by commandlet metadata."""
     capabilities = set(spec.capabilities)
+    # consumes/emits are event contracts, so derive the corresponding DB
+    # read/write permissions for checker and audit consistency.
     capabilities.update(f"db.read:{topic}" for topic in spec.consumes)
     capabilities.update(f"db.write:{topic}" for topic in spec.emits)
     return tuple(sorted(capabilities))

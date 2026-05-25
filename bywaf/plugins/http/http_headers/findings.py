@@ -9,7 +9,7 @@ Used by:
 
 from __future__ import annotations
 
-from bywaf.findings import candidate_payload
+from bywaf.finding import candidate_payload
 
 from .models import HeaderProbeResult
 
@@ -21,6 +21,8 @@ def missing_security_header_candidates(result: HeaderProbeResult) -> list[dict[s
     scheme = "https" if target.use_ssl else "http"
     candidates: list[dict[str, object]] = []
     if target.use_ssl and "strict-transport-security" not in headers:
+        # HSTS is scoped to the web origin rather than a single route. Multiple
+        # pages on the same scheme/host/port should group into one report item.
         candidates.append(
             candidate_payload(
                 title="Missing HTTP Strict Transport Security",
@@ -37,6 +39,8 @@ def missing_security_header_candidates(result: HeaderProbeResult) -> list[dict[s
             )
         )
     if "x-content-type-options" not in headers:
+        # X-Content-Type-Options is also origin-level for this simple probe. A
+        # route-specific plugin can choose `finding_scope="web_route"` instead.
         candidates.append(
             candidate_payload(
                 title="Missing X-Content-Type-Options",

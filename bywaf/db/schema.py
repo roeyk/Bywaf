@@ -96,6 +96,8 @@ def ensure_event_columns(conn: sqlite3.Connection) -> None:
     columns = {row["name"] for row in conn.execute("PRAGMA table_info(events)")}
     for name in ("pipeline_id", "command_run_id", "parent_command_run_id"):
         if name not in columns:
+            # Scope columns were added after the initial event table. Add them
+            # lazily so existing project databases remain readable.
             conn.execute(f"ALTER TABLE events ADD COLUMN {name} TEXT")
     job_columns = {row["name"] for row in conn.execute("PRAGMA table_info(jobs)")}
     if "serial" not in job_columns:
@@ -116,6 +118,8 @@ def ensure_event_columns(conn: sqlite3.Connection) -> None:
             """
         )
     if "command_run_vars" not in tables:
+        # Variable snapshots are evidence: they capture the effective settings
+        # for a pipeline step without relying on mutable session config.
         conn.executescript(
             """
             CREATE TABLE IF NOT EXISTS command_run_vars (
@@ -135,6 +139,8 @@ def ensure_event_columns(conn: sqlite3.Connection) -> None:
             """
         )
     if "runtime_entities" not in tables:
+        # Runtime entities give durable serials stable local IDs for display.
+        # They are derived metadata, not the source of pipeline/job truth.
         conn.executescript(
             """
             CREATE TABLE IF NOT EXISTS runtime_entities (

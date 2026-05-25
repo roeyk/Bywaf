@@ -28,6 +28,8 @@ def load_plugins(module: ModuleType) -> tuple[Commandlet, ...]:
     """Instantiate one or more commandlets from a plugin module."""
     multi_factory = getattr(module, "plugins", None)
     if multi_factory is not None:
+        # Providers may expose several commandlets. Prefer plugins() when it is
+        # present, falling back to the older single plugin() factory.
         plugins = tuple(multi_factory())
         if not plugins:
             raise ValueError(f"{module.__name__}.plugins() returned no commandlets")
@@ -65,6 +67,8 @@ def load_module_path(path: Path) -> ModuleType:
     if not path.exists():
         raise FileNotFoundError(f"{path} not found")
     module_name = f"bywaf_external_{path.parent.name}_{abs(hash(path))}"
+    # Treat the plugin directory as a package root so split-file plugins can use
+    # relative imports such as `from .command import run_checks`.
     spec = importlib.util.spec_from_file_location(
         module_name,
         path,

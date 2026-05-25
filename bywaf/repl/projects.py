@@ -16,7 +16,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from ..db import EventStore
-from ..command_names import PROJECT_ACTIONS, PROJECT_ARCHIVE, PROJECT_EXPORT, PROJECT_INFO, PROJECT_LIST, PROJECT_NEW, PROJECT_USE
+from ..command.names import PROJECT_ACTIONS, PROJECT_ARCHIVE, PROJECT_EXPORT, PROJECT_INFO, PROJECT_LIST, PROJECT_NEW, PROJECT_USE
 from ..projects import ProjectPaths, create_project, list_projects, require_project
 from ..runner import Runner
 from .persistence import apply_config, load_database, prompt_database_passphrase
@@ -58,6 +58,8 @@ def project_new_command(runner: Runner, state: ResourceState, args: list[str]) -
     if not name:
         raise ValueError("usage: project new name=<name> [--encrypt]")
     paths = create_project(name)
+    # Create the database immediately so `project use` can switch without a
+    # separate first-run initialization path.
     passphrase = prompt_database_passphrase(paths.database, creating=True) if "--encrypt" in args else None
     EventStore(paths.database, passphrase=passphrase)
     print(f"created project={paths.name} path={paths.path}")
@@ -94,6 +96,8 @@ PROJECT_COMMAND_HANDLERS: dict[str, ProjectCommandHandler] = {
     PROJECT_USE: project_use_command,
 }
 
+# Keep the documented action tuple and dispatch table synchronized. This makes
+# completion/help drift visible during import/tests instead of at runtime.
 assert tuple(PROJECT_COMMAND_HANDLERS) == PROJECT_ACTIONS
 
 
@@ -165,9 +169,14 @@ def switch_project(runner: Runner, state: ResourceState, project: ProjectPaths, 
                 f"use `project use name={project.name} --force` to hard-stop them and switch anyway"
             )
         stop_active_jobs_for_project_switch(runner, active_jobs)
+    # Project switching is a coordinated DB/config/history boundary change.
+    # Load the database first so subsequent config and secret hydration target
+    # the new project.
     load_database(runner, project.database, force=True)
     runner.project = project
     state.history_path = project.history
+    # Project switch resets runtime configuration to the target project's config.
+    # It intentionally does not merge with variables from the previous project.
     runner.registry.varstore.values.clear()
     if project.config.exists():
         apply_config(runner, project.config)
@@ -184,8 +193,11 @@ def stop_active_jobs_for_project_switch(runner: Runner, jobs) -> None:
         pid = job["pid"]
         if pid is not None:
             try:
+                # Forced project switch is a database boundary change. Child
+                # processes must be stopped before the runner points elsewhere.
                 os.kill(int(pid), signal.SIGKILL)
             except ProcessLookupError:
+                # The stale-job cleanup below will still mark the job killed.
                 pass
             except PermissionError as exc:
                 raise ValueError(f"cannot stop job {job['id']} pid={pid}: permission denied") from exc

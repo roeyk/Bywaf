@@ -11,7 +11,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from bywaf.secrets import (
+from bywaf.secret.store import (
     InMemorySecretStore,
     REDACTED_VALUE,
     SECRET_REF_PREFIX,

@@ -16,8 +16,8 @@ import shlex
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from .command_names import VARIABLE_COMMANDS
-from .secrets import REDACTED_VALUE
+from ..command.names import VARIABLE_COMMANDS
+from .store import REDACTED_VALUE
 
 try:
     from prompt_toolkit.document import Document
@@ -109,6 +109,8 @@ class PromptSecretInputState:
         name = open_secret_assignment_name(buffer.document.text_before_cursor)
         if name is None:
             return
+        # The visible command line receives only a fixed redaction token. The
+        # actual typed secret lives in PromptSecretSpan.value until dispatch.
         start = buffer.cursor_position
         buffer.insert_text(SECRET_BLOCK_VALUE, move_cursor=True)
         self.span = PromptSecretSpan(name=name, start=start, end=start + len(SECRET_BLOCK_VALUE))
@@ -224,6 +226,8 @@ def prompt_secret_key_bindings(state: PromptSecretInputState, enabled: Callable[
     def _open_secret_block(event) -> None:
         buffer = event.current_buffer
         buffer.insert_text("=")
+        # Opening a block is triggered by `set --secret name=` style input. From
+        # here, character keys update hidden state instead of the visible buffer.
         if enabled is None or enabled():
             state.open_span_if_needed(buffer)
         if state.focused():

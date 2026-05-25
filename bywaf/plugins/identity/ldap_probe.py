@@ -51,11 +51,17 @@ class LdapProbe(CommandletBase):
         ldap3 = optional_module(context, "ldap3", "ldap3")
         if ldap3 is None:
             return ()
+        # Network and secret access are explicit capabilities: resolving the
+        # password happens above, and the LDAP bind is the auditable network
+        # action that follows.
         context.audit_capability("network.connect")
         server = ldap3.Server(parsed.host, port=parsed.port, use_ssl=parsed.ssl == "true", connect_timeout=parsed.timeout, get_info=ldap3.ALL)
         conn = ldap3.Connection(server, user=parsed.username or None, password=password or None, auto_bind=True)
         try:
             info = getattr(server, "info", None)
+            # ldap3 exposes naming contexts via server.info after bind. Keep
+            # the payload compact so downstream commandlets can treat it as
+            # service metadata instead of a raw LDAP object.
             contexts = list(getattr(info, "naming_contexts", []) or [])
             context.events.publish("ldap.server", {"host": parsed.host, "port": parsed.port, "ssl": parsed.ssl == "true", "bound": bool(conn.bound), "naming_contexts": contexts})
         finally:

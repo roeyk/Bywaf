@@ -8,4 +8,5 @@ __version__ = "0.11.1"
 
 from .api import BywafSession
 
+# Re-export only the stable embedding API and package version at top level.
 __all__ = ["BywafSession", "__version__"]

@@ -152,8 +152,12 @@ def import_key_action(context: CommandContext, args: list[str]) -> None:
     file_name = selector(rest, "file", required=True)
     scope = selector(rest, "scope") or "user"
     if kind == "public":
+        # Public keys are enough for verification and can be shared with review
+        # recipients. They never enable signing.
         record = import_public_key(name, Path(file_name), scope=scope)
     else:
+        # Private imports may need two passphrases: one for the existing key
+        # material and one for Bywaf's encrypted-at-rest copy.
         existing_passphrase = prompt_optional_passphrase(f"Existing passphrase for private key {file_name} (blank if none): ")
         new_passphrase = prompt_new_passphrase(name)
         record = import_private_key(
@@ -229,6 +233,8 @@ KEY_ACTION_HANDLERS: dict[str, KeyActionHandler] = {
 
 def key_event_payload(record: KeyRecord) -> dict[str, str]:
     """Return audit-safe key metadata."""
+    # Never include private paths' contents or passphrases in event payloads.
+    # The fingerprint and signing state are enough for audit and completion.
     return {
         "name": record.name,
         "scope": record.scope,

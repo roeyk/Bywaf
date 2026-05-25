@@ -12,7 +12,7 @@ import tempfile
 import unittest
 
 from bywaf.artifacts import ArtifactStore
-from bywaf.db import EventStore, Subscription
+from bywaf.db import EventStore, SQLiteBackend, Subscription
 from bywaf.stores import (
     ArtifactStoreProtocol,
     EventStoreProtocol,
@@ -42,6 +42,25 @@ class StoreProtocolTests(unittest.TestCase):
             job = store.job(job_id)
             assert job is not None
             self.assertEqual(job["status"], "completed")
+
+    def test_event_store_can_use_explicit_database_backend(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            backend = SQLiteBackend(Path(tmp, "events.sqlite3"))
+            store = EventStore(backend=backend)
+
+            published = store.publish("test.topic", {"value": 1}, "test")
+
+            self.assertIs(store.backend, backend)
+            self.assertEqual(store.path, backend.path)
+            self.assertEqual(store.event_by_id(published.id or 0), published)
+
+    def test_event_store_backend_opens_fresh_connections(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = EventStore(Path(tmp, "events.sqlite3"))
+
+            with store.connect() as first:
+                with store.connect() as second:
+                    self.assertIsNot(first, second)
 
     def test_artifact_store_satisfies_artifact_protocol(self):
         with tempfile.TemporaryDirectory() as tmp:

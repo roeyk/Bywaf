@@ -33,6 +33,8 @@ def write_encrypted_text(path: Path, plaintext: str, *, label: str) -> None:
     salt = os.urandom(16)
     nonce = os.urandom(12)
     iterations = 600_000
+    # Store a self-describing JSON envelope so config/history files can be moved
+    # independently of the active project database.
     kdf = PBKDF2HMAC(algorithm=SHA256(), length=32, salt=salt, iterations=iterations)
     key = kdf.derive(passphrase.encode("utf-8"))
     ciphertext = AESGCM(key).encrypt(nonce, plaintext.encode("utf-8"), None)
@@ -65,6 +67,8 @@ def read_text_maybe_encrypted(path: Path, *, label: str) -> str:
         raise RuntimeError(f"encrypted {label} load requires the cryptography package") from exc
 
     passphrase = getpass.getpass(f"Passphrase for encrypted {label} {path}: ")
+    # The envelope carries all KDF parameters needed for decryption; the
+    # passphrase itself is never persisted.
     salt = base64.b64decode(str(envelope["salt"]))
     nonce = base64.b64decode(str(envelope["nonce"]))
     ciphertext = base64.b64decode(str(envelope["ciphertext"]))

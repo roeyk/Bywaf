@@ -25,6 +25,8 @@ def load_module_defaults(module: ModuleType, plugin: Commandlet, varstore: VarSt
     """Import module-level DEFAULTS into the shared VarStore."""
     defaults = getattr(module, "DEFAULTS", None)
     if isinstance(defaults, dict):
+        # Module DEFAULTS are convenience defaults, not authoritative manifest
+        # metadata. They initialize unset commandlet variables for operators.
         varstore.update_prefixed(scope or plugin.spec.name, defaults)
 
 
@@ -46,6 +48,8 @@ def parse_plugin_config(path: Path) -> list[str]:
     entries: list[str] = []
     in_default_plugins = False
     for raw_line in text.splitlines():
+        # YAML support is intentionally tiny: only default_plugins: followed by
+        # list items. Full YAML would add a dependency for little benefit here.
         line = raw_line.strip()
         if not line or line.startswith("#"):
             continue
@@ -77,6 +81,8 @@ def normalize_catalog_path(path: str) -> str:
     """Return a slash-delimited catalog path from dotted package or slash input."""
     normalized = path.replace(".", "/")
     parts = normalized.split("/")
+    # Catalog paths are user-facing provider addresses. Reject traversal-like or
+    # empty segments before they can become variable scopes.
     if (
         not normalized
         or normalized.startswith("/")

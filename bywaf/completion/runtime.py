@@ -28,6 +28,9 @@ def runtime_completion_target(candidate: str, line: str, prefix: str) -> tuple[s
     except ValueError:
         tokens = line.split()
     tokens = tokens_after_last_pipe(tokens)
+    # Some runtime commands take a bare id after the action, while others use
+    # key=value selectors. Infer the target kind so display metadata can be
+    # attached to either completion style.
     if len(tokens) >= 2 and tokens[0] == "pipeline" and tokens[1] in {"attach", "show", "cancel", "end", "kill"}:
         return "pipeline", candidate
     if len(tokens) >= 2 and tokens[0] == "job" and tokens[1] in {"show", "cancel", "end", "kill"}:

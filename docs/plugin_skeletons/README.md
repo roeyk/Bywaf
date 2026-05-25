@@ -17,9 +17,9 @@ LLM Guardrails:
 - In these skeletons, keep the decorated commandlet class in `plugin.py`.
   `command.py` should provide orchestration functions, not registration.
 - Publish normalized findings with `finding.candidate` or `finding.confirmed`
-  payloads built through `bywaf.findings.candidate_payload(...)`; do not invent
+  payloads built through `bywaf.finding.candidate_payload(...)`; do not invent
   unrelated finding keys.
-- There is no `bywaf.findings.confirmed_payload(...)` helper. For confirmed
+- There is no `bywaf.finding.confirmed_payload(...)` helper. For confirmed
   findings, call `candidate_payload(...)` and then set `payload["status"] =
   "confirmed"`, as shown in the skeleton.
 - If code publishes `finding.candidate` or `finding.confirmed`, declare
@@ -46,7 +46,7 @@ LLM Guardrails:
 Exact finding helper shape:
 
 ```python
-from bywaf.findings import candidate_payload
+from bywaf.finding import candidate_payload
 
 payload = candidate_payload(
     title="Missing Strict Transport Security",

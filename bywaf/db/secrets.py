@@ -9,17 +9,17 @@ Used by:
 
 from __future__ import annotations
 
-import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
-from ..secrets import SecretFingerprint, SecretRef
+from .backends import DatabaseConnection
+from ..secret.store import SecretFingerprint, SecretRef
 
 
 class EventStoreSecretMixin:
     @contextmanager
-    def connect(self) -> Iterator[sqlite3.Connection]:
+    def connect(self) -> Iterator[DatabaseConnection]:
         """Implemented by EventStore."""
         raise NotImplementedError
 
@@ -27,6 +27,8 @@ class EventStoreSecretMixin:
         """Persist a secret value in the active database."""
         now = datetime.now(timezone.utc).isoformat()
         with self.connect() as conn:
+            # Secret refs are stable handles; updates replace the encrypted or
+            # plaintext backing value while preserving the user-facing ref.
             conn.execute(
                 """
                 INSERT INTO secrets(ref, name, value, fingerprint, source, created_at, updated_at)
@@ -58,6 +60,8 @@ class EventStoreSecretMixin:
         secrets: list[tuple[SecretRef, str]] = []
         for row in rows:
             algorithm, _, digest = str(row["fingerprint"]).partition(":")
+            # The in-memory SecretStore wants SecretRef metadata plus the raw
+            # value. Rehydrate both so command execution can resolve refs.
             secrets.append(
                 (
                     SecretRef(

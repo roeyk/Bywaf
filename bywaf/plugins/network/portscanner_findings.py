@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from bywaf.findings import candidate_payload
+from bywaf.finding import candidate_payload
 
 
 def telnet_open_candidate(port_payload: dict[str, Any]) -> dict[str, Any] | None:
@@ -28,6 +28,8 @@ def telnet_open_candidate(port_payload: dict[str, Any]) -> dict[str, Any] | None
         confidence = "high"
         evidence = f"{host}:{port}/{protocol} was identified as Telnet."
     else:
+        # Port 23 alone is weaker than banner/service detection. Keep it as a
+        # candidate so operators can triage or confirm it later.
         confidence = "medium"
         evidence = f"{host}:{port}/{protocol} is open on the default Telnet port; confirm service identity."
     return candidate_payload(

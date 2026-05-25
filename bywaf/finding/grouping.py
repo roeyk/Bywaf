@@ -12,14 +12,19 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from .finding_taxonomy import validate_finding_class
+from .taxonomy import validate_finding_class
 
 
 IDENTIFIER_PRIORITY = ("cve", "ghsa", "vendor", "cwe", "owasp", "capec")
 
 
 def finding_group_key(payload: Mapping[str, Any], *, fallback: str = "") -> str:
-    """Return the stable group key for one normalized finding payload."""
+    """Return the stable group key for one normalized finding payload.
+
+    Grouping is intentionally mechanical here. Plugins decide the semantic
+    scope by setting `group_key`, `target_scope`, or `finding_scope`; the
+    framework only turns that declared scope into a deterministic report key.
+    """
     explicit = string_value(payload.get("group_key"))
     if explicit:
         return explicit
@@ -43,12 +48,18 @@ def finding_group_key(payload: Mapping[str, Any], *, fallback: str = "") -> str:
 
 def normalized_target_scope(payload: Mapping[str, Any]) -> dict[str, str] | None:
     """Return normalized target scope from explicit payload fields."""
+    # Prefer an explicit `target_scope` object because it lets a plugin say
+    # exactly whether a finding belongs to a host, service, origin, route, or
+    # other domain object. This is what handles cases such as one CVE affecting
+    # multiple pages on the same web origin.
     scope = payload.get("target_scope")
     if isinstance(scope, Mapping):
         kind = string_value(scope.get("kind"))
         value = string_value(scope.get("value"))
         if kind and value:
             return {"kind": kind, "value": value}
+    # `finding_scope` is the convenience form used by candidate_payload(...).
+    # It derives the actual scope value from conventional target fields.
     finding_scope = string_value(payload.get("finding_scope"))
     target = payload.get("target")
     if finding_scope and isinstance(target, Mapping):
@@ -82,6 +93,9 @@ def target_scope_value(kind: str, target: Mapping[str, Any]) -> str:
         base = f"{host}:{port}/{protocol}" if host and port else ""
         return f"{base}:{scheme}" if base and scheme else base
     if kind in {"web_origin", "web_app", "web_route"}:
+        # Web targets need more than an IP address. `web_origin` groups every
+        # path on the same scheme/host/port, while `web_route` keeps individual
+        # URLs separate for findings whose impact is route-specific.
         scheme = first_string(target, "scheme", default="https")
         host = first_string(target, "host", "hostname")
         port = first_string(target, "port")

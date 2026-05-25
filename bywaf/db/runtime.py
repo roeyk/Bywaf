@@ -9,17 +9,18 @@ Used by:
 
 from __future__ import annotations
 
-import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from typing import Any
 
+from .backends import DatabaseConnection
 from .support import ACTIVE_JOB_STATUSES
 
 
 class EventStoreRuntimeMixin:
     @contextmanager
-    def connect(self) -> Iterator[sqlite3.Connection]:
+    def connect(self) -> Iterator[DatabaseConnection]:
         """Implemented by EventStore."""
         raise NotImplementedError
 
@@ -55,6 +56,9 @@ class EventStoreRuntimeMixin:
     ) -> bool:
         """Return whether any matching soft-cancellation request exists."""
         targets: list[tuple[str, str]] = []
+        # Cancellation can be addressed at any runtime scope.  A commandlet step
+        # should stop if its job, its pipeline, or the step itself has been
+        # requested to stop.
         if job_id is not None:
             targets.append(("job", str(job_id)))
         if pipeline_id:
@@ -83,7 +87,12 @@ class EventStoreRuntimeMixin:
         values: dict[str, str],
         source: str = "snapshot",
     ) -> None:
-        """Persist the effective variables captured for one pipeline step."""
+        """Persist the effective variables captured for one pipeline step.
+
+        These rows are immutable execution evidence: they explain which
+        variables a commandlet saw when it launched and give background
+        processes a stable snapshot to reconstruct from.
+        """
         now = datetime.now(timezone.utc).isoformat()
         with self.connect() as conn:
             conn.executemany(
@@ -122,7 +131,7 @@ class EventStoreRuntimeMixin:
             )
             return {row["name"]: row["value"] for row in rows}
 
-    def command_run_var_rows(self, command_run_id: str) -> list[sqlite3.Row]:
+    def command_run_var_rows(self, command_run_id: str) -> list[Any]:
         """Return variable snapshot rows for display/audit output."""
         with self.connect() as conn:
             return list(
@@ -136,10 +145,13 @@ class EventStoreRuntimeMixin:
                     (command_run_id,),
                 )
             )
-    def runs(self, *, active_only: bool = False) -> list[sqlite3.Row]:
+    def runs(self, *, active_only: bool = False) -> list[Any]:
         """Summarize commandlet executions that produced events."""
         self.ensure_run_aliases()
         with self.connect() as conn:
+            # Runs are reconstructed from events and variable snapshots rather
+            # than a separate mutable run table.  Joining to jobs lets the same
+            # query power both historical `steps` and active-only views.
             return list(
                 conn.execute(
                     """
@@ -166,10 +178,13 @@ class EventStoreRuntimeMixin:
                 )
             )
 
-    def pipelines(self, *, active_only: bool = False) -> list[sqlite3.Row]:
+    def pipelines(self, *, active_only: bool = False) -> list[Any]:
         """Summarize known pipeline IDs from events and run-variable snapshots."""
         self.ensure_pipeline_aliases()
         with self.connect() as conn:
+            # A pipeline can be known because it emitted events or because its
+            # background step snapshots were recorded before the child produced
+            # output.  Include both so users can inspect newly-started work.
             return list(
                 conn.execute(
                     """
@@ -273,7 +288,13 @@ class EventStoreRuntimeMixin:
                 self.ensure_runtime_entity("pipeline", str(serial), row["first_seen"])
 
     def ensure_runtime_entity(self, entity_type: str, serial: str, created_at: str | None = None) -> int:
-        """Allocate a stable local ID for a durable runtime serial."""
+        """Allocate a stable local ID for a durable runtime serial.
+
+        Durable serials are globally unique but too long for daily REPL use.
+        This method assigns per-database local IDs (`1`, `2`, ...) under an
+        immediate transaction so concurrent processes do not allocate the same
+        local selector.
+        """
         created = created_at or datetime.now(timezone.utc).isoformat()
         with self.connect() as conn:
             row = conn.execute(
@@ -282,6 +303,9 @@ class EventStoreRuntimeMixin:
             ).fetchone()
             if row is not None:
                 return int(row["local_id"])
+            # Lock before computing MAX(local_id)+1.  SQLite does not have a
+            # sequence per entity type here, so the read/insert pair must be
+            # atomic across foreground and background processes.
             conn.execute("BEGIN IMMEDIATE")
             try:
                 row = conn.execute(
@@ -310,7 +334,7 @@ class EventStoreRuntimeMixin:
                 conn.execute("ROLLBACK")
                 raise
 
-    def runs_without_alias_backfill(self, *, active_only: bool = False) -> list[sqlite3.Row]:
+    def runs_without_alias_backfill(self, *, active_only: bool = False) -> list[Any]:
         """Summarize runs without recursively allocating local IDs."""
         with self.connect() as conn:
             return list(
@@ -339,7 +363,7 @@ class EventStoreRuntimeMixin:
                 )
             )
 
-    def pipelines_without_alias_backfill(self, *, active_only: bool = False) -> list[sqlite3.Row]:
+    def pipelines_without_alias_backfill(self, *, active_only: bool = False) -> list[Any]:
         """Summarize pipelines without recursively allocating local IDs."""
         with self.connect() as conn:
             return list(

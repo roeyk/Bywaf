@@ -114,6 +114,9 @@ class HostScanner(CommandletBase):
         parser.add_argument("--limit", type=int, default=self.var_default(context, "limit", 256, cast=int))
         parsed = parser.parse_args(normalize_except_args(args))
         target_args = self.values_or_var(context, parsed.targets, "targets", required=True)
+        # Target expansion is separated from the nmap call so policy planning,
+        # DNS name capture, exclusions, and limits all operate on the same
+        # normalized target set.
         expanded_targets = cached_target_details(context, target_args, parsed.limit)
         targets = expanded_targets.hosts
         targets = exclude_hosts(targets, parsed.except_)
@@ -125,6 +128,9 @@ class HostScanner(CommandletBase):
             context.raise_if_cancelled()
             context.alert(f"discovered host {host}", silent=parsed.silent)
             event: dict[str, object] = {"host": host, "status": "up", "scanner": "nmap"}
+            # Keep discovered DNS/name context beside the host fact so
+            # downstream commandlets and reports do not need to join against
+            # separate name-resolution events for the common case.
             if host in names_by_host:
                 event["name"] = names_by_host[host]
             yield event

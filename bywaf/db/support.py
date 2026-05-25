@@ -21,10 +21,14 @@ except ImportError:  # pragma: no cover - exercised on systems without the optio
     sqlcipher = None
 
 SQLITE_HEADER = b"SQLite format 3\x00"
+# Keep this tuple centralized so listing, stale detection, and UI status agree
+# on which jobs are still considered live.
 ACTIVE_JOB_STATUSES = ("queued", "claimed", "running", "pausing", "paused", "cancelling")
 
 def artifact_count_queries() -> dict[str, str]:
     """Return artifact count queries keyed by trusted event scope column."""
+    # These snippets are selected by fixed keys, never interpolated from user
+    # input, so callers can include them in larger SQL statements safely.
     return {
         "command_run_id": """
             SELECT command_run_id AS target_id,
@@ -134,6 +138,9 @@ def export_sqlcipher_database(
     with sqlcipher.connect(str(source_path), isolation_level=None) as conn:
         if source_passphrase is not None:
             set_sqlcipher_key(conn, source_passphrase)
+        # SQLCipher exports by attaching the destination and copying through
+        # sqlcipher_export(); this handles encrypted->encrypted and
+        # encrypted->plaintext depending on destination_passphrase.
         conn.execute(
             f"ATTACH DATABASE {sql_literal(str(destination_path))} AS exported "
             f"KEY {sql_literal(destination_passphrase)}"

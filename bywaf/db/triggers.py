@@ -8,15 +8,16 @@ Used by:
 
 from __future__ import annotations
 
-import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from typing import Any
 
+from .backends import DatabaseConnection
 
 class EventStoreTriggerMixin:
     @contextmanager
-    def connect(self) -> Iterator[sqlite3.Connection]:
+    def connect(self) -> Iterator[DatabaseConnection]:
         """Implemented by EventStore."""
         raise NotImplementedError
 
@@ -39,6 +40,8 @@ class EventStoreTriggerMixin:
         current = self.trigger_cursor(name)
         next_last = current if last_event_id is None else last_event_id
         with self.connect() as conn:
+            # last_event_id is the replay cursor. last_fired_event_id is only a
+            # diagnostic pointer to the event that most recently matched.
             conn.execute(
                 """
                 INSERT INTO trigger_state(name, enabled, last_event_id, last_fired_event_id, updated_at)
@@ -52,7 +55,7 @@ class EventStoreTriggerMixin:
                 (name, 1 if enabled else 0, next_last, last_fired_event_id, now),
             )
 
-    def trigger_states(self) -> list[sqlite3.Row]:
+    def trigger_states(self) -> list[Any]:
         """Return persisted trigger state rows."""
         with self.connect() as conn:
             return list(conn.execute("SELECT * FROM trigger_state ORDER BY name"))

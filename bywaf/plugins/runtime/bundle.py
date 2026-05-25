@@ -184,6 +184,9 @@ def add_bundle_item(context: CommandContext, tokens: list[str]) -> None:
     if kind is None:
         raise ValueError("bundle add requires audit, evidence, or reports")
     item_selectors = {key: value for key, value in selectors.items() if key != "name"}
+    # Store selectors, not copied records. Bundles stay as durable saved scopes
+    # until export/seal time, when the selectors are resolved into concrete
+    # audit events and artifacts.
     count = len(resolve_bundle_content(context, kind, item_selectors)["records"])
     event = context.events.publish(
         "bundle.item.added",
@@ -207,6 +210,8 @@ def seal_bundle(context: CommandContext, tokens: list[str]) -> None:
     bundle = require_bundle(context, name)
     manifest = bundle_manifest(context, bundle, include_bodies=False)
     canonical = canonical_json(manifest)
+    # Sealing hashes the metadata manifest without artifact bodies. Export can
+    # include bodies later, but the seal proves the selected evidence set.
     digest = hashlib.sha256(canonical).hexdigest()
     payload: dict[str, Any] = {
         "name": name,
@@ -324,6 +329,8 @@ def all_bundles(context: CommandContext) -> dict[str, Bundle]:
     item_map: dict[str, list[dict[str, Any]]] = {}
     sealed: dict[str, dict[str, Any]] = {}
     for event in events:
+        # Bundle state is event-sourced so sealed bundles remain auditable and
+        # can be reconstructed even after process restart.
         name = event.payload.get("name")
         if not isinstance(name, str):
             continue
@@ -367,6 +374,8 @@ def bundle_manifest(context: CommandContext, bundle: Bundle, *, include_bodies: 
     """Build a deterministic bundle manifest."""
     items: list[dict[str, Any]] = []
     for item in bundle.items:
+        # Resolve each saved selector just-in-time. This keeps create/add cheap
+        # while allowing seal/export to operate on the current project DB.
         kind = str(item["kind"])
         selectors = dict(item.get("selectors", {}))
         items.append(resolve_bundle_content(context, kind, selectors, include_bodies=include_bodies))

@@ -167,7 +167,12 @@ class CompletionContext:
 
 @dataclass(frozen=True, slots=True)
 class ContextEvents:
-    """Capability-aware event API exposed to commandlets."""
+    """Capability-aware event API exposed to commandlets.
+
+    This service is the normal plugin path for event bus access.  It attaches
+    pipeline/step provenance automatically and audits topic-specific read/write
+    capabilities without exposing the full database object.
+    """
 
     context: CommandContext
 
@@ -232,6 +237,9 @@ class ContextEvents:
         while True:
             if self.context.cancelled():
                 return
+            # Fetch in bounded batches and advance the cursor only after events
+            # are returned.  That lets long-running consumers stream new events
+            # without holding a database cursor open.
             events = self.fetch(
                 topics,
                 after_id=cursor,
@@ -258,6 +266,9 @@ class ContextEvents:
         if command_run_id is None:
             return False
         db = self.require_event_store(f"{self.context.source} event follow")
+        # Parent-following consumers stop when the upstream step publishes a
+        # terminal lifecycle event.  Check both success and failure so a
+        # downstream listener does not wait forever after an upstream exception.
         self.context.audit_capability("db.read:command.run.completed")
         self.context.audit_capability("db.read:command.run.failed")
         return bool(
@@ -345,7 +356,12 @@ def signal_applies_to_context(event: Event, context: CommandContext) -> bool:
 
 @dataclass(frozen=True, slots=True)
 class ContextArtifacts:
-    """Framework-mediated artifact API exposed to commandlets."""
+    """Framework-mediated artifact API exposed to commandlets.
+
+    Artifacts are stored in the paired artifact database, then mirrored into the
+    main event log as `artifact.attached` so reports, bundles, and audit views
+    can discover evidence without opening the artifact DB directly.
+    """
 
     context: CommandContext
 
@@ -363,6 +379,9 @@ class ContextArtifacts:
         db = self.require_event_store("artifact attach")
         self.context.audit_capability("filesystem.read")
         self.context.audit_capability("artifact.write")
+        # Default provenance comes from the current context, but framework
+        # commandlets can override it when attaching evidence on behalf of a
+        # job, pipeline, or step selected by the operator.
         artifact = artifact_store_for_event_store(db).attach_file(
             Path(path),
             name=name,

@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from bywaf.events import Event
-from bywaf.finding_grouping import finding_group_key as derive_finding_group_key
+from bywaf.finding.grouping import finding_group_key as derive_finding_group_key
 from bywaf.plugin import (
     CommandContext,
     Commandlet,
@@ -257,6 +257,8 @@ def latest_completed_pipeline(context: CommandContext) -> str | None:
 
 def render_finding_report(context: CommandContext, events: list[Event], parsed: Namespace) -> None:
     """Render report results and emit a report-rendered audit event."""
+    # Rendering starts from raw events every time. Reports do not own findings;
+    # they are scoped views over the event log plus review-state events.
     groups = group_finding_events(events)
     decisions = latest_review_decisions(context)
     filtered_groups = filter_groups_by_status(groups, decisions, parsed.status)
@@ -344,6 +346,8 @@ def review_report_groups(context: CommandContext, parsed: Namespace, events: lis
     """Emit review events for selected report groups."""
     if not parsed.selection:
         raise ValueError(f"report {parsed.action} requires a selection such as 1, 1-3, or all")
+    # Review actions operate on the same filtered inbox the operator sees. That
+    # keeps `report accept 1-3` aligned with the currently displayed row numbers.
     groups = group_finding_events(events)
     decisions = latest_review_decisions(context)
     visible_groups = filter_groups_by_status(groups, decisions, parsed.status)
@@ -425,6 +429,9 @@ def latest_review_decisions(context: CommandContext) -> dict[str, ReviewDecision
             and (decisions[finding_id].event_id or 0) > event.id
         ):
             continue
+        # Review state is append-only. The latest marker wins, which lets an
+        # operator defer a finding and later accept or reject it without mutating
+        # the original finding event.
         decisions[finding_id] = ReviewDecision(
             decision=decision,
             note=str(event.payload.get("note") or ""),
@@ -444,6 +451,9 @@ def review_decision_for_group(
     decisions: Mapping[str, ReviewDecision],
 ) -> ReviewDecision | None:
     """Return the latest review decision matching a group key or raw finding id."""
+    # Older review events and external tooling may reference a raw finding_id,
+    # while the report inbox may group several raw findings under a derived key.
+    # Check both forms so review markers remain valid after grouping improves.
     matches = [
         decisions[key]
         for key in review_lookup_keys(group)
@@ -538,6 +548,9 @@ def group_finding_events(events: list[Event]) -> list[FindingGroup]:
     grouped: dict[str, list[Event]] = {}
     ordered_keys: list[str] = []
     for event in events:
+        # Preserve first-seen group order for stable row numbers, then sort each
+        # group's events chronologically so the representative can be chosen
+        # deterministically.
         key = finding_group_key(event)
         if key not in grouped:
             grouped[key] = []
