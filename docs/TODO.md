@@ -127,6 +127,10 @@ Planning dates are release planning markers, not compatibility commitments.
   stricter.
 - Continue refining stock plugin directory/search-path behavior for future
   system-wide plugin directories.
+- Consider future provider-role binding for portable plugin families that need
+  shared ancestor configuration without assuming a fixed final catalog path.
+  Keep public provider variables immediate-provider-only until a manifest-backed
+  role/permission model exists.
 - Document recommended plugin package layouts for pip, Debian, RPM, and
   unpacked local development plugins.
 
