@@ -4,12 +4,18 @@ Start here when reading the Bywaf documentation. The docs are split by reader
 role so operators, plugin authors, and maintainers can find the right level of
 detail without reading every design note first.
 
+Bywaf's current plugin model is commandlet-based. If you are coming from older
+offensive frameworks, do not look for Veil-style modules, Metasploit-style
+`info` dictionaries, or `run/exploit` entrypoints; use the current
+`@commandlet` / `CommandletBase` API documented below.
+
 ## Quick Paths
 
 - **New user:** [README](../README.md) -> [Usage Guide](../USAGE.md) ->
   [FAQ](FAQ.md)
 - **Operator:** [Terminology](TERMINOLOGY.md) -> [Runtime Model](RUNTIME_MODEL.md) ->
-  [Event Model](EVENT_MODEL.md) -> [Framework Surface](FRAMEWORK_SURFACE.md)
+  [Event Model](EVENT_MODEL.md) -> [Reporting](REPORTING.md) ->
+  [Framework Surface](FRAMEWORK_SURFACE.md)
 - **Plugin author:** [Plugin Author Guide](plugin_author/README.md) ->
   [Plugin Fundamentals](plugin_author/fundamentals.md) ->
   [Commandlet API Reference](plugin_author/commandlet-api.md) ->
@@ -27,6 +33,8 @@ detail without reading every design note first.
   requests, artifacts, notes, and provenance.
 - [Finding And Report Model](FINDING_MODEL.md): facts, finding candidates,
   normalized finding payloads, deduplication, and the `report` inbox.
+- [Reporting](REPORTING.md): operator workflow for `report`, grouping,
+  scoped views, and accepted/deferred/rejected review state.
 - [Persistence Model](PERSISTENCE_MODEL.md): event, runtime, artifact,
   maintenance, and variable store contracts.
 - [Save/Export Model](SAVE_EXPORT_MODEL.md): when commands use `save`,

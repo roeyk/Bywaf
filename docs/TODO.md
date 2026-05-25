@@ -211,8 +211,9 @@ Planning dates are release planning markers, not compatibility commitments.
 
 ### Item: Storage Adapter Boundary And DB Agnosticism
 
-- Keep SQLite as the production storage adapter for now, but reduce hard-coded
-  SQL and SQLite-specific assumptions behind explicit storage interfaces.
+- Keep SQLite as the production storage adapter for now. The first backend seam
+  exists through `bywaf.db.backends`; continue reducing hard-coded SQL and
+  SQLite-specific assumptions behind explicit storage interfaces.
 - Define repository/service boundaries for events, runtime state, jobs,
   variables, artifacts, migrations, and project archive/export workflows before
   attempting a second database backend.
@@ -226,20 +227,15 @@ Planning dates are release planning markers, not compatibility commitments.
 - Defer Postgres or other backend support until the storage contract is small,
   documented, and covered by tests.
 
-### Item: Command And Finding Module Package Layout
+### Item: Core Module Package Layout Follow-Ups
 
-- Move flat command parsing/name modules into a `bywaf/command/` package when
-  the import churn can be isolated in its own commit.
-- Move flat finding modules into a `bywaf/finding/` package, while preserving
-  compatibility facades if external plugin authors have started importing the
-  existing paths.
-- Keep plugin implementation directories under `bywaf/plugins/...`; this item
-  is about core framework modules such as command parsing and finding grouping,
-  not moving plugin files out of plugin-owned directories.
-- Update docs, tests, and skeleton imports in the same commit so future plugin
-  authors see the canonical package paths.
-- Do not combine this with storage or reporting behavior changes; it should be
-  a mechanical import/layout cleanup that is easy to review and revert.
+- Done: command, completion, config, finding, plugin process, secret, and DB
+  schema/backend code now live in focused packages.
+- Follow-up: look for remaining large runtime commandlets and repeated
+  report/finding helper code that would benefit from small shared helpers.
+- Preserve plugin implementation directories under `bywaf/plugins/...`; this
+  item is about core framework module organization, not flattening or moving
+  plugin-owned files.
 
 ### GUI/Web Frontend
 

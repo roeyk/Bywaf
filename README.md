@@ -5,6 +5,11 @@ network testing workflows. It gives operators an interactive shell, plugin
 commandlets, durable SQLite-backed events, artifacts, notes, runtime metadata,
 and report-oriented finding workflows.
 
+Bywaf plugins are **not** Veil modules, Metasploit modules, `info` dictionaries,
+or `run/exploit` entrypoint scripts. The current plugin API is commandlet-based:
+plugin authors use `@commandlet`, `@argument`, `@option`, `CommandletBase`,
+`CommandContext`, a `plugin()` factory, and a `bywaf.plugin.toml` manifest.
+
 The core idea is simple:
 
 ```text
@@ -151,6 +156,17 @@ The plugin authoring guide starts at
 native, library-backed, process-wrapped, and vulnerability-detection plugins
 are in [docs/plugin_skeletons](docs/plugin_skeletons).
 
+Current plugin API at a glance:
+
+```text
+plugin.py          decorated CommandletBase class plus plugin() factory
+command.py         runtime parsing, event iteration, context interaction
+detect.py          pure detection/protocol logic, testable without Bywaf
+findings.py        normalized finding payloads via bywaf.finding helpers
+models.py          plugin-local domain objects
+bywaf.plugin.toml  sidecar manifest contract for capabilities and traits
+```
+
 Before loading or sharing a plugin, run the checker:
 
 ```bash
@@ -166,6 +182,7 @@ python3 scripts/plugin_check.py path/to/plugin_dir
 - [docs/RUNTIME_MODEL.md](docs/RUNTIME_MODEL.md): jobs, pipelines, steps, signals, and snapshots.
 - [docs/EVENT_MODEL.md](docs/EVENT_MODEL.md): event topics, provenance, replay, and framework requests.
 - [docs/FINDING_MODEL.md](docs/FINDING_MODEL.md): normalized finding payloads, grouping, and reporting.
+- [docs/REPORTING.md](docs/REPORTING.md): `report` usage, grouping, and review state.
 - [docs/SAVE_EXPORT_MODEL.md](docs/SAVE_EXPORT_MODEL.md): load/save/export/archive semantics.
 - [docs/MANIFEST_SPECIFICATION.md](docs/MANIFEST_SPECIFICATION.md): plugin sidecar TOML schema.
 - [docs/FRAMEWORK_SURFACE.md](docs/FRAMEWORK_SURFACE.md): capabilities, topics, and bundled commandlets.

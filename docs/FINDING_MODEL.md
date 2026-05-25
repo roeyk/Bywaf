@@ -218,6 +218,9 @@ work may add explicit `finding.confirmed` topics for stronger verification.
 
 `report` is the operator inbox and scoped finding viewer.
 
+For the operator-facing command workflow, see [Reporting](REPORTING.md). This
+model page documents the payload and grouping rules that make reporting work.
+
 ```text
 bywaf> report
 bywaf> report pipeline=1

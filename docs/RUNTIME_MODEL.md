@@ -258,7 +258,7 @@ stale. Listings also include artifact counts when available.
 
 Plugin code should treat the `CommandContext` as the source of step state. Do
 not store invocation-specific mutable state on the commandlet object unless the
-framework guarantees a fresh object for that invocation.
+framework explicitly documents a fresh object for that invocation.
 
 Prefer:
 

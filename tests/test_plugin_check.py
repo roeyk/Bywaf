@@ -235,6 +235,51 @@ class PluginCheckTests(unittest.TestCase):
 
         self.assertEqual([], failures)
 
+    def test_plugin_skeletons_do_not_drift_to_legacy_api(self):
+        skeleton_root = Path(__file__).resolve().parents[1] / "docs" / "plugin_skeletons"
+        legacy_tokens = (
+            "bywaf.findings",
+            "bywaf.finding_grouping",
+            "bywaf.finding_taxonomy",
+            "bywaf.command_parser",
+            "bywaf.command_names",
+            "bywaf.plugin_process",
+            "BaseCommandlet",
+            "info =",
+            "def exploit(",
+        )
+        failures: list[str] = []
+        for path in skeleton_root.rglob("*.py"):
+            text = path.read_text(encoding="utf-8")
+            for token in legacy_tokens:
+                if token in text:
+                    failures.append(f"{path}: legacy token {token!r}")
+            if path.name == "plugin.py":
+                if "@commandlet" in text and "class " not in text.split("@commandlet", 1)[1].split("def plugin", 1)[0]:
+                    failures.append(f"{path}: @commandlet must decorate a CommandletBase class")
+
+        self.assertEqual([], failures)
+
+    def test_vulnerability_skeletons_keep_split_files_and_finding_helpers(self):
+        skeleton_root = Path(__file__).resolve().parents[1] / "docs" / "plugin_skeletons"
+        required = {"plugin.py", "command.py", "detect.py", "findings.py", "models.py", "bywaf.plugin.toml"}
+        failures: list[str] = []
+        for plugin_dir in sorted(path for path in skeleton_root.iterdir() if path.is_dir() and "vulnerability" in path.name):
+            present = {path.name for path in plugin_dir.iterdir() if path.is_file()}
+            missing = sorted(required - present)
+            if missing:
+                failures.append(f"{plugin_dir}: missing {', '.join(missing)}")
+            findings = plugin_dir.joinpath("findings.py").read_text(encoding="utf-8")
+            if "from bywaf.finding import candidate_payload" not in findings:
+                failures.append(f"{plugin_dir}/findings.py: missing current candidate_payload import")
+            if "candidate_payload(" not in findings:
+                failures.append(f"{plugin_dir}/findings.py: missing candidate_payload usage")
+            executable_lines = "\n".join(line for line in findings.splitlines() if not line.lstrip().startswith("#"))
+            if "confirmed_payload(" in executable_lines:
+                failures.append(f"{plugin_dir}/findings.py: uses nonexistent confirmed_payload helper")
+
+        self.assertEqual([], failures)
+
 
 def write_plugin_fixture(
     root: Path,

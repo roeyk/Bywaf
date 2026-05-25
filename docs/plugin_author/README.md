@@ -31,6 +31,34 @@ If you are using an AI assistant to draft a plugin, use the checker loop in
 source of truth; assistant output is only a proposal until it passes
 `scripts/plugin_check.py --strict-inference`.
 
+## Current API At A Glance
+
+Bywaf plugins provide commandlets. They do not use Veil-style modules,
+Metasploit-style `info` dictionaries, or `run/exploit` entrypoints.
+
+```text
+plugin.py          decorated CommandletBase class plus plugin() factory
+command.py         runtime parsing, event iteration, context interaction
+detect.py          pure detection/protocol logic, testable without Bywaf
+findings.py        normalized finding payloads via bywaf.finding helpers
+models.py          plugin-local domain objects
+bywaf.plugin.toml  sidecar manifest contract for capabilities and traits
+```
+
+The current plugin API centers on:
+
+- `@commandlet`, `@argument`, and `@option` metadata
+- `CommandletBase`
+- `CommandContext`
+- `run(self, context, args, input_events)`
+- yielded JSON-serializable dictionaries for normal event output
+- `def plugin() -> Commandlet`
+- `bywaf.plugin.toml`
+
+Compatibility note: if an external answer suggests `BaseCommandlet`, an `info`
+dict, a `modules/` directory API, or a `run(self, target, args)` method, it is
+not following the current Bywaf plugin contract.
+
 ## Choose A Starting Point
 
 | Goal | Start with | Then read |

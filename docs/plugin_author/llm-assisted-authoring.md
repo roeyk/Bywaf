@@ -59,6 +59,8 @@ Use a prompt like this:
 
 ```text
 Read the current Bywaf plugin author docs and the closest plugin skeleton.
+Use only the current commandlet API. Do not use Veil modules, Metasploit
+modules, info dictionaries, modules/ layout, or run/exploit entrypoints.
 Create a complete filesystem plugin directory for <plugin-name>.
 
 Rules:
