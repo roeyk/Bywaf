@@ -43,6 +43,9 @@ Planning dates are release planning markers, not compatibility commitments.
     `target_scope`, `group_key`, `identifiers`, `target`, and `affected`.
   - Run `report` and `report pipeline=<id>` and verify events with the same
     `class + target_scope + CVE/CWE` collapse into one group.
+  - Use `report accept`, `report defer note=...`, and `report reject` on a
+    controlled set, then confirm the default report view hides reviewed
+    findings and `status=all` still shows the full set with review counts.
   - Simulate the same CVE on `/`, `/admin`, and `/login` with
     `target_scope={"kind":"web_origin","value":"https://host"}` and confirm
     reporting groups them together.

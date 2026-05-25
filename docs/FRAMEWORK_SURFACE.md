@@ -57,6 +57,7 @@ base installation commandlets that declare or use each capability.
 | `db.write:finding.duplicate` | `finding_dedupe` |
 | `db.write:finding.merge_candidate` | `finding_dedupe` |
 | `db.write:finding.new` | `finding_dedupe` |
+| `db.write:finding.reviewed` | `report` |
 | `db.write:finding.updated` | `finding_dedupe` |
 | `db.write:key.generated` | `key` |
 | `db.write:key.imported` | `key` |
@@ -161,7 +162,7 @@ checks, resource commands, and runtime-control commandlets.
 | Plugin progress | `plugin.progress` | Long-running commandlets | Provides structured progress updates for the shell, logs, and future frontends |
 | Policy | `policy.evaluated` | Policy and plan approval flow | Records whether a requested action was allowed, denied, or required approval |
 | Process audit | `process.started`, `process.exited`, `process.secret.argv` | Framework-mediated process execution | Tracks external tools, exit status, and secret-safe argument handling |
-| Report lifecycle | `report.rendered` | `report` commandlet | Records which finding events were rendered for an operator-facing report view |
+| Report lifecycle | `report.rendered`, `finding.reviewed` | `report` commandlet | Records which finding events were rendered and which grouped findings an operator accepted, deferred, or rejected |
 | Resource commands | `resource.plugin.loaded`, `resource.script.command` | `load` and script execution | Records plugin loads and script commands executed through the shell |
 | Runtime naming | `runtime.name.assigned` | `name` commandlet and runtime metadata | Associates human-friendly names with runtime objects |
 | Runtime signals | `runtime.signal.requested`, `runtime.signal.applied`, `runtime.signal.ignored` | `signal`, `pause`, `resume`, `cancel`, `kill`, `stop`, and cooperative commandlets | Traces requested runtime controls and whether target jobs/steps applied or ignored them |

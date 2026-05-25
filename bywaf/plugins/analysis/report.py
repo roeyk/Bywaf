@@ -18,14 +18,23 @@ from typing import Any
 
 from bywaf.events import Event
 from bywaf.finding_grouping import finding_group_key as derive_finding_group_key
-from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet, option
+from bywaf.plugin import (
+    CommandContext,
+    Commandlet,
+    CommandletBase,
+    CompletionContext,
+    commandlet,
+    option,
+)
 from bywaf.plugins._args import key_value_to_long_options
-from bywaf.plugins.analysis.finding_report import REPORT_FINDING_TOPICS, finding_rows, findings_table
+from bywaf.plugins.analysis.finding_report import REPORT_FINDING_TOPICS, finding_rows
 from bywaf.plugins.runtime.audit import resolve_pipeline_selector, resolve_run_selector
-from bywaf.rendering import render_table
+from bywaf.rendering import Column, Table, render_table
 
-REPORT_OPTION_KEYS = {"job", "pipeline", "step", "limit", "status"}
-REPORT_STATUS_CHOICES = ("all", "unreviewed")
+REPORT_ACTIONS = ("accept", "defer", "reject")
+REPORT_OPTION_KEYS = {"job", "pipeline", "step", "limit", "note", "status"}
+REPORT_STATUS_CHOICES = ("all", "accepted", "deferred", "rejected", "unreviewed")
+REVIEW_DECISIONS = {"accept": "accepted", "defer": "deferred", "reject": "rejected"}
 
 
 @dataclass(frozen=True)
@@ -41,12 +50,26 @@ class FindingGroup:
         return max(self.events, key=lambda event: event.id or 0)
 
 
+@dataclass(frozen=True)
+class ReviewDecision:
+    """Latest review state for one finding group."""
+
+    decision: str
+    note: str = ""
+    event_id: int | None = None
+
+
 @commandlet(
     name="report",
     description="Show grouped finding reports for recent, step, job, or pipeline scopes.",
-    usage="report [pipeline=<id>[,<id>...]] [job=<id>[,<id>...]] [step=<id>[,<id>...]]",
+    usage=(
+        "report [accept|defer|reject <index-range|all>] "
+        "[pipeline=<ids>] [job=<ids>] [step=<ids>] [status=<filter>]"
+    ),
     examples=(
         "report",
+        "report accept 1-3,7",
+        "report defer 4 note=needs manual validation",
         "report pipeline=1",
         "report pipeline=1,2,3",
         "report job=7",
@@ -60,6 +83,7 @@ class FindingGroup:
         "db.read:finding.merge_candidate",
         "db.read:finding.reviewed",
         "db.write:report.rendered",
+        "db.write:finding.reviewed",
         "framework.console.output",
     ),
 )
@@ -80,24 +104,64 @@ class Report(CommandletBase):
         """Parse and render one report view."""
         parser = self.parser()
         parser.usage = self.spec.usage
+        parser.add_argument("action", nargs="?", choices=REPORT_ACTIONS)
+        parser.add_argument("selection", nargs="?")
         parser.add_argument("--job", default="", help="job id or comma-separated job ids")
-        parser.add_argument("--pipeline", default="", help="pipeline id or comma-separated pipeline ids")
+        parser.add_argument(
+            "--pipeline",
+            default="",
+            help="pipeline id or comma-separated pipeline ids",
+        )
         parser.add_argument("--step", default="", help="step id or comma-separated step ids")
         parser.add_argument("--limit", type=int, default=1000)
+        parser.add_argument("--note", default="")
         parser.add_argument("--status", choices=REPORT_STATUS_CHOICES, default="unreviewed")
-        parsed = parser.parse_args(key_value_to_long_options(args, REPORT_OPTION_KEYS))
+        parsed = parser.parse_args(normalize_report_args(args))
 
         input_findings = [event for event in input_events if event.topic in REPORT_FINDING_TOPICS]
         events = input_findings or select_report_scope_events(context, parsed)
-        events = filter_reviewed_events(context, events, include_reviewed=parsed.status == "all")
+        if parsed.action:
+            review_report_groups(context, parsed, events)
+            return ()
         render_finding_report(context, events, parsed)
         return ()
 
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
         """Complete report selectors."""
         del context, args
-        candidates = ("pipeline=", "job=", "step=", "limit=", "status=", "status=all", "status=unreviewed")
+        candidates = (
+            *REPORT_ACTIONS,
+            "all",
+            "pipeline=",
+            "job=",
+            "step=",
+            "limit=",
+            "note=",
+            "status=",
+            "status=accepted",
+            "status=all",
+            "status=deferred",
+            "status=rejected",
+            "status=unreviewed",
+        )
         return [candidate for candidate in candidates if candidate.startswith(prefix)]
+
+
+def normalize_report_args(args: list[str]) -> list[str]:
+    """Normalize report key=value selectors, letting final note= consume trailing text."""
+    normalized: list[str] = []
+    index = 0
+    while index < len(args):
+        token = args[index]
+        if token.startswith("note="):
+            note = " ".join([token.split("=", 1)[1], *args[index + 1:]]).strip()
+            if not note:
+                raise ValueError("report note= requires a value")
+            normalized.extend(["--note", note])
+            break
+        normalized.append(token)
+        index += 1
+    return key_value_to_long_options(normalized, REPORT_OPTION_KEYS)
 
 
 def select_report_scope_events(context: CommandContext, parsed: Namespace) -> list[Event]:
@@ -131,18 +195,29 @@ def events_for_jobs(context: CommandContext, job_ids: list[str], *, limit: int) 
         pipelines = {event.pipeline_id for event in job_events if event.pipeline_id}
         runs = {event.command_run_id for event in job_events if event.command_run_id}
         for pipeline_id in pipelines:
-            events.extend(events_for_topics(context, REPORT_FINDING_TOPICS, pipeline=pipeline_id, limit=limit))
+            events.extend(
+                events_for_topics(context, REPORT_FINDING_TOPICS, pipeline=pipeline_id, limit=limit)
+            )
         for run_id in runs:
-            events.extend(events_for_topics(context, REPORT_FINDING_TOPICS, step=run_id, limit=limit))
+            events.extend(
+                events_for_topics(context, REPORT_FINDING_TOPICS, step=run_id, limit=limit)
+            )
     return sort_unique_events(events)
 
 
-def events_for_pipelines(context: CommandContext, pipeline_ids: list[str], *, limit: int) -> list[Event]:
+def events_for_pipelines(
+    context: CommandContext,
+    pipeline_ids: list[str],
+    *,
+    limit: int,
+) -> list[Event]:
     """Return finding events associated with one or more pipelines."""
     events: list[Event] = []
     for pipeline_id in pipeline_ids:
         resolved = resolve_pipeline_selector(context, pipeline_id)
-        events.extend(events_for_topics(context, REPORT_FINDING_TOPICS, pipeline=resolved, limit=limit))
+        events.extend(
+            events_for_topics(context, REPORT_FINDING_TOPICS, pipeline=resolved, limit=limit)
+        )
     return sort_unique_events(events)
 
 
@@ -180,39 +255,44 @@ def latest_completed_pipeline(context: CommandContext) -> str | None:
     return newest.pipeline_id
 
 
-def filter_reviewed_events(context: CommandContext, events: list[Event], *, include_reviewed: bool) -> list[Event]:
-    """Remove already reviewed findings unless requested otherwise."""
-    if include_reviewed:
-        return events
-    reviewed = reviewed_finding_ids(context)
-    return [
-        event
-        for event in events
-        if str(effective_finding_payload(event).get("finding_id") or "") not in reviewed
-    ]
-
-
-def reviewed_finding_ids(context: CommandContext) -> set[str]:
-    """Return finding ids marked reviewed."""
-    return {
-        str(event.payload.get("finding_id"))
-        for event in context.events.query(topic="finding.reviewed", limit=100000)
-        if event.payload.get("finding_id")
-    }
-
-
 def render_finding_report(context: CommandContext, events: list[Event], parsed: Namespace) -> None:
     """Render report results and emit a report-rendered audit event."""
-    if not events:
-        context.output("no unreviewed findings" if parsed.status == "unreviewed" else "no findings")
-        context.events.publish("report.rendered", report_rendered_payload(parsed, events, rows=0))
-        return
     groups = group_finding_events(events)
-    representatives = [group.representative for group in groups]
+    decisions = latest_review_decisions(context)
+    filtered_groups = filter_groups_by_status(groups, decisions, parsed.status)
+    filtered_events = events_for_groups(filtered_groups)
     context.output(report_heading(parsed, events, groups))
-    table = findings_table(finding_rows(representatives, include_candidates=True))
+    context.output(review_summary_line(review_counts(groups, decisions)))
+    if not filtered_groups:
+        context.output(
+            "no unreviewed findings"
+            if parsed.status == "unreviewed"
+            else f"no {parsed.status} findings"
+        )
+        context.events.publish(
+            "report.rendered",
+            report_rendered_payload(
+                parsed,
+                filtered_events,
+                groups=filtered_groups,
+                rows=0,
+                counts=review_counts(groups, decisions),
+            ),
+        )
+        return
+    context.output(render_status_heading(parsed.status))
+    table = indexed_findings_table(filtered_groups)
     context.output(render_table(table, "console"))
-    context.events.publish("report.rendered", report_rendered_payload(parsed, events, groups=groups, rows=len(table.rows)))
+    context.events.publish(
+        "report.rendered",
+        report_rendered_payload(
+            parsed,
+            filtered_events,
+            groups=filtered_groups,
+            rows=len(table.rows),
+            counts=review_counts(groups, decisions),
+        ),
+    )
 
 
 def report_heading(parsed: Namespace, events: list[Event], groups: list[FindingGroup]) -> str:
@@ -244,6 +324,7 @@ def report_rendered_payload(
     *,
     groups: list[FindingGroup] | None = None,
     rows: int,
+    counts: Mapping[str, int] | None = None,
 ) -> dict[str, object]:
     """Return a structured payload describing one rendered report."""
     return {
@@ -254,8 +335,202 @@ def report_rendered_payload(
         "status": parsed.status,
         "events": [event.id for event in events if event.id is not None],
         "groups": [group.finding_id for group in groups or []],
+        "counts": dict(counts or {}),
         "rows": rows,
     }
+
+
+def review_report_groups(context: CommandContext, parsed: Namespace, events: list[Event]) -> None:
+    """Emit review events for selected report groups."""
+    if not parsed.selection:
+        raise ValueError(f"report {parsed.action} requires a selection such as 1, 1-3, or all")
+    groups = group_finding_events(events)
+    decisions = latest_review_decisions(context)
+    visible_groups = filter_groups_by_status(groups, decisions, parsed.status)
+    selected = selected_groups(visible_groups, str(parsed.selection))
+    if not selected:
+        raise ValueError("report selection matched no findings")
+    decision = REVIEW_DECISIONS[str(parsed.action)]
+    for group in selected:
+        context.events.publish(
+            "finding.reviewed",
+            {
+                "finding_id": group.finding_id,
+                "decision": decision,
+                "note": parsed.note,
+                "source": "report",
+            },
+        )
+    context.output(f"{decision} {len(selected)} finding{'s' if len(selected) != 1 else ''}")
+
+
+def selected_groups(groups: list[FindingGroup], selection: str) -> list[FindingGroup]:
+    """Resolve report row indexes and ranges into finding groups."""
+    if selection == "all":
+        return groups
+    selected_indexes = parse_index_selection(selection, maximum=len(groups))
+    return [groups[index - 1] for index in selected_indexes]
+
+
+def parse_index_selection(selection: str, *, maximum: int) -> list[int]:
+    """Parse comma-separated 1-based indexes and inclusive ranges."""
+    indexes: list[int] = []
+    seen: set[int] = set()
+    for part in selection.split(","):
+        token = part.strip()
+        if not token:
+            raise ValueError("empty report selection range")
+        if "-" in token:
+            start_raw, end_raw = token.split("-", 1)
+            start = parse_positive_index(start_raw)
+            end = parse_positive_index(end_raw)
+            if start > end:
+                raise ValueError(f"invalid descending report range: {token}")
+            values = range(start, end + 1)
+        else:
+            values = (parse_positive_index(token),)
+        for value in values:
+            if value > maximum:
+                raise ValueError(f"report selection index out of range: {value}")
+            if value not in seen:
+                indexes.append(value)
+                seen.add(value)
+    return indexes
+
+
+def parse_positive_index(value: str) -> int:
+    """Return a positive integer report row index."""
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise ValueError(f"invalid report selection index: {value}") from exc
+    if parsed < 1:
+        raise ValueError(f"invalid report selection index: {value}")
+    return parsed
+
+
+def latest_review_decisions(context: CommandContext) -> dict[str, ReviewDecision]:
+    """Return the latest review decision for each finding group."""
+    decisions: dict[str, ReviewDecision] = {}
+    for event in context.events.query(topic="finding.reviewed", limit=100000):
+        finding_id = str(event.payload.get("finding_id") or "")
+        if not finding_id:
+            continue
+        decision = str(event.payload.get("decision") or "accepted")
+        if decision not in {"accepted", "deferred", "rejected"}:
+            decision = "accepted"
+        if (
+            event.id is not None
+            and decisions.get(finding_id)
+            and (decisions[finding_id].event_id or 0) > event.id
+        ):
+            continue
+        decisions[finding_id] = ReviewDecision(
+            decision=decision,
+            note=str(event.payload.get("note") or ""),
+            event_id=event.id,
+        )
+    return decisions
+
+
+def review_status(group: FindingGroup, decisions: Mapping[str, ReviewDecision]) -> str:
+    """Return the effective review status for one finding group."""
+    decision = review_decision_for_group(group, decisions)
+    return decision.decision if decision is not None else "unreviewed"
+
+
+def review_decision_for_group(
+    group: FindingGroup,
+    decisions: Mapping[str, ReviewDecision],
+) -> ReviewDecision | None:
+    """Return the latest review decision matching a group key or raw finding id."""
+    matches = [
+        decisions[key]
+        for key in review_lookup_keys(group)
+        if key in decisions
+    ]
+    if not matches:
+        return None
+    return max(matches, key=lambda decision: decision.event_id or 0)
+
+
+def review_lookup_keys(group: FindingGroup) -> tuple[str, ...]:
+    """Return review identifiers that may refer to one finding group."""
+    keys = [group.finding_id]
+    seen = {group.finding_id}
+    for event in group.events:
+        raw_finding_id = str(effective_finding_payload(event).get("finding_id") or "")
+        if raw_finding_id and raw_finding_id not in seen:
+            keys.append(raw_finding_id)
+            seen.add(raw_finding_id)
+    return tuple(keys)
+
+
+def filter_groups_by_status(
+    groups: list[FindingGroup],
+    decisions: Mapping[str, ReviewDecision],
+    status: str,
+) -> list[FindingGroup]:
+    """Return report groups matching the requested review status."""
+    if status == "all":
+        return groups
+    return [group for group in groups if review_status(group, decisions) == status]
+
+
+def review_counts(
+    groups: list[FindingGroup],
+    decisions: Mapping[str, ReviewDecision],
+) -> dict[str, int]:
+    """Count finding groups by current review status."""
+    counts = {key: 0 for key in ("total", "accepted", "deferred", "rejected", "unreviewed")}
+    counts["total"] = len(groups)
+    for group in groups:
+        counts[review_status(group, decisions)] += 1
+    return counts
+
+
+def review_summary_line(counts: Mapping[str, int]) -> str:
+    """Return a compact review-state summary for the report heading."""
+    return (
+        "Findings: "
+        f"{counts.get('total', 0)} total, "
+        f"{counts.get('accepted', 0)} accepted, "
+        f"{counts.get('deferred', 0)} deferred, "
+        f"{counts.get('rejected', 0)} rejected, "
+        f"{counts.get('unreviewed', 0)} unreviewed"
+    )
+
+
+def render_status_heading(status: str) -> str:
+    """Return the subheading shown before filtered report rows."""
+    return "All findings:" if status == "all" else f"{status.capitalize()} findings:"
+
+
+def indexed_findings_table(groups: list[FindingGroup]) -> Table:
+    """Return a report table with stable 1-based row indexes."""
+    representatives = [group.representative for group in groups]
+    rows = [
+        {"index": index, **row}
+        for index, row in enumerate(finding_rows(representatives, include_candidates=True), start=1)
+    ]
+    return Table.from_rows(
+        rows,
+        (
+            Column("index", "#", "right"),
+            Column("finding_name", "Finding name"),
+            Column("description", "Description"),
+            Column("hosts_affected", "Host(s) affected"),
+            Column("cve", "CVE"),
+            Column("severity", "Severity rating"),
+            Column("recommendation", "Recommendation"),
+        ),
+        title="Findings",
+    )
+
+
+def events_for_groups(groups: list[FindingGroup]) -> list[Event]:
+    """Return sorted events from the selected report groups."""
+    return sort_unique_events(event for group in groups for event in group.events)
 
 
 def group_finding_events(events: list[Event]) -> list[FindingGroup]:

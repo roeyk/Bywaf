@@ -172,6 +172,55 @@ class ReportTests(unittest.TestCase):
             self.assertEqual(rendered.payload["groups"], ["service|CVE-2026-1234|192.0.2.10|443|tcp"])
             self.assertEqual(rendered.payload["rows"], 1)
 
+    def test_report_review_marker_matches_raw_finding_id_inside_group_key_group(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "finding-page-1",
+                    "group_key": "service|CVE-2026-1234|192.0.2.10|443|tcp",
+                    "title": "Example service CVE",
+                    "target": {"ip": "192.0.2.10", "port": "443", "protocol": "tcp"},
+                    "affected": [{"url": "https://example.test/page1"}],
+                    "severity": "high",
+                },
+                "web_cve_check",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+            runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "finding-page-2",
+                    "group_key": "service|CVE-2026-1234|192.0.2.10|443|tcp",
+                    "title": "Example service CVE",
+                    "target": {"ip": "192.0.2.10", "port": "443", "protocol": "tcp"},
+                    "affected": [{"url": "https://example.test/admin"}],
+                    "severity": "high",
+                },
+                "web_cve_check",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+            runner.db.publish(
+                "finding.reviewed",
+                {"finding_id": "finding-page-1", "decision": "accepted"},
+                "report",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report pipeline=pipeline-a")
+                process_framework_requests(runner, ShellState())
+
+            text = output.getvalue()
+            self.assertIn("Findings: 1 total, 1 accepted, 0 deferred, 0 rejected, 0 unreviewed", text)
+            self.assertIn("no unreviewed findings", text)
+            rendered = runner.db.events_for_topic("report.rendered")[0]
+            self.assertEqual(rendered.payload["groups"], [])
+            self.assertEqual(rendered.payload["rows"], 0)
+
     def test_report_derives_group_key_from_class_scope_and_cve(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
@@ -347,6 +396,191 @@ class ReportTests(unittest.TestCase):
                 process_framework_requests(runner, ShellState())
 
             self.assertIn("no unreviewed findings", output.getvalue())
+
+    def test_report_summarizes_review_state_and_shows_unreviewed_by_default(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            for index, title in enumerate(("Accepted finding", "Deferred finding", "Open finding"), start=1):
+                runner.db.publish(
+                    "finding.candidate",
+                    {
+                        "finding_id": f"finding-{index}",
+                        "title": title,
+                        "target": {"host": f"host-{index}.test"},
+                        "severity": "medium",
+                    },
+                    "scanner",
+                    pipeline_id="pipeline-a",
+                    command_run_id="step-a",
+                )
+            runner.db.publish(
+                "finding.reviewed",
+                {"finding_id": "finding-1", "decision": "accepted"},
+                "report",
+            )
+            runner.db.publish(
+                "finding.reviewed",
+                {"finding_id": "finding-2", "decision": "deferred"},
+                "report",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report pipeline=pipeline-a")
+                process_framework_requests(runner, ShellState())
+
+            text = output.getvalue()
+            self.assertIn("Findings: 3 total, 1 accepted, 1 deferred, 0 rejected, 1 unreviewed", text)
+            self.assertIn("Unreviewed findings:", text)
+            self.assertIn("Open finding", text)
+            self.assertNotIn("Accepted finding", text)
+            self.assertNotIn("Deferred finding", text)
+            rendered = runner.db.events_for_topic("report.rendered")[0]
+            self.assertEqual(
+                rendered.payload["counts"],
+                {"total": 3, "accepted": 1, "deferred": 1, "rejected": 0, "unreviewed": 1},
+            )
+            self.assertEqual(rendered.payload["groups"], ["finding-3"])
+
+    def test_report_status_all_shows_reviewed_and_unreviewed_findings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "finding.candidate",
+                {"finding_id": "finding-1", "title": "Accepted finding", "target": {"host": "a.test"}},
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="step-a",
+            )
+            runner.db.publish(
+                "finding.candidate",
+                {"finding_id": "finding-2", "title": "Open finding", "target": {"host": "b.test"}},
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="step-a",
+            )
+            runner.db.publish(
+                "finding.reviewed",
+                {"finding_id": "finding-1", "decision": "accepted"},
+                "report",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report pipeline=pipeline-a status=all")
+                process_framework_requests(runner, ShellState())
+
+            text = output.getvalue()
+            self.assertIn("All findings:", text)
+            self.assertIn("Accepted finding", text)
+            self.assertIn("Open finding", text)
+
+    def test_report_accepts_selection_ranges_and_lists(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            for index in range(1, 6):
+                runner.db.publish(
+                    "finding.candidate",
+                    {
+                        "finding_id": f"finding-{index}",
+                        "title": f"Finding {index}",
+                        "target": {"host": f"host-{index}.test"},
+                    },
+                    "scanner",
+                    pipeline_id="pipeline-a",
+                    command_run_id="step-a",
+                )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report accept 1-2,4 pipeline=pipeline-a")
+                process_framework_requests(runner, ShellState())
+
+            self.assertIn("accepted 3 findings", output.getvalue())
+            reviews = runner.db.events_for_topic("finding.reviewed")
+            self.assertEqual(
+                [(event.payload["finding_id"], event.payload["decision"]) for event in reviews],
+                [("finding-1", "accepted"), ("finding-2", "accepted"), ("finding-4", "accepted")],
+            )
+
+    def test_report_accept_all_marks_visible_unreviewed_findings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            for index in range(1, 4):
+                runner.db.publish(
+                    "finding.candidate",
+                    {
+                        "finding_id": f"finding-{index}",
+                        "title": f"Finding {index}",
+                        "target": {"host": f"host-{index}.test"},
+                    },
+                    "scanner",
+                    pipeline_id="pipeline-a",
+                    command_run_id="step-a",
+                )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report accept all pipeline=pipeline-a")
+                process_framework_requests(runner, ShellState())
+
+            self.assertIn("accepted 3 findings", output.getvalue())
+            reviews = runner.db.events_for_topic("finding.reviewed")
+            self.assertEqual(len(reviews), 3)
+            self.assertTrue(all(event.payload["decision"] == "accepted" for event in reviews))
+
+    def test_report_defer_records_note_text(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "finding.candidate",
+                {"finding_id": "finding-1", "title": "Needs review", "target": {"host": "a.test"}},
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="step-a",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report defer 1 pipeline=pipeline-a note=needs manual validation")
+                process_framework_requests(runner, ShellState())
+
+            self.assertIn("deferred 1 finding", output.getvalue())
+            review = runner.db.events_for_topic("finding.reviewed")[0]
+            self.assertEqual(review.payload["finding_id"], "finding-1")
+            self.assertEqual(review.payload["decision"], "deferred")
+            self.assertEqual(review.payload["note"], "needs manual validation")
+
+    def test_report_latest_review_decision_wins(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "finding.candidate",
+                {"finding_id": "finding-1", "title": "Flipped finding", "target": {"host": "a.test"}},
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="step-a",
+            )
+            runner.db.publish(
+                "finding.reviewed",
+                {"finding_id": "finding-1", "decision": "accepted"},
+                "report",
+            )
+            runner.db.publish(
+                "finding.reviewed",
+                {"finding_id": "finding-1", "decision": "rejected"},
+                "report",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report pipeline=pipeline-a status=rejected")
+                process_framework_requests(runner, ShellState())
+
+            text = output.getvalue()
+            self.assertIn("Findings: 1 total, 0 accepted, 0 deferred, 1 rejected, 0 unreviewed", text)
+            self.assertIn("Rejected findings:", text)
+            self.assertIn("Flipped finding", text)
 
     def test_report_job_accepts_multiple_jobs(self):
         with tempfile.TemporaryDirectory() as tmp:

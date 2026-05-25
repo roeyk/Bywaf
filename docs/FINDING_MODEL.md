@@ -224,6 +224,11 @@ bywaf> report pipeline=1
 bywaf> report pipeline=1,2,3
 bywaf> report job=7
 bywaf> report step=12
+bywaf> report status=all
+bywaf> report accept all pipeline=1
+bywaf> report accept 1-3,7-9 pipeline=1
+bywaf> report defer 4 pipeline=1 note=needs manual validation
+bywaf> report reject 2 pipeline=1 note=false positive after retest
 ```
 
 Defaults are optimized for field use:
@@ -232,7 +237,15 @@ Defaults are optimized for field use:
   that produced finding events.
 - `report pipeline=...`, `report job=...`, and `report step=...` render scoped
   grouped findings without requiring manual event queries.
-- `status=all` includes findings that have a `finding.reviewed` marker.
+- Every report view shows total, accepted, deferred, rejected, and unreviewed
+  counts before rendering rows.
+- The default status is `unreviewed`; use `status=all`, `status=accepted`,
+  `status=deferred`, or `status=rejected` to inspect other review states.
+- `report accept ...`, `report defer ...`, and `report reject ...` write
+  `finding.reviewed` events. Selection values are row numbers from the current
+  report view: `all`, `1`, `1-4`, or comma-separated mixes such as `1-3,7,9-11`.
+- Use `note=` for operator context on a review decision. Put `note=` last when
+  the note contains spaces.
 
 `finding_report` remains the table/export plugin for normalized finding streams
 and file artifacts. `report` is the quick interactive view.
@@ -240,7 +253,7 @@ and file artifacts. `report` is the quick interactive view.
 ## Current Boundaries
 
 The current report model is deliberately small. Durable report objects,
-`report create/update/show/export`, acceptance/rejection triage, and resume
+`report create/update/show/export`, richer review workflows, and resume
 summaries for unreviewed completed work are planned follow-up pieces.
 
 This avoids making reports duplicate finding payloads. Reports should remain

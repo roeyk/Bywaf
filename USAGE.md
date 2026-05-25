@@ -1641,7 +1641,9 @@ bywaf> finding_report export=findings.xlsx
 `report` is the operator-facing finding inbox. It renders grouped unreviewed
 findings from the latest pipeline that produced finding events, or from an
 explicit pipeline, job, or step scope. Use it when you want to quickly see what
-finished work produced without manually querying raw events.
+finished work produced without manually querying raw events. The heading always
+shows total, accepted, deferred, rejected, and unreviewed counts; the default
+view renders only the unreviewed groups that still need triage.
 
 ```text
 bywaf> report
@@ -1649,6 +1651,10 @@ bywaf> report pipeline=1,2,3
 bywaf> report job=7
 bywaf> report step=12
 bywaf> report status=all
+bywaf> report accept all pipeline=1
+bywaf> report accept 1-3,7-9 pipeline=1
+bywaf> report defer 4 pipeline=1 note=needs manual validation
+bywaf> report reject 2 pipeline=1 note=false positive after retest
 ```
 
 See [Finding And Report Model](docs/FINDING_MODEL.md) for the difference
