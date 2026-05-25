@@ -158,7 +158,7 @@ class PackagingInstallPathTests(unittest.TestCase):
             runner = make_runner(Path(tmp, "db.sqlite3"), plugin_root=root, plugin_config=config, forced_plugins=True)
 
             self.assertIn("userprobe", runner.registry.names())
-            self.assertEqual(runner.registry.varstore.get("userprobe.origin"), "user-local")
+            self.assertEqual(runner.registry.varstore.get("local/userprobe.origin"), "user-local")
 
     def test_system_wide_shaped_plugin_root_loads_from_config(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -170,7 +170,7 @@ class PackagingInstallPathTests(unittest.TestCase):
             runner = make_runner(Path(tmp, "db.sqlite3"), plugin_root=root, plugin_config=config, forced_plugins=True)
 
             self.assertIn("systemprobe", runner.registry.names())
-            self.assertEqual(runner.registry.varstore.get("systemprobe.origin"), "system-wide")
+            self.assertEqual(runner.registry.varstore.get("site/systemprobe.origin"), "system-wide")
 
     def test_cli_run_uses_explicit_plugin_root_and_config(self):
         with tempfile.TemporaryDirectory() as tmp:

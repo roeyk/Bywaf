@@ -226,8 +226,8 @@ Use preferences for operator experience and cross-project defaults:
 Use variables for execution state that can affect command behavior:
 
 - `global.policy.network.allow`;
-- `hostscanner.targets`;
-- `http_probe.cookie-file`;
+- `discovery/hostscanner.targets`;
+- `http/http_probe.cookie-file`;
 - commandlet arguments captured for a run.
 
 The boundary is audit-driven: preferences may influence defaults, but any
@@ -242,7 +242,7 @@ Runtime listing commands show table-oriented views:
 
 ```text
 jobs
-runs
+steps
 pipelines
 info
 ```

@@ -116,7 +116,11 @@ def run_background_job(
         from .core import Runner
 
         runner = Runner(db, PluginRegistry.discover(), job_id=job_id)
-        pipeline = parse_pipeline(command_line)
+        pipeline = parse_pipeline(
+            command_line,
+            command_resolver=runner.registry.resolve_commandlet_name,
+            command_scope_resolver=runner.registry.variable_scope,
+        )
         if pipeline.background:
             runner.run_pipeline_processes(pipeline.commands, pipeline_id=pipeline_id, stages=stages)
         else:

@@ -26,6 +26,7 @@ from ..command_names import (
     PROJECT_NEW,
     PROJECT_USE,
     SET_COMMAND,
+    SETG_COMMAND,
 )
 from ..specs import CompletionSpec
 from ..utils import complete_path
@@ -53,7 +54,6 @@ class CoreCompleter:
         "jobs",
         "pipelines",
         "cmds",
-        "go",
         "exec",
         "plugin",
         "plugins",
@@ -62,12 +62,14 @@ class CoreCompleter:
         "project",
         "prompt",
         "script",
+        "run",
         "step",
         "steps",
         "topics",
         "triggers",
         "use",
         SET_COMMAND,
+        SETG_COMMAND,
         "exit",
         "event",
         "events",
@@ -94,18 +96,17 @@ class CoreCompleter:
 
     def base_candidates(self, tokens: list[str], prefix: str, ended_with_space: bool) -> list[str]:
         """Return unfiltered candidates for the current token context."""
-        root_candidates = [*self.builtins, *self.registry.names()]
+        root_candidates = [*self.builtins, *self.registry.names(), *self.registry.commandlet_aliases()]
         if not tokens or (len(tokens) == 1 and not ended_with_space):
             return root_candidates
         command = tokens[0]
         rest = tokens[1:]
-        if command in self.registry.plugins:
+        if self.registry.has_commandlet(command):
             return self.plugin_candidates(command, prefix, rest)
         dispatch = {
             "?": lambda current_prefix: self.help_candidates(current_prefix),
             "config": self.config_candidates,
             "cmds": lambda current_prefix: self.option_candidates(current_prefix, ("--page",)),
-            "go": lambda _prefix: [],
             "event": self.event_candidates,
             "events": lambda _prefix: ["--tail", "last="],
             "exec": lambda _prefix: [],
@@ -123,13 +124,15 @@ class CoreCompleter:
             PROJECT_COMMAND: lambda current_prefix: self.project_candidates(current_prefix, rest),
             "q": lambda _prefix: [],
             "quit": lambda _prefix: [],
+            "run": lambda _prefix: [],
             "step": lambda current_prefix: self.complete_by_spec(CompletionSpec("run"), current_prefix),
             "steps": lambda current_prefix: self.option_candidates(current_prefix, ("--all",)),
             "topics": lambda _prefix: self.topic_completion_candidates(),
             "triggers": lambda _prefix: [],
-            "use": lambda _prefix: ["global", *self.registry.names()],
+            "use": lambda _prefix: ["global", *self.registry.names(), *self.registry.commandlet_aliases()],
             "script": self.script_candidates,
             SET_COMMAND: lambda current_prefix: self.vars_candidates(current_prefix, rest),
+            SETG_COMMAND: lambda current_prefix: self.setg_candidates(current_prefix, rest),
         }
         handler = dispatch.get(command)
         return handler(prefix) if handler is not None else root_candidates
@@ -176,6 +179,7 @@ class CoreCompleter:
 
     def plugin_variable_candidates(self, plugin_name: str, prefix: str) -> list[str]:
         """Complete variable references in positional or key=value arguments."""
+        plugin_name = self.registry.variable_scope(plugin_name)
         key = ""
         value_prefix = prefix
         if "=" in prefix and not prefix.startswith("--"):
@@ -190,6 +194,8 @@ class CoreCompleter:
 
     def plugin_key_value_candidates(self, plugin_name: str, prefix: str) -> list[str]:
         """Complete explicit `name=value` arguments for valued commandlet options."""
+        variable_scope = self.registry.variable_scope(plugin_name)
+        plugin_name = self.registry.resolve_commandlet_name(plugin_name)
         key, value_prefix = prefix.split("=", 1)
         plugin = self.registry.get(plugin_name)
         for option in plugin.spec.options:
@@ -199,7 +205,7 @@ class CoreCompleter:
             if completion_candidates:
                 return [f"{key}={candidate}" for candidate in completion_candidates]
             candidates = [*option.choices]
-            stored = self.registry.varstore.get(f"{plugin_name}.{option.name}")
+            stored = self.registry.varstore.get(f"{variable_scope}.{option.name}")
             if stored:
                 candidates.append(stored)
             if option.default:
@@ -209,6 +215,8 @@ class CoreCompleter:
 
     def plugin_option_value_candidates(self, plugin_name: str, option_token: str, prefix: str) -> list[str]:
         """Complete a value for a plugin option or framework selector."""
+        variable_scope = self.registry.variable_scope(plugin_name)
+        plugin_name = self.registry.resolve_commandlet_name(plugin_name)
         if option_token in FRAMEWORK_OPTION_COMPLETIONS:
             return self.complete_by_spec(FRAMEWORK_OPTION_COMPLETIONS[option_token], prefix)
         if not option_token.startswith("--"):
@@ -222,7 +230,7 @@ class CoreCompleter:
             if completion_candidates:
                 return completion_candidates
             candidates = [*option.choices]
-            stored = self.registry.varstore.get(f"{plugin_name}.{option.name}")
+            stored = self.registry.varstore.get(f"{variable_scope}.{option.name}")
             if stored:
                 candidates.append(stored)
             if option.default:
@@ -232,6 +240,7 @@ class CoreCompleter:
 
     def plugin_custom_candidates(self, plugin_name: str, prefix: str, args: list[str]) -> list[str]:
         """Ask a plugin's optional `complete()` hook for candidates."""
+        plugin_name = self.registry.resolve_commandlet_name(plugin_name)
         plugin = self.registry.get(plugin_name)
         completer = getattr(plugin, "complete", None)
         if completer is None:
@@ -246,6 +255,7 @@ class CoreCompleter:
 
     def plugin_positional_candidates(self, plugin_name: str, prefix: str, args: list[str]) -> list[str]:
         """Complete the current positional argument from CommandSpec metadata."""
+        plugin_name = self.registry.resolve_commandlet_name(plugin_name)
         plugin = self.registry.get(plugin_name)
         position = positional_index(args, prefix)
         if position >= len(plugin.spec.arguments):
@@ -420,8 +430,8 @@ class CoreCompleter:
             return [] if secret_already_present else ["--secret"]
         names = list(self.registry.varstore.names())
         secret_candidates = [] if secret_already_present else ["--secret"]
-        if "." in prefix or prefix.startswith("global."):
-            return [f"{name}=" for name in names]
+        if prefix.startswith("global.") or ("/" in prefix and "." in prefix):
+            return [f"{name}=" for name in names if name.startswith(prefix)]
         if self.active_context:
             scoped_prefix = f"{self.active_context}."
             short_names = [
@@ -431,8 +441,21 @@ class CoreCompleter:
             ]
             if short_names:
                 return [*secret_candidates, *short_names]
-        namespaces = sorted({name.split(".", 1)[0] for name in names if "." in name})
-        return [*secret_candidates, *[f"{namespace}." for namespace in namespaces], *[f"{name}=" for name in names if "." not in name]]
+        commandlet_scopes = sorted({name.rsplit(".", 1)[0] for name in names if "/" in name and "." in name})
+        return [
+            *secret_candidates,
+            *[f"{scope}." for scope in commandlet_scopes if f"{scope}.".startswith(prefix)],
+            *[f"{name}=" for name in names if "/" not in name and name.startswith(prefix)],
+        ]
+
+    def setg_candidates(self, prefix: str, args: list[str] | None = None) -> list[str]:
+        """Complete global variables for `setg`."""
+        args = args or []
+        secret_already_present = any(arg == "--secret" or arg.startswith("--secret=") for arg in args)
+        if prefix.startswith("-"):
+            return [] if secret_already_present else ["--secret"]
+        names = [name.removeprefix("global.") for name in self.registry.varstore.names() if name.startswith("global.")]
+        return [f"{name}=" for name in names if name.startswith(prefix)]
 
     def completion_meta(self, candidate: str, line: str, prefix: str) -> str:
         """Return prompt-toolkit metadata for runtime entity completions."""

@@ -21,20 +21,20 @@ from ..toml_support import load_data_file
 from ..varstore import VarStore
 
 
-def load_module_defaults(module: ModuleType, plugin: Commandlet, varstore: VarStore) -> None:
+def load_module_defaults(module: ModuleType, plugin: Commandlet, varstore: VarStore, *, scope: str | None = None) -> None:
     """Import module-level DEFAULTS into the shared VarStore."""
     defaults = getattr(module, "DEFAULTS", None)
     if isinstance(defaults, dict):
-        varstore.update_prefixed(plugin.spec.name, defaults)
+        varstore.update_prefixed(scope or plugin.spec.name, defaults)
 
 
-def load_defaults_file(plugin_dir: Path, plugin: Commandlet, varstore: VarStore) -> None:
+def load_defaults_file(plugin_dir: Path, plugin: Commandlet, varstore: VarStore, *, scope: str | None = None) -> None:
     """Load filesystem plugin defaults from TOML, with JSON compatibility."""
     path = first_existing(plugin_dir / "defaults.toml", plugin_dir / "defaults.json")
     if path is None:
         return
     values = load_data_file(path)
-    varstore.update_prefixed(plugin.spec.name, values.get("defaults", values))
+    varstore.update_prefixed(scope or plugin.spec.name, values.get("defaults", values))
 
 
 def parse_plugin_config(path: Path) -> list[str]:

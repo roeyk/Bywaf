@@ -223,7 +223,7 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
         handler = REPL_COMMAND_HANDLERS.get(name)
         if handler is not None:
             return handler(runner, state, rest, line)
-        if name in runner.registry.plugins:
+        if runner.registry.has_commandlet(name):
             execute_repl_commandlet(runner, state, line)
             return None
         print(f"error: unknown command or commandlet: {name}")

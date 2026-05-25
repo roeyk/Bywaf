@@ -125,10 +125,13 @@ class StorageRunnerPluginTests(unittest.TestCase):
         store = VarStore()
         store.set("hostscanner.targets", "127.0.0.1 127.0.0.2")
         store.set("global.target", "example.test")
-        unquoted = parse_invocation("hostscanner $targets", varstore=store)
-        double_quoted = parse_invocation('hostscanner "$targets"', varstore=store)
-        single_quoted = parse_invocation("hostscanner '$targets'", varstore=store)
-        global_value = parse_invocation("hostscanner $target", varstore=store)
+        def scope(name: str) -> str:
+            return name
+
+        unquoted = parse_invocation("hostscanner $targets", varstore=store, command_scope_resolver=scope)
+        double_quoted = parse_invocation('hostscanner "$targets"', varstore=store, command_scope_resolver=scope)
+        single_quoted = parse_invocation("hostscanner '$targets'", varstore=store, command_scope_resolver=scope)
+        global_value = parse_invocation("hostscanner $target", varstore=store, command_scope_resolver=scope)
         self.assertEqual(unquoted.args, ["127.0.0.1", "127.0.0.2"])
         self.assertEqual(double_quoted.args, ["127.0.0.1 127.0.0.2"])
         self.assertEqual(single_quoted.args, ["$targets"])
@@ -618,7 +621,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]) as discover:
                 runner = make_runner(Path(tmp, "db.sqlite3"))
-                runner.registry.varstore.set("hostscanner.targets", "127.0.0.1")
+                runner.registry.varstore.set("discovery/hostscanner.targets", "127.0.0.1")
                 with contextlib.redirect_stdout(io.StringIO()):
                     events = runner.execute("hostscanner")
             self.assertEqual(events[0].payload["host"], "127.0.0.1")
@@ -628,19 +631,19 @@ class StorageRunnerPluginTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]) as discover:
                 runner = make_runner(Path(tmp, "db.sqlite3"))
-                runner.registry.varstore.set("hostscanner.targets", "127.0.0.1 127.0.0.2")
+                runner.registry.varstore.set("discovery/hostscanner.targets", "127.0.0.1 127.0.0.2")
                 with contextlib.redirect_stdout(io.StringIO()):
                     events = runner.execute("hostscanner $targets")
             discover.assert_called_once_with("127.0.0.1 127.0.0.2", "-sn")
             expansions = runner.db.events_for_topic("framework.variable.expanded")
-            self.assertEqual(expansions[0].payload["variables"], ["hostscanner.targets"])
+            self.assertEqual(expansions[0].payload["variables"], ["discovery/hostscanner.targets"])
             self.assertEqual(expansions[0].command_run_id, events[0].command_run_id)
 
     def test_hostscanner_cli_target_overrides_targets_variable(self):
         with tempfile.TemporaryDirectory() as tmp:
             with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["192.0.2.1"]) as discover:
                 runner = make_runner(Path(tmp, "db.sqlite3"))
-                runner.registry.varstore.set("hostscanner.targets", "127.0.0.1")
+                runner.registry.varstore.set("discovery/hostscanner.targets", "127.0.0.1")
                 with contextlib.redirect_stdout(io.StringIO()):
                     runner.execute("hostscanner 192.0.2.1")
             discover.assert_called_once_with("192.0.2.1", "-sn")
@@ -1089,7 +1092,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
     def test_portscanner_ports_variable_is_default_but_cli_overrides(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
-            runner.registry.varstore.set("portscanner.ports", "22")
+            runner.registry.varstore.set("network/portscanner.ports", "22")
             with patch(
                 "bywaf.plugins.network.portscanner.scan_open_ports",
                 return_value=[NmapPort("127.0.0.1", 22, "tcp", "open")],

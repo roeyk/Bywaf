@@ -655,7 +655,7 @@ context.vars.get("cookie-file")
 the framework reads:
 
 ```text
-http_probe.cookie-file
+http/http_probe.cookie-file
 ```
 
 Plugins cannot enumerate or directly read another plugin's variables through
@@ -671,20 +671,89 @@ which reads:
 global.proxy
 ```
 
-The commandlet registry is flat: users invoke a commandlet by its registered
-`@commandlet(name=...)` value. A provider package may expose more than one
-commandlet, but `provider.commandlet` is not a separate execution namespace
-unless the commandlet was deliberately registered with that dotted name.
-Variable keys are the dotted namespaced surface: `set http_probe.timeout=3`
-stores the `timeout` value for `http_probe`, and `use http_probe` lets the user
-write `set timeout=3` as shorthand for the same scoped variable.
+Users can invoke a commandlet by its registered `@commandlet(name=...)` value,
+or by a provider-qualified catalog alias such as `http/http_probe`. A provider
+package may expose more than one commandlet; the qualified form keeps the catalog
+path visible without changing the commandlet's canonical runtime identity.
+
+### Catalog Variable Keys
+
+A catalog variable key is a stable user-settable variable name attached to a
+commandlet catalog path:
+
+```text
+<catalog/path/to/commandlet>.<variable-name>
+```
+
+The slash-delimited prefix is the commandlet catalog path. The dotted suffix is
+the variable name. For example, `set http/http_probe.timeout=3` stores the
+`timeout` value for the `http_probe` commandlet. `use http_probe` or
+`use http/http_probe` lets the user write `set timeout=3` as shorthand for the
+same scoped variable.
+
+Catalog variable keys are stable before and after plugin import. If a user sets
+`set http/repo_exposure/git_expose_check.timeout=10` before that commandlet is
+loaded, Bywaf stores that exact key and warns that the commandlet is not loaded
+yet. When the plugin later loads and binds to
+`http/repo_exposure/git_expose_check`, the key is reused as-is. Plugin defaults
+only fill missing keys; they do not overwrite a value the user set earlier.
+
+Commandlet variables are the normal durable configuration surface for plugin
+behavior. Invocation arguments override commandlet variables for that one
+execution, and code defaults are the fallback:
+
+```text
+http/repo_exposure/git_expose_check target=https://example.com timeout=2
+```
+
+uses `timeout=2` for that invocation even if the stored catalog variable is:
+
+```text
+http/repo_exposure/git_expose_check.timeout=10
+```
+
+Provider-scoped variables are separate and should be rare. Use them only for
+configuration that is intentionally shared by multiple commandlets from the same
+provider:
+
+```text
+set http/repo_exposure.proxy=http://127.0.0.1:8080
+```
+
+Commandlets must opt into provider-scoped reads explicitly. The short form reads
+the immediate provider that owns the commandlet:
+
+```python
+proxy = context.vars.get_provider("proxy")
+```
+
+For deeper catalog trees, ancestor provider reads are explicit by provider path.
+This is useful for shared cloud/account configuration:
+
+```text
+set cloud/aws.region=us-east-1
+set cloud/aws/s3.bucket-wordlist=common-buckets.txt
+```
+
+```python
+region = context.vars.get_provider_at("cloud/aws", "region")
+wordlist = context.vars.get_provider_at("cloud/aws/s3", "bucket-wordlist")
+```
+
+Bywaf does not walk up the provider tree automatically. A commandlet at
+`cloud/aws/s3/public_bucket/check` does not silently inherit `cloud/aws.region`;
+the plugin code must request `cloud/aws` deliberately.
+
+Do not rely on implicit fallback from commandlet variables to provider variables
+or global variables. If a commandlet needs framework-global configuration, use
+`context.vars.get_global("name")` deliberately and document why.
 
 ### Secrets
 
 Secret variables are different. If an operator sets:
 
 ```text
-bywaf> set --secret ssh_probe.password=client-password
+bywaf> set --secret network/ssh_probe.password=client-password
 ```
 
 ordinary `context.vars.get("password")` returns an opaque secret reference, not

@@ -1,6 +1,6 @@
 """Variable-reference completion helpers.
 
-Provides `$name` and `${namespace.name}` candidates used by plugin argument
+Provides `$name` and `${scope.variable}` candidates used by plugin argument
 completion.
 """
 
@@ -19,7 +19,7 @@ def variable_reference_candidates(names: Sequence[str], commandlet: str, prefix:
         if name.startswith("global."):
             candidates.add(f"${name.removeprefix('global.')}")
         candidates.add(f"${{{name}}}")
-        if "." not in name:
+        if "/" not in name and "." not in name:
             candidates.add(f"${name}")
     full_prefix = f"${prefix}"
     return sorted(candidate for candidate in candidates if candidate.startswith(full_prefix))

@@ -124,7 +124,13 @@ def is_secret_name(name: str, declared: set[str] | frozenset[str] = frozenset())
     """Return whether a command option is declared as secret metadata."""
     normalized = name.strip().lower().replace("_", "-")
     declared_normalized = {item.strip().lower().replace("_", "-") for item in declared}
-    segments = tuple(part for dotted in normalized.split(".") for part in dotted.split("-") if part)
+    segments = tuple(
+        part
+        for dotted in normalized.split(".")
+        for scoped in dotted.split("/")
+        for part in dotted.split("-")
+        if part
+    )
     return normalized in declared_normalized or any(segment in declared_normalized for segment in segments)
 
 

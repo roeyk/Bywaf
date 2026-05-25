@@ -58,12 +58,12 @@ class ApiTests(unittest.TestCase):
     def test_session_config_round_trip(self):
         with tempfile.TemporaryDirectory() as tmp:
             session = BywafSession.open(Path(tmp, "db.sqlite3"))
-            session.set_var("http_probe.cookie-file", "/tmp/cookies.txt")
+            session.set_var("http/http_probe.cookie-file", "/tmp/cookies.txt")
             config = Path(tmp, "config.toml")
             session.save_config(config)
-            session.set_var("http_probe.cookie-file", "changed")
+            session.set_var("http/http_probe.cookie-file", "changed")
             session.load_config(config)
-            self.assertEqual(session.get_var("http_probe.cookie-file"), "/tmp/cookies.txt")
+            self.assertEqual(session.get_var("http/http_probe.cookie-file"), "/tmp/cookies.txt")
             self.assertIn("[variables]", config.read_text())
 
     def test_encrypted_session_requires_passphrase(self):

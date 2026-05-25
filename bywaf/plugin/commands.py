@@ -183,7 +183,7 @@ class CommandletBase:
             if parsed:
                 return parsed
         if required:
-            raise ValueError(f"{self.spec.name} requires {name} argument or {context.source}.{name} variable")
+            raise ValueError(f"{self.spec.name} requires {name} argument or {context.vars.scope}.{name} variable")
         return []
 
 

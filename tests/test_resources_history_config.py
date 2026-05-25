@@ -46,7 +46,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
                 pipeline_id="p",
                 command_run_id="r",
                 commandlet="hostscanner",
-                values={"hostscanner.arguments": "-sn", "global.proxy": "http://127.0.0.1:8080"},
+                values={"discovery/hostscanner.arguments": "-sn", "global.proxy": "http://127.0.0.1:8080"},
             )
             run_output = io.StringIO()
             pipe_output = io.StringIO()
@@ -56,35 +56,35 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
                 dispatch_repl_line(runner, "event pipeline=p")
             self.assertIn("127.0.0.1", run_output.getvalue())
             self.assertIn("Variables:", run_output.getvalue())
-            self.assertIn("hostscanner.arguments=-sn", run_output.getvalue())
+            self.assertIn("discovery/hostscanner.arguments=-sn", run_output.getvalue())
             self.assertIn("global.proxy=http://127.0.0.1:8080", run_output.getvalue())
             self.assertIn("127.0.0.1", pipe_output.getvalue())
 
     def test_runner_snapshots_command_run_vars(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
-            runner.registry.varstore.set("hostscanner.arguments", "-PE")
+            runner.registry.varstore.set("discovery/hostscanner.arguments", "-PE")
             runner.registry.varstore.set("global.proxy", "http://127.0.0.1:8080")
             with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]):
                 with contextlib.redirect_stdout(io.StringIO()):
                     events = runner.execute("hostscanner 127.0.0.1")
             snapshot = runner.db.command_run_vars(events[0].command_run_id or "")
-            self.assertEqual(snapshot["hostscanner.arguments"], "-PE")
+            self.assertEqual(snapshot["discovery/hostscanner.arguments"], "-PE")
             self.assertEqual(snapshot["global.proxy"], "http://127.0.0.1:8080")
 
     def test_background_job_uses_parent_var_snapshot(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
-            runner.registry.varstore.set("hostscanner.arguments", "-PE")
+            runner.registry.varstore.set("discovery/hostscanner.arguments", "-PE")
             with patch("bywaf.runner.core.mp.Process") as process_cls:
                 process_cls.return_value.pid = 123
                 event = runner.execute("hostscanner 127.0.0.1 &")[0]
             self.assertEqual(event.topic, "job.requested")
             process_cls.return_value.start.assert_called_once()
             with runner.db.connect() as conn:
-                rows = list(conn.execute("SELECT name, value FROM command_run_vars WHERE commandlet = 'hostscanner'"))
+                rows = list(conn.execute("SELECT name, value FROM command_run_vars WHERE commandlet = 'discovery/hostscanner'"))
             snapshot = {row["name"]: row["value"] for row in rows}
-            self.assertEqual(snapshot["hostscanner.arguments"], "-PE")
+            self.assertEqual(snapshot["discovery/hostscanner.arguments"], "-PE")
 
     def test_dispatch_help_for_plugin(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -407,26 +407,48 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             plugin_dir = write_multi_external_plugin(Path(tmp))
             with contextlib.redirect_stdout(io.StringIO()):
                 dispatch_repl_line(runner, f"plugin load={plugin_dir} --force --use=second", state)
-            self.assertEqual(state.active_context, "second")
+            self.assertEqual(state.active_context, "multi/second")
 
-    def test_go_executes_active_commandlet(self):
+    def test_use_accepts_provider_qualified_commandlet_alias(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            plugin_dir = write_multi_external_plugin(Path(tmp))
+            with contextlib.redirect_stdout(io.StringIO()):
+                dispatch_repl_line(runner, f"plugin load={plugin_dir} --force", state)
+                dispatch_repl_line(runner, "use multi/second", state)
+            self.assertEqual(state.active_context, "multi/second")
+
+    def test_dispatch_accepts_provider_qualified_commandlet_alias(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            plugin_dir = write_simple_external_plugin(Path(tmp), "example")
+            with contextlib.redirect_stdout(io.StringIO()):
+                dispatch_repl_line(runner, f"plugin load={plugin_dir} --force", state)
+                dispatch_repl_line(runner, "example/example", state)
+            events = runner.db.events_for_topic("example.done")
+            self.assertEqual(len(events), 1)
+            self.assertEqual(events[0].source, "example")
+
+    def test_run_executes_active_commandlet(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
             plugin_dir = write_simple_external_plugin(Path(tmp), "example")
             with contextlib.redirect_stdout(io.StringIO()):
                 dispatch_repl_line(runner, f"pload {plugin_dir} --force --use", state)
-                dispatch_repl_line(runner, "go", state)
+                dispatch_repl_line(runner, "run", state)
             events = runner.db.events_for_topic("example.done")
             self.assertEqual(len(events), 1)
             self.assertEqual(events[0].payload["ok"], True)
 
-    def test_go_requires_active_commandlet(self):
+    def test_run_requires_active_commandlet(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "go", ShellState())
+                dispatch_repl_line(runner, "run", ShellState())
             self.assertIn("no active commandlet", output.getvalue())
 
     def test_load_plugin_refuses_without_force(self):
@@ -490,7 +512,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
                 dispatch_repl_line(runner, f"script load file={script}")
             discover.assert_called_once_with("127.0.0.1", "-sn")
             self.assertIn("script variable expansion", output.getvalue())
-            self.assertEqual(runner.db.events_for_topic("framework.variable.expanded")[0].payload["variables"], ["hostscanner.targets"])
+            self.assertEqual(runner.db.events_for_topic("framework.variable.expanded")[0].payload["variables"], ["discovery/hostscanner.targets"])
 
     def test_save_and_load_config(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -647,7 +669,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "set")
-            self.assertIn("portscanner.ports=", output.getvalue())
+            self.assertIn("network/portscanner.ports=", output.getvalue())
 
     def test_dispatch_vars_assignment_sets_value(self):
         with tempfile.TemporaryDirectory() as tmp:

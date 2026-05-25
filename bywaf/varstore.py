@@ -29,9 +29,11 @@ class VarStore:
         return self.values.get(key, default)
 
     def update_prefixed(self, prefix: str, values: dict[str, Any]) -> None:
-        """Load plugin defaults under `<commandlet>.<name>` keys."""
+        """Load plugin defaults under `<commandlet-address>.<name>` keys."""
         for key, value in values.items():
-            self.set(f"{prefix}.{key}", value)
+            scoped = f"{prefix}.{key}"
+            if scoped not in self.values:
+                self.set(scoped, value)
 
     def names(self) -> list[str]:
         """Return variable names for completion."""
@@ -51,16 +53,18 @@ class ScopedVarStore:
     this API.
     """
 
-    __slots__ = ("__store", "scope", "__run_values")
+    __slots__ = ("__store", "scope", "provider_scope", "__run_values")
 
     def __init__(
         self,
         store: VarStore,
         scope: str,
+        provider_scope: str | None = None,
         run_values: dict[str, str] | None = None,
     ) -> None:
         self.__store = store
         self.scope = scope
+        self.provider_scope = provider_scope or provider_scope_for(scope)
         self.__run_values = run_values or {}
 
     def get(self, key: str, default: str | None = None) -> str | None:
@@ -81,8 +85,35 @@ class ScopedVarStore:
             return self.__run_values[scoped]
         return self.__store.get(scoped, default)
 
+    def get_provider(self, key: str, default: str | None = None) -> str | None:
+        """Read an explicitly provider-scoped variable such as `http/repo.proxy`."""
+        return self.get_provider_at(self.provider_scope, key, default)
+
+    def get_provider_at(self, provider_scope: str, key: str, default: str | None = None) -> str | None:
+        """Read a variable from an explicit provider path such as `cloud/aws.region`."""
+        scoped = provider_scoped_key(provider_scope, key)
+        if scoped in self.__run_values:
+            return self.__run_values[scoped]
+        return self.__store.get(scoped, default)
+
     def scoped_key(self, key: str) -> str:
         """Convert a local variable name to its fully-qualified storage key."""
-        if "." in key:
+        if "/" in key or "." in key:
             raise ValueError("plugin variables must use unqualified names")
         return f"{self.scope}.{key}"
+
+
+def provider_scope_for(scope: str) -> str:
+    """Return the provider path that owns one commandlet variable scope."""
+    if "/" not in scope:
+        return scope
+    return scope.rsplit("/", 1)[0]
+
+
+def provider_scoped_key(provider_scope: str, key: str) -> str:
+    """Return a provider-scoped variable key."""
+    if not provider_scope or "." in provider_scope or "//" in provider_scope:
+        raise ValueError("provider scope must be a slash-delimited catalog path")
+    if "/" in key or "." in key:
+        raise ValueError("provider variables must use unqualified names")
+    return f"{provider_scope}.{key}"

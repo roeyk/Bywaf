@@ -11,7 +11,8 @@ Used by:
 from __future__ import annotations
 
 SET_COMMAND = "set"
-VARIABLE_COMMANDS = frozenset((SET_COMMAND,))
+SETG_COMMAND = "setg"
+VARIABLE_COMMANDS = frozenset((SET_COMMAND, SETG_COMMAND))
 
 PROJECT_COMMAND = "project"
 PROJECT_ALIAS_COMMAND = "proj"

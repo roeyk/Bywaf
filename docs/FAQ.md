@@ -218,14 +218,14 @@ If the database is encrypted, Bywaf prompts for the passphrase.
 ## How do I set a commandlet variable?
 
 ```text
-bywaf> set http_probe.timeout=3
-bywaf> set http_probe.cookie-file=/tmp/cookies.sqlite
+bywaf> set http/http_probe.timeout=3
+bywaf> set http/http_probe.cookie-file=/tmp/cookies.sqlite
 ```
 
 Use `set <name>` to show one value:
 
 ```text
-bywaf> set http_probe.timeout
+bywaf> set http/http_probe.timeout
 ```
 
 ## How do I set variables without typing the commandlet prefix each time?
@@ -239,16 +239,16 @@ bywaf> set cookie-file=/tmp/cookies.sqlite
 `use <commandlet>` changes interactive variable/completion context. It does not
 hide execution state.
 
-Commandlet names are currently flat registry names. Call a commandlet directly
-by its registered name, such as `http_probe ...`; provider-qualified invocation
-such as `provider.commandlet ...` is not a separate execution namespace. Dotted
-names are used for variables, so `set http_probe.timeout=3` sets the `timeout`
-variable for the `http_probe` commandlet.
+Call a commandlet directly by its registered name, such as `http_probe ...`.
+Provider-qualified aliases also work when you want the catalog path, such as
+`http/http_probe ...`. Slash-delimited names are used for commandlet-scoped
+variables, so `set http/http_probe.timeout=3` sets the `timeout` variable for
+the `http_probe` commandlet.
 
 Run the active commandlet with its stored/default variables:
 
 ```text
-bywaf> go
+bywaf> run
 ```
 
 `steps` still lists past commandlet executions, and `step <id>` still inspects one
@@ -346,7 +346,7 @@ bywaf> event run=<run-id-from-artifact-list>
 
 Secret values are redacted, but Bywaf keeps audit-safe identity metadata. For a
 secret variable or process environment value, the audit trail shows the secret
-name and fingerprint, for example `name=ssh_probe.password` and
+name and fingerprint, for example `name=network/ssh_probe.password` and
 `fingerprint=hmac-sha256:...`, not the plaintext.
 
 ## How do I verify that an artifact really came from that commandlet run?

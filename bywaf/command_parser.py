@@ -11,6 +11,7 @@ Used by:
 from __future__ import annotations
 
 import shlex
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from .varstore import VarStore
@@ -43,24 +44,33 @@ class Pipeline:
     display_name: str | None = None
 
 
-def parse_invocation(text: str, varstore: VarStore | None = None) -> CommandInvocation:
+def parse_invocation(
+    text: str,
+    varstore: VarStore | None = None,
+    command_resolver: Callable[[str], str] | None = None,
+    command_scope_resolver: Callable[[str], str] | None = None,
+) -> CommandInvocation:
     """Parse one commandlet expression.
 
     This function strips Bywaf framework selectors such as `--from-run` before
     plugin argparse sees the remaining plugin-owned arguments.
     """
     commandlet = provisional_command_name(text)
-    if commandlet_owns_text_selector(commandlet, "name"):
+    commandlet_for_selectors = commandlet
+    if commandlet is not None and command_resolver is not None:
+        commandlet_for_selectors = command_resolver(commandlet)
+    if commandlet_owns_text_selector(commandlet_for_selectors, "name"):
         display_name = None
     else:
         text, display_name = peel_final_text_selector(text, "name")
-    if commandlet_owns_text_selector(commandlet, "note"):
+    if commandlet_owns_text_selector(commandlet_for_selectors, "note"):
         note = None
     else:
         text, note = peel_final_text_selector(text, "note")
     variable_expansions: tuple[str, ...] = ()
     if varstore is not None and commandlet is not None:
-        text, variable_expansions = expand_variables_in_text(text, varstore, commandlet)
+        variable_scope = command_scope_resolver(commandlet) if command_scope_resolver is not None else commandlet
+        text, variable_expansions = expand_variables_in_text(text, varstore, variable_scope)
     tokens = shlex.split(text)
     background = False
     if tokens:
@@ -99,13 +109,26 @@ def commandlet_owns_text_selector(commandlet: str | None, key: str) -> bool:
     return key in COMMANDLET_TEXT_SELECTORS.get(commandlet, frozenset())
 
 
-def parse_pipeline(command_line: str, varstore: VarStore | None = None) -> Pipeline:
+def parse_pipeline(
+    command_line: str,
+    varstore: VarStore | None = None,
+    command_resolver: Callable[[str], str] | None = None,
+    command_scope_resolver: Callable[[str], str] | None = None,
+) -> Pipeline:
     """Parse a full pipeline and detect foreground/background execution."""
     command_line, display_name = peel_pipeline_name_prefix(command_line)
     parts, background = split_pipeline_raw(command_line)
     if not parts:
         raise ValueError("empty pipeline")
-    commands = list(parse_invocation(part, varstore=varstore) for part in parts)
+    commands = list(
+        parse_invocation(
+            part,
+            varstore=varstore,
+            command_resolver=command_resolver,
+            command_scope_resolver=command_scope_resolver,
+        )
+        for part in parts
+    )
     if background and commands:
         last = commands[-1]
         commands[-1] = CommandInvocation(
@@ -344,7 +367,7 @@ def parse_variable_reference(text: str, dollar_index: int) -> tuple[str, int] | 
 def resolve_variable_reference(varstore: VarStore, commandlet: str, name: str) -> tuple[str, str]:
     """Resolve a `$variable` against exact, commandlet, then global scopes."""
     candidates = [name]
-    if "." not in name:
+    if "/" not in name and "." not in name:
         candidates.extend((f"{commandlet}.{name}", f"global.{name}"))
     for candidate in candidates:
         value = varstore.get(candidate)

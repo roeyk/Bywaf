@@ -60,7 +60,8 @@ class CommandContext:
         self.metadata = metadata or {}
         self._vars = ScopedVarStore(
             _varstore or VarStore(),
-            self.source,
+            str(self.metadata.get("var_scope") or self.source),
+            str(self.metadata.get("provider_scope") or ""),
             self.metadata.get("run_vars", {}),
         )
         self._secrets = _secrets or InMemorySecretStore()

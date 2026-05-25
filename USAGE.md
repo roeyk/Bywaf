@@ -178,11 +178,13 @@ workflow from the same stored data.
 
 Execution-time plugin variables are scoped by commandlet. A plugin uses
 `context.vars.get("name")` for its own variables and cannot enumerate another
-plugin's variables through that API. Explicit global variables use
-`context.vars.get_global("name")`. When a commandlet run starts, Bywaf snapshots
-the effective commandlet and global variables into SQLite under that
-`command_run_id`; `event run=<id>` displays the captured variables so runs remain
-auditable and reproducible even when session variables change later.
+plugin's variables through that API. Shared provider variables are explicit via
+`context.vars.get_provider(...)` or `context.vars.get_provider_at(...)`; global
+variables are explicit via `context.vars.get_global("name")`. When a commandlet
+run starts, Bywaf snapshots the effective commandlet, provider, and global
+variables into SQLite under that `command_run_id`; `event run=<id>` displays the
+captured variables so runs remain auditable and reproducible even when session
+variables change later.
 Runtime entities have two identities: local IDs for interactive typing
 (`job=12`, `run=1`, `pipeline=2`) and durable serials for audit/provenance.
 Local IDs are stable inside the current database and are never reused there,
@@ -290,8 +292,8 @@ cancel <job=id|pipeline=id|run=id>
 end [--soft|--hard] <job=id|pipeline=id|run=id>
 kill [--soft|--hard] <job=id|pipeline=id|run=id>
 jobs
-runs
-run <id|serial>
+steps
+step <id|serial>
 exec <shell-command>
 <commandlet-pipeline>
 events [tail|--tail] [last=N]
@@ -623,7 +625,7 @@ bywaf> name run=<command-run-id>
 
 The explicit keyed form is `text=`, for example `name run=<id> text=localhost sweep`.
 
-Assigned names appear in `runs`, `pipelines`, and `jobs` listings.
+Assigned names appear in `steps`, `pipelines`, and `jobs` listings.
 
 # Framework Notes
 
@@ -767,8 +769,8 @@ bywaf> hostscanner '$targets'
 
 Resolution checks the exact variable name first, then the active commandlet
 scope, then `global.`. For example, `$targets` in `hostscanner` checks
-`targets`, `hostscanner.targets`, and `global.targets`. Variable expansion is
-audited as `framework.variable.expanded`.
+`targets`, `discovery/hostscanner.targets`, and `global.targets`. Variable
+expansion is audited as `framework.variable.expanded`.
 
 # Plans And Policy
 
@@ -897,7 +899,7 @@ bywaf> pipeline end <id>
 bywaf> pipeline kill --hard <id>
 ```
 
-`job list`, `runs`, and `pipeline list` show active runtime state by default.
+`job list`, `steps`, and `pipeline list` show active runtime state by default.
 Use `--all` to include historical entries. These commands render table views
 with local ID, durable serial, lifecycle state, names, timestamps, and an
 `ARTIFACTS` column counting artifacts attached so far. Set
@@ -1038,10 +1040,10 @@ bywaf> event host.found
 bywaf> event port.open
 ```
 
-List command runs:
+List commandlet steps:
 
 ```text
-bywaf> runs
+bywaf> steps
 ```
 
 Show events by command run or pipeline:
@@ -1230,8 +1232,8 @@ bywaf> set name=value
 Set an explicit secret variable:
 
 ```text
-bywaf> set --secret ssh_probe.password=client-password
-ssh_probe.password=[REDACTED] fingerprint=hmac-sha256:...
+bywaf> set --secret network/ssh_probe.password=client-password
+network/ssh_probe.password=[REDACTED] fingerprint=hmac-sha256:...
 ```
 
 If the value is empty, Bywaf opens the configured secret input method and
@@ -1240,7 +1242,7 @@ method is a `[REDACTED]` block in the prompt; `getpass` uses a separate no-echo
 prompt instead.
 
 ```text
-bywaf> set --secret ssh_probe.password=
+bywaf> set --secret network/ssh_probe.password=
 ```
 
 ```text
@@ -1277,7 +1279,7 @@ bywaf> set name
 Common examples:
 
 ```text
-bywaf> set http_probe.cookie-file=/tmp/cookies.txt
+bywaf> set http/http_probe.cookie-file=/tmp/cookies.txt
 bywaf> set history.timestamp-format=%Y-%m-%d %H:%M:%S %Z
 bywaf> set display.vars.color=auto
 bywaf> set display.vars.name-color=cyan
@@ -1288,7 +1290,7 @@ bywaf> set display.history.color=auto
 bywaf> set display.history.timestamp-color=green
 bywaf> set display.help.color=auto
 bywaf> set display.help.command-color=green
-bywaf> set hostscanner.targets=192.168.1.1-255
+bywaf> set discovery/hostscanner.targets=192.168.1.1-255
 bywaf> hostscanner
 ```
 
@@ -1328,7 +1330,7 @@ bywaf> use global
 For commandlets that opt into variable defaults, explicit command-line
 arguments take precedence over commandlet variables, and commandlet variables
 take precedence over built-in defaults. For example,
-`hostscanner 127.0.0.1` ignores `hostscanner.targets`, while `hostscanner`
+`hostscanner 127.0.0.1` ignores `discovery/hostscanner.targets`, while `hostscanner`
 falls back to it.
 
 Save variables:
@@ -1495,7 +1497,7 @@ bywaf> dns_lookup record-type=MX example.com
 ```
 
 `shodan_lookup` uses the Shodan Python library. Set `SHODAN_API_KEY`, use
-`api-key=...`, or set `set shodan_lookup.api-key=...`.
+`api-key=...`, or set `set recon/shodan_lookup.api-key=...`.
 
 ```text
 bywaf> shodan_lookup 8.8.8.8
@@ -1584,7 +1586,7 @@ bywaf> eyewitness --output-dir=client-shots https://example.com/
 For authorized session-aware testing, it can use cookies:
 
 ```text
-bywaf> set http_probe.cookie-file=/path/to/cookies.txt
+bywaf> set http/http_probe.cookie-file=/path/to/cookies.txt
 bywaf> http_probe https://example.com/
 bywaf> http_probe --firefox-profile ~/.mozilla/firefox/<profile>
 ```
@@ -1598,7 +1600,7 @@ output when present.
 
 ```text
 bywaf> wifi_scan interface=wlan0mon duration=60
-bywaf> set wifi_scan.interface=wlan0mon
+bywaf> set wireless/wifi_scan.interface=wlan0mon
 bywaf> wifi_scan duration=120
 ```
 
@@ -1865,8 +1867,8 @@ artifact <import|attach|list|remove|replace|export|search|verify> [artifact=id|r
 search [--regexp] <name=text|filename=text|note=text|content=text> [artifact=id|run=id|pipeline=id|job=id] [since=time|until=time]
 jobs
 pipelines
-runs
-run <id|serial>
+steps
+step <id|serial>
 exec <shell-command>
 <commandlet-pipeline>
 events [tail|--tail] [last=N]

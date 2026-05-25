@@ -280,8 +280,13 @@ class RegistryCompletionTests(unittest.TestCase):
         )
         self.assertEqual(self.registry.grouped_names()["storage"], ["db"])
 
+    def test_registry_tracks_provider_qualified_commandlet_aliases(self):
+        self.assertIn("http/http_probe", self.registry.commandlet_aliases())
+        self.assertIs(self.registry.get("http/http_probe"), self.registry.get("http_probe"))
+        self.assertEqual(self.registry.resolve_commandlet_name("http/http_probe"), "http_probe")
+
     def test_loads_package_defaults_into_varstore(self):
-        self.assertEqual(self.registry.varstore.get("portscanner.ports"), "")
+        self.assertEqual(self.registry.varstore.get("network/portscanner.ports"), "")
 
     def test_get_unknown_raises_clear_key_error(self):
         with self.assertRaisesRegex(KeyError, "unknown commandlet"):
@@ -290,6 +295,7 @@ class RegistryCompletionTests(unittest.TestCase):
     def test_completes_command_names(self):
         completer = Completer(self.registry)
         self.assertIn("hostscanner", completer.candidates("host"))
+        self.assertIn("http/http_probe", completer.candidates("http/"))
         self.assertIn("history", completer.candidates("hist"))
         self.assertIn("ls", completer.candidates("l"))
         self.assertIn("plugins", completer.candidates("plu"))
@@ -318,19 +324,19 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertEqual(completer.candidates("use host"), ["hostscanner"])
 
     def test_vars_completion_prefers_active_context_scope(self):
-        self.registry.varstore.set("hostscanner.targets", "127.0.0.1")
+        self.registry.varstore.set("discovery/hostscanner.targets", "127.0.0.1")
         self.registry.varstore.set("global.proxy", "http://127.0.0.1:8080")
-        completer = Completer(self.registry, active_context="hostscanner")
+        completer = Completer(self.registry, active_context="discovery/hostscanner")
         self.assertIn("targets=", completer.candidates("set "))
-        self.assertNotIn("hostscanner.targets=", completer.candidates("set "))
+        self.assertNotIn("discovery/hostscanner.targets=", completer.candidates("set "))
         self.assertEqual(completer.candidates("set global.pro"), ["global.proxy="])
 
     def test_vars_completion_supports_secret_flag(self):
-        self.registry.varstore.set("ssh_probe.password", "")
+        self.registry.varstore.set("network/ssh_probe.password", "")
         completer = Completer(self.registry)
         self.assertEqual(completer.candidates("set --s"), ["--secret"])
-        self.assertIn("ssh_probe.", completer.candidates("set --secret "))
-        self.assertEqual(completer.candidates("set --secret ssh_probe.pass"), ["ssh_probe.password="])
+        self.assertIn("network/ssh_probe.", completer.candidates("set --secret "))
+        self.assertEqual(completer.candidates("set --secret network/ssh_probe.pass"), ["network/ssh_probe.password="])
         self.assertNotIn("--secret", completer.candidates("set --secret "))
 
     def test_secret_input_mode_accepts_plain_modes(self):
@@ -919,7 +925,7 @@ class RegistryCompletionTests(unittest.TestCase):
             config.write_text('default_plugins = ["scanners/example"]\n')
             registry = PluginRegistry.from_config(root, config, forced=True)
             self.assertIn("example", registry.names())
-            self.assertEqual(registry.varstore.get("example.answer"), "42")
+            self.assertEqual(registry.varstore.get("scanners/example.answer"), "42")
 
     def test_filesystem_plugin_requires_force_without_verified_catalog(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -998,7 +1004,7 @@ class RegistryCompletionTests(unittest.TestCase):
             config = Path(tmp, "plugins.yaml")
             config.write_text("default_plugins:\n  - scanners/example\n")
             registry = PluginRegistry.from_config(root, config, forced=True)
-            self.assertEqual(registry.varstore.get("example.answer"), "42")
+            self.assertEqual(registry.varstore.get("scanners/example.answer"), "42")
 
     def test_filesystem_manifest_is_authoritative(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -952,7 +952,7 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "set targets=127.0.0.1", state)
                 dispatch_repl_line(runner, "use global", state)
                 dispatch_repl_line(runner, "set target=global", state)
-            self.assertEqual(runner.registry.varstore.get("hostscanner.targets"), "127.0.0.1")
+            self.assertEqual(runner.registry.varstore.get("discovery/hostscanner.targets"), "127.0.0.1")
             self.assertEqual(runner.registry.varstore.get("target"), "global")
 
     def test_vars_name_prints_one_variable_value(self):
@@ -969,8 +969,30 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "set missing", state)
             text = output.getvalue()
             self.assertIn("global.proxy=http://127.0.0.1:8080", text)
-            self.assertIn("hostscanner.targets=127.0.0.1", text)
-            self.assertIn("error: variable not set: hostscanner.missing", text)
+            self.assertIn("discovery/hostscanner.targets=127.0.0.1", text)
+            self.assertIn("error: variable not set: discovery/hostscanner.missing", text)
+
+    def test_setg_sets_global_variable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "setg proxy=http://127.0.0.1:8080", ShellState())
+                dispatch_repl_line(runner, "setg proxy", ShellState())
+            self.assertEqual(runner.registry.varstore.get("global.proxy"), "http://127.0.0.1:8080")
+            self.assertIn("global.proxy=http://127.0.0.1:8080", output.getvalue())
+
+    def test_pending_catalog_variable_warns_and_survives_default_load(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "set scanners/example.answer=99", ShellState())
+            self.assertEqual(runner.registry.varstore.get("scanners/example.answer"), "99")
+            self.assertIn(
+                "warning: scanners/example is not loaded; storing scanners/example.answer until that commandlet is loaded",
+                output.getvalue(),
+            )
 
     def test_vars_plain_password_assignment_is_not_implicitly_secret(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1164,7 +1186,7 @@ class AppDispatchTests(unittest.TestCase):
             ):
                 dispatch_repl_line(runner, "use ssh_probe", state)
                 dispatch_repl_line(runner, "set --secret password=supersecret", state)
-            stored = runner.registry.varstore.get("ssh_probe.password")
+            stored = runner.registry.varstore.get("network/ssh_probe.password")
             self.assertIsNotNone(stored)
             assert stored is not None
             self.assertTrue(runner.registry.secrets.is_ref(stored))
@@ -1180,7 +1202,7 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(first, "set --secret ssh_probe.password=supersecret", ShellState())
 
             second = make_runner(db_path)
-            stored = second.registry.varstore.get("ssh_probe.password")
+            stored = second.registry.varstore.get("network/ssh_probe.password")
             self.assertIsNotNone(stored)
             assert stored is not None
             self.assertTrue(second.registry.secrets.is_ref(stored))

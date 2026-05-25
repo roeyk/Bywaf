@@ -103,14 +103,14 @@ HELP_COMMANDS = (
     HelpEntry("pipelines", "alias for pipeline list", "pipelines"),
     HelpEntry("steps", "show commandlet pipeline steps", "steps"),
     HelpEntry("step <id|serial>", "inspect one commandlet pipeline step", "step <id|serial>", ("step 1", "step run-...")),
-    HelpEntry("go", "execute the active commandlet selected by use", "go", ("use http_headers", "go")),
+    HelpEntry("run", "execute the active commandlet selected by use", "run", ("use http_headers", "run")),
     HelpEntry(
         "set [--secret] [name[=value]]",
         "list, show, or set session variables",
         "set [--secret] [name[=value]]",
         (
-            "set http_probe.cookie-file=/tmp/cookies.txt",
-            "set --secret ssh_probe.password=client-password",
+            "set http/http_probe.cookie-file=/tmp/cookies.txt",
+            "set --secret network/ssh_probe.password=client-password",
         ),
     ),
     HelpEntry("topics", "list event topics in the active database", "topics"),

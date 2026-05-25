@@ -86,7 +86,12 @@ class Runner:
 
     def execute(self, command_line: str) -> list[Event]:
         """Run a command line immediately or start it as a background job."""
-        pipeline = parse_pipeline(command_line, varstore=self.registry.varstore)
+        pipeline = parse_pipeline(
+            command_line,
+            varstore=self.registry.varstore,
+            command_resolver=self.registry.resolve_commandlet_name,
+            command_scope_resolver=self.registry.variable_scope,
+        )
         match pipeline:
             case Pipeline(background=True):
                 return [self.start_background(command_line, pipeline=pipeline)]
@@ -171,14 +176,13 @@ class Runner:
         stages = stages or prepare_stage_runs(commands)
         processes: list[mp.Process] = []
         for stage in stages:
-            plugin = self.registry.get(stage.invocation.name)
             ensure_run_var_snapshot(
                 self.db,
                 self.registry.varstore,
                 job_id=self.job_id,
                 pipeline_id=pipeline_id,
                 command_run_id=stage.command_run_id,
-                commandlet=plugin.spec.name,
+                commandlet=self.registry.variable_scope(stage.invocation.name),
             )
             process = mp.Process(
                 target=run_stage_process,
@@ -212,21 +216,25 @@ class Runner:
     def start_background(self, command_line: str, *, pipeline: Pipeline | None = None) -> Event:
         """Start an entire command line in a child process and record a job."""
         foreground = command_line.strip()
-        pipeline = pipeline or parse_pipeline(foreground, varstore=self.registry.varstore)
+        pipeline = pipeline or parse_pipeline(
+            foreground,
+            varstore=self.registry.varstore,
+            command_resolver=self.registry.resolve_commandlet_name,
+            command_scope_resolver=self.registry.variable_scope,
+        )
         pipeline_id = new_run_id("pipeline")
         if pipeline.display_name:
             publish_runtime_name(self.db, "pipeline", pipeline_id, pipeline.display_name, pipeline_id=pipeline_id)
         stages = prepare_stage_runs(pipeline.commands)
         lifecycle = JobLifecycle.create(self.db, foreground, None)
         for stage in stages:
-            plugin = self.registry.get(stage.invocation.name)
             ensure_run_var_snapshot(
                 self.db,
                 self.registry.varstore,
                 job_id=lifecycle.job_id,
                 pipeline_id=pipeline_id,
                 command_run_id=stage.command_run_id,
-                commandlet=plugin.spec.name,
+                commandlet=self.registry.variable_scope(stage.invocation.name),
             )
         process = mp.Process(
             target=run_background_job,
@@ -251,7 +259,12 @@ class Runner:
         if not pipeline_exists(self.db, pipeline_id):
             raise ValueError(f"unknown pipeline: {pipeline_id}")
         after_id = attach_cursor_event_id(self.db, since_cursor)
-        parsed = parse_pipeline(command_line, varstore=self.registry.varstore)
+        parsed = parse_pipeline(
+            command_line,
+            varstore=self.registry.varstore,
+            command_resolver=self.registry.resolve_commandlet_name,
+            command_scope_resolver=self.registry.variable_scope,
+        )
         if len(parsed.commands) != 1:
             raise ValueError("pipeline attach accepts exactly one commandlet")
         original = parsed.commands[0]
@@ -275,14 +288,13 @@ class Runner:
             f"pipeline attach {pipeline_id} {command_line} run={upstream_run_id or ''} since={since_cursor}".strip(),
             None,
         )
-        plugin = self.registry.get(invocation.name)
         ensure_run_var_snapshot(
             self.db,
             self.registry.varstore,
             job_id=lifecycle.job_id,
             pipeline_id=pipeline_id,
             command_run_id=stage.command_run_id,
-            commandlet=plugin.spec.name,
+            commandlet=self.registry.variable_scope(invocation.name),
         )
         self.db.publish(
             "pipeline.attached",

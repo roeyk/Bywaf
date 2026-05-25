@@ -40,6 +40,8 @@ class PluginRegistry:
     plugins: dict[str, Commandlet]
     varstore: VarStore = field(default_factory=VarStore)
     providers: dict[str, list[str]] = field(default_factory=dict)
+    aliases: dict[str, str] = field(default_factory=dict)
+    primary_aliases: dict[str, str] = field(default_factory=dict)
     secrets: InMemorySecretStore = field(default_factory=InMemorySecretStore)
     triggers: list[TriggerSpec] = field(default_factory=list)
     trigger_providers: dict[int, str] = field(default_factory=dict)
@@ -98,9 +100,8 @@ class PluginRegistry:
         )
         plugins, triggers = load_filesystem_plugin_package(plugin_dir, trust_policy=policy, manifest_trust=manifest_trust)
         for plugin in plugins:
-            self.plugins[plugin.spec.name] = plugin
-            self.providers.setdefault(provider_name(entry), []).append(plugin.spec.name)
-            load_defaults_file(plugin_dir, plugin, self.varstore)
+            self.register_commandlet(entry, plugin)
+            load_defaults_file(plugin_dir, plugin, self.varstore, scope=self.variable_scope(plugin.spec.name))
         self.add_triggers(entry, triggers)
         return plugins[0]
 
@@ -117,22 +118,60 @@ class PluginRegistry:
         elif triggers:
             raise ValueError(f"{package_name}.{entry} exposes undeclared triggers without a plugin manifest")
         for plugin in plugins:
-            self.plugins[plugin.spec.name] = plugin
-            self.providers.setdefault(provider_name(entry), []).append(plugin.spec.name)
-            load_module_defaults(module, plugin, self.varstore)
+            self.register_commandlet(entry, plugin)
+            load_module_defaults(module, plugin, self.varstore, scope=self.variable_scope(plugin.spec.name))
         self.add_triggers(entry, triggers)
         return plugins[0]
 
+    def register_commandlet(self, entry: str, plugin: Commandlet) -> None:
+        """Register one commandlet and its provider-qualified aliases."""
+        self.plugins[plugin.spec.name] = plugin
+        self.providers.setdefault(provider_name(entry), []).append(plugin.spec.name)
+        catalog_path = entry.replace(".", "/")
+        full_alias = f"{catalog_path}/{plugin.spec.name}"
+        self.add_alias(full_alias, plugin.spec.name)
+        self.primary_aliases.setdefault(plugin.spec.name, full_alias)
+        if catalog_path.rsplit("/", 1)[-1] == plugin.spec.name:
+            self.add_alias(catalog_path, plugin.spec.name)
+            self.primary_aliases[plugin.spec.name] = catalog_path
+
+    def add_alias(self, alias: str, commandlet: str) -> None:
+        """Register one user-facing commandlet alias."""
+        if alias == commandlet:
+            return
+        existing = self.aliases.get(alias)
+        if existing is not None and existing != commandlet:
+            raise ValueError(f"ambiguous commandlet alias {alias}: {existing}, {commandlet}")
+        self.aliases[alias] = commandlet
+
+    def resolve_commandlet_name(self, name: str) -> str:
+        """Return the canonical commandlet name for a flat name or alias."""
+        return self.aliases.get(name, name)
+
+    def variable_scope(self, name: str) -> str:
+        """Return the canonical variable scope for a commandlet name or alias."""
+        canonical_name = self.resolve_commandlet_name(name)
+        return self.primary_aliases.get(canonical_name, canonical_name)
+
+    def has_commandlet(self, name: str) -> bool:
+        """Return whether a flat name or alias resolves to a commandlet."""
+        return self.resolve_commandlet_name(name) in self.plugins
+
     def get(self, name: str) -> Commandlet:
         """Return a commandlet by user-facing command name."""
+        canonical_name = self.resolve_commandlet_name(name)
         try:
-            return self.plugins[name]
+            return self.plugins[canonical_name]
         except KeyError as exc:
             raise KeyError(f"unknown commandlet: {name}") from exc
 
     def names(self) -> list[str]:
         """Return commandlet names for command completion."""
         return sorted(self.plugins)
+
+    def commandlet_aliases(self) -> list[str]:
+        """Return provider-qualified commandlet aliases for completion."""
+        return sorted(self.aliases)
 
     def provider_names(self) -> list[str]:
         """Return provider names for the `plugins` command."""

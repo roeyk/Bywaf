@@ -1,7 +1,7 @@
 """Built-in REPL command handlers and mutable shell commands.
 
 Provides the dispatch table and handlers for built-ins such as help, history,
-set, use, go, event, plugin, config, script, prompt, jobs, steps, and project.
+set, use, run, event, plugin, config, script, prompt, jobs, steps, and project.
 
 Used by:
 - bywaf.repl.shell: dispatches parsed REPL lines to these handlers.
@@ -48,7 +48,7 @@ from .resources import (
 from ..runner import Runner
 from ..secrets import load_or_create_fingerprint_key
 from ..secret_input import SECRET_BLOCK_VALUE
-from ..command_names import PROJECT_ALIAS_COMMAND, SET_COMMAND
+from ..command_names import PROJECT_ALIAS_COMMAND, SET_COMMAND, SETG_COMMAND
 
 if TYPE_CHECKING:
     from .shell import ShellState
@@ -212,6 +212,18 @@ def handle_vars_command(runner: Runner, state: ShellState, rest: str | None, lin
     return None
 
 
+def handle_setg_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
+    """Set or show one explicitly global variable."""
+    del line
+    if rest is None:
+        print("usage: setg [--secret] name=value")
+    elif "=" in rest:
+        set_var(runner, state, globalize_setg(rest), source=SETG_COMMAND)
+    else:
+        print_var(runner, state, f"global.{rest.strip()}")
+    return None
+
+
 def handle_topics_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
     """Print event topics."""
     del state, line
@@ -262,11 +274,11 @@ def handle_events_command(runner: Runner, state: ShellState, rest: str | None, l
     return None
 
 
-def handle_go_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
+def handle_run_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
     """Execute the active commandlet context."""
     del line
     if rest is not None:
-        print("usage: go")
+        print("usage: run")
         return None
     if not state.active_context:
         print("no active commandlet; use <commandlet> first")
@@ -404,7 +416,6 @@ REPL_COMMAND_HANDLERS: dict[str, ReplCommandHandler] = {
     "?": handle_help_command,
     "cmds": handle_cmds_command,
     "config": handle_config_command,
-    "go": handle_go_command,
     "event": handle_event_command,
     "events": handle_events_command,
     "exec": handle_exec_command,
@@ -422,6 +433,7 @@ REPL_COMMAND_HANDLERS: dict[str, ReplCommandHandler] = {
     "prompt": handle_prompt_command,
     "q": handle_exit_command,
     "quit": handle_exit_command,
+    "run": handle_run_command,
     "script": handle_script_command,
     "step": handle_step_command,
     "steps": handle_steps_command,
@@ -429,6 +441,7 @@ REPL_COMMAND_HANDLERS: dict[str, ReplCommandHandler] = {
     "triggers": handle_triggers_command,
     "use": handle_use_command,
     SET_COMMAND: handle_vars_command,
+    SETG_COMMAND: handle_setg_command,
 }
 
 
@@ -504,7 +517,7 @@ def print_vars(runner: Runner, state: ShellState) -> None:
 
 def print_var(runner: Runner, state: ShellState, name: str) -> None:
     """Print one session variable after applying active-context scoping."""
-    key = resolve_var_key(state, name.strip())
+    key = resolve_var_key(runner, state, name.strip())
     value = runner.registry.varstore.get(key)
     if value is None:
         print(f"error: variable not set: {key}")
@@ -512,14 +525,15 @@ def print_var(runner: Runner, state: ShellState, name: str) -> None:
     print(format_var_assignment(runner, key, value))
 
 
-def set_var(runner: Runner, state: ShellState, assignment: str) -> None:
+def set_var(runner: Runner, state: ShellState, assignment: str, *, source: str = SET_COMMAND) -> None:
     """Set a REPL variable, keeping explicitly secret values out of varstore."""
     assignment, explicit_secret = parse_var_assignment_flags(assignment)
     key, value = assignment.split("=", 1)
-    resolved_key = resolve_var_key(state, key.strip())
+    resolved_key = resolve_var_key(runner, state, key.strip())
     cleaned_value = value.strip()
     if explicit_secret:
-        hidden_value = getattr(state, "secret_values", {}).get(resolved_key)
+        hidden_values = getattr(state, "secret_values", {})
+        hidden_value = hidden_values.get(resolved_key) or hidden_values.get(key.strip())
         if cleaned_value == SECRET_BLOCK_VALUE and hidden_value is not None:
             cleaned_value = hidden_value
         elif cleaned_value == "":
@@ -528,15 +542,17 @@ def set_var(runner: Runner, state: ShellState, assignment: str) -> None:
             resolved_key,
             cleaned_value,
             key=load_or_create_fingerprint_key(),
-            source=SET_COMMAND,
+            source=source,
         )
         runner.registry.varstore.set(resolved_key, secret_ref.ref)
         runner.db.store_secret(secret_ref, cleaned_value)
         if not runner.db.encrypted:
             print(f"warning: storing secret variable {resolved_key} in plaintext database {runner.db.path}")
         print(format_var_assignment(runner, resolved_key, secret_ref.ref))
+        warn_if_pending_catalog_variable(runner, resolved_key)
         return
     runner.registry.varstore.set(resolved_key, cleaned_value)
+    warn_if_pending_catalog_variable(runner, resolved_key)
 
 
 def read_secret_value(name: str) -> str:
@@ -560,6 +576,28 @@ def parse_var_assignment_flags(assignment: str) -> tuple[str, bool]:
     return assignment, False
 
 
+def globalize_setg(assignment: str) -> str:
+    """Convert `setg name=value` text to a `global.name=value` assignment."""
+    stripped = assignment.strip()
+    if stripped.startswith("--secret "):
+        prefix = "--secret "
+        return f"{prefix}global.{stripped.removeprefix(prefix).strip()}"
+    if " --secret" in stripped:
+        key_value = stripped.removesuffix(" --secret").strip()
+        return f"global.{key_value} --secret"
+    return f"global.{stripped}"
+
+
+def warn_if_pending_catalog_variable(runner: Runner, key: str) -> None:
+    """Warn when storing a commandlet-scoped variable before that commandlet is loaded."""
+    if "/" not in key or "." not in key:
+        return
+    scope, variable = key.rsplit(".", 1)
+    if not scope or not variable or runner.registry.has_commandlet(scope):
+        return
+    print(f"warning: {scope} is not loaded; storing {key} until that commandlet is loaded")
+
+
 def set_active_context(runner: Runner, state: ShellState, target: str) -> None:
     """Set the active commandlet context for short variable assignments."""
     if target == "global":
@@ -568,9 +606,9 @@ def set_active_context(runner: Runner, state: ShellState, target: str) -> None:
             state.completer.active_context = None
         print("using global")
         return
-    commandlet = target.split(".", 1)[-1]
-    if commandlet not in runner.registry.plugins:
+    if not runner.registry.has_commandlet(target):
         raise ValueError(f"unknown commandlet context: {target}")
+    commandlet = runner.registry.variable_scope(target)
     state.active_context = commandlet
     if state.completer is not None:
         state.completer.active_context = commandlet
@@ -603,10 +641,19 @@ def maybe_use_loaded_commandlet(
     print("or reload with --use=<commandlet>")
 
 
-def resolve_var_key(state: ShellState, key: str) -> str:
+def resolve_var_key(runner: Runner, state: ShellState, key: str) -> str:
     """Resolve unqualified variable keys through the active `use` context."""
-    if "." in key or key.startswith("global."):
+    if key.startswith("global."):
         return key
+    if "/" in key and "." in key:
+        scope, name = key.rsplit(".", 1)
+        if runner.registry.has_commandlet(scope):
+            return f"{runner.registry.variable_scope(scope)}.{name}"
+        return key
+    if "." in key:
+        scope, name = key.rsplit(".", 1)
+        if runner.registry.has_commandlet(scope):
+            return f"{runner.registry.variable_scope(scope)}.{name}"
     if state.active_context:
         return f"{state.active_context}.{key}"
     return key
