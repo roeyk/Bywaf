@@ -2,6 +2,10 @@
 
 Provides load/save resource expression completion and at-file path completion.
 Used by the completion engine and readline/prompt-toolkit adapter facade.
+
+Used by:
+- completion engine: complete files, directories, and resource expressions.
+- REPL adapters: expose filesystem-aware completion to operators.
 """
 
 from __future__ import annotations

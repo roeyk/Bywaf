@@ -1,8 +1,11 @@
 """Finding grouping helpers.
 
-Derives stable report grouping keys from normalized finding payloads. The
-framework remains mechanical; plugins choose the semantic target scope.
-"""
+Provides stable report grouping keys from normalized finding payloads while
+leaving semantic target-scope choices to plugins.
+
+Used by:
+- finding payload helpers: derive default group keys for candidates.
+- report commandlets and tests: collapse related findings for display."""
 
 from __future__ import annotations
 

@@ -2,6 +2,10 @@
 
 Provides `$name` and `${scope.variable}` candidates used by plugin argument
 completion.
+
+Used by:
+- completion engine: complete commandlet, provider, and global variables.
+- REPL completion adapters: display variable references while typing.
 """
 
 from __future__ import annotations

@@ -1,4 +1,11 @@
-"""Domain models for repository exposure checks."""
+"""Domain models for repository exposure checks.
+
+Provides status and result records shared by repository exposure detection,
+finding mapping, and command orchestration.
+
+Used by:
+- repo exposure detection code: return framework-independent results.
+- tests: construct detection outcomes without Bywaf runtime dependencies."""
 
 from __future__ import annotations
 

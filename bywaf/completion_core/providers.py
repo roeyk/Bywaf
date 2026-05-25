@@ -3,6 +3,10 @@
 Provides candidates sourced from key records, bundle events, and fixed built-in
 selectors. Used by the completion engine when a CompletionSpec references
 runtime state outside the plugin registry.
+
+Used by:
+- completion engine: fetch runtime-backed candidates on demand.
+- REPL completion adapters: render candidates for prompt-toolkit/readline.
 """
 
 from __future__ import annotations

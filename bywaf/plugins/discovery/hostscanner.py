@@ -1,6 +1,14 @@
 """Host discovery commandlet.
 
-Provides a bundled plugin implementation and CommandSpec metadata. Discovers hosts and emits host.found events for downstream network plugins.
+Provides a bundled plugin implementation and CommandSpec metadata for nmap
+host discovery.
+
+Consumes:
+- command arguments and configured discovery targets.
+
+Emits:
+- `host.found` for discovered live hosts.
+- `name.resolved` when DNS names resolve to concrete hosts.
 
 Used by:
 - PluginRegistry discovery: loads this module as a commandlet provider.

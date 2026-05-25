@@ -1,4 +1,18 @@
-"""Command orchestration for HTTP header checks."""
+"""Command orchestration for HTTP header checks.
+
+Provides argument parsing, target selection, console output, event publishing,
+and finding publication for the `http_headers` commandlet.
+
+Consumes:
+- `port.open` events or explicit host command arguments.
+
+Emits:
+- `http.headers` for observed HTTP response headers.
+- `finding.candidate` for missing high-value security headers.
+
+Used by:
+- HTTP header plugin registration: delegate commandlet execution.
+- tests: exercise Bywaf integration separately from pure detection logic."""
 
 from __future__ import annotations
 

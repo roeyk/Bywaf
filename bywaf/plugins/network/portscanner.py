@@ -1,6 +1,14 @@
 """Port scanning commandlet.
 
-Provides a bundled plugin implementation and CommandSpec metadata. Consumes hosts and emits network service events from port scan results.
+Provides a bundled plugin implementation and CommandSpec metadata for nmap
+port scanning.
+
+Consumes:
+- `host.found` events or explicit command arguments.
+
+Emits:
+- `port.open` for discovered open ports.
+- `finding.candidate` for risky exposed services.
 
 Used by:
 - PluginRegistry discovery: loads this module as a commandlet provider.

@@ -3,6 +3,10 @@
 Provides lazy cryptography imports, PEM serialization, fingerprinting, and
 low-level key loading helpers so storage and operations stay independent from
 the optional dependency until key management is actually used.
+
+Used by:
+- keyring operations: generate, load, sign, and verify keys.
+- runtime key and bundle commandlets: avoid importing cryptography at startup.
 """
 
 # pyright: reportMissingImports=false

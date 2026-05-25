@@ -1,6 +1,13 @@
 """EyeWitness wrapper commandlet.
 
-Provides a bundled plugin implementation and CommandSpec metadata. Runs the external EyeWitness tool against HTTP targets and records artifacts.
+Provides a bundled plugin implementation and CommandSpec metadata for the
+external EyeWitness screenshot tool.
+
+Consumes:
+- `http.endpoint` events or explicit URL arguments.
+
+Emits:
+- `eyewitness.screenshot` and `web.screenshot` for captured screenshots.
 
 Used by:
 - PluginRegistry discovery: loads this module as a commandlet provider.

@@ -1,6 +1,14 @@
 """HTTP probing commandlet.
 
-Provides a bundled plugin implementation and CommandSpec metadata. Performs HTTP requests against target URLs and emits response metadata.
+Provides a bundled plugin implementation and CommandSpec metadata for HTTP
+endpoint probing.
+
+Consumes:
+- `port.open` events or explicit URL/host command arguments.
+
+Emits:
+- `http.endpoint` for reachable HTTP services.
+- `http.response` for response metadata.
 
 Used by:
 - PluginRegistry discovery: loads this module as a commandlet provider.

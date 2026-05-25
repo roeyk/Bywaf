@@ -1,8 +1,11 @@
 """Finding class taxonomy helpers.
 
-Provides a small Bywaf-owned class naming convention plus starter registry
+Provides the Bywaf finding-class naming convention plus starter registry
 entries mapped to familiar external taxonomies such as CWE and OWASP.
-"""
+
+Used by:
+- finding payload helpers: validate normalized candidate classes.
+- report and grouping tests: keep class names stable and familiar."""
 
 from __future__ import annotations
 

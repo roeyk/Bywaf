@@ -2,6 +2,10 @@
 
 Provides path resolution, TOML metadata load/save, and record lookup/mutation
 helpers used by keyring operations and completion providers.
+
+Used by:
+- keyring operations: persist and query key metadata.
+- runtime key commandlet and completion: list available trust material.
 """
 
 from __future__ import annotations

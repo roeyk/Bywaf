@@ -1,4 +1,18 @@
-"""Command orchestration for repository exposure checks."""
+"""Command orchestration for repository exposure checks.
+
+Provides argument parsing, target collection, probe execution, event emission,
+and finding publication for repository exposure commandlets.
+
+Consumes:
+- `http.endpoint` events or explicit URL command arguments.
+
+Emits:
+- `repo.git_config.checked` for Git config exposure probe results.
+- `finding.candidate` for confirmed exposed repository metadata.
+
+Used by:
+- repo exposure plugin registration: delegate commandlet execution.
+- tests: verify Bywaf integration around pure detection and findings logic."""
 
 from __future__ import annotations
 

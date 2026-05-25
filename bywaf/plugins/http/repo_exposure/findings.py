@@ -1,4 +1,11 @@
-"""Finding and fact payload mapping for repository exposure checks."""
+"""Finding and fact payload mapping for repository exposure checks.
+
+Provides normalized fact payloads and finding candidates for repository
+metadata exposure observations.
+
+Used by:
+- repo exposure command orchestration: emit checked facts and findings.
+- reporting tests: verify normalized grouping and evidence payloads."""
 
 from __future__ import annotations
 

@@ -1,6 +1,13 @@
 """Web fingerprinting commandlet.
 
-Provides a bundled plugin implementation and CommandSpec metadata. Analyzes HTTP responses to infer web technologies and fingerprints.
+Provides a bundled plugin implementation and CommandSpec metadata for HTTP
+technology fingerprinting.
+
+Consumes:
+- `http.endpoint` events or explicit URL arguments.
+
+Emits:
+- `web.fingerprint` for inferred technologies.
 
 Used by:
 - PluginRegistry discovery: loads this module as a commandlet provider.

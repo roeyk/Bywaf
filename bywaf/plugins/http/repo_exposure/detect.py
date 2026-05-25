@@ -1,4 +1,11 @@
-"""Pure probing and classification logic for repository exposure checks."""
+"""Pure probing and classification logic for repository exposure checks.
+
+Provides HTTP probing and response classification for exposed repository
+metadata without depending on Bywaf runtime objects.
+
+Used by:
+- repo exposure command orchestration: detect exposed `.git/config` files.
+- unit tests and plugin authors: validate detection logic outside Bywaf."""
 
 from __future__ import annotations
 

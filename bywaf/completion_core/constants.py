@@ -2,6 +2,10 @@
 
 Provides framework option completion metadata used by the core completion
 engine and binary-option classification exposed through the package facade.
+
+Used by:
+- completion engine: recognize built-in option and selector completions.
+- compatibility facade: export shared constants to older callers.
 """
 
 from __future__ import annotations

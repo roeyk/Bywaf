@@ -1,6 +1,14 @@
 """Nikto wrapper commandlet.
 
-Provides a bundled plugin implementation and CommandSpec metadata. Runs the external Nikto scanner and records findings or artifacts.
+Provides a bundled plugin implementation and CommandSpec metadata for the
+external Nikto scanner.
+
+Consumes:
+- `http.endpoint` or `web.fingerprint` events, or explicit URL arguments.
+
+Emits:
+- `nikto.finding` for parsed Nikto records.
+- `vulnerability.found` and `vulnerability.potential` compatibility events.
 
 Used by:
 - PluginRegistry discovery: loads this module as a commandlet provider.

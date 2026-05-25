@@ -1,6 +1,13 @@
 """Wireless scanning commandlet.
 
-Provides a bundled plugin implementation and CommandSpec metadata. Runs wireless scan tooling and emits network observation events.
+Provides a bundled plugin implementation and CommandSpec metadata for
+Kismet-style wireless scanning.
+
+Consumes:
+- command arguments and configured wireless interface values.
+
+Emits:
+- `wifi.network` and `kismet.network` for observed wireless networks.
 
 Used by:
 - PluginRegistry discovery: loads this module as a commandlet provider.

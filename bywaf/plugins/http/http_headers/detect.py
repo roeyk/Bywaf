@@ -1,4 +1,11 @@
-"""Pure HTTP header probing logic."""
+"""Pure HTTP header probing logic.
+
+Provides standard-library HTTP HEAD probing and response normalization without
+depending on Bywaf runtime objects.
+
+Used by:
+- HTTP header command orchestration: collect header facts for events.
+- unit tests and plugin authors: validate detection logic outside Bywaf."""
 
 from __future__ import annotations
 

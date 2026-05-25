@@ -1,4 +1,11 @@
-"""Finding packaging for HTTP header checks."""
+"""Finding packaging for HTTP header checks.
+
+Provides normalized result payloads and finding candidates for missing
+high-value HTTP security headers.
+
+Used by:
+- HTTP header command orchestration: emit facts and finding candidates.
+- finding helper facade: expose compatibility helpers during transition."""
 
 from __future__ import annotations
 

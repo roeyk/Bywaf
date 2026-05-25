@@ -2,6 +2,10 @@
 
 Provides key metadata records and filesystem layout records used by keyring
 storage, operations, and runtime key commandlets.
+
+Used by:
+- keyring storage and operations: pass typed key metadata.
+- runtime key commandlet: render and validate operator-facing key records.
 """
 
 from __future__ import annotations

@@ -2,6 +2,10 @@
 
 Provides small parsing utilities used by CoreCompleter and runtime metadata
 inference to reason about pipelines and positional argument indexes.
+
+Used by:
+- completion engine: locate the active argument position.
+- tests: keep completion token behavior stable.
 """
 
 from __future__ import annotations

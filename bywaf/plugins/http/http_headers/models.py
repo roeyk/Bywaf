@@ -1,4 +1,11 @@
-"""Domain models for HTTP header checks."""
+"""Domain models for HTTP header checks.
+
+Provides typed input and result records shared by detection, finding mapping,
+and command orchestration.
+
+Used by:
+- HTTP header detection code: describe probe targets and results.
+- tests: construct pure model values without Bywaf runtime dependencies."""
 
 from __future__ import annotations
 

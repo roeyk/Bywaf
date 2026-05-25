@@ -2,6 +2,10 @@
 
 Provides conservative directory and file permission handling for private and
 public key material.
+
+Used by:
+- keyring storage and operations: create secure key directories and files.
+- tests: verify private-key material is not written with broad permissions.
 """
 
 from __future__ import annotations

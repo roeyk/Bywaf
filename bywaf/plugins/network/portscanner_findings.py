@@ -1,4 +1,11 @@
-"""Finding packaging for port scanner observations."""
+"""Finding packaging for port scanner observations.
+
+Provides conversion from `port.open`-style payloads into normalized finding
+candidates for risky exposed services such as Telnet.
+
+Used by:
+- portscanner commandlet: promote selected observations into findings.
+- finding helper facade: expose legacy convenience helpers during transition."""
 
 from __future__ import annotations
 

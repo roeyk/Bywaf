@@ -58,6 +58,32 @@ The manifest is required so Bywaf has commandlet names, capabilities, secret
 options, trigger rules, and plugin traits available as package metadata instead
 of treating imports as discovery.
 
+## Why Manifests Matter
+
+The sidecar manifest is intentionally more than packaging metadata:
+
+- **Enforceable contract:** commandlets cannot use capabilities, secret
+  options, provider variables, or trigger rules they did not declare. The
+  framework and checker can compare the Python plugin contract against the
+  manifest and reject drift.
+- **Static catalog metadata:** Bywaf can inspect plugin names, commandlets,
+  roles, traits, capabilities, and trigger declarations without importing
+  plugin Python code. This keeps catalog views, completion, and trust checks
+  safer and faster.
+- **Pre-load configuration surface:** declared commandlets and variables give
+  the framework enough information to accept catalog variable values before
+  the plugin is loaded, then apply those values when the commandlet becomes
+  available.
+- **Human and LLM guardrail:** plugin authors, AI assistants, and CI tooling get
+  a second source of truth. `plugin_check` can catch missing capabilities,
+  mismatched commandlets, undeclared provider-variable reads, and manifest/code
+  inconsistencies before a plugin is trusted.
+
+This is why Bywaf goes to the extra effort of keeping Python decorators and
+sidecar TOML synchronized. Decorators define the runtime commandlet contract;
+the manifest makes that contract reviewable, enforceable, and useful before
+code import.
+
 `--force` is required for REPL-loaded filesystem plugins unless a future
 runtime catalog trust check verifies the plugin first. Filesystem plugins are
 arbitrary local Python code, so forcing a load is an explicit operator

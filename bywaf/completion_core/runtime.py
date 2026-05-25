@@ -2,6 +2,10 @@
 
 Provides prompt metadata targeting for job, run, and pipeline completions.
 Used by CoreCompleter before it asks the database for candidate descriptions.
+
+Used by:
+- completion engine: infer which runtime selector is being edited.
+- tests: verify selector completion behavior across commands.
 """
 
 from __future__ import annotations

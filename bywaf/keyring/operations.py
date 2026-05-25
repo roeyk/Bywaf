@@ -2,6 +2,10 @@
 
 Provides key generation, import/export, validation, signing, verification, and
 key-name discovery used by runtime commandlets, bundles, and completion.
+
+Used by:
+- runtime key and bundle commandlets: manage trust material.
+- completion providers: discover named signing and trust keys.
 """
 
 from __future__ import annotations

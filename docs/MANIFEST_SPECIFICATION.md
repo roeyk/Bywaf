@@ -9,9 +9,15 @@ Python with `CommandletBase`, `@commandlet`, `@argument`, `@option`, and
 commandlets, capabilities, secret options, and trigger rules that Bywaf should
 trust before or while loading plugin code.
 
+The manifest exists so plugin contracts can be enforced and inspected before
+arbitrary Python code is imported. It lets Bywaf reject undeclared capabilities,
+build static catalog views, accept pre-load catalog variables, and give
+`plugin_check` a second source of truth for human and LLM-authored plugins.
+
 ## Guide Index
 
 - [File Names](#file-names)
+- [Why Manifests Matter](#why-manifests-matter)
 - [Schema](#schema)
 - [Plugin Table](#plugin-table)
 - [Commandlet Entries](#commandlet-entries)
@@ -26,6 +32,19 @@ Filesystem plugins use `bywaf.plugin.toml` next to `plugin.py`.
 
 Bundled plugins use sidecar manifests named after the Python module, such as
 `nikto.plugin.toml` next to `nikto.py`.
+
+# Why Manifests Matter
+
+A manifest has four practical jobs:
+
+- **Enforceable contract:** capabilities, secret options, provider variables,
+  and triggers must be declared before the framework trusts them.
+- **Static catalog metadata:** Bywaf can list and reason about plugin providers
+  without importing plugin code.
+- **Pre-load configuration surface:** users can set declared catalog variables
+  before the plugin is loaded.
+- **Checker guardrail:** `plugin_check` can compare code and TOML so mistakes
+  from humans or LLMs fail before loading.
 
 # Schema
 
