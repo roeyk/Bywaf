@@ -122,10 +122,10 @@ class CompletionRegressionTests(unittest.TestCase):
             cases = (
                 ("job show ", str(job_id)),
                 ("pipeline show ", "1"),
-                ("event run=", "run=1"),
+                ("event step=", "step=1"),
                 ("event pipeline=", "pipeline=1"),
                 ("signal serial=", "serial=run-1"),
-                ("portscanner --from-run ", "1"),
+                ("portscanner --from-step ", "1"),
                 ("portscanner --from-pipeline ", "1"),
                 ("portscanner --from-topic ", "host.found"),
             )

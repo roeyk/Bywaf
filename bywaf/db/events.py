@@ -280,7 +280,7 @@ class EventStoreEventMixin:
         return sorted(values)
 
     def artifact_counts_by_run(self) -> dict[str, int]:
-        """Return artifact counts keyed by durable command-run serial."""
+        """Return artifact counts keyed by durable pipeline-step serial."""
         return self.artifact_counts("command_run_id")
 
     def artifact_counts_by_pipeline(self) -> dict[str, int]:

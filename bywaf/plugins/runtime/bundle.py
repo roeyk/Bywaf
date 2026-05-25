@@ -133,7 +133,7 @@ def bundle_completion_selectors(action: str, prefix: str) -> list[str]:
     """Return selector candidates for a bundle action."""
     candidates = {
         "create": ["name="],
-        "add": ["name=", *BUNDLE_CONTENT_KINDS, "topic=", "run=", "pipeline=", "job=", "serial=", "since=", "until=", "commandlet="],
+        "add": ["name=", *BUNDLE_CONTENT_KINDS, "topic=", "step=", "pipeline=", "job=", "serial=", "since=", "until=", "commandlet="],
         "seal": ["name=", "--sign", "key="],
         "verify": ["name="],
         "export": ["name=", "file="],
@@ -410,7 +410,7 @@ def selected_artifacts(context: CommandContext, selectors: dict[str, str]) -> li
     artifacts = store.list(
         job_id=selectors.get("job"),
         pipeline_id=resolve_pipeline_selector(context, selectors.get("pipeline")),
-        command_run_id=resolve_run_selector(context, selectors.get("run")),
+        command_run_id=resolve_run_selector(context, selectors.get("step")),
     )
     if "serial" in selectors:
         wanted = selectors["serial"]
@@ -434,7 +434,7 @@ def selected_artifacts(context: CommandContext, selectors: dict[str, str]) -> li
 
 
 def resolve_run_selector(context: CommandContext, value: str | None) -> str | None:
-    """Resolve local run id selectors to durable serials."""
+    """Resolve local step id selectors to durable serials."""
     return context.runtime_store("bundle").resolve_run_serial(value) if value is not None else None
 
 

@@ -1,6 +1,6 @@
 """Stage preparation and command context construction.
 
-Provides stage run identity, input event selection, variable snapshots, and
+Provides stage step identity, input event selection, variable snapshots, and
 CommandContext construction for runner execution.
 
 Used by:
@@ -42,10 +42,10 @@ def select_input_events(
     fallback_events: list[Event],
 ) -> list[Event]:
     """Choose pipeline input events or DB-selected events for one invocation."""
-    if not any((invocation.from_run, invocation.from_pipeline, invocation.from_topic)):
+    if not any((invocation.from_step, invocation.from_pipeline, invocation.from_topic)):
         return fallback_events
     return db.events_matching(
-        command_run_id=db.resolve_run_serial(invocation.from_run) if invocation.from_run else None,
+        command_run_id=db.resolve_run_serial(invocation.from_step) if invocation.from_step else None,
         pipeline_id=db.resolve_pipeline_serial(invocation.from_pipeline) if invocation.from_pipeline else None,
         topic=invocation.from_topic,
         after_id=invocation.replay_after_id,
@@ -53,7 +53,7 @@ def select_input_events(
 
 
 def prepare_stage_runs(commands: tuple[CommandInvocation, ...]) -> tuple[StageRun, ...]:
-    """Assign stable run IDs and upstream parent IDs to pipeline stages."""
+    """Assign stable step IDs and upstream parent IDs to pipeline stages."""
     stages: list[StageRun] = []
     parent_id: str | None = None
     for invocation in commands:
@@ -95,7 +95,7 @@ def ensure_run_var_snapshot(
     command_run_id: str,
     commandlet: str,
 ) -> dict[str, str]:
-    """Load or create the immutable variable snapshot for one command run."""
+    """Load or create the immutable variable snapshot for one pipeline step."""
     existing = db.command_run_vars(command_run_id)
     if existing:
         return existing
@@ -148,7 +148,7 @@ def build_context(
             "provider_scope": provider_scope,
             "provider_variables": (*plugin.spec.provider_variables, *plugin.spec.secret_provider_variables),
             "background": invocation.background,
-            "from_run": invocation.from_run,
+            "from_step": invocation.from_step,
             "from_pipeline": invocation.from_pipeline,
             "from_topic": invocation.from_topic,
             "note": invocation.note,

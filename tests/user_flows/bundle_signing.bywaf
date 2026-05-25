@@ -9,7 +9,7 @@
 # EXPECT-EVENT: bundle.exported
 
 bundle create name=client-a
-artifact attach run=1 file={fixture} name=user-flow-bundle note=smoke
+artifact attach step=1 file={fixture} name=user-flow-bundle note=smoke
 bundle add name=client-a audit topic=artifact.attached
 bundle add name=client-a evidence commandlet=artifact
 bundle seal name=client-a

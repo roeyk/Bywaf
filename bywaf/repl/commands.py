@@ -245,12 +245,12 @@ def handle_event_command(runner: Runner, state: ShellState, rest: str | None, li
     """Print matching events."""
     del state, line
     if rest is None:
-        print("usage: event <id|topic|job=id|run=id|pipeline=id|serial=id>")
+        print("usage: event <id|topic|job=id|step=id|pipeline=id|serial=id>")
     elif rest.isdigit():
         print_event_info(runner, rest)
     elif rest.startswith("job="):
         print_job(runner, rest.split("=", 1)[1])
-    elif rest.startswith("run="):
+    elif rest.startswith("step="):
         run_id = runner.runtime.resolve_run_serial(rest.split("=", 1)[1])
         print_run_variables(runner, run_id)
         print_events(runner.events.events_matching(command_run_id=run_id), runner)

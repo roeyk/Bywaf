@@ -1,6 +1,6 @@
 """Runtime naming commandlet.
 
-Provides a bundled plugin implementation and CommandSpec metadata. Assigns human-readable names to jobs, runs, pipelines, and bundles.
+Provides a bundled plugin implementation and CommandSpec metadata. Assigns human-readable names to jobs, pipeline steps, pipelines, and bundles.
 
 Used by:
 - PluginRegistry discovery: loads this module as a commandlet provider.
@@ -17,16 +17,16 @@ from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionC
 
 @commandlet(
     name="name",
-    description="Show or assign names for jobs, pipelines, and command runs.",
-    usage="name <run=id|pipeline=id|job=id> [name text|text=name]",
+    description="Show or assign names for jobs, pipelines, and pipeline steps.",
+    usage="name <step=id|pipeline=id|job=id> [name text|text=name]",
     examples=(
-        "name run=1 localhost sweep",
+        "name step=1 localhost sweep",
         "name pipeline=1 client subnet scan",
         "name job=12 background listener",
     ),
     capabilities=("framework.console.output",),
 )
-@argument("selector", "run=, pipeline=, or job= selector", completion=CompletionSpec("choice", ("run=", "pipeline=", "job=")))
+@argument("selector", "step=, pipeline=, or job= selector", completion=CompletionSpec("choice", ("step=", "pipeline=", "job=")))
 @argument("value", "optional name text", required=False)
 class Name(CommandletBase):
     """Display or assign user-facing runtime entity names."""
@@ -56,22 +56,22 @@ class Name(CommandletBase):
                 pipeline_id=target_id if target_type == "pipeline" else None,
                 command_run_id=target_id if target_type == "run" else None,
             )
-            context.output(f"named {target_type}={target_id} {selectors['value']}")
+            context.output(f"named {display_target_type(target_type)}={target_id} {selectors['value']}")
             return ()
         display_name = context.runtime_store("name").runtime_names().get((target_type, target_id))
-        context.output(f"{target_type}={target_id} name={display_name or ''}".rstrip())
+        context.output(f"{display_target_type(target_type)}={target_id} name={display_name or ''}".rstrip())
         return ()
 
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
         """Complete runtime selectors."""
-        if prefix.startswith("run="):
-            return [f"run={value}" for value in sorted(context.db.run_aliases().values(), key=int)] if context.db else []
+        if prefix.startswith("step="):
+            return [f"step={value}" for value in sorted(context.db.run_aliases().values(), key=int)] if context.db else []
         if prefix.startswith("pipeline="):
             return [f"pipeline={value}" for value in sorted(context.db.pipeline_aliases().values(), key=int)] if context.db else []
         if prefix.startswith("job="):
             return [f"job={row['id']}" for row in context.db.jobs()] if context.db else []
         if not args:
-            return ["run=", "pipeline=", "job="]
+            return ["step=", "pipeline=", "job="]
         return []
 
 
@@ -90,7 +90,7 @@ def parse_name_selectors(args: list[str]) -> dict[str, str]:
             index = len(args)
         else:
             index += 1
-        if key not in {"run", "pipeline", "job", "text"}:
+        if key not in {"step", "pipeline", "job", "text"}:
             raise ValueError(f"unknown name selector: {key}")
         if not value:
             raise ValueError(f"name selector {key}= requires a value")
@@ -101,16 +101,21 @@ def parse_name_selectors(args: list[str]) -> dict[str, str]:
 
 def selected_target(context: CommandContext | None, selectors: dict[str, str]) -> tuple[str, str]:
     """Return the single selected target type and id."""
-    targets = [key for key in ("run", "pipeline", "job") if key in selectors]
+    targets = [key for key in ("step", "pipeline", "job") if key in selectors]
     if len(targets) != 1:
-        raise ValueError("name requires exactly one run=, pipeline=, or job= selector")
+        raise ValueError("name requires exactly one step=, pipeline=, or job= selector")
     target_type = targets[0]
     target_id = selectors[target_type]
-    if context is not None and target_type == "run":
+    if context is not None and target_type == "step":
         target_id = context.runtime_store("name").resolve_run_serial(target_id)
     if context is not None and target_type == "pipeline":
         target_id = context.runtime_store("name").resolve_pipeline_serial(target_id)
-    return target_type, target_id
+    return ("run" if target_type == "step" else target_type), target_id
+
+
+def display_target_type(target_type: str) -> str:
+    """Return the user-facing selector name for a runtime target type."""
+    return "step" if target_type == "run" else target_type
 
 
 def plugin() -> Commandlet:

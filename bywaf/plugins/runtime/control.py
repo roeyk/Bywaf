@@ -50,7 +50,7 @@ class Control(CommandletBase):
 
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
         """Complete target selectors and runtime IDs."""
-        selectors = ("job=", "pipeline=", "run=", "serial=")
+        selectors = ("job=", "pipeline=", "step=", "serial=")
         if prefix.startswith("job="):
             value_prefix = prefix.split("=", 1)[1]
             return [f"job={job_id}" for job_id in job_ids(context) if job_id.startswith(value_prefix)]
@@ -61,9 +61,9 @@ class Control(CommandletBase):
                 for pipeline_id in pipeline_ids(context)
                 if pipeline_id.startswith(value_prefix)
             ]
-        if prefix.startswith("run="):
+        if prefix.startswith("step="):
             value_prefix = prefix.split("=", 1)[1]
-            return [f"run={run_id}" for run_id in run_ids(context) if run_id.startswith(value_prefix)]
+            return [f"step={run_id}" for run_id in run_ids(context) if run_id.startswith(value_prefix)]
         if prefix.startswith("serial="):
             value_prefix = prefix.split("=", 1)[1]
             return [f"serial={serial}" for serial in runtime_serial_ids(context) if serial.startswith(value_prefix)]
@@ -82,17 +82,17 @@ def validate_control_mode(action: str, *, soft: bool, hard: bool) -> None:
 
 @commandlet(
     name="signal",
-    description="Send a live-control signal to a job, pipeline, or command run.",
-    usage="signal <job=id|run=id|serial=id> <action> [--soft|--hard] [key=value ...]",
+    description="Send a live-control signal to a job, pipeline, or pipeline step.",
+    usage="signal <job=id|step=id|serial=id> <action> [--soft|--hard] [key=value ...]",
     examples=(
-        "signal run=1 prune host=192.168.1.50",
-        "signal run=1 verbosity level=debug",
+        "signal step=1 prune host=192.168.1.50",
+        "signal step=1 verbosity level=debug",
         "signal job=1 mute",
-        "signal run=1 pause --hard",
+        "signal step=1 pause --hard",
     ),
     capabilities=("framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
-@argument("target", "job=<id>, run=<id>, or serial=<id>", completion=CompletionSpec("choice", ("job=", "run=", "serial=")))
+@argument("target", "job=<id>, step=<id>, or serial=<id>", completion=CompletionSpec("choice", ("job=", "step=", "serial=")))
 @argument("action", "signal action such as prune, mute, verbosity, pause, resume, stop, end, or kill")
 class RuntimeSignal(CommandletBase):
     """Publish audited live-control signals for in-flight commandlets."""
@@ -130,14 +130,14 @@ class RuntimeSignal(CommandletBase):
         )
         dispatch_framework_signal(context, parsed)
         context.output(
-            f"signal requested for {signal_kind}={signal_target_id} "
+            f"signal requested for {display_target_kind(signal_kind)}={signal_target_id} "
             f"action={signal_action} mode={signal_mode}"
         )
         return ()
 
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
         """Complete target selectors first, then action names."""
-        selectors = ("job=", "run=", "serial=")
+        selectors = ("job=", "step=", "serial=")
         if not args:
             return [selector for selector in selectors if selector.startswith(prefix)] if prefix else list(selectors)
         if len(args) == 1 and "=" not in args[0]:
@@ -145,9 +145,9 @@ class RuntimeSignal(CommandletBase):
         if prefix.startswith("job="):
             value_prefix = prefix.split("=", 1)[1]
             return [f"job={job_id}" for job_id in job_ids(context) if job_id.startswith(value_prefix)]
-        if prefix.startswith("run="):
+        if prefix.startswith("step="):
             value_prefix = prefix.split("=", 1)[1]
-            return [f"run={run_id}" for run_id in run_ids(context) if run_id.startswith(value_prefix)]
+            return [f"step={run_id}" for run_id in run_ids(context) if run_id.startswith(value_prefix)]
         if prefix.startswith("serial="):
             value_prefix = prefix.split("=", 1)[1]
             return [f"serial={serial}" for serial in runtime_serial_ids(context) if serial.startswith(value_prefix)]
@@ -168,12 +168,12 @@ class RuntimeSignal(CommandletBase):
 
 @commandlet(
     name="end",
-    description="Stop a job, pipeline, or run; defaults to cooperative cancellation.",
-    usage="end [--soft|--hard] <job=id|pipeline=id|run=id>",
-    examples=("end job=1", "end --hard pipeline=1", "end run=1"),
+    description="Stop a job, pipeline, or pipeline step; defaults to cooperative cancellation.",
+    usage="end [--soft|--hard] <job=id|pipeline=id|step=id>",
+    examples=("end job=1", "end --hard pipeline=1", "end step=1"),
     capabilities=("framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
-@argument("target", "job=<id>, pipeline=<id>, run=<id>, or serial=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "run=", "serial=")))
+@argument("target", "job=<id>, pipeline=<id>, step=<id>, or serial=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "step=", "serial=")))
 class End(Control):
     """Stop a job or pipeline, softly by default."""
 
@@ -183,11 +183,11 @@ class End(Control):
 @commandlet(
     name="kill",
     description="Synonym for end; defaults to cooperative cancellation.",
-    usage="kill [--soft|--hard] <job=id|pipeline=id|run=id>",
-    examples=("kill job=1", "kill --hard pipeline=1", "kill run=1"),
+    usage="kill [--soft|--hard] <job=id|pipeline=id|step=id>",
+    examples=("kill job=1", "kill --hard pipeline=1", "kill step=1"),
     capabilities=("framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
-@argument("target", "job=<id>, pipeline=<id>, run=<id>, or serial=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "run=", "serial=")))
+@argument("target", "job=<id>, pipeline=<id>, step=<id>, or serial=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "step=", "serial=")))
 class Kill(Control):
     """Synonym for `end`, softly by default."""
 
@@ -197,11 +197,11 @@ class Kill(Control):
 @commandlet(
     name="cancel",
     description="Request cooperative cancellation for a job or pipeline.",
-    usage="cancel <job=id|pipeline=id|run=id>",
-    examples=("cancel job=1", "cancel pipeline=1", "cancel run=1"),
+    usage="cancel <job=id|pipeline=id|step=id>",
+    examples=("cancel job=1", "cancel pipeline=1", "cancel step=1"),
     capabilities=("framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
-@argument("target", "job=<id>, pipeline=<id>, or run=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "run=")))
+@argument("target", "job=<id>, pipeline=<id>, or step=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "step=")))
 class Cancel(Control):
     """Request cooperative cancellation for a job or pipeline."""
 
@@ -211,11 +211,11 @@ class Cancel(Control):
 @commandlet(
     name="pause",
     description="Pause a job or pipeline.",
-    usage="pause [--soft|--hard] <job=id|pipeline=id|run=id>",
-    examples=("pause job=1", "pause --hard pipeline=1", "pause run=1"),
+    usage="pause [--soft|--hard] <job=id|pipeline=id|step=id>",
+    examples=("pause job=1", "pause --hard pipeline=1", "pause step=1"),
     capabilities=("framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
-@argument("target", "job=<id>, pipeline=<id>, or run=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "run=")))
+@argument("target", "job=<id>, pipeline=<id>, or step=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "step=")))
 class Pause(Control):
     """Pause a job or pipeline, softly by default."""
 
@@ -225,11 +225,11 @@ class Pause(Control):
 @commandlet(
     name="resume",
     description="Resume a paused job or pipeline.",
-    usage="resume [--listonly] [--soft|--hard] <job=id|pipeline=id|run=id>",
-    examples=("resume job=1", "resume --listonly pipeline=1", "resume run=1"),
+    usage="resume [--listonly] [--soft|--hard] <job=id|pipeline=id|step=id>",
+    examples=("resume job=1", "resume --listonly pipeline=1", "resume step=1"),
     capabilities=("framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
-@argument("target", "job=<id>, pipeline=<id>, or run=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "run=")))
+@argument("target", "job=<id>, pipeline=<id>, or step=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "step=")))
 class Resume(Control):
     """Resume a job or pipeline."""
 
@@ -239,11 +239,11 @@ class Resume(Control):
 @commandlet(
     name="stop",
     description="Stop a job or pipeline.",
-    usage="stop [--soft|--hard] <job=id|pipeline=id|run=id>",
-    examples=("stop job=1", "stop --hard pipeline=1", "stop run=1"),
+    usage="stop [--soft|--hard] <job=id|pipeline=id|step=id>",
+    examples=("stop job=1", "stop --hard pipeline=1", "stop step=1"),
     capabilities=("framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
-@argument("target", "job=<id>, pipeline=<id>, or run=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "run=")))
+@argument("target", "job=<id>, pipeline=<id>, or step=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "step=")))
 class Stop(Control):
     """Stop a job or pipeline, softly by default."""
 
@@ -253,10 +253,10 @@ class Stop(Control):
 def parse_target(target: str) -> tuple[str, str]:
     """Parse a `kind=id` target selector."""
     if "=" not in target:
-        raise ValueError("target must be job=<id>, pipeline=<id>, run=<id>, or serial=<id>")
+        raise ValueError("target must be job=<id>, pipeline=<id>, step=<id>, or serial=<id>")
     kind, target_id = target.split("=", 1)
-    if kind not in {"job", "pipeline", "run", "serial"} or not target_id:
-        raise ValueError("target must be job=<id>, pipeline=<id>, run=<id>, or serial=<id>")
+    if kind not in {"job", "pipeline", "step", "serial"} or not target_id:
+        raise ValueError("target must be job=<id>, pipeline=<id>, step=<id>, or serial=<id>")
     return kind, target_id
 
 
@@ -274,13 +274,18 @@ def resolve_control_target(
         if resolved[0] == "pipeline" and not allow_pipeline:
             raise ValueError("signal serial= must resolve to a job or run, not a pipeline")
         return resolved
-    if kind == "run":
+    if kind == "step":
         return "run", runtime.resolve_run_serial(target_id)
     if kind == "pipeline":
         if not allow_pipeline:
-            raise ValueError("signal does not target pipelines; use job=, run=, or serial= for a job/run")
+            raise ValueError("signal does not target pipelines; use job=, step=, or serial= for a job/step")
         return "pipeline", runtime.resolve_pipeline_serial(target_id)
     return kind, target_id
+
+
+def display_target_kind(kind: str) -> str:
+    """Return the user-facing selector kind for an internal runtime target."""
+    return "step" if kind == "run" else kind
 
 
 def resolve_runtime_serial_target(context: CommandContext, serial: str) -> tuple[str, str]:
@@ -302,7 +307,7 @@ def job_id_for_serial(context: CommandContext, serial: str) -> str | None:
 
 
 def run_serial_exists(context: CommandContext, serial: str) -> bool:
-    """Return whether a durable run serial is known from events or run snapshots."""
+    """Return whether a durable step serial is known from events or step snapshots."""
     return context.runtime_store("control").run_serial_exists(serial)
 
 
@@ -412,7 +417,7 @@ def control_cancel_pipeline(context: CommandContext, target_id: str, hard: bool,
 
 
 def control_cancel_run(context: CommandContext, target_id: str, hard: bool, listonly: bool) -> None:
-    """Cancel one command run."""
+    """Cancel one pipeline step."""
     del hard, listonly
     publish_runtime_signal(context, "run", target_id, "stop", {}, mode="soft")
     cancel_run(context, target_id)
@@ -433,7 +438,7 @@ def control_end_pipeline(context: CommandContext, target_id: str, hard: bool, li
 
 
 def control_end_run(context: CommandContext, target_id: str, hard: bool, listonly: bool) -> None:
-    """End one command run."""
+    """End one pipeline step."""
     del listonly
     publish_runtime_signal(context, "run", target_id, "end", {}, mode="hard" if hard else "soft")
     signal_end_run(context, target_id, hard)
@@ -452,7 +457,7 @@ def control_pause_pipeline(context: CommandContext, target_id: str, hard: bool, 
 
 
 def control_pause_run(context: CommandContext, target_id: str, hard: bool, listonly: bool) -> None:
-    """Pause one command run."""
+    """Pause one pipeline step."""
     del listonly
     pause_run(context, target_id, hard=hard)
 
@@ -468,7 +473,7 @@ def control_resume_pipeline(context: CommandContext, target_id: str, hard: bool,
 
 
 def control_resume_run(context: CommandContext, target_id: str, hard: bool, listonly: bool) -> None:
-    """Resume one command run."""
+    """Resume one pipeline step."""
     resume_run(context, target_id, hard=hard, listonly=listonly)
 
 
@@ -485,7 +490,7 @@ def control_stop_pipeline(context: CommandContext, target_id: str, hard: bool, l
 
 
 def control_stop_run(context: CommandContext, target_id: str, hard: bool, listonly: bool) -> None:
-    """Stop one command run."""
+    """Stop one pipeline step."""
     del listonly
     stop_run(context, target_id, hard=hard)
 
@@ -501,7 +506,7 @@ def signal_pause_pipeline(context: CommandContext, target_id: str, hard: bool) -
 
 
 def signal_pause_run(context: CommandContext, target_id: str, hard: bool) -> None:
-    """Apply a framework pause signal to one command run."""
+    """Apply a framework pause signal to one pipeline step."""
     pause_run(context, target_id, hard=hard, publish_signal=False)
 
 
@@ -516,7 +521,7 @@ def signal_resume_pipeline(context: CommandContext, target_id: str, hard: bool) 
 
 
 def signal_resume_run(context: CommandContext, target_id: str, hard: bool) -> None:
-    """Apply a framework resume signal to one command run."""
+    """Apply a framework resume signal to one pipeline step."""
     resume_run(context, target_id, hard=hard, listonly=False, publish_signal=False)
 
 
@@ -531,7 +536,7 @@ def signal_stop_pipeline(context: CommandContext, target_id: str, hard: bool) ->
 
 
 def signal_stop_run(context: CommandContext, target_id: str, hard: bool) -> None:
-    """Apply a framework stop signal to one command run."""
+    """Apply a framework stop signal to one pipeline step."""
     stop_run(context, target_id, hard=hard, publish_signal=False)
 
 
@@ -552,7 +557,7 @@ def signal_end_pipeline(context: CommandContext, target_id: str, hard: bool) -> 
 
 
 def signal_end_run(context: CommandContext, target_id: str, hard: bool) -> None:
-    """Apply a framework end signal to one command run."""
+    """Apply a framework end signal to one pipeline step."""
     if hard:
         kill_run(context, target_id)
     else:
@@ -676,23 +681,23 @@ def stop_pipeline(context: CommandContext, pipeline_id: str, *, hard: bool, publ
 
 
 def cancel_run(context: CommandContext, command_run_id: str) -> None:
-    """Request cooperative cancellation for one command run."""
+    """Request cooperative cancellation for one pipeline step."""
     jobs = require_run_jobs(context, command_run_id)
     context.runtime_store("run cancel").request_cancellation("run", command_run_id)
     for job in jobs:
         cancel_job(context, job)
-    context.output(f"cancel requested for run {command_run_id}")
+    context.output(f"cancel requested for step {command_run_id}")
 
 
 def kill_run(context: CommandContext, command_run_id: str) -> None:
-    """Hard-kill jobs associated with one command run."""
+    """Hard-kill jobs associated with one pipeline step."""
     for job in require_run_jobs(context, command_run_id):
         kill_job(context, job)
-    context.output(f"killed run {command_run_id}")
+    context.output(f"killed step {command_run_id}")
 
 
 def pause_run(context: CommandContext, command_run_id: str, *, hard: bool, publish_signal: bool = True) -> None:
-    """Pause jobs associated with one command run."""
+    """Pause jobs associated with one pipeline step."""
     if publish_signal:
         publish_runtime_signal(context, "run", command_run_id, "pause", {}, mode="hard" if hard else "soft")
     for job in require_run_jobs(context, command_run_id):
@@ -706,7 +711,7 @@ def pause_run(context: CommandContext, command_run_id: str, *, hard: bool, publi
 
 
 def resume_run(context: CommandContext, command_run_id: str, *, hard: bool, listonly: bool, publish_signal: bool = True) -> None:
-    """Resume or inspect queued actions for one command run."""
+    """Resume or inspect queued actions for one pipeline step."""
     if listonly:
         print_queued_actions(context, "run", command_run_id)
         return
@@ -723,7 +728,7 @@ def resume_run(context: CommandContext, command_run_id: str, *, hard: bool, list
 
 
 def stop_run(context: CommandContext, command_run_id: str, *, hard: bool, publish_signal: bool = True) -> None:
-    """Stop jobs associated with one command run."""
+    """Stop jobs associated with one pipeline step."""
     if publish_signal:
         publish_runtime_signal(context, "run", command_run_id, "stop", {}, mode="hard" if hard else "soft")
     for job in require_run_jobs(context, command_run_id):
@@ -740,7 +745,7 @@ def require_run_jobs(context: CommandContext, command_run_id: str):
     """Return jobs associated with a run or raise a clear error."""
     jobs = context.runtime_store("run jobs").jobs_for_run(command_run_id)
     if not jobs:
-        raise ValueError(f"unknown or inactive run: {command_run_id}")
+        raise ValueError(f"unknown or inactive step: {command_run_id}")
     return jobs
 
 
@@ -764,8 +769,9 @@ def signal_job_process(row, sig: signal.Signals) -> None:
 
 
 def print_queued_actions(context: CommandContext, target_type: str, target_id: str) -> None:
-    """Print queued control events for a job, pipeline, or run target."""
-    context.output(f"queued resume actions for {target_type} {target_id}:")
+    """Print queued control events for a job, pipeline, or step target."""
+    display_type = display_target_kind(target_type)
+    context.output(f"queued resume actions for {display_type} {target_id}:")
     events = [
         event
         for event in context.event_store("control queued actions").events_matching(limit=100000)
@@ -782,7 +788,7 @@ def print_queued_actions(context: CommandContext, target_type: str, target_id: s
         mode = event.payload.get("mode", "")
         action = event.payload.get("action", "")
         suffix = f" action={action}" if action else ""
-        context.output(f"{event.created_at.isoformat()} {event.topic} {target_type}={target_id} mode={mode}{suffix}")
+        context.output(f"{event.created_at.isoformat()} {event.topic} {display_type}={target_id} mode={mode}{suffix}")
 
 
 def control_event_matches(event: Event, target_type: str, target_id: str) -> bool:
@@ -807,7 +813,7 @@ def control_event_matches(event: Event, target_type: str, target_id: str) -> boo
 
 
 def run_ids(context: CompletionContext) -> list[str]:
-    """Return command-run IDs for completion."""
+    """Return pipeline-step IDs for completion."""
     if context.db is None:
         return []
     return [str(row["command_run_id"]) for row in context.db.runs()]

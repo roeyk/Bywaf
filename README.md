@@ -90,7 +90,7 @@ bywaf> jobs
 bywaf> pipelines
 bywaf> steps
 bywaf> event host.found
-bywaf> event run=1
+bywaf> event step=1
 ```
 
 Load a local plugin during development:
@@ -118,8 +118,8 @@ bywaf> report pipeline=1
 - **Commandlet**: a small command provided by a plugin or the framework.
 - **Pipeline**: one command expression or attached workflow made of one or more
   pipeline steps.
-- **Pipeline step**: one commandlet invocation inside a pipeline. The historical
-  selector for a step is still `run=...`.
+- **Pipeline step**: one commandlet invocation inside a pipeline. Select it
+  with `step=...`.
 - **Job**: the supervised foreground or background execution lifecycle that runs
   one or more steps.
 - **Event**: a durable topic/payload record emitted by commandlets or framework

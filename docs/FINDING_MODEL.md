@@ -33,7 +33,7 @@ artifact provenance already stored in the project.
 | Fact | `port.open`, `http.endpoint`, `nikto.finding`, `web.screenshot` | Something a tool observed or produced | Follow-up commandlets, dedupe, report builders |
 | Candidate | `finding.candidate`, `finding.new`, `finding.merge_candidate` | A normalized finding-shaped record that deserves review or correlation | `finding_dedupe`, `report`, `finding_report`, future triage commands |
 | Confirmed finding | planned `finding.confirmed` | A finding accepted by a rule, commandlet, or operator as confirmed risk | Reports and exports |
-| Review state | `finding.reviewed` | Operator or framework review marker for a finding id | `report new` and future triage flows |
+| Review state | `finding.reviewed` | Operator or framework review marker for a finding id | `report` and future triage flows |
 
 An open port is usually a fact, not automatically a finding. A promoter rule
 or commandlet can turn it into a finding candidate when the fact implies risk:
@@ -220,18 +220,17 @@ work may add explicit `finding.confirmed` topics for stronger verification.
 
 ```text
 bywaf> report
-bywaf> report new
 bywaf> report pipeline=1
 bywaf> report pipeline=1,2,3
 bywaf> report job=7
-bywaf> report run=12
+bywaf> report step=12
 ```
 
 Defaults are optimized for field use:
 
-- `report` and `report new` show unreviewed findings from the latest pipeline
+- `report` shows unreviewed findings from the latest pipeline
   that produced finding events.
-- `report pipeline=...`, `report job=...`, and `report run=...` render scoped
+- `report pipeline=...`, `report job=...`, and `report step=...` render scoped
   grouped findings without requiring manual event queries.
 - `status=all` includes findings that have a `finding.reviewed` marker.
 

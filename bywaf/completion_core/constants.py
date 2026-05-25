@@ -13,7 +13,7 @@ from __future__ import annotations
 from ..specs import CompletionSpec
 
 FRAMEWORK_OPTION_COMPLETIONS = {
-    "--from-run": CompletionSpec("run"),
+    "--from-step": CompletionSpec("step"),
     "--from-pipeline": CompletionSpec("pipeline"),
     "--from-topic": CompletionSpec("topic"),
 }

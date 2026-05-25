@@ -102,7 +102,7 @@ class BywafSession:
         pipeline: str | None = None,
         limit: int = 1000,
     ) -> list[Event]:
-        """Return events filtered by topic, command run, or pipeline."""
+        """Return events filtered by topic, pipeline step, or pipeline."""
         return self.event_store.events_matching(
             topic=topic,
             command_run_id=run,

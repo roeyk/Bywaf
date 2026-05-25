@@ -125,7 +125,7 @@ def progress_percent(current: int | float | None, total: int | float | None) -> 
 
 
 def should_emit_progress(context: CommandContext, payload: Mapping[str, object]) -> bool:
-    """Enforce framework progress throttling for one command run."""
+    """Enforce framework progress throttling for one pipeline step."""
     status = str(payload.get("status", "updated"))
     if status in {"started", "completed", "failed"}:
         return True
@@ -254,7 +254,7 @@ class ContextEvents:
             time.sleep(max(0.0, sleep_for))
 
     def command_run_terminal(self, command_run_id: str | None) -> bool:
-        """Return whether a command run has reached a terminal lifecycle event."""
+        """Return whether a pipeline step has reached a terminal lifecycle event."""
         if command_run_id is None:
             return False
         db = self.require_event_store(f"{self.context.source} event follow")
@@ -269,16 +269,16 @@ class ContextEvents:
         self,
         *,
         topic: str | None = None,
-        run: str | None = None,
+        step: str | None = None,
         pipeline: str | None = None,
         limit: int = 1000,
     ) -> list[Event]:
-        """Query events with optional topic, run, and pipeline filters."""
+        """Query events with optional topic, step, and pipeline filters."""
         db = self.require_event_store(f"{self.context.source} event query")
         self.context.audit_capability(f"db.read:{topic}" if topic else "db.read:*")
         return db.events_matching(
             topic=topic,
-            command_run_id=run,
+            command_run_id=step,
             pipeline_id=pipeline,
             limit=limit,
         )

@@ -299,7 +299,7 @@ file        local files and paths
 directory   local directories and paths
 choice      fixed choices from CompletionSpec.values
 topic       event topics
-run         pipeline-step IDs (`run=` selector)
+step        pipeline-step IDs (`step=` selector)
 pipeline    pipeline IDs
 job         job IDs
 plugin      loaded commandlet names
@@ -309,7 +309,7 @@ none        no completion
 Framework selectors use these same specs:
 
 ```text
---from-run
+--from-step
 --from-pipeline
 --from-topic
 ```
@@ -387,10 +387,11 @@ At execution time, commandlets receive a `CommandContext`:
 
 For terminology, a pipeline groups one or more commandlet steps, a step is one
 invocation of one commandlet, and a job supervises the foreground or background
-work that executes those steps. The existing selector and storage/API names are
-still `run=...` and `command_run_id`. See `TERMINOLOGY.md` for the canonical
-definitions plugin authors should use in docs, emitted events, and user-facing
-messages.
+work that executes those steps. Selectors and public plugin-facing APIs use
+step terminology. Some persisted database columns still use historical names
+such as `command_run_id`; plugin authors should treat those as storage details.
+See `TERMINOLOGY.md` for the canonical definitions to use in docs, emitted
+events, and user-facing messages.
 
 Plugin-domain signals should be designed around steps. A step is the commandlet
 execution context that can poll `context.signals`; a job is the framework's
@@ -412,10 +413,10 @@ state through the framework-owned event bus.
 
 Commandlets do not need to parse `note=`. It is a framework-level selector that
 the runner strips before calling plugin `run()`. The framework records the note
-as `note.attached` with the current job, pipeline, and command-run IDs. Users
-can review those notes with `note run=<id>`, `note pipeline=<id>`, or
+as `note.attached` with the current job, pipeline, and step IDs. Users
+can review those notes with `note step=<id>`, `note pipeline=<id>`, or
 `note job=<id> file=notes.txt`. Users can add post-hoc notes with
-`note add run=<id> text=...`; notes are append-only events.
+`note add step=<id> text=...`; notes are append-only events.
 
 Commandlets also do not need to implement at-file expansion. The framework
 expands `@file`, `@raw:file`, `@lines:file`, and `@@literal` before calling
@@ -443,7 +444,7 @@ event database. If the main DB is encrypted, the artifact DB is encrypted with
 the same session passphrase; if the main DB is plaintext, the artifact DB is
 plaintext too. The main event database records `artifact.attached` provenance
 events containing the artifact id, hash, name, note, timestamp, job, pipeline,
-and command-run IDs. A commandlet can attach multiple artifacts to the same step;
+and step IDs. A commandlet can attach multiple artifacts to the same step;
 that is the expected model for screenshots, raw responses, parsed reports, and
 notes produced by one action.
 
@@ -906,11 +907,11 @@ that value still appears in captured `stdout`/`stderr`.
 
 At launch time, Bywaf captures the effective commandlet and global variables
 for each pipeline step and stores that snapshot in SQLite under its
-`command_run_id`. During execution, `context.vars.get()` checks the step
+step identity. During execution, `context.vars.get()` checks the step
 snapshot first, then falls back to the session variable store. This lets two
 background steps of the same commandlet
 keep different values even if the operator changes session variables after the
-first job starts. It also means `event run=<id>` can report the variables that
+first job starts. It also means `event step=<id>` can report the variables that
 were actually supplied to that step.
 
 Plugins should treat interpreter behavior, such as the prompt, as framework

@@ -1,6 +1,6 @@
 """Runtime run, pipeline, cancellation, and alias operations for EventStore.
 
-Provides command-run variable snapshots, cancellation checks, run/pipeline
+Provides pipeline-step variable snapshots, cancellation checks, run/pipeline
 summaries, local runtime aliases, and runtime entity allocation.
 
 Used by:
@@ -24,7 +24,7 @@ class EventStoreRuntimeMixin:
         raise NotImplementedError
 
     def run_serial_exists(self, serial: str) -> bool:
-        """Return whether a durable run serial is known from events or run snapshots."""
+        """Return whether a durable step serial is known from events or step snapshots."""
         if any(row["command_run_id"] == serial for row in self.runs(active_only=False)):
             return True
         with self.connect() as conn:
@@ -83,7 +83,7 @@ class EventStoreRuntimeMixin:
         values: dict[str, str],
         source: str = "snapshot",
     ) -> None:
-        """Persist the effective variables captured for one command run."""
+        """Persist the effective variables captured for one pipeline step."""
         now = datetime.now(timezone.utc).isoformat()
         with self.connect() as conn:
             conn.executemany(
@@ -109,7 +109,7 @@ class EventStoreRuntimeMixin:
         self.ensure_runtime_entity("run", command_run_id, now)
 
     def command_run_vars(self, command_run_id: str) -> dict[str, str]:
-        """Return the persisted variable snapshot for one command run."""
+        """Return the persisted variable snapshot for one pipeline step."""
         with self.connect() as conn:
             rows = conn.execute(
                 """
@@ -203,7 +203,7 @@ class EventStoreRuntimeMixin:
             )
 
     def run_aliases(self) -> dict[str, str]:
-        """Return stable local run IDs keyed by durable run serial."""
+        """Return stable local step IDs keyed by durable step serial."""
         self.ensure_run_aliases()
         return self.runtime_aliases("run")
 
@@ -213,7 +213,7 @@ class EventStoreRuntimeMixin:
         return self.runtime_aliases("pipeline")
 
     def resolve_run_serial(self, value: str) -> str:
-        """Resolve a local run id or durable serial to the durable run serial."""
+        """Resolve a local step id or durable serial to the durable step serial."""
         return self.resolve_runtime_serial("run", value)
 
     def resolve_pipeline_serial(self, value: str) -> str:
@@ -251,7 +251,7 @@ class EventStoreRuntimeMixin:
         return value
 
     def ensure_run_aliases(self) -> None:
-        """Allocate stable local IDs for known command runs."""
+        """Allocate stable local IDs for known pipeline steps."""
         rows = sorted(
             self.runs_without_alias_backfill(active_only=False),
             key=lambda row: (row["first_event"] or "", row["command_run_id"] or ""),

@@ -49,7 +49,7 @@ PipelineActionHandler = Callable[[CommandContext, Namespace], None]
         "pipeline cancel 1",
         "pipeline end --hard 1",
         "pipeline kill --hard 1",
-        "pipeline attach 1 portscanner run=1 since=beginning",
+        "pipeline attach 1 portscanner step=1 since=beginning",
     ),
     capabilities=("framework.console.output", "framework.pipeline.control", "framework.job.control"),
 )
@@ -171,7 +171,7 @@ def print_pipelines(context: CommandContext, *, active_only: bool = True, show_a
             )
         )
     output = render_table(
-        ("PIPELINE", "SERIAL", "STATE", "NAME", "JOB", "STATUS", "RUNS", "EVENTS", "ARTIFACTS", "FIRST", "LAST"),
+        ("PIPELINE", "SERIAL", "STATE", "NAME", "JOB", "STATUS", "STEPS", "EVENTS", "ARTIFACTS", "FIRST", "LAST"),
         table_rows,
     )
     if page:
@@ -209,7 +209,7 @@ def format_pipeline(
     name_part = f" name={display_name}" if display_name else ""
     line = (
         f"{prefix}pipeline={alias or row['pipeline_id']} serial={display_runtime_serial(row['pipeline_id'])}"
-        f"{name_part} job={row['job_id']} status={statuses} runs={row['runs']} events={row['events']}"
+        f"{name_part} job={row['job_id']} status={statuses} steps={row['runs']} events={row['events']}"
     )
     return f"{line}\n{detail}" if detail else line
 
@@ -253,7 +253,7 @@ def attach_pipeline(context: CommandContext, args: list[str]) -> None:
     """Attach one commandlet to an existing pipeline as a background job."""
     context.require_foreground("pipeline attach")
     if len(args) < 2:
-        raise ValueError("usage: pipeline attach <pipeline-id> <commandlet> [run=<run-id>] [since=beginning|now] [args...]")
+        raise ValueError("usage: pipeline attach <pipeline-id> <commandlet> [step=<step-id>] [since=beginning|now] [args...]")
     pipeline_id, commandlet_name, *tail = args
     runtime = context.runtime_store("pipeline attach")
     resolved_pipeline_id = runtime.resolve_pipeline_serial(pipeline_id)
@@ -266,7 +266,7 @@ def attach_pipeline(context: CommandContext, args: list[str]) -> None:
         resolved_pipeline_id,
         command_line,
         upstream_run_id=(
-            runtime.resolve_run_serial(selectors["run"]) if "run" in selectors else None
+            runtime.resolve_run_serial(selectors["step"]) if "step" in selectors else None
         ),
         since_cursor=selectors.get("since", "beginning"),
     )
@@ -278,8 +278,8 @@ def parse_attach_tail(tokens: list[str]) -> tuple[dict[str, str], list[str]]:
     selectors: dict[str, str] = {}
     commandlet_args: list[str] = []
     for token in tokens:
-        if token.startswith("run="):
-            selectors["run"] = require_selector_value(token)
+        if token.startswith("step="):
+            selectors["step"] = require_selector_value(token)
         elif token.startswith("since="):
             value = require_selector_value(token)
             if value not in {"beginning", "now"}:
@@ -305,13 +305,13 @@ def attach_candidates(context: CompletionContext, args: list[str], prefix: str) 
     if len(args) == 3:
         names = context.metadata.get("commandlets", ())
         return [name for name in names if str(name).startswith(prefix)]
-    if prefix.startswith("run="):
+    if prefix.startswith("step="):
         value_prefix = prefix.split("=", 1)[1]
-        return [f"run={run_id}" for run_id in run_ids(context) if run_id.startswith(value_prefix)]
+        return [f"step={run_id}" for run_id in run_ids(context) if run_id.startswith(value_prefix)]
     if prefix.startswith("since="):
         value_prefix = prefix.split("=", 1)[1]
         return [f"since={value}" for value in ("beginning", "now") if value.startswith(value_prefix)]
-    return ["run=", "since="]
+    return ["step=", "since="]
 
 
 def pipeline_ids(context: CompletionContext) -> list[str]:
@@ -322,7 +322,7 @@ def pipeline_ids(context: CompletionContext) -> list[str]:
 
 
 def run_ids(context: CompletionContext) -> list[str]:
-    """Return command-run IDs for completion."""
+    """Return pipeline-step IDs for completion."""
     if context.db is None:
         return []
     return sorted(context.db.run_aliases().values(), key=int)

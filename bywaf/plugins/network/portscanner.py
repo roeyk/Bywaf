@@ -154,7 +154,7 @@ def scan_hosts(
 
 
 def listen_for_upstream_hosts(context: CommandContext, parsed, seen_hosts: set[str]):
-    """Poll only the upstream command run from the same pipeline.
+    """Poll only the upstream pipeline step from the same pipeline.
 
     This is what makes `hostscanner ... & | portscanner &` scoped: the port
     scanner ignores global `host.found` events from unrelated runs.

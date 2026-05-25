@@ -478,7 +478,7 @@ class RegistryCompletionTests(unittest.TestCase):
                 command_run_id="run-1",
             )
             completer = Completer(self.registry, db)
-            self.assertEqual(completer.candidates("portscanner --from-run "), ["1"])
+            self.assertEqual(completer.candidates("portscanner --from-step "), ["1"])
             self.assertEqual(completer.candidates("portscanner --from-pipeline "), ["1"])
             self.assertIn("serial=run-1", completer.candidates("event serial="))
             self.assertIn("serial=pipeline-1", completer.candidates("event serial="))
@@ -496,7 +496,7 @@ class RegistryCompletionTests(unittest.TestCase):
             )
             job_id = db.record_job("hostscanner 127.0.0.1", 123, "running")
             completer = Completer(self.registry, db)
-            self.assertEqual(completer.candidates("event run="), ["run=1"])
+            self.assertEqual(completer.candidates("event step="), ["step=1"])
             self.assertEqual(completer.candidates("event pipeline="), ["pipeline=1"])
             self.assertIn("serial=run-1", completer.candidates("event serial="))
             self.assertIn("serial=pipeline-1", completer.candidates("event serial="))
@@ -522,7 +522,7 @@ class RegistryCompletionTests(unittest.TestCase):
                 command_run_id="run-1",
             )
             completer = Completer(self.registry, db)
-            self.assertIn("artifacts=1", completer.completion_meta("run=1", "event run=", "run="))
+            self.assertIn("artifacts=1", completer.completion_meta("step=1", "event step=", "step="))
             self.assertIn("artifacts=1", completer.completion_meta("pipeline=1", "event pipeline=", "pipeline="))
             self.assertIn("artifacts=1", completer.completion_meta(f"job={job_id}", "event job=", "job="))
 
@@ -532,7 +532,7 @@ class RegistryCompletionTests(unittest.TestCase):
     def test_completes_plugin_options(self):
         completer = Completer(self.registry)
         self.assertIn("ports=", completer.candidates("portscanner por"))
-        self.assertIn("--from-run", completer.candidates("portscanner --from"))
+        self.assertIn("--from-step", completer.candidates("portscanner --from"))
         http_options = completer.candidates("http_headers --")
         self.assertIn("--help", http_options)
         self.assertIn("port=", completer.candidates("http_headers po"))
@@ -582,12 +582,12 @@ class RegistryCompletionTests(unittest.TestCase):
             db = EventStore(Path(tmp, "db.sqlite3"))
             db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", command_run_id="run-1")
             completer = Completer(self.registry, db)
-            self.assertIn("run=", completer.candidates("pause "))
-            self.assertEqual(completer.candidates("pause run="), ["run=run-1"])
-            self.assertIn("run=", completer.candidates("signal "))
-            self.assertEqual(completer.candidates("signal run="), ["run=run-1"])
-            self.assertIn("prune", completer.candidates("signal run=run-1 "))
-            self.assertIn("targets=", completer.candidates("signal run=run-1 prune "))
+            self.assertIn("step=", completer.candidates("pause "))
+            self.assertEqual(completer.candidates("pause step="), ["step=run-1"])
+            self.assertIn("step=", completer.candidates("signal "))
+            self.assertEqual(completer.candidates("signal step="), ["step=run-1"])
+            self.assertIn("prune", completer.candidates("signal step=run-1 "))
+            self.assertIn("targets=", completer.candidates("signal step=run-1 prune "))
 
     def test_pipeline_attach_completion_prefers_action_then_scope(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -603,7 +603,7 @@ class RegistryCompletionTests(unittest.TestCase):
             self.assertIn("attach", completer.candidates("pipeline "))
             self.assertEqual(completer.candidates("pipeline attach "), ["1"])
             self.assertIn("portscanner", completer.candidates("pipeline attach pipe-1 por"))
-            self.assertIn("run=1", completer.candidates("pipeline attach pipe-1 portscanner run="))
+            self.assertIn("step=1", completer.candidates("pipeline attach pipe-1 portscanner step="))
             self.assertEqual(
                 completer.candidates("pipeline attach pipe-1 portscanner since="),
                 ["since=beginning", "since=now"],
@@ -619,7 +619,7 @@ class RegistryCompletionTests(unittest.TestCase):
             completer.candidates("portscanner --"),
             [
                 "--from-pipeline",
-                "--from-run",
+                "--from-step",
                 "--from-topic",
                 "--help",
                 "--listen",

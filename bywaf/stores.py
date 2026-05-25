@@ -142,11 +142,11 @@ class RuntimeStoreProtocol(Protocol):
         ...
 
     def jobs_for_run(self, command_run_id: str) -> list[Any]:
-        """Return jobs associated with a command-run serial."""
+        """Return jobs associated with a pipeline-step serial."""
         ...
 
     def run_serial_exists(self, serial: str) -> bool:
-        """Return whether a durable run serial is known."""
+        """Return whether a durable step serial is known."""
         ...
 
     def request_cancellation(
@@ -178,11 +178,11 @@ class RuntimeStoreProtocol(Protocol):
         values: dict[str, str],
         source: str = "snapshot",
     ) -> None:
-        """Persist the effective variable snapshot for one command run."""
+        """Persist the effective variable snapshot for one pipeline step."""
         ...
 
     def command_run_vars(self, command_run_id: str) -> dict[str, str]:
-        """Return the persisted variable snapshot for one command run."""
+        """Return the persisted variable snapshot for one pipeline step."""
         ...
 
     def command_run_var_rows(self, command_run_id: str) -> list[Any]:
@@ -194,7 +194,7 @@ class RuntimeStoreProtocol(Protocol):
         ...
 
     def runs(self, *, active_only: bool = False) -> list[Any]:
-        """Return summarized command runs."""
+        """Return summarized pipeline steps."""
         ...
 
     def pipelines(self, *, active_only: bool = False) -> list[Any]:
@@ -202,7 +202,7 @@ class RuntimeStoreProtocol(Protocol):
         ...
 
     def run_aliases(self) -> dict[str, str]:
-        """Return local run ids keyed by durable run serial."""
+        """Return local step ids keyed by durable step serial."""
         ...
 
     def pipeline_aliases(self) -> dict[str, str]:
@@ -210,7 +210,7 @@ class RuntimeStoreProtocol(Protocol):
         ...
 
     def resolve_run_serial(self, value: str) -> str:
-        """Resolve a local run id or durable serial to a run serial."""
+        """Resolve a local step id or durable serial to a step serial."""
         ...
 
     def resolve_pipeline_serial(self, value: str) -> str:
@@ -227,7 +227,7 @@ class RuntimeStoreProtocol(Protocol):
         ...
 
     def artifact_counts_by_run(self) -> dict[str, int]:
-        """Return artifact counts keyed by command-run serial."""
+        """Return artifact counts keyed by pipeline-step serial."""
         ...
 
     def artifact_counts_by_pipeline(self) -> dict[str, int]:

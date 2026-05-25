@@ -132,7 +132,7 @@ class EventStoreJobMixin:
                 conn.execute("UPDATE jobs SET serial = ? WHERE id = ?", (new_serial("job"), int(row["id"])))
 
     def jobs_for_pipeline(self, pipeline_id: str) -> list[sqlite3.Row]:
-        """Return jobs associated with a command-run variable snapshot pipeline."""
+        """Return jobs associated with a pipeline-step variable snapshot pipeline."""
         with self.connect() as conn:
             return list(
                 conn.execute(
@@ -149,7 +149,7 @@ class EventStoreJobMixin:
             )
 
     def jobs_for_run(self, command_run_id: str) -> list[sqlite3.Row]:
-        """Return jobs associated with one command-run variable snapshot."""
+        """Return jobs associated with one pipeline-step variable snapshot."""
         with self.connect() as conn:
             return list(
                 conn.execute(

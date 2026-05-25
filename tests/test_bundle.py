@@ -46,7 +46,7 @@ class BundleTests(unittest.TestCase):
                 output = io.StringIO()
                 with contextlib.redirect_stdout(output):
                     runner.execute("bundle create name=client-a")
-                    runner.execute(f"artifact attach run=1 file={evidence} name=sample note=bundle")
+                    runner.execute(f"artifact attach step=1 file={evidence} name=sample note=bundle")
                     runner.execute("bundle add name=client-a audit topic=artifact.attached")
                     runner.execute("bundle add name=client-a evidence commandlet=artifact")
                     with patch("getpass.getpass", return_value="passphrase"):

@@ -223,7 +223,7 @@ class ReportTests(unittest.TestCase):
             )
             self.assertEqual(rendered.payload["rows"], 1)
 
-    def test_report_new_uses_latest_completed_pipeline(self):
+    def test_report_defaults_to_latest_completed_pipeline(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.record_command_run_vars(
@@ -259,7 +259,7 @@ class ReportTests(unittest.TestCase):
 
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                runner.execute("report new")
+                runner.execute("report")
                 process_framework_requests(runner, ShellState())
 
             text = output.getvalue()
@@ -267,7 +267,7 @@ class ReportTests(unittest.TestCase):
             self.assertIn("New finding", text)
             self.assertNotIn("Old finding", text)
 
-    def test_report_new_hides_reviewed_findings(self):
+    def test_report_hides_reviewed_findings(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.record_command_run_vars(
@@ -289,7 +289,7 @@ class ReportTests(unittest.TestCase):
 
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                runner.execute("report new")
+                runner.execute("report")
                 process_framework_requests(runner, ShellState())
 
             self.assertIn("no unreviewed findings", output.getvalue())

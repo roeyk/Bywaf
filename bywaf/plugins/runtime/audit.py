@@ -39,7 +39,7 @@ from bywaf.registry import PluginRegistry
 AUDIT_ACTIONS = ("export", "list", "show")
 AUDIT_LIST_TARGETS = ("capabilities",)
 AUDIT_FORMATS = ("json", "jsonl", "pdf", "sqlite")
-AUDIT_SELECTORS = {"file", "topic", "run", "pipeline", "job", "serial", "since", "until"}
+AUDIT_SELECTORS = {"file", "topic", "step", "pipeline", "job", "serial", "since", "until"}
 AUDIT_LIST_SELECTORS = {"plugin"}
 AuditActionHandler = Callable[[CommandContext, Namespace, dict[str, str]], None]
 
@@ -47,12 +47,12 @@ AuditActionHandler = Callable[[CommandContext, Namespace, dict[str, str]], None]
 @commandlet(
     name="audit",
     description="Show or export the SQLite-backed audit log.",
-    usage="audit <show|export> [file=<path>] [topic=<topic>|run=<id>|pipeline=<id>|job=<id>|serial=<id>]",
+    usage="audit <show|export> [file=<path>] [topic=<topic>|step=<id>|pipeline=<id>|job=<id>|serial=<id>]",
     examples=(
         "audit list capabilities",
         "audit list capabilities plugin=nikto",
         "audit show topic=plugin.capability.used",
-        "audit show run=1",
+        "audit show step=1",
         "audit show serial=hostscanner-...",
         "audit show since=20260517 until=20260518",
         "audit export file=audit.jsonl",
@@ -63,7 +63,7 @@ AuditActionHandler = Callable[[CommandContext, Namespace, dict[str, str]], None]
 @option("format", "export format", "auto", choices=("auto", *AUDIT_FORMATS))
 @option("limit", "maximum events to show or export", "1000")
 @argument("action", "audit operation", completion=CompletionSpec("choice", AUDIT_ACTIONS))
-@argument("selector", "file=, topic=, run=, pipeline=, or job= selector", required=False)
+@argument("selector", "file=, topic=, step=, pipeline=, or job= selector", required=False)
 class Audit(CommandletBase):
     """Provide first-class access to Bywaf's event audit trail."""
 
@@ -98,7 +98,7 @@ class Audit(CommandletBase):
             return ["plugin="]
         if prefix.startswith("file="):
             return [f"file={candidate}" for candidate in complete_path(prefix.removeprefix("file="))]
-        return ["file=", "topic=", "run=", "pipeline=", "job=", "serial=", "since=", "until="]
+        return ["file=", "topic=", "step=", "pipeline=", "job=", "serial=", "since=", "until="]
 
 
 def audit_action_handlers() -> dict[str, AuditActionHandler]:
@@ -315,7 +315,7 @@ def selected_events(context: CommandContext, selectors: dict[str, str], limit: i
     else:
         events = events_store.events_matching(
             topic=selectors.get("topic"),
-            command_run_id=resolve_run_selector(context, selectors.get("run")),
+            command_run_id=resolve_run_selector(context, selectors.get("step")),
             pipeline_id=resolve_pipeline_selector(context, selectors.get("pipeline")),
             limit=100000,
         )
@@ -357,7 +357,7 @@ def audit_bound_resolvers() -> dict[str, AuditBoundResolver]:
     return {
         "job": resolve_job_bound,
         "pipeline": resolve_pipeline_bound,
-        "run": resolve_run_bound,
+        "step": resolve_run_bound,
         "time": resolve_time_bound,
     }
 
@@ -369,7 +369,7 @@ def resolve_time_bound(context: CommandContext, raw: str, *, since: bool) -> tup
 
 
 def resolve_run_bound(context: CommandContext, raw: str, *, since: bool) -> tuple[int | None, datetime | None]:
-    """Resolve a run-relative audit bound."""
+    """Resolve a step-relative audit bound."""
     return entity_event_id(
         context,
         command_run_id=context.runtime_store("audit").resolve_run_serial(raw),
@@ -431,7 +431,7 @@ def entity_event_id(
         pipeline_id=pipeline_id,
         limit=100000,
     )
-    label = f"run {command_run_id}" if command_run_id else f"pipeline {pipeline_id}"
+    label = f"step {command_run_id}" if command_run_id else f"pipeline {pipeline_id}"
     if not events:
         raise ValueError(f"unknown audit bound: {label}")
     event_id = events[0].id if first else events[-1].id
@@ -441,7 +441,7 @@ def entity_event_id(
 
 
 def resolve_run_selector(context: CommandContext, value: str | None) -> str | None:
-    """Resolve a user-facing run id to a durable run serial."""
+    """Resolve a user-facing step id to a durable step serial."""
     if value is None:
         return None
     return context.runtime_store("audit").resolve_run_serial(value)

@@ -1530,7 +1530,7 @@ class AppDispatchTests(unittest.TestCase):
             assert job is not None
             self.assertEqual(job["status"], "cancelling")
 
-    def test_pause_resume_stop_commands_accept_run_selector(self):
+    def test_pause_resume_stop_commands_accept_step_selector(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("portscanner --listen", 123, "running")
@@ -1543,14 +1543,14 @@ class AppDispatchTests(unittest.TestCase):
             )
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                runner.execute("pause run=run-1")
+                runner.execute("pause step=run-1")
                 process_framework_requests(runner, ShellState())
-                runner.execute("resume --listonly run=run-1")
+                runner.execute("resume --listonly step=run-1")
                 process_framework_requests(runner, ShellState())
-                runner.execute("resume run=run-1")
+                runner.execute("resume step=run-1")
                 process_framework_requests(runner, ShellState())
             self.assertIn(f"soft pause requested for job {job_id}", output.getvalue())
-            self.assertIn("run.pause.requested run=run-1", output.getvalue())
+            self.assertIn("run.pause.requested step=run-1", output.getvalue())
             job = runner.db.job(job_id)
             self.assertIsNotNone(job)
             assert job is not None
@@ -1561,14 +1561,14 @@ class AppDispatchTests(unittest.TestCase):
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                runner.execute("signal run=run-1 prune targets=192.168.1.0/24 reason=user-request")
+                runner.execute("signal step=run-1 prune targets=192.168.1.0/24 reason=user-request")
                 process_framework_requests(runner, ShellState())
             signal_event = runner.db.events_for_topic("runtime.signal.requested")[0]
             self.assertEqual(signal_event.command_run_id, "run-1")
             self.assertEqual(signal_event.payload["target_type"], "run")
             self.assertEqual(signal_event.payload["action"], "prune")
             self.assertEqual(signal_event.payload["args"]["targets"], "192.168.1.0/24")
-            self.assertIn("signal requested for run=run-1 action=prune mode=soft", output.getvalue())
+            self.assertIn("signal requested for step=run-1 action=prune mode=soft", output.getvalue())
 
     def test_signal_pause_applies_framework_control(self):
         with tempfile.TemporaryDirectory() as tmp:

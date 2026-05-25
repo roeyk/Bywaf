@@ -28,20 +28,20 @@ from bywaf.utils import complete_path
 
 @commandlet(
     name="note",
-    description="Show or save notes attached to jobs, pipelines, and command runs.",
-    usage="note [add] <run=id|pipeline=id|job=id> [text=note|file=path]",
+    description="Show or save notes attached to jobs, pipelines, and pipeline steps.",
+    usage="note [add] <step=id|pipeline=id|job=id> [text=note|file=path]",
     examples=(
-        "note run=1",
+        "note step=1",
         "note pipeline=1",
         "note job=12 file=notes.txt",
-        "note add run=1 text=follow-up note",
+        "note add step=1 text=follow-up note",
     ),
     capabilities=("filesystem.read", "filesystem.write", "framework.console.output"),
 )
 @argument(
     "selector",
-    "add, run=, pipeline=, or job= selector",
-    completion=CompletionSpec("choice", ("add", "run=", "pipeline=", "job=")),
+    "add, step=, pipeline=, or job= selector",
+    completion=CompletionSpec("choice", ("add", "step=", "pipeline=", "job=")),
 )
 @argument("value", "optional text= note or file= path", required=False, completion="path")
 class Note(CommandletBase):
@@ -78,16 +78,16 @@ class Note(CommandletBase):
             return [f"file={candidate}" for candidate in complete_path(prefix.removeprefix("file="))]
         if prefix.startswith("text="):
             return []
-        if prefix.startswith("run="):
-            return [f"run={value}" for value in run_ids(context)]
+        if prefix.startswith("step="):
+            return [f"step={value}" for value in run_ids(context)]
         if prefix.startswith("pipeline="):
             return [f"pipeline={value}" for value in pipeline_ids(context)]
         if prefix.startswith("job="):
             return [f"job={value}" for value in job_ids(context)]
         if not args:
-            return ["add", "run=", "pipeline=", "job="]
+            return ["add", "step=", "pipeline=", "job="]
         if args == ["add"]:
-            return ["run=", "pipeline=", "job="]
+            return ["step=", "pipeline=", "job="]
         return ["file=", "text="] if args and args[0] == "add" else ["file="]
 
 
@@ -114,14 +114,14 @@ def parse_note_selectors(args: list[str], *, allow_text: bool) -> dict[str, str]
             index = len(args)
         else:
             index += 1
-        if key not in {"run", "pipeline", "job", "file", "text"}:
+        if key not in {"step", "pipeline", "job", "file", "text"}:
             raise ValueError(f"unknown note selector: {key}")
         if not value:
             raise ValueError(f"note selector {key}= requires a value")
         selectors[key] = value
-    scopes = [key for key in ("run", "pipeline", "job") if key in selectors]
+    scopes = [key for key in ("step", "pipeline", "job") if key in selectors]
     if len(scopes) != 1:
-        raise ValueError("note requires exactly one run=, pipeline=, or job= selector")
+        raise ValueError("note requires exactly one step=, pipeline=, or job= selector")
     if allow_text and ("text" in selectors) == ("file" in selectors):
         raise ValueError("note add requires exactly one text= or file= selector")
     return selectors
@@ -140,7 +140,7 @@ def add_note(context: CommandContext, selectors: dict[str, str]) -> None:
         "note": note_text,
         "job_id": int(selectors["job"]) if "job" in selectors else None,
         "pipeline_id": selectors.get("pipeline"),
-        "command_run_id": selectors.get("run"),
+        "command_run_id": selectors.get("step"),
         "parent_command_run_id": None,
         "commandlet": "note",
     }
@@ -149,7 +149,7 @@ def add_note(context: CommandContext, selectors: dict[str, str]) -> None:
         payload,
         "framework",
         pipeline_id=selectors.get("pipeline"),
-        command_run_id=selectors.get("run"),
+        command_run_id=selectors.get("step"),
     )
     context.output("note added")
 
@@ -166,7 +166,7 @@ def select_note_events(context: CommandContext, selectors: dict[str, str]) -> li
         return [event for event in events.events_for_job(job_id) if event.topic == "note.attached"]
     return events.events_matching(
         topic="note.attached",
-        command_run_id=selectors.get("run"),
+        command_run_id=selectors.get("step"),
         pipeline_id=selectors.get("pipeline"),
     )
 
@@ -179,11 +179,11 @@ def format_note_event(event: Event) -> str:
     run_id = event.payload.get("command_run_id") or event.command_run_id or ""
     commandlet = event.payload.get("commandlet", event.source)
     note = event.payload.get("note", "")
-    return f"{timestamp} job={job_id} pipeline={pipeline_id} run={run_id} {commandlet}: {note}"
+    return f"{timestamp} job={job_id} pipeline={pipeline_id} step={run_id} {commandlet}: {note}"
 
 
 def run_ids(context: CompletionContext) -> list[str]:
-    """Return command-run IDs for completion."""
+    """Return pipeline-step IDs for completion."""
     if context.db is None:
         return []
     return sorted(context.db.run_aliases().values(), key=int)
@@ -207,8 +207,8 @@ def resolve_note_selectors(context: CommandContext, selectors: dict[str, str]) -
     """Resolve user-facing runtime IDs to durable serials for note events."""
     resolved = dict(selectors)
     runtime = context.runtime_store("note")
-    if "run" in resolved:
-        resolved["run"] = runtime.resolve_run_serial(resolved["run"])
+    if "step" in resolved:
+        resolved["step"] = runtime.resolve_run_serial(resolved["step"])
     if "pipeline" in resolved:
         resolved["pipeline"] = runtime.resolve_pipeline_serial(resolved["pipeline"])
     return resolved

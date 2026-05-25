@@ -51,7 +51,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             run_output = io.StringIO()
             pipe_output = io.StringIO()
             with contextlib.redirect_stdout(run_output):
-                dispatch_repl_line(runner, "event run=r")
+                dispatch_repl_line(runner, "event step=r")
             with contextlib.redirect_stdout(pipe_output):
                 dispatch_repl_line(runner, "event pipeline=p")
             self.assertIn("127.0.0.1", run_output.getvalue())

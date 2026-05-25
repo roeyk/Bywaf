@@ -73,9 +73,9 @@ artifact export pipeline=1 dir=artifacts/
 
 A step is one invocation of one commandlet inside a pipeline.
 
-The user-facing list and detail commands are `steps` and `step <id>`. The
-existing selector and storage/API names are still `run=...` and
-`command_run_id`. Treat those as historical identifier names for the same
+The user-facing list and detail commands are `steps` and `step <id>`, and
+selectors use `step=...`. Some persisted database columns still use historical
+names such as `command_run_id`; treat those as storage details for the same
 pipeline-step record.
 
 For this command:
@@ -89,9 +89,9 @@ Bywaf creates roughly:
 ```text
 job=1
   pipeline=1
-    step=1  hostscanner  (selected as run=1)
-    step=2  portscanner  (selected as run=2)
-    step=3  http_probe   (selected as run=3)
+    step=1  hostscanner
+    step=2  portscanner
+    step=3  http_probe
 ```
 
 A step is the audit scope for a specific commandlet invocation. It records the
@@ -105,12 +105,12 @@ signals because it supervises a process or foreground execution. A pipeline does
 not receive plugin-domain signals directly because it is only a grouping scope;
 pipeline-level control commands fan out to associated jobs or steps.
 
-Use `run=` selectors when you care about one pipeline step of a workflow:
+Use `step=` selectors when you care about one pipeline step of a workflow:
 
 ```text
-event run=2
-artifact export run=2 dir=artifacts/
-note run=2
+event step=2
+artifact export step=2 dir=artifacts/
+note step=2
 ```
 
 ## Local ID
@@ -121,7 +121,7 @@ Examples:
 
 ```text
 job=12
-run=7
+step=7
 pipeline=3
 ```
 

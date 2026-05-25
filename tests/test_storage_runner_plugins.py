@@ -68,9 +68,9 @@ class StorageRunnerPluginTests(unittest.TestCase):
 
     def test_parse_framework_context_selectors(self):
         invocation = parse_invocation(
-            "portscanner --from-run host-run --from-pipeline pipe --from-topic host.found --ports 80"
+            "portscanner --from-step host-run --from-pipeline pipe --from-topic host.found --ports 80"
         )
-        self.assertEqual(invocation.from_run, "host-run")
+        self.assertEqual(invocation.from_step, "host-run")
         self.assertEqual(invocation.from_pipeline, "pipe")
         self.assertEqual(invocation.from_topic, "host.found")
         self.assertEqual(invocation.args, ["--ports", "80"])
@@ -212,14 +212,14 @@ class StorageRunnerPluginTests(unittest.TestCase):
             self.assertNotIn('"value": "old"', output.getvalue())
             self.assertIn('"value": "new"', output.getvalue())
 
-    def test_audit_show_filters_since_run_bound(self):
+    def test_audit_show_filters_since_step_bound(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.publish("topic", {"value": "old"}, "test", command_run_id="old-run")
             runner.db.publish("topic", {"value": "new"}, "test", command_run_id="new-run")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                runner.execute("audit show topic=topic since=run:new-run")
+                runner.execute("audit show topic=topic since=step:new-run")
                 process_framework_requests(runner, ShellState())
             self.assertNotIn('"value": "old"', output.getvalue())
             self.assertIn('"value": "new"', output.getvalue())
@@ -384,16 +384,16 @@ class StorageRunnerPluginTests(unittest.TestCase):
             runner = make_runner(db_path, encrypted=True, passphrase="secret")
             with contextlib.redirect_stdout(io.StringIO()):
                 runner.execute(
-                    f"artifact attach run=run-1 file={artifact_source} name='Landing page' note=site snapshot"
+                    f"artifact attach step=run-1 file={artifact_source} name='Landing page' note=site snapshot"
                 )
                 process_framework_requests(runner, ShellState())
-                runner.execute("artifact list run=run-1")
+                runner.execute("artifact list step=run-1")
                 process_framework_requests(runner, ShellState())
                 runner.execute("search name=landing")
                 process_framework_requests(runner, ShellState())
-                runner.execute("artifact verify run=run-1")
+                runner.execute("artifact verify step=run-1")
                 process_framework_requests(runner, ShellState())
-                runner.execute(f"artifact export run=run-1 file={output_path}")
+                runner.execute(f"artifact export step=run-1 file={output_path}")
                 process_framework_requests(runner, ShellState())
             self.assertEqual(output_path.read_text(), "<html>ok</html>")
             artifacts = artifact_store_for_event_store(runner.db).list(command_run_id="run-1")
@@ -417,25 +417,25 @@ class StorageRunnerPluginTests(unittest.TestCase):
             second.write_text("server: test")
             runner = make_runner(db_path, encrypted=True, passphrase="secret")
             with contextlib.redirect_stdout(io.StringIO()):
-                runner.execute(f"artifact attach run=run-1 file={first} name='Landing page' note=html capture")
-                runner.execute(f"artifact attach run=run-1 file={second} name=Headers note=response metadata")
+                runner.execute(f"artifact attach step=run-1 file={first} name='Landing page' note=html capture")
+                runner.execute(f"artifact attach step=run-1 file={second} name=Headers note=response metadata")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                runner.execute("search run=run-1 name=landing")
+                runner.execute("search step=run-1 name=landing")
                 process_framework_requests(runner, ShellState())
-                runner.execute("search run=run-1 note=metadata")
+                runner.execute("search step=run-1 note=metadata")
                 process_framework_requests(runner, ShellState())
-                runner.execute("search run=run-1 name=headers")
+                runner.execute("search step=run-1 name=headers")
                 process_framework_requests(runner, ShellState())
-                runner.execute("artifact search run=run-1 --regexp name='land.*page'")
+                runner.execute("artifact search step=run-1 --regexp name='land.*page'")
                 process_framework_requests(runner, ShellState())
-                runner.execute("search run=run-1 --regexp note=response")
+                runner.execute("search step=run-1 --regexp note=response")
                 process_framework_requests(runner, ShellState())
-                runner.execute("search run=run-1 content='server: test'")
+                runner.execute("search step=run-1 content='server: test'")
                 process_framework_requests(runner, ShellState())
-                runner.execute("search run=run-1 filename=snapshot.html")
+                runner.execute("search step=run-1 filename=snapshot.html")
                 process_framework_requests(runner, ShellState())
-                runner.execute("artifact search run=run-1 --regexp filename='headers\\.txt'")
+                runner.execute("artifact search step=run-1 --regexp filename='headers\\.txt'")
                 process_framework_requests(runner, ShellState())
             listing = output.getvalue()
             self.assertEqual(listing.count(" name="), 8)
@@ -479,7 +479,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
             self.assertIsNone(imported.command_run_id)
             self.assertTrue(runner.db.events_for_topic("artifact.imported"))
             with contextlib.redirect_stdout(io.StringIO()):
-                runner.execute(f"artifact attach artifact={imported.id} run=run-1")
+                runner.execute(f"artifact attach artifact={imported.id} step=run-1")
                 process_framework_requests(runner, ShellState())
             attached = artifact_store_for_event_store(runner.db).list(command_run_id="run-1")[0]
             self.assertEqual(attached.id, imported.id)
@@ -496,7 +496,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
             second.write_text("two")
             runner = make_runner(db_path, encrypted=True, passphrase="secret")
             with contextlib.redirect_stdout(io.StringIO()):
-                runner.execute(f"artifact attach run=run-1 file={first}")
+                runner.execute(f"artifact attach step=run-1 file={first}")
             artifact = artifact_store_for_event_store(runner.db).list(command_run_id="run-1")[0]
             with self.assertRaisesRegex(ValueError, "artifacts are not attached to other artifacts"):
                 runner.execute(f"artifact attach serial={artifact.artifact_id} file={second}")
@@ -509,7 +509,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
             source.write_text("<html>ok</html>")
             runner = make_runner(db_path, encrypted=True, passphrase="secret")
             with contextlib.redirect_stdout(io.StringIO()):
-                runner.execute(f"artifact attach run=run-1 file={source} name='Landing page'")
+                runner.execute(f"artifact attach step=run-1 file={source} name='Landing page'")
             with self.assertRaisesRegex(ValueError, "invalid search --regexp pattern"):
                 runner.execute("search --regexp name='['")
 
@@ -523,9 +523,9 @@ class StorageRunnerPluginTests(unittest.TestCase):
             second.write_text("two")
             runner = make_runner(db_path, encrypted=True, passphrase="secret")
             with contextlib.redirect_stdout(io.StringIO()):
-                runner.execute(f"artifact attach run=run-1 file={first} file={second}")
+                runner.execute(f"artifact attach step=run-1 file={first} file={second}")
         with self.assertRaisesRegex(ValueError, "matched multiple artifacts"):
-            runner.execute(f"artifact export run=run-1 file={Path(tmp, 'out.txt')}")
+            runner.execute(f"artifact export step=run-1 file={Path(tmp, 'out.txt')}")
 
     @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
     def test_artifact_replace_and_remove_are_audited(self):
@@ -537,7 +537,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
             second.write_text("two")
             runner = make_runner(db_path, encrypted=True, passphrase="secret")
             with contextlib.redirect_stdout(io.StringIO()):
-                runner.execute(f"artifact attach run=run-1 file={first}")
+                runner.execute(f"artifact attach step=run-1 file={first}")
             artifact = artifact_store_for_event_store(runner.db).list(command_run_id="run-1")[0]
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
@@ -561,7 +561,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
             source.write_text("<html>ok</html>")
             runner = make_runner(db_path, encrypted=True, passphrase="secret")
             with contextlib.redirect_stdout(io.StringIO()):
-                runner.execute(f"artifact attach run=run-1 file={source}")
+                runner.execute(f"artifact attach step=run-1 file={source}")
             event = runner.db.events_for_topic("artifact.attached")[0]
             payload = dict(event.payload)
             payload["sha256"] = "bad"
@@ -572,7 +572,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 )
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                runner.execute("artifact verify run=run-1")
+                runner.execute("artifact verify step=run-1")
                 process_framework_requests(runner, ShellState())
             self.assertIn("main-db sha256 mismatch", output.getvalue())
 
@@ -582,7 +582,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
             source.write_text("secret")
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with contextlib.redirect_stdout(io.StringIO()):
-                runner.execute(f"artifact attach run=run-1 file={source}")
+                runner.execute(f"artifact attach step=run-1 file={source}")
             artifacts = artifact_store_for_event_store(runner.db).list(command_run_id="run-1")
             self.assertEqual(artifacts[0].body, b"secret")
             self.assertTrue(artifact_db_path(runner.db.path).exists())
@@ -699,19 +699,19 @@ class StorageRunnerPluginTests(unittest.TestCase):
             runner.db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", pipeline_id="pipe-1", command_run_id="run-1")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                runner.execute("name run=1 localhost sweep")
+                runner.execute("name step=1 localhost sweep")
                 process_framework_requests(runner, ShellState())
-                runner.execute("name run=1")
+                runner.execute("name step=1")
                 process_framework_requests(runner, ShellState())
             self.assertEqual(runner.db.runtime_names()[("run", "run-1")], "localhost sweep")
-            self.assertIn("run=run-1 name=localhost sweep", output.getvalue())
+            self.assertIn("step=run-1 name=localhost sweep", output.getvalue())
 
     def test_name_command_accepts_text_keyed_name(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", pipeline_id="pipe-1", command_run_id="run-1")
             with contextlib.redirect_stdout(io.StringIO()):
-                runner.execute("name run=run-1 text=localhost sweep")
+                runner.execute("name step=run-1 text=localhost sweep")
                 process_framework_requests(runner, ShellState())
             self.assertEqual(runner.db.runtime_names()[("run", "run-1")], "localhost sweep")
 
@@ -765,12 +765,12 @@ class StorageRunnerPluginTests(unittest.TestCase):
                     events = runner.execute("hostscanner 127.0.0.1 note=client approved target")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                runner.execute("note run=1")
+                runner.execute("note step=1")
                 process_framework_requests(runner, ShellState())
             line = output.getvalue().splitlines()[-1]
             self.assertRegex(line, r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [A-Z]+")
             self.assertIn("client approved target", line)
-            self.assertIn(f"run={events[0].command_run_id}", line)
+            self.assertIn(f"step={events[0].command_run_id}", line)
 
     def test_note_command_saves_job_notes_to_file(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -796,13 +796,13 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 with contextlib.redirect_stdout(io.StringIO()):
                     runner.execute("hostscanner 127.0.0.1 note=initial note")
             with contextlib.redirect_stdout(io.StringIO()):
-                runner.execute("note add run=1 text=second note")
+                runner.execute("note add step=1 text=second note")
                 process_framework_requests(runner, ShellState())
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                runner.execute("note run=1")
+                runner.execute("note step=1")
                 process_framework_requests(runner, ShellState())
-            lines = [line for line in output.getvalue().splitlines() if "run=" in line]
+            lines = [line for line in output.getvalue().splitlines() if "step=" in line]
             self.assertEqual(len(lines), 2)
             self.assertIn("initial note", lines[0])
             self.assertIn("second note", lines[1])
@@ -1085,7 +1085,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 return_value=[NmapPort("127.0.0.1", 80, "tcp", "open")],
             ) as scan:
                 with contextlib.redirect_stdout(io.StringIO()):
-                    events = runner.execute("portscanner --from-run host-run --ports 80")
+                    events = runner.execute("portscanner --from-step host-run --ports 80")
             self.assertEqual(events[0].payload["host"], "127.0.0.1")
             self.assertEqual(scan.call_args.args[0], ["127.0.0.1"])
 
@@ -1226,7 +1226,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
             with patch("bywaf.runner.core.mp.Process") as process_cls:
                 process_cls.return_value.pid = 123
                 with contextlib.redirect_stdout(io.StringIO()):
-                    runner.execute("pipeline attach pipe-1 portscanner run=host-run-1 since=now --listen-timeout 1")
+                    runner.execute("pipeline attach pipe-1 portscanner step=host-run-1 since=now --listen-timeout 1")
             process_cls.return_value.start.assert_called_once()
             process_args = process_cls.call_args.kwargs["args"]
             self.assertEqual(process_args[4], "pipe-1")
@@ -1235,7 +1235,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
             self.assertEqual(stage.invocation.name, "portscanner")
             self.assertEqual(stage.invocation.args, ["--listen-timeout", "1"])
             self.assertEqual(stage.invocation.from_pipeline, "pipe-1")
-            self.assertEqual(stage.invocation.from_run, "host-run-1")
+            self.assertEqual(stage.invocation.from_step, "host-run-1")
             self.assertGreaterEqual(stage.invocation.replay_after_id, latest_id)
             attached = runner.db.events_for_topic("pipeline.attached")[0]
             self.assertEqual(attached.payload["since"], "now")

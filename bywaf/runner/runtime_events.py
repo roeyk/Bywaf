@@ -18,7 +18,7 @@ from ..plugin import CommandContext
 
 
 def publish_variable_expansion(context: CommandContext, variable_names: tuple[str, ...]) -> Event | None:
-    """Record framework-owned `$variable` expansion for this command run."""
+    """Record framework-owned `$variable` expansion for this pipeline step."""
     if not variable_names or context._db is None:
         return None
     context.audit_capability("variable.read")
@@ -41,7 +41,7 @@ def publish_variable_expansion(context: CommandContext, variable_names: tuple[st
 
 
 def publish_note_if_present(db: EventStore, context: CommandContext, note: str | None) -> Event | None:
-    """Persist a framework-owned note attached to this command run."""
+    """Persist a framework-owned note attached to this pipeline step."""
     if note is None:
         return None
     return db.publish(

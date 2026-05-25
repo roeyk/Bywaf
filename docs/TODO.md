@@ -187,6 +187,38 @@ Planning dates are release planning markers, not compatibility commitments.
 - Keep the current expanded skeletons as teaching references until real plugin
   implementations show which parts can be safely collapsed.
 
+### Item: Storage Adapter Boundary And DB Agnosticism
+
+- Keep SQLite as the production storage adapter for now, but reduce hard-coded
+  SQL and SQLite-specific assumptions behind explicit storage interfaces.
+- Define repository/service boundaries for events, runtime state, jobs,
+  variables, artifacts, migrations, and project archive/export workflows before
+  attempting a second database backend.
+- Inventory assumptions that a non-SQLite backend would need to reproduce:
+  local-file project semantics, durable event ordering, artifact DB pairing,
+  SQLCipher encryption, transaction behavior, migrations, and archive/export
+  layout.
+- Add adapter-level tests that exercise the storage contract without depending
+  on a specific SQL dialect. Use SQLite as the reference implementation until a
+  second adapter exposes real portability pressure.
+- Defer Postgres or other backend support until the storage contract is small,
+  documented, and covered by tests.
+
+### Item: Command And Finding Module Package Layout
+
+- Move flat command parsing/name modules into a `bywaf/command/` package when
+  the import churn can be isolated in its own commit.
+- Move flat finding modules into a `bywaf/finding/` package, while preserving
+  compatibility facades if external plugin authors have started importing the
+  existing paths.
+- Keep plugin implementation directories under `bywaf/plugins/...`; this item
+  is about core framework modules such as command parsing and finding grouping,
+  not moving plugin files out of plugin-owned directories.
+- Update docs, tests, and skeleton imports in the same commit so future plugin
+  authors see the canonical package paths.
+- Do not combine this with storage or reporting behavior changes; it should be
+  a mechanical import/layout cleanup that is easy to review and revert.
+
 ### GUI/Web Frontend
 
 - Build a local GUI or web frontend on top of `BywafSession`.

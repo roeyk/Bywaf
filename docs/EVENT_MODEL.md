@@ -27,8 +27,8 @@ An event row records:
 - source commandlet or framework component;
 - timestamp;
 - pipeline ID;
-- command-run ID;
-- parent command-run ID.
+- step ID;
+- parent step ID.
 
 The row scope is authoritative. Payloads may repeat fields such as
 `pipeline_id` or `command_run_id` for convenience, but the database columns are
@@ -95,7 +95,7 @@ results:
 
 ```text
 event host.found
-pipeline attach 1 http_probe run=2 since=beginning
+pipeline attach 1 http_probe step=2 since=beginning
 ```
 
 `since=` accepts the same selector vocabulary used by related runtime commands.

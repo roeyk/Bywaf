@@ -24,7 +24,7 @@ class CommandInvocation:
     name: str
     args: list[str]
     background: bool = False
-    from_run: str | None = None
+    from_step: str | None = None
     from_pipeline: str | None = None
     from_topic: str | None = None
     replay_after_id: int = 0
@@ -52,7 +52,7 @@ def parse_invocation(
 ) -> CommandInvocation:
     """Parse one commandlet expression.
 
-    This function strips Bywaf framework selectors such as `--from-run` before
+    This function strips Bywaf framework selectors such as `--from-step` before
     plugin argparse sees the remaining plugin-owned arguments.
     """
     commandlet = provisional_command_name(text)
@@ -83,7 +83,7 @@ def parse_invocation(
         name=name,
         args=args,
         background=background,
-        from_run=selectors["from_run"],
+        from_step=selectors["from_step"],
         from_pipeline=selectors["from_pipeline"],
         from_topic=selectors["from_topic"],
         note=note,
@@ -135,7 +135,7 @@ def parse_pipeline(
             last.name,
             last.args,
             background=True,
-            from_run=last.from_run,
+            from_step=last.from_step,
             from_pipeline=last.from_pipeline,
             from_topic=last.from_topic,
             replay_after_id=last.replay_after_id,
@@ -421,7 +421,7 @@ def find_pipeline_name_colon(command_line: str) -> int | None:
 def peel_context_selectors(args: list[str]) -> tuple[list[str], dict[str, str | None]]:
     """Remove framework-owned selector flags from plugin arguments."""
     selectors: dict[str, str | None] = {
-        "from_run": None,
+        "from_step": None,
         "from_pipeline": None,
         "from_topic": None,
         "plan_only": "false",
@@ -448,9 +448,9 @@ def peel_context_selectors(args: list[str]) -> tuple[list[str], dict[str, str | 
 
 
 CONTEXT_SELECTOR_VALUE_FLAGS = {
-    "--from": "from_run",
+    "--from": "from_step",
     "--from-pipeline": "from_pipeline",
-    "--from-run": "from_run",
+    "--from-step": "from_step",
     "--from-topic": "from_topic",
     "--pipeline": "from_pipeline",
     "--topic": "from_topic",

@@ -129,7 +129,7 @@ class CoreCompleter:
             "q": lambda _prefix: [],
             "quit": lambda _prefix: [],
             "run": lambda _prefix: [],
-            "step": lambda current_prefix: self.complete_by_spec(CompletionSpec("run"), current_prefix),
+            "step": lambda current_prefix: self.complete_by_spec(CompletionSpec("step"), current_prefix),
             "steps": lambda current_prefix: self.option_candidates(current_prefix, ("--all",)),
             "topics": lambda _prefix: self.topic_completion_candidates(),
             "triggers": lambda _prefix: [],
@@ -176,7 +176,7 @@ class CoreCompleter:
         binary_flags = [f"--{option.name}" for option in plugin.spec.options if option_is_binary(option.name)]
         valued_options = [f"{option.name}=" for option in plugin.spec.options if not option_is_binary(option.name)]
         options = ["-h", "--help", *binary_flags]
-        options.extend(("--from-run", "--from-pipeline", "--from-topic"))
+        options.extend(("--from-step", "--from-pipeline", "--from-topic"))
         if prefix.startswith(".") or "/" in prefix:
             return complete_path(prefix)
         return [*valued_options, *options, *plugin.spec.consumes, *plugin.spec.emits]
@@ -279,7 +279,7 @@ class CoreCompleter:
             if not self.db:
                 return []
             return [str(event.id) for event in self.db.recent_events(50) if str(event.id).startswith(prefix)]
-        selectors = ("job=", "run=", "pipeline=", "serial=", "topic=")
+        selectors = ("job=", "step=", "pipeline=", "serial=", "topic=")
         for selector in selectors:
             if prefix.startswith(selector):
                 value_prefix = prefix.split("=", 1)[1]
@@ -292,7 +292,7 @@ class CoreCompleter:
         return [*self.topic_candidates(), *selectors]
 
     def run_candidates(self) -> list[str]:
-        """Complete command run IDs from the active database."""
+        """Complete pipeline step IDs from the active database."""
         if not self.db:
             return []
         return [row["command_run_id"] for row in self.db.runs()]
@@ -304,7 +304,7 @@ class CoreCompleter:
         return sorted({row["pipeline_id"] for row in self.db.runs() if row["pipeline_id"]})
 
     def run_alias_candidates(self) -> list[str]:
-        """Complete user-facing run IDs."""
+        """Complete user-facing step IDs."""
         if not self.db:
             return []
         return list(self.db.run_aliases().values())
@@ -352,7 +352,7 @@ class CoreCompleter:
             "directory": lambda: complete_path(prefix or "."),
             "choice": lambda: list(spec.values),
             "topic": self.topic_completion_candidates,
-            "run": self.run_alias_candidates,
+            "step": self.run_alias_candidates,
             "pipeline": self.pipeline_alias_candidates,
             "job": self.job_candidates,
             "serial": self.serial_candidates,
@@ -506,7 +506,7 @@ class CoreCompleter:
         dispatch = {
             "job": self.job_completion_meta,
             "pipeline": self.pipeline_completion_meta,
-            "run": self.run_completion_meta,
+            "step": self.run_completion_meta,
         }
         handler = dispatch.get(kind)
         return handler(value) if handler is not None else ""

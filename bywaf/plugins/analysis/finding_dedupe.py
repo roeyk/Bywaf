@@ -100,7 +100,7 @@ class NormalizedFinding:
     source_event_id: int | None
     source_topic: str
     source_tool: str
-    source_run: str | None
+    source_step: str | None
     title: str
     finding_class: str
     status: str
@@ -139,7 +139,7 @@ class NormalizedFinding:
                     "tool": self.source_tool,
                     "topic": self.source_topic,
                     "event_id": self.source_event_id,
-                    "run": self.source_run,
+                    "step": self.source_step,
                 }
             ],
         }
@@ -239,7 +239,7 @@ def normalize_event(event: Event) -> NormalizedFinding:
         source_event_id=event.id,
         source_topic=event.topic,
         source_tool=str(payload.get("tool") or payload.get("scanner") or event.source),
-        source_run=event.command_run_id,
+        source_step=event.command_run_id,
         title=title,
         finding_class=finding_class,
         status=normalize_status(str(payload.get("status") or payload.get("verification") or status_from_topic(event.topic))),
@@ -566,7 +566,7 @@ def source_payload(finding: NormalizedFinding) -> dict[str, Any]:
         "tool": finding.source_tool,
         "topic": finding.source_topic,
         "event_id": finding.source_event_id,
-        "run": finding.source_run,
+        "step": finding.source_step,
     }
 
 

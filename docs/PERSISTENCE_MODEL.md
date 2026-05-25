@@ -14,7 +14,7 @@ contracts so framework code does not depend on SQLite details everywhere.
 
 `EventStoreProtocol` describes the durable event bus and audit log. It covers
 event publication, scoped event fetches, polling, topic discovery, recent event
-tailing, serial lookup, and event queries by job, step (`run=`), pipeline, or serial.
+tailing, serial lookup, and event queries by job, step (`step=`), pipeline, or serial.
 Today this is implemented by `bywaf.db.EventStore`.
 
 `RuntimeStoreProtocol` describes runtime metadata for jobs, pipelines, steps,

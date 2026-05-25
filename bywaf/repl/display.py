@@ -122,9 +122,9 @@ HELP_COMMANDS = (
     HelpEntry("use <commandlet|global>", "set the active variable context", "use <commandlet|global>"),
     HelpEntry(
         "event",
-        "show events for a topic, job, run, pipeline, serial, or event id",
-        "event <id|topic|job=id|run=id|pipeline=id|serial=id>",
-        ("event 123", "event host.found", "event run=1", "event pipeline=1", "event serial=hostscanner-..."),
+        "show events for a topic, job, step, pipeline, serial, or event id",
+        "event <id|topic|job=id|step=id|pipeline=id|serial=id>",
+        ("event 123", "event host.found", "event step=1", "event pipeline=1", "event serial=hostscanner-..."),
         "event <selector>",
     ),
     HelpEntry("events [tail|--tail] [last=N]", "show recent events", "events [tail|--tail] [last=N]", ("events", "events tail", "events tail last=50")),
@@ -277,7 +277,7 @@ def format_progress_event(event) -> str:
 
 
 def format_command_run_event(event) -> str:
-    """Render command-run lifecycle events compactly."""
+    """Render pipeline-step lifecycle events compactly."""
     payload = event.payload
     commandlet = payload.get("commandlet") or event.source
     status = payload.get("status") or event.topic.rsplit(".", 1)[-1]
@@ -434,12 +434,12 @@ def event_actor(source: str, topic: str, payload: dict[str, Any]) -> str:
 
 
 def print_event_scope(runner: Runner, event, payload: dict[str, Any]) -> None:
-    """Print job, pipeline, run, and parent-run scope for an event."""
+    """Print job, pipeline, step, and parent-step scope for an event."""
     scope = {
         "Job": payload.get("job_id"),
         "Pipeline": event.pipeline_id or payload.get("pipeline_id"),
-        "Run": event.command_run_id or payload.get("command_run_id"),
-        "Parent run": event.parent_command_run_id or payload.get("parent_command_run_id"),
+        "Step": event.command_run_id or payload.get("command_run_id"),
+        "Parent step": event.parent_command_run_id or payload.get("parent_command_run_id"),
     }
     rows = [(label, value) for label, value in scope.items() if value not in (None, "")]
     if not rows:
@@ -476,7 +476,7 @@ def print_event_job_context(runner: Runner, payload: dict[str, Any]) -> None:
 
 
 def print_event_command_context(runner: Runner, payload: dict[str, Any], command_run_id: str | None) -> None:
-    """Print command-run context from payload or its argument event."""
+    """Print pipeline-step context from payload or its argument event."""
     run_id = command_run_id or payload.get("command_run_id")
     command = payload.get("command")
     commandlet = payload.get("commandlet")
@@ -574,7 +574,7 @@ def format_payload_value(value: Any) -> str:
 
 
 def print_run_variables(runner: Runner, command_run_id: str) -> None:
-    """Print the variable snapshot captured for a command run."""
+    """Print the variable snapshot captured for a pipeline step."""
     rows = runner.runtime.command_run_var_rows(command_run_id)
     if not rows:
         return

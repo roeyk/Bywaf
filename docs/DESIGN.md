@@ -283,14 +283,14 @@ process.exited
 
 `note=` is a framework-owned step selector. The runner removes it before
 commandlet argument parsing, then writes a `note.attached` event once the step
-has job, pipeline, and command-run IDs. This keeps note behavior consistent for
+has job, pipeline, and step IDs. This keeps note behavior consistent for
 all commandlets and avoids plugin-specific note parsing.
 
 If `note=` is the final selector in a step, it consumes the rest of
 that step text without requiring quotes. In a pipeline, the note ends at the
 pipe boundary.
 
-The `note` runtime commandlet reads `note.attached` events by `run=` (step),
+The `note` runtime commandlet reads `note.attached` events by `step=` (step),
 `pipeline=`, or `job=` selector. Console output and `file=` exports use
 timestamp-first text lines so notes can be reviewed or copied into reports.
 Notes are append-only; `note add ... text=...` creates another event rather

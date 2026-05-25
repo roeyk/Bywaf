@@ -1,6 +1,6 @@
 """Runtime completion target inference.
 
-Provides prompt metadata targeting for job, run, and pipeline completions.
+Provides prompt metadata targeting for job, step, and pipeline completions.
 Used by CoreCompleter before it asks the database for candidate descriptions.
 
 Used by:
@@ -16,8 +16,8 @@ from .tokens import tokens_after_last_pipe
 
 
 def runtime_completion_target(candidate: str, line: str, prefix: str) -> tuple[str | None, str]:
-    """Infer whether a completion candidate represents a job, run, or pipeline."""
-    for kind in ("job", "run", "pipeline"):
+    """Infer whether a completion candidate represents a job, step, or pipeline."""
+    for kind in ("job", "step", "pipeline"):
         selector = f"{kind}="
         if candidate.startswith(selector):
             return kind, candidate.removeprefix(selector)

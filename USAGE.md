@@ -182,11 +182,11 @@ plugin's variables through that API. Shared provider variables are explicit via
 `context.vars.get_provider(...)` for the immediate provider only; global
 variables are explicit via `context.vars.get_global("name")`. When a commandlet
 step starts, Bywaf snapshots the effective commandlet, immediate provider, and
-global variables into SQLite under that `command_run_id`; `event run=<id>`
+global variables into SQLite under that `command_run_id`; `event step=<id>`
 displays the captured variables so steps remain auditable and reproducible even
 when session variables change later.
 Runtime entities have two identities: local IDs for interactive typing
-(`job=12`, `run=1`, `pipeline=2`) and durable serials for audit/provenance.
+(`job=12`, `step=1`, `pipeline=2`) and durable serials for audit/provenance.
 Local IDs are stable inside the current database and are never reused there,
 but they are not portable across replay/import into another database. Use
 `event serial=<serial>` when you want to inspect by the durable identifier.
@@ -287,10 +287,10 @@ history
 info
 job <list|show|cancel|end|kill>
 pipeline <list|show|cancel|end|kill>
-signal <job=id|run=id|serial=id> <action> [--soft|--hard] [key=value ...]
-cancel <job=id|pipeline=id|run=id>
-end [--soft|--hard] <job=id|pipeline=id|run=id>
-kill [--soft|--hard] <job=id|pipeline=id|run=id>
+signal <job=id|step=id|serial=id> <action> [--soft|--hard] [key=value ...]
+cancel <job=id|pipeline=id|step=id>
+end [--soft|--hard] <job=id|pipeline=id|step=id>
+kill [--soft|--hard] <job=id|pipeline=id|step=id>
 jobs
 steps
 step <id|serial>
@@ -299,7 +299,7 @@ exec <shell-command>
 events [tail|--tail] [last=N]
 topics
 db <status|path|checkpoint|vacuum|new|load|export|encrypt|decrypt|rekey>
-event <id|topic|job=id|run=id|pipeline=id|serial=id>
+event <id|topic|job=id|step=id|pipeline=id|serial=id>
 plugin load=<resource> [--force]
 config <load|save> file=<path> [--encrypt]
 history [since=... until=...]
@@ -412,7 +412,7 @@ The short rule is: `event` explains the bus; `audit` explains the assessment.
 bywaf> audit show topic=console.alert since=20260517 until=20260518
 bywaf> audit list capabilities
 bywaf> audit list capabilities plugin=nikto
-bywaf> audit export file=audit.pdf since=run=<command-run-id>
+bywaf> audit export file=audit.pdf since=step:<step-id>
 bywaf> audit export --encrypt file=audit.sqlite3
 bywaf> audit export --encrypt file=audit.pdf
 ```
@@ -582,7 +582,7 @@ bywaf> client subnet scan: hostscanner 127.0.0.1 | portscanner
 
 The runner executes each pipeline step in order. Events emitted by one
 pipeline step are passed to the next pipeline step as input. Events are
-also stored in SQLite with a pipeline ID and command run ID.
+also stored in SQLite with a pipeline ID and pipeline step ID.
 
 This model allows downstream commandlets to consume only the output relevant to
 the current pipeline, rather than every historical event in the database.
@@ -590,25 +590,25 @@ the current pipeline, rather than every historical event in the database.
 Attach a new background commandlet to an existing pipeline:
 
 ```text
-bywaf> pipeline attach <pipeline-id> portscanner run=<producer-run-id> since=beginning
+bywaf> pipeline attach <pipeline-id> portscanner step=<producer-step-id> since=beginning
 bywaf> pipeline attach <pipeline-id> http_probe since=now
 ```
 
 The attach selectors are orthogonal:
 
 - `<pipeline-id>` chooses the pipeline the new step joins.
-- `run=<producer-run-id>` optionally narrows input to one upstream producer step.
+- `step=<producer-step-id>` optionally narrows input to one upstream producer step.
 - `since=beginning` replays matching historical events, then listens for new
   events.
 - `since=now` ignores historical events and starts from the current event
   high-water mark.
 
-If `run=` is omitted, the attached commandlet reads matching events from the
+If `step=` is omitted, the attached commandlet reads matching events from the
 whole pipeline.
 
 # Runtime Names
 
-Name the current command run with a step-local `name=` selector:
+Name the current pipeline step with a step-local `name=` selector:
 
 ```text
 bywaf> hostscanner 127.0.0.1 name=localhost sweep
@@ -617,13 +617,13 @@ bywaf> hostscanner 127.0.0.1 name=localhost sweep
 Name or inspect runtime entities after they exist:
 
 ```text
-bywaf> name run=<command-run-id> localhost sweep
+bywaf> name step=<step-id> localhost sweep
 bywaf> name pipeline=<pipeline-id> client subnet scan
 bywaf> name job=<job-id> background listener
-bywaf> name run=<command-run-id>
+bywaf> name step=<step-id>
 ```
 
-The explicit keyed form is `text=`, for example `name run=<id> text=localhost sweep`.
+The explicit keyed form is `text=`, for example `name step=<id> text=localhost sweep`.
 
 Assigned names appear in `steps`, `pipelines`, and `jobs` listings.
 
@@ -631,7 +631,7 @@ Assigned names appear in `steps`, `pipelines`, and `jobs` listings.
 
 Any pipeline step can include a framework-level `note=` selector. The runner
 strips it before the commandlet receives arguments and records an audited
-`note.attached` event with the job, pipeline, and command-run IDs.
+`note.attached` event with the job, pipeline, and step identities.
 
 ```text
 bywaf> hostscanner 10.0.0.0/24 note=client-approved internal subnet
@@ -648,10 +648,10 @@ Review attached notes with the `note` commandlet. Output and file exports use
 timestamp-first lines:
 
 ```text
-bywaf> note run=<command-run-id>
+bywaf> note step=<step-id>
 bywaf> note pipeline=<pipeline-id>
 bywaf> note job=<job-id> file=notes.txt
-bywaf> note add run=<command-run-id> text=follow-up note
+bywaf> note add step=<step-id> text=follow-up note
 ```
 
 Notes are append-only. Adding another note creates another timestamped
@@ -688,26 +688,26 @@ bywaf> artifact import file=headers.txt note=response headers
 Attach existing artifacts, or import and attach files in one command:
 
 ```text
-bywaf> artifact attach artifact=1 run=<command-run-id>
-bywaf> artifact attach run=<command-run-id> file=snapshot.html name='Landing page'
+bywaf> artifact attach artifact=1 step=<step-id>
+bywaf> artifact attach step=<step-id> file=snapshot.html name='Landing page'
 bywaf> artifact attach serial=<step-or-pipeline-or-job-serial> file=snapshot.html
-bywaf> artifact attach run=<command-run-id> file=snapshot.html file=headers.txt
+bywaf> artifact attach step=<step-id> file=snapshot.html file=headers.txt
 bywaf> artifact attach pipeline=<pipeline-id> file=report.json note=initial report
 ```
 
 List, search, export, and verify artifacts:
 
 ```text
-bywaf> artifact list run=<command-run-id>
-bywaf> search run=<command-run-id> name=landing
-bywaf> search run=<command-run-id> filename=snapshot.html
-bywaf> search run=<command-run-id> content=csrf
-bywaf> artifact search run=<command-run-id> --regexp filename='.*\\.png'
+bywaf> artifact list step=<step-id>
+bywaf> search step=<step-id> name=landing
+bywaf> search step=<step-id> filename=snapshot.html
+bywaf> search step=<step-id> content=csrf
+bywaf> artifact search step=<step-id> --regexp filename='.*\\.png'
 bywaf> artifact replace artifact=1 file=snapshot-v2.html
 bywaf> artifact remove artifact=1
 bywaf> artifact export artifact=1 file=snapshot.html
 bywaf> artifact export serial=<artifact-serial> file=snapshot.html
-bywaf> artifact export run=<command-run-id> dir=artifacts/
+bywaf> artifact export step=<step-id> dir=artifacts/
 bywaf> artifact verify pipeline=<pipeline-id>
 ```
 
@@ -944,11 +944,11 @@ controls; plugin-domain signals such as `prune`, `mute`, `unmute`, and
 `verbosity` are delivered for commandlets to apply or ignore.
 
 ```text
-bywaf> signal run=<command-run-id> prune targets=192.168.1.0/24
-bywaf> signal run=<command-run-id> mute
+bywaf> signal step=<step-id> prune targets=192.168.1.0/24
+bywaf> signal step=<step-id> mute
 bywaf> signal serial=<step-or-job-serial> verbosity level=debug
-bywaf> signal run=<command-run-id> verbosity level=debug
-bywaf> signal run=<command-run-id> pause --hard
+bywaf> signal step=<step-id> verbosity level=debug
+bywaf> signal step=<step-id> pause --hard
 ```
 
 `cancel`, `end`, `kill`, `pause`, `resume`, and `stop` are convenience aliases
@@ -962,9 +962,9 @@ bywaf> end job=<id>
 bywaf> kill --hard pipeline=<id>
 bywaf> pause job=<id>
 bywaf> pause --hard job=<id>
-bywaf> pause run=<command-run-id>
+bywaf> pause step=<step-id>
 bywaf> resume --listonly pipeline=<id>
-bywaf> resume --listonly run=<command-run-id>
+bywaf> resume --listonly step=<step-id>
 bywaf> stop --hard job=<id>
 ```
 
@@ -979,14 +979,14 @@ plugin or framework response.
 For example, these friendly commands:
 
 ```text
-bywaf> pause run=7
+bywaf> pause step=7
 bywaf> end --hard job=3
 ```
 
 map to explicit control requests like:
 
 ```text
-bywaf> signal run=7 pause --soft
+bywaf> signal step=7 pause --soft
 bywaf> signal job=3 end --hard
 ```
 
@@ -994,8 +994,8 @@ For plugin-specific messages, the explicit form is the normal route because the
 plugin owns the meaning of the action:
 
 ```text
-bywaf> signal run=7 prune targets=192.168.1.0/24
-bywaf> signal run=7 verbosity level=quiet
+bywaf> signal step=7 prune targets=192.168.1.0/24
+bywaf> signal step=7 verbosity level=quiet
 ```
 
 The resulting audit trail shows the requested selector, action, strength
@@ -1049,7 +1049,7 @@ bywaf> steps
 Show events by pipeline step or pipeline:
 
 ```text
-bywaf> event run=1
+bywaf> event step=1
 bywaf> event pipeline=1
 bywaf> event serial=<durable-serial>
 ```
@@ -1645,10 +1645,9 @@ finished work produced without manually querying raw events.
 
 ```text
 bywaf> report
-bywaf> report new
 bywaf> report pipeline=1,2,3
 bywaf> report job=7
-bywaf> report run=12
+bywaf> report step=12
 bywaf> report status=all
 ```
 
@@ -1857,14 +1856,14 @@ set [--secret] [name=value]
 history
 job <list|show|cancel|end|kill>
 pipeline <list|show|cancel|end|kill|attach>
-signal <job=id|run=id|serial=id> <action> [--soft|--hard] [key=value ...]
-cancel <job=id|pipeline=id|run=id>
-end [--soft|--hard] <job=id|pipeline=id|run=id>
-kill [--soft|--hard] <job=id|pipeline=id|run=id>
-name <run=id|pipeline=id|job=id> [name text]
-note [add] <run=id|pipeline=id|job=id> [text=note|file=path]
-artifact <import|attach|list|remove|replace|export|search|verify> [artifact=id|run=id|pipeline=id|job=id] [file=path|dir=path]
-search [--regexp] <name=text|filename=text|note=text|content=text> [artifact=id|run=id|pipeline=id|job=id] [since=time|until=time]
+signal <job=id|step=id|serial=id> <action> [--soft|--hard] [key=value ...]
+cancel <job=id|pipeline=id|step=id>
+end [--soft|--hard] <job=id|pipeline=id|step=id>
+kill [--soft|--hard] <job=id|pipeline=id|step=id>
+name <step=id|pipeline=id|job=id> [name text]
+note [add] <step=id|pipeline=id|job=id> [text=note|file=path]
+artifact <import|attach|list|remove|replace|export|search|verify> [artifact=id|step=id|pipeline=id|job=id] [file=path|dir=path]
+search [--regexp] <name=text|filename=text|note=text|content=text> [artifact=id|step=id|pipeline=id|job=id] [since=time|until=time]
 jobs
 pipelines
 steps
@@ -1876,7 +1875,7 @@ topics
 event <topic>
 event <id>
 event job=<id>
-event run=<id>
+event step=<id>
 event pipeline=<id>
 event serial=<id>
 db <status|path|checkpoint|vacuum|new|load|export|encrypt|decrypt|rekey>

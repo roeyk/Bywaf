@@ -1,7 +1,7 @@
 """Operator-facing report commandlet.
 
 Provides the first reporting inbox over normalized finding events. It renders
-grouped findings for recent, run-scoped, job-scoped, or pipeline-scoped work
+grouped findings for recent, step-scoped, job-scoped, or pipeline-scoped work
 without requiring operators to inspect raw event payloads.
 
 Used by:
@@ -24,8 +24,7 @@ from bywaf.plugins.analysis.finding_report import REPORT_FINDING_TOPICS, finding
 from bywaf.plugins.runtime.audit import resolve_pipeline_selector, resolve_run_selector
 from bywaf.rendering import render_table
 
-REPORT_ACTIONS = ("new",)
-REPORT_OPTION_KEYS = {"job", "pipeline", "run", "limit", "status"}
+REPORT_OPTION_KEYS = {"job", "pipeline", "step", "limit", "status"}
 REPORT_STATUS_CHOICES = ("all", "unreviewed")
 
 
@@ -44,15 +43,14 @@ class FindingGroup:
 
 @commandlet(
     name="report",
-    description="Show grouped finding reports for recent, run, job, or pipeline scopes.",
-    usage="report [new] [pipeline=<id>[,<id>...]] [job=<id>[,<id>...]] [run=<id>[,<id>...]]",
+    description="Show grouped finding reports for recent, step, job, or pipeline scopes.",
+    usage="report [pipeline=<id>[,<id>...]] [job=<id>[,<id>...]] [step=<id>[,<id>...]]",
     examples=(
         "report",
-        "report new",
         "report pipeline=1",
         "report pipeline=1,2,3",
         "report job=7",
-        "report run=12",
+        "report step=12",
     ),
     consumes=REPORT_FINDING_TOPICS,
     emits=("report.rendered",),
@@ -67,7 +65,7 @@ class FindingGroup:
 )
 @option("job", "job id or comma-separated job ids", completion="job")
 @option("pipeline", "pipeline id or comma-separated pipeline ids", completion="pipeline")
-@option("run", "run id or comma-separated run ids", completion="run")
+@option("step", "step id or comma-separated step ids", completion="step")
 @option("limit", "maximum events to inspect", "1000")
 @option("status", "finding review status filter", "unreviewed", REPORT_STATUS_CHOICES)
 class Report(CommandletBase):
@@ -82,10 +80,9 @@ class Report(CommandletBase):
         """Parse and render one report view."""
         parser = self.parser()
         parser.usage = self.spec.usage
-        parser.add_argument("action", nargs="?", choices=REPORT_ACTIONS)
         parser.add_argument("--job", default="", help="job id or comma-separated job ids")
         parser.add_argument("--pipeline", default="", help="pipeline id or comma-separated pipeline ids")
-        parser.add_argument("--run", default="", help="run id or comma-separated run ids")
+        parser.add_argument("--step", default="", help="step id or comma-separated step ids")
         parser.add_argument("--limit", type=int, default=1000)
         parser.add_argument("--status", choices=REPORT_STATUS_CHOICES, default="unreviewed")
         parsed = parser.parse_args(key_value_to_long_options(args, REPORT_OPTION_KEYS))
@@ -97,9 +94,9 @@ class Report(CommandletBase):
         return ()
 
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
-        """Complete report actions and selectors."""
+        """Complete report selectors."""
         del context, args
-        candidates = ("new", "pipeline=", "job=", "run=", "limit=", "status=", "status=all", "status=unreviewed")
+        candidates = ("pipeline=", "job=", "step=", "limit=", "status=", "status=all", "status=unreviewed")
         return [candidate for candidate in candidates if candidate.startswith(prefix)]
 
 
@@ -110,8 +107,8 @@ def select_report_scope_events(context: CommandContext, parsed: Namespace) -> li
         return events_for_jobs(context, split_selector_values(parsed.job), limit=limit)
     if parsed.pipeline:
         return events_for_pipelines(context, split_selector_values(parsed.pipeline), limit=limit)
-    if parsed.run:
-        return events_for_runs(context, split_selector_values(parsed.run), limit=limit)
+    if parsed.step:
+        return events_for_steps(context, split_selector_values(parsed.step), limit=limit)
     pipeline_id = latest_completed_pipeline(context)
     if pipeline_id is not None:
         return events_for_pipelines(context, [pipeline_id], limit=limit)
@@ -136,7 +133,7 @@ def events_for_jobs(context: CommandContext, job_ids: list[str], *, limit: int) 
         for pipeline_id in pipelines:
             events.extend(events_for_topics(context, REPORT_FINDING_TOPICS, pipeline=pipeline_id, limit=limit))
         for run_id in runs:
-            events.extend(events_for_topics(context, REPORT_FINDING_TOPICS, run=run_id, limit=limit))
+            events.extend(events_for_topics(context, REPORT_FINDING_TOPICS, step=run_id, limit=limit))
     return sort_unique_events(events)
 
 
@@ -149,12 +146,12 @@ def events_for_pipelines(context: CommandContext, pipeline_ids: list[str], *, li
     return sort_unique_events(events)
 
 
-def events_for_runs(context: CommandContext, run_ids: list[str], *, limit: int) -> list[Event]:
-    """Return finding events associated with one or more command runs."""
+def events_for_steps(context: CommandContext, step_ids: list[str], *, limit: int) -> list[Event]:
+    """Return finding events associated with one or more pipeline steps."""
     events: list[Event] = []
-    for run_id in run_ids:
-        resolved = resolve_run_selector(context, run_id)
-        events.extend(events_for_topics(context, REPORT_FINDING_TOPICS, run=resolved, limit=limit))
+    for step_id in step_ids:
+        resolved = resolve_run_selector(context, step_id)
+        events.extend(events_for_topics(context, REPORT_FINDING_TOPICS, step=resolved, limit=limit))
     return sort_unique_events(events)
 
 
@@ -162,14 +159,14 @@ def events_for_topics(
     context: CommandContext,
     topics: tuple[str, ...],
     *,
-    run: str | None = None,
+    step: str | None = None,
     pipeline: str | None = None,
     limit: int,
 ) -> list[Event]:
     """Query multiple finding topics and return event-ordered results."""
     events: list[Event] = []
     for topic in topics:
-        events.extend(context.events.query(topic=topic, run=run, pipeline=pipeline, limit=limit))
+        events.extend(context.events.query(topic=topic, step=step, pipeline=pipeline, limit=limit))
     return sort_unique_events(events)
 
 
@@ -220,14 +217,17 @@ def render_finding_report(context: CommandContext, events: list[Event], parsed: 
 
 def report_heading(parsed: Namespace, events: list[Event], groups: list[FindingGroup]) -> str:
     """Return a compact heading for one report view."""
-    action = "new" if parsed.action == "new" else "scope"
     if parsed.job:
+        action = "scope"
         scope = f"job={parsed.job}"
     elif parsed.pipeline:
+        action = "scope"
         scope = f"pipeline={parsed.pipeline}"
-    elif parsed.run:
-        scope = f"run={parsed.run}"
+    elif parsed.step:
+        action = "scope"
+        scope = f"step={parsed.step}"
     else:
+        action = "inbox"
         scope = "latest completed pipeline"
     event_count = len(events)
     group_count = len(groups)
@@ -247,10 +247,10 @@ def report_rendered_payload(
 ) -> dict[str, object]:
     """Return a structured payload describing one rendered report."""
     return {
-        "action": parsed.action or "show",
+        "action": "show" if any((parsed.job, parsed.pipeline, parsed.step)) else "inbox",
         "job": parsed.job,
         "pipeline": parsed.pipeline,
-        "run": parsed.run,
+        "step": parsed.step,
         "status": parsed.status,
         "events": [event.id for event in events if event.id is not None],
         "groups": [group.finding_id for group in groups or []],

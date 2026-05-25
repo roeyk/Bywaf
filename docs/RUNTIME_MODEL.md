@@ -98,27 +98,28 @@ artifact export pipeline=1 dir=artifacts/
 
 A step is one invocation of one commandlet inside a pipeline. Steps are the main
 audit scope for plugin behavior. The user-facing list and detail commands are
-`steps` and `step <id>`. The storage/API names are still `command_run_id`,
-`parent_command_run_id`, and `run=...` selectors.
+`steps` and `step <id>`. Selectors and public plugin-facing APIs use step
+terminology. Some persisted database columns still use historical names such as
+`command_run_id` and `parent_command_run_id`.
 
 A step records:
 
 - commandlet name;
 - original and normalized arguments;
 - effective variable snapshot;
-- command-run serial;
+- step serial;
 - pipeline membership;
-- parent command-run ID;
+- parent step ID;
 - emitted events;
 - attached artifacts and notes;
 - framework requests and control signals.
 
-Use `run=` selectors when the question is about one pipeline step:
+Use `step=` selectors when the question is about one pipeline step:
 
 ```text
-event run=2
-artifact export run=2 dir=artifacts/
-note run=2
+event step=2
+artifact export step=2 dir=artifacts/
+note step=2
 ```
 
 ## Local IDs and Serials
@@ -126,7 +127,7 @@ note run=2
 Bywaf has two identifier types:
 
 - Local IDs are short numbers for interactive typing, such as `job=12`,
-  `pipeline=3`, and `run=7`.
+  `pipeline=3`, and `step=7`.
 - Serials are durable audit identifiers, such as `job-...`, `pipeline-...`,
   `hostscanner-...`, `plugin-...`, and `script-...`.
 
@@ -164,12 +165,12 @@ requests.
 Soft control asks the commandlet to cooperate:
 
 ```text
-pause run=3
-signal run=3 prune target=192.168.1.50
-signal run=3 verbosity level=quiet
+pause step=3
+signal step=3 prune target=192.168.1.50
+signal step=3 verbosity level=quiet
 ```
 
-`signal run=...` is the normal route for plugin-domain messages because a step
+`signal step=...` is the normal route for plugin-domain messages because a step
 is the commandlet execution context. `signal job=...` is for supervisor-level
 framework lifecycle control. A pipeline is not an execution receiver, so
 plugin-domain signals are not sent to `pipeline=` directly; pipeline-aware

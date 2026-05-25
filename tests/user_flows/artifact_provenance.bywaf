@@ -4,7 +4,7 @@
 # EXPECT-EVENT: resource.script.command
 
 ls .
-artifact attach run=1 file={fixture} name=user-flow-artifact note=smoke
-artifact list run=1
-artifact verify run=1
+artifact attach step=1 file={fixture} name=user-flow-artifact note=smoke
+artifact list step=1
+artifact verify step=1
 search name=user-flow-artifact

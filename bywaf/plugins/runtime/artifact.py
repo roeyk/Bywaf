@@ -39,18 +39,18 @@ ArtifactActionHandler = Callable[[CommandContext, list[str]], None]
 @commandlet(
     name="artifact",
     description="Import, attach, list, export, replace, remove, and verify artifacts.",
-    usage="artifact <import|attach|list|export|replace|remove|search|verify> [serial=id|artifact=id|run=id|pipeline=id|job=id] [file=path|dir=path]",
+    usage="artifact <import|attach|list|export|replace|remove|search|verify> [serial=id|artifact=id|step=id|pipeline=id|job=id] [file=path|dir=path]",
     examples=(
-        "artifact attach run=1 file=snapshot.html name='Landing page'",
+        "artifact attach step=1 file=snapshot.html name='Landing page'",
         "artifact attach serial=run-... file=snapshot.html",
         "artifact import file=snapshot.html name='Landing page'",
-        "artifact attach artifact=1 run=1",
-        "artifact list run=1",
+        "artifact attach artifact=1 step=1",
+        "artifact list step=1",
         "artifact search --regexp note='login|cookie'",
         "artifact replace artifact=1 file=snapshot-v2.html",
         "artifact remove artifact=1",
         "artifact export artifact=1 file=snapshot.html",
-        "artifact export run=1 dir=artifacts/",
+        "artifact export step=1 dir=artifacts/",
         "artifact verify pipeline=1",
     ),
     capabilities=(
@@ -63,7 +63,7 @@ ArtifactActionHandler = Callable[[CommandContext, list[str]], None]
     ),
 )
 @argument("action", "artifact action", completion=CompletionSpec("choice", ARTIFACT_ACTIONS))
-@argument("selector", "serial=, artifact=, run=, pipeline=, job=, file=, dir=, name=, or note=", required=False)
+@argument("selector", "serial=, artifact=, step=, pipeline=, job=, file=, dir=, name=, or note=", required=False)
 class ArtifactCommand(CommandletBase):
     """Manage artifacts linked to Bywaf runtime entities."""
 
@@ -94,8 +94,8 @@ class ArtifactCommand(CommandletBase):
             return [f"file={candidate}" for candidate in complete_path(prefix.removeprefix("file="))]
         if prefix.startswith("dir="):
             return [f"dir={candidate}" for candidate in complete_path(prefix.removeprefix("dir="))]
-        if prefix.startswith("run="):
-            return [f"run={value}" for value in run_ids(context)]
+        if prefix.startswith("step="):
+            return [f"step={value}" for value in run_ids(context)]
         if prefix.startswith("pipeline="):
             return [f"pipeline={value}" for value in pipeline_ids(context)]
         if prefix.startswith("job="):
@@ -124,13 +124,13 @@ def artifact_action_handlers() -> dict[str, ArtifactActionHandler]:
 def artifact_completion_selectors() -> dict[str, list[str]]:
     """Return selector completions keyed by artifact action."""
     return {
-        "attach": ["artifact=", "serial=", "run=", "pipeline=", "job=", "file=", "name=", "note="],
+        "attach": ["artifact=", "serial=", "step=", "pipeline=", "job=", "file=", "name=", "note="],
         "import": ["file=", "name=", "note="],
         "replace": ["artifact=", "file=", "name=", "note="],
-        "remove": ["artifact=", "serial=", "run=", "pipeline=", "job="],
-        "list": ["artifact=", "serial=", "run=", "pipeline=", "job=", "--page"],
-        "verify": ["artifact=", "serial=", "run=", "pipeline=", "job="],
-        "export": ["artifact=", "serial=", "run=", "pipeline=", "job=", "file=", "dir="],
+        "remove": ["artifact=", "serial=", "step=", "pipeline=", "job="],
+        "list": ["artifact=", "serial=", "step=", "pipeline=", "job=", "--page"],
+        "verify": ["artifact=", "serial=", "step=", "pipeline=", "job="],
+        "export": ["artifact=", "serial=", "step=", "pipeline=", "job=", "file=", "dir="],
         "search": [
             "name=",
             "filename=",
@@ -139,7 +139,7 @@ def artifact_completion_selectors() -> dict[str, list[str]]:
             "serial=",
             "--regexp",
             "artifact=",
-            "run=",
+            "step=",
             "pipeline=",
             "job=",
             "since=",
@@ -187,12 +187,12 @@ def verify_artifacts_command(context: CommandContext, tokens: list[str]) -> None
 @commandlet(
     name="search",
     description="Search artifact metadata and text content.",
-    usage="search [--regexp] <name=text|filename=text|note=text|content=text|serial=id> [artifact=id|run=id|pipeline=id|job=id] [since=time|until=time]",
+    usage="search [--regexp] <name=text|filename=text|note=text|content=text|serial=id> [artifact=id|step=id|pipeline=id|job=id] [since=time|until=time]",
     examples=(
         "search name=landing",
         "search --regexp filename='.*\\.png'",
         "search serial=pipeline-...",
-        "search run=1 content=csrf",
+        "search step=1 content=csrf",
     ),
     capabilities=(
         "artifact.read",
@@ -226,8 +226,8 @@ class SearchCommand(CommandletBase):
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
         """Complete search selectors, scopes, and runtime entity ids."""
         del args
-        if prefix.startswith("run="):
-            return [f"run={value}" for value in run_ids(context)]
+        if prefix.startswith("step="):
+            return [f"step={value}" for value in run_ids(context)]
         if prefix.startswith("pipeline="):
             return [f"pipeline={value}" for value in pipeline_ids(context)]
         if prefix.startswith("job="):
@@ -236,7 +236,7 @@ class SearchCommand(CommandletBase):
             return [f"artifact={value}" for value in artifact_ids(context)]
         if prefix.startswith("serial="):
             return [f"serial={value}" for value in serial_ids(context)]
-        return ["name=", "filename=", "note=", "content=", "serial=", "--regexp", "artifact=", "run=", "pipeline=", "job=", "since=", "until="]
+        return ["name=", "filename=", "note=", "content=", "serial=", "--regexp", "artifact=", "step=", "pipeline=", "job=", "since=", "until="]
 
 
 def parse_artifact_selectors(tokens: list[str], *, allow_page: bool = False) -> dict[str, list[str]]:
@@ -257,7 +257,7 @@ def parse_artifact_selectors(tokens: list[str], *, allow_page: bool = False) -> 
             index = len(tokens)
         else:
             index += 1
-        if key not in {"artifact", "run", "pipeline", "job", "serial", "file", "dir", "name", "note"}:
+        if key not in {"artifact", "step", "pipeline", "job", "serial", "file", "dir", "name", "note"}:
             raise ValueError(f"unknown artifact selector: {key}")
         if not value:
             raise ValueError(f"artifact selector {key}= requires a value")
@@ -278,7 +278,7 @@ def parse_search_selectors(tokens: list[str]) -> dict[str, list[str]]:
         if "=" not in token:
             raise ValueError(f"invalid search selector: {token}")
         key, value = token.split("=", 1)
-        if key not in {"artifact", "run", "pipeline", "job", "serial", "name", "filename", "note", "content", "since", "until"}:
+        if key not in {"artifact", "step", "pipeline", "job", "serial", "name", "filename", "note", "content", "since", "until"}:
             raise ValueError(f"unknown search selector: {key}")
         if not value:
             raise ValueError(f"search selector {key}= requires a value")
@@ -302,7 +302,7 @@ def attach_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
     attached: list[Artifact] = []
     if artifact_selector is not None:
         if not any((scope.job_id, scope.pipeline_id, scope.command_run_id)):
-            raise ValueError("artifact attach artifact= requires run=, pipeline=, job=, or serial=")
+            raise ValueError("artifact attach artifact= requires step=, pipeline=, job=, or serial=")
         store = context.artifact_store("artifact attach")
         context.audit_capability("artifact.read")
         context.audit_capability("artifact.write")
@@ -485,7 +485,7 @@ def verify_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
 
 
 def select_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> list[Artifact]:
-    """Return artifacts selected by artifact=, run=, pipeline=, or job=."""
+    """Return artifacts selected by artifact=, step=, pipeline=, or job=."""
     context.audit_capability("artifact.read")
     store = context.artifact_store("artifact")
     artifact_id = single_value(selectors, "artifact")
@@ -592,12 +592,12 @@ def resolve_artifact_scope(context: CommandContext, selectors: dict[str, list[st
     explicit = ArtifactScope(
         job_id=single_value(selectors, "job"),
         pipeline_id=resolve_pipeline_selector(context, single_value(selectors, "pipeline")),
-        command_run_id=resolve_run_selector(context, single_value(selectors, "run")),
+        command_run_id=resolve_run_selector(context, single_value(selectors, "step")),
     )
     if serial is None:
         return explicit
     if any((explicit.job_id, explicit.pipeline_id, explicit.command_run_id)):
-        raise ValueError("serial= cannot be combined with run=, pipeline=, or job=")
+        raise ValueError("serial= cannot be combined with step=, pipeline=, or job=")
     return resolve_serial_scope(context, serial)
 
 
@@ -621,7 +621,7 @@ def resolve_job_serial(context: CommandContext, serial: str) -> str | None:
 
 
 def resolve_run_selector(context: CommandContext, value: str | None) -> str | None:
-    """Resolve a user-facing run id to the durable run serial."""
+    """Resolve a user-facing step id to the durable step serial."""
     if value is None:
         return None
     return context.runtime_store("artifact").resolve_run_serial(value)
@@ -778,7 +778,7 @@ def format_artifact_row(artifact: Artifact) -> str:
         f"{artifact.created_at} artifact={artifact.id} artifact_id={artifact.artifact_id} "
         f"name={artifact.name} size={artifact.size} sha256={artifact.sha256} "
         f"commandlet={artifact.commandlet or ''} job={artifact.job_id or ''} "
-        f"pipeline={artifact.pipeline_id or ''} run={artifact.command_run_id or ''}"
+        f"pipeline={artifact.pipeline_id or ''} step={artifact.command_run_id or ''}"
     )
 
 
@@ -789,7 +789,7 @@ def safe_artifact_filename(artifact: Artifact) -> str:
 
 
 def run_ids(context: CompletionContext) -> list[str]:
-    """Return command-run IDs for completion."""
+    """Return pipeline-step IDs for completion."""
     if context.db is None:
         return []
     return sorted(context.db.run_aliases().values(), key=int)

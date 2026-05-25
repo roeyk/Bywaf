@@ -137,7 +137,7 @@ class Runner:
 
         Foreground pipelines pass events from one stage directly into the next,
         while every yielded payload is also persisted to SQLite with pipeline
-        and command-run scope IDs.
+        and pipeline-step scope IDs.
         """
         pipeline_id = pipeline_id or new_run_id("pipeline")
         if pipeline_name:
@@ -196,7 +196,7 @@ class Runner:
                     stage.command_run_id,
                     stage.parent_command_run_id,
                     stage.invocation.background,
-                    stage.invocation.from_run,
+                    stage.invocation.from_step,
                     stage.invocation.from_pipeline,
                     stage.invocation.from_topic,
                     stage.invocation.replay_after_id,
@@ -272,7 +272,7 @@ class Runner:
             original.name,
             original.args,
             background=True,
-            from_run=upstream_run_id,
+            from_step=upstream_run_id,
             from_pipeline=pipeline_id,
             from_topic=original.from_topic,
             replay_after_id=after_id,
@@ -285,7 +285,7 @@ class Runner:
         stage = StageRun(invocation, new_run_id(invocation.name), upstream_run_id)
         lifecycle = JobLifecycle.create(
             self.db,
-            f"pipeline attach {pipeline_id} {command_line} run={upstream_run_id or ''} since={since_cursor}".strip(),
+            f"pipeline attach {pipeline_id} {command_line} step={upstream_run_id or ''} since={since_cursor}".strip(),
             None,
         )
         ensure_run_var_snapshot(
@@ -468,7 +468,7 @@ def normalize_valued_option_args(plugin, args: list[str]) -> list[str]:
 
 
 def publish_command_run_lifecycle(context: CommandContext, status: str, **details: object) -> Event | None:
-    """Publish command-run lifecycle events used by finite listeners."""
+    """Publish pipeline-step lifecycle events used by finite listeners."""
     if context._db is None:
         return None
     payload = {
@@ -575,7 +575,7 @@ def run_stage_process(
     command_run_id: str,
     parent_command_run_id: str | None,
     background: bool,
-    from_run: str | None,
+    from_step: str | None,
     from_pipeline: str | None,
     from_topic: str | None,
     replay_after_id: int,
@@ -593,7 +593,7 @@ def run_stage_process(
             name,
             args,
             background=background,
-            from_run=from_run,
+            from_step=from_step,
             from_pipeline=from_pipeline,
             from_topic=from_topic,
             replay_after_id=replay_after_id,

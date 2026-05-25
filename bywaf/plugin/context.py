@@ -122,13 +122,13 @@ class CommandContext:
 
     @property
     def command_run_id(self) -> str | None:
-        """Return the current command-run ID, if this commandlet has one."""
+        """Return the current pipeline-step ID, if this commandlet has one."""
         value = self.metadata.get("command_run_id")
         return str(value) if value is not None else None
 
     @property
     def parent_command_run_id(self) -> str | None:
-        """Return the upstream command-run ID for a pipeline stage, if present."""
+        """Return the upstream pipeline-step ID for a pipeline stage, if present."""
         value = self.metadata.get("parent_command_run_id")
         return str(value) if value is not None else None
 
@@ -139,7 +139,7 @@ class CommandContext:
 
     @property
     def note(self) -> str | None:
-        """Return the framework-level `note=` text for this command run."""
+        """Return the framework-level `note=` text for this pipeline step."""
         value = self.metadata.get("note")
         return str(value) if value is not None else None
 
@@ -192,7 +192,7 @@ class CommandContext:
             raise ValueError(f"{label or self.source} must run in the foreground")
 
     def cancelled(self) -> bool:
-        """Return whether this job, pipeline, or command run was cancelled."""
+        """Return whether this job, pipeline, or pipeline step was cancelled."""
         if self._db is None:
             return False
         return self._db.cancellation_requested(
@@ -470,7 +470,7 @@ class CommandContext:
 
 
 def command_run_id(context: CommandContext) -> str:
-    """Return the current command run ID or a stable interactive fallback."""
+    """Return the current pipeline step ID or a stable interactive fallback."""
     return context.command_run_id or "interactive"
 
 
