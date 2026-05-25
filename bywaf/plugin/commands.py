@@ -30,6 +30,8 @@ def commandlet(
     consumes: Sequence[str] = (),
     emits: Sequence[str] = (),
     capabilities: Sequence[str] = (),
+    provider_variables: Sequence[str] = (),
+    secret_provider_variables: Sequence[str] = (),
 ):
     """Decorate a commandlet class with a `CommandSpec`.
 
@@ -47,6 +49,8 @@ def commandlet(
             consumes=tuple(consumes),
             emits=tuple(emits),
             capabilities=tuple(capabilities),
+            provider_variables=tuple(provider_variables),
+            secret_provider_variables=tuple(secret_provider_variables),
         )
         return cls
 

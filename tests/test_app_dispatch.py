@@ -127,9 +127,16 @@ class AppDispatchTests(unittest.TestCase):
         self.assertEqual(command_from_remainder(["cat", "file name.txt"]), "cat 'file name.txt'")
 
     def test_parse_load_spec_accepts_force_before_resource(self):
-        forced, resource = parse_load_spec("--force plugin=example")
+        forced, resource, catalog_path = parse_load_spec("--force plugin=example")
         self.assertTrue(forced)
         self.assertEqual(resource, "plugin=example")
+        self.assertIsNone(catalog_path)
+
+    def test_parse_load_spec_accepts_catalog_path(self):
+        forced, resource, catalog_path = parse_load_spec("--force plugin=example path=lab/example")
+        self.assertTrue(forced)
+        self.assertEqual(resource, "plugin=example")
+        self.assertEqual(catalog_path, "lab/example")
 
     def test_command_from_remainder_preserves_single_quoted_pipeline(self):
         self.assertEqual(

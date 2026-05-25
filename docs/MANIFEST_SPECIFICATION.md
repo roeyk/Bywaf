@@ -39,6 +39,7 @@ library_backed = false
 process_wrapped = false
 service = false
 roles = ["command-provider"]
+default_commandlet = "example"
 
 [[commandlets]]
 name = "example"
@@ -47,6 +48,8 @@ capabilities = [
   "framework.console.alert",
 ]
 secret_options = ["password"]
+provider_variables = ["proxy"]
+secret_provider_variables = []
 
 [[triggers]]
 name = "example-trigger"
@@ -72,6 +75,7 @@ The `[plugin]` table describes plugin-level traits.
 | `process_wrapped` | boolean | `false` | Runs an external executable through the framework process API. |
 | `service` | boolean | `false` | Provides a long-running or continuously available service. |
 | `roles` | list of strings | `[]` | Plugin role metadata for tooling and cataloging. |
+| `default_commandlet` | string | none | Optional commandlet selected when `use <provider-path>` targets a provider instead of a specific commandlet. Must name a declared commandlet. |
 
 `native = true` conflicts with `library_backed = true` or
 `process_wrapped = true`.
@@ -88,6 +92,8 @@ belong in Python `@commandlet`, `@argument`, and `@option` declarations.
 | `name` | string | yes | Must match the Python `CommandSpec.name` exactly. |
 | `capabilities` | list of strings | no | Must match `CommandSpec.capabilities` exactly. |
 | `secret_options` | list of strings | no | Must match Python options declared with `secret=True` exactly. |
+| `provider_variables` | list of strings | no | Immediate-provider variable names this commandlet may read with `context.vars.get_provider(...)`. Must match `CommandSpec.provider_variables` exactly. |
+| `secret_provider_variables` | list of strings | no | Immediate-provider variable names that are secret references. Must match `CommandSpec.secret_provider_variables` exactly. |
 
 When a manifest is present, Bywaf registers only commandlets listed in
 `[[commandlets]]`. Extra commandlets returned by `plugin()` or `plugins()` are

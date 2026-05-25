@@ -83,11 +83,14 @@ __all__ = [
 def load_repl_resource(runner: Runner, spec: str, state: ResourceState | None = None) -> None:
     """Handle `plugin load=<path>` resources from the REPL."""
     state = state or default_resource_state(runner)
-    forced, resource = parse_load_spec(spec)
+    forced, resource, catalog_path = parse_load_spec(spec)
     key, value = parse_resource_assignment(resource)
     handler = LOAD_RESOURCE_HANDLERS.get(key)
     if handler is None or not value:
         print("usage: plugin load=<path> [--force]")
+        return
+    if key == "plugin":
+        load_plugin_resource(runner, state, value, forced, catalog_path=catalog_path)
         return
     handler(runner, state, value, forced)
 
@@ -95,19 +98,27 @@ def load_repl_resource(runner: Runner, spec: str, state: ResourceState | None = 
 LoadResourceHandler = Callable[[Runner, ResourceState, str, bool], list[str]]
 
 
-def load_plugin_resource(runner: Runner, state: ResourceState, value: str, forced: bool) -> list[str]:
+def load_plugin_resource(
+    runner: Runner,
+    state: ResourceState,
+    value: str,
+    forced: bool,
+    *,
+    catalog_path: str | None = None,
+) -> list[str]:
     """Load a filesystem plugin resource."""
     del state
     plugin_path = resolve_resource_path(value, DEFAULT_PLUGIN_DIR)
-    runner.registry.load_filesystem_entry(plugin_path.parent, plugin_path.name, forced=forced)
-    commandlets = runner.registry.providers.get(plugin_path.name, [])
+    runner.registry.load_filesystem_entry(plugin_path.parent, plugin_path.name, catalog_path=catalog_path, forced=forced)
+    provider = catalog_path or plugin_path.name
+    commandlets = runner.registry.provider_commandlet_names(provider)
     manifest_details = plugin_manifest_audit_details(plugin_path)
     event = publish_resource_loaded(
         runner,
         "plugin",
         path=plugin_path,
         details={
-            "provider": plugin_path.name,
+            "provider": provider,
             "commandlet": commandlets[0] if commandlets else "",
             "commandlets": commandlets,
             **manifest_details,

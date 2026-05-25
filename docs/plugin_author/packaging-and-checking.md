@@ -30,6 +30,20 @@ bywaf> plugin load=~/bywaf-plugins/file_info --force
 bywaf> pload ./scratch/file_info --force
 ```
 
+Catalog placement is controlled by the loader or trusted catalog, not by plugin
+code. A plugin declares what it provides, while Bywaf decides where that provider
+appears in the user-facing catalog. In normal development, the catalog path is
+derived from the plugin root-relative filesystem path. Local development loading
+also supports an explicit `path=...` placement:
+
+```text
+bywaf> plugin load=./scratch/repo_tools path=http/repo_exposure --force
+```
+
+Treat `path=...` as an operator override for manual testing, not as metadata
+accepted from untrusted plugin code. Signed catalog plugins use the catalog's
+declared path and cannot be silently remapped by plugin code.
+
 Add `--use` to switch the interactive variable context to the loaded commandlet
 when the plugin exposes one commandlet. If it exposes multiple commandlets, use
 `--use=<commandlet>` so Bywaf does not guess:

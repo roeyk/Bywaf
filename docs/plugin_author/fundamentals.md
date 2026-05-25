@@ -63,11 +63,13 @@ library_backed = true
 process_wrapped = true
 service = false
 roles = ["command-provider"]
+default_commandlet = "example"
 
 [[commandlets]]
 name = "example"
 capabilities = ["network.connect"]
 secret_options = ["password"]
+provider_variables = ["proxy"]
 ```
 
 Implementation traits are independent:
@@ -81,13 +83,13 @@ Implementation traits are independent:
   package entrypoint, or other executable tool;
 - `service` means the plugin is expected to run long-lived or continuously.
 
-Each `[[commandlets]]` entry should also list the commandlet capabilities and
-any secret options. For now Bywaf requires manifest `capabilities` to match
-`CommandSpec.capabilities` exactly and manifest `secret_options` to match
-Python `OptionSpec.secret` metadata exactly. This is a pre-load consistency
-check, not the only enforcement layer: runtime policy still audits and can deny
-actual framework API use if a plugin attempts behavior outside its declared
-capabilities.
+Each `[[commandlets]]` entry should also list the commandlet capabilities,
+secret options, and any immediate provider variables the commandlet may read.
+Bywaf requires manifest `capabilities`, `secret_options`, `provider_variables`,
+and `secret_provider_variables` to match Python metadata exactly. This is a
+pre-load consistency check, not the only enforcement layer: runtime policy still
+audits and can deny actual framework API use if a plugin attempts behavior
+outside its declared capabilities or provider-variable permissions.
 
 ## Manifest Generation And Inspection
 

@@ -179,12 +179,12 @@ workflow from the same stored data.
 Execution-time plugin variables are scoped by commandlet. A plugin uses
 `context.vars.get("name")` for its own variables and cannot enumerate another
 plugin's variables through that API. Shared provider variables are explicit via
-`context.vars.get_provider(...)` or `context.vars.get_provider_at(...)`; global
+`context.vars.get_provider(...)` for the immediate provider only; global
 variables are explicit via `context.vars.get_global("name")`. When a commandlet
-run starts, Bywaf snapshots the effective commandlet, provider, and global
-variables into SQLite under that `command_run_id`; `event run=<id>` displays the
-captured variables so runs remain auditable and reproducible even when session
-variables change later.
+run starts, Bywaf snapshots the effective commandlet, immediate provider, and
+global variables into SQLite under that `command_run_id`; `event run=<id>`
+displays the captured variables so runs remain auditable and reproducible even
+when session variables change later.
 Runtime entities have two identities: local IDs for interactive typing
 (`job=12`, `run=1`, `pipeline=2`) and durable serials for audit/provenance.
 Local IDs are stable inside the current database and are never reused there,

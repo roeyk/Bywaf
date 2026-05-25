@@ -71,11 +71,11 @@ def is_management_pipeline(commands: tuple[CommandInvocation, ...]) -> bool:
 def effective_run_vars(varstore: VarStore, commandlet: str) -> dict[str, str]:
     """Return the session variables visible to one commandlet at launch time."""
     prefix = f"{commandlet}."
-    provider_prefixes = tuple(f"{scope}." for scope in provider_scopes_for_commandlet_scope(commandlet))
+    provider_prefix = f"{provider_scope_for_commandlet_scope(commandlet)}."
     return {
         key: value
         for key, value in varstore.items()
-        if key.startswith(prefix) or key.startswith(provider_prefixes) or key.startswith("global.")
+        if key.startswith(prefix) or key.startswith(provider_prefix) or key.startswith("global.")
     }
 
 
@@ -84,14 +84,6 @@ def provider_scope_for_commandlet_scope(commandlet: str) -> str:
     if "/" not in commandlet:
         return commandlet
     return commandlet.rsplit("/", 1)[0]
-
-
-def provider_scopes_for_commandlet_scope(commandlet: str) -> tuple[str, ...]:
-    """Return all explicit provider scopes visible to one commandlet snapshot."""
-    parts = commandlet.split("/")
-    if len(parts) == 1:
-        return (commandlet,)
-    return tuple("/".join(parts[:index]) for index in range(1, len(parts)))
 
 
 def ensure_run_var_snapshot(
@@ -154,6 +146,7 @@ def build_context(
             "input_high_watermark": input_high_watermark,
             "var_scope": variable_scope,
             "provider_scope": provider_scope,
+            "provider_variables": (*plugin.spec.provider_variables, *plugin.spec.secret_provider_variables),
             "background": invocation.background,
             "from_run": invocation.from_run,
             "from_pipeline": invocation.from_pipeline,

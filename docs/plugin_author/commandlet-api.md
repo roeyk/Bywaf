@@ -676,6 +676,13 @@ or by a provider-qualified catalog alias such as `http/http_probe`. A provider
 package may expose more than one commandlet; the qualified form keeps the catalog
 path visible without changing the commandlet's canonical runtime identity.
 
+Plugin code declares what it provides: commandlets, metadata, options,
+capabilities, emitted topics, and behavior. It does not get to choose where it
+lives in the global catalog. The loader, filesystem discovery context, or a
+trusted signed catalog decides the provider/catalog path. If local development
+loading later supports a `path=` override, that placement is an operator/loader
+choice, not a value trusted from plugin code.
+
 ### Catalog Variable Keys
 
 A catalog variable key is a stable user-settable variable name attached to a
@@ -727,22 +734,47 @@ the immediate provider that owns the commandlet:
 proxy = context.vars.get_provider("proxy")
 ```
 
-For deeper catalog trees, ancestor provider reads are explicit by provider path.
-This is useful for shared cloud/account configuration:
+Provider reads must also be declared in both Python commandlet metadata and
+`bywaf.plugin.toml`. Undeclared provider-variable reads fail instead of falling
+back to raw variable keys:
+
+```python
+@commandlet(
+    name="check",
+    description="Example provider variable use.",
+    capabilities=("network.connect",),
+    provider_variables=("proxy",),
+)
+class Check(CommandletBase):
+    ...
+```
+
+```toml
+[[commandlets]]
+name = "check"
+capabilities = ["network.connect"]
+provider_variables = ["proxy"]
+```
+
+Provider variables are limited to the immediate provider in the public plugin
+API. A commandlet at `cloud/aws/s3/public_bucket/check` can read variables at
+`cloud/aws/s3/public_bucket`, but it cannot directly read `cloud/aws` variables
+through `context.vars`.
 
 ```text
-set cloud/aws.region=us-east-1
-set cloud/aws/s3.bucket-wordlist=common-buckets.txt
+set cloud/aws/s3/public_bucket.proxy=http://127.0.0.1:8080
 ```
 
 ```python
-region = context.vars.get_provider_at("cloud/aws", "region")
-wordlist = context.vars.get_provider_at("cloud/aws/s3", "bucket-wordlist")
+proxy = context.vars.get_provider("proxy")
 ```
 
-Bywaf does not walk up the provider tree automatically. A commandlet at
-`cloud/aws/s3/public_bucket/check` does not silently inherit `cloud/aws.region`;
-the plugin code must request `cloud/aws` deliberately.
+A portable plugin should not assume its final catalog path unless it is bundled
+or loaded from a trusted catalog that fixes that path. Use commandlet-local
+variables for portable plugins. Provider-scoped variables are appropriate for
+bundled or catalog-pinned plugin families where the immediate provider path is
+stable. Broader ancestor-provider access may be added later with manifest
+permissions; do not emulate it by probing raw variable keys.
 
 Do not rely on implicit fallback from commandlet variables to provider variables
 or global variables. If a commandlet needs framework-global configuration, use

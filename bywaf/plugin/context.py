@@ -62,6 +62,7 @@ class CommandContext:
             _varstore or VarStore(),
             str(self.metadata.get("var_scope") or self.source),
             str(self.metadata.get("provider_scope") or ""),
+            set(self.metadata.get("provider_variables") or ()),
             self.metadata.get("run_vars", {}),
         )
         self._secrets = _secrets or InMemorySecretStore()

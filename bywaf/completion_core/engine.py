@@ -12,11 +12,15 @@ from __future__ import annotations
 
 import shlex
 from dataclasses import dataclass
+from pathlib import Path
 
 from ..db import EventStore
 from ..plugin import CompletionContext
 from ..projects import list_projects
 from ..registry import PluginRegistry
+from ..registry.config import normalize_catalog_path
+from ..registry.manifest import parse_plugin_manifest
+from ..toml_support import load_data_file
 from ..command_names import (
     PROJECT_ACTIONS,
     PROJECT_ALIAS_COMMAND,
@@ -373,12 +377,14 @@ class CoreCompleter:
         if prefix.startswith("load="):
             value = prefix.split("=", 1)[1]
             return [f"load={candidate}" for candidate in complete_resource_value("plugin", value)]
-        return resource_candidates(prefix, ("--force", "--use", "--use=", "load="))
+        return resource_candidates(prefix, ("--force", "--use", "--use=", "load=", "path="))
 
     def pload_candidates(self, prefix: str) -> list[str]:
         """Complete short-form plugin load paths."""
         if prefix.startswith("-"):
             return self.option_candidates(prefix, ("--force", "--use", "--use="))
+        if prefix.startswith("path="):
+            return [f"path={candidate}" for candidate in self.catalog_path_candidates(prefix.split("=", 1)[1])]
         return complete_resource_value("plugin", prefix)
 
     def config_candidates(self, prefix: str) -> list[str]:
@@ -429,9 +435,10 @@ class CoreCompleter:
         if prefix.startswith("-"):
             return [] if secret_already_present else ["--secret"]
         names = list(self.registry.varstore.names())
+        catalog_names = self.catalog_variable_names()
         secret_candidates = [] if secret_already_present else ["--secret"]
         if prefix.startswith("global.") or ("/" in prefix and "." in prefix):
-            return [f"{name}=" for name in names if name.startswith(prefix)]
+            return [f"{name}=" for name in sorted(set(names).union(catalog_names)) if name.startswith(prefix)]
         if self.active_context:
             scoped_prefix = f"{self.active_context}."
             short_names = [
@@ -441,11 +448,12 @@ class CoreCompleter:
             ]
             if short_names:
                 return [*secret_candidates, *short_names]
-        commandlet_scopes = sorted({name.rsplit(".", 1)[0] for name in names if "/" in name and "." in name})
+        all_names = sorted(set(names).union(catalog_names))
+        commandlet_scopes = sorted({name.rsplit(".", 1)[0] for name in all_names if "/" in name and "." in name})
         return [
             *secret_candidates,
             *[f"{scope}." for scope in commandlet_scopes if f"{scope}.".startswith(prefix)],
-            *[f"{name}=" for name in names if "/" not in name and name.startswith(prefix)],
+            *[f"{name}=" for name in all_names if "/" not in name and name.startswith(prefix)],
         ]
 
     def setg_candidates(self, prefix: str, args: list[str] | None = None) -> list[str]:
@@ -456,6 +464,37 @@ class CoreCompleter:
             return [] if secret_already_present else ["--secret"]
         names = [name.removeprefix("global.") for name in self.registry.varstore.names() if name.startswith("global.")]
         return [f"{name}=" for name in names if name.startswith(prefix)]
+
+    def catalog_path_candidates(self, prefix: str) -> list[str]:
+        """Complete known loaded provider and commandlet catalog paths."""
+        paths = {*self.registry.provider_commandlets.keys(), *self.registry.commandlet_aliases()}
+        return sorted(path for path in paths if path.startswith(prefix))
+
+    def catalog_variable_names(self) -> list[str]:
+        """Return variable names known from not-yet-loaded local plugin manifests/defaults."""
+        plugin_root = Path(".bywaf/plugins")
+        if not plugin_root.exists():
+            return []
+        names: set[str] = set()
+        for manifest_path in plugin_root.rglob("bywaf.plugin.toml"):
+            plugin_dir = manifest_path.parent
+            try:
+                provider_path = normalize_catalog_path(plugin_dir.relative_to(plugin_root).as_posix())
+                manifest = parse_plugin_manifest(manifest_path)
+            except (OSError, ValueError):
+                continue
+            default_names = filesystem_default_names(plugin_dir)
+            for commandlet in manifest.commandlets:
+                scope = f"{provider_path}/{commandlet}"
+                for option in manifest.commandlet_secret_options.get(commandlet, ()):
+                    names.add(f"{scope}.{option}")
+                for option in manifest.commandlet_provider_variables.get(commandlet, ()):
+                    names.add(f"{provider_path}.{option}")
+                for option in manifest.commandlet_secret_provider_variables.get(commandlet, ()):
+                    names.add(f"{provider_path}.{option}")
+                for name in default_names:
+                    names.add(f"{scope}.{name}")
+        return sorted(names)
 
     def completion_meta(self, candidate: str, line: str, prefix: str) -> str:
         """Return prompt-toolkit metadata for runtime entity completions."""
@@ -506,3 +545,19 @@ class CoreCompleter:
             if row["pipeline_id"] == serial:
                 return f"serial={serial} artifacts={artifacts} runs={row['runs']} events={row['events']}"
         return ""
+
+
+def filesystem_default_names(plugin_dir: Path) -> set[str]:
+    """Return default variable names from a local filesystem plugin package."""
+    for filename in ("defaults.toml", "defaults.json"):
+        path = plugin_dir / filename
+        if not path.exists():
+            continue
+        try:
+            data = load_data_file(path)
+        except (OSError, ValueError):
+            return set()
+        values = data.get("defaults", data)
+        if isinstance(values, dict):
+            return {str(key) for key in values if isinstance(key, str)}
+    return set()

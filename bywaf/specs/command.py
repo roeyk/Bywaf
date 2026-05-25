@@ -60,3 +60,5 @@ class CommandSpec:
     consumes: tuple[str, ...] = ()
     emits: tuple[str, ...] = ()
     capabilities: tuple[str, ...] = ()
+    provider_variables: tuple[str, ...] = ()
+    secret_provider_variables: tuple[str, ...] = ()

@@ -53,18 +53,20 @@ class ScopedVarStore:
     this API.
     """
 
-    __slots__ = ("__store", "scope", "provider_scope", "__run_values")
+    __slots__ = ("__store", "scope", "provider_scope", "__provider_variables", "__run_values")
 
     def __init__(
         self,
         store: VarStore,
         scope: str,
         provider_scope: str | None = None,
+        provider_variables: set[str] | frozenset[str] | None = None,
         run_values: dict[str, str] | None = None,
     ) -> None:
         self.__store = store
         self.scope = scope
         self.provider_scope = provider_scope or provider_scope_for(scope)
+        self.__provider_variables = frozenset(provider_variables or ())
         self.__run_values = run_values or {}
 
     def get(self, key: str, default: str | None = None) -> str | None:
@@ -87,11 +89,9 @@ class ScopedVarStore:
 
     def get_provider(self, key: str, default: str | None = None) -> str | None:
         """Read an explicitly provider-scoped variable such as `http/repo.proxy`."""
-        return self.get_provider_at(self.provider_scope, key, default)
-
-    def get_provider_at(self, provider_scope: str, key: str, default: str | None = None) -> str | None:
-        """Read a variable from an explicit provider path such as `cloud/aws.region`."""
-        scoped = provider_scoped_key(provider_scope, key)
+        if key not in self.__provider_variables:
+            raise PermissionError(f"provider variable not declared for this commandlet: {key}")
+        scoped = provider_scoped_key(self.provider_scope, key)
         if scoped in self.__run_values:
             return self.__run_values[scoped]
         return self.__store.get(scoped, default)

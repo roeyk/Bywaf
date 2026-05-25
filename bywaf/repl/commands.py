@@ -301,24 +301,27 @@ def handle_plugin_command(runner: Runner, state: ShellState, rest: str | None, l
     """Load filesystem plugins."""
     del line
     if rest is None:
-        print("usage: plugin load=<path> [--force] [--use[=<commandlet>]]")
+        print("usage: plugin load=<path> [path=<catalog/path>] [--force] [--use[=<commandlet>]]")
         return None
     tokens = shlex.split(rest)
     forced = "--force" in tokens
     plugin_value = ""
+    catalog_path: str | None = None
     use_target: str | None = None
     for token in tokens:
         key, value = parse_resource_assignment(token)
         if key == "load":
             plugin_value = value
+        elif key == "path":
+            catalog_path = value
         elif key == "--use":
             use_target = value or ""
         elif token == "--use":
             use_target = ""
     if not plugin_value:
-        print("usage: plugin load=<path> [--force] [--use[=<commandlet>]]")
+        print("usage: plugin load=<path> [path=<catalog/path>] [--force] [--use[=<commandlet>]]")
         return None
-    commandlets = load_plugin_resource(runner, state, plugin_value, forced)
+    commandlets = load_plugin_resource(runner, state, plugin_value, forced, catalog_path=catalog_path)
     maybe_use_loaded_commandlet(runner, state, commandlets, use_target)
     return None
 
@@ -327,10 +330,11 @@ def handle_pload_command(runner: Runner, state: ShellState, rest: str | None, li
     """Short alias for loading filesystem plugins."""
     del line
     if rest is None:
-        print("usage: pload <path> [--force] [--use[=<commandlet>]]")
+        print("usage: pload <path> [path=<catalog/path>] [--force] [--use[=<commandlet>]]")
         return None
     tokens = shlex.split(rest)
     forced = "--force" in tokens
+    catalog_path: str | None = None
     use_target: str | None = None
     paths: list[str] = []
     for token in tokens:
@@ -343,11 +347,14 @@ def handle_pload_command(runner: Runner, state: ShellState, rest: str | None, li
         if key == "--use":
             use_target = value or ""
             continue
+        if key == "path":
+            catalog_path = value
+            continue
         paths.append(token)
     if len(paths) != 1:
-        print("usage: pload <path> [--force] [--use[=<commandlet>]]")
+        print("usage: pload <path> [path=<catalog/path>] [--force] [--use[=<commandlet>]]")
         return None
-    commandlets = load_plugin_resource(runner, state, paths[0], forced)
+    commandlets = load_plugin_resource(runner, state, paths[0], forced, catalog_path=catalog_path)
     maybe_use_loaded_commandlet(runner, state, commandlets, use_target)
     return None
 
@@ -607,7 +614,14 @@ def set_active_context(runner: Runner, state: ShellState, target: str) -> None:
         print("using global")
         return
     if not runner.registry.has_commandlet(target):
-        raise ValueError(f"unknown commandlet context: {target}")
+        default = runner.registry.provider_default(target)
+        if default is None:
+            commandlets = runner.registry.provider_commandlet_names(target)
+            if commandlets:
+                choices = ", ".join(commandlets)
+                raise ValueError(f"{target} exposes multiple commandlets; choose one: {choices}")
+            raise ValueError(f"unknown commandlet context: {target}")
+        target = default
     commandlet = runner.registry.variable_scope(target)
     state.active_context = commandlet
     if state.completer is not None:

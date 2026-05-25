@@ -115,6 +115,8 @@ def catalog_commandlet_entries(commandlet_rows: list[Any], manifest_path: Path) 
                 "name": required_string(row, "name", manifest_path, context),
                 "capabilities": list(string_list_value(row, "capabilities", manifest_path, context)),
                 "secret_options": list(string_list_value(row, "secret_options", manifest_path, context)),
+                "provider_variables": list(string_list_value(row, "provider_variables", manifest_path, context)),
+                "secret_provider_variables": list(string_list_value(row, "secret_provider_variables", manifest_path, context)),
             }
         )
     return rows

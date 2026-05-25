@@ -712,6 +712,31 @@ class RegistryCompletionTests(unittest.TestCase):
         completer = Completer(self.registry)
         self.assertEqual(completer.candidates("plugin lo"), ["load="])
         self.assertEqual(completer.candidates("plugin load --f"), ["--force"])
+        self.assertIn("path=", completer.candidates("plugin load "))
+
+    def test_set_completion_reads_unloaded_catalog_manifest_variables(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = Path(tmp, ".bywaf", "plugins", "cloud", "aws", "s3", "public_bucket")
+            plugin_dir.mkdir(parents=True)
+            (plugin_dir / "bywaf.plugin.toml").write_text(
+                "[[commandlets]]\n"
+                'name = "check"\n'
+                "capabilities = []\n"
+                'secret_options = ["token"]\n'
+                'provider_variables = ["proxy"]\n'
+            )
+            (plugin_dir / "defaults.toml").write_text("[defaults]\ntimeout = \"5\"\n")
+            cwd = Path.cwd()
+            try:
+                os.chdir(tmp)
+                completer = Completer(self.registry)
+                candidates = completer.candidates("set cloud/aws/s3/public_bucket/check.")
+                provider_candidates = completer.candidates("set cloud/aws/s3/public_bucket.")
+            finally:
+                os.chdir(cwd)
+            self.assertIn("cloud/aws/s3/public_bucket/check.timeout=", candidates)
+            self.assertIn("cloud/aws/s3/public_bucket/check.token=", candidates)
+            self.assertIn("cloud/aws/s3/public_bucket.proxy=", provider_candidates)
 
     def test_domain_resource_keywords_complete_from_prefix(self):
         completer = Completer(self.registry)
@@ -1206,6 +1231,32 @@ class RegistryCompletionTests(unittest.TestCase):
             config.write_text('default_plugins = ["scanners/example"]\n')
 
             with self.assertRaisesRegex(ValueError, "secret_options mismatch"):
+                PluginRegistry.from_config(root, config, forced=True)
+
+    def test_filesystem_manifest_rejects_provider_variable_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp, "plugins")
+            plugin_dir = root / "scanners" / "example"
+            plugin_dir.mkdir(parents=True)
+            (plugin_dir / "plugin.py").write_text(
+                "from bywaf.plugin import CommandSpec\n"
+                "class Example:\n"
+                "    spec = CommandSpec('example', 'example plugin', provider_variables=('proxy',))\n"
+                "    def run(self, context, args, input_events):\n"
+                "        yield {'ok': True}\n"
+                "def plugin():\n"
+                "    return Example()\n"
+            )
+            (plugin_dir / "bywaf.plugin.toml").write_text(
+                "[[commandlets]]\n"
+                'name = "example"\n'
+                "capabilities = []\n"
+                "provider_variables = []\n"
+            )
+            config = Path(tmp, "plugins.toml")
+            config.write_text('default_plugins = ["scanners/example"]\n')
+
+            with self.assertRaisesRegex(ValueError, "provider_variables mismatch"):
                 PluginRegistry.from_config(root, config, forced=True)
 
     def test_bundled_watchdog_manifest_declares_trigger_metadata(self):

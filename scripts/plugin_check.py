@@ -80,7 +80,7 @@ def check_plugin(
             return report
         report["manifest_signature"] = "verified"
     try:
-        plugins, triggers = load_filesystem_plugin_package(
+        plugins, triggers, _manifest = load_filesystem_plugin_package(
             plugin_dir,
             manifest_trust=PluginManifestTrust(public_key_path=manifest_key, catalog_verified=manifest_key is None),
         )

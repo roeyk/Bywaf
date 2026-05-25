@@ -27,19 +27,22 @@ DEFAULT_CONFIG_DIR = DEFAULT_SETTINGS.config_dir
 DEFAULT_LOAD_RESOURCE_KEYS: set[str] = set()
 
 
-def parse_load_spec(spec: str) -> tuple[bool, str]:
+def parse_load_spec(spec: str) -> tuple[bool, str, str | None]:
     """Parse built-in load options while keeping resource syntax consistent."""
     tokens = shlex.split(spec)
     forced = False
+    catalog_path: str | None = None
     resource_tokens: list[str] = []
     for token in tokens:
         if token == "--force":
             forced = True
+        elif token.startswith("path="):
+            catalog_path = token.split("=", 1)[1]
         else:
             resource_tokens.append(token)
     if len(resource_tokens) != 1:
-        raise ValueError("usage: plugin load=<path> [--force]")
-    return forced, resource_tokens[0]
+        raise ValueError("usage: plugin load=<path> [path=<catalog/path>] [--force]")
+    return forced, resource_tokens[0], catalog_path
 
 
 DEFAULT_SAVE_RESOURCE_KEYS: set[str] = set()

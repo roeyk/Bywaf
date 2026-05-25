@@ -34,6 +34,9 @@ class PluginManifest:
     triggers: tuple[TriggerSpec, ...] = ()
     commandlet_capabilities: dict[str, tuple[str, ...]] = field(default_factory=dict)
     commandlet_secret_options: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    commandlet_provider_variables: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    commandlet_secret_provider_variables: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    default_commandlet: str | None = None
     library_backed: bool = False
     process_wrapped: bool = False
     service: bool = False
@@ -51,7 +54,7 @@ def load_filesystem_plugin_package(
     *,
     trust_policy: PluginTrustPolicy | None = None,
     manifest_trust: PluginManifestTrust | None = None,
-) -> tuple[tuple[Commandlet, ...], tuple[TriggerSpec, ...]]:
+) -> tuple[tuple[Commandlet, ...], tuple[TriggerSpec, ...], PluginManifest]:
     """Load filesystem commandlets and provider-owned trigger specs."""
     manifest_path = plugin_dir / "bywaf.plugin.toml"
     if not manifest_path.exists():
@@ -61,7 +64,7 @@ def load_filesystem_plugin_package(
     module = load_module_path(plugin_dir / "plugin.py")
     plugins = enforce_plugin_manifest(manifest, load_plugins(module), manifest_path)
     triggers = enforce_trigger_manifest(manifest, load_trigger_specs(module), manifest_path)
-    return plugins, triggers
+    return plugins, triggers, manifest
 
 
 def parse_plugin_manifest(path: Path) -> PluginManifest:
@@ -78,6 +81,8 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
     commandlets: set[str] = set()
     commandlet_capabilities: dict[str, tuple[str, ...]] = {}
     commandlet_secret_options: dict[str, tuple[str, ...]] = {}
+    commandlet_provider_variables: dict[str, tuple[str, ...]] = {}
+    commandlet_secret_provider_variables: dict[str, tuple[str, ...]] = {}
     for index, row in enumerate(commandlet_rows, start=1):
         if not isinstance(row, dict):
             raise ValueError(f"{source} commandlets entry {index} must be a table")
@@ -88,6 +93,8 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
         context = f"commandlets entry {index}"
         commandlet_capabilities[name] = string_list_field(row, "capabilities", source, context)
         commandlet_secret_options[name] = string_list_field(row, "secret_options", source, context)
+        commandlet_provider_variables[name] = string_list_field(row, "provider_variables", source, context)
+        commandlet_secret_provider_variables[name] = string_list_field(row, "secret_provider_variables", source, context)
     library_backed = bool_field(plugin_data, "library_backed", source, "plugin")
     process_wrapped = bool_field(plugin_data, "process_wrapped", source, "plugin")
     service = bool_field(plugin_data, "service", source, "plugin")
@@ -95,12 +102,18 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
     if native and (library_backed or process_wrapped):
         raise ValueError(f"{source} native=true conflicts with library_backed or process_wrapped")
     roles = string_list_field(plugin_data, "roles", source, "plugin")
+    default_commandlet = optional_string_field(plugin_data, "default_commandlet", source, "plugin")
+    if default_commandlet is not None and default_commandlet not in commandlets:
+        raise ValueError(f"{source} plugin.default_commandlet must name a declared commandlet")
     triggers = parse_trigger_rows(data.get("triggers", []), source)
     return PluginManifest(
         commandlets=frozenset(commandlets),
         triggers=triggers,
         commandlet_capabilities=commandlet_capabilities,
         commandlet_secret_options=commandlet_secret_options,
+        commandlet_provider_variables=commandlet_provider_variables,
+        commandlet_secret_provider_variables=commandlet_secret_provider_variables,
+        default_commandlet=default_commandlet,
         library_backed=library_backed,
         process_wrapped=process_wrapped,
         service=service,
@@ -218,6 +231,28 @@ def enforce_plugin_manifest(
             if stale_options:
                 details.append(f"stale {', '.join(stale_options)}")
             raise ValueError(f"{path} secret_options mismatch for {name}: {'; '.join(details)}")
+        manifest_provider_vars = set(manifest.commandlet_provider_variables.get(name, ()))
+        code_provider_vars = set(by_name[name].spec.provider_variables)
+        if manifest_provider_vars != code_provider_vars:
+            missing_provider_vars = sorted(code_provider_vars.difference(manifest_provider_vars))
+            stale_provider_vars = sorted(manifest_provider_vars.difference(code_provider_vars))
+            details = []
+            if missing_provider_vars:
+                details.append(f"missing {', '.join(missing_provider_vars)}")
+            if stale_provider_vars:
+                details.append(f"stale {', '.join(stale_provider_vars)}")
+            raise ValueError(f"{path} provider_variables mismatch for {name}: {'; '.join(details)}")
+        manifest_secret_provider_vars = set(manifest.commandlet_secret_provider_variables.get(name, ()))
+        code_secret_provider_vars = set(by_name[name].spec.secret_provider_variables)
+        if manifest_secret_provider_vars != code_secret_provider_vars:
+            missing_secret_provider_vars = sorted(code_secret_provider_vars.difference(manifest_secret_provider_vars))
+            stale_secret_provider_vars = sorted(manifest_secret_provider_vars.difference(code_secret_provider_vars))
+            details = []
+            if missing_secret_provider_vars:
+                details.append(f"missing {', '.join(missing_secret_provider_vars)}")
+            if stale_secret_provider_vars:
+                details.append(f"stale {', '.join(stale_secret_provider_vars)}")
+            raise ValueError(f"{path} secret_provider_variables mismatch for {name}: {'; '.join(details)}")
     return tuple(by_name[name] for name in sorted(manifest.commandlets))
 
 

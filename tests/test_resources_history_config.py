@@ -409,6 +409,41 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
                 dispatch_repl_line(runner, f"plugin load={plugin_dir} --force --use=second", state)
             self.assertEqual(state.active_context, "multi/second")
 
+    def test_plugin_load_path_places_provider_in_catalog(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            plugin_dir = write_simple_external_plugin(Path(tmp), "example")
+            with contextlib.redirect_stdout(io.StringIO()):
+                dispatch_repl_line(runner, f"plugin load={plugin_dir} path=lab/tools --force", state)
+                dispatch_repl_line(runner, "use lab/tools/example", state)
+            self.assertEqual(state.active_context, "lab/tools/example")
+            self.assertTrue(runner.registry.has_commandlet("lab/tools/example"))
+
+    def test_use_provider_selects_manifest_default_commandlet(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            plugin_dir = write_multi_external_plugin(Path(tmp), default_commandlet="second")
+            with contextlib.redirect_stdout(io.StringIO()):
+                dispatch_repl_line(runner, f"plugin load={plugin_dir} path=lab/multi --force", state)
+                dispatch_repl_line(runner, "use lab/multi", state)
+            self.assertEqual(state.active_context, "lab/multi/second")
+
+    def test_use_provider_without_default_lists_choices(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            plugin_dir = write_multi_external_plugin(Path(tmp))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, f"plugin load={plugin_dir} path=lab/multi --force", state)
+                dispatch_repl_line(runner, "use lab/multi", state)
+            self.assertIsNone(state.active_context)
+            self.assertIn("lab/multi exposes multiple commandlets", output.getvalue())
+            self.assertIn("first", output.getvalue())
+            self.assertIn("second", output.getvalue())
+
     def test_use_accepts_provider_qualified_commandlet_alias(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -741,7 +776,7 @@ def write_simple_external_plugin(root: Path, name: str) -> Path:
     return plugin_dir
 
 
-def write_multi_external_plugin(root: Path) -> Path:
+def write_multi_external_plugin(root: Path, *, default_commandlet: str | None = None) -> Path:
     plugin_dir = root / "multi"
     plugin_dir.mkdir()
     (plugin_dir / "plugin.py").write_text(
@@ -757,7 +792,9 @@ def write_multi_external_plugin(root: Path) -> Path:
         "def plugins():\n"
         "    return (First(), Second())\n"
     )
+    plugin_table = "[plugin]\n" + (f'default_commandlet = "{default_commandlet}"\n\n' if default_commandlet else "\n")
     (plugin_dir / "bywaf.plugin.toml").write_text(
+        plugin_table +
         "[[commandlets]]\n"
         'name = "first"\n'
         "capabilities = []\n\n"

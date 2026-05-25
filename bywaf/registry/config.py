@@ -68,8 +68,23 @@ def parse_package_plugin_config(package_name: str, config_name: str) -> list[str
 
 
 def provider_name(entry: str) -> str:
-    """Derive provider name from a dotted plugin config entry."""
-    return entry.split(".", 1)[0] if "." in entry else entry
+    """Derive top-level provider name from a dotted or slash catalog entry."""
+    normalized = normalize_catalog_path(entry)
+    return normalized.split("/", 1)[0]
+
+
+def normalize_catalog_path(path: str) -> str:
+    """Return a slash-delimited catalog path from dotted package or slash input."""
+    normalized = path.replace(".", "/")
+    parts = normalized.split("/")
+    if (
+        not normalized
+        or normalized.startswith("/")
+        or normalized.endswith("/")
+        or any(part in {"", ".", ".."} for part in parts)
+    ):
+        raise ValueError(f"invalid catalog path: {path}")
+    return normalized
 
 
 def first_existing(*paths: Path) -> Path | None:
