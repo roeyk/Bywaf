@@ -17,10 +17,10 @@ def missing_security_header_candidates(result: HeaderProbeResult) -> list[dict[s
         candidates.append(
             candidate_payload(
                 title="Missing HTTP Strict Transport Security",
-                finding_class="missing-hsts",
+                finding_class="web.header.missing_hsts",
                 severity="medium",
                 confidence="medium",
-                finding_scope="application",
+                finding_scope="web_origin",
                 target={"scheme": scheme, "host": target.host, "port": str(target.port), "path": "/"},
                 identifiers={"cwe": ["CWE-319"]},
                 affected=[{"url": f"{scheme}://{target.host}:{target.port}/"}],
@@ -33,10 +33,10 @@ def missing_security_header_candidates(result: HeaderProbeResult) -> list[dict[s
         candidates.append(
             candidate_payload(
                 title="Missing X-Content-Type-Options",
-                finding_class="missing-x-content-type-options",
+                finding_class="web.header.missing_x_content_type_options",
                 severity="low",
                 confidence="medium",
-                finding_scope="application",
+                finding_scope="web_origin",
                 target={"scheme": scheme, "host": target.host, "port": str(target.port), "path": "/"},
                 identifiers={},
                 affected=[{"url": f"{scheme}://{target.host}:{target.port}/"}],

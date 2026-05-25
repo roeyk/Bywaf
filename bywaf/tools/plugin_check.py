@@ -235,6 +235,7 @@ class CapabilityVisitor(ast.NodeVisitor):
                     "evidence",
                     "affected",
                     "finding_scope",
+                    "target_scope",
                     "group_key",
                     "recommendation",
                     "identifiers",

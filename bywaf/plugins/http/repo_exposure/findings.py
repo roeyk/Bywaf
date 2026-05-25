@@ -34,10 +34,10 @@ def candidate_from_detection(result: GitConfigProbeResult, *, source_tool: str =
         return None
     return candidate_payload(
         title="Exposed Git repository configuration",
-        finding_class="source-repository-metadata-exposure.git-config",
+        finding_class="web.exposure.git_config",
         severity="high",
         confidence="high",
-        finding_scope="endpoint",
+        finding_scope="web_origin",
         target={
             "scheme": result.scheme,
             "host": result.host,

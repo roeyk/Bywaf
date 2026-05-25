@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from bywaf.events import Event
+from bywaf.finding_grouping import finding_group_key as derive_finding_group_key
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet, option
 from bywaf.plugins._args import key_value_to_long_options
 from bywaf.plugins.analysis.finding_report import REPORT_FINDING_TOPICS, finding_rows, findings_table
@@ -276,12 +277,9 @@ def group_finding_events(events: list[Event]) -> list[FindingGroup]:
 def finding_group_key(event: Event) -> str:
     """Return the stable grouping key for one finding event."""
     payload = effective_finding_payload(event)
-    group_key = str(payload.get("group_key") or "")
-    if group_key:
-        return group_key
-    finding_id = str(payload.get("finding_id") or "")
-    if finding_id:
-        return finding_id
+    key = derive_finding_group_key(payload, fallback="")
+    if key:
+        return key
     if event.id is not None:
         return f"event:{event.id}"
     return f"event:{id(event)}"

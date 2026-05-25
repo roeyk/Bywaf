@@ -70,7 +70,7 @@ class ReportTests(unittest.TestCase):
                     "title": "Telnet service exposed",
                     "target": {"host": "192.0.2.10", "port": "23"},
                     "severity": "medium",
-                    "class": "insecure-cleartext-management",
+                    "class": "service.telnet.exposed",
                 },
                 "portscanner",
                 pipeline_id="pipeline-a",
@@ -170,6 +170,57 @@ class ReportTests(unittest.TestCase):
             rendered = runner.db.events_for_topic("report.rendered")[0]
             self.assertEqual(rendered.payload["events"], [first.id, second.id])
             self.assertEqual(rendered.payload["groups"], ["service|CVE-2026-1234|192.0.2.10|443|tcp"])
+            self.assertEqual(rendered.payload["rows"], 1)
+
+    def test_report_derives_group_key_from_class_scope_and_cve(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            first = runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "finding-page-1",
+                    "class": "web.xss.reflected",
+                    "title": "Example web CVE",
+                    "target_scope": {"kind": "web_origin", "value": "https://example.test"},
+                    "target": {"scheme": "https", "host": "example.test", "path": "/page1"},
+                    "identifiers": {"cve": ["CVE-2026-1234"]},
+                    "affected": [{"url": "https://example.test/page1"}],
+                    "severity": "high",
+                },
+                "web_cve_check",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+            second = runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "finding-page-2",
+                    "class": "web.xss.reflected",
+                    "title": "Example web CVE",
+                    "target_scope": {"kind": "web_origin", "value": "https://example.test"},
+                    "target": {"scheme": "https", "host": "example.test", "path": "/admin"},
+                    "identifiers": {"cve": ["CVE-2026-1234"]},
+                    "affected": [{"url": "https://example.test/admin"}],
+                    "severity": "high",
+                },
+                "web_cve_check",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report pipeline=pipeline-a")
+                process_framework_requests(runner, ShellState())
+
+            text = output.getvalue()
+            self.assertIn("Report scope: pipeline=pipeline-a (1 finding group, 2 events)", text)
+            rendered = runner.db.events_for_topic("report.rendered")[0]
+            self.assertEqual(rendered.payload["events"], [first.id, second.id])
+            self.assertEqual(
+                rendered.payload["groups"],
+                ["web.xss.reflected|web_origin:https://example.test|cve:CVE-2026-1234"],
+            )
             self.assertEqual(rendered.payload["rows"], 1)
 
     def test_report_new_uses_latest_completed_pipeline(self):

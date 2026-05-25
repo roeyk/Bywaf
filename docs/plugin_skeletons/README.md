@@ -28,6 +28,9 @@ LLM Guardrails:
 - `confidence`, `severity`, and `status` are separate. Use confidence labels
   like `"low"`, `"medium"`, or `"high"`; do not put `"confirmed"` in
   `confidence`.
+- Finding classes use lowercase dotted Bywaf names such as
+  `web.header.missing_hsts`; external ids such as CVE, CWE, OWASP, GHSA, and
+  vendor advisories go in `identifiers`.
 - Boolean-style `@option` metadata must include an explicit string default and
   choices, such as `@option("confirm", "perform confirmation", "false",
   ("true", "false"))`. Put `action="store_true"` or other argparse mechanics in
@@ -47,9 +50,10 @@ from bywaf.findings import candidate_payload
 
 payload = candidate_payload(
     title="Missing Strict Transport Security",
-    finding_class="missing-hsts",
+    finding_class="web.header.missing_hsts",
     severity="medium",
     confidence="medium",
+    finding_scope="web_origin",
     target={"scheme": "https", "host": "example.test", "port": "443", "path": "/"},
     identifiers={"cwe": ["CWE-319"]},
     evidence="https://example.test/ did not return Strict-Transport-Security.",

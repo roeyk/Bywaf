@@ -25,10 +25,10 @@ def telnet_open_candidate(port_payload: dict[str, Any]) -> dict[str, Any] | None
         evidence = f"{host}:{port}/{protocol} is open on the default Telnet port; confirm service identity."
     return candidate_payload(
         title="Telnet service exposed",
-        finding_class="insecure-cleartext-management",
+        finding_class="service.telnet.exposed",
         severity="medium",
         confidence=confidence,
-        finding_scope="service",
+        finding_scope="host_port",
         target={"host": host, "port": port, "protocol": protocol, "service": service or "telnet"},
         identifiers={},
         affected=[{"host": host, "port": port, "protocol": protocol}],

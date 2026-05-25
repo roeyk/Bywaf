@@ -5,6 +5,7 @@
 - [Purpose](#purpose)
 - [Facts, Candidates, And Findings](#facts-candidates-and-findings)
 - [Finding Payload](#finding-payload)
+- [Finding Classes](#finding-classes)
 - [Finding Grouping](#finding-grouping)
 - [Promotion And Deduplication](#promotion-and-deduplication)
 - [Report Command](#report-command)
@@ -49,9 +50,10 @@ The current normalized finding payload is intentionally small:
 | `status` | Current state such as `new`, `updated`, or future review states. |
 | `confidence` | Numeric confidence score when known. |
 | `severity` | Severity label such as `info`, `low`, `medium`, `high`, or `critical`. |
-| `class` | Finding class, vulnerability class, or scanner category. |
+| `class` | Bywaf finding class used for reporting and grouping, such as `web.header.missing_hsts`. |
 | `title` | Operator-facing finding title. |
-| `finding_scope` | Semantic scope for grouping, such as `host`, `service`, `application`, `endpoint`, or `cloud_resource`. |
+| `finding_scope` | Convenience scope name for deriving `target_scope`, such as `host`, `host_port`, `service`, `web_origin`, `web_app`, `web_route`, or `cloud_resource`. |
+| `target_scope` | Preferred explicit grouping scope, such as `{"kind": "web_origin", "value": "https://example.test"}`. |
 | `target` | Target identity, commonly host/port/path/scheme fields. |
 | `identifiers` | CVE, CWE, GHSA, vendor IDs, or other stable identifiers. |
 | `affected` | Specific affected locations or instances, such as URLs, paths, object names, or evidence references. |
@@ -62,6 +64,37 @@ The current normalized finding payload is intentionally small:
 Commandlets may emit richer fact payloads. The normalized finding layer keeps a
 stable subset so reporting does not depend on every tool's native schema.
 
+## Finding Classes
+
+Bywaf uses a small dot-separated finding class taxonomy for report grouping,
+triage, and developer familiarity. It is not a replacement for established
+taxonomies. CVEs, GHSAs, CWEs, OWASP categories, CAPEC ids, and vendor advisory
+ids belong in `identifiers`; `class` says what kind of thing Bywaf should group
+and render.
+
+Finding classes use lowercase dotted names:
+
+```text
+<domain>.<category>.<specific_issue>
+```
+
+Starter examples:
+
+| Class | Typical external identifiers |
+| --- | --- |
+| `web.header.missing_hsts` | `CWE-319`, OWASP `A02:2021` |
+| `web.header.missing_x_content_type_options` | `CWE-693`, OWASP `A05:2021` |
+| `web.exposure.git_config` | `CWE-538`, OWASP `A05:2021` |
+| `web.xss.reflected` | `CWE-79`, OWASP `A03:2021` |
+| `service.telnet.exposed` | `CWE-319`, OWASP `A02:2021` |
+| `service.tls.weak_protocol` | `CWE-327`, OWASP `A02:2021` |
+| `cloud.aws.s3.public_bucket` | `CWE-284`, OWASP `A01:2021` |
+| `repo.secret.api_key` | `CWE-798`, OWASP `A02:2021` |
+
+Prefer an existing class when one fits. If not, add the narrowest dotted class
+that describes the detector's behavior and put familiar external taxonomy ids
+under `identifiers`.
+
 ## Finding Grouping
 
 Grouping answers: "which finding events represent the same logical finding?"
@@ -69,14 +102,17 @@ Grouping answers: "which finding events represent the same logical finding?"
 The detector or plugin is responsible for deciding the finding's semantic
 scope. The framework should not guess whether a CVE is host-wide, service-wide,
 application-wide, endpoint-specific, or cloud-resource-specific from a URL
-alone. The plugin should encode that decision in `finding_scope`, `target`, and
-optionally `group_key`.
+alone. The plugin should encode that decision in `target_scope`, or in
+`finding_scope` plus `target` when the conventional derivation is enough.
 
 Report grouping is intentionally mechanical:
 
 1. Use `group_key` when present.
-2. Otherwise use `finding_id`.
-3. Otherwise fall back to the individual event id.
+2. Otherwise derive a key from `class`, `target_scope`, and the highest-priority
+   external identifier: `cve`, `ghsa`, `vendor`, `cwe`, `owasp`, then `capec`.
+3. Otherwise derive a key from `class` and `target_scope`.
+4. Otherwise use `finding_id`.
+5. Otherwise fall back to the individual event id.
 
 This keeps domain knowledge close to the detector while keeping the reporting
 layer consistent.
@@ -86,21 +122,23 @@ Recommended scopes:
 | Scope | Use when | Grouping target should usually include |
 | --- | --- | --- |
 | `host` | The risk applies to a host regardless of service. | IP or stable hostname. |
+| `host_port` | The risk applies to a host/port pair without deeper service identity. | IP/host, port, and protocol. |
 | `service` | The risk applies to one network service. | IP/host, port, protocol, and sometimes scheme. |
-| `application` | The risk applies to one web app or virtual host. | Scheme, vhost/host, port, and app identity when known. |
-| `endpoint` | The risk is tied to one URL/path or route. | Scheme, host, port, normalized path, and relevant parameters. |
+| `web_origin` | The risk applies to one web origin or virtual host. | Scheme, host, and non-default port. |
+| `web_app` | The risk applies to one web app below an origin. | Scheme, host, non-default port, and app/base path. |
+| `web_route` | The risk is tied to one URL/path or route. | Scheme, host, non-default port, normalized path, and relevant parameters. |
 | `cloud_resource` | The risk applies to one cloud object. | Provider, account/project, region, resource type, resource id/name. |
 
 For CVE-oriented findings, the natural grouping is usually:
 
 ```text
-finding_scope + normalized target at that scope + CVE/GHSA/vendor id
+class + target_scope + CVE/GHSA/vendor id
 ```
 
 For findings without a CVE, use the finding class instead of the CVE:
 
 ```text
-finding_scope + normalized target at that scope + finding class
+class + target_scope
 ```
 
 ### Multi-Page Same-CVE Example
@@ -115,20 +153,18 @@ https://example.test/login
 
 If the vulnerability is really service-wide or application-wide, these should
 be one report finding with multiple affected locations, not three unrelated
-findings. The plugin should emit each observation with the same semantic
-grouping key:
+findings. The plugin should emit each observation with the same `target_scope`
+and CVE:
 
 ```json
 {
-  "finding_scope": "service",
-  "group_key": "service|CVE-2026-1234|192.0.2.10|443|tcp",
+  "class": "web.xss.reflected",
+  "target_scope": {"kind": "web_origin", "value": "https://example.test"},
   "identifiers": {"cve": ["CVE-2026-1234"]},
   "target": {
-    "ip": "192.0.2.10",
-    "port": "443",
-    "protocol": "tcp",
     "scheme": "https",
-    "host": "example.test"
+    "host": "example.test",
+    "path": "/admin"
   },
   "affected": [
     {"url": "https://example.test/admin"}
@@ -136,12 +172,19 @@ grouping key:
 }
 ```
 
-The report layer groups events with that `group_key` and can render one logical
-finding. The `affected` entries remain as evidence or affected locations under
-that group.
+The report layer derives this group key:
+
+```text
+web.xss.reflected|web_origin:https://example.test|cve:CVE-2026-1234
+```
+
+It can render one logical finding while preserving each `affected` entry as an
+affected location or evidence item under that group. A plugin may still provide
+an explicit `group_key` when its domain logic cannot be represented by the
+standard class/scope/identifier model.
 
 If the vulnerability is endpoint-specific, such as reflected XSS at a
-particular route, use `finding_scope="endpoint"` and include the normalized path
+particular route, use `target_scope.kind="web_route"` and include the normalized path
 in the grouping identity. In that case `/admin` and `/login` should usually be
 separate findings.
 

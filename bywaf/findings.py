@@ -14,6 +14,10 @@ import hashlib
 import json
 from typing import Any
 
+from .finding_grouping import finding_group_key as derived_finding_group_key
+from .finding_grouping import normalized_target_scope
+from .finding_taxonomy import validate_finding_class
+
 
 def candidate_payload(
     *,
@@ -27,10 +31,12 @@ def candidate_payload(
     identifiers: dict[str, list[str]] | None = None,
     source: dict[str, Any] | None = None,
     finding_scope: str = "",
+    target_scope: dict[str, Any] | None = None,
     affected: list[dict[str, Any]] | None = None,
     group_key: str = "",
 ) -> dict[str, Any]:
     """Return a normalized finding candidate payload."""
+    finding_class = validate_finding_class(finding_class)
     payload = {
         "status": "potential",
         "confidence": confidence,
@@ -38,6 +44,7 @@ def candidate_payload(
         "class": finding_class,
         "title": title,
         "finding_scope": finding_scope,
+        "target_scope": compact(target_scope or {}),
         "target": compact(target),
         "identifiers": identifiers or {},
         "affected": [compact(item) for item in affected or []],
@@ -46,6 +53,12 @@ def candidate_payload(
         "recommendation": recommendation,
         "sources": [compact(source or {})],
     }
+    if not payload["target_scope"] and finding_scope:
+        derived_scope = normalized_target_scope(payload)
+        if derived_scope:
+            payload["target_scope"] = derived_scope
+    if not payload["group_key"]:
+        payload["group_key"] = derived_finding_group_key(payload, fallback="")
     payload["finding_id"] = stable_finding_id(payload)
     return compact(payload)
 
