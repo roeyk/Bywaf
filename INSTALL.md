@@ -29,10 +29,13 @@ If you want `python` to mean `python3`:
 sudo apt install python-is-python3
 ```
 
-For the bundled network wrappers, install the external tools you intend to use:
+For the bundled network wrappers, install the external tools you intend to use.
+`hostscanner` and `portscanner` need the `nmap` executable plus a supported
+Python binding. On Debian/Ubuntu, use `python3-libnmap` when installing from
+system packages:
 
 ```bash
-sudo apt install nmap nikto kismet
+sudo apt install nmap python3-libnmap nikto kismet
 ```
 
 `eyewitness` packaging varies by distribution; install it from your distro or
@@ -52,10 +55,13 @@ For source checkout development:
 sudo dnf install python3 python3-pip python3-prompt-toolkit
 ```
 
-For the bundled network wrappers:
+For the bundled network wrappers, install the external tools you intend to use.
+`hostscanner` and `portscanner` need the `nmap` executable plus a supported
+Python binding. The RPM package recommends `python3-libnmap`; package names can
+vary by distribution:
 
 ```bash
-sudo dnf install nmap nikto kismet
+sudo dnf install nmap python3-libnmap nikto kismet
 ```
 
 Package names for `eyewitness` vary; install it from your distribution or the
@@ -143,6 +149,18 @@ python -m pip install '.[plugins]'
 
 This optional group includes Python libraries for DNS, LDAP, SMB, SSH, SNMP,
 Shodan, and YARA integrations.
+
+Nmap-backed commandlets also require the `nmap` executable plus one supported
+Python binding. If your OS package manager does not provide `python3-libnmap`,
+install one binding in the active virtual environment:
+
+```bash
+python -m pip install python-libnmap
+```
+
+Bywaf's nmap adapter currently recognizes bindings that import as `nmaplib`,
+`nmap`, `nmapthon`, or `libnmap`; `python-libnmap` provides the `libnmap`
+module.
 
 Optional extras are also available for encrypted SQLCipher databases, signing,
 and richer report export support:
