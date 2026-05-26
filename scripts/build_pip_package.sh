@@ -5,6 +5,7 @@ ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 DIST="$ROOT/dist"
 
 mkdir -p "$DIST"
+rm -rf "$ROOT/build" "$ROOT/bywaf.egg-info"
 python3 -m build --no-isolation --sdist --wheel --outdir "$DIST" "$ROOT"
 
 if command -v twine >/dev/null 2>&1; then

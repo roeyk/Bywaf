@@ -3,6 +3,30 @@
 All notable project changes are tracked here. Bywaf is still pre-1.0 software,
 so compatibility may change between testing releases.
 
+## [0.12.0] - 2026-05-26
+
+Last updated: 2026-05-26 17:45:00 EDT
+
+### Added
+
+- Added shared event payload filters for `event`, `jobs`, `pipelines`, and
+  `steps`, including `host=` selectors that match top-level host payloads and
+  common nested target host fields.
+- Added `event ... sort=` support for time, host, protocol, state, topic, and
+  source ordering, with protocol/status aliases for operator-friendly queries.
+- Added `portscanner host=...` as a single-host shortcut, DNS-name resolution
+  provenance through `name.resolved`, and `ports=`/`arguments=` examples for
+  value-bearing commandlet inputs.
+- Added regression coverage for fully-qualified commandlet execution inside an
+  active `use` context and from scripts.
+
+### Changed
+
+- Reused the same event payload matcher across event inspection and runtime
+  list filtering to keep selector behavior consistent.
+- Clarified commandlet input documentation so value-bearing settings use
+  `key=value` while `--flag` remains reserved for boolean switches.
+
 ## [0.11.1] - 2026-05-22
 
 Last updated: 2026-05-22 21:45:00 EDT

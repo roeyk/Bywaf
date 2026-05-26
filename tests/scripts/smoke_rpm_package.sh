@@ -13,6 +13,7 @@ WORKDIR=$(mktemp -d)
 trap 'rm -rf "$WORKDIR"' EXIT
 
 mkdir -p "$WORKDIR/rpmbuild/SOURCES" "$WORKDIR/rpmbuild/SPECS" "$WORKDIR/dist"
+rm -rf "$ROOT/build" "$ROOT/bywaf.egg-info"
 python3 -m build --no-isolation --sdist --outdir "$WORKDIR/dist" "$ROOT"
 cp "$WORKDIR/dist/bywaf-$VERSION.tar.gz" "$WORKDIR/rpmbuild/SOURCES/"
 cp "$ROOT/packaging/rpm/bywaf.spec" "$WORKDIR/rpmbuild/SPECS/"

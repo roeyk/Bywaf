@@ -13,6 +13,7 @@ if ! command -v rpmbuild >/dev/null 2>&1; then
 fi
 
 mkdir -p "$DIST"
+rm -rf "$ROOT/build" "$ROOT/bywaf.egg-info"
 python3 -m build --no-isolation --sdist --outdir "$DIST" "$ROOT"
 
 rm -rf "$TOPDIR"

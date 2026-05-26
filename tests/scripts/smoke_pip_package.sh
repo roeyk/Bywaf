@@ -6,6 +6,7 @@ VERSION=$(python3 -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path(
 WORKDIR=$(mktemp -d)
 trap 'rm -rf "$WORKDIR"' EXIT
 
+rm -rf "$ROOT/build" "$ROOT/bywaf.egg-info"
 python3 -m build --no-isolation --sdist --wheel --outdir "$WORKDIR/dist" "$ROOT"
 if command -v twine >/dev/null 2>&1; then
   twine check "$WORKDIR"/dist/*

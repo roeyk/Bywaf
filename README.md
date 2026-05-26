@@ -67,7 +67,7 @@ For a local pip package build:
 
 ```bash
 scripts/build_pip_package.sh
-python3 -m pip install dist/bywaf-0.11.1-py3-none-any.whl
+python3 -m pip install dist/bywaf-0.12.0-py3-none-any.whl
 bywaf --help
 ```
 
