@@ -11,7 +11,7 @@ Used by:
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Protocol
@@ -25,6 +25,10 @@ class DatabaseCursor(Protocol):
 
     lastrowid: int | None
     rowcount: int
+
+    def __iter__(self) -> Iterator[Any]:
+        """Iterate over result rows, matching sqlite cursor behavior."""
+        ...
 
     def fetchone(self) -> Any | None:
         """Return the next row from the result set."""
@@ -42,8 +46,16 @@ class DatabaseConnection(Protocol):
         """Execute one statement and return a cursor-like object."""
         ...
 
+    def executemany(self, sql: str, parameters: Iterable[Any]) -> DatabaseCursor:
+        """Execute one statement for multiple parameter rows."""
+        ...
+
     def executescript(self, sql_script: str) -> Any:
         """Execute a schema or migration script."""
+        ...
+
+    def backup(self, target: Any) -> None:
+        """Copy this database into another DB-API connection."""
         ...
 
     def close(self) -> None:

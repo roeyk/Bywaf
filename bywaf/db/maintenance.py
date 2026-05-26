@@ -18,7 +18,16 @@ from .support import sql_literal
 
 class EventStoreMaintenanceMixin:
     path: Path
-    passphrase: str | None
+
+    @property
+    def passphrase(self) -> str | None:
+        """Implemented by EventStore."""
+        raise NotImplementedError
+
+    @passphrase.setter
+    def passphrase(self, value: str | None) -> None:
+        """Implemented by EventStore."""
+        raise NotImplementedError
 
     @contextmanager
     def connect(self) -> Iterator[DatabaseConnection]:
@@ -59,7 +68,9 @@ class EventStoreMaintenanceMixin:
     def table_counts(self) -> dict[str, int]:
         """Return row counts for core tables used by `db status`."""
         with self.connect() as conn:
+            events = conn.execute("SELECT COUNT(*) FROM events").fetchone()
+            jobs = conn.execute("SELECT COUNT(*) FROM jobs").fetchone()
             return {
-                "events": int(conn.execute("SELECT COUNT(*) FROM events").fetchone()[0]),
-                "jobs": int(conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]),
+                "events": int(events[0]) if events is not None else 0,
+                "jobs": int(jobs[0]) if jobs is not None else 0,
             }

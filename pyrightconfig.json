@@ -1,0 +1,18 @@
+{
+  "include": ["bywaf", "tests"],
+  "exclude": [
+    "**/__pycache__",
+    ".bywaf",
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
+    "build",
+    "debian",
+    "dist",
+    "htmlcov"
+  ],
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "basic"
+}

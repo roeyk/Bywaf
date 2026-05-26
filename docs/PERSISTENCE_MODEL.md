@@ -8,6 +8,7 @@ contracts so framework code does not depend on SQLite details everywhere.
 
 - [Store Contracts](#store-contracts)
 - [Plugin Boundary](#plugin-boundary)
+- [Backend Interface](#backend-interface)
 - [Backend Direction](#backend-direction)
 
 ## Store Contracts
@@ -63,6 +64,26 @@ maintenance behavior:
 Runtime commandlets should use these role-specific accessors instead of
 `require_db()` unless they truly need raw storage behavior. The storage `db`
 commandlet remains the primary raw maintenance user.
+
+## Backend Interface
+
+`bywaf.db.backends` defines the low-level backend protocols that sit beneath
+the store contracts. `DatabaseBackend` opens configured connections.
+`DatabaseConnection` and `DatabaseCursor` describe only the DB-API behavior the
+store mixins actually use: `execute`, `executemany`, `executescript`, cursor
+iteration, `fetchone`, `fetchall`, `backup`, and `close`.
+
+The boundary is intentionally narrower than `sqlite3.Connection`. Source code
+should avoid importing `sqlite3` outside the SQLite backend, schema migration
+helpers, and export/encryption support. If a call site needs a new database
+operation, add it to the protocol deliberately and document why that operation
+belongs in the common backend contract.
+
+The backend contract is still synchronous and process-local. Multiprocessing is
+preserved by opening short-lived connections per operation; workers do not
+share live connection objects across process boundaries. SQLite remains the
+reference backend and still supplies WAL, busy timeout, SQLCipher setup, schema
+creation, and compatibility migrations.
 
 ## Backend Direction
 

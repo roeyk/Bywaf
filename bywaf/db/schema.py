@@ -11,6 +11,7 @@ Used by:
 from __future__ import annotations
 
 import sqlite3
+from typing import Any
 
 
 SCHEMA = """
@@ -91,7 +92,7 @@ CREATE TABLE IF NOT EXISTS trigger_state (
 """
 
 
-def ensure_event_columns(conn: sqlite3.Connection) -> None:
+def ensure_event_columns(conn: sqlite3.Connection | Any) -> None:
     """Add tables/columns when opening a DB created by an older build."""
     columns = {row["name"] for row in conn.execute("PRAGMA table_info(events)")}
     for name in ("pipeline_id", "command_run_id", "parent_command_run_id"):

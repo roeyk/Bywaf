@@ -26,7 +26,16 @@ class EventStoreProtocol(Protocol):
     """Append-only event bus and audit-log storage."""
 
     path: Path
-    passphrase: str | None
+
+    @property
+    def passphrase(self) -> str | None:
+        """Return the in-memory DB passphrase, when one is active."""
+        ...
+
+    @passphrase.setter
+    def passphrase(self, value: str | None) -> None:
+        """Replace the active DB passphrase after a rekey."""
+        ...
 
     def publish(
         self,
@@ -247,7 +256,11 @@ class ArtifactStoreProtocol(Protocol):
     """Artifact body and provenance storage."""
 
     path: Path
-    passphrase: str | None
+
+    @property
+    def passphrase(self) -> str | None:
+        """Return the in-memory artifact DB passphrase, when active."""
+        ...
 
     def attach_file(
         self,
@@ -316,7 +329,16 @@ class MaintenanceStoreProtocol(Protocol):
     """Database maintenance operations used by privileged framework code."""
 
     path: Path
-    passphrase: str | None
+
+    @property
+    def passphrase(self) -> str | None:
+        """Return the in-memory DB passphrase, when one is active."""
+        ...
+
+    @passphrase.setter
+    def passphrase(self, value: str | None) -> None:
+        """Replace the active DB passphrase after a rekey."""
+        ...
 
     @property
     def encrypted(self) -> bool:

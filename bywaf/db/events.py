@@ -184,7 +184,8 @@ class EventStoreEventMixin:
     def latest_event_id(self) -> int:
         """Return the current highest event id, or zero for an empty DB."""
         with self.connect() as conn:
-            return int(conn.execute("SELECT COALESCE(MAX(id), 0) FROM events").fetchone()[0])
+            row = conn.execute("SELECT COALESCE(MAX(id), 0) FROM events").fetchone()
+            return int(row[0]) if row is not None else 0
 
     def events_matching(
         self,

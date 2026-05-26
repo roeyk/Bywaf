@@ -315,12 +315,12 @@ class EventStoreRuntimeMixin:
                 if row is not None:
                     conn.execute("COMMIT")
                     return int(row["local_id"])
-                next_id = int(
-                    conn.execute(
-                        "SELECT COALESCE(MAX(local_id), 0) + 1 FROM runtime_entities WHERE entity_type = ?",
-                        (entity_type,),
-                    ).fetchone()[0]
+                next_row = conn.execute(
+                    "SELECT COALESCE(MAX(local_id), 0) + 1 FROM runtime_entities WHERE entity_type = ?",
+                    (entity_type,),
                 )
+                fetched = next_row.fetchone()
+                next_id = int(fetched[0]) if fetched is not None else 1
                 conn.execute(
                     """
                     INSERT INTO runtime_entities(entity_type, local_id, serial, created_at)
