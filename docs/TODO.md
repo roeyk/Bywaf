@@ -4,27 +4,20 @@ Planning dates are release planning markers, not compatibility commitments.
 
 ## Current Release
 
-- Bywaf 0.11.1 patch release: 2026-05-22.
-- Release package metadata updated to 0.11.1 across Python, Debian, RPM,
-  README, usage guide, and changelog.
-- Release highlights captured: plugin checker AST inference, capability
-  inventory reporting, manifest generation improvements, and readable
-  plugin/commandlet listings, explicit secret variable assignment, and
-  configurable variable-listing color.
-- Documentation roadmap added at `docs/README.md`; root README and usage guide
-  link to it.
-- Framework surface inventory enumerates base resources, including
-  capabilities, trigger IDs, plugin data topics, and framework audit/control
-  topics with their associated providers, commandlets, producers, consumers,
-  purposes, or effects.
-- Core model documents now include top-of-file hyperlinked document indexes:
-  capability, design, event, framework surface, key management, persistence,
-  runtime, and terminology.
-- Plugin author guide now has a top guide index and explicit trigger-provider
-  examples covering `TriggerSpec`, matching `[[triggers]]` manifest metadata,
-  provider-scoped trigger IDs, lifecycle events, and cursor behavior.
+- Bywaf 0.12.0 testing release: 2026-05-26.
+- Release package metadata updated to 0.12.0 across Python, Debian, README,
+  usage guide, changelog, and release artifacts.
+- Release highlights captured: host filters for `event`, `jobs`, `pipelines`,
+  and `steps`; event sorting; `portscanner host=` DNS resolution provenance;
+  fully-qualified commandlet execution while a provider is in scope; reporting
+  triage actions; database backend protocol typing; and package build metadata
+  cleanup.
+- Installation documentation now has a dedicated `INSTALL.md` with runtime,
+  source checkout, package install, optional plugin dependency, and release
+  package build dependency blocks.
 - Release artifacts rebuilt for pip, Debian, and RPM. Package smoke checks
-  passed for pip, RPM, and filesystem plugin install paths.
+  passed for pip and RPM, and GitHub release artifacts were attached to
+  `v0.12.0`.
 
 ## Target: Next Testing Release
 

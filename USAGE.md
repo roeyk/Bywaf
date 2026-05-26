@@ -41,6 +41,9 @@ Core architectural references:
 
 # Installation
 
+For OS-specific dependency blocks and package-build prerequisites, see
+[INSTALL.md](INSTALL.md). The commands below are a quick summary.
+
 During development, run Bywaf from the repository root:
 
 ```bash
@@ -61,22 +64,36 @@ For a local pip package build:
 
 ```bash
 scripts/build_pip_package.sh
-python3 -m pip install dist/bywaf-0.11.1-py3-none-any.whl
+python3 -m pip install dist/bywaf-0.12.0-py3-none-any.whl
 bywaf --help
 ```
 
-For a local Debian package build, install the Debian build dependencies and
-write artifacts under `dist/deb/`:
+For normal Debian package installation from a release artifact:
+
+```bash
+sudo apt install ./bywaf_0.12.0-1_all.deb
+bywaf --help
+```
+
+For maintainer/development Debian package builds from source, install the
+Debian build dependencies and write artifacts under `dist/deb/`:
 
 ```bash
 sudo apt install debhelper dh-python pybuild-plugin-pyproject python3-all python3-setuptools python3-prompt-toolkit
 scripts/build_deb_package.sh
-sudo apt install dist/deb/bywaf_0.11.1-1_all.deb
+sudo apt install ./dist/deb/bywaf_0.12.0-1_all.deb
 bywaf --help
 ```
 
-For a local RPM package build, install RPM build tooling and write release
-artifacts under `dist/rpm/`:
+For normal RPM package installation from a release artifact:
+
+```bash
+sudo dnf install ./bywaf-0.12.0-1.noarch.rpm
+bywaf --help
+```
+
+For maintainer/development RPM package builds from source, install RPM build
+tooling and write release artifacts under `dist/rpm/`:
 
 ```bash
 sudo apt install rpm python3-build python3-installer
@@ -116,18 +133,21 @@ jobs = session.jobs()
 ```
 
 The host and port scanner commandlets use `nmap` through a Python adapter. A
-local `nmap` binary is required for real scans. The adapter prefers `nmaplib`,
-then `python-nmap`, then `nmapthon`, then `libnmap`.
+local `nmap` binary and a supported Python binding are required for real scans.
+The adapter prefers modules importing as `nmaplib`, then `nmap`, then
+`nmapthon`, then `libnmap`; the `python-libnmap` package provides the
+`libnmap` module.
 
 ## Dependency Summary
 
 ```text
-nmap                       required for hostscanner and portscanner
+nmap                       executable required for hostscanner and portscanner
+python3-libnmap            packaged Python nmap adapter on Debian/RPM systems
 nikto                      required for the nikto wrapper commandlet
 eyewitness                 required for the eyewitness screenshot wrapper
 kismet                     required for the wifi_scan wireless wrapper
 prompt_toolkit             required for rich interactive REPL completion
-libnmap/python-nmap/etc.   Python nmap adapter; Bywaf tries supported adapters
+python-libnmap/etc.        Python nmap adapter; Bywaf tries supported adapters
 sqlcipher3-binary          optional Python SQLCipher driver for encrypted DBs
 sqlcipher                  optional system SQLCipher tooling/library
 cryptography               optional for signing-key management and bundle signing
@@ -149,21 +169,21 @@ Debian / Ubuntu:
 ```bash
 sudo apt-get update
 sudo apt-get install -y python3 python3-pip python3-venv python3-setuptools \
-  python3-build python3-installer python3-prompt-toolkit nmap \
+  python3-build python3-installer python3-prompt-toolkit nmap python3-libnmap \
   sqlcipher libsqlcipher-dev debhelper dh-python pybuild-plugin-pyproject \
   python3-all rpm nikto kismet
 python3 -m pip install -e '.[plugins,reporting,signing,sqlcipher]'
-python3 -m pip install libnmap python-nmap nmapthon
+python3 -m pip install python-libnmap python-nmap nmapthon
 ```
 
 Fedora / RHEL-family:
 
 ```bash
 sudo dnf install -y python3 python3-pip python3-setuptools python3-build \
-  python3-installer python3-prompt-toolkit nmap sqlcipher sqlcipher-devel \
-  rpm-build nikto kismet
+  python3-installer python3-prompt-toolkit nmap python3-libnmap sqlcipher \
+  sqlcipher-devel rpm-build nikto kismet
 python3 -m pip install -e '.[plugins,reporting,signing,sqlcipher]'
-python3 -m pip install libnmap python-nmap nmapthon
+python3 -m pip install python-libnmap python-nmap nmapthon
 ```
 
 Use `yum` instead of `dnf` on older RHEL-family systems. Some external-wrapper
