@@ -20,6 +20,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from ..event_filters import any_event_matches_payload_filters
 from ..plugin import CommandContext
 from ..rendering import Column, Table, render_console_table
 from ..runtime_display import (
@@ -125,8 +126,15 @@ HELP_COMMANDS = (
     HelpEntry(
         "event",
         "show events for a topic, job, step, pipeline, serial, or event id",
-        "event <id|topic|job=id|step=id|pipeline=id|serial=id>",
-        ("event 123", "event host.found", "event step=1", "event pipeline=1", "event serial=hostscanner-..."),
+        "event <id|topic|job=id|step=id|pipeline=id|serial=id> [field=value ...] [sort=key]",
+        (
+            "event 123",
+            "event host.found",
+            "event port.open host=192.0.2.10 sort=host",
+            "event step=1",
+            "event pipeline=1",
+            "event serial=hostscanner-...",
+        ),
         "event <selector>",
     ),
     HelpEntry("events [tail|--tail] [last=N]", "show recent events", "events [tail|--tail] [last=N]", ("events", "events tail", "events tail last=50")),
@@ -806,12 +814,21 @@ def process_events_for_non_repl_info(runner: Runner, events) -> None:
             print(event.payload.get("text", ""), end=event.payload.get("end", "\n"))
 
 
-def print_runs(runner: Runner, *, active_only: bool = True) -> None:
+def print_runs(runner: Runner, *, active_only: bool = True, filters: dict[str, str] | None = None) -> None:
     """Print commandlet step summaries."""
     runtime = runner.runtime
     rows = runtime.runs(active_only=active_only)
+    if filters:
+        rows = [
+            row
+            for row in rows
+            if any_event_matches_payload_filters(
+                runner.events.events_matching(command_run_id=str(row["command_run_id"]), limit=10000),
+                filters,
+            )
+        ]
     if not rows:
-        print("no active steps" if active_only else "no steps")
+        print("no matching steps" if filters else "no active steps" if active_only else "no steps")
         return
     marker_style = normalize_active_listing_format(
         runner.registry.varstore.get(f"global.{ACTIVE_LISTING_FORMAT_VAR}")

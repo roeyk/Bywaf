@@ -13,6 +13,7 @@ import shlex
 from argparse import Namespace
 from collections.abc import Callable, Iterable
 
+from bywaf.event_filters import any_event_matches_payload_filters, parse_payload_filter_tokens
 from bywaf.events import Event
 from bywaf.plugin import (
     CommandContext,
@@ -78,7 +79,11 @@ class Pipeline(CommandletBase):
         parser.add_argument("--hard", action="store_true")
         parser.add_argument("--page", action="store_true")
         parser.add_argument("--soft", action="store_true")
-        parsed = parser.parse_args(args)
+        parsed, extra = parser.parse_known_args(args)
+        if parsed.action == "list" and parsed.id and "=" in parsed.id:
+            extra.insert(0, parsed.id)
+            parsed.id = None
+        parsed.filters = parse_payload_filter_tokens(extra)
         context.require_foreground("pipeline management commands")
         validate_pipeline_mode(parsed.action, soft=parsed.soft, hard=parsed.hard)
         pipeline_action_handlers()[parsed.action](context, parsed)
@@ -118,7 +123,7 @@ def pipeline_action_handlers() -> dict[str, PipelineActionHandler]:
 
 def list_pipeline_action(context: CommandContext, parsed: Namespace) -> None:
     """Run `pipeline list`."""
-    print_pipelines(context, active_only=not parsed.all, show_active=parsed.all, page=parsed.page)
+    print_pipelines(context, active_only=not parsed.all, show_active=parsed.all, page=parsed.page, filters=parsed.filters)
 
 
 def show_pipeline_action(context: CommandContext, parsed: Namespace) -> None:
@@ -143,12 +148,29 @@ def end_pipeline_action(context: CommandContext, parsed: Namespace) -> None:
         cancel_pipeline(context, parsed.id)
 
 
-def print_pipelines(context: CommandContext, *, active_only: bool = True, show_active: bool = False, page: bool = False) -> None:
+def print_pipelines(
+    context: CommandContext,
+    *,
+    active_only: bool = True,
+    show_active: bool = False,
+    page: bool = False,
+    filters: dict[str, str] | None = None,
+) -> None:
     """Print active pipelines by default, or all pipelines when requested."""
     runtime = context.runtime_store("pipeline list")
     rows = runtime.pipelines(active_only=active_only)
+    if filters:
+        events = context.event_store("pipeline list")
+        rows = [
+            row
+            for row in rows
+            if any_event_matches_payload_filters(
+                events.events_matching(pipeline_id=str(row["pipeline_id"]), limit=10000),
+                filters,
+            )
+        ]
     if not rows:
-        context.output("no active pipelines" if active_only else "no pipelines")
+        context.output("no matching pipelines" if filters else "no active pipelines" if active_only else "no pipelines")
         return
     names = runtime.runtime_names()
     aliases = runtime.pipeline_aliases()

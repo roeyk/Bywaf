@@ -1038,13 +1038,30 @@ Show detailed context for one event ID, or recent events for a topic:
 bywaf> event 25342
 bywaf> event host.found
 bywaf> event port.open
+bywaf> event port.open host=192.168.50.163
+bywaf> event port.open host=192.168.50.1,192.168.50.163 sort=host
+bywaf> event port.open sort=protocol
 ```
+
+`event <topic> field=value` filters by event payload fields. The `host=`
+shortcut matches both top-level `host` payloads and common nested target host
+fields such as `target.host`. Comma-separated values match any listed value.
+Use `sort=time` (default), `sort=host`, `sort=protocol`, `sort=state`,
+`sort=topic`, or `sort=source` to order displayed rows. `sort=transport` is an
+alias for `protocol`, and `sort=status` is an alias for `state`.
 
 List commandlet steps:
 
 ```text
 bywaf> steps
+bywaf> steps host=192.168.50.163
+bywaf> jobs host=192.168.50.163
+bywaf> pipelines host=192.168.50.163
 ```
+
+`jobs`, `pipelines`, and `steps` accept the same payload-style filters as
+`event`. They show runtime objects that have at least one associated event
+matching the filter.
 
 Show events by pipeline step or pipeline:
 
@@ -1461,11 +1478,16 @@ It emits `host.found` events.
 
 ```text
 bywaf> portscanner 127.0.0.1
-bywaf> portscanner --ports 22,80,443 127.0.0.1
+bywaf> portscanner ports=22,80,443 host=127.0.0.1
+bywaf> portscanner arguments="-Pn -sT" ports=33169,33199 host=example.test
 ```
 
 If `--ports` is omitted, nmap uses its normal default top-port behavior. It
 emits `port.open` events.
+
+`host=` is the single-host shortcut; `hosts=` accepts a host list. When an
+explicit host is a DNS name, `portscanner` resolves it before scanning, prints
+the resolved address set, and records a `name.resolved` provenance event.
 
 Use listen mode to consume newly inserted hosts:
 

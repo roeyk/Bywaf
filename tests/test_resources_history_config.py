@@ -466,6 +466,37 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             self.assertEqual(len(events), 1)
             self.assertEqual(events[0].source, "example")
 
+    def test_fully_qualified_commandlet_ignores_active_use_context(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            alpha = write_simple_external_plugin(Path(tmp), "alpha")
+            beta = write_simple_external_plugin(Path(tmp), "beta")
+            with contextlib.redirect_stdout(io.StringIO()):
+                dispatch_repl_line(runner, f"plugin load={alpha} --force", state)
+                dispatch_repl_line(runner, f"plugin load={beta} --force", state)
+                dispatch_repl_line(runner, "use alpha", state)
+                dispatch_repl_line(runner, "beta/beta", state)
+            self.assertEqual(state.active_context, "alpha")
+            self.assertEqual(len(runner.db.events_for_topic("alpha.done")), 0)
+            self.assertEqual(len(runner.db.events_for_topic("beta.done")), 1)
+
+    def test_script_fully_qualified_commandlet_ignores_active_use_context(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            alpha = write_simple_external_plugin(Path(tmp), "alpha")
+            beta = write_simple_external_plugin(Path(tmp), "beta")
+            script = Path(tmp, "script.bywaf")
+            script.write_text("use alpha\nbeta/beta\n")
+            with contextlib.redirect_stdout(io.StringIO()):
+                dispatch_repl_line(runner, f"plugin load={alpha} --force", state)
+                dispatch_repl_line(runner, f"plugin load={beta} --force", state)
+                run_script(runner, script, state)
+            self.assertEqual(state.active_context, "alpha")
+            self.assertEqual(len(runner.db.events_for_topic("alpha.done")), 0)
+            self.assertEqual(len(runner.db.events_for_topic("beta.done")), 1)
+
     def test_run_executes_active_commandlet(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

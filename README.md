@@ -94,6 +94,9 @@ Inspect runtime state and events:
 bywaf> jobs
 bywaf> pipelines
 bywaf> steps
+bywaf> jobs host=192.0.2.10
+bywaf> pipelines host=192.0.2.10
+bywaf> steps host=192.0.2.10
 bywaf> event host.found
 bywaf> event step=1
 ```

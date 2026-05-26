@@ -298,6 +298,30 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("'n': 3", text)
             self.assertIn("'n': 4", text)
 
+    def test_event_filters_topic_by_payload_host(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish("port.open", {"host": "192.0.2.10", "port": 80, "protocol": "tcp"}, "test")
+            runner.db.publish("port.open", {"host": "192.0.2.20", "port": 443, "protocol": "tcp"}, "test")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "event port.open host=192.0.2.20")
+            text = output.getvalue()
+            self.assertNotIn("192.0.2.10", text)
+            self.assertIn("192.0.2.20:443/tcp", text)
+
+    def test_event_filters_nested_host_and_sorts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish("finding.candidate", {"target": {"host": "192.0.2.20"}, "port": 443}, "test")
+            runner.db.publish("finding.candidate", {"target": {"host": "192.0.2.10"}, "port": 80}, "test")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "event finding.candidate host=192.0.2.10,192.0.2.20 sort=host")
+            lines = [line for line in output.getvalue().splitlines() if "finding.candidate" in line]
+            self.assertIn("192.0.2.10", lines[0])
+            self.assertIn("192.0.2.20", lines[1])
+
     def test_step_without_id_prints_help(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -1331,6 +1355,40 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("STEP", text)
             self.assertIn("ARTIFACTS", text)
             self.assertRegex(text, r"\n1\s+r\s+active\s+\s*1\s+p\s+hostscanner\s+1\s+1\s+")
+
+    def test_runtime_lists_filter_by_host_payload(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_one = runner.db.record_job("hostscanner 192.0.2.10", 123, "running")
+            job_two = runner.db.record_job("hostscanner 192.0.2.20", 124, "running")
+            runner.db.record_command_run_vars(
+                job_id=job_one,
+                pipeline_id="pipe-a",
+                command_run_id="step-a",
+                commandlet="hostscanner",
+                values={"test.marker": "1"},
+            )
+            runner.db.record_command_run_vars(
+                job_id=job_two,
+                pipeline_id="pipe-b",
+                command_run_id="step-b",
+                commandlet="hostscanner",
+                values={"test.marker": "1"},
+            )
+            runner.db.publish("host.found", {"host": "192.0.2.10"}, "hostscanner", pipeline_id="pipe-a", command_run_id="step-a")
+            runner.db.publish("host.found", {"host": "192.0.2.20"}, "hostscanner", pipeline_id="pipe-b", command_run_id="step-b")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "jobs host=192.0.2.20")
+                dispatch_repl_line(runner, "pipelines host=192.0.2.20")
+                dispatch_repl_line(runner, "steps host=192.0.2.20")
+            text = output.getvalue()
+            self.assertIn("192.0.2.20", text)
+            self.assertNotIn("192.0.2.10", text)
+            self.assertIn("pipe-b", text)
+            self.assertIn("step-b", text)
+            self.assertNotIn("pipe-a", text)
+            self.assertNotIn("step-a", text)
 
     def test_info_shows_active_runtime_counts(self):
         with tempfile.TemporaryDirectory() as tmp:

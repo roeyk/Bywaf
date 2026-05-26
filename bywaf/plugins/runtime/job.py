@@ -15,6 +15,7 @@ from argparse import Namespace
 from collections.abc import Callable, Iterable
 
 from bywaf.events import Event
+from bywaf.event_filters import any_event_matches_payload_filters, parse_payload_filter_tokens
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
 from bywaf.runtime_display import (
     active_listing_format,
@@ -58,7 +59,11 @@ class Job(CommandletBase):
         parser.add_argument("--hard", action="store_true")
         parser.add_argument("--page", action="store_true")
         parser.add_argument("--soft", action="store_true")
-        parsed = parser.parse_intermixed_args(args)
+        parsed, extra = parser.parse_known_intermixed_args(args)
+        if parsed.action == "list" and parsed.id and "=" in parsed.id:
+            extra.insert(0, parsed.id)
+            parsed.id = None
+        parsed.filters = parse_payload_filter_tokens(extra)
         context.require_foreground("job management commands")
         validate_job_mode(parsed.action, soft=parsed.soft, hard=parsed.hard)
         job_action_handlers()[parsed.action](context, parsed)
@@ -92,7 +97,7 @@ def job_action_handlers() -> dict[str, JobActionHandler]:
 
 def list_job_action(context: CommandContext, parsed: Namespace) -> None:
     """Run `job list`."""
-    print_jobs(context, active_only=not parsed.all, show_active=parsed.all, page=parsed.page)
+    print_jobs(context, active_only=not parsed.all, show_active=parsed.all, page=parsed.page, filters=parsed.filters)
 
 
 def show_job_action(context: CommandContext, parsed: Namespace) -> None:
@@ -117,12 +122,26 @@ def end_job_action(context: CommandContext, parsed: Namespace) -> None:
         cancel_job(context, row)
 
 
-def print_jobs(context: CommandContext, *, active_only: bool = True, show_active: bool = False, page: bool = False) -> None:
+def print_jobs(
+    context: CommandContext,
+    *,
+    active_only: bool = True,
+    show_active: bool = False,
+    page: bool = False,
+    filters: dict[str, str] | None = None,
+) -> None:
     """Print known jobs with newest first."""
     runtime = context.runtime_store("job list")
     rows = runtime.jobs(active_only=active_only)
+    if filters:
+        events = context.event_store("job list")
+        rows = [
+            row
+            for row in rows
+            if any_event_matches_payload_filters(events.events_for_job(row["id"], limit=10000), filters)
+        ]
     if not rows:
-        context.output("no active jobs" if active_only else "no jobs")
+        context.output("no matching jobs" if filters else "no active jobs" if active_only else "no jobs")
         return
     names = runtime.runtime_names()
     artifact_counts = runtime.artifact_counts_by_job()

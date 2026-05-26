@@ -10,13 +10,14 @@ Used by:
 
 from __future__ import annotations
 
-import shlex
 import getpass
+import shlex
 import subprocess
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from ..event_filters import event_matches_payload_filters, parse_event_sort, parse_payload_filter_tokens, select_event_rows
 from ..framework_requests import process_framework_requests
 from .display import (
     format_var_assignment,
@@ -55,6 +56,7 @@ if TYPE_CHECKING:
 
 
 ReplCommandHandler = Callable[[Runner, Any, str | None, str], str | None]
+EVENT_SELECTOR_KEYS = {"job", "step", "pipeline", "serial", "topic"}
 
 
 def handle_exit_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
@@ -166,7 +168,9 @@ def handle_info_command(runner: Runner, state: ShellState, rest: str | None, lin
 def handle_jobs_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
     """Run the job-list commandlet shortcut."""
     del line
-    suffix = f" {rest}" if rest in {"--all", "--page"} else ""
+    tokens = shlex.split(rest) if rest else []
+    validate_runtime_list_tokens("jobs", tokens)
+    suffix = f" {' '.join(shlex.quote(token) for token in tokens)}" if tokens else ""
     # Jobs/pipelines have commandlet implementations; the REPL aliases call
     # those commandlets so output stays consistent with direct use.
     events = runner.execute(f"job list{suffix}")
@@ -178,7 +182,9 @@ def handle_jobs_command(runner: Runner, state: ShellState, rest: str | None, lin
 def handle_pipelines_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
     """Run the pipeline-list commandlet shortcut."""
     del line
-    suffix = " --page" if rest == "--page" else ""
+    tokens = shlex.split(rest) if rest else []
+    validate_runtime_list_tokens("pipelines", tokens)
+    suffix = f" {' '.join(shlex.quote(token) for token in tokens)}" if tokens else ""
     events = runner.execute(f"pipeline list{suffix}")
     process_framework_requests(runner, state)
     print_events(events, runner)
@@ -188,8 +194,28 @@ def handle_pipelines_command(runner: Runner, state: ShellState, rest: str | None
 def handle_steps_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
     """Print commandlet execution steps."""
     del state, line
-    print_runs(runner, active_only=rest != "--all")
+    tokens = shlex.split(rest) if rest else []
+    active_only = "--all" not in tokens
+    filters = parse_step_filters(tokens)
+    print_runs(runner, active_only=active_only, filters=filters)
     return None
+
+
+def validate_runtime_list_tokens(command: str, tokens: Sequence[str]) -> None:
+    """Reject unknown runtime-list tokens before delegating to commandlets."""
+    for token in tokens:
+        if token in {"--all", "--page"} or "=" in token:
+            continue
+        raise ValueError(f"usage: {command} [--all] [--page] [field=value ...]")
+
+
+def parse_step_filters(tokens: Sequence[str]) -> dict[str, str]:
+    """Parse `steps [--all] [field=value ...]` filters."""
+    filter_tokens = [token for token in tokens if token != "--all"]
+    unknown = [token for token in filter_tokens if "=" not in token]
+    if unknown:
+        raise ValueError("usage: steps [--all] [field=value ...]")
+    return parse_payload_filter_tokens(filter_tokens)
 
 
 def handle_use_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
@@ -247,25 +273,104 @@ def handle_event_command(runner: Runner, state: ShellState, rest: str | None, li
     """Print matching events."""
     del state, line
     if rest is None:
-        print("usage: event <id|topic|job=id|step=id|pipeline=id|serial=id>")
-    elif rest.isdigit():
-        print_event_info(runner, rest)
-    elif rest.startswith("job="):
-        print_job(runner, rest.split("=", 1)[1])
-    elif rest.startswith("step="):
-        run_id = runner.runtime.resolve_run_serial(rest.split("=", 1)[1])
+        print("usage: event <id|topic|job=id|step=id|pipeline=id|serial=id> [field=value ...]")
+        return None
+    tokens = shlex.split(rest)
+    selector, filters, limit, sort_key = parse_event_query(tokens)
+    if selector.isdigit():
+        print_filtered_event_id(runner, selector, filters)
+    elif selector.startswith("job=") and not filters:
+        print_job(runner, selector.split("=", 1)[1])
+    elif selector.startswith("job="):
+        source_limit = event_source_limit(limit, filters)
+        events = runner.events.events_for_job(int(selector.split("=", 1)[1]), limit=source_limit)
+        print_events(select_event_rows(events, filters, sort_key, limit), runner)
+    elif selector.startswith("step="):
+        run_id = runner.runtime.resolve_run_serial(selector.split("=", 1)[1])
         print_run_variables(runner, run_id)
-        print_events(runner.events.events_matching(command_run_id=run_id), runner)
-    elif rest.startswith("pipeline="):
-        pipeline_id = runner.runtime.resolve_pipeline_serial(rest.split("=", 1)[1])
-        print_events(runner.events.events_matching(pipeline_id=pipeline_id), runner)
-    elif rest.startswith("serial="):
-        print_events(runner.events.events_for_serial(rest.split("=", 1)[1]), runner)
-    elif rest.startswith("topic="):
-        print_events(runner.events.events_matching(topic=rest.split("=", 1)[1]), runner)
+        source_limit = event_source_limit(limit, filters)
+        events = runner.events.events_matching(command_run_id=run_id, limit=source_limit)
+        print_events(select_event_rows(events, filters, sort_key, limit), runner)
+    elif selector.startswith("pipeline="):
+        pipeline_id = runner.runtime.resolve_pipeline_serial(selector.split("=", 1)[1])
+        source_limit = event_source_limit(limit, filters)
+        events = runner.events.events_matching(pipeline_id=pipeline_id, limit=source_limit)
+        print_events(select_event_rows(events, filters, sort_key, limit), runner)
+    elif selector.startswith("serial="):
+        source_limit = event_source_limit(limit, filters)
+        events = runner.events.events_for_serial(selector.split("=", 1)[1], limit=source_limit)
+        print_events(select_event_rows(events, filters, sort_key, limit), runner)
+    elif selector.startswith("topic="):
+        topic = selector.split("=", 1)[1]
+        source_limit = event_source_limit(limit, filters)
+        events = runner.events.events_matching(topic=topic, limit=source_limit)
+        print_events(select_event_rows(events, filters, sort_key, limit), runner)
     else:
-        print_events(runner.events.events_for_topic(rest), runner)
+        source_limit = event_source_limit(limit, filters)
+        events = runner.events.events_matching(topic=selector or None, limit=source_limit)
+        print_events(select_event_rows(events, filters, sort_key, limit), runner)
     return None
+
+
+def print_filtered_event_id(runner: Runner, selector: str, filters: dict[str, str]) -> None:
+    """Print a single event id, optionally only when it matches payload filters."""
+    if not filters:
+        print_event_info(runner, selector)
+        return
+    event = runner.events.event_by_id(int(selector))
+    if event and event_matches_payload_filters(event, filters):
+        print_events([event], runner)
+
+
+def parse_event_query(tokens: Sequence[str]) -> tuple[str, dict[str, str], int, str]:
+    """Split `event` input into one scope selector, payload filters, and limit.
+
+    The first non-filter token remains the traditional topic/id selector.
+    Additional `key=value` tokens filter event payloads, so operators can write
+    `event port.open host=192.0.2.10` without learning a separate query syntax.
+    """
+    selector = ""
+    filters: dict[str, str] = {}
+    limit = 100
+    sort_key = "time"
+    for token in tokens:
+        key, separator, value = token.partition("=")
+        if separator:
+            if not key or not value:
+                raise ValueError("event filters must be key=value")
+            if key == "limit":
+                limit = parse_event_limit(value)
+            elif key == "sort":
+                sort_key = parse_event_sort(value)
+            elif key in EVENT_SELECTOR_KEYS and not selector:
+                selector = token
+            elif key in EVENT_SELECTOR_KEYS:
+                raise ValueError("event accepts only one scope selector")
+            else:
+                filters[key] = value
+            continue
+        if selector:
+            raise ValueError("usage: event <id|topic|job=id|step=id|pipeline=id|serial=id> [field=value ...]")
+        selector = token
+    return selector, filters, limit, sort_key
+
+
+def parse_event_limit(raw: str) -> int:
+    """Parse the maximum number of event rows to display."""
+    try:
+        limit = int(raw)
+    except ValueError as exc:
+        raise ValueError(f"invalid event limit= value: {raw}") from exc
+    if limit < 1:
+        raise ValueError("event limit= must be at least 1")
+    return limit
+
+
+def event_source_limit(display_limit: int, filters: dict[str, str]) -> int:
+    """Fetch extra source rows when filtering so older matches are not hidden."""
+    if not filters:
+        return display_limit
+    return max(1000, display_limit * 20)
 
 
 def handle_events_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:

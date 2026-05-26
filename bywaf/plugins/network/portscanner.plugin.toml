@@ -8,6 +8,7 @@ name = "portscanner"
 capabilities = [
   "db.write:finding.candidate",
   "framework.console.alert",
+  "framework.console.output",
   "network.connect",
   "plugin.progress",
 ]

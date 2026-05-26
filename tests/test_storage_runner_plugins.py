@@ -1108,6 +1108,37 @@ class StorageRunnerPluginTests(unittest.TestCase):
                     runner.execute("portscanner --ports 80 127.0.0.1")
             self.assertEqual(scan.call_args.args[1], "80")
 
+    def test_portscanner_accepts_key_value_hosts_and_ports(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            with patch(
+                "bywaf.plugins.network.portscanner.scan_open_ports",
+                return_value=[NmapPort("192.0.2.10", 33169, "tcp", "open")],
+            ) as scan:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    events = runner.execute("portscanner hosts=192.0.2.10 ports=33169,33199")
+            self.assertEqual(scan.call_args.args[0], ["192.0.2.10"])
+            self.assertEqual(scan.call_args.args[1], "33169,33199")
+            self.assertEqual(events[0].payload["port"], 33169)
+
+    def test_portscanner_accepts_singular_host_and_records_resolution(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            with (
+                patch("bywaf.plugins.network.portscanner.resolve_target", return_value=("192.0.2.55",)),
+                patch(
+                    "bywaf.plugins.network.portscanner.scan_open_ports",
+                    return_value=[NmapPort("192.0.2.55", 33169, "tcp", "open")],
+                ) as scan,
+            ):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    events = runner.execute("portscanner host=example.test ports=33169")
+            self.assertEqual(scan.call_args.args[0], ["192.0.2.55"])
+            self.assertEqual(events[0].payload["host"], "192.0.2.55")
+            resolved = runner.db.events_for_topic("name.resolved")
+            self.assertEqual(resolved[0].payload["name"], "example.test")
+            self.assertEqual(resolved[0].payload["addresses"], ["192.0.2.55"])
+
     def test_portscanner_except_skips_hosts(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

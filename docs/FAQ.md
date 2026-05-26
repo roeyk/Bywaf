@@ -245,6 +245,11 @@ Provider-qualified aliases also work when you want the catalog path, such as
 variables, so `set http/http_probe.timeout=3` sets the `timeout` variable for
 the `http_probe` commandlet.
 
+An explicit commandlet name always wins over the active `use` context. This is
+intentional: scripts can call fully-qualified commandlets such as
+`network/portscanner ...` without depending on whatever context the interactive
+operator happened to select earlier.
+
 Run the active commandlet with its stored/default variables:
 
 ```text
@@ -506,11 +511,22 @@ Exception lists are included in test/plan output and audit records.
 bywaf> events
 bywaf> events tail last=50
 bywaf> event host.found
+bywaf> event port.open host=192.168.50.163
+bywaf> event port.open host=192.168.50.1,192.168.50.163 sort=host
+bywaf> jobs host=192.168.50.163
+bywaf> pipelines host=192.168.50.163
+bywaf> steps host=192.168.50.163
 bywaf> event step=7
 bywaf> event serial=<durable-serial>
 ```
 
-`events` defaults to the last 25 events.
+`events` defaults to the last 25 events. `event <topic> field=value` filters
+topic rows by payload fields. Use `host=` for host-scoped facts such as
+`port.open`; it also matches common nested target fields such as `target.host`.
+`sort=host`, `sort=protocol`, `sort=state`, `sort=topic`, and `sort=source`
+change the row order.
+Runtime list commands use the same payload-style filters and show jobs,
+pipelines, or steps that have at least one associated matching event.
 
 ## How do I export audit data?
 
