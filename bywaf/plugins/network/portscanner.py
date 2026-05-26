@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from bywaf.events import Event
+from bywaf.plugins.addressing import filter_addresses_for_ip_family
 from bywaf.plugins.discovery.hostscanner import publish_name_resolution_events, resolve_target
 from bywaf.plugins.network.nmap_backend import scan_open_ports
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option, split_var_values
@@ -28,7 +29,7 @@ from bywaf.plugins.network.portscanner_findings import telnet_open_candidate
 DEFAULTS = {
     "arguments": "-sT",
     "except": "",
-    "hosts": "",
+    "host": "",
     "listen": "false",
     "listen-interval": "1.0",
     "listen-timeout": "0",
@@ -59,7 +60,6 @@ DEFAULTS = {
 @option("arguments", "nmap port scan arguments", "-sT")
 @option("except", "hosts to exclude from scans", "")
 @option("host", "single explicit host to scan", "")
-@option("hosts", "explicit hosts to scan", "")
 @option("listen", "poll scoped upstream host.found events", "false")
 @option("listen-interval", "poll interval in seconds", "1.0")
 @option("listen-timeout", "seconds to listen; 0 means forever", "0")
@@ -76,7 +76,6 @@ class PortScanner(CommandletBase):
         parser = self.parser()
         parser.add_argument("hosts", nargs="*")
         parser.add_argument("--host", dest="host_option", default=self.var_default(context, "host", ""))
-        parser.add_argument("--hosts", dest="hosts_option", default="")
         parser.add_argument("--except", dest="except_", default=self.var_default(context, "except", ""))
         parser.add_argument("-s", "--silent", action="store_true", default=self.var_default(context, "silent", False, cast=parse_bool))
         parser.add_argument("--arguments", default=self.var_default(context, "arguments", "-sT"))
@@ -85,7 +84,7 @@ class PortScanner(CommandletBase):
         parser.add_argument("--listen-timeout", type=float, default=self.var_default(context, "listen-timeout", 0.0, cast=float))
         parser.add_argument("--ports", default=self.var_default(context, "ports", None))
         parsed = parser.parse_args(normalize_value_args(args))
-        parsed.hosts = explicit_hosts_or_var(self, context, parsed.hosts, parsed.host_option, parsed.hosts_option)
+        parsed.hosts = explicit_hosts_or_var(parsed.hosts, parsed.host_option)
         parsed.excluded_hosts = set(split_var_values(parsed.except_))
         seen_hosts: set[str] = set()
         yield from scan_events_or_hosts(context, parsed, input_events, seen_hosts)
@@ -110,17 +109,20 @@ def scan_events_or_hosts(
     # of `host.found` events.
     hosts = parsed.hosts or [event.payload["host"] for event in input_events if "host" in event.payload]
     if parsed.hosts:
-        hosts = resolve_explicit_hosts(context, hosts)
+        hosts = resolve_explicit_hosts(context, hosts, parsed.arguments)
     hosts = [host for host in hosts if host not in parsed.excluded_hosts]
     yield from scan_hosts(context, hosts, parsed.ports, parsed.arguments, seen_hosts, parsed.silent)
 
 
-def resolve_explicit_hosts(context: CommandContext, hosts: Iterable[str]) -> list[str]:
+def resolve_explicit_hosts(context: CommandContext, hosts: Iterable[str], arguments: str) -> list[str]:
     """Resolve explicit host names before scanning and record provenance."""
     resolved: list[str] = []
     names_by_host: dict[str, str] = {}
     for host in hosts:
-        addresses = resolve_target(host)
+        addresses = filter_addresses_for_ip_family(resolve_target(host), arguments)
+        if not addresses:
+            context.alert(f"no resolved addresses for {host} match nmap address-family arguments")
+            continue
         resolved.extend(addresses)
         if addresses != (host,):
             context.output(f"resolved host {host} -> {', '.join(addresses)}")
@@ -230,7 +232,7 @@ def plugin() -> Commandlet:
     return PortScanner()
 
 
-VALUE_OPTION_KEYS = {"arguments", "except", "host", "hosts", "listen-interval", "listen-timeout", "ports"}
+VALUE_OPTION_KEYS = {"arguments", "except", "host", "listen-interval", "listen-timeout", "ports"}
 
 
 def normalize_value_args(args: list[str]) -> list[str]:
@@ -238,18 +240,11 @@ def normalize_value_args(args: list[str]) -> list[str]:
     return key_value_to_long_options(args, VALUE_OPTION_KEYS)
 
 
-def explicit_hosts_or_var(
-    commandlet: CommandletBase,
-    context: CommandContext,
-    positional_hosts: list[str],
-    option_host: str,
-    option_hosts: str,
-) -> list[str]:
+def explicit_hosts_or_var(positional_hosts: list[str], option_host: str) -> list[str]:
     """Return explicit positional/host option values, falling back to variables."""
     explicit_hosts = list(positional_hosts)
     explicit_hosts.extend(split_var_values(option_host))
-    explicit_hosts.extend(split_var_values(option_hosts))
-    return explicit_hosts or commandlet.values_or_var(context, [], "hosts")
+    return explicit_hosts
 
 
 def parse_bool(value: str | bool) -> bool:

@@ -1502,12 +1502,15 @@ bywaf> portscanner ports=22,80,443 host=127.0.0.1
 bywaf> portscanner arguments="-Pn -sT" ports=33169,33199 host=example.test
 ```
 
-If `--ports` is omitted, nmap uses its normal default top-port behavior. It
+If `ports=` is omitted, nmap uses its normal default top-port behavior. It
 emits `port.open` events.
 
-`host=` is the single-host shortcut; `hosts=` accepts a host list. When an
-explicit host is a DNS name, `portscanner` resolves it before scanning, prints
-the resolved address set, and records a `name.resolved` provenance event.
+`host=` accepts one host or a comma/space-separated host list. When an explicit
+host is a DNS name, `portscanner` resolves it before scanning, prints the
+resolved address set, and records a `name.resolved` provenance event.
+If `arguments=` includes `-4` or `-6`, the pre-scan DNS resolution keeps only
+matching IPv4 or IPv6 addresses so the printed provenance matches what nmap
+will scan.
 
 Use listen mode to consume newly inserted hosts:
 

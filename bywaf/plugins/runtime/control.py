@@ -159,12 +159,12 @@ class RuntimeSignal(CommandletBase):
         if len(args) >= 2:
             return [
                 candidate
-                for candidate in ("target=", "targets=", "host=", "hosts=", "network=", "networks=", "level=", "reason=")
+                for candidate in ("target=", "targets=", "host=", "network=", "networks=", "level=", "reason=")
                 if candidate.startswith(prefix)
             ]
         return [
             candidate
-            for candidate in ("target=", "targets=", "host=", "hosts=", "network=", "networks=", "level=", "reason=")
+            for candidate in ("target=", "targets=", "host=", "network=", "networks=", "level=", "reason=")
             if candidate.startswith(prefix)
         ]
 

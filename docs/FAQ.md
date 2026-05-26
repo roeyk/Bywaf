@@ -528,6 +528,15 @@ change the row order.
 Runtime list commands use the same payload-style filters and show jobs,
 pipelines, or steps that have at least one associated matching event.
 
+## How do I force IPv4 or IPv6 when a command resolves a DNS name?
+
+For commandlets that expose a native argument string to an external network
+tool, use that tool's family flag. For `portscanner`, `arguments="-4 ..."` keeps
+only IPv4 addresses from pre-scan DNS resolution, while `arguments="-6 ..."`
+keeps only IPv6 addresses. This filtering is implemented through shared
+addressing helpers so future DNS-resolving plugins can use the same behavior
+instead of carrying their own resolver rules.
+
 ## How do I export audit data?
 
 ```text

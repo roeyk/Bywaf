@@ -1108,7 +1108,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
                     runner.execute("portscanner --ports 80 127.0.0.1")
             self.assertEqual(scan.call_args.args[1], "80")
 
-    def test_portscanner_accepts_key_value_hosts_and_ports(self):
+    def test_portscanner_accepts_key_value_host_list_and_ports(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with patch(
@@ -1116,7 +1116,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 return_value=[NmapPort("192.0.2.10", 33169, "tcp", "open")],
             ) as scan:
                 with contextlib.redirect_stdout(io.StringIO()):
-                    events = runner.execute("portscanner hosts=192.0.2.10 ports=33169,33199")
+                    events = runner.execute("portscanner host=192.0.2.10 ports=33169,33199")
             self.assertEqual(scan.call_args.args[0], ["192.0.2.10"])
             self.assertEqual(scan.call_args.args[1], "33169,33199")
             self.assertEqual(events[0].payload["port"], 33169)
@@ -1138,6 +1138,40 @@ class StorageRunnerPluginTests(unittest.TestCase):
             resolved = runner.db.events_for_topic("name.resolved")
             self.assertEqual(resolved[0].payload["name"], "example.test")
             self.assertEqual(resolved[0].payload["addresses"], ["192.0.2.55"])
+
+    def test_portscanner_filters_resolved_addresses_for_ipv4_arguments(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            with (
+                patch("bywaf.plugins.network.portscanner.resolve_target", return_value=("192.0.2.55", "2001:db8::55")),
+                patch(
+                    "bywaf.plugins.network.portscanner.scan_open_ports",
+                    return_value=[NmapPort("192.0.2.55", 443, "tcp", "open")],
+                ) as scan,
+            ):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    events = runner.execute('portscanner host=example.test ports=443 arguments="-Pn -sT -4"')
+            self.assertEqual(scan.call_args.args[0], ["192.0.2.55"])
+            self.assertEqual(events[0].payload["host"], "192.0.2.55")
+            resolved = runner.db.events_for_topic("name.resolved")
+            self.assertEqual(resolved[0].payload["addresses"], ["192.0.2.55"])
+
+    def test_portscanner_filters_resolved_addresses_for_ipv6_arguments(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            with (
+                patch("bywaf.plugins.network.portscanner.resolve_target", return_value=("192.0.2.55", "2001:db8::55")),
+                patch(
+                    "bywaf.plugins.network.portscanner.scan_open_ports",
+                    return_value=[NmapPort("2001:db8::55", 443, "tcp", "open")],
+                ) as scan,
+            ):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    events = runner.execute('portscanner host=example.test ports=443 arguments="-Pn -sT -6"')
+            self.assertEqual(scan.call_args.args[0], ["2001:db8::55"])
+            self.assertEqual(events[0].payload["host"], "2001:db8::55")
+            resolved = runner.db.events_for_topic("name.resolved")
+            self.assertEqual(resolved[0].payload["addresses"], ["2001:db8::55"])
 
     def test_portscanner_except_skips_hosts(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -224,6 +224,11 @@ Use `@option` for values the user supplies by name, usually as `--name`:
 @option("password", "SSH password", secret=True)
 ```
 
+If a plugin resolves DNS names before calling a network backend, keep address
+family choices consistent with the operator's arguments. Bundled plugins use
+`bywaf.plugins.addressing.filter_addresses_for_ip_family(...)` to apply `-4`
+or `-6` before publishing `name.resolved` provenance or invoking the backend.
+
 For boolean-style options, keep the metadata explicit. Use string defaults and
 choices so help, completion, manifests, and the plugin checker all see the
 same public contract:
