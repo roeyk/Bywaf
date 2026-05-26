@@ -11,7 +11,8 @@ offensive frameworks, do not look for Veil-style modules, Metasploit-style
 
 ## Quick Paths
 
-- **New user:** [README](../README.md) -> [Usage Guide](../USAGE.md) ->
+- **New user:** [README](../README.md) -> [Install Guide](../INSTALL.md) ->
+  [Usage Guide](../USAGE.md) ->
   [FAQ](FAQ.md)
 - **Operator:** [Terminology](TERMINOLOGY.md) -> [Runtime Model](RUNTIME_MODEL.md) ->
   [Event Model](EVENT_MODEL.md) -> [Reporting](REPORTING.md) ->
@@ -39,6 +40,8 @@ offensive frameworks, do not look for Veil-style modules, Metasploit-style
   maintenance, and variable store contracts.
 - [Save/Export Model](SAVE_EXPORT_MODEL.md): when commands use `save`,
   `load`, `export`, `import`, or `archive`.
+- [Install Guide](../INSTALL.md): OS dependency blocks, venv setup, package
+  installation, optional plugin dependencies, and release package builds.
 - [Capability Model](CAPABILITY_MODEL.md): capability auditing, trust
   boundaries, policy direction, and plugin integration types.
 - [Plugin Manifest Specification](MANIFEST_SPECIFICATION.md): exact sidecar

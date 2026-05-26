@@ -48,6 +48,9 @@ inside the workflow.
 
 ## Install And Run
 
+For OS-specific dependency blocks and package-build prerequisites, see
+[INSTALL.md](INSTALL.md).
+
 During development, run Bywaf from the repository root:
 
 ```bash
