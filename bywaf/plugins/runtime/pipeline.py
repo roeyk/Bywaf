@@ -37,6 +37,7 @@ from bywaf.runtime_display import (
     runtime_state_label,
     runtime_state_text,
     state_marker,
+    terminal_table_width,
 )
 from bywaf.style import styled_subject_text
 
@@ -225,9 +226,7 @@ def print_pipelines(
         table_rows.append(
             (
                 aliases.get(str(row["pipeline_id"]), str(row["pipeline_id"])),
-                display_runtime_serial(row["pipeline_id"]),
                 runtime_state_text(statuses, timestamp, style=active_listing_format(context.vars.get_global)),
-                names.get(("pipeline", str(row["pipeline_id"])), ""),
                 row["job_id"],
                 statuses,
                 row["runs"],
@@ -235,13 +234,15 @@ def print_pipelines(
                 artifact_counts.get(str(row["pipeline_id"]), 0),
                 format_runtime_timestamp(row["first_seen"]),
                 format_runtime_duration(row["first_seen"], row["last_seen"]),
+                names.get(("pipeline", str(row["pipeline_id"])), ""),
             )
         )
     output = render_table(
-        ("PIPELINE", "SERIAL", "STATE", "NAME", "JOB", "STATUS", "STEPS", "EVENTS", "ARTIFACTS", "FIRST_SEEN", "DURATION"),
+        ("PIPELINE", "STATE", "JOB", "STATUS", "STEPS", "EVENTS", "ART", "STARTED", "DUR", "NAME"),
         table_rows,
-        cell_subjects=("pipeline", "serial", "", "", "job", "", "", "", "", "timestamp", "timestamp"),
+        cell_subjects=("pipeline", "", "job", "", "", "", "", "timestamp", "timestamp", ""),
         style_getter=command_context_style_getter(context),
+        max_width=terminal_table_width(),
     )
     if sort_key:
         output = f"{runtime_sort_note(sort_key)}\n{output}"

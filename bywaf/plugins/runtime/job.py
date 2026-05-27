@@ -32,6 +32,7 @@ from bywaf.runtime_display import (
     runtime_state_label,
     runtime_state_text,
     state_marker,
+    terminal_table_width,
 )
 from bywaf.style import styled_subject_text
 
@@ -200,23 +201,21 @@ def print_jobs(
         table_rows.append(
             (
                 row["id"],
-                display_runtime_serial(row["serial"]),
                 runtime_state_text(row["status"], timestamp, style=active_listing_format(context.vars.get_global)),
-                row["pid"],
                 row["status"],
-                artifact_counts.get(str(row["id"]), 0),
-                names.get(("job", str(row["id"])), ""),
                 format_runtime_timestamp(row["started_at"]),
                 format_runtime_duration(row["started_at"], row["finished_at"]),
-                commandlet_from_command_line(str(row["command_line"])),
-                format_command_args(args_from_command_line(str(row["command_line"]))),
+                artifact_counts.get(str(row["id"]), 0),
+                names.get(("job", str(row["id"])), ""),
+                format_job_command(str(row["command_line"])),
             )
         )
     output = render_table(
-        ("JOB", "SERIAL", "STATE", "PID", "STATUS", "ARTIFACTS", "NAME", "STARTED", "DURATION", "COMMANDLET", "ARGS"),
+        ("JOB", "STATE", "STATUS", "STARTED", "DUR", "ART", "NAME", "COMMAND"),
         table_rows,
-        cell_subjects=("job", "serial", "", "", "", "", "", "timestamp", "timestamp", "", ""),
+        cell_subjects=("job", "", "", "timestamp", "timestamp", "", "", ""),
         style_getter=command_context_style_getter(context),
+        max_width=terminal_table_width(),
     )
     if sort_key:
         output = f"{runtime_sort_note(sort_key)}\n{output}"
@@ -237,6 +236,13 @@ def sort_job_rows(rows: list[dict], sort_key: str) -> list[dict]:
         "commandlet": lambda row: commandlet_from_command_line(str(row["command_line"])),
     }
     return sorted(rows, key=sorters[sort_key])
+
+
+def format_job_command(command_line: str) -> str:
+    """Return commandlet plus arguments as one compact table cell."""
+    commandlet = commandlet_from_command_line(command_line)
+    args = format_command_args(args_from_command_line(command_line))
+    return f"{commandlet} {args}".strip()
 
 
 def validate_job_mode(action: str, *, soft: bool, hard: bool) -> None:

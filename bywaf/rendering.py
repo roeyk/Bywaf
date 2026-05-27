@@ -170,15 +170,27 @@ def render_console_table(table: Table) -> str:
     """Render a table for monospaced terminal output."""
     if not table.columns:
         return table.title or ""
+    from .runtime_display import shrink_table_widths, terminal_table_width, truncate_cell
+
     values = table_values(table)
     widths = [
         max(len(column.heading), *(len(row[index]) for row in values))
         for index, column in enumerate(table.columns)
     ]
+    widths = shrink_table_widths(widths, [column.heading for column in table.columns], terminal_table_width())
+    values = [
+        [truncate_cell(value, widths[index]) for index, value in enumerate(row)]
+        for row in values
+    ]
     lines: list[str] = []
     if table.title:
         lines.append(table.title)
-    lines.append("  ".join(align_text(column.heading, widths[index], column.align) for index, column in enumerate(table.columns)))
+    lines.append(
+        "  ".join(
+            align_text(truncate_cell(column.heading, widths[index]), widths[index], column.align)
+            for index, column in enumerate(table.columns)
+        )
+    )
     lines.append("  ".join("-" * width for width in widths))
     lines.extend(
         "  ".join(align_text(value, widths[index], table.columns[index].align) for index, value in enumerate(row))

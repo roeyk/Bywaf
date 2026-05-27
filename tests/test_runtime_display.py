@@ -43,6 +43,12 @@ class RuntimeDisplayTests(unittest.TestCase):
 
         self.assertIn("1    \x1b[36mABC12345", rendered)
 
+    def test_render_table_truncates_to_max_width(self):
+        rendered = render_table(("ID", "COMMAND"), ((1, "x" * 80),), max_width=24)
+
+        self.assertTrue(all(len(line) <= 24 for line in rendered.splitlines()))
+        self.assertIn("…", rendered)
+
 
 if __name__ == "__main__":
     unittest.main()

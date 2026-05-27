@@ -16,6 +16,7 @@ from bywaf.finding import SEVERITY_CLASS_ORDER, severity_class
 from bywaf.plugin import CommandContext
 from bywaf.plugins.analysis.finding_report import finding_rows
 from bywaf.rendering import Column, Table, align_text, table_values
+from bywaf.runtime_display import shrink_table_widths, terminal_table_width, truncate_cell
 
 from .report_details import render_group_details
 from .report_model import FindingGroup, effective_finding_payload, events_for_groups, group_finding_events
@@ -52,11 +53,7 @@ def render_finding_report(context: CommandContext, events: list[Event], parsed: 
         ),
     ]
     if not displayed_groups:
-        output_lines.append(
-            "no unreviewed findings"
-            if parsed.status == "unreviewed"
-            else f"no {parsed.status} findings"
-        )
+        output_lines.append(empty_status_message(parsed.status))
         emit_report_output(context, output_lines, parsed)
         context.events.publish(
             "report.rendered",
@@ -76,7 +73,7 @@ def render_finding_report(context: CommandContext, events: list[Event], parsed: 
         output_lines.append(render_group_details(context, displayed_groups))
     else:
         output_lines.append(
-            report_text(context, "hint", "Use `report <#>` or `report detail <#>` for evidence, artifacts, and provenance.")
+            report_text(context, "hint", "Use `report <#>` for detail.")
         )
     emit_report_output(context, output_lines, parsed)
     context.events.publish(
@@ -108,6 +105,15 @@ def parse_bool_selector(value: object) -> bool:
     if normalized in {"0", "false", "no", "off"}:
         return False
     raise ValueError(f"invalid boolean value: {value}")
+
+
+def empty_status_message(status: str) -> str:
+    """Return a natural empty-state message for one report status filter."""
+    if status == "unreviewed":
+        return "no unreviewed findings"
+    if status == "all":
+        return "no findings"
+    return f"no {status} findings"
 
 
 def report_heading(parsed: Namespace, events: list[Event], groups: list[FindingGroup]) -> str:
@@ -175,7 +181,7 @@ def review_summary_line(
         for item in SEVERITY_CLASS_ORDER
         if severity_counts.get(item, 0)
     )
-    return f"{summary}; severity classes: {class_summary}" if class_summary else summary
+    return f"{summary}\nseverity classes: {class_summary}" if class_summary else summary
 
 
 def severity_class_counts(groups: list[FindingGroup]) -> dict[str, int]:
@@ -236,6 +242,11 @@ def render_styled_report_table(context: CommandContext, table: Table) -> str:
     widths = [
         max(len(column.heading), *(len(row[index]) for row in values))
         for index, column in enumerate(table.columns)
+    ]
+    widths = shrink_table_widths(widths, [column.heading for column in table.columns], terminal_table_width())
+    values = [
+        [truncate_cell(value, widths[index]) for index, value in enumerate(row)]
+        for row in values
     ]
     lines: list[str] = []
     if table.title:

@@ -9,9 +9,11 @@ Used by:
 
 import contextlib
 import io
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from bywaf.app import dispatch_repl_line, make_runner, process_framework_requests
 from bywaf.repl import ShellState
@@ -139,6 +141,34 @@ class ReportTests(unittest.TestCase):
             text = output.getvalue()
             self.assertIn("[core] repositoryformatversion = 0", text)
             self.assertNotIn("[core]\n\t", text)
+
+    def test_report_summary_table_fits_terminal_width(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "candidate-1",
+                    "title": "Very long finding title that should be shortened in the summary table",
+                    "target": {"url": "http://127.0.0.1:8088/.git/config"},
+                    "severity": "high",
+                },
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+
+            output = io.StringIO()
+            with (
+                patch("bywaf.runtime_display.shutil.get_terminal_size", return_value=os.terminal_size((72, 24))),
+                contextlib.redirect_stdout(output),
+            ):
+                runner.execute("report pipeline=pipeline-a page=false")
+                process_framework_requests(runner, ShellState())
+
+            lines = [line for line in output.getvalue().splitlines() if line and "\x1b[" not in line]
+            self.assertTrue(all(len(line) <= 72 for line in lines), output.getvalue())
+            self.assertIn("…", output.getvalue())
 
     def test_report_applies_configured_table_and_finding_styles(self):
         with tempfile.TemporaryDirectory() as tmp:

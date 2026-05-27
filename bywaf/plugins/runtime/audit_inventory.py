@@ -12,6 +12,7 @@ from bywaf.events import Event
 from bywaf.plugin import CommandContext
 from bywaf.plugin.capabilities import implied_capabilities
 from bywaf.registry import PluginRegistry
+from bywaf.runtime_display import render_table, terminal_table_width
 from bywaf.time_format import format_operator_timestamp
 
 
@@ -131,11 +132,5 @@ def format_event_time(event: Event) -> str:
 def format_capability_inventory(rows: list[dict[str, str]]) -> str:
     """Return a fixed-width capability inventory table."""
     columns = ["Capability", "Range", "Declared By", "Last Used", "Last User", "Missing", "Status"]
-    widths = {
-        column: max(len(column), *(len(row[column]) for row in rows)) if rows else len(column)
-        for column in columns
-    }
-    header = "  ".join(column.ljust(widths[column]) for column in columns)
-    ruler = "  ".join("-" * widths[column] for column in columns)
-    body = ["  ".join(row[column].ljust(widths[column]) for column in columns) for row in rows]
-    return "\n".join([header, ruler, *body])
+    table_rows = [tuple(row[column] for column in columns) for row in rows]
+    return render_table(tuple(columns), table_rows, max_width=terminal_table_width())

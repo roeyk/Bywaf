@@ -19,7 +19,6 @@ from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionC
 from bywaf.runtime_display import (
     active_listing_format,
     command_context_style_getter,
-    display_runtime_serial,
     format_runtime_duration,
     format_runtime_timestamp,
     parse_runtime_list_selectors,
@@ -27,6 +26,7 @@ from bywaf.runtime_display import (
     runtime_sort_note,
     runtime_state_label,
     runtime_state_text,
+    terminal_table_width,
 )
 
 STEP_SORT_KEYS = ("id", "serial", "state", "pipeline", "source", "events", "first")
@@ -125,23 +125,22 @@ def print_steps(
         table_rows.append(
             (
                 run_aliases.get(run_serial, run_serial),
-                display_runtime_serial(run_serial),
                 runtime_state_text(row["job_statuses"], timestamp, style=marker_style),
-                names.get(("run", run_serial), ""),
                 pipeline_aliases.get(pipeline_serial, ""),
-                display_runtime_serial(pipeline_serial),
                 row["source"],
                 row["events"],
                 artifact_counts.get(run_serial, 0),
                 format_runtime_timestamp(row["first_event"]),
                 format_runtime_duration(row["first_event"], row["last_event"]),
+                names.get(("run", run_serial), ""),
             )
         )
     output = render_table(
-        ("STEP", "SERIAL", "STATE", "NAME", "PIPELINE", "PIPELINE_SERIAL", "SOURCE", "EVENTS", "ARTIFACTS", "FIRST_SEEN", "DURATION"),
+        ("STEP", "STATE", "PIPELINE", "SOURCE", "EVENTS", "ART", "STARTED", "DUR", "NAME"),
         table_rows,
-        cell_subjects=("step", "serial", "", "", "pipeline", "serial", "", "", "", "timestamp", "timestamp"),
+        cell_subjects=("step", "", "pipeline", "", "", "", "timestamp", "timestamp", ""),
         style_getter=command_context_style_getter(context),
+        max_width=terminal_table_width(),
     )
     if sort_key:
         output = f"{runtime_sort_note(sort_key)}\n{output}"

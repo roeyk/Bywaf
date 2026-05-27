@@ -685,8 +685,8 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "triggers")
             text = output.getvalue()
-            self.assertIn("network-access-starts-watchdog", text)
-            self.assertIn("plugin.capability.used", text)
+            self.assertIn("network-access-start", text)
+            self.assertIn("plugin.capability", text)
 
     def test_dispatch_cmds_page_uses_system_pager_for_generated_output(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1365,7 +1365,8 @@ class AppDispatchTests(unittest.TestCase):
     def test_list_action_page_uses_system_pager_for_generated_output(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
-            runner.db.record_job("hostscanner 127.0.0.1", 123, "running")
+            for index in range(8):
+                runner.db.record_job(f"hostscanner 127.0.0.{index}", 123 + index, "running")
             with (
                 patch("bywaf.pager.shutil.which", return_value="/usr/bin/less"),
                 patch("bywaf.pager.sys.stdin.isatty", return_value=True),
@@ -1448,8 +1449,8 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "step")
             text = output.getvalue()
             self.assertIn("STEP", text)
-            self.assertIn("ARTIFACTS", text)
-            self.assertRegex(text, r"\n1\s+r\s+active\s+\s*1\s+p\s+hostscanner\s+2\s+1\s+")
+            self.assertIn("ART", text)
+            self.assertRegex(text, r"\n1\s+active\s+\s*1\s+hostscanner\s+2\s+1\s+")
             self.assertEqual(text.count("hostscanner"), 1)
 
     def test_runtime_lists_filter_by_host_payload(self):
@@ -1481,8 +1482,6 @@ class AppDispatchTests(unittest.TestCase):
             text = output.getvalue()
             self.assertIn("192.0.2.20", text)
             self.assertNotIn("192.0.2.10", text)
-            self.assertIn("pipe-b", text)
-            self.assertIn("step-b", text)
             self.assertNotIn("pipe-a", text)
             self.assertNotIn("step-a", text)
 
@@ -1506,8 +1505,8 @@ class AppDispatchTests(unittest.TestCase):
             text = output.getvalue()
             self.assertIn("portscanner", text)
             self.assertIn("host=192.0.2.20", text)
-            self.assertIn("pipe-done", text)
-            self.assertIn("step-done", text)
+            self.assertIn("PIPELINE", text)
+            self.assertIn("STEP", text)
 
     def test_runtime_filters_match_foreground_portscanner_events(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1525,7 +1524,7 @@ class AppDispatchTests(unittest.TestCase):
                     dispatch_repl_line(runner, "pipeline host=192.0.2.10", state)
             text = output.getvalue()
             self.assertIn("network/portscanner", text)
-            self.assertIn("host=192.0.2.10 port=80", text)
+            self.assertIn("host=192.0.2", text)
             self.assertIn("STEP", text)
             self.assertIn("PIPELINE", text)
 
@@ -1713,7 +1712,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("Jobs (1)", text)
             self.assertIn("Pipelines (1)", text)
             self.assertIn("Steps (1)", text)
-            self.assertIn("ARTIFACTS", text)
+            self.assertIn("ART", text)
 
     def test_runtime_names_display_in_listings(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1744,7 +1743,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("job name", text)
             self.assertIn("commandlet=hostscanner", text)
             self.assertIn("args=127.0.0.1", text)
-            self.assertIn("ARTIFACTS", text)
+            self.assertIn("ART", text)
 
     def test_job_show_includes_recorded_commandlet_arguments(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1843,7 +1842,7 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "step --all")
-            self.assertRegex(output.getvalue(), r"\n1\s+r\s+completed\s+\s*1\s+p\s+hostscanner\s+1\s+0\s+")
+            self.assertRegex(output.getvalue(), r"\n1\s+completed\s+1\s+hostscanner\s+1\s+0\s+")
 
     def test_make_runner_marks_dead_runtime_jobs_stale_on_startup(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1874,12 +1873,12 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "job")
-            self.assertIn("ARTIFACTS", output.getvalue())
-            self.assertRegex(output.getvalue(), r"\n1\s+[0-9A-Z]{8}\s+active\s+123\s+running\s+0\s+")
-            self.assertIn("COMMANDLET", output.getvalue())
-            self.assertIn("ARGS", output.getvalue())
-            self.assertIn("hostscanner", output.getvalue())
-            self.assertIn("127.0.0.1", output.getvalue())
+            text = output.getvalue()
+            self.assertIn("ART", text)
+            self.assertIn("COMMAND", text)
+            self.assertNotIn("COMMANDLET", text)
+            self.assertRegex(text, r"\n1\s+active\s+running\s+")
+            self.assertIn("hostscanner 127.0.0.1", text)
 
     def test_jobs_all_marks_active_state(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1890,8 +1889,26 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "job --all")
             text = output.getvalue()
-            self.assertRegex(text, r"\n1\s+[0-9A-Z]{8}\s+active\s+123\s+running\s+0\s+")
-            self.assertRegex(text, r"\n2\s+[0-9A-Z]{8}\s+completed\s+456\s+finished\s+0\s+")
+            self.assertRegex(text, r"\n1\s+active\s+running\s+")
+            self.assertRegex(text, r"\n2\s+completed\s+finished\s+")
+
+    def test_job_listing_fits_terminal_width(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.record_job(
+                "network/portscanner host=192.0.2.10 ports=1-65535 arguments='-Pn -sT -4'",
+                123,
+                "running",
+            )
+            output = io.StringIO()
+            with (
+                patch("bywaf.runtime_display.shutil.get_terminal_size", return_value=os.terminal_size((72, 24))),
+                contextlib.redirect_stdout(output),
+            ):
+                dispatch_repl_line(runner, "job --all")
+            lines = [line for line in output.getvalue().splitlines() if line]
+            self.assertTrue(lines)
+            self.assertTrue(all(len(line) <= 72 for line in lines), output.getvalue())
 
     def test_runtime_views_accept_sort_selector_and_reject_sort_flag(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1944,7 +1961,7 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "job --all")
             self.assertIn("active since ", output.getvalue())
-            self.assertRegex(output.getvalue(), r"\n1\s+[0-9A-Z]{8}\s+active since ")
+            self.assertRegex(output.getvalue(), r"\n1\s+active since ")
 
     def test_pipeline_lists_by_default(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1961,8 +1978,8 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "pipeline")
             text = output.getvalue()
-            self.assertIn("ARTIFACTS", text)
-            self.assertRegex(text, rf"\n1\s+pipe-1\s+active\s+\s*{job_id}\s+running\s+1\s+0\s+0\s+")
+            self.assertIn("ART", text)
+            self.assertRegex(text, rf"\n1\s+active\s+{job_id}\s+running\s+1\s+0\s+0\s+")
 
     def test_pipeline_list_defaults_to_active_unless_all_requested(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1982,7 +1999,7 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "pipeline --all")
-            self.assertIn("finished-pipe", output.getvalue())
+            self.assertRegex(output.getvalue(), r"\n1\s+completed\s+1\s+finished\s+1\s+")
 
     def test_job_cancel_records_soft_cancellation(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -10,10 +10,12 @@ Used by:
 import contextlib
 import io
 import importlib.util
+import os
 import tempfile
 import unittest
 from pathlib import Path
 from typing import cast
+from unittest.mock import patch
 
 from bywaf.app import ShellState, make_runner, process_framework_requests
 from bywaf.plugin import CommandContext
@@ -40,6 +42,17 @@ class RenderingTests(unittest.TestCase):
         self.assertIn("Open ports", rendered)
         self.assertIn("Host       ", rendered)
         self.assertIn("Port", rendered)
+
+    def test_console_renderer_truncates_to_terminal_width(self):
+        table = Table.from_rows(
+            ({"id": "1", "description": "x" * 80},),
+            (Column("id", "ID"), Column("description", "Description")),
+        )
+        with patch("bywaf.runtime_display.shutil.get_terminal_size", return_value=os.terminal_size((24, 24))):
+            rendered = render_table(table, "console")
+
+        self.assertTrue(all(len(line) <= 24 for line in rendered.splitlines()))
+        self.assertIn("…", rendered)
 
     def test_markdown_renderer_escapes_pipes(self):
         table = Table.from_rows(({"name": "a|b"},), ("name",))

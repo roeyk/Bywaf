@@ -11,6 +11,7 @@ Used by:
 from __future__ import annotations
 
 import shlex
+import shutil
 from collections.abc import Callable, Mapping, Sequence
 from .command.parser import parse_pipeline
 from .db.support import SERIAL_DISPLAY_LENGTH, serial_body
@@ -191,6 +192,7 @@ def render_table(
     *,
     cell_subjects: Sequence[str] = (),
     style_getter: StyleGetter | None = None,
+    max_width: int | None = None,
 ) -> str:
     """Render a small table, optionally styling aligned cells by subject."""
     if not rows:
@@ -200,8 +202,11 @@ def render_table(
         max(len(header), *(len(row[index]) for row in text_rows))
         for index, header in enumerate(headers)
     ]
+    if max_width is not None:
+        widths = shrink_table_widths(widths, headers, max_width)
+        text_rows = [[truncate_cell(value, widths[index]) for index, value in enumerate(row)] for row in text_rows]
     lines = [
-        "  ".join(header.ljust(widths[index]) for index, header in enumerate(headers)),
+        "  ".join(truncate_cell(header, widths[index]).ljust(widths[index]) for index, header in enumerate(headers)),
         "  ".join("-" * width for width in widths),
     ]
     lines.extend(
@@ -216,6 +221,47 @@ def render_table(
         for row in text_rows
     )
     return "\n".join(lines)
+
+
+def terminal_table_width(fallback: int = 100) -> int:
+    """Return the current terminal width for view-command tables."""
+    return shutil.get_terminal_size(fallback=(fallback, 24)).columns
+
+
+def shrink_table_widths(widths: list[int], headers: Sequence[str], max_width: int) -> list[int]:
+    """Shrink wide columns until a table fits the requested display width."""
+    if not widths:
+        return widths
+    available = max(1, max_width - (2 * (len(widths) - 1)))
+    minimums = [min(max(len(header), 3), width) for header, width in zip(headers, widths)]
+    if available < sum(minimums):
+        compressed = [1] * len(widths)
+        remaining = max(0, available - len(compressed))
+        for index in sorted(range(len(widths)), key=lambda item: widths[item], reverse=True):
+            if remaining <= 0:
+                break
+            room = max(0, min(widths[index], minimums[index]) - compressed[index])
+            growth = min(room, remaining)
+            compressed[index] += growth
+            remaining -= growth
+        return compressed
+    shrunk = list(widths)
+    while sum(shrunk) > available:
+        candidates = [index for index, width in enumerate(shrunk) if width > minimums[index]]
+        if not candidates:
+            break
+        index = max(candidates, key=lambda candidate: shrunk[candidate] - minimums[candidate])
+        shrunk[index] -= 1
+    return shrunk
+
+
+def truncate_cell(value: str, width: int) -> str:
+    """Trim one table cell to width, preserving a visible ellipsis."""
+    if len(value) <= width:
+        return value
+    if width <= 1:
+        return value[:width]
+    return value[: width - 1] + "…"
 
 
 def style_table_cell(value: str, subject: str, style_getter: StyleGetter | None) -> str:

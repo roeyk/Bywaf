@@ -18,7 +18,7 @@ from bywaf.event_filters import filter_events_by_payload, parse_payload_filter_t
 from bywaf.events import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
 from bywaf.plugins.runtime.job import require_job
-from bywaf.runtime_display import command_context_style_getter, render_table, runtime_sort_note
+from bywaf.runtime_display import command_context_style_getter, render_table, runtime_sort_note, terminal_table_width
 
 PORT_SORT_KEYS = ("host", "port", "protocol", "service", "reason", "event", "time")
 PORT_FILTER_KEYS = {"host", "port", "protocol", "service", "reason", "state"}
@@ -228,6 +228,7 @@ def render_ports_table(context: CommandContext, events: list[Event], sort_key: s
         rows,
         cell_subjects=("host", "port", "protocol", "service", "", "event"),
         style_getter=command_context_style_getter(context),
+        max_width=terminal_table_width(),
     )
 
 
@@ -248,6 +249,7 @@ def render_ports_by_host(context: CommandContext, events: list[Event]) -> str:
         rows,
         cell_subjects=("host", "port"),
         style_getter=command_context_style_getter(context),
+        max_width=terminal_table_width(),
     )
 
 
@@ -281,6 +283,7 @@ def render_ports_by_port(context: CommandContext, events: list[Event]) -> str:
         rows,
         cell_subjects=("port", "protocol", "service", "host"),
         style_getter=command_context_style_getter(context),
+        max_width=terminal_table_width(),
     )
 
 

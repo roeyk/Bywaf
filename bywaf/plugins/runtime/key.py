@@ -35,7 +35,7 @@ from bywaf.plugin import (
     argument,
     commandlet,
 )
-from bywaf.runtime_display import render_table
+from bywaf.runtime_display import render_table, terminal_table_width
 
 KEY_ACTIONS = ("export", "generate", "import", "list", "remove", "show", "test")
 
@@ -123,7 +123,13 @@ def list_keys(context: CommandContext) -> None:
     if not rows:
         context.output("no keys")
         return
-    context.output(render_table(("NAME", "SCOPE", "ALG", "FINGERPRINT", "SIGNING", "PUBLIC", "PRIVATE"), rows))
+    context.output(
+        render_table(
+            ("NAME", "SCOPE", "ALG", "FINGERPRINT", "SIGNING", "PUBLIC", "PRIVATE"),
+            rows,
+            max_width=terminal_table_width(),
+        )
+    )
 
 
 def show_key(context: CommandContext, name: str) -> None:
