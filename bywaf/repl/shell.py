@@ -332,7 +332,7 @@ def run_commandlet_remainder(runner: Runner, tokens: list[str]) -> int:
 
 
 def split_command_sequence(line: str) -> list[str]:
-    """Split semicolon-separated commands while preserving quoted semicolons."""
+    """Split pasted command sequences while preserving quoted separators."""
     commands: list[str] = []
     quote: str | None = None
     escaped = False
@@ -355,8 +355,10 @@ def split_command_sequence(line: str) -> list[str]:
             current.append(char)
             quote = char
             continue
-        if char == ";":
-            # Only unquoted semicolons delimit REPL commands.
+        if char in {";", "\n"}:
+            # Only unquoted semicolons and newlines delimit REPL commands.
+            # This makes multi-line paste behave like a tiny script without
+            # making commandlet parsers handle unrelated trailing commands.
             command = "".join(current).strip()
             if command:
                 commands.append(command)

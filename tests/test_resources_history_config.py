@@ -151,10 +151,18 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
         self.assertEqual(strip_inline_comment("set color=#dc2626"), "set color=")
         self.assertEqual(strip_inline_comment(r"set color=\#dc2626"), "set color=#dc2626")
 
-    def test_split_command_sequence_respects_quoted_semicolons(self):
+    def test_split_command_sequence_respects_quoted_separators(self):
         self.assertEqual(
             split_command_sequence("set a=1; set b='two; still two'; topics"),
             ["set a=1", "set b='two; still two'", "topics"],
+        )
+        self.assertEqual(
+            split_command_sequence("jobs --all\npipelines --all\nevents last=30"),
+            ["jobs --all", "pipelines --all", "events last=30"],
+        )
+        self.assertEqual(
+            split_command_sequence("set note='first line\nsecond line'\nevents"),
+            ["set note='first line\nsecond line'", "events"],
         )
 
     def test_line_continuation_helpers(self):
