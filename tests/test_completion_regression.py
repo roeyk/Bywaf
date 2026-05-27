@@ -155,7 +155,7 @@ class CompletionRegressionTests(unittest.TestCase):
                     ("db load file=byw", "file=bywaf.sqlite3"),
                     ("config load file=byw", "file=bywaf.config.toml"),
                     ("config theme name=cl", "name=classic"),
-                    ("pref theme name=cl", "name=classic"),
+                    ("pref theme=cl", "theme=classic"),
                     ("pref set identity.em", "identity.email="),
                     ("history load file=his", "file=history.bywaf"),
                     ("db export file=byw", "file=bywaf.sqlite3"),

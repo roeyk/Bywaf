@@ -1270,7 +1270,7 @@ bywaf> config save file=session.toml
 bywaf> config load file=session.toml
 bywaf> config theme name=classic
 bywaf> config theme file=theme.toml
-bywaf> pref theme name=classic
+bywaf> pref theme=classic
 bywaf> pref prompt "$u@$h> "
 bywaf> pref set identity.email=operator@example.com
 bywaf> pref set identity.fullname="Example Operator"
@@ -1429,7 +1429,7 @@ Preference keys are not plugin variables: they are not scoped through
 provider/commandlet paths and commandlets do not receive them as scan options.
 
 ```text
-bywaf> pref theme name=classic
+bywaf> pref theme=classic
 saved pref theme=classic
 bywaf> pref prompt "$u@$h> "
 saved pref prompt=$u@$h>
@@ -2093,7 +2093,7 @@ config theme [name=<preset>|file=<resource>]
 pref [list|load|save] [file=<resource>]
 pref set key=value [file=<resource>]
 pref unset key [file=<resource>]
-pref theme name=<preset> [file=<resource>]
+pref theme=<preset> [file=<resource>]
 pref prompt <pattern> [file=<resource>]
 history load file=<resource>
 script load file=<resource>

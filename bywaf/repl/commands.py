@@ -179,9 +179,13 @@ def handle_pref_command(runner: Runner, state: ShellState, rest: str | None, lin
     tokens = shlex.split(rest) if rest else []
     action = tokens[0] if tokens else "list"
     args = tokens[1:] if tokens else []
-    file_value = selector_value(args, "file")
+    file_value = selector_value(tokens, "file")
     path = resolve_preferences_path(file_value)
-    if action == "list":
+    theme_value = selector_value(tokens, "theme")
+    if theme_value:
+        set_preference(runner, state, path, THEME_KEY, theme_value)
+        print(f"saved pref theme={theme_value}")
+    elif action == "list":
         print_preferences(runner, state, path)
     elif action == "load":
         values = load_preferences(path)
@@ -199,18 +203,12 @@ def handle_pref_command(runner: Runner, state: ShellState, rest: str | None, lin
         key = preference_key_argument(args)
         removed = unset_preference(runner, state, path, key)
         print(f"unset pref {key}" if removed else f"pref not set: {key}")
-    elif action == "theme":
-        name = selector_value(args, "name")
-        if not name:
-            raise ValueError("usage: pref theme name=<preset> [file=<path>]")
-        set_preference(runner, state, path, THEME_KEY, name)
-        print(f"saved pref theme={name}")
     elif action == "prompt":
         pattern = preference_prompt_pattern(args)
         set_preference(runner, state, path, "prompt.pattern", pattern)
         print(f"saved pref prompt={pattern}")
     else:
-        print("usage: pref [list|load|save] [file=<path>], pref set key=value [file=<path>], pref unset key [file=<path>], pref theme name=<preset> [file=<path>], or pref prompt <pattern> [file=<path>]")
+        print("usage: pref [list|load|save] [file=<path>], pref set key=value [file=<path>], pref unset key [file=<path>], pref theme=<preset> [file=<path>], or pref prompt <pattern> [file=<path>]")
     return None
 
 

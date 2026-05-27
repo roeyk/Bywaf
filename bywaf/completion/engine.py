@@ -457,10 +457,8 @@ class CoreCompleter:
             "save",
             "set",
             "unset",
-            "theme",
             "prompt",
             "file=",
-            "name=",
             "theme=",
             "prompt.pattern=",
             "display.expansion=",
@@ -472,9 +470,6 @@ class CoreCompleter:
             "mail.smtp.host=",
             "mail.smtp.port=",
         )
-        if prefix.startswith("name="):
-            value = prefix.split("=", 1)[1]
-            return [f"name={name}" for name in theme_names() if name.startswith(value)]
         if prefix.startswith("theme="):
             value = prefix.split("=", 1)[1]
             return [f"theme={name}" for name in theme_names() if name.startswith(value)]

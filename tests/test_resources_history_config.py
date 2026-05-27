@@ -715,7 +715,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             runner = make_runner(Path(tmp, "db.sqlite3"))
             prefs = Path(tmp, "preferences.toml")
             with contextlib.redirect_stdout(io.StringIO()):
-                dispatch_repl_line(runner, f"pref theme name=classic file={prefs}")
+                dispatch_repl_line(runner, f"pref theme=classic file={prefs}")
             self.assertEqual(runner.registry.varstore.get("display/style.variable"), "cyan")
             self.assertIn('"theme" = "classic"', prefs.read_text())
 
