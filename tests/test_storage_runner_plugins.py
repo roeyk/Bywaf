@@ -790,7 +790,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 runner.execute("note step=1")
                 process_framework_requests(runner, ShellState())
             line = output.getvalue().splitlines()[-1]
-            self.assertRegex(line, r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [A-Z]+")
+            self.assertRegex(line, r"^\d{8} \d{2}:\d{2}:\d{2} [A-Z]+")
             self.assertIn("client approved target", line)
             self.assertIn(f"step={events[0].command_run_id}", line)
 
@@ -807,7 +807,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 runner.execute(f"note job={job_id} file={path}")
                 process_framework_requests(runner, ShellState())
             text = path.read_text()
-            self.assertRegex(text, r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [A-Z]+")
+            self.assertRegex(text, r"^\d{8} \d{2}:\d{2}:\d{2} [A-Z]+")
             self.assertIn("file export note", text)
             self.assertIn(f"saved 1 notes to {path}", output.getvalue())
 
