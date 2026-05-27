@@ -97,7 +97,13 @@ def job_action_handlers() -> dict[str, JobActionHandler]:
 
 def list_job_action(context: CommandContext, parsed: Namespace) -> None:
     """Run `job list`."""
-    print_jobs(context, active_only=not parsed.all, show_active=parsed.all, page=parsed.page, filters=parsed.filters)
+    print_jobs(
+        context,
+        active_only=not parsed.all and not parsed.filters,
+        show_active=parsed.all,
+        page=parsed.page,
+        filters=parsed.filters,
+    )
 
 
 def show_job_action(context: CommandContext, parsed: Namespace) -> None:

@@ -70,6 +70,24 @@ Planning dates are release planning markers, not compatibility commitments.
 - Make the native, library-backed, process-wrapped, helper/provider, listener,
   and service-plugin examples clearly visible in documentation and tests.
 
+### Item: Semantic Display Roles And Theme Configuration
+
+- Add a structured display/theme configuration model under `display/...` for
+  semantic roles such as timestamp, provider, commandlet, arguments, host,
+  port, protocol, event topic, severity, finding status, job, pipeline, and
+  step identifiers.
+- Renderers should ask for semantic roles such as `host`,
+  `severity.high`, or `finding.status.accepted`; they should not hard-code
+  terminal colors at each call site.
+- Plugins should emit structured payload fields and optional display-role hints
+  for non-obvious fields. They should describe what a value means, not choose
+  terminal colors directly.
+- Keep the initial theme format simple and terminal-safe, with names like
+  `dim`, `red`, `green`, `yellow`, `cyan`, `magenta`, and `bold`, then let
+  richer frontends map the same semantic roles into GUI/web styles.
+- Document the plugin contract so authors know how to expose semantically typed
+  data without coupling plugin output to one frontend.
+
 ### Item: CVE Detection And Confirmation Plugins
 
 - Research a short list of high-value, low-hanging-fruit CVE checks from

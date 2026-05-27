@@ -17,6 +17,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from ..command.parser import expand_variables_in_text
 from ..event_filters import event_matches_payload_filters, parse_event_sort, parse_payload_filter_tokens, select_event_rows
 from ..framework_requests import process_framework_requests
 from .display import (
@@ -168,6 +169,7 @@ def handle_info_command(runner: Runner, state: ShellState, rest: str | None, lin
 def handle_jobs_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
     """Run the job-list commandlet shortcut."""
     del line
+    rest = expand_builtin_filter_text(runner, state, rest, "jobs")
     tokens = shlex.split(rest) if rest else []
     validate_runtime_list_tokens("jobs", tokens)
     suffix = f" {' '.join(shlex.quote(token) for token in tokens)}" if tokens else ""
@@ -182,6 +184,7 @@ def handle_jobs_command(runner: Runner, state: ShellState, rest: str | None, lin
 def handle_pipelines_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
     """Run the pipeline-list commandlet shortcut."""
     del line
+    rest = expand_builtin_filter_text(runner, state, rest, "pipelines")
     tokens = shlex.split(rest) if rest else []
     validate_runtime_list_tokens("pipelines", tokens)
     suffix = f" {' '.join(shlex.quote(token) for token in tokens)}" if tokens else ""
@@ -193,10 +196,11 @@ def handle_pipelines_command(runner: Runner, state: ShellState, rest: str | None
 
 def handle_steps_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
     """Print commandlet execution steps."""
-    del state, line
+    del line
+    rest = expand_builtin_filter_text(runner, state, rest, "steps")
     tokens = shlex.split(rest) if rest else []
-    active_only = "--all" not in tokens
     filters = parse_step_filters(tokens)
+    active_only = "--all" not in tokens and not filters
     print_runs(runner, active_only=active_only, filters=filters)
     return None
 
@@ -271,10 +275,11 @@ def handle_project_command(runner: Runner, state: ShellState, rest: str | None, 
 
 def handle_event_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
     """Print matching events."""
-    del state, line
+    del line
     if rest is None:
         print("usage: event <id|topic|job=id|step=id|pipeline=id|serial=id> [field=value ...]")
         return None
+    rest = expand_builtin_filter_text(runner, state, rest, "event")
     tokens = shlex.split(rest)
     selector, filters, limit, sort_key = parse_event_query(tokens)
     if selector.isdigit():
@@ -371,6 +376,21 @@ def event_source_limit(display_limit: int, filters: dict[str, str]) -> int:
     if not filters:
         return display_limit
     return max(1000, display_limit * 20)
+
+
+def expand_builtin_filter_text(runner: Runner, state: ShellState, text: str | None, command: str) -> str | None:
+    """Expand `$vars` in built-in query/filter text.
+
+    Commandlet execution already expands variables in the runner parser. REPL
+    built-ins such as `event`, `jobs`, `pipelines`, and `steps` parse their own
+    filter syntax, so they need the same operator convenience before
+    tokenization.
+    """
+    if text is None or "$" not in text:
+        return text
+    scope = state.active_context or command
+    expanded, _names = expand_variables_in_text(text, runner.registry.varstore, scope)
+    return expanded
 
 
 def handle_events_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:

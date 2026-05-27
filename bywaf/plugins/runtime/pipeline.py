@@ -123,7 +123,13 @@ def pipeline_action_handlers() -> dict[str, PipelineActionHandler]:
 
 def list_pipeline_action(context: CommandContext, parsed: Namespace) -> None:
     """Run `pipeline list`."""
-    print_pipelines(context, active_only=not parsed.all, show_active=parsed.all, page=parsed.page, filters=parsed.filters)
+    print_pipelines(
+        context,
+        active_only=not parsed.all and not parsed.filters,
+        show_active=parsed.all,
+        page=parsed.page,
+        filters=parsed.filters,
+    )
 
 
 def show_pipeline_action(context: CommandContext, parsed: Namespace) -> None:

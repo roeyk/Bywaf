@@ -1845,6 +1845,28 @@ User flows are ordinary `.bywaf` scripts with optional `# EXPECT:` and
 `# EXPECT-EVENT:` assertions. They exercise real REPL/script commands from the
 operator's point of view and double as executable examples.
 
+Run the manual portscanner workflow smoke against a real nmap/libnmap
+installation. The `.bywaf` version is a literal REPL script:
+
+```bash
+python3 -m bywaf
+```
+
+```text
+bywaf> script load file=scripts/manual_portscanner_flow.bywaf
+```
+
+The Python wrapper runs the same style of workflow and also auto-selects the
+first open-port host into `A` before checking `host=$A` filters:
+
+```bash
+python3 scripts/manual_portscanner_flow.py
+python3 scripts/manual_portscanner_flow.py --target google.com --ports 80,443 --arguments "-Pn -sT -4"
+```
+
+Both workflows create a fresh database, scan the target, print `port.open` and
+`name.resolved`, and exercise runtime listings.
+
 Validate a filesystem plugin package outside the Bywaf interpreter:
 
 ```bash

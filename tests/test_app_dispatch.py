@@ -1390,6 +1390,44 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("pipe-a", text)
             self.assertNotIn("step-a", text)
 
+    def test_runtime_filter_lists_include_finished_scopes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("portscanner host=192.0.2.20", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=job_id,
+                pipeline_id="pipe-done",
+                command_run_id="step-done",
+                commandlet="portscanner",
+                values={"network/portscanner.host": "192.0.2.20"},
+            )
+            runner.db.publish("port.open", {"host": "192.0.2.20", "port": 443}, "portscanner", pipeline_id="pipe-done", command_run_id="step-done")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "jobs host=192.0.2.20")
+                dispatch_repl_line(runner, "pipelines host=192.0.2.20")
+                dispatch_repl_line(runner, "steps host=192.0.2.20")
+            text = output.getvalue()
+            self.assertIn("portscanner host=192.0.2.20", text)
+            self.assertIn("pipe-done", text)
+            self.assertIn("step-done", text)
+
+    def test_builtin_filters_expand_variables(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish("port.open", {"host": "192.0.2.20", "port": 443}, "portscanner")
+            dispatch_repl_line(runner, "set A=192.0.2.20")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "event port.open host=$A")
+            self.assertIn("192.0.2.20:443", output.getvalue())
+
+    def test_repl_strips_inline_comments_before_dispatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            dispatch_repl_line(runner, "set A=192.0.2.20 # operator note")
+            self.assertEqual(runner.registry.varstore.get("A"), "192.0.2.20")
+
     def test_info_shows_active_runtime_counts(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

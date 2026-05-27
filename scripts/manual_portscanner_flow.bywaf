@@ -1,0 +1,17 @@
+# Manual portscanner workflow smoke.
+#
+# Run inside Bywaf:
+#   script load file=scripts/manual_portscanner_flow.bywaf
+#
+# This script covers the fixed, deterministic part of the workflow. To also
+# auto-select the first open-port host into variable A and exercise host=$A
+# runtime filters, run:
+#   python3 scripts/manual_portscanner_flow.py
+
+db new
+network/portscanner host=google.com ports=80,443 arguments="-Pn -sT -4"
+event port.open
+event name.resolved
+jobs
+steps
+pipelines

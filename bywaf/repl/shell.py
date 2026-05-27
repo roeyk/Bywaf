@@ -34,6 +34,7 @@ from ..plugins.network.nmap_backend import NmapScanError, NmapUnavailableError
 from ..projects import ProjectPaths
 from ..registry import PluginTrustError
 from .resources import DEFAULT_HISTORY
+from .scripts import strip_inline_comment
 from ..runner import Runner
 from ..secret.store import load_or_create_fingerprint_key, redact_command_text
 from ..time_format import OPERATOR_TIMESTAMP_FORMAT
@@ -216,6 +217,9 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
     so plugin commands such as `ls` are not hard-coded into the shell.
     """
     state = state or ShellState(framework_request_after_id=runner.events.latest_event_id())
+    line = strip_inline_comment(line)
+    if not line.strip():
+        return None
     commands = split_command_sequence(line)
     if len(commands) > 1:
         # Semicolon sequencing is handled at the REPL layer, not by the
