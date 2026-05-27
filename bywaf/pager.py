@@ -17,7 +17,11 @@ from pathlib import Path
 
 
 def page_file(path: Path) -> None:
-    """Display a file through `less -R` when interactive, otherwise print it."""
+    """Display a file inline when it fits, otherwise through `less -R`."""
+    text = path.read_text(errors="replace")
+    if not should_use_pager(text):
+        print(text, end="", flush=True)
+        return
     pager = shutil.which("less")
     if pager and sys.stdin.isatty() and sys.stdout.isatty():
         try:
@@ -25,7 +29,18 @@ def page_file(path: Path) -> None:
         except KeyboardInterrupt:
             pass
         return
-    print(path.read_text(errors="replace"), end="", flush=True)
+    print(text, end="", flush=True)
+
+
+def should_use_pager(text: str) -> bool:
+    """Return whether text exceeds the current interactive terminal size."""
+    if not sys.stdin.isatty() or not sys.stdout.isatty():
+        return False
+    size = shutil.get_terminal_size(fallback=(80, 24))
+    lines = text.splitlines() or [""]
+    # Leave one row for the shell prompt/status area. Wide rows need paging even
+    # when the line count is small, because horizontal overflow is hard to scan.
+    return len(lines) > max(size.lines - 1, 1) or any(len(line) > size.columns for line in lines)
 
 
 def page_text(text: str, *, suffix: str = ".txt") -> None:

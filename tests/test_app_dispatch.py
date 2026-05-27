@@ -11,6 +11,7 @@ from pathlib import Path
 import contextlib
 import io
 import json
+import os
 import subprocess
 import tempfile
 import unittest
@@ -694,6 +695,7 @@ class AppDispatchTests(unittest.TestCase):
                 patch("bywaf.pager.shutil.which", return_value="/usr/bin/less"),
                 patch("bywaf.pager.sys.stdin.isatty", return_value=True),
                 patch("bywaf.pager.sys.stdout.isatty", return_value=True),
+                patch("bywaf.pager.shutil.get_terminal_size", return_value=os.terminal_size((40, 4))),
                 patch("bywaf.pager.subprocess.run") as run,
             ):
                 dispatch_repl_line(runner, "cmds --page")
@@ -710,6 +712,7 @@ class AppDispatchTests(unittest.TestCase):
                 patch("bywaf.pager.shutil.which", return_value="/usr/bin/less"),
                 patch("bywaf.pager.sys.stdin.isatty", return_value=True),
                 patch("bywaf.pager.sys.stdout.isatty", return_value=True),
+                patch("bywaf.pager.shutil.get_terminal_size", return_value=os.terminal_size((40, 4))),
                 patch("bywaf.pager.subprocess.run", side_effect=KeyboardInterrupt),
             ):
                 dispatch_repl_line(runner, "cmds --page")
@@ -1353,6 +1356,7 @@ class AppDispatchTests(unittest.TestCase):
                 patch("bywaf.pager.shutil.which", return_value="/usr/bin/less"),
                 patch("bywaf.pager.sys.stdin.isatty", return_value=True),
                 patch("bywaf.pager.sys.stdout.isatty", return_value=True),
+                patch("bywaf.pager.shutil.get_terminal_size", return_value=os.terminal_size((4, 1))),
                 patch("bywaf.pager.subprocess.run") as run,
             ):
                 dispatch_repl_line(runner, f"less {path}")
@@ -1366,6 +1370,7 @@ class AppDispatchTests(unittest.TestCase):
                 patch("bywaf.pager.shutil.which", return_value="/usr/bin/less"),
                 patch("bywaf.pager.sys.stdin.isatty", return_value=True),
                 patch("bywaf.pager.sys.stdout.isatty", return_value=True),
+                patch("bywaf.pager.shutil.get_terminal_size", return_value=os.terminal_size((40, 4))),
                 patch("bywaf.pager.subprocess.run") as run,
             ):
                 dispatch_repl_line(runner, "job --page")
@@ -1374,6 +1379,23 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(argv[0], "/usr/bin/less")
             self.assertEqual(argv[1], "-R")
             self.assertFalse(Path(argv[2]).exists())
+
+    def test_page_prints_inline_when_generated_output_fits_terminal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.record_job("hostscanner 127.0.0.1", 123, "running")
+            output = io.StringIO()
+            with (
+                patch("bywaf.pager.shutil.which", return_value="/usr/bin/less"),
+                patch("bywaf.pager.sys.stdin.isatty", return_value=True),
+                patch("bywaf.pager.sys.stdout.isatty", return_value=True),
+                patch("bywaf.pager.shutil.get_terminal_size", return_value=os.terminal_size((240, 80))),
+                patch("bywaf.pager.subprocess.run") as run,
+                contextlib.redirect_stdout(output),
+            ):
+                dispatch_repl_line(runner, "job --page")
+            run.assert_not_called()
+            self.assertIn("hostscanner", output.getvalue())
 
     def test_dispatch_unknown_command_prints_error(self):
         with tempfile.TemporaryDirectory() as tmp:

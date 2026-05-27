@@ -10,6 +10,7 @@ Used by:
 from pathlib import Path
 import contextlib
 import io
+import os
 import sys
 import tempfile
 import unittest
@@ -249,6 +250,7 @@ class FrameworkHttpAppTests(unittest.TestCase):
                 patch("bywaf.pager.shutil.which", return_value="/usr/bin/less"),
                 patch("bywaf.pager.sys.stdin.isatty", return_value=True),
                 patch("bywaf.pager.sys.stdout.isatty", return_value=True),
+                patch("bywaf.pager.shutil.get_terminal_size", return_value=os.terminal_size((4, 1))),
                 patch("bywaf.pager.subprocess.run", side_effect=KeyboardInterrupt),
             ):
                 process_framework_requests(runner, state)
