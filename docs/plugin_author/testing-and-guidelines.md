@@ -82,5 +82,20 @@ then writes a `console.output` event and owns the actual print. Advanced plugins
 can call `context.request(topic, payload)` directly when Bywaf grows new
 framework request types.
 
+For vulnerability and discovery plugins, structured events are the primary
+interface:
+
+- Detection plugins emit structured facts, finding candidates, confirmations,
+  and artifacts.
+- Report/render commandlets turn those records into operator-facing text.
+- Intermediate pipeline steps should be quiet by default so downstream
+  commandlets can consume the event stream without noisy console output.
+- Final pipeline steps may render, and `report` is the preferred final renderer
+  for normalized findings.
+
+This keeps plugin output consistent and makes generated or contributed plugins
+easier to review. "Did it emit the right payload?" is a much clearer contract
+than "Did it print a good mini-report?"
+
 Prefer completion specs for common cases and custom completion only when the
 generic specs are not expressive enough.

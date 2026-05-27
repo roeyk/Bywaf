@@ -384,6 +384,36 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn(f"\x1b[94m{event.id}\x1b[0m:", text)
             self.assertIn("\x1b[1;33mhostscanner\x1b[0m", text)
 
+    def test_events_use_semantic_display_roles(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.registry.varstore.set("display/style.host", "bold green")
+            runner.db.publish("port.open", {"host": "192.0.2.10", "port": 443, "protocol": "tcp"}, "test")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "event port.open")
+            self.assertIn("\x1b[1;32m192.0.2.10\x1b[0m:443/tcp", output.getvalue())
+
+    def test_events_accept_escaped_hex_display_style(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish("port.open", {"host": "192.0.2.10", "port": 443, "protocol": "tcp"}, "test")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, r"set display/style.host=\#00ff00")
+                dispatch_repl_line(runner, "event port.open")
+            self.assertIn("\x1b[38;2;0;255;0m192.0.2.10\x1b[0m:443/tcp", output.getvalue())
+
+    def test_events_accept_quoted_hex_display_style(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish("port.open", {"host": "192.0.2.10", "port": 443, "protocol": "tcp"}, "test")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, 'set display/style.host="#00ff00"')
+                dispatch_repl_line(runner, "event port.open")
+            self.assertIn("\x1b[38;2;0;255;0m192.0.2.10\x1b[0m:443/tcp", output.getvalue())
+
     def test_event_id_prints_event_runtime_context(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -1354,7 +1384,8 @@ class AppDispatchTests(unittest.TestCase):
             text = output.getvalue()
             self.assertIn("STEP", text)
             self.assertIn("ARTIFACTS", text)
-            self.assertRegex(text, r"\n1\s+r\s+active\s+\s*1\s+p\s+hostscanner\s+1\s+1\s+")
+            self.assertRegex(text, r"\n1\s+r\s+active\s+\s*1\s+p\s+hostscanner\s+2\s+1\s+")
+            self.assertEqual(text.count("hostscanner"), 1)
 
     def test_runtime_lists_filter_by_host_payload(self):
         with tempfile.TemporaryDirectory() as tmp:

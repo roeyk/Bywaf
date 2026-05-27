@@ -145,6 +145,11 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
 
     def test_script_commands_preserves_quoted_hashes(self):
         self.assertEqual(strip_inline_comment("set name='a # b' # later").strip(), "set name='a # b'")
+        self.assertEqual(strip_inline_comment('set color="#dc2626" # later').strip(), 'set color="#dc2626"')
+
+    def test_script_commands_treats_hash_as_comment_and_allows_escaped_hashes(self):
+        self.assertEqual(strip_inline_comment("set color=#dc2626"), "set color=")
+        self.assertEqual(strip_inline_comment(r"set color=\#dc2626"), "set color=#dc2626")
 
     def test_split_command_sequence_respects_quoted_semicolons(self):
         self.assertEqual(
@@ -225,6 +230,16 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "history", state)
             self.assertIn("\x1b[32m2026-05-17 10:00:00 EDT\x1b[0m  plugins", output.getvalue())
+
+    def test_dispatch_history_uses_semantic_comment_style_when_set(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.registry.varstore.set("display/style.comment", "bold color245")
+            state = ShellState(session_history=["plugins  # 2026-05-17 10:00:00 EDT"])
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "history", state)
+            self.assertIn("\x1b[1;38;5;245m2026-05-17 10:00:00 EDT\x1b[0m  plugins", output.getvalue())
 
     def test_dispatch_history_filters_since_until(self):
         with tempfile.TemporaryDirectory() as tmp:

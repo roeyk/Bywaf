@@ -680,7 +680,7 @@ def set_var(runner: Runner, state: ShellState, assignment: str, *, source: str =
     assignment, explicit_secret = parse_var_assignment_flags(assignment)
     key, value = assignment.split("=", 1)
     resolved_key = resolve_var_key(runner, state, key.strip())
-    cleaned_value = value.strip()
+    cleaned_value = clean_var_value(value)
     if explicit_secret:
         # Secrets store a fingerprinted reference in varstore and the cleartext
         # in the DB secret table. This keeps command rendering/audit output from
@@ -711,6 +711,20 @@ def set_var(runner: Runner, state: ShellState, assignment: str, *, source: str =
 def read_secret_value(name: str) -> str:
     """Read one secret value without echoing it to the terminal."""
     return getpass.getpass(f"Secret for {name}: ")
+
+
+def clean_var_value(value: str) -> str:
+    """Normalize one `set name=value` value while honoring shell quotes."""
+    stripped = value.strip()
+    if not stripped:
+        return ""
+    try:
+        tokens = shlex.split(stripped)
+    except ValueError:
+        return stripped
+    if len(tokens) == 1:
+        return tokens[0]
+    return stripped
 
 
 def parse_var_assignment_flags(assignment: str) -> tuple[str, bool]:
@@ -744,6 +758,8 @@ def globalize_setg(assignment: str) -> str:
 def warn_if_pending_catalog_variable(runner: Runner, key: str) -> None:
     """Warn when storing a commandlet-scoped variable before that commandlet is loaded."""
     if "/" not in key or "." not in key:
+        return
+    if key.startswith("display/"):
         return
     scope, variable = key.rsplit(".", 1)
     if not scope or not variable or runner.registry.has_commandlet(scope):
@@ -808,6 +824,8 @@ def maybe_use_loaded_commandlet(
 def resolve_var_key(runner: Runner, state: ShellState, key: str) -> str:
     """Resolve unqualified variable keys through the active `use` context."""
     if key.startswith("global."):
+        return key
+    if key.startswith("display/"):
         return key
     if "/" in key and "." in key:
         # Fully-qualified commandlet variables use catalog/path.command_var.

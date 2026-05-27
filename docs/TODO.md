@@ -51,6 +51,14 @@ Planning dates are release planning markers, not compatibility commitments.
     `X-Content-Type-Options`, and
     `http/repo_exposure/git_expose_check` against a controlled server exposing
     `/.git/config`.
+  - Exercise the Telnet-like finding path with
+    `network/portscanner host=<host> ports=23,2323 arguments="-Pn -sT"`,
+    then inspect `event finding.candidate` and `report`.
+  - Exercise repository exposure with
+    `http/repo_exposure/git_expose_check target=http://<test-host>`, then
+    inspect `event finding.candidate` and `report`.
+  - Exercise triage with `report accept all note="confirmed in manual pass"`,
+    then run `report` and `event finding.reviewed`.
   - Inspect `event finding.candidate` and confirm each finding has `class`,
     `target_scope`, `group_key`, `identifiers`, `target`, and `affected`.
   - Run `report` and `report pipeline=<id>` and verify events with the same
@@ -85,6 +93,14 @@ Planning dates are release planning markers, not compatibility commitments.
 - Keep the initial theme format simple and terminal-safe, with names like
   `dim`, `red`, `green`, `yellow`, `cyan`, `magenta`, and `bold`, then let
   richer frontends map the same semantic roles into GUI/web styles.
+- Let users configure either portable color/style names or explicit RGB/hex
+  values per semantic role. Terminal renderers should gracefully degrade RGB
+  values when truecolor is unavailable; GUI/web renderers can use the precise
+  values directly.
+- Treat unquoted `#` as the REPL/script comment marker; document quoted hex
+  values such as `set display/style.host="#00ff00"` and safe alternatives such
+  as `rgb:0,255,0` or `color46`.
+- Let users configure visible comment styling through `display/style.comment`.
 - Document the plugin contract so authors know how to expose semantically typed
   data without coupling plugin output to one frontend.
 

@@ -107,19 +107,20 @@ def script_commands(path: Path) -> list[tuple[int, str]]:
 
 
 def strip_inline_comment(line: str) -> str:
-    """Remove shell-style `#` comments while preserving quoted hashes."""
+    """Remove shell-style `#` comments while preserving quoted or escaped hashes."""
     quote: str | None = None
-    escaped = False
-    for index, char in enumerate(line):
-        if escaped:
-            escaped = False
-            continue
-        if char == "\\":
-            escaped = True
+    chars: list[str] = []
+    index = 0
+    while index < len(line):
+        char = line[index]
+        if char == "\\" and quote is None and index + 1 < len(line) and line[index + 1] == "#":
+            chars.append("#")
+            index += 2
             continue
         if char in ("'", '"'):
             quote = None if quote == char else char if quote is None else quote
-            continue
-        if char == "#" and quote is None and (index == 0 or line[index - 1].isspace()):
-            return line[:index]
-    return line
+        if char == "#" and quote is None:
+            break
+        chars.append(char)
+        index += 1
+    return "".join(chars)

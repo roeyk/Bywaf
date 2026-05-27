@@ -398,6 +398,13 @@ or direct subprocess calls. These helpers keep terminal output, progress, and
 external tool execution auditable and make the same commandlets usable from a
 future GUI or web frontend.
 
+Vulnerability and discovery plugins should prefer structured events over
+bespoke prose. A plugin can emit facts, finding candidates, confirmations, and
+artifacts without printing a mini-report. When a plugin is an intermediate
+pipeline step, routine console output should stay quiet so the next step can
+consume the event stream. The final step may render a concise summary, and
+`report` is the preferred final renderer for normalized findings.
+
 Progress is separate from findings. A finding is durable evidence such as
 `host.found` or `port.open`; progress is operational state such as "42% through
 the TCP scan." Commandlets report progress through structured events:
@@ -1327,6 +1334,9 @@ bywaf> set display.history.color=auto
 bywaf> set display.history.timestamp-color=green
 bywaf> set display.help.color=auto
 bywaf> set display.help.command-color=green
+bywaf> set display/style.host=bold green
+bywaf> set display/style.comment=dim color245
+bywaf> set display/style.finding.severity.critical="#dc2626"
 bywaf> set discovery/hostscanner.targets=192.168.1.1-255
 bywaf> hostscanner
 ```
@@ -1341,6 +1351,12 @@ colors accept named colors such as `cyan`, `green`, `yellow`, `blue`,
 values such as `rgb:80,180,90`; and background forms such as `bg-ansi:52` and
 `bg-rgb:80,0,0`. Event-list IDs are bright blue; detailed event section headers
 are yellow; history timestamps and help commands are green.
+
+Semantic display roles use `display/style.<role>`. Current terminal rendering
+uses roles such as `host`, `port`, `protocol`, `host.name`, and `comment`.
+Style values can combine attributes and colors, for example `bold green`,
+`dim color245`, `rgb:80,180,90`, or quoted hex values such as `"#00ff00"`.
+Unquoted `#` starts a REPL/script comment; quote or escape literal hashes.
 
 User preferences are separate from variables. The planned `pref` command is for
 operator-owned defaults that should live under `~/.bywaf`, such as colors,

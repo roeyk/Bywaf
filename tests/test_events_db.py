@@ -160,6 +160,24 @@ class EventDbTests(unittest.TestCase):
             self.assertEqual(rows[0]["command_run_id"], "r")
             self.assertEqual(rows[0]["events"], 2)
 
+    def test_runs_collapse_framework_events_into_commandlet_step(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "events.sqlite3"))
+            job_id = db.record_job("hostscanner 127.0.0.1", 123, "running")
+            db.record_command_run_vars(
+                job_id=job_id,
+                pipeline_id="p",
+                command_run_id="r",
+                commandlet="hostscanner",
+                values={"test.marker": "1"},
+            )
+            db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", pipeline_id="p", command_run_id="r")
+            db.publish("artifact.attached", {"artifact_id": "a"}, "framework", pipeline_id="p", command_run_id="r")
+            rows = db.runs()
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]["source"], "hostscanner")
+            self.assertEqual(rows[0]["events"], 2)
+
     def test_pipelines_can_filter_to_active_jobs(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "events.sqlite3"))

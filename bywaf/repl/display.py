@@ -42,6 +42,8 @@ VAR_NAME_COLOR_VAR = "display.vars.name-color"
 VAR_VALUE_COLOR_VAR = "display.vars.value-color"
 EVENT_COLOR_MODE_VAR = "display.events.color"
 EVENT_KEY_COLOR_VAR = "display.events.key-color"
+DISPLAY_STYLE_PREFIX = "display/style."
+DISPLAY_COMMENT_STYLE_VAR = f"{DISPLAY_STYLE_PREFIX}comment"
 DEFAULT_VAR_COLOR_MODE = "auto"
 DEFAULT_VAR_NAME_COLOR = "cyan"
 DEFAULT_VAR_VALUE_COLOR = "green"
@@ -79,6 +81,16 @@ ANSI_COLORS = {
     "bright-magenta": "95",
     "bright-cyan": "96",
     "bright-white": "97",
+}
+
+ANSI_STYLE_TOKENS = {
+    "bold": "1",
+    "dim": "2",
+    "italic": "3",
+    "underline": "4",
+    "blink": "5",
+    "reverse": "7",
+    "strikethrough": "9",
 }
 
 
@@ -150,16 +162,16 @@ HELP_COMMANDS = (
 )
 
 
-def format_event(event) -> str:
+def format_event(event, runner: Runner | None = None) -> str:
     """Render one event row for human-readable console output."""
     # Prefer topic-specific summaries for high-volume operational events. The
     # fallback still exposes the raw payload for unknown third-party topics.
     if event.topic == "port.open":
-        return format_port_open_event(event)
+        return format_port_open_event(event, runner)
     if event.topic == "host.found":
-        return format_host_found_event(event)
+        return format_host_found_event(event, runner)
     if event.topic == "name.resolved":
-        return format_name_resolved_event(event)
+        return format_name_resolved_event(event, runner)
     if event.topic == "console.alert":
         return format_console_alert_event(event)
     if event.topic in {"console.output", "framework.console.output.requested"}:
@@ -185,12 +197,12 @@ def format_event(event) -> str:
     return f"{event.id}: {event.topic} {event.payload}"
 
 
-def format_port_open_event(event) -> str:
+def format_port_open_event(event, runner: Runner | None = None) -> str:
     """Render an open port as operator-facing evidence."""
     payload = event.payload
-    host = payload.get("host", "")
-    port = payload.get("port", "")
-    protocol = payload.get("protocol", "tcp")
+    host = semantic_text(runner, "host", payload.get("host", ""))
+    port = semantic_text(runner, "port", payload.get("port", ""))
+    protocol = semantic_text(runner, "protocol", payload.get("protocol", "tcp"))
     service = payload.get("service", "")
     reason = payload.get("reason", "")
     details = " ".join(str(value) for value in (service, reason) if value)
@@ -198,10 +210,10 @@ def format_port_open_event(event) -> str:
     return f"{event.id}: port.open {host}:{port}/{protocol}{suffix}".strip()
 
 
-def format_host_found_event(event) -> str:
+def format_host_found_event(event, runner: Runner | None = None) -> str:
     """Render a discovered host as operator-facing evidence."""
     payload = event.payload
-    host = payload.get("host", "")
+    host = semantic_text(runner, "host", payload.get("host", ""))
     name = payload.get("name", "")
     status = payload.get("status", "")
     scanner = payload.get("scanner", "")
@@ -210,15 +222,15 @@ def format_host_found_event(event) -> str:
     return f"{event.id}: host.found {host}{suffix}".strip()
 
 
-def format_name_resolved_event(event) -> str:
+def format_name_resolved_event(event, runner: Runner | None = None) -> str:
     """Render DNS resolution provenance for scan targets."""
     payload = event.payload
-    name = payload.get("name", "")
+    name = semantic_text(runner, "host.name", payload.get("name", ""))
     addresses = payload.get("addresses", ())
     if isinstance(addresses, list | tuple):
-        address_text = ", ".join(str(address) for address in addresses)
+        address_text = ", ".join(semantic_text(runner, "host", address) for address in addresses)
     else:
-        address_text = str(addresses)
+        address_text = semantic_text(runner, "host", addresses)
     return f"{event.id}: name.resolved {name} -> {address_text}".strip()
 
 
@@ -364,7 +376,7 @@ def friendly_error(exc: Exception) -> str:
 def print_events(events, runner: Runner | None = None) -> None:
     """Print persisted events in a compact inspectable form."""
     for event in events:
-        print(format_event_listing_line(runner, event, format_event(event)))
+        print(format_event_listing_line(runner, event, format_event(event, runner)))
 
 
 def format_event_listing_line(runner: Runner | None, event, line: str) -> str:
@@ -619,7 +631,10 @@ def format_history_entry_for_display(entry: str, runner: Runner | None = None) -
     if not separator or not timestamp:
         return entry
     display_timestamp = normalize_history_timestamp_for_display(timestamp)
-    if runner is not None and history_color_enabled(runner):
+    comment_style = runner.registry.varstore.get(DISPLAY_COMMENT_STYLE_VAR, "") if runner is not None else ""
+    if runner is not None and comment_style:
+        display_timestamp = ansi_color(display_timestamp, comment_style)
+    elif runner is not None and history_color_enabled(runner):
         color = (
             runner.registry.varstore.get(HISTORY_TIMESTAMP_COLOR_VAR, DEFAULT_HISTORY_TIMESTAMP_COLOR)
             or DEFAULT_HISTORY_TIMESTAMP_COLOR
@@ -926,19 +941,54 @@ def vars_color_enabled(runner: Runner) -> bool:
 
 def ansi_color(text: str, color: str) -> str:
     """Wrap text in an ANSI SGR color when the requested color is known."""
-    code = ansi_color_code(color)
+    code = ansi_style_code(color)
     if code is None:
         return text
     return f"\x1b[{code}m{text}\x1b[0m"
 
 
+def semantic_text(runner: Runner | None, role: str, value: object) -> str:
+    """Render a value using a user-configured semantic display role."""
+    text = str(value)
+    if runner is None:
+        return text
+    style = runner.registry.varstore.get(f"{DISPLAY_STYLE_PREFIX}{role}", "")
+    if not style and "." in role:
+        style = runner.registry.varstore.get(f"{DISPLAY_STYLE_PREFIX}{role.rsplit('.', 1)[0]}", "")
+    if not style:
+        return text
+    return ansi_color(text, style)
+
+
+def ansi_style_code(style: str) -> str | None:
+    """Return one combined ANSI SGR sequence for color plus text attributes."""
+    codes: list[str] = []
+    for token in style.split():
+        normalized = token.strip().casefold().replace("_", "-")
+        if not normalized:
+            continue
+        if normalized in ANSI_STYLE_TOKENS:
+            codes.append(ANSI_STYLE_TOKENS[normalized])
+            continue
+        color_code = ansi_color_code(normalized)
+        if color_code is not None:
+            codes.append(color_code)
+    return ";".join(codes) if codes else None
+
+
 def ansi_color_code(color: str) -> str | None:
     """Return an SGR color code for a named, 256-color, or truecolor setting."""
-    normalized = color.strip().casefold()
+    normalized = color.strip().casefold().replace("_", "-")
     if not normalized:
         return None
     if normalized in ANSI_COLORS:
         return ANSI_COLORS[normalized]
+    if normalized.startswith("color"):
+        number = parse_color_int(normalized.removeprefix("color"), 0, 255)
+        return f"38;5;{number}" if number is not None else None
+    if normalized.startswith("#"):
+        rgb = parse_hex_color(normalized)
+        return f"38;2;{rgb[0]};{rgb[1]};{rgb[2]}" if rgb is not None else None
     if normalized.startswith("ansi:"):
         # ansi:N and rgb:R,G,B let users customize colors without expanding the
         # named-color table for every possible terminal.
@@ -954,6 +1004,16 @@ def ansi_color_code(color: str) -> str | None:
         rgb = parse_rgb_color(normalized.removeprefix("bg-rgb:"))
         return f"48;2;{rgb[0]};{rgb[1]};{rgb[2]}" if rgb is not None else None
     return None
+
+
+def parse_hex_color(raw: str) -> tuple[int, int, int] | None:
+    """Parse CSS-style `#RRGGBB` and `#RGB` colors for truecolor output."""
+    value = raw.strip().removeprefix("#")
+    if len(value) == 3:
+        value = "".join(component * 2 for component in value)
+    if len(value) != 6 or any(char not in "0123456789abcdef" for char in value):
+        return None
+    return int(value[0:2], 16), int(value[2:4], 16), int(value[4:6], 16)
 
 
 def parse_rgb_color(raw: str) -> tuple[int, int, int] | None:

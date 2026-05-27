@@ -158,19 +158,23 @@ class EventStoreRuntimeMixin:
                     SELECT
                         events.command_run_id,
                         events.pipeline_id,
-                        events.source,
+                        COALESCE(
+                            MAX(command_run_vars.commandlet),
+                            MIN(CASE WHEN events.source NOT IN ('framework', 'runner') THEN events.source END),
+                            MIN(events.source)
+                        ) AS source,
                         COUNT(DISTINCT events.id) AS events,
                         MIN(events.created_at) AS first_event,
                         MAX(events.created_at) AS last_event,
                         GROUP_CONCAT(DISTINCT jobs.status) AS job_statuses,
-                        SUM(CASE WHEN jobs.status IN (?, ?, ?, ?, ?, ?) THEN 1 ELSE 0 END) AS active_jobs
+                        COUNT(DISTINCT CASE WHEN jobs.status IN (?, ?, ?, ?, ?, ?) THEN jobs.id END) AS active_jobs
                     FROM events
                     LEFT JOIN command_run_vars
                       ON command_run_vars.command_run_id = events.command_run_id
                     LEFT JOIN jobs
                       ON jobs.id = command_run_vars.job_id
                     WHERE events.command_run_id IS NOT NULL
-                    GROUP BY events.command_run_id, events.pipeline_id, events.source
+                    GROUP BY events.command_run_id, events.pipeline_id
                     HAVING ? = 0 OR active_jobs > 0
                     ORDER BY MAX(events.id) DESC
                     """,
@@ -343,19 +347,23 @@ class EventStoreRuntimeMixin:
                     SELECT
                         events.command_run_id,
                         events.pipeline_id,
-                        events.source,
+                        COALESCE(
+                            MAX(command_run_vars.commandlet),
+                            MIN(CASE WHEN events.source NOT IN ('framework', 'runner') THEN events.source END),
+                            MIN(events.source)
+                        ) AS source,
                         COUNT(DISTINCT events.id) AS events,
                         MIN(events.created_at) AS first_event,
                         MAX(events.created_at) AS last_event,
                         GROUP_CONCAT(DISTINCT jobs.status) AS job_statuses,
-                        SUM(CASE WHEN jobs.status IN (?, ?, ?, ?, ?, ?) THEN 1 ELSE 0 END) AS active_jobs
+                        COUNT(DISTINCT CASE WHEN jobs.status IN (?, ?, ?, ?, ?, ?) THEN jobs.id END) AS active_jobs
                     FROM events
                     LEFT JOIN command_run_vars
                       ON command_run_vars.command_run_id = events.command_run_id
                     LEFT JOIN jobs
                       ON jobs.id = command_run_vars.job_id
                     WHERE events.command_run_id IS NOT NULL
-                    GROUP BY events.command_run_id, events.pipeline_id, events.source
+                    GROUP BY events.command_run_id, events.pipeline_id
                     HAVING ? = 0 OR active_jobs > 0
                     ORDER BY MAX(events.id) DESC
                     """,
