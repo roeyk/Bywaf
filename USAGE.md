@@ -1138,7 +1138,15 @@ bywaf> step
 bywaf> step host=192.168.50.163
 bywaf> job host=192.168.50.163
 bywaf> pipeline host=192.168.50.163
+bywaf> job sort=started
+bywaf> pipeline sort=events
+bywaf> step sort=source
 ```
+
+Runtime view commands use selector syntax for sorting, not flags. Supported
+runtime sort keys are command-specific, sorted ascending, and printed above the
+table when requested. `pipeline --sort=events` is rejected; use
+`pipeline sort=events`.
 
 `job`, `pipeline`, and `step` accept the same payload-style filters as
 `event`. They show runtime objects that have at least one associated event

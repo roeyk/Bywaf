@@ -15,7 +15,7 @@ from argparse import Namespace
 from collections.abc import Callable, Iterable
 
 from bywaf.events import Event
-from bywaf.event_filters import any_event_matches_payload_filters, parse_payload_filter_tokens
+from bywaf.event_filters import any_event_matches_payload_filters
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
 from bywaf.runtime_display import (
     active_listing_format,
@@ -26,7 +26,9 @@ from bywaf.runtime_display import (
     format_command_args,
     format_runtime_duration,
     format_runtime_timestamp,
+    parse_runtime_list_selectors,
     render_table,
+    runtime_sort_note,
     runtime_state_label,
     runtime_state_text,
     state_marker,
@@ -36,6 +38,7 @@ from bywaf.style import styled_subject_text
 ACTIVE_STATUSES = {"queued", "claimed", "running", "pausing", "paused", "cancelling"}
 JOB_ACTIONS = ("cancel", "end", "kill")
 REMOVED_JOB_ACTIONS = {"list", "show"}
+JOB_SORT_KEYS = ("id", "serial", "state", "status", "started", "commandlet")
 JobActionHandler = Callable[[CommandContext, Namespace], None]
 
 
@@ -68,6 +71,7 @@ class Job(CommandletBase):
         parsed.action = operation.action
         parsed.id = operation.id
         parsed.filters = operation.filters
+        parsed.sort = operation.sort
         context.require_foreground("job management commands")
         validate_job_mode(parsed.action, soft=parsed.soft, hard=parsed.hard)
         job_action_handlers()[parsed.action](context, parsed)
@@ -76,11 +80,14 @@ class Job(CommandletBase):
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
         """Complete subcommands and job IDs from the active database."""
         if not args:
-            return ["--all", "--page", *job_ids(context), *JOB_ACTIONS]
+            return ["--all", "--page", "sort=", *job_ids(context), *JOB_ACTIONS]
         if len(args) == 1 and args[0] in JOB_ACTIONS:
             return job_ids(context)
+        if args and args[-1].startswith("sort="):
+            return [f"sort={key}" for key in JOB_SORT_KEYS if f"sort={key}".startswith(args[-1])]
         if len(args) == 1:
-            return [candidate for candidate in ["--all", "--page", *job_ids(context), *JOB_ACTIONS] if candidate.startswith(prefix)]
+            candidates = ["--all", "--page", "sort=", *job_ids(context), *JOB_ACTIONS]
+            return [candidate for candidate in candidates if candidate.startswith(prefix)]
         if len(args) >= 2 and args[0] in JOB_ACTIONS:
             return job_ids(context)
         return []
@@ -89,19 +96,21 @@ class Job(CommandletBase):
 def parse_job_operation(tokens: list[str]) -> Namespace:
     """Interpret terse `job` forms into the internal action/id/filter shape."""
     if not tokens:
-        return Namespace(action="list", id=None, filters={})
+        return Namespace(action="list", id=None, filters={}, sort="")
     first, rest = tokens[0], tokens[1:]
     if first in REMOVED_JOB_ACTIONS:
         raise ValueError("usage: job [--all] [field=value ...] | job <id> | job <cancel|end|kill> [options] <id>")
     if first in JOB_ACTIONS:
         if not rest:
             raise ValueError(f"job {first} requires a job id")
-        return Namespace(action=first, id=rest[0], filters=parse_payload_filter_tokens(rest[1:]))
+        filters, sort = parse_runtime_list_selectors(rest[1:], allowed_sort_keys=JOB_SORT_KEYS, command="job")
+        return Namespace(action=first, id=rest[0], filters=filters, sort=sort)
     if first.startswith("serial=") and not rest:
-        return Namespace(action="show", id=first.split("=", 1)[1], filters={})
+        return Namespace(action="show", id=first.split("=", 1)[1], filters={}, sort="")
     if "=" not in first and not rest:
-        return Namespace(action="show", id=first, filters={})
-    return Namespace(action="list", id=None, filters=parse_payload_filter_tokens(tokens))
+        return Namespace(action="show", id=first, filters={}, sort="")
+    filters, sort = parse_runtime_list_selectors(tokens, allowed_sort_keys=JOB_SORT_KEYS, command="job")
+    return Namespace(action="list", id=None, filters=filters, sort=sort)
 
 
 def job_action_handlers() -> dict[str, JobActionHandler]:
@@ -123,6 +132,7 @@ def list_job_action(context: CommandContext, parsed: Namespace) -> None:
         show_active=parsed.all,
         page=parsed.page,
         filters=parsed.filters,
+        sort_key=parsed.sort,
     )
 
 
@@ -162,6 +172,7 @@ def print_jobs(
     show_active: bool = False,
     page: bool = False,
     filters: dict[str, str] | None = None,
+    sort_key: str = "",
 ) -> None:
     """Print known jobs with newest first."""
     runtime = context.runtime_store("job list")
@@ -173,6 +184,8 @@ def print_jobs(
             for row in rows
             if any_event_matches_payload_filters(events.events_for_job(row["id"], limit=10000), filters)
         ]
+    if sort_key:
+        rows = sort_job_rows(rows, sort_key)
     if not rows:
         context.output("no matching jobs" if filters else "no active jobs" if active_only else "no jobs")
         return
@@ -205,10 +218,25 @@ def print_jobs(
         cell_subjects=("job", "serial", "", "", "", "", "", "timestamp", "timestamp", "", ""),
         style_getter=command_context_style_getter(context),
     )
+    if sort_key:
+        output = f"{runtime_sort_note(sort_key)}\n{output}"
     if page:
         context.page_text(output)
     else:
         context.output(output)
+
+
+def sort_job_rows(rows: list[dict], sort_key: str) -> list[dict]:
+    """Return job rows ordered by the requested operator-facing column."""
+    sorters = {
+        "id": lambda row: int(row["id"]),
+        "serial": lambda row: str(row["serial"]),
+        "state": lambda row: runtime_state_label(row["status"]),
+        "status": lambda row: str(row["status"]),
+        "started": lambda row: str(row["started_at"] or ""),
+        "commandlet": lambda row: commandlet_from_command_line(str(row["command_line"])),
+    }
+    return sorted(rows, key=sorters[sort_key])
 
 
 def validate_job_mode(action: str, *, soft: bool, hard: bool) -> None:

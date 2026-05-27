@@ -110,15 +110,17 @@ Planning dates are release planning markers, not compatibility commitments.
 
 ### Item: View Command Sort Selectors
 
-- Define a cross-command `sort=` convention for view commands: ascending uses
-  `sort=name`, descending uses `sort=-name`.
+- Partially implemented for `event`, `job`, `pipeline`, and `step`: ascending
+  uses selector syntax such as `sort=host`, `sort=events`, or `sort=started`.
 - Treat view commands as commands whose primary job is to display stored
   framework state, such as `job`, `pipeline`, `step`, `event`, `report`, and
   `artifact list`.
 - Each view command should explicitly declare its supported sort keys instead
   of accepting arbitrary fields.
 - Keep sorting selector-shaped, not flag-shaped: use `sort=severity`, not
-  `--sort severity` or `--reverse`.
+  `--sort severity`.
+- Future work: define reverse ordering consistently, likely as `reverse=true`
+  or a similarly explicit selector rather than a `--reverse` flag.
 
 ### Item: CVE Detection And Confirmation Plugins
 

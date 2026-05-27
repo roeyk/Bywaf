@@ -1748,6 +1748,32 @@ class AppDispatchTests(unittest.TestCase):
             self.assertRegex(text, r"\n1\s+[0-9A-Z]{8}\s+active\s+123\s+running\s+0\s+")
             self.assertRegex(text, r"\n2\s+[0-9A-Z]{8}\s+completed\s+456\s+finished\s+0\s+")
 
+    def test_runtime_views_accept_sort_selector_and_reject_sort_flag(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("hostscanner 127.0.0.1", 123, "running")
+            runner.db.record_command_run_vars(
+                job_id=job_id,
+                pipeline_id="pipe-1",
+                command_run_id="run-1",
+                commandlet="hostscanner",
+                values={"test.marker": "1"},
+            )
+            runner.db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", pipeline_id="pipe-1", command_run_id="run-1")
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "job sort=started")
+                dispatch_repl_line(runner, "pipeline sort=events")
+                dispatch_repl_line(runner, "step sort=source")
+                dispatch_repl_line(runner, "pipeline --sort=events")
+
+            text = output.getvalue()
+            self.assertIn("sorted by started ascending", text)
+            self.assertIn("sorted by events ascending", text)
+            self.assertIn("sorted by source ascending", text)
+            self.assertIn("error: pipeline uses selector syntax; use sort=<key>, not --sort=events", text)
+
     def test_jobs_all_can_use_long_active_marker(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

@@ -13,7 +13,7 @@ import shlex
 from argparse import Namespace
 from collections.abc import Callable, Iterable
 
-from bywaf.event_filters import any_event_matches_payload_filters, parse_payload_filter_tokens
+from bywaf.event_filters import any_event_matches_payload_filters
 from bywaf.events import Event
 from bywaf.plugin import (
     CommandContext,
@@ -31,7 +31,9 @@ from bywaf.runtime_display import (
     display_runtime_serial,
     format_runtime_duration,
     format_runtime_timestamp,
+    parse_runtime_list_selectors,
     render_table,
+    runtime_sort_note,
     runtime_state_label,
     runtime_state_text,
     state_marker,
@@ -40,6 +42,7 @@ from bywaf.style import styled_subject_text
 
 PIPELINE_ACTIONS = ("attach", "cancel", "end", "kill")
 REMOVED_PIPELINE_ACTIONS = {"list", "show"}
+PIPELINE_SORT_KEYS = ("id", "serial", "state", "job", "status", "steps", "events", "first")
 PipelineActionHandler = Callable[[CommandContext, Namespace], None]
 
 
@@ -86,6 +89,7 @@ class Pipeline(CommandletBase):
         parsed.action = operation.action
         parsed.id = operation.id
         parsed.filters = operation.filters
+        parsed.sort = operation.sort
         context.require_foreground("pipeline management commands")
         validate_pipeline_mode(parsed.action, soft=parsed.soft, hard=parsed.hard)
         pipeline_action_handlers()[parsed.action](context, parsed)
@@ -94,13 +98,16 @@ class Pipeline(CommandletBase):
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
         """Complete subcommands and pipeline IDs from the active database."""
         if not args:
-            return ["--all", "--page", *pipeline_ids(context), *PIPELINE_ACTIONS]
+            return ["--all", "--page", "sort=", *pipeline_ids(context), *PIPELINE_ACTIONS]
         if len(args) == 1 and args[0] == "attach":
             return pipeline_ids(context)
         if len(args) == 1 and args[0] in {"cancel", "end", "kill"}:
             return pipeline_ids(context)
+        if args and args[-1].startswith("sort="):
+            return [f"sort={key}" for key in PIPELINE_SORT_KEYS if f"sort={key}".startswith(args[-1])]
         if len(args) == 1:
-            return [candidate for candidate in ["--all", "--page", *pipeline_ids(context), *PIPELINE_ACTIONS] if candidate.startswith(prefix)]
+            candidates = ["--all", "--page", "sort=", *pipeline_ids(context), *PIPELINE_ACTIONS]
+            return [candidate for candidate in candidates if candidate.startswith(prefix)]
         if args and args[0] == "attach":
             return attach_candidates(context, args, prefix)
         if len(args) >= 2 and args[0] in {"cancel", "end", "kill"}:
@@ -111,7 +118,7 @@ class Pipeline(CommandletBase):
 def parse_pipeline_operation(tokens: list[str]) -> Namespace:
     """Interpret terse `pipeline` forms into the internal action/id/filter shape."""
     if not tokens:
-        return Namespace(action="list", id=None, filters={})
+        return Namespace(action="list", id=None, filters={}, sort="")
     first, rest = tokens[0], tokens[1:]
     if first in REMOVED_PIPELINE_ACTIONS:
         raise ValueError(
@@ -120,10 +127,12 @@ def parse_pipeline_operation(tokens: list[str]) -> Namespace:
     if first in {"cancel", "end", "kill"}:
         if not rest:
             raise ValueError(f"pipeline {first} requires a pipeline id")
-        return Namespace(action=first, id=rest[0], filters=parse_payload_filter_tokens(rest[1:]))
+        filters, sort = parse_runtime_list_selectors(rest[1:], allowed_sort_keys=PIPELINE_SORT_KEYS, command="pipeline")
+        return Namespace(action=first, id=rest[0], filters=filters, sort=sort)
     if "=" not in first and not rest:
-        return Namespace(action="show", id=first, filters={})
-    return Namespace(action="list", id=None, filters=parse_payload_filter_tokens(tokens))
+        return Namespace(action="show", id=first, filters={}, sort="")
+    filters, sort = parse_runtime_list_selectors(tokens, allowed_sort_keys=PIPELINE_SORT_KEYS, command="pipeline")
+    return Namespace(action="list", id=None, filters=filters, sort=sort)
 
 
 def pipeline_action_handlers() -> dict[str, PipelineActionHandler]:
@@ -145,6 +154,7 @@ def list_pipeline_action(context: CommandContext, parsed: Namespace) -> None:
         show_active=parsed.all,
         page=parsed.page,
         filters=parsed.filters,
+        sort_key=parsed.sort,
     )
 
 
@@ -184,6 +194,7 @@ def print_pipelines(
     show_active: bool = False,
     page: bool = False,
     filters: dict[str, str] | None = None,
+    sort_key: str = "",
 ) -> None:
     """Print active pipelines by default, or all pipelines when requested."""
     runtime = context.runtime_store("pipeline list")
@@ -198,6 +209,8 @@ def print_pipelines(
                 filters,
             )
         ]
+    if sort_key:
+        rows = sort_pipeline_rows(rows, sort_key)
     if not rows:
         context.output("no matching pipelines" if filters else "no active pipelines" if active_only else "no pipelines")
         return
@@ -230,10 +243,27 @@ def print_pipelines(
         cell_subjects=("pipeline", "serial", "", "", "job", "", "", "", "", "timestamp", "timestamp"),
         style_getter=command_context_style_getter(context),
     )
+    if sort_key:
+        output = f"{runtime_sort_note(sort_key)}\n{output}"
     if page:
         context.page_text(output)
     else:
         context.output(output)
+
+
+def sort_pipeline_rows(rows: list[dict], sort_key: str) -> list[dict]:
+    """Return pipeline rows ordered by the requested operator-facing column."""
+    sorters = {
+        "id": lambda row: int(row["pipeline_id"]),
+        "serial": lambda row: str(row["pipeline_id"]),
+        "state": lambda row: runtime_state_label(row["job_statuses"] or "unknown"),
+        "job": lambda row: int(row["job_id"] or 0),
+        "status": lambda row: str(row["job_statuses"] or "unknown"),
+        "steps": lambda row: int(row["runs"]),
+        "events": lambda row: int(row["events"]),
+        "first": lambda row: str(row["first_seen"] or ""),
+    }
+    return sorted(rows, key=sorters[sort_key])
 
 
 def validate_pipeline_mode(action: str, *, soft: bool, hard: bool) -> None:

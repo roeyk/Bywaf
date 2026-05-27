@@ -835,6 +835,8 @@ class RegistryCompletionTests(unittest.TestCase):
             self.assertIn("end", completer.candidates("job e"))
             self.assertIn("kill", completer.candidates("job k"))
             self.assertIn("1", completer.candidates("job "))
+            self.assertIn("sort=", completer.candidates("job s"))
+            self.assertIn("sort=started", completer.candidates("job sort=st"))
             self.assertEqual(completer.candidates("job cancel "), ["1"])
 
     def test_pipeline_and_control_complete_ids(self):
@@ -852,6 +854,10 @@ class RegistryCompletionTests(unittest.TestCase):
             self.assertIn("end", completer.candidates("pipeline e"))
             self.assertIn("kill", completer.candidates("pipeline k"))
             self.assertIn("1", completer.candidates("pipeline "))
+            self.assertIn("sort=", completer.candidates("pipeline s"))
+            self.assertIn("sort=status", completer.candidates("pipeline sort=st"))
+            self.assertIn("sort=", completer.candidates("step s"))
+            self.assertIn("sort=source", completer.candidates("step sort=so"))
             self.assertEqual(completer.candidates("end job="), ["job=1"])
             self.assertEqual(completer.candidates("kill job="), ["job=1"])
             self.assertEqual(completer.candidates("kill pipeline="), ["pipeline=1"])

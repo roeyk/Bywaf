@@ -14,11 +14,13 @@ import shlex
 from collections.abc import Callable, Mapping, Sequence
 from .command.parser import parse_pipeline
 from .db.support import SERIAL_DISPLAY_LENGTH, serial_body
+from .event_filters import parse_payload_filter_tokens
 from .style import styled_subject_text
 from .time_format import format_compact_runtime_timestamp, format_duration_between
 
 ACTIVE_LISTING_FORMAT_VAR = "listing.active-format"
 DEFAULT_ACTIVE_LISTING_FORMAT = "short"
+SORT_SELECTOR = "sort"
 
 
 def normalize_active_listing_format(value: str | None) -> str:
@@ -87,6 +89,44 @@ def format_runtime_timestamp(value: str | None) -> str:
 def format_runtime_duration(start: str | None, end: str | None) -> str:
     """Render a human duration for runtime listings."""
     return format_duration_between(start, end)
+
+
+def parse_runtime_list_selectors(
+    tokens: Sequence[str],
+    *,
+    allowed_sort_keys: Sequence[str],
+    command: str,
+) -> tuple[dict[str, str], str]:
+    """Split view-command selectors into event filters plus an optional sort.
+
+    Runtime view commands accept payload filters such as `host=192.0.2.10` and
+    now reserve `sort=` for table ordering.  Older `--sort=...`-style tokens are
+    rejected here so typoed flags do not silently behave like payload filters.
+    """
+    filters: list[str] = []
+    sort_key = ""
+    for token in tokens:
+        if token.startswith("--"):
+            raise ValueError(f"{command} uses selector syntax; use sort=<key>, not {token}")
+        key, separator, value = token.partition("=")
+        if key == SORT_SELECTOR and separator:
+            sort_key = parse_runtime_sort(value, allowed_sort_keys, command)
+        else:
+            filters.append(token)
+    return parse_payload_filter_tokens(filters), sort_key
+
+
+def parse_runtime_sort(raw: str, allowed_sort_keys: Sequence[str], command: str) -> str:
+    """Validate a runtime-table sort key."""
+    if raw in allowed_sort_keys:
+        return raw
+    choices = ", ".join(allowed_sort_keys)
+    raise ValueError(f"{command} sort= must be one of: {choices}")
+
+
+def runtime_sort_note(sort_key: str) -> str:
+    """Return the operator-facing sort note for sorted runtime tables."""
+    return f"sorted by {sort_key} ascending"
 
 
 def display_runtime_serial(value: object | None) -> str:

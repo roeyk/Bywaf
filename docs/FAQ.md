@@ -563,6 +563,7 @@ bywaf> event port.open host=192.168.50.1,192.168.50.163 sort=host
 bywaf> job host=192.168.50.163
 bywaf> pipeline host=192.168.50.163
 bywaf> step host=192.168.50.163
+bywaf> pipeline sort=events
 bywaf> event step=7
 bywaf> event serial=<durable-serial>
 ```
@@ -573,7 +574,9 @@ topic rows by payload fields. Use `host=` for host-scoped facts such as
 `sort=host`, `sort=protocol`, `sort=state`, `sort=topic`, and `sort=source`
 change the row order.
 Runtime list commands use the same payload-style filters and show jobs,
-pipelines, or steps that have at least one associated matching event.
+pipelines, or steps that have at least one associated matching event. Runtime
+tables also accept command-specific `sort=` selectors such as
+`pipeline sort=events`; `--sort=...` is not accepted.
 
 ## How do I force IPv4 or IPv6 when a command resolves a DNS name?
 

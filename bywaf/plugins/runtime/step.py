@@ -13,7 +13,7 @@ from __future__ import annotations
 from argparse import Namespace
 from collections.abc import Iterable
 
-from bywaf.event_filters import any_event_matches_payload_filters, parse_payload_filter_tokens
+from bywaf.event_filters import any_event_matches_payload_filters
 from bywaf.events import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
 from bywaf.runtime_display import (
@@ -22,10 +22,14 @@ from bywaf.runtime_display import (
     display_runtime_serial,
     format_runtime_duration,
     format_runtime_timestamp,
+    parse_runtime_list_selectors,
     render_table,
+    runtime_sort_note,
     runtime_state_label,
     runtime_state_text,
 )
+
+STEP_SORT_KEYS = ("id", "serial", "state", "pipeline", "source", "events", "first")
 
 
 @commandlet(
@@ -54,27 +58,41 @@ class Step(CommandletBase):
         if operation.id:
             show_step(context, operation.id)
         else:
-            print_steps(context, active_only=not parsed.all and not operation.filters, filters=operation.filters)
+            print_steps(
+                context,
+                active_only=not parsed.all and not operation.filters,
+                filters=operation.filters,
+                sort_key=operation.sort,
+            )
         return ()
 
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
         """Complete step IDs and list options from the active database."""
-        candidates = ["--all", *step_ids(context)]
+        candidates = ["--all", "sort=", *step_ids(context)]
         if not args:
             return candidates
+        if args and args[-1].startswith("sort="):
+            return [f"sort={key}" for key in STEP_SORT_KEYS if f"sort={key}".startswith(args[-1])]
         return [candidate for candidate in candidates if candidate.startswith(prefix)]
 
 
 def parse_step_operation(tokens: list[str]) -> Namespace:
     """Interpret terse `step` forms into an optional id plus filters."""
     if not tokens:
-        return Namespace(id=None, filters={})
+        return Namespace(id=None, filters={}, sort="")
     if len(tokens) == 1 and "=" not in tokens[0]:
-        return Namespace(id=tokens[0], filters={})
-    return Namespace(id=None, filters=parse_payload_filter_tokens(tokens))
+        return Namespace(id=tokens[0], filters={}, sort="")
+    filters, sort = parse_runtime_list_selectors(tokens, allowed_sort_keys=STEP_SORT_KEYS, command="step")
+    return Namespace(id=None, filters=filters, sort=sort)
 
 
-def print_steps(context: CommandContext, *, active_only: bool = True, filters: dict[str, str] | None = None) -> None:
+def print_steps(
+    context: CommandContext,
+    *,
+    active_only: bool = True,
+    filters: dict[str, str] | None = None,
+    sort_key: str = "",
+) -> None:
     """Print commandlet step summaries."""
     runtime = context.runtime_store("step")
     rows = runtime.runs(active_only=active_only)
@@ -88,6 +106,8 @@ def print_steps(context: CommandContext, *, active_only: bool = True, filters: d
                 filters,
             )
         ]
+    if sort_key:
+        rows = sort_step_rows(rows, sort_key)
     if not rows:
         context.output("no matching steps" if filters else "no active steps" if active_only else "no steps")
         return
@@ -117,14 +137,29 @@ def print_steps(context: CommandContext, *, active_only: bool = True, filters: d
                 format_runtime_duration(row["first_event"], row["last_event"]),
             )
         )
-    context.output(
-        render_table(
-            ("STEP", "SERIAL", "STATE", "NAME", "PIPELINE", "PIPELINE_SERIAL", "SOURCE", "EVENTS", "ARTIFACTS", "FIRST_SEEN", "DURATION"),
-            table_rows,
-            cell_subjects=("step", "serial", "", "", "pipeline", "serial", "", "", "", "timestamp", "timestamp"),
-            style_getter=command_context_style_getter(context),
-        )
+    output = render_table(
+        ("STEP", "SERIAL", "STATE", "NAME", "PIPELINE", "PIPELINE_SERIAL", "SOURCE", "EVENTS", "ARTIFACTS", "FIRST_SEEN", "DURATION"),
+        table_rows,
+        cell_subjects=("step", "serial", "", "", "pipeline", "serial", "", "", "", "timestamp", "timestamp"),
+        style_getter=command_context_style_getter(context),
     )
+    if sort_key:
+        output = f"{runtime_sort_note(sort_key)}\n{output}"
+    context.output(output)
+
+
+def sort_step_rows(rows: list[dict], sort_key: str) -> list[dict]:
+    """Return step rows ordered by the requested operator-facing column."""
+    sorters = {
+        "id": lambda row: str(row["command_run_id"]),
+        "serial": lambda row: str(row["command_run_id"]),
+        "state": lambda row: runtime_state_label(row["job_statuses"]),
+        "pipeline": lambda row: str(row["pipeline_id"] or ""),
+        "source": lambda row: str(row["source"] or ""),
+        "events": lambda row: int(row["events"]),
+        "first": lambda row: str(row["first_event"] or ""),
+    }
+    return sorted(rows, key=sorters[sort_key])
 
 
 def show_step(context: CommandContext, step_id: str) -> None:
