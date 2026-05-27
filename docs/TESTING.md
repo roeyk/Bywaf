@@ -14,6 +14,7 @@ manual validation.
 - [Package Tests](#package-tests)
 - [Manual Validation](#manual-validation)
 - [Environment Notes](#environment-notes)
+- [Release Notes And Importance](#release-notes-and-importance)
 - [Pre-Commit Checklist](#pre-commit-checklist)
 
 ## Quick Checks
@@ -191,6 +192,23 @@ such as `python-libnmap` installed in the active venv.
 CI currently checks supported Python runtimes such as Python 3.11 and 3.12.
 Local newer interpreters can be useful, but CI failures on supported runtimes
 take priority.
+
+## Release Notes And Importance
+
+When discussing completed work, classify each notable item by practical
+importance before it goes into the changelog:
+
+- `high`: changes that materially affect operator workflow, data model,
+  compatibility, security posture, or plugin author contracts.
+- `medium`: visible behavior, documentation structure, packaging, or developer
+  workflow changes that users should notice but that do not redefine a core
+  contract.
+- `low`: polish, clarification, small maintenance, and internal cleanup that is
+  worth recording but unlikely to change how users work.
+
+Changelog bullets should carry the agreed label (`[high]`, `[medium]`, or
+`[low]`) and additions/changes should be ordered from high to low. The label is
+a release-triage signal, not a substitute for explaining the change clearly.
 
 ## Pre-Commit Checklist
 

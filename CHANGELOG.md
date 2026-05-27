@@ -3,6 +3,10 @@
 All notable project changes are tracked here. Bywaf is still pre-1.0 software,
 so compatibility may change between testing releases.
 
+Within each release section, additions and changes should be tagged with an
+impact label and sorted from highest to lowest operator/developer impact:
+`[high]`, `[medium]`, then `[low]`.
+
 ## Contents
 
 - [0.12.2 - 2026-05-27](#0122---2026-05-27)
@@ -21,13 +25,13 @@ Last updated: 2026-05-27 12:05:00 EDT
 
 ### Changed
 
-- Added contents sections to larger documentation pages and refreshed system
+- [medium] Switched new durable runtime/resource serials to prefixed Crockford
+  Base32, shortened serials in runtime tables, and allowed unique short serial
+  prefixes in job, step, pipeline, and event serial selectors.
+- [medium] Added contents sections to larger documentation pages and refreshed system
   block/dataflow diagrams to use current step terminology.
-- Added documentation impact metrics so maintainers can see which related docs
+- [low] Added documentation impact metrics so maintainers can see which related docs
   to inspect after changing one page.
-- Switched new durable runtime/resource serials to prefixed Crockford Base32,
-  shortened serials in runtime tables, and allowed unique short serial prefixes
-  in job, step, pipeline, and event serial selectors.
 
 ## [0.12.1] - 2026-05-27
 
