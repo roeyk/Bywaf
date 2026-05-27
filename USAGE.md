@@ -1120,6 +1120,17 @@ database's local job ID; `job job-...` and `event job=job-...` use the durable
 job serial. Prefer durable serials for notes, artifacts, logs, and anything
 shared outside the current database.
 
+Durable serials use a prefixed Crockford Base32 body. Tables show a short body
+prefix to save terminal width, and selectors accept that short form when it is
+unique:
+
+```text
+bywaf> job 01J8K2VQ
+bywaf> step 01J8K2VQ
+bywaf> pipeline 01J8K2VQ
+bywaf> event serial=01J8K2VQ
+```
+
 List commandlet steps:
 
 ```text

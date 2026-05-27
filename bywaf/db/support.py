@@ -10,7 +10,7 @@ Used by:
 from __future__ import annotations
 
 import os
-import uuid
+import secrets
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +24,10 @@ SQLITE_HEADER = b"SQLite format 3\x00"
 # Keep this tuple centralized so listing, stale detection, and UI status agree
 # on which jobs are still considered live.
 ACTIVE_JOB_STATUSES = ("queued", "claimed", "running", "pausing", "paused", "cancelling")
+CROCKFORD_BASE32_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+SERIAL_RANDOM_BITS = 128
+SERIAL_BODY_LENGTH = 26
+SERIAL_DISPLAY_LENGTH = 8
 
 def artifact_count_queries() -> dict[str, str]:
     """Return artifact count queries keyed by trusted event scope column."""
@@ -89,10 +93,54 @@ def process_exists(pid: int) -> bool:
     return True
 
 
+def crockford_base32(value: int, *, length: int = SERIAL_BODY_LENGTH) -> str:
+    """Encode a positive integer as fixed-width Crockford Base32 text."""
+    chars: list[str] = []
+    for _ in range(length):
+        value, remainder = divmod(value, 32)
+        chars.append(CROCKFORD_BASE32_ALPHABET[remainder])
+    return "".join(reversed(chars))
+
+
 def new_serial(prefix: str) -> str:
-    """Return a durable serial for auditable entities."""
+    """Return a durable Crockford Base32 serial for auditable entities."""
     safe_prefix = "".join(char if char.isalnum() else "-" for char in prefix).strip("-")
-    return f"{safe_prefix}-{uuid.uuid4().hex}"
+    body = crockford_base32(secrets.randbits(SERIAL_RANDOM_BITS))
+    return f"{safe_prefix}-{body}"
+
+
+def normalize_serial_lookup(value: str) -> str:
+    """Normalize operator-entered serial text for case-insensitive lookup."""
+    # Crockford Base32 intentionally avoids I/L/O.  Accepting those common
+    # transcription mistakes keeps short serial lookup forgiving without
+    # changing the canonical stored serial.
+    return value.upper().replace("I", "1").replace("L", "1").replace("O", "0")
+
+
+def serial_body(value: str) -> str:
+    """Return the identifier portion after a serial prefix."""
+    return value.split("-", 1)[1] if "-" in value else value
+
+
+def serial_matches(stored: str, query: str) -> bool:
+    """Return whether `query` uniquely names or prefixes `stored`."""
+    stored_normal = normalize_serial_lookup(stored)
+    query_normal = normalize_serial_lookup(query)
+    if stored_normal == query_normal:
+        return True
+    if "-" in query_normal:
+        return stored_normal.startswith(query_normal)
+    return serial_body(stored_normal).startswith(query_normal)
+
+
+def resolve_serial_match(query: str, values: list[str] | set[str] | tuple[str, ...]) -> str | None:
+    """Resolve a serial query against known serials, rejecting ambiguity."""
+    matches = sorted({value for value in values if serial_matches(value, query)})
+    if not matches:
+        return None
+    if len(matches) > 1:
+        raise ValueError(f"ambiguous serial prefix: {query}")
+    return matches[0]
 
 
 def export_encrypted_database(

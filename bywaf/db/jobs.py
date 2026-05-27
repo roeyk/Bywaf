@@ -9,13 +9,14 @@ Used by:
 
 from __future__ import annotations
 
+import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Any
 
 from .backends import DatabaseConnection
-from .support import ACTIVE_JOB_STATUSES, new_serial, process_exists
+from .support import ACTIVE_JOB_STATUSES, new_serial, process_exists, resolve_serial_match
 
 
 class EventStoreJobMixin:
@@ -27,12 +28,19 @@ class EventStoreJobMixin:
     def record_job(self, command_line: str, pid: int | None, status: str) -> int:
         """Record a background job owned by the runner."""
         now = datetime.now(timezone.utc).isoformat()
-        serial = new_serial("job")
         with self.connect() as conn:
-            cursor = conn.execute(
-                "INSERT INTO jobs(serial, command_line, pid, status, started_at) VALUES (?, ?, ?, ?, ?)",
-                (serial, command_line, pid, status, now),
-            )
+            for _ in range(5):
+                serial = new_serial("job")
+                try:
+                    cursor = conn.execute(
+                        "INSERT INTO jobs(serial, command_line, pid, status, started_at) VALUES (?, ?, ?, ?, ?)",
+                        (serial, command_line, pid, status, now),
+                    )
+                    break
+                except sqlite3.IntegrityError:
+                    continue
+            else:
+                raise RuntimeError("could not allocate a unique job serial")
             if cursor.lastrowid is None:
                 raise RuntimeError("SQLite did not return a job row id")
             return int(cursor.lastrowid)
@@ -110,9 +118,11 @@ class EventStoreJobMixin:
                 )
         return len(stale_ids)
 
-    def job(self, job_id: int) -> Any | None:
-        """Return one job row by ID."""
+    def job(self, job_id: int | None = None) -> Any | list[Any] | None:
+        """Return one job row by ID, or all jobs when no ID is supplied."""
         self.ensure_job_serials()
+        if job_id is None:
+            return self.jobs(active_only=False)
         with self.connect() as conn:
             return conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
 
@@ -124,11 +134,18 @@ class EventStoreJobMixin:
             return str(row["serial"]) if row is not None and row["serial"] is not None else None
 
     def job_id_for_serial(self, serial: str) -> str | None:
-        """Return the local job id for a durable job serial."""
+        """Return the local job id for a durable job serial or unique prefix."""
         self.ensure_job_serials()
         with self.connect() as conn:
-            row = conn.execute("SELECT id FROM jobs WHERE serial = ?", (serial,)).fetchone()
-        return str(row["id"]) if row is not None else None
+            rows = conn.execute("SELECT id, serial FROM jobs WHERE serial IS NOT NULL").fetchall()
+        serials = [str(row["serial"]) for row in rows]
+        resolved = resolve_serial_match(serial, serials)
+        if resolved is None:
+            return None
+        for row in rows:
+            if str(row["serial"]) == resolved:
+                return str(row["id"])
+        return None
 
     def ensure_job_serials(self) -> None:
         """Backfill durable serials for jobs created before job serial support."""
@@ -137,7 +154,14 @@ class EventStoreJobMixin:
             for row in rows:
                 # Local numeric IDs are convenient for the active DB; serials
                 # survive export/import and are safer to cite externally.
-                conn.execute("UPDATE jobs SET serial = ? WHERE id = ?", (new_serial("job"), int(row["id"])))
+                for _ in range(5):
+                    try:
+                        conn.execute("UPDATE jobs SET serial = ? WHERE id = ?", (new_serial("job"), int(row["id"])))
+                        break
+                    except sqlite3.IntegrityError:
+                        continue
+                else:
+                    raise RuntimeError("could not allocate a unique job serial")
 
     def jobs_for_pipeline(self, pipeline_id: str) -> list[Any]:
         """Return jobs associated with a pipeline-step variable snapshot pipeline."""

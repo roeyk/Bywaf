@@ -1409,7 +1409,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
             db = EventStore(Path(tmp, "db.sqlite3"))
             job_id = db.record_job("hostscanner 127.0.0.1", 123, "running")
             with db.connect() as conn:
-                conn.execute("UPDATE job SET started_at = ? WHERE id = ?", ("2000-01-01T00:00:00+00:00", job_id))
+                conn.execute("UPDATE jobs SET started_at = ? WHERE id = ?", ("2000-01-01T00:00:00+00:00", job_id))
             context = CommandContext(db, "watchdog", VarStore())
             list(Watchdog().run(context, ["--once", "-s", "timeout=1", "stall-threshold=1", "error-threshold=99"], ()))
             self.assertEqual(db.events_for_topic("watchdog.timeout")[0].payload["job_id"], job_id)

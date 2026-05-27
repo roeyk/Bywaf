@@ -13,6 +13,7 @@ from __future__ import annotations
 import shlex
 from collections.abc import Sequence
 from .command.parser import parse_pipeline
+from .db.support import SERIAL_DISPLAY_LENGTH, serial_body
 from .time_format import format_compact_runtime_timestamp
 
 ACTIVE_LISTING_FORMAT_VAR = "listing.active-format"
@@ -89,7 +90,7 @@ def display_runtime_serial(value: object | None) -> str:
     text = str(value)
     for prefix in DISPLAY_SERIAL_PREFIXES:
         if text.startswith(prefix):
-            return text.removeprefix(prefix)
+            return serial_body(text)[:SERIAL_DISPLAY_LENGTH]
     return text
 
 

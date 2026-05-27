@@ -152,6 +152,10 @@ cross-database references, and long-term provenance. The universal selector is:
 event serial=<serial>
 ```
 
+Serial bodies use Crockford Base32. Bywaf stores the full prefixed serial, but
+runtime tables display a short body prefix. That short value can be typed back
+into selectors as long as it is unique in the active database.
+
 ## Event
 
 An event is a structured database record emitted by a commandlet or framework

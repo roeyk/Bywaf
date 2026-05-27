@@ -11,7 +11,15 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from bywaf.db import EventStore, Subscription, database_appears_encrypted, sqlcipher_available
+from bywaf.db import (
+    CROCKFORD_BASE32_ALPHABET,
+    SERIAL_BODY_LENGTH,
+    EventStore,
+    Subscription,
+    database_appears_encrypted,
+    new_serial,
+    sqlcipher_available,
+)
 from bywaf.events import Event
 
 
@@ -99,6 +107,27 @@ class EventDbTests(unittest.TestCase):
             db.publish("job.requested", {"job_id": job_id, "job_serial": serial, "serial": serial}, "runner")
             self.assertIn(serial, db.serials())
             self.assertEqual(db.events_for_serial(serial)[0].payload["job_id"], job_id)
+            short_serial = serial.split("-", 1)[1][:8]
+            self.assertEqual(db.job_id_for_serial(short_serial), str(job_id))
+            self.assertEqual(db.events_for_serial(short_serial)[0].payload["job_id"], job_id)
+
+    def test_new_serial_uses_crockford_base32(self):
+        serial = new_serial("job")
+        prefix, body = serial.split("-", 1)
+        self.assertEqual(prefix, "job")
+        self.assertEqual(len(body), SERIAL_BODY_LENGTH)
+        self.assertTrue(set(body).issubset(set(CROCKFORD_BASE32_ALPHABET)))
+
+    def test_runtime_serials_resolve_unique_display_prefixes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "events.sqlite3"))
+            run_serial = new_serial("run")
+            pipeline_serial = new_serial("pipeline")
+            db.publish("host.found", {"host": "example"}, "test", pipeline_id=pipeline_serial, command_run_id=run_serial)
+            db.ensure_run_aliases()
+            db.ensure_pipeline_aliases()
+            self.assertEqual(db.resolve_run_serial(run_serial.split("-", 1)[1][:8]), run_serial)
+            self.assertEqual(db.resolve_pipeline_serial(pipeline_serial.split("-", 1)[1][:8]), pipeline_serial)
 
     def test_cancellation_records_match_targets(self):
         with tempfile.TemporaryDirectory() as tmp:

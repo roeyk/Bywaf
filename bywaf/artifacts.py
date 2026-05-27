@@ -13,7 +13,6 @@ from __future__ import annotations
 import hashlib
 import mimetypes
 import sqlite3
-import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -21,7 +20,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .db import EventStore, set_sqlcipher_key, sqlcipher
+from .db import EventStore, new_serial, set_sqlcipher_key, sqlcipher
 
 
 ARTIFACT_SCHEMA = """
@@ -153,7 +152,7 @@ class ArtifactStore:
         """Store one file as an artifact and return its row."""
         source_path = path.expanduser()
         data = source_path.read_bytes()
-        artifact_id = f"artifact-{uuid.uuid4().hex}"
+        artifact_id = self._allocate_artifact_id()
         content_type = mimetypes.guess_type(source_path.name)[0] or "application/octet-stream"
         digest = hashlib.sha256(data).hexdigest()
         created_at = datetime.now(timezone.utc).isoformat()
@@ -213,6 +212,16 @@ class ArtifactStore:
         if row is None:
             raise ValueError(f"artifact not found: {artifact}")
         return Artifact.from_row(row)
+
+    def _allocate_artifact_id(self) -> str:
+        """Return an unused artifact serial, retrying the impossible collision case."""
+        with self.connect() as conn:
+            for _ in range(5):
+                artifact_id = new_serial("artifact")
+                row = conn.execute("SELECT 1 FROM artifacts WHERE artifact_id = ?", (artifact_id,)).fetchone()
+                if row is None:
+                    return artifact_id
+        raise RuntimeError("could not allocate a unique artifact serial")
 
     def list(
         self,

@@ -1657,7 +1657,7 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(selector_output):
                 dispatch_repl_line(runner, f"job serial={serial}")
 
-            self.assertIn(f"serial={serial.removeprefix('job-')}", direct_output.getvalue())
+            self.assertIn(f"serial={serial.split('-', 1)[1][:8]}", direct_output.getvalue())
             self.assertIn("commandlet=hostscanner", direct_output.getvalue())
             self.assertIn("args=127.0.0.1", direct_output.getvalue())
             self.assertIn("commandlet=hostscanner", selector_output.getvalue())
@@ -1729,7 +1729,7 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "job")
             self.assertIn("ARTIFACTS", output.getvalue())
-            self.assertRegex(output.getvalue(), r"\n1\s+[0-9a-f]{32}\s+active\s+123\s+running\s+0\s+")
+            self.assertRegex(output.getvalue(), r"\n1\s+[0-9A-Z]{8}\s+active\s+123\s+running\s+0\s+")
             self.assertIn("COMMANDLET", output.getvalue())
             self.assertIn("ARGS", output.getvalue())
             self.assertIn("hostscanner", output.getvalue())
@@ -1744,8 +1744,8 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "job --all")
             text = output.getvalue()
-            self.assertRegex(text, r"\n1\s+[0-9a-f]{32}\s+active\s+123\s+running\s+0\s+")
-            self.assertRegex(text, r"\n2\s+[0-9a-f]{32}\s+completed\s+456\s+finished\s+0\s+")
+            self.assertRegex(text, r"\n1\s+[0-9A-Z]{8}\s+active\s+123\s+running\s+0\s+")
+            self.assertRegex(text, r"\n2\s+[0-9A-Z]{8}\s+completed\s+456\s+finished\s+0\s+")
 
     def test_jobs_all_can_use_long_active_marker(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1756,7 +1756,7 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "job --all")
             self.assertIn("active since ", output.getvalue())
-            self.assertRegex(output.getvalue(), r"\n1\s+[0-9a-f]{32}\s+active since ")
+            self.assertRegex(output.getvalue(), r"\n1\s+[0-9A-Z]{8}\s+active since ")
 
     def test_pipeline_lists_by_default(self):
         with tempfile.TemporaryDirectory() as tmp:

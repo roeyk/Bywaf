@@ -136,6 +136,18 @@ portable across replay, import, or a fresh database. Serials are the right
 identifier for audit reports, artifacts, long-term notes, and cross-database
 references.
 
+New durable serials use a Crockford Base32 body after the resource prefix. The
+stored serial remains long enough for audit-grade uniqueness, while runtime
+tables display a short prefix of the body for day-to-day use. Selectors accept
+the displayed short body when it resolves uniquely:
+
+```text
+job 01J8K2VQ
+step 01J8K2VQ
+pipeline 01J8K2VQ
+event serial=01J8K2VQ
+```
+
 The universal durable lookup is:
 
 ```text

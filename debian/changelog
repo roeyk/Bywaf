@@ -1,3 +1,10 @@
+bywaf (0.12.2-1) unstable; urgency=medium
+
+  * Patch release with documentation TOCs, documentation impact metrics, and
+    refreshed system diagrams.
+
+ -- Roey Katz <roey.katz@gmail.com>  Wed, 27 May 2026 11:44:00 -0400
+
 bywaf (0.12.1-1) unstable; urgency=medium
 
   * Patch release with REPL/display/report/artifact/audit/control refactors,

@@ -10,11 +10,10 @@ Used by:
 
 from __future__ import annotations
 
-import uuid
 from dataclasses import dataclass
 
 from ..command.parser import CommandInvocation
-from ..db import EventStore
+from ..db import EventStore, new_serial
 from ..events import Event
 from ..plugin import CommandContext, implied_capabilities
 from ..registry import PluginRegistry
@@ -28,8 +27,7 @@ RUN_DISPLAY_VAR_PREFIXES = (
 
 def new_run_id(prefix: str) -> str:
     """Return a readable unique ID suitable for DB scope fields."""
-    safe_prefix = "".join(char if char.isalnum() else "-" for char in prefix).strip("-")
-    return f"{safe_prefix}-{uuid.uuid4().hex}"
+    return new_serial(prefix)
 
 
 @dataclass(frozen=True, slots=True)

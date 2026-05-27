@@ -26,9 +26,9 @@ class RuntimeDisplayTests(unittest.TestCase):
         self.assertEqual(format_runtime_timestamp("not-a-time"), "not-a-time")
 
     def test_display_runtime_serial_strips_noisy_runtime_prefixes(self):
-        self.assertEqual(display_runtime_serial("pipeline-abc123"), "abc123")
-        self.assertEqual(display_runtime_serial("run-abc123"), "abc123")
-        self.assertEqual(display_runtime_serial("job-abc123"), "abc123")
+        self.assertEqual(display_runtime_serial("pipeline-0123456789ABCDEFGHJKMNPQRST"), "01234567")
+        self.assertEqual(display_runtime_serial("run-0123456789ABCDEFGHJKMNPQRST"), "01234567")
+        self.assertEqual(display_runtime_serial("job-0123456789ABCDEFGHJKMNPQRST"), "01234567")
 
     def test_display_runtime_serial_keeps_commandlet_prefixed_runs(self):
         self.assertEqual(display_runtime_serial("hostscanner-abc123"), "hostscanner-abc123")

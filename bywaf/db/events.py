@@ -16,7 +16,7 @@ from contextlib import contextmanager
 from typing import Any, cast
 
 from .backends import DatabaseConnection
-from .support import artifact_count_queries
+from .support import artifact_count_queries, resolve_serial_match
 from ..events import Event
 from ..subscriptions import Subscription
 
@@ -241,7 +241,8 @@ class EventStoreEventMixin:
             return [Event.from_row(row) for row in rows]
 
     def events_for_serial(self, serial: str, *, limit: int = 1000) -> list[Event]:
-        """Return events associated with a globally unique audit serial."""
+        """Return events associated with a durable audit serial or unique prefix."""
+        resolved = resolve_serial_match(serial, self.serials()) or serial
         with self.connect() as conn:
             rows = conn.execute(
                 """
@@ -256,7 +257,7 @@ class EventStoreEventMixin:
                 ORDER BY id ASC
                 LIMIT ?
                 """,
-                (serial, serial, serial, serial, serial, serial, limit),
+                (resolved, resolved, resolved, resolved, resolved, resolved, limit),
             )
             return [Event.from_row(row) for row in rows]
 

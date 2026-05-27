@@ -1,5 +1,5 @@
 Name:           bywaf
-%global bywaf_version %{!?bywaf_version:0.12.1}%{?bywaf_version}
+%global bywaf_version %{!?bywaf_version:0.12.2}%{?bywaf_version}
 Version:        %{bywaf_version}
 Release:        1%{?dist}
 Summary:        Highly-auditable Python 3 commandlet framework
@@ -58,11 +58,16 @@ PYTHONPATH=%{buildroot}%{python3_sitelib} %{buildroot}%{_bindir}/bywaf --version
 %license LICENSE
 %doc README.md USAGE.md CHANGELOG.md docs
 %{_bindir}/bywaf
+%{_bindir}/bywaf-architecture-metrics
 %{_bindir}/bywaf-plugin-manifest
 %{python3_sitelib}/bywaf
 %{python3_sitelib}/bywaf-*.dist-info
 
 %changelog
+* Wed May 27 2026 Roey Katz <roey.katz@gmail.com> - 0.12.2-1
+- Patch release with documentation TOCs, documentation impact metrics, and
+  refreshed system diagrams.
+
 * Wed May 27 2026 Roey Katz <roey.katz@gmail.com> - 0.12.1-1
 - Patch release with REPL/display/report/artifact/audit/control refactors,
   shared pager handling, and documentation/package refresh.

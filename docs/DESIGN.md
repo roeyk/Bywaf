@@ -19,6 +19,7 @@ section below explains how those signals fit into design triage.
 - [Framework Notes](#framework-notes)
 - [At-File Argument Expansion](#at-file-argument-expansion)
 - [Command Input Normalization](#command-input-normalization)
+- [Runtime Serial Format](#runtime-serial-format)
 - [Architecture Metrics And Refactoring Triage](#architecture-metrics-and-refactoring-triage)
 - [Documentation Cohesion](#documentation-cohesion)
 - [Open Design Questions](#open-design-questions)
@@ -387,6 +388,17 @@ The near-term goal is therefore:
 - make actual behavior visible,
 - route sensitive framework actions through auditable request handlers,
 - move toward narrower APIs before promising hard isolation.
+
+## Runtime Serial Format
+
+Durable runtime/resource serials use a resource prefix plus a Crockford Base32
+body, for example `job-...`, `pipeline-...`, `artifact-...`, and plugin-derived
+step serials. Numeric job, step, and pipeline IDs remain local database
+convenience aliases; serials are the portable provenance identifiers.
+
+Tables should favor the short displayed serial body to preserve terminal width.
+Selectors may accept that short body only when it resolves to exactly one known
+serial. Ambiguous prefixes must fail loudly rather than guessing.
 
 ## Architecture Metrics And Refactoring Triage
 

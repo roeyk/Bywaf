@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from .backends import DatabaseConnection
-from .support import ACTIVE_JOB_STATUSES
+from .support import ACTIVE_JOB_STATUSES, resolve_serial_match
 
 
 class EventStoreRuntimeMixin:
@@ -254,7 +254,7 @@ class EventStoreRuntimeMixin:
         return {str(row["serial"]): str(row["local_id"]) for row in rows}
 
     def resolve_runtime_serial(self, entity_type: str, value: str) -> str:
-        """Resolve a local runtime id or pass through an explicit serial."""
+        """Resolve a local runtime id, full serial, or unique serial prefix."""
         if value.isdigit():
             with self.connect() as conn:
                 row = conn.execute(
@@ -267,7 +267,17 @@ class EventStoreRuntimeMixin:
                 ).fetchone()
             if row is not None:
                 return str(row["serial"])
-        return value
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT serial
+                FROM runtime_entities
+                WHERE entity_type = ?
+                """,
+                (entity_type,),
+            ).fetchall()
+        serials = [str(row["serial"]) for row in rows]
+        return resolve_serial_match(value, serials) or value
 
     def ensure_run_aliases(self) -> None:
         """Allocate stable local IDs for known pipeline steps."""
