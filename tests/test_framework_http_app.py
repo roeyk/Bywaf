@@ -246,10 +246,10 @@ class FrameworkHttpAppTests(unittest.TestCase):
                 "less",
             )
             with (
-                patch("bywaf.framework_requests.shutil.which", return_value="/usr/bin/less"),
-                patch("bywaf.framework_requests.sys.stdin.isatty", return_value=True),
-                patch("bywaf.framework_requests.sys.stdout.isatty", return_value=True),
-                patch("bywaf.framework_requests.subprocess.run", side_effect=KeyboardInterrupt),
+                patch("bywaf.pager.shutil.which", return_value="/usr/bin/less"),
+                patch("bywaf.pager.sys.stdin.isatty", return_value=True),
+                patch("bywaf.pager.sys.stdout.isatty", return_value=True),
+                patch("bywaf.pager.subprocess.run", side_effect=KeyboardInterrupt),
             ):
                 process_framework_requests(runner, state)
             self.assertEqual(len(runner.db.events_for_topic("console.page")), 1)

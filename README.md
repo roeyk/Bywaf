@@ -17,7 +17,7 @@ hostscanner 192.168.1.0/24 | portscanner | http_probe | webfin | nikto
 ```
 
 Each pipeline step emits normalized events into the project database. Later
-step, reports, artifact searches, audit exports, and future frontends inspect
+steps, reports, artifact searches, audit exports, and future frontends inspect
 those recorded facts instead of scraping terminal scrollback.
 
 Use Bywaf only on systems and networks where you have explicit authorization.
@@ -70,7 +70,7 @@ For a local pip package build:
 
 ```bash
 scripts/build_pip_package.sh
-python3 -m pip install dist/bywaf-0.12.0-py3-none-any.whl
+python3 -m pip install dist/bywaf-0.12.1-py3-none-any.whl
 bywaf --help
 ```
 
@@ -113,8 +113,8 @@ bywaf> plugin load=./plugins/myplugin --force
 Set plugin variables:
 
 ```text
-bywaf> set network/portscanner.ports=22,80,443
-bywaf> portscanner 127.0.0.1
+bywaf> set network/portscanner.port=22,80,443
+bywaf> portscanner host=127.0.0.1
 ```
 
 View finding-oriented output:

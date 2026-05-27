@@ -1,3 +1,10 @@
+bywaf (0.12.1-1) unstable; urgency=medium
+
+  * Patch release with REPL/display/report/artifact/audit/control refactors,
+    shared pager handling, and documentation/package refresh.
+
+ -- Roey Katz <roey.katz@gmail.com>  Wed, 27 May 2026 03:10:00 -0400
+
 bywaf (0.12.0-1) unstable; urgency=medium
 
   * Testing release with shared event payload filters for event, job,

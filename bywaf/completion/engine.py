@@ -32,7 +32,6 @@ from ..command.names import (
     SET_COMMAND,
     SETG_COMMAND,
 )
-from ..repl.themes import theme_names
 from ..specs import CompletionSpec
 from ..utils import complete_path
 from .constants import FRAMEWORK_OPTION_COMPLETIONS, option_is_binary
@@ -444,6 +443,8 @@ class CoreCompleter:
 
     def config_candidates(self, prefix: str) -> list[str]:
         """Complete config subcommands and selectors."""
+        from ..repl.themes import theme_names
+
         if prefix.startswith("name="):
             value = prefix.split("=", 1)[1]
             return [f"name={name}" for name in theme_names() if name.startswith(value)]
@@ -451,6 +452,8 @@ class CoreCompleter:
 
     def pref_candidates(self, prefix: str) -> list[str]:
         """Complete preference actions and common preference keys."""
+        from ..repl.themes import theme_names
+
         common = (
             "list",
             "load",

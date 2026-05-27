@@ -164,7 +164,7 @@ def build_context(
     replace_db,
     runner=None,
 ) -> CommandContext:
-    """Build the runtime context for one commandlet stage.
+    """Build the runtime context for one pipeline step.
 
     CommandContext is the mediated framework API passed to plugins.  This
     function gathers the stable execution metadata the plugin should see:

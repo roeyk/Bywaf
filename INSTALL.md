@@ -107,7 +107,7 @@ From a release artifact:
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install bywaf-0.12.0-py3-none-any.whl
+python -m pip install bywaf-0.12.1-py3-none-any.whl
 bywaf --version
 bywaf
 ```
@@ -117,7 +117,7 @@ bywaf
 From a release `.deb`:
 
 ```bash
-sudo apt install ./bywaf_0.12.0-1_all.deb
+sudo apt install ./bywaf_0.12.1-1_all.deb
 bywaf --version
 bywaf
 ```
@@ -130,7 +130,7 @@ and recommends `nmap` plus `python3-libnmap`.
 From a release `.rpm`:
 
 ```bash
-sudo dnf install ./bywaf-0.12.0-1.noarch.rpm
+sudo dnf install ./bywaf-0.12.1-1.noarch.rpm
 bywaf --version
 bywaf
 ```

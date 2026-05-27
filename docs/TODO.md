@@ -4,8 +4,8 @@ Planning dates are release planning markers, not compatibility commitments.
 
 ## Current Release
 
-- Bywaf 0.12.0 testing release: 2026-05-26.
-- Release package metadata updated to 0.12.0 across Python, Debian, README,
+- Bywaf 0.12.1 patch release: 2026-05-27.
+- Release package metadata updated to 0.12.1 across Python, Debian, README,
   usage guide, changelog, and release artifacts.
 - Release highlights captured: host filters for `event`, `job`, `pipeline`,
   and `step`; event sorting; `portscanner host=` DNS resolution provenance;
@@ -15,9 +15,8 @@ Planning dates are release planning markers, not compatibility commitments.
 - Installation documentation now has a dedicated `INSTALL.md` with runtime,
   source checkout, package install, optional plugin dependency, and release
   package build dependency blocks.
-- Release artifacts rebuilt for pip, Debian, and RPM. Package smoke checks
-  passed for pip and RPM, and GitHub release artifacts were attached to
-  `v0.12.0`.
+- Release artifacts rebuilt for pip, Debian, and RPM before tagging `v0.12.1`;
+  pip, RPM, and plugin install-path smoke checks passed locally.
 
 ## Target: Next Testing Release
 
@@ -188,6 +187,26 @@ Planning dates are release planning markers, not compatibility commitments.
   mediated external tool wrappers.
 - Split future deep-dive docs from `CAPABILITY_MODEL.md` if needed, such as
   `PLUGIN_TYPES.md`, `PLUGIN_SECURITY_MODEL.md`, and `PLUGIN_PACKAGING.md`.
+
+### Item: Thorough Security Audit
+
+- Perform a multi-angle adversarial security audit of Bywaf before calling the
+  runtime/plugin model mature.
+- Cover at-rest risks: project databases, artifact stores, preference files,
+  secret storage, plugin manifests, user-local plugin roots, system plugin
+  roots, release packages, and bundle/export artifacts.
+- Cover in-operation risks: malicious plugins, compromised external tools,
+  process wrappers, framework request IPC, pager/editor invocation, background
+  jobs, multiprocessing database access, trigger execution, variable
+  expansion, and command/script parsing.
+- Review capability declarations as enforceable contracts, not only metadata:
+  check whether plugins can bypass declared capabilities through direct file,
+  process, network, storage, or secret access.
+- Include threat models for local operator misuse, malicious third-party
+  plugins, tampered plugin catalogs, hostile scan targets, and compromised
+  workspace files.
+- Produce concrete findings with severity, exploit preconditions, reproduction
+  steps, recommended mitigations, and regression tests for fixed issues.
 
 ### External Tool Wrappers
 

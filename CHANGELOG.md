@@ -3,6 +3,20 @@
 All notable project changes are tracked here. Bywaf is still pre-1.0 software,
 so compatibility may change between testing releases.
 
+## [0.12.1] - 2026-05-27
+
+Last updated: 2026-05-27 03:10:00 EDT
+
+### Changed
+
+- Split large REPL display, REPL command, report, artifact, audit, control, and
+  completion prompt-UI modules into focused helper modules while preserving
+  public command behavior.
+- Centralized pager handling so Ctrl-C inside the pager returns to Bywaf instead
+  of exiting the REPL.
+- Added a tracker item for a full Bywaf security audit covering plugin, runtime,
+  configuration, storage, packaging, and in-operation attack surfaces.
+
 ## [0.12.0] - 2026-05-26
 
 Last updated: 2026-05-26 17:45:00 EDT
@@ -15,7 +29,7 @@ Last updated: 2026-05-26 17:45:00 EDT
 - Added `event ... sort=` support for time, host, protocol, state, topic, and
   source ordering, with protocol/status aliases for operator-friendly queries.
 - Added `portscanner host=...` as a single-host shortcut, DNS-name resolution
-  provenance through `name.resolved`, and `ports=`/`arguments=` examples for
+  provenance through `name.resolved`, and `port=`/`arguments=` examples for
   value-bearing commandlet inputs.
 - Added regression coverage for fully-qualified commandlet execution inside an
   active `use` context and from scripts.

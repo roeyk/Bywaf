@@ -49,7 +49,7 @@ run_probe() {
       --plugin-config "$config" \
       --allow-unsigned-plugins \
       --allow-unsigned-plugin-manifests \
-      run "$commandlet"
+      cmd "$commandlet"
   )
   grep -q "$expected" <<<"$output"
 }

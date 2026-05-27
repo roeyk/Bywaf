@@ -10,13 +10,11 @@ Used by:
 
 from __future__ import annotations
 
-import shutil
-import subprocess
-import sys
 from pathlib import Path
 from typing import Protocol
 
 from .db import Subscription
+from .pager import page_file
 from .plugin.process import normalize_argv, run_process_argv
 from .rendering import Table, render_console_table
 from .runner import Runner
@@ -217,16 +215,7 @@ def handle_file_page_request(runner: Runner, state: FrameworkRequestState, event
         parent_command_run_id=event.parent_command_run_id,
     )
     try:
-        pager = shutil.which("less")
-        if pager and sys.stdin.isatty() and sys.stdout.isatty():
-            # -R lets less render ANSI color escapes while still protecting
-            # against arbitrary control characters.
-            try:
-                subprocess.run([pager, "-R", str(path)], check=False)
-            except KeyboardInterrupt:
-                pass
-            return
-        print(path.read_text(errors="replace"), end="", flush=True)
+        page_file(path)
     finally:
         if bool(event.payload.get("temporary")):
             path.unlink(missing_ok=True)

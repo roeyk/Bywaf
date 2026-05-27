@@ -184,7 +184,7 @@ class Runner:
     ) -> None:
         """Run each stage in its own process for stage-level background jobs.
 
-        This is used for background pipelines where each commandlet stage should
+        This is used for background pipelines where each pipeline step should
         have an independent process boundary.  Runtime variables are snapshotted
         before child startup so later `set` changes do not silently alter a job
         already in flight.

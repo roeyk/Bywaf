@@ -1,0 +1,255 @@
+"""Operator-facing report rendering.
+
+Turns grouped finding events and review decisions into styled report text,
+tables, details, and `report.rendered` audit payloads.
+
+Used by:
+- analysis.report: render report views after event selection."""
+
+from __future__ import annotations
+
+from argparse import Namespace
+from collections.abc import Mapping
+
+from bywaf.events import Event
+from bywaf.finding import SEVERITY_CLASS_ORDER, severity_class
+from bywaf.plugin import CommandContext
+from bywaf.plugins.analysis.finding_report import finding_rows
+from bywaf.rendering import Column, Table, align_text, table_values
+
+from .report_details import render_group_details
+from .report_model import FindingGroup, effective_finding_payload, events_for_groups, group_finding_events
+from .report_review import filter_groups_by_status, latest_review_decisions, review_counts
+from .report_style import finding_text, report_text, table_text
+
+
+def render_finding_report(context: CommandContext, events: list[Event], parsed: Namespace) -> None:
+    """Render report results and emit a report-rendered audit event."""
+    # Rendering starts from raw events every time. Reports do not own findings;
+    # they are scoped views over the event log plus review-state events.
+    groups = group_finding_events(events)
+    decisions = latest_review_decisions(context)
+    filtered_groups = filter_groups_by_status(groups, decisions, parsed.status)
+    filtered_events = events_for_groups(filtered_groups)
+    output_lines = [
+        report_text(context, "heading", report_heading(parsed, events, groups)),
+        report_text(
+            context,
+            "summary",
+            review_summary_line(review_counts(groups, decisions), severity_class_counts(groups)),
+        ),
+    ]
+    if not filtered_groups:
+        output_lines.append(
+            "no unreviewed findings"
+            if parsed.status == "unreviewed"
+            else f"no {parsed.status} findings"
+        )
+        emit_report_output(context, output_lines, parsed)
+        context.events.publish(
+            "report.rendered",
+            report_rendered_payload(
+                parsed,
+                filtered_events,
+                groups=filtered_groups,
+                rows=0,
+                counts=review_counts(groups, decisions),
+            ),
+        )
+        return
+    output_lines.append(report_text(context, "section", render_status_heading(parsed.status)))
+    table = indexed_findings_table(filtered_groups)
+    output_lines.append(render_styled_report_table(context, table))
+    output_lines.append(render_group_details(context, filtered_groups))
+    emit_report_output(context, output_lines, parsed)
+    context.events.publish(
+        "report.rendered",
+        report_rendered_payload(
+            parsed,
+            filtered_events,
+            groups=filtered_groups,
+            rows=len(table.rows),
+            counts=review_counts(groups, decisions),
+        ),
+    )
+
+
+def emit_report_output(context: CommandContext, lines: list[str], parsed: Namespace) -> None:
+    """Page or print one complete rendered report."""
+    rendered = "\n".join(line for line in lines if line)
+    if parse_bool_selector(parsed.page):
+        context.page_text(rendered)
+    else:
+        context.output(rendered)
+
+
+def parse_bool_selector(value: object) -> bool:
+    """Parse a selector-style boolean such as `page=false`."""
+    normalized = str(value).strip().casefold()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(f"invalid boolean value: {value}")
+
+
+def report_heading(parsed: Namespace, events: list[Event], groups: list[FindingGroup]) -> str:
+    """Return a compact heading for one report view."""
+    if parsed.job:
+        action = "scope"
+        scope = f"job={parsed.job}"
+    elif parsed.pipeline:
+        action = "scope"
+        scope = f"pipeline={parsed.pipeline}"
+    elif parsed.step:
+        action = "scope"
+        scope = f"step={parsed.step}"
+    else:
+        action = "inbox"
+        scope = "latest completed pipeline"
+    event_count = len(events)
+    group_count = len(groups)
+    return (
+        f"Report {action}: {scope} "
+        f"({group_count} finding group{'s' if group_count != 1 else ''}, "
+        f"{event_count} event{'s' if event_count != 1 else ''})"
+    )
+
+
+def report_rendered_payload(
+    parsed: Namespace,
+    events: list[Event],
+    *,
+    groups: list[FindingGroup] | None = None,
+    rows: int,
+    counts: Mapping[str, int] | None = None,
+) -> dict[str, object]:
+    """Return a structured payload describing one rendered report."""
+    return {
+        "action": "show" if any((parsed.job, parsed.pipeline, parsed.step)) else "inbox",
+        "job": parsed.job,
+        "pipeline": parsed.pipeline,
+        "step": parsed.step,
+        "status": parsed.status,
+        "events": [event.id for event in events if event.id is not None],
+        "groups": [group.finding_id for group in groups or []],
+        "counts": dict(counts or {}),
+        "rows": rows,
+    }
+
+
+def review_summary_line(
+    counts: Mapping[str, int],
+    severity_counts: Mapping[str, int] | None = None,
+) -> str:
+    """Return a compact review-state summary for the report heading."""
+    summary = (
+        "Findings: "
+        f"{counts.get('total', 0)} total, "
+        f"{counts.get('accepted', 0)} accepted, "
+        f"{counts.get('deferred', 0)} deferred, "
+        f"{counts.get('rejected', 0)} rejected, "
+        f"{counts.get('unreviewed', 0)} unreviewed"
+    )
+    if not severity_counts:
+        return summary
+    class_summary = ", ".join(
+        f"{severity_counts[item]} {item}"
+        for item in SEVERITY_CLASS_ORDER
+        if severity_counts.get(item, 0)
+    )
+    return f"{summary}; severity classes: {class_summary}" if class_summary else summary
+
+
+def severity_class_counts(groups: list[FindingGroup]) -> dict[str, int]:
+    """Count finding groups by broad operational severity class."""
+    counts = {key: 0 for key in SEVERITY_CLASS_ORDER}
+    for group in groups:
+        payload = effective_finding_payload(group.representative)
+        counts[severity_class(payload.get("severity"))] += 1
+    return counts
+
+
+def render_status_heading(status: str) -> str:
+    """Return the subheading shown before filtered report rows."""
+    return "All findings:" if status == "all" else f"{status.capitalize()} findings:"
+
+
+def indexed_findings_table(groups: list[FindingGroup]) -> Table:
+    """Return a report table with stable 1-based row indexes."""
+    representatives = [group.representative for group in groups]
+    rows = [
+        {"index": index, **row}
+        for index, row in enumerate(finding_rows(representatives, include_candidates=True), start=1)
+    ]
+    return Table.from_rows(
+        rows,
+        (
+            Column("index", "#", "right"),
+            Column("finding_name", "Finding name"),
+            Column("description", "Description"),
+            Column("hosts_affected", "Host(s) affected"),
+            Column("cve", "CVE"),
+            Column("severity", "Severity rating"),
+            Column("recommendation", "Recommendation"),
+        ),
+        title="Findings",
+    )
+
+
+def render_styled_report_table(context: CommandContext, table: Table) -> str:
+    """Render a report table with theme-driven baseline and subject styles."""
+    if not table.columns:
+        return report_text(context, "section", table.title or "")
+    values = table_values(table)
+    widths = [
+        max(len(column.heading), *(len(row[index]) for row in values))
+        for index, column in enumerate(table.columns)
+    ]
+    lines: list[str] = []
+    if table.title:
+        lines.append(report_text(context, "section", table.title))
+    headings = [
+        table_text(context, "header", align_text(column.heading, widths[index], column.align))
+        for index, column in enumerate(table.columns)
+    ]
+    lines.append("  ".join(headings))
+    lines.append(
+        "  ".join(
+            table_text(context, "header", "-" * width)
+            for width in widths
+        )
+    )
+    for row_index, row in enumerate(values):
+        cells: list[str] = []
+        row_mapping = table.rows[row_index]
+        for index, value in enumerate(row):
+            column = table.columns[index]
+            aligned = align_text(value, widths[index], column.align)
+            cells.append(styled_report_cell(context, column.key, aligned, row_mapping))
+        lines.append("  ".join(cells))
+    return "\n".join(lines)
+
+
+def styled_report_cell(
+    context: CommandContext,
+    column_key: str,
+    value: str,
+    row: Mapping[str, object],
+) -> str:
+    """Apply the most specific report-table style for one cell."""
+    if column_key == "index":
+        return table_text(context, "index", value)
+    if column_key == "finding_name":
+        return finding_text(context, "title", value)
+    if column_key == "severity":
+        severity = str(row.get("severity") or "").strip().casefold()
+        if severity:
+            styled = finding_text(context, f"severity.{severity}", value)
+            if styled != value:
+                return styled
+            severity_class_name = severity_class(severity)
+            styled = finding_text(context, f"severity_class.{severity_class_name}", value)
+            if styled != value:
+                return styled
+    return table_text(context, "body", value)

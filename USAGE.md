@@ -64,14 +64,14 @@ For a local pip package build:
 
 ```bash
 scripts/build_pip_package.sh
-python3 -m pip install dist/bywaf-0.12.0-py3-none-any.whl
+python3 -m pip install dist/bywaf-0.12.1-py3-none-any.whl
 bywaf --help
 ```
 
 For normal Debian package installation from a release artifact:
 
 ```bash
-sudo apt install ./bywaf_0.12.0-1_all.deb
+sudo apt install ./bywaf_0.12.1-1_all.deb
 bywaf --help
 ```
 
@@ -81,14 +81,14 @@ Debian build dependencies and write artifacts under `dist/deb/`:
 ```bash
 sudo apt install debhelper dh-python pybuild-plugin-pyproject python3-all python3-setuptools python3-prompt-toolkit
 scripts/build_deb_package.sh
-sudo apt install ./dist/deb/bywaf_0.12.0-1_all.deb
+sudo apt install ./dist/deb/bywaf_0.12.1-1_all.deb
 bywaf --help
 ```
 
 For normal RPM package installation from a release artifact:
 
 ```bash
-sudo dnf install ./bywaf-0.12.0-1.noarch.rpm
+sudo dnf install ./bywaf-0.12.1-1.noarch.rpm
 bywaf --help
 ```
 
