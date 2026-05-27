@@ -703,6 +703,17 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(argv[1], "-R")
             self.assertFalse(Path(argv[2]).exists())
 
+    def test_dispatch_cmds_page_ignores_pager_keyboard_interrupt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            with (
+                patch("bywaf.repl.display.shutil.which", return_value="/usr/bin/less"),
+                patch("bywaf.repl.display.sys.stdin.isatty", return_value=True),
+                patch("bywaf.repl.display.sys.stdout.isatty", return_value=True),
+                patch("bywaf.repl.display.subprocess.run", side_effect=KeyboardInterrupt),
+            ):
+                dispatch_repl_line(runner, "cmds --page")
+
     def test_start_default_services_launches_session_watchdog_once(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

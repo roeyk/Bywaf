@@ -1179,7 +1179,10 @@ def page_generated_text(text: str) -> None:
         if pager and sys.stdin.isatty() and sys.stdout.isatty():
             # Use an external pager only for interactive terminals; test and
             # redirected output should receive plain stdout.
-            subprocess.run([pager, "-R", str(path)], check=False)
+            try:
+                subprocess.run([pager, "-R", str(path)], check=False)
+            except KeyboardInterrupt:
+                pass
             return
         print(path.read_text(errors="replace"), end="", flush=True)
     finally:

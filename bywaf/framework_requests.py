@@ -221,7 +221,10 @@ def handle_file_page_request(runner: Runner, state: FrameworkRequestState, event
         if pager and sys.stdin.isatty() and sys.stdout.isatty():
             # -R lets less render ANSI color escapes while still protecting
             # against arbitrary control characters.
-            subprocess.run([pager, "-R", str(path)], check=False)
+            try:
+                subprocess.run([pager, "-R", str(path)], check=False)
+            except KeyboardInterrupt:
+                pass
             return
         print(path.read_text(errors="replace"), end="", flush=True)
     finally:

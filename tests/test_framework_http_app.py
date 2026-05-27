@@ -234,6 +234,26 @@ class FrameworkHttpAppTests(unittest.TestCase):
             self.assertEqual(event.payload["request_event_id"], request.id)
             self.assertEqual(output.getvalue(), "hello\n")
 
+    def test_framework_request_page_ignores_pager_keyboard_interrupt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp, "file.txt")
+            path.write_text("hello\n")
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            runner.db.publish(
+                "framework.file.page.requested",
+                {"path": str(path), "source": "less"},
+                "less",
+            )
+            with (
+                patch("bywaf.framework_requests.shutil.which", return_value="/usr/bin/less"),
+                patch("bywaf.framework_requests.sys.stdin.isatty", return_value=True),
+                patch("bywaf.framework_requests.sys.stdout.isatty", return_value=True),
+                patch("bywaf.framework_requests.subprocess.run", side_effect=KeyboardInterrupt),
+            ):
+                process_framework_requests(runner, state)
+            self.assertEqual(len(runner.db.events_for_topic("console.page")), 1)
+
     def test_framework_request_denies_background_file_page(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "file.txt")
