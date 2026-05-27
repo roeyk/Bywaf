@@ -17,6 +17,7 @@ For the stable architecture model, see `RUNTIME_MODEL.md`, `EVENT_MODEL.md`,
 - [Framework Notes](#framework-notes)
 - [At-File Argument Expansion](#at-file-argument-expansion)
 - [Command Input Normalization](#command-input-normalization)
+- [Architecture Metrics And Refactoring Triage](#architecture-metrics-and-refactoring-triage)
 - [Open Design Questions](#open-design-questions)
 
 ## Framework Request IPC
@@ -383,6 +384,38 @@ The near-term goal is therefore:
 - make actual behavior visible,
 - route sensitive framework actions through auditable request handlers,
 - move toward narrower APIs before promising hard isolation.
+
+## Architecture Metrics And Refactoring Triage
+
+Bywaf uses lightweight architecture metrics as a refactoring triage tool, not
+as a substitute for review. The development report is documented in
+`ARCHITECTURE_METRICS.md` and can be generated from a source checkout:
+
+```bash
+python scripts/architecture_metrics.py --top 12
+python scripts/architecture_metrics.py --top 12 --churn
+```
+
+The first-pass metrics measure dependency pressure, source size, import cycles,
+branch/control-flow complexity, rough test references, optional git churn, and
+security-review surface hits. These metrics map directly to the refactoring
+work we do:
+
+- high complexity points to dispatch tables, parser tables, smaller helpers, or
+  clearer state machines;
+- high source size points to intelligent file splits, but only after checking
+  cohesion;
+- high fan-out points to orchestration code that may need narrower service
+  modules;
+- high fan-in means changes need facades or compatibility care;
+- high churn plus high complexity means add focused tests before reshaping;
+- high security hits means review redaction, path handling, capability checks,
+  subprocess boundaries, artifact rendering, and config trust before moving
+  code.
+
+The goal is a granular view of maintainability: distinguish a large but cohesive
+module from a small module that is over-coupled, under-tested, and
+security-sensitive.
 
 ## Open Design Questions
 

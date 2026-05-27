@@ -49,6 +49,8 @@ offensive frameworks, do not look for Veil-style modules, Metasploit-style
 - [Framework Surface](FRAMEWORK_SURFACE.md): enumerated base resources,
   including capabilities, trigger rules, plugin data topics, and framework
   audit/control topics.
+- [Architecture Metrics](ARCHITECTURE_METRICS.md): dependency, size, fan-in,
+  fan-out, and cycle checks for refactoring decisions.
 
 ## Authoring And Operations
 

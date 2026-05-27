@@ -33,6 +33,7 @@ plugins = [
 
 [project.scripts]
 bywaf = "bywaf.__main__:main"
+bywaf-architecture-metrics = "bywaf.tools.architecture_metrics:main"
 bywaf-plugin-manifest = "bywaf.tools.plugin_manifest:main"
 
 [build-system]
