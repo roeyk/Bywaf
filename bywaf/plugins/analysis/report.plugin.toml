@@ -9,6 +9,7 @@ capabilities = [
   "db.read:finding.candidate",
   "db.read:finding.merge_candidate",
   "db.read:finding.reviewed",
+  "db.read:artifact.attached",
   "db.write:report.rendered",
   "db.write:finding.reviewed",
   "framework.console.output",

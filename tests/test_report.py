@@ -313,6 +313,19 @@ class ReportTests(unittest.TestCase):
                 pipeline_id="pipeline-a",
                 command_run_id="run-b",
             )
+            runner.db.publish(
+                "artifact.attached",
+                {
+                    "artifact_id": "artifact-proof",
+                    "artifact_row_id": 3,
+                    "name": "proof.txt",
+                    "content_type": "text/plain",
+                    "size": 12,
+                },
+                "framework",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
 
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
@@ -321,12 +334,52 @@ class ReportTests(unittest.TestCase):
 
             text = output.getvalue()
             self.assertIn("Details", text)
-            self.assertIn("#1 Example service CVE", text)
+            self.assertIn("1. Example service CVE", text)
             self.assertIn("Affected: https://example.test/page1; 192.0.2.10:443/tcp; https://example.test/admin", text)
             self.assertIn("Evidence: page1 proof with newline; admin proof", text)
             self.assertIn("Sources: web_cve_check:http.response; web_cve_check:finding.candidate", text)
+            self.assertIn("Artifacts: #3 proof.txt text/plain size=12 artifact-proof", text)
             self.assertIn(f"Provenance: events={first.id},{second.id}; pipeline=pipeline-a; step=run-a,run-b", text)
             self.assertIn("Latest update:", text)
+
+    def test_report_pages_by_default_and_can_print_inline(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "candidate-1",
+                    "title": "Paged finding",
+                    "target": {"host": "example.test"},
+                    "severity": "medium",
+                },
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute("report pipeline=pipeline-a")
+                process_framework_requests(runner, ShellState())
+            self.assertEqual(len(runner.db.events_for_topic("framework.file.page.requested")), 1)
+
+            runner = make_runner(Path(tmp, "bywaf-inline.sqlite3"))
+            runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "candidate-1",
+                    "title": "Inline finding",
+                    "target": {"host": "example.test"},
+                    "severity": "medium",
+                },
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute("report pipeline=pipeline-a page=false")
+                process_framework_requests(runner, ShellState())
+            self.assertEqual(runner.db.events_for_topic("framework.file.page.requested"), [])
 
     def test_report_review_marker_matches_raw_finding_id_inside_group_key_group(self):
         with tempfile.TemporaryDirectory() as tmp:

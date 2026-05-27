@@ -70,7 +70,7 @@ if TYPE_CHECKING:
 
 ReplCommandHandler = Callable[[Runner, Any, str | None, str], str | None]
 EVENT_SELECTOR_KEYS = {"job", "step", "pipeline", "serial", "topic"}
-SUPPRESSED_COMMANDLET_OUTPUT_TOPICS = {"report.rendered"}
+SUPPRESSED_COMMANDLET_OUTPUT_TOPICS = {"framework.file.page.requested", "report.rendered"}
 
 
 def handle_exit_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:

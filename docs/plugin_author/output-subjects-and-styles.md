@@ -68,6 +68,8 @@ Common subjects include:
 | `username` / `account` / `email` | Identity-related values |
 | `service` | Service names such as `ssh`, `telnet`, `http` |
 | `timestamp` | Operator-facing timestamps |
+| `serial` | Durable runtime or artifact serials |
+| `job` / `step` / `pipeline` | Runtime provenance identifiers |
 | `comment` | Human comments and inline notes |
 | `string` / `value` / `variable` | REPL syntax highlighting subjects |
 | `cve` / `cwe` | Vulnerability identifiers |
@@ -90,6 +92,10 @@ Renderers should use table styles as defaults and semantic subjects as overrides
 "display/style.report.heading" = "bold color39"
 "display/style.report.section" = "bold white"
 "display/style.report.label" = "bold color245"
+"display/style.serial" = "color245"
+"display/style.job" = "color39"
+"display/style.step" = "color39"
+"display/style.pipeline" = "color39"
 "display/style.finding.severity_class.urgent" = "bold red"
 "display/style.finding.severity_class.emergency" = "bold white bg-ansi:52"
 ```

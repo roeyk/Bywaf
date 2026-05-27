@@ -34,7 +34,7 @@ from bywaf.rendering import Column, Table, align_text, table_values
 from bywaf.style import styled_subject_text
 
 REPORT_ACTIONS = ("accept", "defer", "reject")
-REPORT_OPTION_KEYS = {"job", "pipeline", "step", "limit", "note", "status"}
+REPORT_OPTION_KEYS = {"job", "pipeline", "step", "limit", "note", "page", "status"}
 REPORT_STATUS_CHOICES = ("all", "accepted", "deferred", "rejected", "unreviewed")
 REVIEW_DECISIONS = {"accept": "accepted", "defer": "deferred", "reject": "rejected"}
 
@@ -73,6 +73,7 @@ class ReviewDecision:
         "report accept 1-3,7",
         "report defer 4 note=needs manual validation",
         "report pipeline=1",
+        "report page=false",
         "report pipeline=1,2,3",
         "report job=7",
         "report step=12",
@@ -84,6 +85,7 @@ class ReviewDecision:
         "db.read:finding.candidate",
         "db.read:finding.merge_candidate",
         "db.read:finding.reviewed",
+        "db.read:artifact.attached",
         "db.write:report.rendered",
         "db.write:finding.reviewed",
         "framework.console.output",
@@ -93,6 +95,7 @@ class ReviewDecision:
 @option("pipeline", "pipeline id or comma-separated pipeline ids", completion="pipeline")
 @option("step", "step id or comma-separated step ids", completion="step")
 @option("limit", "maximum events to inspect", "1000")
+@option("page", "page rendered report output", "true", ("true", "false"))
 @option("status", "finding review status filter", "unreviewed", REPORT_STATUS_CHOICES)
 class Report(CommandletBase):
     """Render grouped finding inboxes and scoped finding reports."""
@@ -117,6 +120,7 @@ class Report(CommandletBase):
         parser.add_argument("--step", default="", help="step id or comma-separated step ids")
         parser.add_argument("--limit", type=int, default=1000)
         parser.add_argument("--note", default="")
+        parser.add_argument("--page", choices=("true", "false"), default="true")
         parser.add_argument("--status", choices=REPORT_STATUS_CHOICES, default="unreviewed")
         parsed = parser.parse_args(normalize_report_args(args))
 
@@ -139,6 +143,9 @@ class Report(CommandletBase):
             "step=",
             "limit=",
             "note=",
+            "page=",
+            "page=false",
+            "page=true",
             "status=",
             "status=accepted",
             "status=all",
@@ -269,20 +276,21 @@ def render_finding_report(context: CommandContext, events: list[Event], parsed: 
     decisions = latest_review_decisions(context)
     filtered_groups = filter_groups_by_status(groups, decisions, parsed.status)
     filtered_events = events_for_groups(filtered_groups)
-    context.output(report_text(context, "heading", report_heading(parsed, events, groups)))
-    context.output(
+    output_lines = [
+        report_text(context, "heading", report_heading(parsed, events, groups)),
         report_text(
             context,
             "summary",
             review_summary_line(review_counts(groups, decisions), severity_class_counts(groups)),
-        )
-    )
+        ),
+    ]
     if not filtered_groups:
-        context.output(
+        output_lines.append(
             "no unreviewed findings"
             if parsed.status == "unreviewed"
             else f"no {parsed.status} findings"
         )
+        emit_report_output(context, output_lines, parsed)
         context.events.publish(
             "report.rendered",
             report_rendered_payload(
@@ -294,10 +302,11 @@ def render_finding_report(context: CommandContext, events: list[Event], parsed: 
             ),
         )
         return
-    context.output(report_text(context, "section", render_status_heading(parsed.status)))
+    output_lines.append(report_text(context, "section", render_status_heading(parsed.status)))
     table = indexed_findings_table(filtered_groups)
-    context.output(render_styled_report_table(context, table))
-    context.output(render_group_details(context, filtered_groups))
+    output_lines.append(render_styled_report_table(context, table))
+    output_lines.append(render_group_details(context, filtered_groups))
+    emit_report_output(context, output_lines, parsed)
     context.events.publish(
         "report.rendered",
         report_rendered_payload(
@@ -308,6 +317,25 @@ def render_finding_report(context: CommandContext, events: list[Event], parsed: 
             counts=review_counts(groups, decisions),
         ),
     )
+
+
+def emit_report_output(context: CommandContext, lines: list[str], parsed: Namespace) -> None:
+    """Page or print one complete rendered report."""
+    rendered = "\n".join(line for line in lines if line)
+    if parse_bool_selector(parsed.page):
+        context.page_text(rendered)
+    else:
+        context.output(rendered)
+
+
+def parse_bool_selector(value: object) -> bool:
+    """Parse a selector-style boolean such as `page=false`."""
+    normalized = str(value).strip().casefold()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(f"invalid boolean value: {value}")
 
 
 def report_heading(parsed: Namespace, events: list[Event], groups: list[FindingGroup]) -> str:
@@ -629,6 +657,11 @@ def styled_report_cell(
     return table_text(context, "body", value)
 
 
+def subject_text(context: CommandContext, subject: str, value: object) -> str:
+    """Style a generic output subject such as serial, job, step, or pipeline."""
+    return styled_subject_text(lambda key, default="": display_var(context, key, default), subject, value)
+
+
 def report_text(context: CommandContext, subject: str, value: object) -> str:
     """Style report UI text such as headings, sections, and labels."""
     return styled_subject_text(lambda key, default="": display_var(context, key, default), f"report.{subject}", value)
@@ -659,11 +692,12 @@ def render_group_details(context: CommandContext, groups: list[FindingGroup]) ->
         payloads = [effective_finding_payload(event) for event in group.events]
         representative = effective_finding_payload(group.representative)
         title = str(representative.get("title") or representative.get("class") or group.finding_id)
-        lines.append(f"{report_text(context, 'index', f'#{index}')} {finding_text(context, 'title', title)}")
+        lines.append(f"{report_text(context, 'index', f'{index}.')} {finding_text(context, 'title', title)}")
         append_detail_line(context, lines, "Affected", affected_values(payloads))
         append_detail_line(context, lines, "Evidence", evidence_values(payloads), limit=3)
         append_detail_line(context, lines, "Sources", source_values(group))
-        append_detail_line(context, lines, "Provenance", provenance_values(group))
+        append_detail_line(context, lines, "Artifacts", artifact_values(context, group))
+        append_detail_line(context, lines, "Provenance", provenance_values(context, group))
         latest = max(group.events, key=lambda event: event.created_at).created_at.isoformat()
         append_detail_line(context, lines, "Latest update", [latest])
     return "\n".join(lines)
@@ -763,7 +797,41 @@ def compact_source_value(raw: object) -> str:
     return compact_table_text(raw)
 
 
-def provenance_values(group: FindingGroup) -> list[str]:
+def artifact_values(context: CommandContext, group: FindingGroup) -> list[str]:
+    """Return artifacts associated with a finding group by step or pipeline."""
+    steps = unique_compact_values(event.command_run_id or "" for event in group.events)
+    pipelines = unique_compact_values(event.pipeline_id or "" for event in group.events)
+    events: list[Event] = []
+    for step in steps:
+        events.extend(context.events.query(topic="artifact.attached", step=step, limit=1000))
+    if not steps:
+        for pipeline in pipelines:
+            events.extend(context.events.query(topic="artifact.attached", pipeline=pipeline, limit=1000))
+    return unique_compact_values(format_artifact_event(context, event) for event in sort_unique_events(events))
+
+
+def format_artifact_event(context: CommandContext, event: Event) -> str:
+    """Return compact display text for one artifact attachment event."""
+    payload = event.payload
+    row_id = str(payload.get("artifact_row_id") or "")
+    artifact_id = str(payload.get("artifact_id") or "")
+    name = str(payload.get("name") or artifact_id or "artifact")
+    content_type = str(payload.get("content_type") or "")
+    size = str(payload.get("size") or "")
+    prefix = subject_text(context, "artifact", f"#{row_id}") if row_id else subject_text(context, "artifact", artifact_id)
+    name_text = subject_text(context, "path", name)
+    serial_text = subject_text(context, "serial", artifact_id)
+    parts = [prefix, name_text]
+    if content_type:
+        parts.append(content_type)
+    if size:
+        parts.append(f"size={size}")
+    if artifact_id:
+        parts.append(serial_text)
+    return " ".join(part for part in parts if part)
+
+
+def provenance_values(context: CommandContext, group: FindingGroup) -> list[str]:
     """Return event, pipeline, and step provenance strings for one group."""
     event_ids = [str(event.id) for event in group.events if event.id is not None]
     pipelines = unique_compact_values(event.pipeline_id or "" for event in group.events)
@@ -772,9 +840,9 @@ def provenance_values(group: FindingGroup) -> list[str]:
     if event_ids:
         values.append(f"events={','.join(event_ids)}")
     if pipelines:
-        values.append(f"pipeline={','.join(pipelines)}")
+        values.append(f"pipeline={','.join(subject_text(context, 'pipeline', item) for item in pipelines)}")
     if steps:
-        values.append(f"step={','.join(steps)}")
+        values.append(f"step={','.join(subject_text(context, 'step', item) for item in steps)}")
     return values
 
 

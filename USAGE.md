@@ -1364,6 +1364,10 @@ bywaf> set display/style.table.index="bold color245"
 bywaf> set display/style.report.heading="bold color39"
 bywaf> set display/style.report.section="bold white"
 bywaf> set display/style.report.label="bold color245"
+bywaf> set display/style.serial=color245
+bywaf> set display/style.job=color39
+bywaf> set display/style.step=color39
+bywaf> set display/style.pipeline=color39
 bywaf> set display/style.finding.severity_class.urgent="bold red"
 bywaf> set display/style.finding.severity_class.emergency="bold white bg-ansi:52"
 bywaf> set display/style.finding.severity.critical="#dc2626"
@@ -1388,12 +1392,13 @@ Display styles use `display/style.<subject>`. Current terminal rendering
 uses subjects such as `host`, `port`, `protocol`, `host.name`, `comment`,
 `string`, `table.header`, `table.body`, `table.index`, `report.heading`,
 `report.section`, `report.label`, `finding.severity.high`, and
-`finding.severity_class.urgent`. The `string` subject applies to quoted spans in
-compact event output and live prompt input; `value` applies to the value side of
-live `key=value` input when the value is not quoted; `variable` applies to live
-assignment keys such as `A` in `set A=...` and variable references such as `$A`.
-Report tables use table styles as baselines, then more specific subjects such
-as `finding.title`, `finding.severity.high`, and
+`finding.severity_class.urgent`. Runtime and provenance values can use subjects
+such as `serial`, `job`, `step`, and `pipeline`. The `string` subject applies to
+quoted spans in compact event output and live prompt input; `value` applies to
+the value side of live `key=value` input when the value is not quoted;
+`variable` applies to live assignment keys such as `A` in `set A=...` and
+variable references such as `$A`. Report tables use table styles as baselines,
+then more specific subjects such as `finding.title`, `finding.severity.high`, and
 `finding.severity_class.urgent` override them inside matching cells. Style
 values can combine attributes and colors, for example `bold green`, `dim
 color245`, `rgb:80,180,90`, or quoted hex values such as `"#00ff00"`. Unquoted
@@ -1818,11 +1823,13 @@ finished work produced without manually querying raw events. The heading always
 shows total, accepted, deferred, rejected, and unreviewed counts; the default
 view renders only the unreviewed groups that still need triage. After the
 summary table, `report` prints a Details section for each displayed group with
-affected resources, evidence snippets, sources, event/pipeline/step provenance,
-and the latest update timestamp.
+affected resources, evidence snippets, sources, related artifacts,
+event/pipeline/step provenance, and the latest update timestamp. Reports page by
+default; use `page=false` to print inline.
 
 ```text
 bywaf> report
+bywaf> report page=false
 bywaf> report pipeline=1,2,3
 bywaf> report job=7
 bywaf> report step=12
