@@ -36,6 +36,7 @@ from ..runtime_display import (
 )
 from ..runner import Runner
 from ..secret.store import SECRET_REF_PREFIX
+from ..style import ansi_color
 from ..time_format import format_operator_timestamp, normalize_history_timestamp_for_display
 
 VAR_COLOR_MODE_VAR = "display.vars.color"
@@ -66,38 +67,6 @@ EVENT_COMMANDLET_COLOR = "bright-yellow"
 DISPLAY_EXPANSION_VAR = "display.expansion"
 DISPLAY_EXPANSION_DEFAULT = "off"
 
-ANSI_COLORS = {
-    "black": "30",
-    "red": "31",
-    "green": "32",
-    "yellow": "33",
-    "blue": "34",
-    "magenta": "35",
-    "cyan": "36",
-    "white": "37",
-    "bold-green": "1;32",
-    "bold-yellow": "1;33",
-    "bright-black": "90",
-    "bright-red": "91",
-    "bright-green": "1;32",
-    "bright-yellow": "1;33",
-    "bright-blue": "94",
-    "bright-magenta": "95",
-    "bright-cyan": "96",
-    "bright-white": "97",
-}
-
-ANSI_STYLE_TOKENS = {
-    "bold": "1",
-    "dim": "2",
-    "italic": "3",
-    "underline": "4",
-    "blink": "5",
-    "reverse": "7",
-    "strikethrough": "9",
-}
-
-
 # Built-in help lives here instead of in command handlers so display text,
 # aliases, examples, and commandlet-delegated help have one owner.
 @dataclass(frozen=True, slots=True)
@@ -118,10 +87,6 @@ HELP_COMMANDS = (
     HelpEntry("triggers", "show provider-owned trigger rules", "triggers"),
     HelpEntry("history", "show command history", "history"),
     HelpEntry("info", "show active jobs, pipelines, and steps", "info"),
-    HelpEntry("jobs", "alias for job list", "jobs"),
-    HelpEntry("pipelines", "alias for pipeline list", "pipelines"),
-    HelpEntry("steps", "show commandlet pipeline steps", "steps"),
-    HelpEntry("step <id|serial>", "inspect one commandlet pipeline step", "step <id|serial>", ("step 1", "step run-...")),
     HelpEntry("run", "execute the active commandlet selected by use", "run", ("use http_headers", "run")),
     HelpEntry(
         "set [--secret] [name[=value]]",
@@ -856,17 +821,22 @@ def print_info(runner: Runner) -> None:
     """Print a compact runtime dashboard for entities currently in play."""
     runtime = runner.runtime
     print(f"Jobs ({len(runtime.jobs(active_only=True))})")
-    # Reuse runtime commandlets for jobs/pipelines so `info` does not maintain
+    # Reuse runtime commandlets so `info` does not maintain
     # a separate table format from the primary commands.
-    events = runner.execute("job list")
-    process_events_for_non_repl_info(runner, events)
+    process_events_for_non_repl_info(runner, run_info_commandlet(runner, "job"))
     print()
     print(f"Pipelines ({len(runtime.pipelines(active_only=True))})")
-    events = runner.execute("pipeline list")
-    process_events_for_non_repl_info(runner, events)
+    process_events_for_non_repl_info(runner, run_info_commandlet(runner, "pipeline"))
     print()
     print(f"Steps ({len(runtime.runs(active_only=True))})")
-    print_runs(runner)
+    process_events_for_non_repl_info(runner, run_info_commandlet(runner, "step"))
+
+
+def run_info_commandlet(runner: Runner, command: str):
+    """Run one info sub-commandlet and return events it emitted."""
+    after_id = runner.events.latest_event_id()
+    runner.execute(command)
+    return runner.events.events_matching(after_id=after_id, limit=1000)
 
 
 def process_events_for_non_repl_info(runner: Runner, events) -> None:
@@ -987,14 +957,6 @@ def vars_color_enabled(runner: Runner) -> bool:
     return sys.stdout.isatty()
 
 
-def ansi_color(text: str, color: str) -> str:
-    """Wrap text in an ANSI SGR color when the requested color is known."""
-    code = ansi_style_code(color)
-    if code is None:
-        return text
-    return f"\x1b[{code}m{text}\x1b[0m"
-
-
 def subject_text(runner: Runner | None, subject: str, value: object) -> str:
     """Render a value using a user-configured display style for its subject."""
     text = str(value)
@@ -1052,86 +1014,6 @@ def expansion_display_mode(runner: Runner) -> str:
     if mode in {"off", "changed", "on"}:
         return mode
     return DISPLAY_EXPANSION_DEFAULT
-
-
-def ansi_style_code(style: str) -> str | None:
-    """Return one combined ANSI SGR sequence for color plus text attributes."""
-    codes: list[str] = []
-    for token in style.split():
-        normalized = token.strip().casefold().replace("_", "-")
-        if not normalized:
-            continue
-        if normalized in ANSI_STYLE_TOKENS:
-            codes.append(ANSI_STYLE_TOKENS[normalized])
-            continue
-        color_code = ansi_color_code(normalized)
-        if color_code is not None:
-            codes.append(color_code)
-    return ";".join(codes) if codes else None
-
-
-def ansi_color_code(color: str) -> str | None:
-    """Return an SGR color code for a named, 256-color, or truecolor setting."""
-    normalized = color.strip().casefold().replace("_", "-")
-    if not normalized:
-        return None
-    if normalized in ANSI_COLORS:
-        return ANSI_COLORS[normalized]
-    if normalized.startswith("color"):
-        number = parse_color_int(normalized.removeprefix("color"), 0, 255)
-        return f"38;5;{number}" if number is not None else None
-    if normalized.startswith("#"):
-        rgb = parse_hex_color(normalized)
-        return f"38;2;{rgb[0]};{rgb[1]};{rgb[2]}" if rgb is not None else None
-    if normalized.startswith("ansi:"):
-        # ansi:N and rgb:R,G,B let users customize colors without expanding the
-        # named-color table for every possible terminal.
-        number = parse_color_int(normalized.removeprefix("ansi:"), 0, 255)
-        return f"38;5;{number}" if number is not None else None
-    if normalized.startswith("bg-ansi:"):
-        number = parse_color_int(normalized.removeprefix("bg-ansi:"), 0, 255)
-        return f"48;5;{number}" if number is not None else None
-    if normalized.startswith("rgb:"):
-        rgb = parse_rgb_color(normalized.removeprefix("rgb:"))
-        return f"38;2;{rgb[0]};{rgb[1]};{rgb[2]}" if rgb is not None else None
-    if normalized.startswith("bg-rgb:"):
-        rgb = parse_rgb_color(normalized.removeprefix("bg-rgb:"))
-        return f"48;2;{rgb[0]};{rgb[1]};{rgb[2]}" if rgb is not None else None
-    return None
-
-
-def parse_hex_color(raw: str) -> tuple[int, int, int] | None:
-    """Parse CSS-style `#RRGGBB` and `#RGB` colors for truecolor output."""
-    value = raw.strip().removeprefix("#")
-    if len(value) == 3:
-        value = "".join(component * 2 for component in value)
-    if len(value) != 6 or any(char not in "0123456789abcdef" for char in value):
-        return None
-    return int(value[0:2], 16), int(value[2:4], 16), int(value[4:6], 16)
-
-
-def parse_rgb_color(raw: str) -> tuple[int, int, int] | None:
-    """Parse `R,G,B` values for truecolor terminal output."""
-    parts = raw.split(",")
-    if len(parts) != 3:
-        return None
-    red = parse_color_int(parts[0], 0, 255)
-    green = parse_color_int(parts[1], 0, 255)
-    blue = parse_color_int(parts[2], 0, 255)
-    if red is None or green is None or blue is None:
-        return None
-    return red, green, blue
-
-
-def parse_color_int(raw: str, minimum: int, maximum: int) -> int | None:
-    """Parse one bounded color integer."""
-    try:
-        value = int(raw.strip())
-    except ValueError:
-        return None
-    if minimum <= value <= maximum:
-        return value
-    return None
 
 
 def ansi_var_value(text: str, color: str) -> str:

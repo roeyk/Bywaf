@@ -67,7 +67,6 @@ class AppDispatchTests(unittest.TestCase):
         self.assertEqual(parser.parse_args(["cmds"]).subcommand, "cmds")
         self.assertEqual(parser.parse_args(["triggers"]).subcommand, "triggers")
         self.assertEqual(parser.parse_args(["history"]).subcommand, "history")
-        self.assertEqual(parser.parse_args(["pipelines"]).subcommand, "pipelines")
 
     def test_build_parser_prefers_encrypt_flag(self):
         parser = build_parser()
@@ -342,15 +341,14 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("192.168.51.20", text)
             self.assertNotIn("198.51.100.10", text)
 
-    def test_step_without_id_prints_help(self):
+    def test_step_without_id_lists_steps(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "step")
             text = output.getvalue()
-            self.assertIn("Command: step <id|serial>", text)
-            self.assertIn("Usage:   step <id|serial>", text)
+            self.assertIn("no active steps", text)
 
     def test_exec_without_shell_command_prints_help(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -980,7 +978,8 @@ class AppDispatchTests(unittest.TestCase):
                 self.assertEqual(runner.db.path, Path(tmp, ".bywaf", "projects", "client-a", "bywaf.sqlite3"))
                 self.assertEqual(state.history_path, Path(tmp, ".bywaf", "projects", "client-a", "history.bywaf"))
                 self.assertIsNone(runner.registry.varstore.get("global.marker"))
-                self.assertEqual(old_db.jobs(active_only=False)[0]["status"], "killed")
+                assert old_db.job(job_id) is not None
+                self.assertEqual(old_db.job(job_id)["status"], "killed")
                 events = old_db.events_for_topic("project.switch.force_stopped")
                 self.assertEqual(events[-1].payload["count"], 1)
                 self.assertEqual(events[-1].payload["jobs"][0]["job_id"], job_id)
@@ -1356,7 +1355,7 @@ class AppDispatchTests(unittest.TestCase):
                 patch("bywaf.repl.display.sys.stdout.isatty", return_value=True),
                 patch("bywaf.repl.display.subprocess.run") as run,
             ):
-                dispatch_repl_line(runner, "job list --page")
+                dispatch_repl_line(runner, "job --page")
             run.assert_called_once()
             argv = run.call_args.args[0]
             self.assertEqual(argv[0], "/usr/bin/less")
@@ -1410,7 +1409,7 @@ class AppDispatchTests(unittest.TestCase):
             )
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "steps")
+                dispatch_repl_line(runner, "step")
             text = output.getvalue()
             self.assertIn("STEP", text)
             self.assertIn("ARTIFACTS", text)
@@ -1440,9 +1439,9 @@ class AppDispatchTests(unittest.TestCase):
             runner.db.publish("host.found", {"host": "192.0.2.20"}, "hostscanner", pipeline_id="pipe-b", command_run_id="step-b")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "jobs host=192.0.2.20")
-                dispatch_repl_line(runner, "pipelines host=192.0.2.20")
-                dispatch_repl_line(runner, "steps host=192.0.2.20")
+                dispatch_repl_line(runner, "job host=192.0.2.20")
+                dispatch_repl_line(runner, "pipeline host=192.0.2.20")
+                dispatch_repl_line(runner, "step host=192.0.2.20")
             text = output.getvalue()
             self.assertIn("192.0.2.20", text)
             self.assertNotIn("192.0.2.10", text)
@@ -1465,9 +1464,9 @@ class AppDispatchTests(unittest.TestCase):
             runner.db.publish("port.open", {"host": "192.0.2.20", "port": 443}, "portscanner", pipeline_id="pipe-done", command_run_id="step-done")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "jobs host=192.0.2.20")
-                dispatch_repl_line(runner, "pipelines host=192.0.2.20")
-                dispatch_repl_line(runner, "steps host=192.0.2.20")
+                dispatch_repl_line(runner, "job host=192.0.2.20")
+                dispatch_repl_line(runner, "pipeline host=192.0.2.20")
+                dispatch_repl_line(runner, "step host=192.0.2.20")
             text = output.getvalue()
             self.assertIn("portscanner host=192.0.2.20", text)
             self.assertIn("pipe-done", text)
@@ -1484,9 +1483,9 @@ class AppDispatchTests(unittest.TestCase):
                 output = io.StringIO()
                 with contextlib.redirect_stdout(output):
                     dispatch_repl_line(runner, "network/portscanner host=192.0.2.10 port=80", state)
-                    dispatch_repl_line(runner, "jobs host=192.0.2.10", state)
-                    dispatch_repl_line(runner, "steps host=192.0.2.10", state)
-                    dispatch_repl_line(runner, "pipelines host=192.0.2.10", state)
+                    dispatch_repl_line(runner, "job host=192.0.2.10", state)
+                    dispatch_repl_line(runner, "step host=192.0.2.10", state)
+                    dispatch_repl_line(runner, "pipeline host=192.0.2.10", state)
             text = output.getvalue()
             self.assertIn("network/portscanner host=192.0.2.10 port=80", text)
             self.assertIn("network/portscanner", text)
@@ -1587,12 +1586,12 @@ class AppDispatchTests(unittest.TestCase):
             runner.db.publish("runtime.name.assigned", {"target_type": "job", "target_id": str(job_id), "name": "job name"}, "framework")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "steps")
-                dispatch_repl_line(runner, "pipelines")
-                dispatch_repl_line(runner, "jobs")
+                dispatch_repl_line(runner, "step")
+                dispatch_repl_line(runner, "pipeline")
+                dispatch_repl_line(runner, "job")
                 dispatch_repl_line(runner, f"event job={job_id}")
-                dispatch_repl_line(runner, "job show 1")
-                dispatch_repl_line(runner, "pipeline show 1")
+                dispatch_repl_line(runner, "job 1")
+                dispatch_repl_line(runner, "pipeline 1")
             text = output.getvalue()
             self.assertIn("run name", text)
             self.assertIn("pipeline name", text)
@@ -1600,6 +1599,67 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("commandlet=hostscanner", text)
             self.assertIn("command=hostscanner 127.0.0.1", text)
             self.assertIn("ARTIFACTS", text)
+
+    def test_job_show_includes_recorded_commandlet_arguments(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("network/portscanner", 123, "failed")
+            runner.db.record_command_run_vars(
+                job_id=job_id,
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+                commandlet="network/portscanner",
+                values={"test.marker": "1"},
+            )
+            runner.db.publish(
+                "command.run.arguments",
+                {"args": ["host=192.0.2.10", "ports=80,443", 'arguments="-Pn -sT"']},
+                "framework",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, f"job {job_id}")
+
+            text = output.getvalue()
+            self.assertIn("command=network/portscanner", text)
+            self.assertIn("args=host=192.0.2.10 ports=80,443", text)
+            self.assertIn("'arguments=\"-Pn -sT\"'", text)
+
+    def test_job_show_accepts_durable_serial_selector(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("hostscanner 127.0.0.1", 123, "running")
+            serial = runner.db.job_serial(job_id)
+            assert serial is not None
+
+            direct_output = io.StringIO()
+            selector_output = io.StringIO()
+            with contextlib.redirect_stdout(direct_output):
+                dispatch_repl_line(runner, f"job {serial}")
+            with contextlib.redirect_stdout(selector_output):
+                dispatch_repl_line(runner, f"job serial={serial}")
+
+            self.assertIn(f"serial={serial.removeprefix('job-')}", direct_output.getvalue())
+            self.assertIn("command=hostscanner 127.0.0.1", direct_output.getvalue())
+            self.assertIn("command=hostscanner 127.0.0.1", selector_output.getvalue())
+
+    def test_event_job_selector_accepts_durable_serial(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("hostscanner 127.0.0.1", 123, "running")
+            serial = runner.db.job_serial(job_id)
+            assert serial is not None
+            runner.db.publish("job.requested", {"job_id": job_id, "job_serial": serial}, "runner")
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, f"event job={serial}")
+
+            self.assertIn(f"#{job_id}", output.getvalue())
+            self.assertIn(f"serial={serial}", output.getvalue())
 
     def test_dispatch_steps_defaults_to_active_unless_all_requested(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1615,11 +1675,11 @@ class AppDispatchTests(unittest.TestCase):
             )
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "steps")
-            self.assertIn("no active steps", output.getvalue())
+                dispatch_repl_line(runner, "step")
+            self.assertIn("no active step", output.getvalue())
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "steps --all")
+                dispatch_repl_line(runner, "step --all")
             self.assertRegex(output.getvalue(), r"\n1\s+r\s+completed\s+\s*1\s+p\s+hostscanner\s+1\s+0\s+")
 
     def test_make_runner_marks_dead_runtime_jobs_stale_on_startup(self):
@@ -1641,16 +1701,16 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(job["status"], "stale")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "pipelines")
-            self.assertIn("no active pipelines", output.getvalue())
+                dispatch_repl_line(runner, "pipeline")
+            self.assertIn("no active pipeline", output.getvalue())
 
-    def test_jobs_alias_runs_job_list(self):
+    def test_job_lists_by_default(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.record_job("hostscanner 127.0.0.1", 123, "running")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "jobs")
+                dispatch_repl_line(runner, "job")
             self.assertIn("ARTIFACTS", output.getvalue())
             self.assertRegex(output.getvalue(), r"\n1\s+[0-9a-f]{32}\s+active\s+123\s+running\s+0\s+")
             self.assertIn("hostscanner 127.0.0.1", output.getvalue())
@@ -1662,7 +1722,7 @@ class AppDispatchTests(unittest.TestCase):
             runner.db.record_job("old", 456, "finished")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "jobs --all")
+                dispatch_repl_line(runner, "job --all")
             text = output.getvalue()
             self.assertRegex(text, r"\n1\s+[0-9a-f]{32}\s+active\s+123\s+running\s+0\s+")
             self.assertRegex(text, r"\n2\s+[0-9a-f]{32}\s+completed\s+456\s+finished\s+0\s+")
@@ -1674,11 +1734,11 @@ class AppDispatchTests(unittest.TestCase):
             runner.db.record_job("active", 123, "running")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "jobs --all")
+                dispatch_repl_line(runner, "job --all")
             self.assertIn("active since ", output.getvalue())
             self.assertRegex(output.getvalue(), r"\n1\s+[0-9a-f]{32}\s+active since ")
 
-    def test_pipelines_alias_runs_pipeline_list(self):
+    def test_pipeline_lists_by_default(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("hostscanner 127.0.0.1", 123, "running")
@@ -1691,7 +1751,7 @@ class AppDispatchTests(unittest.TestCase):
             )
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "pipelines")
+                dispatch_repl_line(runner, "pipeline")
             text = output.getvalue()
             self.assertIn("ARTIFACTS", text)
             self.assertRegex(text, rf"\n1\s+pipe-1\s+active\s+\s*{job_id}\s+running\s+1\s+0\s+0\s+")
@@ -1709,11 +1769,11 @@ class AppDispatchTests(unittest.TestCase):
             )
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "pipeline list")
-            self.assertIn("no active pipelines", output.getvalue())
+                dispatch_repl_line(runner, "pipeline")
+            self.assertIn("no active pipeline", output.getvalue())
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "pipeline list --all")
+                dispatch_repl_line(runner, "pipeline --all")
             self.assertIn("finished-pipe", output.getvalue())
 
     def test_job_cancel_records_soft_cancellation(self):

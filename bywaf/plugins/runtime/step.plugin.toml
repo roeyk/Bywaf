@@ -1,0 +1,10 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "step"
+capabilities = [
+  "framework.console.output",
+]
+module = "bywaf.plugins.runtime.step"

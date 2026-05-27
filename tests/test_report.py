@@ -13,7 +13,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from bywaf.app import make_runner, process_framework_requests
+from bywaf.app import dispatch_repl_line, make_runner, process_framework_requests
 from bywaf.repl import ShellState
 
 
@@ -59,6 +59,32 @@ class ReportTests(unittest.TestCase):
             self.assertEqual(rendered.payload["events"], [finding.id])
             self.assertEqual(rendered.payload["groups"], ["finding-1"])
             self.assertEqual(rendered.payload["rows"], 1)
+
+    def test_report_repl_does_not_echo_rendered_audit_event(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "finding-1",
+                    "title": "Missing HSTS",
+                    "target": {"scheme": "https", "host": "example.test", "port": "443", "path": "/"},
+                    "severity": "medium",
+                },
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "report pipeline=pipeline-a", ShellState())
+
+            text = output.getvalue()
+            self.assertIn("Report scope: pipeline=pipeline-a", text)
+            self.assertIn("Missing HSTS", text)
+            self.assertNotIn("report.rendered", text)
+            self.assertEqual(len(runner.db.events_for_topic("report.rendered")), 1)
 
     def test_report_pipeline_renders_candidate_findings(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -113,6 +139,61 @@ class ReportTests(unittest.TestCase):
             text = output.getvalue()
             self.assertIn("[core] repositoryformatversion = 0", text)
             self.assertNotIn("[core]\n\t", text)
+
+    def test_report_applies_configured_table_and_finding_styles(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.registry.varstore.set("display/style.table.header", "bold yellow")
+            runner.registry.varstore.set("display/style.table.index", "cyan")
+            runner.registry.varstore.set("display/style.finding.severity.high", "bold red")
+            runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "candidate-1",
+                    "title": "Styled finding",
+                    "target": {"host": "example.test"},
+                    "severity": "high",
+                },
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report pipeline=pipeline-a")
+                process_framework_requests(runner, ShellState())
+
+            text = output.getvalue()
+            self.assertIn("\x1b[1;33mFinding name", text)
+            self.assertIn("\x1b[36m1", text)
+            self.assertIn("\x1b[1;31mhigh", text)
+
+    def test_report_summarizes_and_styles_severity_classes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.registry.varstore.set("display/style.finding.severity_class.urgent", "bold red")
+            runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "candidate-1",
+                    "title": "Classed finding",
+                    "target": {"host": "example.test"},
+                    "severity": "high",
+                },
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report pipeline=pipeline-a")
+                process_framework_requests(runner, ShellState())
+
+            text = output.getvalue()
+            self.assertIn("severity classes: 1 urgent", text)
+            self.assertIn("\x1b[1;31mhigh", text)
 
     def test_report_groups_duplicate_finding_events(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -693,7 +774,9 @@ class ReportTests(unittest.TestCase):
 
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                runner.execute(f"report job={first_job},{second_job}")
+                first_serial = runner.db.job_serial(first_job)
+                assert first_serial is not None
+                runner.execute(f"report job={first_serial},{second_job}")
                 process_framework_requests(runner, ShellState())
 
             text = output.getvalue()

@@ -121,8 +121,8 @@ class CompletionRegressionTests(unittest.TestCase):
             job_id = db.record_job("hostscanner 127.0.0.1", 123, "running")
             completer = Completer(self.registry, db)
             cases = (
-                ("job show ", str(job_id)),
-                ("pipeline show ", "1"),
+                ("job ", str(job_id)),
+                ("pipeline ", "1"),
                 ("event step=", "step=1"),
                 ("event pipeline=", "pipeline=1"),
                 ("signal serial=", "serial=run-1"),

@@ -17,7 +17,7 @@ hostscanner 192.168.1.0/24 | portscanner | http_probe | webfin | nikto
 ```
 
 Each pipeline step emits normalized events into the project database. Later
-steps, reports, artifact searches, audit exports, and future frontends inspect
+step, reports, artifact searches, audit exports, and future frontends inspect
 those recorded facts instead of scraping terminal scrollback.
 
 Use Bywaf only on systems and networks where you have explicit authorization.
@@ -43,7 +43,7 @@ inside the workflow.
 | --- | --- | --- |
 | Bash | Fast shell glue | Durable event flow, runtime records, notes, artifacts, and provenance are built in. |
 | Metasploit | Exploitation workflows and module ecosystem | Bywaf focuses on auditable event-driven orchestration over normalized assessment data. |
-| Airflow | Scheduled data pipelines | Bywaf is interactive, operator-driven, and built around live security assessment workflows. |
+| Airflow | Scheduled data pipeline | Bywaf is interactive, operator-driven, and built around live security assessment workflows. |
 | Python scripts | Maximum flexibility | Bywaf gives scripts a common shell, plugin API, event store, audit trail, and reusable workflow state. |
 
 ## Install And Run
@@ -55,7 +55,7 @@ During development, run Bywaf from the repository root:
 
 ```bash
 python3 -m bywaf --help
-python3 -m bywaf repl
+python3 -m bywaf
 ```
 
 For an editable local install:
@@ -63,7 +63,7 @@ For an editable local install:
 ```bash
 python3 -m pip install -e .
 bywaf --help
-bywaf repl
+bywaf
 ```
 
 For a local pip package build:
@@ -82,7 +82,7 @@ Optional external tools used by bundled wrapper commandlets include `nmap`,
 Start the REPL:
 
 ```bash
-bywaf repl
+bywaf
 ```
 
 Run a small local pipeline:
@@ -94,12 +94,12 @@ bywaf> hostscanner 127.0.0.1 | portscanner
 Inspect runtime state and events:
 
 ```text
-bywaf> jobs
-bywaf> pipelines
-bywaf> steps
-bywaf> jobs host=192.0.2.10
-bywaf> pipelines host=192.0.2.10
-bywaf> steps host=192.0.2.10
+bywaf> job
+bywaf> pipeline
+bywaf> step
+bywaf> job host=192.0.2.10
+bywaf> pipeline host=192.0.2.10
+bywaf> step host=192.0.2.10
 bywaf> event host.found
 bywaf> event step=1
 ```
@@ -128,11 +128,11 @@ bywaf> report pipeline=1
 
 - **Commandlet**: a small command provided by a plugin or the framework.
 - **Pipeline**: one command expression or attached workflow made of one or more
-  pipeline steps.
+  pipeline step.
 - **Pipeline step**: one commandlet invocation inside a pipeline. Select it
   with `step=...`.
 - **Job**: the supervised foreground or background execution lifecycle that runs
-  one or more steps.
+  one or more step.
 - **Event**: a durable topic/payload record emitted by commandlets or framework
   services.
 - **Artifact**: an evidence file stored in the paired artifact database and
@@ -185,7 +185,7 @@ python3 scripts/plugin_check.py path/to/plugin_dir
 - [docs/README.md](docs/README.md): documentation index.
 - [docs/FAQ.md](docs/FAQ.md): common tasks and recipes.
 - [docs/TERMINOLOGY.md](docs/TERMINOLOGY.md): canonical terms.
-- [docs/RUNTIME_MODEL.md](docs/RUNTIME_MODEL.md): jobs, pipelines, steps, signals, and snapshots.
+- [docs/RUNTIME_MODEL.md](docs/RUNTIME_MODEL.md): job, pipeline, step, signals, and snapshots.
 - [docs/EVENT_MODEL.md](docs/EVENT_MODEL.md): event topics, provenance, replay, and framework requests.
 - [docs/FINDING_MODEL.md](docs/FINDING_MODEL.md): normalized finding payloads, grouping, and reporting.
 - [docs/REPORTING.md](docs/REPORTING.md): `report` usage, grouping, and review state.

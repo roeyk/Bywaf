@@ -285,6 +285,8 @@ def resolve_control_target(
         if not allow_pipeline:
             raise ValueError("signal does not target pipelines; use job=, step=, or serial= for a job/step")
         return "pipeline", runtime.resolve_pipeline_serial(target_id)
+    if kind == "job":
+        return "job", resolve_job_selector(context, target_id)
     return kind, target_id
 
 
@@ -309,6 +311,16 @@ def resolve_runtime_serial_target(context: CommandContext, serial: str) -> tuple
 def job_id_for_serial(context: CommandContext, serial: str) -> str | None:
     """Return local job id for a durable job serial."""
     return context.runtime_store("control").job_id_for_serial(serial)
+
+
+def resolve_job_selector(context: CommandContext, value: str) -> str:
+    """Resolve a local job id or durable job serial for control selectors."""
+    if value.isdigit():
+        return value
+    resolved = job_id_for_serial(context, value)
+    if resolved is None:
+        raise ValueError(f"unknown job: {value}")
+    return resolved
 
 
 def run_serial_exists(context: CommandContext, serial: str) -> bool:

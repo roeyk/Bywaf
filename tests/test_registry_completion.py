@@ -152,6 +152,7 @@ class RegistryCompletionTests(unittest.TestCase):
                 "wireless.wifi_scan",
                 "runtime.job",
                 "runtime.pipeline",
+                "runtime.step",
                 "runtime.control",
                 "runtime.audit",
                 "runtime.bundle",
@@ -274,6 +275,7 @@ class RegistryCompletionTests(unittest.TestCase):
                 "resume",
                 "search",
                 "signal",
+                "step",
                 "stop",
                 "watchdog",
             ],
@@ -316,7 +318,7 @@ class RegistryCompletionTests(unittest.TestCase):
             db = EventStore(Path(tmp, "events.sqlite3"))
             db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", command_run_id="run-1")
             completer = Completer(self.registry, db)
-            self.assertEqual(completer.candidates("step "), ["1"])
+            self.assertIn("1", completer.candidates("step "))
 
     def test_use_completes_contexts(self):
         completer = Completer(self.registry)
@@ -830,7 +832,7 @@ class RegistryCompletionTests(unittest.TestCase):
             self.assertIn("cancel", completer.candidates("job "))
             self.assertIn("end", completer.candidates("job e"))
             self.assertIn("kill", completer.candidates("job k"))
-            self.assertEqual(completer.candidates("job show "), ["1"])
+            self.assertIn("1", completer.candidates("job "))
             self.assertEqual(completer.candidates("job cancel "), ["1"])
 
     def test_pipeline_and_control_complete_ids(self):
@@ -847,7 +849,7 @@ class RegistryCompletionTests(unittest.TestCase):
             completer = Completer(self.registry, db)
             self.assertIn("end", completer.candidates("pipeline e"))
             self.assertIn("kill", completer.candidates("pipeline k"))
-            self.assertEqual(completer.candidates("pipeline show "), ["1"])
+            self.assertIn("1", completer.candidates("pipeline "))
             self.assertEqual(completer.candidates("end job="), ["job=1"])
             self.assertEqual(completer.candidates("kill job="), ["job=1"])
             self.assertEqual(completer.candidates("kill pipeline="), ["pipeline=1"])
@@ -881,9 +883,10 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertEqual(completer.candidates("q "), [])
         self.assertEqual(completer.candidates("cmds "), ["--page"])
         self.assertEqual(completer.candidates("cmds --"), ["--page"])
-        self.assertEqual(completer.candidates("jobs "), ["--all", "--page"])
-        self.assertEqual(completer.candidates("pipelines "), ["--page"])
-        self.assertEqual(completer.candidates("steps "), ["--all"])
+        self.assertIn("--all", completer.candidates("job "))
+        self.assertIn("--page", completer.candidates("job "))
+        self.assertIn("--page", completer.candidates("pipeline "))
+        self.assertIn("--all", completer.candidates("step "))
         self.assertIn("plugins", completer.candidates("help plu"))
         self.assertIn("project", completer.candidates("? pro"))
 

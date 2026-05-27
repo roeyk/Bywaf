@@ -6,13 +6,13 @@ likely to type, then adds a short note about what it does.
 ## How do I start Bywaf?
 
 ```bash
-bywaf repl
+bywaf
 ```
 
 During development from the repository root:
 
 ```bash
-python3 -m bywaf repl
+python3 -m bywaf
 ```
 
 ## How do I see what commands are available?
@@ -41,7 +41,7 @@ bywaf> hostscanner --help
 bywaf> hostscanner 192.168.1.0/24 | portscanner | http_probe
 ```
 
-Each step emits structured events into the database. Later steps consume those
+Each step emits structured events into the database. Later step consume those
 events instead of scraping terminal output.
 
 ## I started a port scanner. How do I see what it found?
@@ -60,8 +60,8 @@ bywaf> events
 If the scan is still running, use runtime listings to find the active job or pipeline step:
 
 ```text
-bywaf> jobs
-bywaf> steps
+bywaf> job
+bywaf> step
 ```
 
 Then narrow the event view:
@@ -118,20 +118,20 @@ or step-scoped work.
 bywaf> hostscanner 192.168.1.0/24& | portscanner&
 ```
 
-Use `jobs`, `steps`, and `pipelines` to inspect active runtime state:
+Use `job`, `step`, and `pipeline` to inspect active runtime state:
 
 ```text
-bywaf> jobs
-bywaf> steps
-bywaf> pipelines
+bywaf> job
+bywaf> step
+bywaf> pipeline
 ```
 
-## How do I show historical jobs, steps, or pipelines?
+## How do I show historical job, step, or pipeline?
 
 ```text
-bywaf> jobs --all
-bywaf> steps --all
-bywaf> pipeline list --all
+bywaf> job --all
+bywaf> step --all
+bywaf> pipeline --all
 ```
 
 Default runtime listings show active work only. Add `--all` to include completed,
@@ -164,13 +164,13 @@ bywaf> project list
 bywaf> project use name=client-a
 ```
 
-## How do I switch projects if active jobs are running?
+## How do I switch projects if active job are running?
 
 ```text
 bywaf> project use name=client-b --force
 ```
 
-Without `--force`, Bywaf refuses to switch while active jobs exist. With
+Without `--force`, Bywaf refuses to switch while active job exist. With
 `--force`, Bywaf hard-stops active job processes, marks them killed, audits the
 forced stop in the old project database, and then switches to the new project.
 
@@ -256,7 +256,7 @@ Run the active commandlet with its stored/default variables:
 bywaf> run
 ```
 
-`steps` still lists past commandlet executions, and `step <id>` still inspects one
+`step` still lists past commandlet executions, and `step <id>` still inspects one
 past execution.
 
 ## How do I set a secret such as a password?
@@ -387,8 +387,9 @@ bywaf> artifact export pipeline=2 dir=artifacts/pipeline-2/
 bywaf> artifact export serial=<step-or-pipeline-serial> dir=artifacts/export/
 ```
 
-For completed work, prefer durable `serial=` selectors because local numeric IDs
-are only stable inside the current database.
+For completed work, prefer durable serials because local numeric IDs are only
+stable inside the current database. In commands with enough context, such as
+`job <id-or-serial>`, you can pass the serial directly.
 
 ## Should I export a bare artifact or an evidence bundle?
 
@@ -438,23 +439,23 @@ bywaf> artifact list step=7
 bywaf> artifact search step=7 name=screenshot
 ```
 
-Use the step ID shown by `steps`; the selector is still `step=...`. For long-term references, use the durable step serial with `serial=...`.
+Use the step ID shown by `step`; the selector is still `step=...`. For long-term references, use the durable step serial with `serial=...`.
 
 ## How do I find which events are associated with a pipeline?
 
 ```text
-bywaf> pipeline list
+bywaf> pipeline
 bywaf> event pipeline=2
 bywaf> event serial=<pipeline-serial>
 ```
 
-`event pipeline=...` shows events scoped to that pipeline. `pipeline list --all`
+`event pipeline=...` shows events scoped to that pipeline. `pipeline --all`
 includes historical pipelines.
 
 ## How do I find the results of a commandlet step?
 
 ```text
-bywaf> steps
+bywaf> step
 bywaf> event step=7
 bywaf> artifact list step=7
 ```
@@ -513,9 +514,9 @@ bywaf> events tail last=50
 bywaf> event host.found
 bywaf> event port.open host=192.168.50.163
 bywaf> event port.open host=192.168.50.1,192.168.50.163 sort=host
-bywaf> jobs host=192.168.50.163
-bywaf> pipelines host=192.168.50.163
-bywaf> steps host=192.168.50.163
+bywaf> job host=192.168.50.163
+bywaf> pipeline host=192.168.50.163
+bywaf> step host=192.168.50.163
 bywaf> event step=7
 bywaf> event serial=<durable-serial>
 ```

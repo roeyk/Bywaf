@@ -26,7 +26,7 @@ from pathlib import Path
 
 from ..completion import Completer, build_prompt_session, install_readline
 from ..framework_requests import process_framework_requests
-from .commands import REPL_COMMAND_HANDLERS, execute_repl_commandlet, execute_shell_command
+from .commands import REPL_COMMAND_HANDLERS, execute_repl_commandlet, execute_shell_command, visible_commandlet_events
 from .display import (
     friendly_error,
 )
@@ -291,7 +291,7 @@ def execute_commandlet_and_print(runner: Runner, command: str) -> int:
         process_framework_requests(runner, state)
         from .display import print_events
 
-        print_events(events, runner)
+        print_events(visible_commandlet_events(events), runner)
     except SystemExit as exc:
         if exc.code in (0, None):
             return 0

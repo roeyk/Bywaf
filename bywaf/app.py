@@ -158,8 +158,6 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("cmds", help="show commandlets grouped by plugin provider").add_argument("--page", action="store_true")
     subparsers.add_parser("triggers", help="show provider-owned trigger rules")
     subparsers.add_parser("history", help="show command history")
-    subparsers.add_parser("jobs", help="show background jobs")
-    subparsers.add_parser("pipelines", help="show pipelines")
     subparsers.add_parser("repl", help="start interactive shell")
     return parser
 
@@ -293,33 +291,17 @@ def history_cli_subcommand(runner: Runner, args: argparse.Namespace) -> int:
     return 0
 
 
-def jobs_cli_subcommand(runner: Runner, args: argparse.Namespace) -> int:
-    """Print background jobs."""
-    del args
-    print_events(runner.execute("job list"), runner)
-    return 0
-
-
-def pipelines_cli_subcommand(runner: Runner, args: argparse.Namespace) -> int:
-    """Print pipelines."""
-    del args
-    print_events(runner.execute("pipeline list"), runner)
-    return 0
-
-
 CLI_SUBCOMMAND_HANDLERS: dict[str | None, CliSubcommandHandler] = {
     "cmd": cmd_cli_subcommand,
     "cmds": cmds_cli_subcommand,
     "history": history_cli_subcommand,
-    "jobs": jobs_cli_subcommand,
-    "pipelines": pipelines_cli_subcommand,
     "plugins": plugins_cli_subcommand,
     "exec": exec_cli_subcommand,
     "triggers": triggers_cli_subcommand,
 }
 
 
-CLI_SUBCOMMANDS = frozenset(("cmd", "exec", "plugins", "cmds", "triggers", "history", "jobs", "pipelines", "repl"))
+CLI_SUBCOMMANDS = frozenset(("cmd", "exec", "plugins", "cmds", "triggers", "history", "repl"))
 GLOBAL_OPTIONS_WITH_VALUES = frozenset(
     (
         "--database",
@@ -361,7 +343,7 @@ def extract_startup_project(argv: list[str]) -> tuple[str | None, list[str]]:
     """Remove a leading `project=name` selector from OS CLI argv."""
     project_name: str | None = None
     cleaned: list[str] = []
-    subcommands = {"exec", "plugins", "cmds", "history", "jobs", "pipelines", "repl"}
+    subcommands = {"exec", "plugins", "cmds", "history", "repl"}
     before_subcommand = True
     for token in argv:
         if before_subcommand and token.startswith("project="):

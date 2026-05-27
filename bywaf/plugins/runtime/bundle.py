@@ -417,7 +417,7 @@ def selected_artifacts(context: CommandContext, selectors: dict[str, str]) -> li
     """Return artifacts selected for a bundle item."""
     store = artifact_store_for_event_store(context.require_db("bundle"))
     artifacts = store.list(
-        job_id=selectors.get("job"),
+        job_id=resolve_job_selector(context, selectors.get("job")),
         pipeline_id=resolve_pipeline_selector(context, selectors.get("pipeline")),
         command_run_id=resolve_run_selector(context, selectors.get("step")),
     )
@@ -440,6 +440,18 @@ def selected_artifacts(context: CommandContext, selectors: dict[str, str]) -> li
             until=selectors.get("until"),
         )
     return artifacts
+
+
+def resolve_job_selector(context: CommandContext, value: str | None) -> str | None:
+    """Resolve a local job id or durable job serial for bundle selectors."""
+    if value is None:
+        return None
+    if value.isdigit():
+        return value
+    resolved = context.runtime_store("bundle").job_id_for_serial(value)
+    if resolved is None:
+        raise ValueError(f"unknown job: {value}")
+    return resolved
 
 
 def resolve_run_selector(context: CommandContext, value: str | None) -> str | None:

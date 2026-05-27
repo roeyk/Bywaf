@@ -626,7 +626,7 @@ def resolve_artifact_scope(context: CommandContext, selectors: dict[str, list[st
     """Resolve run/pipeline/job/serial selectors into artifact provenance scope."""
     serial = single_value(selectors, "serial")
     explicit = ArtifactScope(
-        job_id=single_value(selectors, "job"),
+        job_id=resolve_job_selector(context, single_value(selectors, "job")),
         pipeline_id=resolve_pipeline_selector(context, single_value(selectors, "pipeline")),
         command_run_id=resolve_run_selector(context, single_value(selectors, "step")),
     )
@@ -656,6 +656,18 @@ def resolve_serial_scope(context: CommandContext, serial: str) -> ArtifactScope:
 def resolve_job_serial(context: CommandContext, serial: str) -> str | None:
     """Resolve a durable job serial to the local job id stored with artifacts."""
     return context.runtime_store("artifact").job_id_for_serial(serial)
+
+
+def resolve_job_selector(context: CommandContext, value: str | None) -> str | None:
+    """Resolve a local job id or durable job serial for artifact selectors."""
+    if value is None:
+        return None
+    if value.isdigit():
+        return value
+    resolved = context.runtime_store("artifact").job_id_for_serial(value)
+    if resolved is None:
+        raise ValueError(f"unknown job: {value}")
+    return resolved
 
 
 def resolve_run_selector(context: CommandContext, value: str | None) -> str | None:

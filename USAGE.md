@@ -26,7 +26,7 @@ Base capabilities, triggers, and audit/event topics are listed in
 [docs/FRAMEWORK_SURFACE.md](docs/FRAMEWORK_SURFACE.md).
 Core architectural references:
 
-- [docs/TERMINOLOGY.md](docs/TERMINOLOGY.md) defines jobs, pipeline steps, pipelines, events,
+- [docs/TERMINOLOGY.md](docs/TERMINOLOGY.md) defines job, pipeline step, pipeline, events,
   topics, commandlets, plugins, capabilities, local IDs, and serials.
 - [docs/RUNTIME_MODEL.md](docs/RUNTIME_MODEL.md) explains runtime entities, lifecycle,
   foreground/background execution, control signals, and variable snapshots.
@@ -49,7 +49,7 @@ During development, run Bywaf from the repository root:
 ```bash
 cd bywaf
 python3 -m bywaf --help
-python3 -m bywaf repl
+python3 -m bywaf
 ```
 
 For an editable local install:
@@ -57,7 +57,7 @@ For an editable local install:
 ```bash
 python3 -m pip install -e .
 bywaf --help
-bywaf repl
+bywaf
 ```
 
 For a local pip package build:
@@ -129,7 +129,7 @@ from bywaf import BywafSession
 session = BywafSession.open(Path(".bywaf/bywaf.sqlite3"))
 session.run("hostscanner 127.0.0.1")
 hosts = session.events(topic="host.found")
-jobs = session.jobs()
+job = session.job()
 ```
 
 The host and port scanner commandlets use `nmap` through a Python adapter. A
@@ -203,7 +203,7 @@ plugin's variables through that API. Shared provider variables are explicit via
 variables are explicit via `context.vars.get_global("name")`. When a commandlet
 step starts, Bywaf snapshots the effective commandlet, immediate provider, and
 global variables into SQLite under that `command_run_id`; `event step=<id>`
-displays the captured variables so steps remain auditable and reproducible even
+displays the captured variables so step remain auditable and reproducible even
 when session variables change later.
 Runtime entities have two identities: local IDs for interactive typing
 (`job=12`, `step=1`, `pipeline=2`) and durable serials for audit/provenance.
@@ -311,8 +311,8 @@ signal <job=id|step=id|serial=id> <action> [--soft|--hard] [key=value ...]
 cancel <job=id|pipeline=id|step=id>
 end [--soft|--hard] <job=id|pipeline=id|step=id>
 kill [--soft|--hard] <job=id|pipeline=id|step=id>
-jobs
-steps
+job
+step
 step <id|serial>
 exec <shell-command>
 <commandlet-pipeline>
@@ -652,7 +652,7 @@ bywaf> name step=<step-id>
 
 The explicit keyed form is `text=`, for example `name step=<id> text=localhost sweep`.
 
-Assigned names appear in `steps`, `pipelines`, and `jobs` listings.
+Assigned names appear in `step`, `pipeline`, and `job` listings.
 
 # Framework Notes
 
@@ -856,11 +856,11 @@ bywaf> hostscanner 192.168.0.1-255 &
 
 Normal commandlet execution is job-audited through the database. Foreground
 commandlets run in-process but still record `job.requested`, `job.claimed`,
-`job.started`, and `job.finished` or `job.failed`. Background jobs use the same
+`job.started`, and `job.finished` or `job.failed`. Background job use the same
 job lifecycle, but a worker process claims and runs the queued job. Foreground
 management commands such as `db ...` and `job ...` run directly.
 
-Pipeline-step backgrounding works inside pipelines:
+Pipeline-step backgrounding works inside pipeline:
 
 ```text
 bywaf> hostscanner 192.168.0.1-255 & | portscanner &
@@ -870,14 +870,14 @@ In that example, `portscanner` listens for `host.found` rows created by the
 immediately upstream `hostscanner` step in the same pipeline. It does not consume
 unrelated `host.found` rows from older scans.
 
-A pipeline groups one or more steps in the same command expression or attached
+A pipeline groups one or more step in the same command expression or attached
 workflow. A step is one commandlet invocation inside that pipeline, such as the
 specific `hostscanner` step or `portscanner` step. A job is the supervised
 foreground/background execution lifecycle that runs one or more of those
-commandlet invocations. Operationally, jobs are chained together into pipelines
-by the steps they supervise; one job may contribute the whole chain, or multiple
-jobs may contribute steps when commandlets are attached later. See
-`docs/TERMINOLOGY.md` for the canonical definitions of jobs, pipelines, steps, local
+commandlet invocations. Operationally, job are chained together into pipeline
+by the step they supervise; one job may contribute the whole chain, or multiple
+job may contribute step when commandlets are attached later. See
+`docs/TERMINOLOGY.md` for the canonical definitions of job, pipeline, step, local
 IDs, serials, events, and topics.
 
 Show the currently active runtime entities:
@@ -889,16 +889,16 @@ bywaf> info
 List active jobs, or all jobs with an explicit active marker:
 
 ```text
-bywaf> job list
-bywaf> job list --all
-bywaf> job list --page
-bywaf> jobs --all
+bywaf> job
+bywaf> job --all
+bywaf> job --page
 ```
 
-Show one job:
+Show one job by local ID or durable job serial:
 
 ```text
-bywaf> job show <id>
+bywaf> job <id>
+bywaf> job <job-serial>
 ```
 
 Soft-cancel a job so commandlets that check cancellation can exit cleanly:
@@ -919,22 +919,22 @@ bywaf> job kill --hard <id>
 Pipelines can be inspected and controlled the same way:
 
 ```text
-bywaf> pipeline list
-bywaf> pipeline list --all
-bywaf> pipeline list --page
-bywaf> pipeline show <id>
+bywaf> pipeline
+bywaf> pipeline --all
+bywaf> pipeline --page
+bywaf> pipeline <id>
 bywaf> pipeline cancel <id>
 bywaf> pipeline end <id>
 bywaf> pipeline kill --hard <id>
 ```
 
-`job list`, `steps`, and `pipeline list` show active runtime state by default.
+`job`, `step`, and `pipeline` show active runtime state by default.
 Use `--all` to include historical entries. These commands render table views
 with local ID, durable serial, lifecycle state, names, timestamps, and an
 `ARTIFACTS` column counting artifacts attached so far. Set
 `set global.listing.active-format=long` to include the state timestamp in the
 state column; set it to `short` for compact lifecycle labels. Use `--page` on
-list actions such as `job list`, `pipeline list`, and `artifact list` to view
+list-style commands such as `job`, `pipeline`, and `artifact list` to view
 long output through the framework pager.
 
 `watchdog` is Bywaf's default service-style runtime monitor. Its plugin also
@@ -955,7 +955,7 @@ bywaf> watchdog interval=10 timeout=300 stall-threshold=120 error-threshold=10 &
 ```
 
 The watchdog emits `watchdog.timeout`, `watchdog.stalled`, and
-`watchdog.error_rate` events when active jobs exceed the configured limits.
+`watchdog.error_rate` events when active job exceed the configured limits.
 Trigger lifecycle events are also auditable: `framework.trigger.enabled`,
 `framework.trigger.fired`, and `framework.trigger.disabled`. Fired events
 include the source event ID that caused the trigger to fire.
@@ -967,7 +967,7 @@ receiver: a job, a pipeline step, or a `serial=` that resolves to one of those.
 A pipeline is a grouping scope, not executing code, so it does not receive
 plugin-domain signals directly. Use pipeline-aware commands such as `pause
 pipeline=...` or `end --hard pipeline=...` when you want the framework to fan
-out control over jobs associated with a pipeline. Framework-native signals such
+out control over job associated with a pipeline. Framework-native signals such
 as `pause`, `resume`, `stop`, `end`, and `kill` apply the existing framework
 controls; plugin-domain signals such as `prune`, `mute`, `unmute`, and
 `verbosity` are delivered for commandlets to apply or ignore.
@@ -1031,9 +1031,6 @@ The resulting audit trail shows the requested selector, action, strength
 (`--soft` or `--hard`), supplied arguments, and whether the receiver applied,
 ignored, or rejected the request.
 
-`jobs` remains as a convenience alias for `job list`, and `pipelines` remains
-as a convenience alias for `pipeline list`.
-
 # Database and Event Model
 
 Bywaf stores events in SQLite. The default database is:
@@ -1087,16 +1084,22 @@ Different selector keys are ANDed together. Use `sort=time` (default),
 order displayed rows. `sort=transport` is an alias for `protocol`, and
 `sort=status` is an alias for `state`.
 
+Runtime selectors accept both local IDs and durable serials where the selector
+has enough context. For example, `job 3` and `event job=3` use the current
+database's local job ID; `job job-...` and `event job=job-...` use the durable
+job serial. Prefer durable serials for notes, artifacts, logs, and anything
+shared outside the current database.
+
 List commandlet steps:
 
 ```text
-bywaf> steps
-bywaf> steps host=192.168.50.163
-bywaf> jobs host=192.168.50.163
-bywaf> pipelines host=192.168.50.163
+bywaf> step
+bywaf> step host=192.168.50.163
+bywaf> job host=192.168.50.163
+bywaf> pipeline host=192.168.50.163
 ```
 
-`jobs`, `pipelines`, and `steps` accept the same payload-style filters as
+`job`, `pipeline`, and `step` accept the same payload-style filters as
 `event`. They show runtime objects that have at least one associated event
 matching the filter.
 
@@ -1206,8 +1209,8 @@ bywaf> project archive file=client-b-project.bywaf-archive --encrypt
 ```
 
 Switching projects changes the active database, config, and history path. Bywaf
-refuses to switch while jobs are active because those jobs belong to the current
-database. To deliberately hard-stop active jobs and switch anyway:
+refuses to switch while job are active because those job belong to the current
+database. To deliberately hard-stop active job and switch anyway:
 
 ```text
 bywaf> project use name=client-b --force
@@ -1355,7 +1358,16 @@ bywaf> set display/style.comment=dim color245
 bywaf> set display/style.string=bold yellow
 bywaf> set display/style.value=green
 bywaf> set display/style.variable=cyan
+bywaf> set display/style.table.header="bold color39"
+bywaf> set display/style.table.body=color250
+bywaf> set display/style.table.index="bold color245"
+bywaf> set display/style.report.heading="bold color39"
+bywaf> set display/style.report.section="bold white"
+bywaf> set display/style.report.label="bold color245"
+bywaf> set display/style.finding.severity_class.urgent="bold red"
+bywaf> set display/style.finding.severity_class.emergency="bold white bg-ansi:52"
 bywaf> set display/style.finding.severity.critical="#dc2626"
+bywaf> set display/style.finding.severity.high="bold red"
 bywaf> set display.expansion=changed
 bywaf> set discovery/hostscanner.targets=192.168.1.1-255
 bywaf> hostscanner
@@ -1373,14 +1385,19 @@ values such as `rgb:80,180,90`; and background forms such as `bg-ansi:52` and
 are yellow; history timestamps and help commands are green.
 
 Display styles use `display/style.<subject>`. Current terminal rendering
-uses subjects such as `host`, `port`, `protocol`, `host.name`, `comment`, and
-`string`. The `string` subject applies to quoted spans in compact event output
-and live prompt input; `value` applies to the value side of live `key=value`
-input when the value is not quoted; `variable` applies to live assignment keys
-such as `A` in `set A=...` and variable references such as `$A`. Style values
-can combine attributes and colors, for example `bold green`, `dim color245`,
-`rgb:80,180,90`, or quoted hex values such as `"#00ff00"`. Unquoted `#` starts
-a REPL/script comment; quote or escape literal hashes.
+uses subjects such as `host`, `port`, `protocol`, `host.name`, `comment`,
+`string`, `table.header`, `table.body`, `table.index`, `report.heading`,
+`report.section`, `report.label`, `finding.severity.high`, and
+`finding.severity_class.urgent`. The `string` subject applies to quoted spans in
+compact event output and live prompt input; `value` applies to the value side of
+live `key=value` input when the value is not quoted; `variable` applies to live
+assignment keys such as `A` in `set A=...` and variable references such as `$A`.
+Report tables use table styles as baselines, then more specific subjects such
+as `finding.title`, `finding.severity.high`, and
+`finding.severity_class.urgent` override them inside matching cells. Style
+values can combine attributes and colors, for example `bold green`, `dim
+color245`, `rgb:80,180,90`, or quoted hex values such as `"#00ff00"`. Unquoted
+`#` starts a REPL/script comment; quote or escape literal hashes.
 
 Theme presets are bundled named sets of display variables:
 
@@ -1461,7 +1478,7 @@ across projects and should not be stored in project databases.
 
 Use `set` for framework or plugin variables that affect the current project,
 session, commandlet, or step. Variables can affect evidence-producing behavior,
-so their effective values are snapshotted with command steps and belong with the
+so their effective values are snapshotted with command step and belong with the
 project/audit context. If a future plugin wants to change a preference, it
 should request a framework-mediated preference update for the user to approve;
 plugins should not silently mutate `~/.bywaf/preferences.toml`.
@@ -1910,7 +1927,7 @@ The main package layout is:
 ```text
 bywaf/app.py          REPL and built-in commands
 bywaf/command_parser.py commandlet and pipeline parsing
-bywaf/runner.py       pipelines, foreground/background execution
+bywaf/runner.py       pipeline, foreground/background execution
 bywaf/db.py           SQLite event store
 bywaf/plugin.py       commandlet protocol and specs
 bywaf/registry.py     plugin discovery and loading
@@ -2051,9 +2068,9 @@ name <step=id|pipeline=id|job=id> [name text]
 note [add] <step=id|pipeline=id|job=id> [text=note|file=path]
 artifact <import|attach|list|remove|replace|export|search|verify> [artifact=id|step=id|pipeline=id|job=id] [file=path|dir=path]
 search [--regexp] <name=text|filename=text|note=text|content=text> [artifact=id|step=id|pipeline=id|job=id] [since=time|until=time]
-jobs
-pipelines
-steps
+job
+pipeline
+step
 step <id|serial>
 exec <shell-command>
 <commandlet-pipeline>

@@ -39,7 +39,8 @@ or more pipeline steps.
 Use job selectors when you want to control or inspect execution lifecycle:
 
 ```text
-job show 1
+job 1
+job job-...
 job cancel 1
 job end --hard 1
 ```
@@ -64,7 +65,7 @@ or multiple jobs may contribute steps when commandlets are attached later.
 Use pipeline selectors when you want to inspect or control the whole chain:
 
 ```text
-pipeline show 1
+pipeline 1
 pipeline cancel 1
 artifact export pipeline=1 dir=artifacts/
 ```
@@ -73,7 +74,7 @@ artifact export pipeline=1 dir=artifacts/
 
 A step is one invocation of one commandlet inside a pipeline.
 
-The user-facing list and detail commands are `steps` and `step <id>`, and
+The user-facing list and detail commands are `step` and `step <id>`, and
 selectors use `step=...`. Some persisted database columns still use historical
 names such as `command_run_id`; treat those as storage details for the same
 pipeline-step record.
@@ -103,7 +104,7 @@ signals because it is the commandlet execution context; plugin code reads those
 with `context.signals.pending(...)`. A job can receive framework lifecycle
 signals because it supervises a process or foreground execution. A pipeline does
 not receive plugin-domain signals directly because it is only a grouping scope;
-pipeline-level control commands fan out to associated jobs or steps.
+pipeline-level control commands fan out to associated job or step.
 
 Use `step=` selectors when you care about one pipeline step of a workflow:
 

@@ -157,8 +157,8 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             ["set a=1", "set b='two; still two'", "topics"],
         )
         self.assertEqual(
-            split_command_sequence("jobs --all\npipelines --all\nevents last=30"),
-            ["jobs --all", "pipelines --all", "events last=30"],
+            split_command_sequence("job --all\npipeline --all\nevents last=30"),
+            ["job --all", "pipeline --all", "events last=30"],
         )
         self.assertEqual(
             split_command_sequence("set note='first line\nsecond line'\nevents"),

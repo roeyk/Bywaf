@@ -20,9 +20,9 @@ event name.resolved
 # Example:
 # set A=142.251.16.138
 # event port.open host=$A
-# jobs host=$A
-# steps host=$A
-# pipelines host=$A
+# job host=$A
+# step host=$A
+# pipeline host=$A
 
 # 4. Telnet-like finding path
 # Replace <host> with an authorized test host that has Telnet-like service

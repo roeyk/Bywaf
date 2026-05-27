@@ -7,8 +7,8 @@ Planning dates are release planning markers, not compatibility commitments.
 - Bywaf 0.12.0 testing release: 2026-05-26.
 - Release package metadata updated to 0.12.0 across Python, Debian, README,
   usage guide, changelog, and release artifacts.
-- Release highlights captured: host filters for `event`, `jobs`, `pipelines`,
-  and `steps`; event sorting; `portscanner host=` DNS resolution provenance;
+- Release highlights captured: host filters for `event`, `job`, `pipeline`,
+  and `step`; event sorting; `portscanner host=` DNS resolution provenance;
   fully-qualified commandlet execution while a provider is in scope; reporting
   triage actions; database backend protocol typing; and package build metadata
   cleanup.
@@ -108,6 +108,18 @@ Planning dates are release planning markers, not compatibility commitments.
   colors can live outside project variables and travel across projects.
 - Document the plugin contract so authors know how to expose semantically typed
   data without coupling plugin output to one frontend.
+
+### Item: View Command Sort Selectors
+
+- Define a cross-command `sort=` convention for view commands: ascending uses
+  `sort=name`, descending uses `sort=-name`.
+- Treat view commands as commands whose primary job is to display stored
+  framework state, such as `job`, `pipeline`, `step`, `event`, `report`, and
+  `artifact list`.
+- Each view command should explicitly declare its supported sort keys instead
+  of accepting arbitrary fields.
+- Keep sorting selector-shaped, not flag-shaped: use `sort=severity`, not
+  `--sort severity` or `--reverse`.
 
 ### Item: CVE Detection And Confirmation Plugins
 
@@ -246,7 +258,7 @@ Planning dates are release planning markers, not compatibility commitments.
 - Keep SQLite as the production storage adapter for now. The first backend seam
   exists through `bywaf.db.backends`; continue reducing hard-coded SQL and
   SQLite-specific assumptions behind explicit storage interfaces.
-- Define repository/service boundaries for events, runtime state, jobs,
+- Define repository/service boundaries for events, runtime state, job,
   variables, artifacts, migrations, and project archive/export workflows before
   attempting a second database backend.
 - Inventory assumptions that a non-SQLite backend would need to reproduce:
@@ -272,7 +284,7 @@ Planning dates are release planning markers, not compatibility commitments.
 ### GUI/Web Frontend
 
 - Build a local GUI or web frontend on top of `BywafSession`.
-- Render events, jobs, command output, file paging, and framework requests
+- Render events, job, command output, file paging, and framework requests
   without scraping REPL text.
 
 ### Job Control
@@ -338,7 +350,7 @@ Planning dates are release planning markers, not compatibility commitments.
 - 2026-05-13: Added audit-only plugin capability declarations and
   `plugin.capability.used` / `plugin.capability.missing` events.
 - 2026-05-13: Added pipeline control plus `kill` / `cancel` selector
-  commandlets for jobs and pipelines.
+  commandlets for job and pipeline.
 - 2026-05-13: Added class-based commandlet metadata decorators for plugin
   authors.
 - 2026-05-14: Converted bundled commandlets to class-based metadata decorators.
@@ -349,7 +361,7 @@ Planning dates are release planning markers, not compatibility commitments.
 - 2026-05-14: Added framework-mediated process execution through
   `context.process.run()` and line-oriented `context.process.stream()`.
 - 2026-05-17: Added framework-level `note=` parsing and `note.attached` audit
-  events for commandlet steps.
+  events for commandlet step.
 - 2026-05-17: Added `note` commandlet for timestamped note review and
   `file=` export by step, pipeline, or job.
 - 2026-05-17: Added append-only post-hoc notes with `note add`.
@@ -357,6 +369,6 @@ Planning dates are release planning markers, not compatibility commitments.
   for `@`, `@@`, `@raw:`, and `@lines:`.
 - 2026-05-17: Added backslash command continuation and semicolon command
   sequences.
-- 2026-05-17: Added `pipelines` alias and timestamp-first history display.
+- 2026-05-17: Added `pipeline` alias and timestamp-first history display.
 - 2026-05-17: Added canonical architecture documents for terminology, runtime,
   events, capabilities, and system block/dataflow diagrams.

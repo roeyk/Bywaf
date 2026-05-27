@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import signal
+import shlex
 from argparse import Namespace
 from collections.abc import Callable, Iterable
 
@@ -29,18 +30,19 @@ from bywaf.runtime_display import (
 )
 
 ACTIVE_STATUSES = {"queued", "claimed", "running", "pausing", "paused", "cancelling"}
-JOB_ACTIONS = ("cancel", "end", "kill", "list", "show")
+JOB_ACTIONS = ("cancel", "end", "kill")
+REMOVED_JOB_ACTIONS = {"list", "show"}
 JobActionHandler = Callable[[CommandContext, Namespace], None]
 
 
 @commandlet(
     name="job",
     description="Manage background jobs.",
-    usage="job <list|show|cancel|end|kill> [options] [id]",
-    examples=("job list", "job show 1", "job cancel 1", "job end 1", "job kill --hard 1"),
+    usage="job [--all] [field=value ...] | job <id> | job <cancel|end|kill> [options] <id>",
+    examples=("job", "job --all", "job 1", "job cancel 1", "job end 1", "job kill --hard 1"),
     capabilities=("framework.console.output", "framework.job.control"),
 )
-@argument("action", "job operation", completion=CompletionSpec("choice", JOB_ACTIONS))
+@argument("action", "job operation", required=False, completion=CompletionSpec("choice", JOB_ACTIONS))
 @argument("id", "job id", required=False, completion="job")
 class Job(CommandletBase):
     """List, inspect, softly cancel, and end background jobs."""
@@ -53,17 +55,15 @@ class Job(CommandletBase):
     ):
         """Parse and execute one job-management operation."""
         parser = self.parser()
-        parser.add_argument("action", choices=JOB_ACTIONS)
-        parser.add_argument("id", nargs="?")
         parser.add_argument("--all", action="store_true")
         parser.add_argument("--hard", action="store_true")
         parser.add_argument("--page", action="store_true")
         parser.add_argument("--soft", action="store_true")
-        parsed, extra = parser.parse_known_intermixed_args(args)
-        if parsed.action == "list" and parsed.id and "=" in parsed.id:
-            extra.insert(0, parsed.id)
-            parsed.id = None
-        parsed.filters = parse_payload_filter_tokens(extra)
+        parsed, tokens = parser.parse_known_intermixed_args(args)
+        operation = parse_job_operation(tokens)
+        parsed.action = operation.action
+        parsed.id = operation.id
+        parsed.filters = operation.filters
         context.require_foreground("job management commands")
         validate_job_mode(parsed.action, soft=parsed.soft, hard=parsed.hard)
         job_action_handlers()[parsed.action](context, parsed)
@@ -72,16 +72,32 @@ class Job(CommandletBase):
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
         """Complete subcommands and job IDs from the active database."""
         if not args:
-            return list(JOB_ACTIONS)
-        if len(args) == 1 and args[0] == "list":
-            return ["--all", "--page"]
-        if len(args) == 1 and args[0] in {"show", "cancel", "end", "kill"}:
+            return ["--all", "--page", *job_ids(context), *JOB_ACTIONS]
+        if len(args) == 1 and args[0] in JOB_ACTIONS:
             return job_ids(context)
-        if len(args) == 1 and args[0] not in JOB_ACTIONS:
-            return list(JOB_ACTIONS)
-        if len(args) >= 2 and args[0] in {"show", "cancel", "end", "kill"}:
+        if len(args) == 1:
+            return [candidate for candidate in ["--all", "--page", *job_ids(context), *JOB_ACTIONS] if candidate.startswith(prefix)]
+        if len(args) >= 2 and args[0] in JOB_ACTIONS:
             return job_ids(context)
         return []
+
+
+def parse_job_operation(tokens: list[str]) -> Namespace:
+    """Interpret terse `job` forms into the internal action/id/filter shape."""
+    if not tokens:
+        return Namespace(action="list", id=None, filters={})
+    first, rest = tokens[0], tokens[1:]
+    if first in REMOVED_JOB_ACTIONS:
+        raise ValueError("usage: job [--all] [field=value ...] | job <id> | job <cancel|end|kill> [options] <id>")
+    if first in JOB_ACTIONS:
+        if not rest:
+            raise ValueError(f"job {first} requires a job id")
+        return Namespace(action=first, id=rest[0], filters=parse_payload_filter_tokens(rest[1:]))
+    if first.startswith("serial=") and not rest:
+        return Namespace(action="show", id=first.split("=", 1)[1], filters={})
+    if "=" not in first and not rest:
+        return Namespace(action="show", id=first, filters={})
+    return Namespace(action="list", id=None, filters=parse_payload_filter_tokens(tokens))
 
 
 def job_action_handlers() -> dict[str, JobActionHandler]:
@@ -110,7 +126,7 @@ def show_job_action(context: CommandContext, parsed: Namespace) -> None:
     """Run `job show`."""
     row = require_job(context, parsed.id)
     display_name = context.runtime_store("job show").runtime_names().get(("job", str(row["id"])))
-    context.output(format_job(row, display_name=display_name))
+    context.output(format_job(row, display_name=display_name, args=latest_job_args(context, row["id"])))
 
 
 def cancel_job_action(context: CommandContext, parsed: Namespace) -> None:
@@ -191,7 +207,14 @@ def validate_job_mode(action: str, *, soft: bool, hard: bool) -> None:
         raise ValueError(f"job {action} does not accept --soft or --hard")
 
 
-def format_job(row, *, display_name: str | None = None, show_active: bool = False, marker_style: str = "short") -> str:
+def format_job(
+    row,
+    *,
+    display_name: str | None = None,
+    show_active: bool = False,
+    marker_style: str = "short",
+    args: list[str] | None = None,
+) -> str:
     """Format one job row in the same compact format used by the old `jobs`."""
     prefix = ""
     detail = ""
@@ -202,14 +225,34 @@ def format_job(row, *, display_name: str | None = None, show_active: bool = Fals
     name_part = f" name={display_name}" if display_name else ""
     serial = display_runtime_serial(row["serial"])
     command = str(row["command_line"])
+    args_part = f" args={format_job_args(args)}" if args else ""
     line = (
         f"{prefix}#{row['id']} serial={serial} pid={row['pid']} status={row['status']}{name_part}"
         f" launched={format_runtime_timestamp(row['started_at'])}"
         f" finished={format_runtime_timestamp(row['finished_at'])}"
         f" commandlet={commandlet_from_command_line(command)}"
         f" command={command}"
+        f"{args_part}"
     )
     return f"{line}\n{detail}" if detail else line
+
+
+def latest_job_args(context: CommandContext, job_id: int | str) -> list[str]:
+    """Return the newest recorded commandlet arguments for a job, if present."""
+    events = context.event_store("job show arguments").events_for_job(int(job_id), limit=10000)
+    argument_events = [event for event in events if event.topic == "command.run.arguments"]
+    if not argument_events:
+        return []
+    payload_args = max(argument_events, key=lambda event: event.id or 0).payload.get("args")
+    if isinstance(payload_args, list):
+        return [str(arg) for arg in payload_args]
+    return []
+
+
+def format_job_args(args: list[str]) -> str:
+    """Return shell-style commandlet arguments for job inspection."""
+    return " ".join(shlex.quote(arg) for arg in args)
+
 
 def require_job(context: CommandContext, job_id: str | None):
     """Return a job row or raise a user-facing error."""
@@ -218,8 +261,11 @@ def require_job(context: CommandContext, job_id: str | None):
         raise ValueError("job id is required")
     try:
         numeric_id = int(job_id)
-    except ValueError as exc:
-        raise ValueError(f"invalid job id: {job_id}") from exc
+    except ValueError:
+        resolved = runtime.job_id_for_serial(job_id)
+        if resolved is None:
+            raise ValueError(f"unknown job: {job_id}") from None
+        numeric_id = int(resolved)
     row = runtime.job(numeric_id)
     if row is None:
         raise ValueError(f"unknown job: {job_id}")

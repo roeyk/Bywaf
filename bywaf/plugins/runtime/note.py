@@ -163,10 +163,7 @@ def select_note_events(context: CommandContext, selectors: dict[str, str]) -> li
     events = context.event_store("note")
     selectors = resolve_note_selectors(context, selectors)
     if "job" in selectors:
-        try:
-            job_id = int(selectors["job"])
-        except ValueError as exc:
-            raise ValueError(f"invalid job id: {selectors['job']}") from exc
+        job_id = int(selectors["job"])
         return [event for event in events.events_for_job(job_id) if event.topic == "note.attached"]
     return events.events_matching(
         topic="note.attached",
@@ -215,6 +212,18 @@ def resolve_note_selectors(context: CommandContext, selectors: dict[str, str]) -
         resolved["step"] = runtime.resolve_run_serial(resolved["step"])
     if "pipeline" in resolved:
         resolved["pipeline"] = runtime.resolve_pipeline_serial(resolved["pipeline"])
+    if "job" in resolved:
+        resolved["job"] = resolve_job_selector(context, resolved["job"])
+    return resolved
+
+
+def resolve_job_selector(context: CommandContext, value: str) -> str:
+    """Resolve a local job id or durable job serial for note selectors."""
+    if value.isdigit():
+        return value
+    resolved = context.runtime_store("note").job_id_for_serial(value)
+    if resolved is None:
+        raise ValueError(f"unknown job: {value}")
     return resolved
 
 

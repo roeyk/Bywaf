@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from ..command.parser import expand_variables_in_text
-from ..event_filters import event_matches_payload_filters, parse_event_sort, parse_payload_filter_tokens, select_event_rows
+from ..event_filters import event_matches_payload_filters, parse_event_sort, select_event_rows
 from ..framework_requests import process_framework_requests
 from .display import (
     format_var_assignment,
@@ -31,7 +31,6 @@ from .display import (
     print_job,
     print_plugins,
     print_run_variables,
-    print_runs,
     print_topics,
     print_triggers,
 )
@@ -71,6 +70,7 @@ if TYPE_CHECKING:
 
 ReplCommandHandler = Callable[[Runner, Any, str | None, str], str | None]
 EVENT_SELECTOR_KEYS = {"job", "step", "pipeline", "serial", "topic"}
+SUPPRESSED_COMMANDLET_OUTPUT_TOPICS = {"report.rendered"}
 
 
 def handle_exit_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
@@ -281,62 +281,6 @@ def handle_info_command(runner: Runner, state: ShellState, rest: str | None, lin
     return None
 
 
-def handle_jobs_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
-    """Run the job-list commandlet shortcut."""
-    del line
-    rest = expand_builtin_filter_text(runner, state, rest, "jobs")
-    tokens = shlex.split(rest) if rest else []
-    validate_runtime_list_tokens("jobs", tokens)
-    suffix = f" {' '.join(shlex.quote(token) for token in tokens)}" if tokens else ""
-    # Jobs/pipelines have commandlet implementations; the REPL aliases call
-    # those commandlets so output stays consistent with direct use.
-    events = runner.execute(f"job list{suffix}")
-    process_framework_requests(runner, state)
-    print_events(events, runner)
-    return None
-
-
-def handle_pipelines_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
-    """Run the pipeline-list commandlet shortcut."""
-    del line
-    rest = expand_builtin_filter_text(runner, state, rest, "pipelines")
-    tokens = shlex.split(rest) if rest else []
-    validate_runtime_list_tokens("pipelines", tokens)
-    suffix = f" {' '.join(shlex.quote(token) for token in tokens)}" if tokens else ""
-    events = runner.execute(f"pipeline list{suffix}")
-    process_framework_requests(runner, state)
-    print_events(events, runner)
-    return None
-
-
-def handle_steps_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
-    """Print commandlet execution steps."""
-    del line
-    rest = expand_builtin_filter_text(runner, state, rest, "steps")
-    tokens = shlex.split(rest) if rest else []
-    filters = parse_step_filters(tokens)
-    active_only = "--all" not in tokens and not filters
-    print_runs(runner, active_only=active_only, filters=filters)
-    return None
-
-
-def validate_runtime_list_tokens(command: str, tokens: Sequence[str]) -> None:
-    """Reject unknown runtime-list tokens before delegating to commandlets."""
-    for token in tokens:
-        if token in {"--all", "--page"} or "=" in token:
-            continue
-        raise ValueError(f"usage: {command} [--all] [--page] [field=value ...]")
-
-
-def parse_step_filters(tokens: Sequence[str]) -> dict[str, str]:
-    """Parse `steps [--all] [field=value ...]` filters."""
-    filter_tokens = [token for token in tokens if token != "--all"]
-    unknown = [token for token in filter_tokens if "=" not in token]
-    if unknown:
-        raise ValueError("usage: steps [--all] [field=value ...]")
-    return parse_payload_filter_tokens(filter_tokens)
-
-
 def handle_use_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
     """Show or set the active variable context."""
     del line
@@ -400,10 +344,10 @@ def handle_event_command(runner: Runner, state: ShellState, rest: str | None, li
     if selector.isdigit():
         print_filtered_event_id(runner, selector, filters)
     elif selector.startswith("job=") and not filters:
-        print_job(runner, selector.split("=", 1)[1])
+        print_job(runner, str(resolve_job_selector(runner, selector.split("=", 1)[1])))
     elif selector.startswith("job="):
         source_limit = event_source_limit(limit, filters)
-        events = runner.events.events_for_job(int(selector.split("=", 1)[1]), limit=source_limit)
+        events = runner.events.events_for_job(resolve_job_selector(runner, selector.split("=", 1)[1]), limit=source_limit)
         print_events(select_event_rows(events, filters, sort_key, limit), runner)
     elif selector.startswith("step="):
         run_id = runner.runtime.resolve_run_serial(selector.split("=", 1)[1])
@@ -622,23 +566,30 @@ def handle_exec_command(runner: Runner, state: ShellState, rest: str | None, lin
     return None
 
 
-def handle_step_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
-    """Inspect one commandlet execution step."""
-    del state, line
-    if rest is None:
-        print_help(runner, "step")
-        return None
-    run_id = runner.runtime.resolve_run_serial(rest)
-    print_run_variables(runner, run_id)
-    print_events(runner.events.events_matching(command_run_id=run_id), runner)
-    return None
-
-
 def execute_repl_commandlet(runner: Runner, state: ShellState, command: str) -> None:
     """Run a commandlet line and print emitted events."""
     events = runner.execute(command)
     process_framework_requests(runner, state)
-    print_events(events, runner)
+    # Some commandlets emit audit events after also requesting formatted console
+    # output. Keep those events in storage, but avoid echoing raw payloads in
+    # the REPL after the operator-facing renderer has already printed.
+    print_events(visible_commandlet_events(events), runner)
+
+
+def visible_commandlet_events(events):
+    """Return commandlet events that should be echoed after execution."""
+    return [event for event in events if event.topic not in SUPPRESSED_COMMANDLET_OUTPUT_TOPICS]
+
+
+def resolve_job_selector(runner: Runner, value: str) -> int:
+    """Resolve a local job id or durable job serial for built-in selectors."""
+    try:
+        return int(value)
+    except ValueError:
+        resolved = runner.runtime.job_id_for_serial(value)
+        if resolved is None:
+            raise ValueError(f"unknown job: {value}") from None
+        return int(resolved)
 
 
 def execute_shell_command(runner: Runner, command: str) -> int:
@@ -685,8 +636,6 @@ REPL_COMMAND_HANDLERS: dict[str, ReplCommandHandler] = {
     "help": handle_help_command,
     "history": handle_history_command,
     "info": handle_info_command,
-    "jobs": handle_jobs_command,
-    "pipelines": handle_pipelines_command,
     "plugin": handle_plugin_command,
     "plugins": handle_plugins_command,
     "pload": handle_pload_command,
@@ -698,8 +647,6 @@ REPL_COMMAND_HANDLERS: dict[str, ReplCommandHandler] = {
     "quit": handle_exit_command,
     "run": handle_run_command,
     "script": handle_script_command,
-    "step": handle_step_command,
-    "steps": handle_steps_command,
     "topics": handle_topics_command,
     "triggers": handle_triggers_command,
     "use": handle_use_command,

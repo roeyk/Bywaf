@@ -47,7 +47,7 @@ AuditActionHandler = Callable[[CommandContext, Namespace, dict[str, str]], None]
 @commandlet(
     name="audit",
     description="Show or export the SQLite-backed audit log.",
-    usage="audit <show|export> [file=<path>] [topic=<topic>|step=<id>|pipeline=<id>|job=<id>|serial=<id>]",
+    usage="audit <show|export> [file=<path>] [topic=<topic>|step=<id>|pipeline=<id>|job=<id-or-serial>|serial=<id>]",
     examples=(
         "audit list capabilities",
         "audit list capabilities plugin=nikto",
@@ -317,7 +317,7 @@ def selected_events(context: CommandContext, selectors: dict[str, str], limit: i
     if "serial" in selectors:
         events = events_store.events_for_serial(selectors["serial"], limit=100000)
     elif "job" in selectors:
-        events = events_store.events_for_job(int(selectors["job"]), limit=100000)
+        events = events_store.events_for_job(resolve_job_selector(context, selectors["job"]), limit=100000)
     else:
         events = events_store.events_matching(
             topic=selectors.get("topic"),
@@ -397,10 +397,21 @@ def resolve_pipeline_bound(context: CommandContext, raw: str, *, since: bool) ->
 
 def resolve_job_bound(context: CommandContext, raw: str, *, since: bool) -> tuple[int | None, datetime | None]:
     """Resolve a job-relative audit bound."""
-    events = context.event_store("audit").events_for_job(int(raw), limit=100000)
+    events = context.event_store("audit").events_for_job(resolve_job_selector(context, raw), limit=100000)
     if not events:
         raise ValueError(f"unknown audit job bound: {raw}")
     return (events[0].id if since else events[-1].id), None
+
+
+def resolve_job_selector(context: CommandContext, value: str) -> int:
+    """Resolve a local job id or durable job serial to a local job id."""
+    try:
+        return int(value)
+    except ValueError:
+        resolved = context.runtime_store("audit").job_id_for_serial(value)
+        if resolved is None:
+            raise ValueError(f"unknown job: {value}") from None
+        return int(resolved)
 
 
 def split_bound(value: str) -> tuple[str, str]:

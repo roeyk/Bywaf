@@ -46,7 +46,7 @@ def main() -> int:
     run_line(runner, state, f"set A={host} # testing filtering")
     run_line(runner, state, "set A")
     run_line(runner, state, "event port.open host=$A")
-    run_line(runner, state, "jobs host=$A; steps host=$A; pipelines host=$A")
+    run_line(runner, state, "job host=$A; step host=$A; pipeline host=$A")
     return 0
 
 

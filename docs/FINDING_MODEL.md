@@ -65,6 +65,17 @@ The current normalized finding payload is intentionally small:
 Commandlets may emit richer fact payloads. The normalized finding layer keeps a
 stable subset so reporting does not depend on every tool's native schema.
 
+Reports derive a broad operational severity class from `severity`; plugins do
+not need to emit a separate field:
+
+| Severity | Derived class | Meaning |
+| --- | --- | --- |
+| `info` | `informational` | Useful context, normally not triage-blocking. |
+| `low` | `advisory` | Low-risk issue or hygiene concern. |
+| `medium` | `review` | Needs operator review. |
+| `high` | `urgent` | High-priority risk. |
+| `critical` | `emergency` | Immediate attention. |
+
 ## Subjects
 
 Subjects describe what an output value is about. They are not plugin roles,

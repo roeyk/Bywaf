@@ -114,7 +114,19 @@ def selected_target(context: CommandContext | None, selectors: dict[str, str]) -
         target_id = context.runtime_store("name").resolve_run_serial(target_id)
     if context is not None and target_type == "pipeline":
         target_id = context.runtime_store("name").resolve_pipeline_serial(target_id)
+    if context is not None and target_type == "job":
+        target_id = resolve_job_selector(context, target_id)
     return ("run" if target_type == "step" else target_type), target_id
+
+
+def resolve_job_selector(context: CommandContext, value: str) -> str:
+    """Resolve a local job id or durable job serial for name selectors."""
+    if value.isdigit():
+        return value
+    resolved = context.runtime_store("name").job_id_for_serial(value)
+    if resolved is None:
+        raise ValueError(f"unknown job: {value}")
+    return resolved
 
 
 def display_target_type(target_type: str) -> str:

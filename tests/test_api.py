@@ -45,7 +45,7 @@ class ApiTests(unittest.TestCase):
     def test_session_starts_background_command(self):
         with tempfile.TemporaryDirectory() as tmp:
             session = BywafSession.open(Path(tmp, "db.sqlite3"))
-            event = session.run_background("job list")
+            event = session.run_background("job")
             self.assertEqual(event.topic, "job.requested")
             self.assertIn(wait_for_session_jobs(session)[0]["status"], TERMINAL_JOB_STATUSES)
 

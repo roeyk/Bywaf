@@ -20,6 +20,7 @@ default_plugins = [
   "wireless.wifi_scan",
   "runtime.job",
   "runtime.pipeline",
+  "runtime.step",
   "runtime.control",
   "runtime.audit",
   "runtime.bundle",

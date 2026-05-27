@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from bywaf.events import Event
+from bywaf.finding import SEVERITY_CLASS_ORDER, severity_class
 from bywaf.finding.grouping import finding_group_key as derive_finding_group_key
 from bywaf.plugin import (
     CommandContext,
@@ -29,7 +30,8 @@ from bywaf.plugin import (
 from bywaf.plugins._args import key_value_to_long_options
 from bywaf.plugins.analysis.finding_report import REPORT_FINDING_TOPICS, compact_table_text, finding_rows
 from bywaf.plugins.runtime.audit import resolve_pipeline_selector, resolve_run_selector
-from bywaf.rendering import Column, Table, render_table
+from bywaf.rendering import Column, Table, align_text, table_values
+from bywaf.style import styled_subject_text
 
 REPORT_ACTIONS = ("accept", "defer", "reject")
 REPORT_OPTION_KEYS = {"job", "pipeline", "step", "limit", "note", "status"}
@@ -183,11 +185,15 @@ def events_for_jobs(context: CommandContext, job_ids: list[str], *, limit: int) 
     """Return finding events associated with one or more jobs."""
     events: list[Event] = []
     event_store = context.event_store("report job selector")
+    runtime = context.runtime_store("report job selector")
     for job_id in job_ids:
         try:
             numeric_id = int(job_id)
-        except ValueError as exc:
-            raise ValueError(f"invalid job id: {job_id}") from exc
+        except ValueError:
+            resolved = runtime.job_id_for_serial(job_id)
+            if resolved is None:
+                raise ValueError(f"unknown job: {job_id}") from None
+            numeric_id = int(resolved)
         job_events = event_store.events_for_job(numeric_id, limit=limit)
         for event in job_events:
             if event.topic in REPORT_FINDING_TOPICS:
@@ -263,8 +269,14 @@ def render_finding_report(context: CommandContext, events: list[Event], parsed: 
     decisions = latest_review_decisions(context)
     filtered_groups = filter_groups_by_status(groups, decisions, parsed.status)
     filtered_events = events_for_groups(filtered_groups)
-    context.output(report_heading(parsed, events, groups))
-    context.output(review_summary_line(review_counts(groups, decisions)))
+    context.output(report_text(context, "heading", report_heading(parsed, events, groups)))
+    context.output(
+        report_text(
+            context,
+            "summary",
+            review_summary_line(review_counts(groups, decisions), severity_class_counts(groups)),
+        )
+    )
     if not filtered_groups:
         context.output(
             "no unreviewed findings"
@@ -282,10 +294,10 @@ def render_finding_report(context: CommandContext, events: list[Event], parsed: 
             ),
         )
         return
-    context.output(render_status_heading(parsed.status))
+    context.output(report_text(context, "section", render_status_heading(parsed.status)))
     table = indexed_findings_table(filtered_groups)
-    context.output(render_table(table, "console"))
-    context.output(render_group_details(filtered_groups))
+    context.output(render_styled_report_table(context, table))
+    context.output(render_group_details(context, filtered_groups))
     context.events.publish(
         "report.rendered",
         report_rendered_payload(
@@ -500,9 +512,12 @@ def review_counts(
     return counts
 
 
-def review_summary_line(counts: Mapping[str, int]) -> str:
+def review_summary_line(
+    counts: Mapping[str, int],
+    severity_counts: Mapping[str, int] | None = None,
+) -> str:
     """Return a compact review-state summary for the report heading."""
-    return (
+    summary = (
         "Findings: "
         f"{counts.get('total', 0)} total, "
         f"{counts.get('accepted', 0)} accepted, "
@@ -510,6 +525,23 @@ def review_summary_line(counts: Mapping[str, int]) -> str:
         f"{counts.get('rejected', 0)} rejected, "
         f"{counts.get('unreviewed', 0)} unreviewed"
     )
+    if not severity_counts:
+        return summary
+    class_summary = ", ".join(
+        f"{severity_counts[item]} {item}"
+        for item in SEVERITY_CLASS_ORDER
+        if severity_counts.get(item, 0)
+    )
+    return f"{summary}; severity classes: {class_summary}" if class_summary else summary
+
+
+def severity_class_counts(groups: list[FindingGroup]) -> dict[str, int]:
+    """Count finding groups by broad operational severity class."""
+    counts = {key: 0 for key in SEVERITY_CLASS_ORDER}
+    for group in groups:
+        payload = effective_finding_payload(group.representative)
+        counts[severity_class(payload.get("severity"))] += 1
+    return counts
 
 
 def render_status_heading(status: str) -> str:
@@ -539,30 +571,119 @@ def indexed_findings_table(groups: list[FindingGroup]) -> Table:
     )
 
 
-def render_group_details(groups: list[FindingGroup]) -> str:
+def render_styled_report_table(context: CommandContext, table: Table) -> str:
+    """Render a report table with theme-driven baseline and subject styles."""
+    if not table.columns:
+        return report_text(context, "section", table.title or "")
+    values = table_values(table)
+    widths = [
+        max(len(column.heading), *(len(row[index]) for row in values))
+        for index, column in enumerate(table.columns)
+    ]
+    lines: list[str] = []
+    if table.title:
+        lines.append(report_text(context, "section", table.title))
+    headings = [
+        table_text(context, "header", align_text(column.heading, widths[index], column.align))
+        for index, column in enumerate(table.columns)
+    ]
+    lines.append("  ".join(headings))
+    lines.append(
+        "  ".join(
+            table_text(context, "header", "-" * width)
+            for width in widths
+        )
+    )
+    for row_index, row in enumerate(values):
+        cells: list[str] = []
+        row_mapping = table.rows[row_index]
+        for index, value in enumerate(row):
+            column = table.columns[index]
+            aligned = align_text(value, widths[index], column.align)
+            cells.append(styled_report_cell(context, column.key, aligned, row_mapping))
+        lines.append("  ".join(cells))
+    return "\n".join(lines)
+
+
+def styled_report_cell(
+    context: CommandContext,
+    column_key: str,
+    value: str,
+    row: Mapping[str, object],
+) -> str:
+    """Apply the most specific report-table style for one cell."""
+    if column_key == "index":
+        return table_text(context, "index", value)
+    if column_key == "finding_name":
+        return finding_text(context, "title", value)
+    if column_key == "severity":
+        severity = str(row.get("severity") or "").strip().casefold()
+        if severity:
+            styled = finding_text(context, f"severity.{severity}", value)
+            if styled != value:
+                return styled
+            severity_class_name = severity_class(severity)
+            styled = finding_text(context, f"severity_class.{severity_class_name}", value)
+            if styled != value:
+                return styled
+    return table_text(context, "body", value)
+
+
+def report_text(context: CommandContext, subject: str, value: object) -> str:
+    """Style report UI text such as headings, sections, and labels."""
+    return styled_subject_text(lambda key, default="": display_var(context, key, default), f"report.{subject}", value)
+
+
+def table_text(context: CommandContext, subject: str, value: object) -> str:
+    """Style table text using table-specific subject names."""
+    return styled_subject_text(lambda key, default="": display_var(context, key, default), f"table.{subject}", value)
+
+
+def finding_text(context: CommandContext, subject: str, value: object) -> str:
+    """Style finding-specific text using normalized finding subjects."""
+    return styled_subject_text(lambda key, default="": display_var(context, key, default), f"finding.{subject}", value)
+
+
+def display_var(context: CommandContext, key: str, default: str = "") -> str:
+    """Return a display variable from the step snapshot, then session globals."""
+    run_vars = context.metadata.get("run_vars", {})
+    if isinstance(run_vars, Mapping) and key in run_vars:
+        return str(run_vars[key])
+    return str(context.metadata.get("display_vars", {}).get(key, default)) if isinstance(context.metadata.get("display_vars"), Mapping) else default
+
+
+def render_group_details(context: CommandContext, groups: list[FindingGroup]) -> str:
     """Return compact per-group details for the currently displayed rows."""
-    lines = ["Details"]
+    lines = [report_text(context, "section", "Details")]
     for index, group in enumerate(groups, start=1):
         payloads = [effective_finding_payload(event) for event in group.events]
         representative = effective_finding_payload(group.representative)
         title = str(representative.get("title") or representative.get("class") or group.finding_id)
-        lines.append(f"#{index} {title}")
-        append_detail_line(lines, "Affected", affected_values(payloads))
-        append_detail_line(lines, "Evidence", evidence_values(payloads), limit=3)
-        append_detail_line(lines, "Sources", source_values(group))
-        append_detail_line(lines, "Provenance", provenance_values(group))
+        lines.append(f"{report_text(context, 'index', f'#{index}')} {finding_text(context, 'title', title)}")
+        append_detail_line(context, lines, "Affected", affected_values(payloads))
+        append_detail_line(context, lines, "Evidence", evidence_values(payloads), limit=3)
+        append_detail_line(context, lines, "Sources", source_values(group))
+        append_detail_line(context, lines, "Provenance", provenance_values(group))
         latest = max(group.events, key=lambda event: event.created_at).created_at.isoformat()
-        append_detail_line(lines, "Latest update", [latest])
+        append_detail_line(context, lines, "Latest update", [latest])
     return "\n".join(lines)
 
 
-def append_detail_line(lines: list[str], label: str, values: list[str], *, limit: int = 5) -> None:
+def append_detail_line(
+    context: CommandContext,
+    lines: list[str],
+    label: str,
+    values: list[str],
+    *,
+    limit: int = 5,
+) -> None:
     """Append one formatted detail line, truncating long value lists."""
     if not values:
         return
     shown = values[:limit]
     suffix = f"; +{len(values) - limit} more" if len(values) > limit else ""
-    lines.append(f"  {label}: {'; '.join(shown)}{suffix}")
+    label_text = report_text(context, "label", label)
+    lines.append(f"  {label_text}: {'; '.join(shown)}{suffix}")
 
 
 def affected_values(payloads: list[Mapping[str, Any]]) -> list[str]:

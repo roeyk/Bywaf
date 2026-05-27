@@ -6,9 +6,9 @@ For short definitions, see `TERMINOLOGY.md`.
 ## Document Index
 
 - [Summary](#summary)
-- [Jobs](#jobs)
-- [Pipelines](#pipelines)
-- [Steps](#steps)
+- [Jobs](#job)
+- [Pipelines](#pipeline)
+- [Steps](#step)
 - [Local IDs and Serials](#local-ids-and-serials)
 - [Foreground and Background Execution](#foreground-and-background-execution)
 - [Runtime Control](#runtime-control)
@@ -25,13 +25,13 @@ pipeline
   step
 
 job
-  supervises one or more steps
+  supervises one or more step
 ```
 
 A pipeline is the event scope for one command expression or attached workflow.
 A step is one commandlet invocation inside that pipeline. A job is the
 supervised lifecycle for foreground or background work that executes one or
-more steps.
+more step.
 
 For example:
 
@@ -39,9 +39,9 @@ For example:
 hostscanner 192.168.1.0/24 | portscanner | http_probe
 ```
 
-creates one job, one pipeline, and three steps. If another commandlet is
+creates one job, one pipeline, and three step. If another commandlet is
 attached to that pipeline later, the same pipeline can be associated with an
-additional job and additional steps.
+additional job and additional step.
 
 ## Jobs
 
@@ -64,7 +64,7 @@ to pipeline and step IDs through the step variable snapshot and emitted events.
 Use job selectors when the question is about execution lifecycle:
 
 ```text
-job show 1
+job 1
 job cancel 1
 job end --hard 1
 ```
@@ -89,7 +89,7 @@ existing pipeline.
 Use pipeline selectors when the question is about the whole chain:
 
 ```text
-pipeline show 1
+pipeline 1
 pipeline cancel 1
 artifact export pipeline=1 dir=artifacts/
 ```
@@ -98,7 +98,7 @@ artifact export pipeline=1 dir=artifacts/
 
 A step is one invocation of one commandlet inside a pipeline. Steps are the main
 audit scope for plugin behavior. The user-facing list and detail commands are
-`steps` and `step <id>`. Selectors and public plugin-facing APIs use step
+`step` and `step <id>`. Selectors and public plugin-facing APIs use step
 terminology. Some persisted database columns still use historical names such as
 `command_run_id` and `parent_command_run_id`.
 
@@ -145,7 +145,7 @@ event serial=<serial>
 ## Foreground and Background Execution
 
 A command line may run in the foreground or background. Individual pipeline
-steps can also be backgrounded:
+step can also be backgrounded:
 
 ```text
 hostscanner 192.168.1.0/24 &
@@ -153,7 +153,7 @@ hostscanner 192.168.1.0/24& | portscanner&
 ```
 
 Backgrounding changes supervision and console behavior. It does not change the
-audit model: jobs, pipelines, steps, events, variables, notes, and artifacts are
+audit model: job, pipeline, step, events, variables, notes, and artifacts are
 still recorded.
 
 ## Runtime Control
@@ -174,7 +174,7 @@ signal step=3 verbosity level=quiet
 is the commandlet execution context. `signal job=...` is for supervisor-level
 framework lifecycle control. A pipeline is not an execution receiver, so
 plugin-domain signals are not sent to `pipeline=` directly; pipeline-aware
-commands fan out through the jobs or steps associated with the pipeline.
+commands fan out through the job or step associated with the pipeline.
 
 `pause` defaults to soft/cooperative behavior. Add `--hard` when the framework
 should suspend the associated process. `end` and `kill` are synonyms: both
@@ -244,9 +244,9 @@ user-approved, not silent writes to `~/.bywaf/preferences.toml`.
 Runtime listing commands show table-oriented views:
 
 ```text
-jobs
-steps
-pipelines
+job
+step
+pipeline
 info
 ```
 

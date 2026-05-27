@@ -681,7 +681,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
             self.assertEqual(note.payload["commandlet"], "hostscanner")
             self.assertEqual(note.command_run_id, events[0].command_run_id)
             self.assertEqual(note.pipeline_id, events[0].pipeline_id)
-            self.assertEqual(note.payload["job_id"], runner.db.jobs()[0]["id"])
+            self.assertEqual(note.payload["job_id"], runner.db.job()[0]["id"])
 
     def test_framework_note_attaches_to_each_pipeline_stage(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -801,7 +801,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 runner = make_runner(Path(tmp, "db.sqlite3"))
                 with contextlib.redirect_stdout(io.StringIO()):
                     runner.execute("hostscanner 127.0.0.1 note=file export note")
-            job_id = runner.db.jobs()[0]["id"]
+            job_id = runner.db.job()[0]["id"]
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 runner.execute(f"note job={job_id} file={path}")
@@ -856,7 +856,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
             self.assertIn("job.claimed", topics)
             self.assertIn("job.started", topics)
             self.assertIn("job.finished", topics)
-            self.assertEqual(runner.db.jobs()[0]["status"], "finished")
+            self.assertEqual(runner.db.job()[0]["status"], "finished")
 
     def test_hostscanner_silent_suppresses_alert(self):
         context = CommandContext(db=None, source="hostscanner", metadata={"command_run_id": "run-1"})
@@ -1388,7 +1388,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
     def test_background_job_exits_quietly_when_database_is_gone(self):
         with tempfile.TemporaryDirectory() as tmp:
             missing_path = Path(tmp, "deleted", "db.sqlite3")
-        run_background_job(str(missing_path), None, 1, "job list", "pipeline-test", ())
+        run_background_job(str(missing_path), None, 1, "job", "pipeline-test", ())
 
     def test_background_job_records_failure_without_reraising(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1409,7 +1409,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
             db = EventStore(Path(tmp, "db.sqlite3"))
             job_id = db.record_job("hostscanner 127.0.0.1", 123, "running")
             with db.connect() as conn:
-                conn.execute("UPDATE jobs SET started_at = ? WHERE id = ?", ("2000-01-01T00:00:00+00:00", job_id))
+                conn.execute("UPDATE job SET started_at = ? WHERE id = ?", ("2000-01-01T00:00:00+00:00", job_id))
             context = CommandContext(db, "watchdog", VarStore())
             list(Watchdog().run(context, ["--once", "-s", "timeout=1", "stall-threshold=1", "error-threshold=99"], ()))
             self.assertEqual(db.events_for_topic("watchdog.timeout")[0].payload["job_id"], job_id)

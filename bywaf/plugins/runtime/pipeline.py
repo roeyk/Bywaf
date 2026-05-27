@@ -35,18 +35,19 @@ from bywaf.runtime_display import (
     state_marker,
 )
 
-PIPELINE_ACTIONS = ("attach", "cancel", "end", "kill", "list", "show")
+PIPELINE_ACTIONS = ("attach", "cancel", "end", "kill")
+REMOVED_PIPELINE_ACTIONS = {"list", "show"}
 PipelineActionHandler = Callable[[CommandContext, Namespace], None]
 
 
 @commandlet(
     name="pipeline",
     description="Manage pipelines.",
-    usage="pipeline <list|show|cancel|end|kill|attach> [options] [id]",
+    usage="pipeline [--all] [field=value ...] | pipeline <id> | pipeline <cancel|end|kill|attach> [options] <id>",
     examples=(
-        "pipeline list",
-        "pipeline list --all",
-        "pipeline show 1",
+        "pipeline",
+        "pipeline --all",
+        "pipeline 1",
         "pipeline cancel 1",
         "pipeline end --hard 1",
         "pipeline kill --hard 1",
@@ -54,7 +55,7 @@ PipelineActionHandler = Callable[[CommandContext, Namespace], None]
     ),
     capabilities=("framework.console.output", "framework.pipeline.control", "framework.job.control"),
 )
-@argument("action", "pipeline operation", completion=CompletionSpec("choice", PIPELINE_ACTIONS))
+@argument("action", "pipeline operation", required=False, completion=CompletionSpec("choice", PIPELINE_ACTIONS))
 @argument("id", "pipeline id", required=False, completion="pipeline")
 class Pipeline(CommandletBase):
     """List, inspect, softly cancel, and end pipelines."""
@@ -73,17 +74,15 @@ class Pipeline(CommandletBase):
             # pipeline-management options.
             attach_pipeline(context, args[1:])
             return ()
-        parser.add_argument("action", choices=PIPELINE_ACTIONS)
-        parser.add_argument("id", nargs="?")
         parser.add_argument("--all", action="store_true")
         parser.add_argument("--hard", action="store_true")
         parser.add_argument("--page", action="store_true")
         parser.add_argument("--soft", action="store_true")
-        parsed, extra = parser.parse_known_args(args)
-        if parsed.action == "list" and parsed.id and "=" in parsed.id:
-            extra.insert(0, parsed.id)
-            parsed.id = None
-        parsed.filters = parse_payload_filter_tokens(extra)
+        parsed, tokens = parser.parse_known_args(args)
+        operation = parse_pipeline_operation(tokens)
+        parsed.action = operation.action
+        parsed.id = operation.id
+        parsed.filters = operation.filters
         context.require_foreground("pipeline management commands")
         validate_pipeline_mode(parsed.action, soft=parsed.soft, hard=parsed.hard)
         pipeline_action_handlers()[parsed.action](context, parsed)
@@ -92,22 +91,36 @@ class Pipeline(CommandletBase):
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
         """Complete subcommands and pipeline IDs from the active database."""
         if not args:
-            return list(PIPELINE_ACTIONS)
+            return ["--all", "--page", *pipeline_ids(context), *PIPELINE_ACTIONS]
         if len(args) == 1 and args[0] == "attach":
             return pipeline_ids(context)
-        if len(args) == 1 and args[0] == "list":
-            return ["--all", "--page"]
-        if len(args) == 1 and args[0] in {"show", "cancel", "end", "kill"}:
+        if len(args) == 1 and args[0] in {"cancel", "end", "kill"}:
             return pipeline_ids(context)
-        if len(args) == 1 and args[0] not in PIPELINE_ACTIONS:
-            return list(PIPELINE_ACTIONS)
+        if len(args) == 1:
+            return [candidate for candidate in ["--all", "--page", *pipeline_ids(context), *PIPELINE_ACTIONS] if candidate.startswith(prefix)]
         if args and args[0] == "attach":
             return attach_candidates(context, args, prefix)
-        if args and args[0] == "list":
-            return [option for option in ("--all", "--page") if option.startswith(prefix)]
-        if len(args) >= 2 and args[0] in {"show", "cancel", "end", "kill"}:
+        if len(args) >= 2 and args[0] in {"cancel", "end", "kill"}:
             return pipeline_ids(context)
         return []
+
+
+def parse_pipeline_operation(tokens: list[str]) -> Namespace:
+    """Interpret terse `pipeline` forms into the internal action/id/filter shape."""
+    if not tokens:
+        return Namespace(action="list", id=None, filters={})
+    first, rest = tokens[0], tokens[1:]
+    if first in REMOVED_PIPELINE_ACTIONS:
+        raise ValueError(
+            "usage: pipeline [--all] [field=value ...] | pipeline <id> | pipeline <cancel|end|kill|attach> [options] <id>"
+        )
+    if first in {"cancel", "end", "kill"}:
+        if not rest:
+            raise ValueError(f"pipeline {first} requires a pipeline id")
+        return Namespace(action=first, id=rest[0], filters=parse_payload_filter_tokens(rest[1:]))
+    if "=" not in first and not rest:
+        return Namespace(action="show", id=first, filters={})
+    return Namespace(action="list", id=None, filters=parse_payload_filter_tokens(tokens))
 
 
 def pipeline_action_handlers() -> dict[str, PipelineActionHandler]:

@@ -12,6 +12,6 @@ db new
 network/portscanner host=google.com port=80,443 arguments="-Pn -sT -4"
 event port.open
 event name.resolved
-jobs
-steps
-pipelines
+job
+step
+pipeline
