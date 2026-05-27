@@ -134,6 +134,28 @@ Planning dates are release planning markers, not compatibility commitments.
 - Keep CVE checks small and composable so they can be run after existing HTTP,
   SSH, SMB, LDAP, DNS, or fingerprinting commandlets.
 
+### Item: AI-Assisted Development Benchmark
+
+- Capture Bywaf's early development experience as a planning benchmark for
+  future work, grant proposals, maintainer notes, and project retrospectives.
+- Current rough estimate: reproducing the same pre-1.0 framework prototype
+  without AI assistance would likely take one strong senior engineer 4-8
+  months, two senior engineers 2.5-4 months, or a 3-4 person team 2-3 months,
+  depending on prior domain familiarity and testing depth.
+- Current rough cost range for a conventional US/Western senior engineering
+  build is approximately $80k-$450k, before adding serious external security
+  review, distro/package QA, UX validation, and documentation editing.
+- Document the caveat clearly: AI assistance compressed iteration, refactoring,
+  documentation, tests, and packaging work, but does not eliminate the cost of
+  external validation, real-world testing, security review, and operator UX
+  feedback.
+- Track which activities AI sped up most: repetitive refactors, documentation
+  sweeps, test updates, changelog/release metadata, skeleton/plugin guardrails,
+  and interactive design exploration.
+- Use this benchmark cautiously. It is an internal planning estimate, not a
+  procurement quote or proof that a production-stable release can be achieved
+  in the same elapsed time.
+
 ### Item: Repository And Cloud Exposure Plugin Families
 
 - Build a small family of repository-exposure plugins for HTTP-accessible
