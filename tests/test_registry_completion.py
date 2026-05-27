@@ -91,6 +91,7 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn("hostscanner", self.registry.names())
         self.assertIn("dns_lookup", self.registry.names())
         self.assertIn("ldap_probe", self.registry.names())
+        self.assertIn("ports", self.registry.names())
         self.assertIn("portscanner", self.registry.names())
         self.assertIn("shodan_lookup", self.registry.names())
         self.assertIn("smb_probe", self.registry.names())
@@ -253,7 +254,7 @@ class RegistryCompletionTests(unittest.TestCase):
     def test_registry_tracks_provider_groups(self):
         self.assertEqual(self.registry.grouped_names()["analysis"], ["finding_dedupe", "finding_report", "report", "yara_scan"])
         self.assertEqual(self.registry.grouped_names()["identity"], ["ldap_probe", "smb_probe"])
-        self.assertEqual(self.registry.grouped_names()["network"], ["portscanner", "snmp_get", "ssh_probe"])
+        self.assertEqual(self.registry.grouped_names()["network"], ["ports", "portscanner", "snmp_get", "ssh_probe"])
         self.assertIn("os", self.registry.provider_names())
         self.assertEqual(self.registry.grouped_names()["os"], ["cat", "less", "ls"])
         self.assertEqual(self.registry.grouped_names()["recon"], ["dns_lookup", "shodan_lookup"])
@@ -304,7 +305,7 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertNotIn("repl", completer.candidates("re"))
         self.assertEqual(
             completer.candidates("hostscanner 127.0.0.1& | por"),
-            ["portscanner"],
+            ["ports", "portscanner"],
         )
 
     def test_prompt_has_no_argument_completion(self):

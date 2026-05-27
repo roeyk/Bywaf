@@ -14,3 +14,11 @@ capabilities = [
   "plugin.progress",
 ]
 module = "bywaf.plugins.network.portscanner"
+
+[[commandlets]]
+name = "ports"
+capabilities = [
+  "framework.console.output",
+  "framework.file.page",
+]
+module = "bywaf.plugins.network.portscanner"

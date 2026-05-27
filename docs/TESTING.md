@@ -155,8 +155,8 @@ Good manual passes include:
   comma/space-separated lists; port values may be comma-separated ports and
   ranges, such as `22,80,443` or `1-60,80-90`.
 - Runtime scoping:
-  `event port.open host=<ip>`, `jobs host=<ip>`, `steps host=<ip>`,
-  `pipelines host=<ip>`.
+  `ports`, `ports sort=port`, `event port.open host=<ip>`,
+  `jobs host=<ip>`, `steps host=<ip>`, `pipelines host=<ip>`.
 - Telnet finding path with a controlled local service:
   `scripts/fake_telnet_service.py`, then scan `127.0.0.1:2323`.
 - Repository exposure finding path with a controlled HTTP server exposing

@@ -276,6 +276,7 @@ def format_job(
         f"{prefix}#{job_id} serial={serial} pid={row['pid']} status={row['status']}{name_part}"
         f" launched={format_runtime_timestamp(row['started_at'])}"
         f" finished={format_runtime_timestamp(row['finished_at'])}"
+        f" duration={format_runtime_duration(row['started_at'], row['finished_at'])}"
         f" commandlet={commandlet_from_command_line(command)}"
         f"{args_part}"
     )

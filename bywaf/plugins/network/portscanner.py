@@ -24,6 +24,7 @@ from bywaf.plugins.discovery.hostscanner import publish_name_resolution_events, 
 from bywaf.plugins.network.nmap_backend import scan_open_ports
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option, split_var_values
 from bywaf.plugins._args import key_value_to_long_options
+from bywaf.plugins.network.portscanner_ports import Ports
 from bywaf.plugins.network.portscanner_findings import telnet_open_candidate
 
 DEFAULTS = {
@@ -246,6 +247,11 @@ def listen_for_upstream_hosts(context: CommandContext, parsed, seen_hosts: set[s
 def plugin() -> Commandlet:
     """Factory used by PluginRegistry."""
     return PortScanner()
+
+
+def plugins() -> tuple[Commandlet, ...]:
+    """Factory used when the portscanner provider exposes helper views too."""
+    return (PortScanner(), Ports())
 
 
 VALUE_OPTION_KEYS = {"arguments", "except", "host", "listen-interval", "listen-timeout", "port", "ports"}

@@ -1712,6 +1712,23 @@ bywaf> portscanner --quiet port=22,80,443 host=127.0.0.1
 If `port=` is omitted, nmap uses its normal default top-port behavior. It
 emits `port.open` events.
 
+Use `ports` to inspect scan results without rereading the raw event log:
+
+```text
+bywaf> ports
+bywaf> ports sort=host
+bywaf> ports sort=port
+bywaf> ports job=latest
+bywaf> ports job=69
+bywaf> ports host=192.168.50.0/24,!192.168.50.1-128 port=80,443
+bywaf> ports all=true
+```
+
+By default, `ports` shows the latest portscanner job that produced open ports.
+`sort=host` groups each host with its open ports; `sort=port` groups each port
+with the hosts exposing it. Use `all=true` only when you intentionally want
+historical `port.open` events from older scans too.
+
 `host=` accepts one host, a CIDR network, an IP range, or a comma/space-separated
 host list. IP scan targets are passed through to nmap; DNS names are resolved
 before scanning, printed, and recorded as `name.resolved` provenance events.

@@ -1529,6 +1529,115 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("STEP", text)
             self.assertIn("PIPELINE", text)
 
+    def test_ports_defaults_to_latest_productive_portscanner_job(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            old_job = runner.db.record_job("network/portscanner host=192.0.2.10 port=80", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=old_job,
+                pipeline_id="old-pipeline",
+                command_run_id="old-step",
+                commandlet="network/portscanner",
+                values={"network/portscanner.host": "192.0.2.10"},
+            )
+            runner.db.publish(
+                "port.open",
+                {"host": "192.0.2.10", "port": 80, "protocol": "tcp", "service": "http", "reason": "syn-ack"},
+                "portscanner",
+                pipeline_id="old-pipeline",
+                command_run_id="old-step",
+            )
+            new_job = runner.db.record_job("network/portscanner host=192.0.2.20 port=443", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=new_job,
+                pipeline_id="new-pipeline",
+                command_run_id="new-step",
+                commandlet="network/portscanner",
+                values={"network/portscanner.host": "192.0.2.20"},
+            )
+            runner.db.publish(
+                "port.open",
+                {"host": "192.0.2.20", "port": 443, "protocol": "tcp", "service": "https", "reason": "syn-ack"},
+                "portscanner",
+                pipeline_id="new-pipeline",
+                command_run_id="new-step",
+            )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "ports")
+            text = output.getvalue()
+            self.assertIn(f"latest portscanner job={new_job}", text)
+            self.assertIn("192.0.2.20", text)
+            self.assertNotIn("192.0.2.10", text)
+
+    def test_ports_all_true_shows_historical_port_events(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            old_job = runner.db.record_job("network/portscanner host=192.0.2.10 port=80", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=old_job,
+                pipeline_id="old-pipeline",
+                command_run_id="old-step",
+                commandlet="network/portscanner",
+                values={},
+            )
+            runner.db.publish(
+                "port.open",
+                {"host": "192.0.2.10", "port": 80, "protocol": "tcp"},
+                "portscanner",
+                pipeline_id="old-pipeline",
+                command_run_id="old-step",
+            )
+            new_job = runner.db.record_job("network/portscanner host=192.0.2.20 port=443", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=new_job,
+                pipeline_id="new-pipeline",
+                command_run_id="new-step",
+                commandlet="network/portscanner",
+                values={},
+            )
+            runner.db.publish(
+                "port.open",
+                {"host": "192.0.2.20", "port": 443, "protocol": "tcp"},
+                "portscanner",
+                pipeline_id="new-pipeline",
+                command_run_id="new-step",
+            )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "ports all=true sort=event")
+            text = output.getvalue()
+            self.assertIn("all port.open events", text)
+            self.assertIn("192.0.2.10", text)
+            self.assertIn("192.0.2.20", text)
+
+    def test_ports_filters_latest_scan_by_host_and_port(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("network/portscanner host=192.0.2.0/24 port=80,443", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=job_id,
+                pipeline_id="pipeline",
+                command_run_id="step",
+                commandlet="network/portscanner",
+                values={},
+            )
+            for host, port in (("192.0.2.10", 80), ("192.0.2.20", 443), ("192.0.2.30", 22)):
+                runner.db.publish(
+                    "port.open",
+                    {"host": host, "port": port, "protocol": "tcp"},
+                    "portscanner",
+                    pipeline_id="pipeline",
+                    command_run_id="step",
+                )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "ports host=192.0.2.0/24,!192.0.2.1-15 port=443")
+            text = output.getvalue()
+            self.assertIn("192.0.2.20", text)
+            self.assertNotIn("192.0.2.10", text)
+            self.assertNotIn("192.0.2.30", text)
+
     def test_builtin_filters_expand_variables(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
