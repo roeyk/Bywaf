@@ -181,7 +181,7 @@ def scan_open_ports_libnmap(
 ) -> list[NmapPort]:
     """Scan open ports through libnmap."""
     options = f"{arguments} -p {ports}".strip() if ports else arguments
-    report = run_libnmap_scan(backend, " ".join(targets), options)
+    report = run_libnmap_scan(backend, targets, options)
     results: list[NmapPort] = []
     for host in report.hosts:
         for service in getattr(host, "services", []):
@@ -200,7 +200,7 @@ def scan_open_ports_libnmap(
     return results
 
 
-def run_libnmap_scan(backend: dict[str, Any], targets: str, options: str) -> Any:
+def run_libnmap_scan(backend: dict[str, Any], targets: str | list[str], options: str) -> Any:
     """Run libnmap and parse its XML output into a report object."""
     scanner = backend["process"].NmapProcess(targets=targets, options=options)
     scanner.run()

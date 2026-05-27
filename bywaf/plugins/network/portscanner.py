@@ -51,6 +51,7 @@ DEFAULTS = {
     emits=("port.open", "finding.candidate"),
     capabilities=(
         "db.write:finding.candidate",
+        "db.write:name.resolved",
         "framework.console.alert",
         "framework.console.output",
         "network.connect",

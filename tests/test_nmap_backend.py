@@ -76,6 +76,11 @@ class NmapBackendTests(unittest.TestCase):
             [NmapPort("127.0.0.1", 443, "tcp", "open", "https", "syn-ack")],
         )
 
+    def test_libnmap_port_scan_passes_multiple_targets_as_sequence(self):
+        backend = fake_libnmap_backend(FakeReport([]))
+        scan_open_ports_libnmap(backend, ["192.0.2.10", "192.0.2.11"], "80,443", "-Pn -sT")
+        self.assertEqual(backend["process"].last_targets, ["192.0.2.10", "192.0.2.11"])
+
     def test_libnmap_scan_omits_p_option_without_ports(self):
         backend = fake_libnmap_backend(FakeReport([]))
         scan_open_ports_libnmap(backend, ["127.0.0.1"], None, "-sT")
@@ -149,10 +154,12 @@ class FakeReport:
 def fake_libnmap_backend(report, failed=False, stderr=""):
     class ProcessModule:
         last_options = ""
+        last_targets = None
 
         class NmapProcess:
             def __init__(self, targets, options):
                 ProcessModule.last_options = options
+                ProcessModule.last_targets = targets
                 self.targets = targets
                 self.options = options
                 self.stdout = "<xml />"
