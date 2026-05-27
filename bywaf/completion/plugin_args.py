@@ -73,7 +73,7 @@ class PluginArgumentCompletionMixin:
         options.append("--from")
         if prefix.startswith(".") or "/" in prefix:
             return complete_path(prefix)
-        return [*valued_options, *options, *plugin.spec.consumes, *plugin.spec.emits]
+        return [*valued_options, *options]
 
     def framework_from_selector_candidates(self, prefix: str) -> list[str]:
         """Complete selector values used after `--from`."""

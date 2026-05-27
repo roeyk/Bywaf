@@ -538,6 +538,7 @@ class RegistryCompletionTests(unittest.TestCase):
 
     def test_completes_plugin_options(self):
         completer = Completer(self.registry)
+        self.assertEqual(completer.candidates("hostscanner h"), ["host="])
         self.assertIn("port=", completer.candidates("portscanner por"))
         self.assertIn("--from", completer.candidates("portscanner --"))
         self.assertIn("step=", completer.candidates("portscanner --from "))
@@ -551,6 +552,11 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn("cookie-file=", completer.candidates("http_probe coo"))
         self.assertIn("firefox-profile=", completer.candidates("http_probe fir"))
         self.assertIn("method=", completer.candidates("http_probe me"))
+
+    def test_commandlet_topics_complete_only_in_from_selector_context(self):
+        completer = Completer(self.registry)
+        self.assertNotIn("host.found", completer.candidates("hostscanner h"))
+        self.assertIn("topic=host.found", completer.candidates("portscanner --from topic=h"))
 
     def test_artifact_completion_prefers_actions_first(self):
         completer = Completer(self.registry)

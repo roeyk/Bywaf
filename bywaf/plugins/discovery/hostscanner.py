@@ -24,11 +24,13 @@ from dataclasses import dataclass
 from typing import Any
 
 from bywaf.events import Event
+from bywaf.plugins._args import key_value_to_long_options
 from bywaf.plugins.network.nmap_backend import discover_live_hosts
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, PlanItem, PlanRepair, PlanReport, commandlet, option, split_var_values
 from bywaf.utils import host_candidates
 
-DEFAULTS = {"arguments": "-sn", "except": "", "limit": 256, "targets": ""}
+DEFAULTS = {"arguments": "-sn", "except": "", "host": "", "limit": 256, "targets": ""}
+VALUE_OPTION_KEYS = {"arguments", "except", "host", "limit"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,6 +64,7 @@ class ExpandedTargets:
 )
 @option("arguments", "nmap host discovery arguments", "-sn")
 @option("except", "hosts or ranges to exclude", "")
+@option("host", "single explicit host, name, range, or CIDR to discover", "")
 @option("limit", "maximum live hosts to emit", "256")
 @option("silent", "suppress discovery alerts", "false")
 class HostScanner(CommandletBase):
@@ -108,12 +111,13 @@ class HostScanner(CommandletBase):
         """Expand target expressions, run nmap discovery, and emit live hosts."""
         parser = self.parser()
         parser.add_argument("targets", nargs="*")
+        parser.add_argument("--host", dest="host_option", default=self.var_default(context, "host", ""))
         parser.add_argument("--except", dest="except_", default=self.var_default(context, "except", ""))
         parser.add_argument("-s", "--silent", action="store_true", default=self.var_default(context, "silent", False, cast=parse_bool))
         parser.add_argument("--arguments", default=self.var_default(context, "arguments", "-sn"))
         parser.add_argument("--limit", type=int, default=self.var_default(context, "limit", 256, cast=int))
-        parsed = parser.parse_args(normalize_except_args(args))
-        target_args = self.values_or_var(context, parsed.targets, "targets", required=True)
+        parsed = parser.parse_args(normalize_value_args(args))
+        target_args = explicit_targets_or_var(self, context, parsed.targets, parsed.host_option)
         # Target expansion is separated from the nmap call so policy planning,
         # DNS name capture, exclusions, and limits all operate on the same
         # normalized target set.
@@ -140,12 +144,13 @@ def hostscanner_intent(commandlet: HostScanner, context: CommandContext, args: l
     """Parse hostscanner arguments and return normalized intended targets."""
     parser = commandlet.parser()
     parser.add_argument("targets", nargs="*")
+    parser.add_argument("--host", dest="host_option", default=commandlet.var_default(context, "host", ""))
     parser.add_argument("--except", dest="except_", default=commandlet.var_default(context, "except", ""))
     parser.add_argument("-s", "--silent", action="store_true", default=commandlet.var_default(context, "silent", False, cast=parse_bool))
     parser.add_argument("--arguments", default=commandlet.var_default(context, "arguments", "-sn"))
     parser.add_argument("--limit", type=int, default=commandlet.var_default(context, "limit", 256, cast=int))
-    parsed = parser.parse_args(normalize_except_args(args))
-    target_args = commandlet.values_or_var(context, parsed.targets, "targets", required=True)
+    parsed = parser.parse_args(normalize_value_args(args))
+    target_args = explicit_targets_or_var(commandlet, context, parsed.targets, parsed.host_option)
     targets = exclude_hosts(cached_target_details(context, target_args, parsed.limit).hosts, parsed.except_)
     options: list[str] = [f"--arguments={parsed.arguments}", f"--limit={parsed.limit}"]
     if parsed.silent:
@@ -240,15 +245,20 @@ def publish_name_resolution_events(context: CommandContext, names_by_host: dict[
         )
 
 
-def normalize_except_args(args: list[str]) -> list[str]:
-    """Convert Bywaf-native `except=` selectors into argparse options."""
-    normalized: list[str] = []
-    for arg in args:
-        if arg.startswith("except="):
-            normalized.extend(["--except", arg.split("=", 1)[1]])
-        else:
-            normalized.append(arg)
-    return normalized
+def normalize_value_args(args: list[str]) -> list[str]:
+    """Convert supported Bywaf `key=value` tokens into argparse options."""
+    return key_value_to_long_options(args, VALUE_OPTION_KEYS)
+
+
+def explicit_targets_or_var(commandlet: HostScanner, context: CommandContext, targets: list[str], host_option: str) -> list[str]:
+    """Return explicit target values, falling back through host then targets vars."""
+    explicit_targets = [*targets, *split_var_values(host_option)]
+    if explicit_targets:
+        return explicit_targets
+    host_values = split_var_values(str(context.vars.get("host") or ""))
+    if host_values:
+        return host_values
+    return commandlet.values_or_var(context, (), "targets", required=True)
 
 
 def exclude_hosts(hosts: Iterable[str], except_value: str) -> tuple[str, ...]:

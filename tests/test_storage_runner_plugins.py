@@ -649,6 +649,15 @@ class StorageRunnerPluginTests(unittest.TestCase):
             self.assertEqual(events[0].payload["host"], "127.0.0.1")
             discover.assert_called_once_with("127.0.0.1", "-sn")
 
+    def test_hostscanner_accepts_host_selector(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]) as discover:
+                runner = make_runner(Path(tmp, "db.sqlite3"))
+                with contextlib.redirect_stdout(io.StringIO()):
+                    events = runner.execute("hostscanner host=127.0.0.1")
+            self.assertEqual(events[0].payload["host"], "127.0.0.1")
+            discover.assert_called_once_with("127.0.0.1", "-sn")
+
     def test_framework_expands_and_audits_dollar_variables(self):
         with tempfile.TemporaryDirectory() as tmp:
             with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]) as discover:

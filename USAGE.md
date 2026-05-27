@@ -822,15 +822,15 @@ literally.
 
 ```text
 bywaf> use hostscanner
-bywaf> set targets=192.168.1.1 192.168.1.2
-bywaf> hostscanner $targets
-bywaf> hostscanner "$targets"
-bywaf> hostscanner '$targets'
+bywaf> set host=192.168.1.1 192.168.1.2
+bywaf> hostscanner $host
+bywaf> hostscanner "$host"
+bywaf> hostscanner '$host'
 ```
 
 Resolution checks the exact variable name first, then the active commandlet
-scope, then `global.`. For example, `$targets` in `hostscanner` checks
-`targets`, `discovery/hostscanner.targets`, and `global.targets`. Variable
+scope, then `global.`. For example, `$host` in `hostscanner` checks
+`host`, `discovery/hostscanner.host`, and `global.host`. Variable
 expansion is audited as `framework.variable.expanded`.
 
 # Plans And Policy
@@ -1424,7 +1424,7 @@ bywaf> set display/style.finding.severity_class.emergency="bold white bg-ansi:52
 bywaf> set display/style.finding.severity.critical="#dc2626"
 bywaf> set display/style.finding.severity.high="bold red"
 bywaf> set display.expansion=changed
-bywaf> set discovery/hostscanner.targets=192.168.1.1-255
+bywaf> set discovery/hostscanner.host=192.168.1.1-255
 bywaf> hostscanner
 ```
 
@@ -1570,15 +1570,16 @@ commandlet:
 
 ```text
 bywaf> use hostscanner
-bywaf> set targets=192.168.1.1-255
+bywaf> set host=192.168.1.1-255
 bywaf> use global
 ```
 
 For commandlets that opt into variable defaults, explicit command-line
 arguments take precedence over commandlet variables, and commandlet variables
 take precedence over built-in defaults. For example,
-`hostscanner 127.0.0.1` ignores `discovery/hostscanner.targets`, while `hostscanner`
-falls back to it.
+`hostscanner 127.0.0.1` ignores stored target variables, while `hostscanner`
+falls back to `discovery/hostscanner.host` and then
+`discovery/hostscanner.targets`.
 
 Save variables:
 
@@ -1696,11 +1697,13 @@ quit.
 
 ```text
 bywaf> hostscanner 127.0.0.1
+bywaf> hostscanner host=127.0.0.1
 bywaf> hostscanner 192.168.0.1-255
 bywaf> hostscanner 192.168.1-3.1-255
 ```
 
-It emits `host.found` events.
+`host=` accepts one host, DNS name, CIDR network, or IP range. Positional
+targets remain accepted for quick one-offs. It emits `host.found` events.
 
 ## network
 
