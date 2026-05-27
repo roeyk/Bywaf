@@ -48,7 +48,7 @@
   box("Runtime Records", [
     job row + serial \
     pipeline row + serial \
-    run row + serial \
+    step row + serial \
     local numeric aliases \
     variable snapshot
   ], fill: rgb("#edf7ff")),
@@ -80,7 +80,7 @@
     append-only rows \
     topic + payload \
     source \
-    pipeline/run/parent \
+    pipeline/step/parent \
     timestamp
   ], fill: rgb("#f8f8f8")),
   arrow("feeds"),
@@ -164,7 +164,7 @@
   arrow("verify/save/search"),
   box("Artifact Metadata", [
     main DB metadata \
-    run/pipeline/job links \
+    step/pipeline/job links \
     serials \
     timestamps \
     searchable fields

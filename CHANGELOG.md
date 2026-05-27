@@ -3,9 +3,20 @@
 All notable project changes are tracked here. Bywaf is still pre-1.0 software,
 so compatibility may change between testing releases.
 
+## Contents
+
+- [0.12.1 - 2026-05-27](#0121---2026-05-27)
+- [0.12.0 - 2026-05-26](#0120---2026-05-26)
+- [0.11.1 - 2026-05-22](#0111---2026-05-22)
+- [0.11.0 - 2026-05-22](#0110---2026-05-22)
+- [0.10.0 - 2026-05-19](#0100---2026-05-19)
+- [0.9.2 - 2026-05-18](#092---2026-05-18)
+- [0.9.1 - 2026-05-18](#091---2026-05-18)
+- [0.9.0 - 2026-05-13](#090---2026-05-13)
+
 ## [0.12.1] - 2026-05-27
 
-Last updated: 2026-05-27 03:10:00 EDT
+Last updated: 2026-05-27 03:35:00 EDT
 
 ### Changed
 
@@ -14,6 +25,10 @@ Last updated: 2026-05-27 03:10:00 EDT
   public command behavior.
 - Centralized pager handling so Ctrl-C inside the pager returns to Bywaf instead
   of exiting the REPL.
+- Added contents sections to larger documentation pages and refreshed system
+  block/dataflow diagrams to use current step terminology.
+- Added documentation impact metrics so maintainers can see which related docs
+  to inspect after changing one page.
 - Added a tracker item for a full Bywaf security audit covering plugin, runtime,
   configuration, storage, packaging, and in-operation attack surfaces.
 

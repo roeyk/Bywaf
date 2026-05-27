@@ -23,6 +23,12 @@ For machine-readable output:
 python scripts/architecture_metrics.py --json
 ```
 
+To see which docs probably need review after changing one page:
+
+```bash
+python scripts/architecture_metrics.py --doc-impact docs/REPORTING.md
+```
+
 ## What We Measure Now
 
 The built-in metrics report currently covers:
@@ -56,6 +62,9 @@ The built-in metrics report currently covers:
 - **Documentation cohesion hints:** duplicate headings, stale vocabulary hits,
   and audience-mixing hints. These point to pages that may need splitting,
   rerouting, or terminology cleanup.
+- **Documentation impact:** for one changed page, rank linked and related docs
+  by explicit links, shared headings, shared domain terms, and shared stale
+  terminology.
 
 ## What Else Matters
 
@@ -100,3 +109,6 @@ Use the metrics as triage signals:
 - **High doc link coupling:** check the page as a routing point. Index pages can
   have high coupling; model or task pages should avoid becoming catch-alls.
 - **High stale-term hits:** fix vocabulary drift before adding more examples.
+- **Doc impact results:** use the ranked list as a review checklist. Explicit
+  links are stronger than shared vocabulary; shared vocabulary is a prompt to
+  inspect, not an automatic requirement to edit.

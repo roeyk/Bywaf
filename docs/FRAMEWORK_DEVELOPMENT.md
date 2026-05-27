@@ -14,6 +14,24 @@ Bywaf is a commandlet framework built around a few stable ideas:
 - plugin manifests describe commandlets without importing executable plugin
   code.
 
+## Contents
+
+- [Fast Orientation](#fast-orientation)
+- [Package Map](#package-map)
+  - [CLI And REPL](#cli-and-repl)
+  - [Command Parsing](#command-parsing)
+  - [Runner](#runner)
+  - [Plugins And Registry](#plugins-and-registry)
+  - [Persistence](#persistence)
+  - [Findings, Reports, And Artifacts](#findings-reports-and-artifacts)
+  - [Configuration, Secrets, And Preferences](#configuration-secrets-and-preferences)
+- [Common Change Paths](#common-change-paths)
+  - [Add Or Change A View Command](#add-or-change-a-view-command)
+  - [Add A Runtime Selector](#add-a-runtime-selector)
+  - [Refactor A Large Module](#refactor-a-large-module)
+  - [Change Plugin Contracts](#change-plugin-contracts)
+- [Testing Expectations](#testing-expectations)
+
 ## Fast Orientation
 
 Read these first when changing core behavior:

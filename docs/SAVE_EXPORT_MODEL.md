@@ -4,6 +4,15 @@ Bywaf uses file verbs by intent rather than by file extension. This keeps
 command families predictable as more commandlets grow their own persistence and
 handoff behavior.
 
+## Contents
+
+- [Verb Rules](#verb-rules)
+- [Command Meanings](#command-meanings)
+- [Why Not `key load`?](#why-not-key-load)
+- [Project Export Versus Audit Export](#project-export-versus-audit-export)
+- [Project Import Versus Project Use](#project-import-versus-project-use)
+- [Artifact Export Versus Bundle Export](#artifact-export-versus-bundle-export)
+
 ## Verb Rules
 
 | Verb | Meaning | Typical Audience | Re-importable? |

@@ -101,7 +101,7 @@ digraph BywafRuntime {
     fillcolor="#ede9fe",
     label=<
       <FONT POINT-SIZE="16"><B>CommandContext</B></FONT><BR/><BR/>
-      Per-run API surface passed into one<BR/>
+      Per-step API surface passed into one<BR/>
       commandlet invocation.
     >
   ];
@@ -188,20 +188,20 @@ digraph BywafRuntime {
   registry -> commandspec [xlabel="CommandSpec + manifest metadata", color="#c2410c"];
   commandspec -> commandlet [xlabel="validated commandlet contract", color="#c2410c"];
   runner -> runtime_manager [xlabel="JobLifecycle request", color="#1d4ed8"];
-  runtime_manager -> context [xlabel="job_id + pipeline_id + run_id", color="#1d4ed8"];
+  runtime_manager -> context [xlabel="job_id + pipeline_id + step_id", color="#1d4ed8"];
   context -> commandlet [xlabel="args + input events + context APIs", color="#1d4ed8"];
 
   runtime_manager -> job [xlabel="job row + status transition", color="#1d4ed8"];
   runtime_manager -> pipeline [xlabel="pipeline serial + step list", color="#1d4ed8"];
-  context -> run [xlabel="command_run_id + variable snapshot", color="#1d4ed8"];
+  context -> run [xlabel="step_id + variable snapshot", color="#1d4ed8"];
   runtime_manager -> process [xlabel="PID / process handle", color="#1d4ed8"];
 
-  runner -> sqlite [xlabel="job/run/pipeline lifecycle events", color="#15803d"];
+  runner -> sqlite [xlabel="job/step/pipeline lifecycle events", color="#15803d"];
   context -> sqlite [xlabel="published/fetched Event rows", color="#15803d"];
   context -> artifacts [xlabel="artifact bytes + hash metadata", color="#15803d"];
   job -> sqlite [xlabel="jobs.status / pid / timestamps", color="#15803d"];
   pipeline -> sqlite [xlabel="pipeline serials / local aliases", color="#15803d"];
-  run -> sqlite [xlabel="command_run_vars snapshot rows", color="#15803d"];
+  run -> sqlite [xlabel="step variable snapshot rows", color="#15803d"];
 
   policy -> runner [xlabel="plan verdict / repairs / approval", color="#dc2626"];
   caps -> context [xlabel="allow/deny framework API request", color="#dc2626"];

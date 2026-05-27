@@ -2,6 +2,14 @@
 
 How to load, package, validate, sign, and AI-check filesystem plugins.
 
+## Contents
+
+- [Loading and Packaging Plugins](#loading-and-packaging-plugins)
+- [Why Manifests Matter](#why-manifests-matter)
+- [AI-Assisted Plugin Development](#ai-assisted-plugin-development)
+- [Standalone Plugin Checking](#standalone-plugin-checking)
+- [Plugin Catalog Signing](#plugin-catalog-signing)
+
 ## Loading and Packaging Plugins
 
 During development, plain plugin names resolve under:

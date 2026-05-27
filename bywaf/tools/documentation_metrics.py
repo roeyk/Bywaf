@@ -42,6 +42,23 @@ class DocumentationMetrics:
     documents: tuple[DocumentMetric, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class DocumentImpact:
+    """One related document for a documentation impact query."""
+
+    path: str
+    score: int
+    reasons: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class DocumentationImpact:
+    """Ranked documents to inspect after changing one Markdown file."""
+
+    source: str
+    related: tuple[DocumentImpact, ...]
+
+
 MARKDOWN_LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 
@@ -64,6 +81,30 @@ DOC_AUDIENCE_TERMS = (
     "developer",
     "contributor",
 )
+
+GENERIC_DOC_WORDS = {
+    "and",
+    "are",
+    "but",
+    "can",
+    "code",
+    "for",
+    "from",
+    "how",
+    "into",
+    "not",
+    "one",
+    "page",
+    "run",
+    "see",
+    "the",
+    "this",
+    "that",
+    "use",
+    "when",
+    "with",
+    "you",
+}
 
 
 def collect_documentation_metrics(repo_root: Path, *, docs_root: Path | None = None) -> DocumentationMetrics:
@@ -112,6 +153,98 @@ def collect_documentation_metrics(repo_root: Path, *, docs_root: Path | None = N
         broken_links=tuple(sorted(broken_links)),
         documents=tuple(sorted(documents, key=lambda document: document.path)),
     )
+
+
+def collect_documentation_impact(
+    repo_root: Path,
+    source: Path,
+    *,
+    docs_root: Path | None = None,
+    top: int = 12,
+) -> DocumentationImpact:
+    """Rank docs likely to need review after source changes."""
+    repo_root = repo_root.resolve()
+    docs_root = (docs_root or repo_root / "docs").resolve()
+    document_paths = markdown_documents(repo_root, docs_root)
+    source_path = source.resolve()
+    if source_path not in document_paths:
+        raise ValueError(f"not a tracked Markdown document: {source}")
+
+    source_text = source_path.read_text(encoding="utf-8")
+    source_links = linked_paths(source_path, document_paths)
+    source_keywords = important_doc_terms(source_text)
+    source_headings = set(normalized_headings(source_text))
+
+    impacts = []
+    for path in sorted(document_paths):
+        if path == source_path:
+            continue
+        text = path.read_text(encoding="utf-8")
+        reasons: list[str] = []
+        score = 0
+
+        if path in source_links:
+            score += 45
+            reasons.append("source links to it")
+        if source_path in linked_paths(path, document_paths):
+            score += 45
+            reasons.append("links to source")
+
+        shared_headings = source_headings & set(normalized_headings(text))
+        if shared_headings:
+            score += min(20, len(shared_headings) * 5)
+            reasons.append(f"shared headings={len(shared_headings)}")
+
+        shared_terms = source_keywords & important_doc_terms(text)
+        if shared_terms:
+            score += min(30, len(shared_terms) * 2)
+            preview = ", ".join(sorted(shared_terms)[:5])
+            reasons.append(f"shared terms={preview}")
+
+        stale_overlap = stale_terms_in(source_text) & stale_terms_in(text)
+        if stale_overlap:
+            score += len(stale_overlap) * 3
+            reasons.append(f"shared stale terms={', '.join(sorted(stale_overlap))}")
+
+        if score:
+            impacts.append(DocumentImpact(path=path.relative_to(repo_root).as_posix(), score=score, reasons=tuple(reasons)))
+
+    related = tuple(sorted(impacts, key=lambda impact: (-impact.score, impact.path))[:top])
+    return DocumentationImpact(source=source_path.relative_to(repo_root).as_posix(), related=related)
+
+
+def linked_paths(source: Path, document_paths: set[Path]) -> set[Path]:
+    """Return local Markdown documents linked by source."""
+    linked = set()
+    text = source.read_text(encoding="utf-8")
+    for target in markdown_links(text):
+        resolved = resolve_markdown_link(source, target)
+        if resolved in document_paths:
+            linked.add(resolved)
+    return linked
+
+
+def important_doc_terms(text: str) -> set[str]:
+    """Return repeated or domain-looking terms useful for impact ranking."""
+    terms: defaultdict[str, int] = defaultdict(int)
+    for term in re.findall(r"`([^`]+)`|([A-Za-z][A-Za-z0-9_./=-]{2,})", text):
+        value = normalize_doc_term(term[0] or term[1])
+        if not value or value in GENERIC_DOC_WORDS or value.startswith("http"):
+            continue
+        terms[value] += 1
+    return {term for term, count in terms.items() if count > 1 or "." in term or "/" in term or "_" in term or "=" in term}
+
+
+def normalize_doc_term(term: str) -> str:
+    """Normalize one extracted doc term for impact comparison."""
+    value = term.casefold().strip().strip(".,;:()[]{}<>\"'")
+    return value if any(character.isalnum() for character in value) else ""
+
+
+def stale_terms_in(text: str) -> set[str]:
+    """Return stale terminology markers present in text."""
+    lowered = text.casefold()
+    return {term for term in STALE_DOC_TERMS if term in lowered}
 
 
 def markdown_documents(repo_root: Path, docs_root: Path) -> set[Path]:

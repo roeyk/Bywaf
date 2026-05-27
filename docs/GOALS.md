@@ -1,5 +1,17 @@
 # Bywaf Project Goals
 
+## Contents
+
+- [1. Make security workflows fast and convenient](#1-make-security-workflows-fast-and-convenient)
+- [2. Remain flexible and leverage existing tools](#2-remain-flexible-and-leverage-existing-tools)
+- [3. Make plugin writing easy](#3-make-plugin-writing-easy)
+- [4. Remove manual handoffs between pipeline steps](#4-remove-manual-handoffs-between-pipeline-steps)
+- [5. Provide robust documentation](#5-provide-robust-documentation)
+- [6. Guarantee auditability and traceability](#6-guarantee-auditability-and-traceability)
+- [Events are canonical](#events-are-canonical)
+- [Normalize outputs aggressively](#normalize-outputs-aggressively)
+- [Preserve conceptual clarity](#preserve-conceptual-clarity)
+
 ## 1. Make security workflows fast and convenient
 
 Bywaf should reduce the friction of common assessment workflows. The user should be able to move from discovery to analysis to reporting without constantly switching tools, copying output, or manually transforming data.

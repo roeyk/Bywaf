@@ -2,6 +2,26 @@
 
 Reference for commandlet specs, parsing, output, event flow, completion, runtime context, framework requests, embedding, and defaults.
 
+## Contents
+
+- [CommandSpec Fields](#commandspec-fields)
+- [Plans](#plans)
+- [Parsing Arguments](#parsing-arguments)
+- [Rendering Tables](#rendering-tables)
+- [Publishing Events](#publishing-events)
+- [Consuming Pipeline Input](#consuming-pipeline-input)
+- [Completion Specs](#completion-specs)
+- [Custom Completion](#custom-completion)
+- [Runtime Context](#runtime-context)
+  - [Trigger Providers](#trigger-providers)
+  - [Process Execution](#process-execution)
+  - [Catalog Variable Keys](#catalog-variable-keys)
+  - [Secrets](#secrets)
+- [Framework Requests and Audit Events](#framework-requests-and-audit-events)
+- [Embedding Bywaf](#embedding-bywaf)
+- [A Complete Example With Completion](#a-complete-example-with-completion)
+- [Plugin Defaults](#plugin-defaults)
+
 ## CommandSpec Fields
 
 `CommandSpec` is the public description of a commandlet:

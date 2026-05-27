@@ -3,6 +3,14 @@
 This is the entry point for Bywaf plugin authors. The detailed material is split
 into focused pages so each page has one job and can be read independently.
 
+## Contents
+
+- [What To Do First](#what-to-do-first)
+- [Current API At A Glance](#current-api-at-a-glance)
+- [Choose A Starting Point](#choose-a-starting-point)
+- [Plugin Shape](#plugin-shape)
+- [Find It At A Glance](#find-it-at-a-glance)
+
 ## What To Do First
 
 For most implementors, do this:

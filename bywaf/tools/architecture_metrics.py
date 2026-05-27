@@ -20,7 +20,12 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable
 
-from .documentation_metrics import DocumentationMetrics, collect_documentation_metrics
+from .documentation_metrics import (
+    DocumentationImpact,
+    DocumentationMetrics,
+    collect_documentation_impact,
+    collect_documentation_metrics,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -425,6 +430,19 @@ def format_documentation_metrics(metrics: DocumentationMetrics, *, top: int = 12
     return "\n".join(lines)
 
 
+def format_documentation_impact(impact: DocumentationImpact) -> str:
+    """Render related docs to inspect after editing one document."""
+    lines = [f"Documentation impact for {impact.source}"]
+    if not impact.related:
+        lines.append("No related documents found.")
+        return "\n".join(lines)
+    for item in impact.related:
+        lines.append(f"- score={item.score:>3}  {item.path}")
+        for reason in item.reasons:
+            lines.append(f"  - {reason}")
+    return "\n".join(lines)
+
+
 def section(title: str, rows: Iterable[tuple[str, int]], unit: str) -> str:
     """Format one ranked metric section."""
     lines = [f"{title}:"]
@@ -448,15 +466,30 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--package", default=None, help="Dotted package name; defaults to root directory name")
     parser.add_argument("--tests-root", default=None, help="Test directory for rough module reference counts")
     parser.add_argument("--docs-root", default=None, help="Docs directory for Markdown cohesion/coupling metrics")
+    parser.add_argument("--doc-impact", default=None, help="Rank docs related to this changed Markdown file")
     parser.add_argument("--top", type=int, default=12, help="Rows to show in each section")
     parser.add_argument("--churn", action="store_true", help="Include git churn counts from local history")
     parser.add_argument("--json", action="store_true", help="Emit JSON instead of text")
     args = parser.parse_args(argv)
+    repo_root = Path(args.root).resolve().parent
+    docs_root = Path(args.docs_root) if args.docs_root else None
+    if args.doc_impact:
+        impact = collect_documentation_impact(
+            repo_root,
+            Path(args.doc_impact),
+            docs_root=docs_root,
+            top=args.top,
+        )
+        if args.json:
+            print(json.dumps(asdict(impact), indent=2, sort_keys=True))
+        else:
+            print(format_documentation_impact(impact))
+        return 0
     metrics = collect_architecture_metrics(
         Path(args.root),
         package=args.package,
         tests_root=Path(args.tests_root) if args.tests_root else None,
-        docs_root=Path(args.docs_root) if args.docs_root else None,
+        docs_root=docs_root,
         include_churn=args.churn,
     )
     if args.json:

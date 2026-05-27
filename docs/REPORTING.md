@@ -7,6 +7,15 @@ without manually querying raw event topics.
 Reports are views over existing project data. They do not copy or own finding
 payloads, raw facts, artifacts, notes, or audit history.
 
+## Contents
+
+- [What Becomes Reportable](#what-becomes-reportable)
+- [Default View](#default-view)
+- [Scoped Views](#scoped-views)
+- [Grouping Behavior](#grouping-behavior)
+- [Review State](#review-state)
+- [Current Boundaries](#current-boundaries)
+
 ## What Becomes Reportable
 
 A commandlet can emit many kinds of fact events, such as `port.open`,

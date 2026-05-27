@@ -2,6 +2,16 @@
 
 Start here for plugin kinds, manifest basics, the current public API, and small complete examples.
 
+## Contents
+
+- [Plugin Types](#plugin-types)
+- [Plugin Manifest](#plugin-manifest)
+- [Manifest Generation And Inspection](#manifest-generation-and-inspection)
+- [Current API, Not Generic Plugin Patterns](#current-api-not-generic-plugin-patterns)
+- [Defining Inputs: Arguments vs Options](#defining-inputs-arguments-vs-options)
+- [A Minimal Commandlet](#a-minimal-commandlet)
+- [Complete External Plugin Example](#complete-external-plugin-example)
+
 ## Plugin Types
 
 Bywaf plugins can be described along two separate axes: how they integrate with

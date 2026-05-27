@@ -1,7 +1,11 @@
 from pathlib import Path
 
-from bywaf.tools.architecture_metrics import collect_architecture_metrics, format_metrics
-from bywaf.tools.documentation_metrics import collect_documentation_metrics
+from bywaf.tools.architecture_metrics import (
+    collect_architecture_metrics,
+    format_documentation_impact,
+    format_metrics,
+)
+from bywaf.tools.documentation_metrics import collect_documentation_impact, collect_documentation_metrics
 
 
 def write(path: Path, text: str) -> None:
@@ -87,3 +91,29 @@ def test_documentation_metrics_can_run_without_python_package(tmp_path: Path) ->
     assert metrics.link_count == 1
     assert by_path["docs/a.md"].outbound_links == 1
     assert by_path["docs/b.md"].inbound_links == 1
+
+
+def test_documentation_impact_ranks_linked_and_related_docs(tmp_path: Path) -> None:
+    docs = tmp_path / "docs"
+    write(
+        docs / "reporting.md",
+        "# Reporting\n\n"
+        "See [Finding Model](finding.md).\n\n"
+        "## Review State\n\n"
+        "Finding review accepts deferred rejected finding rows.\n",
+    )
+    write(
+        docs / "finding.md",
+        "# Finding Model\n\n"
+        "See [Reporting](reporting.md).\n\n"
+        "Finding review grouping target_scope finding rows.\n",
+    )
+    write(docs / "plugins.md", "# Plugins\n\nCommandlet manifest skeleton plugin.\n")
+
+    impact = collect_documentation_impact(tmp_path, docs / "reporting.md", docs_root=docs, top=2)
+    rendered = format_documentation_impact(impact)
+
+    assert impact.source == "docs/reporting.md"
+    assert impact.related[0].path == "docs/finding.md"
+    assert any("source links to it" in reason for reason in impact.related[0].reasons)
+    assert "Documentation impact for docs/reporting.md" in rendered

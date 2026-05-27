@@ -5,6 +5,14 @@ test cases, and first-pass code. They are not the authority on the Bywaf API.
 Treat assistant output as a proposal until it passes the plugin conformance
 checker.
 
+## Contents
+
+- [The Loop](#the-loop)
+- [Good LLM Tasks](#good-llm-tasks)
+- [High-Risk LLM Tasks](#high-risk-llm-tasks)
+- [Prompt Template](#prompt-template)
+- [Feedback Template](#feedback-template)
+
 ## The Loop
 
 Use this loop for AI-generated plugins:

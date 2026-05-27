@@ -7,6 +7,18 @@ Bywaf is a Python 3 application. It can run directly from a source checkout,
 from a Python virtual environment, from a wheel, or from the release Debian/RPM
 packages.
 
+## Contents
+
+- [Debian And Ubuntu](#debian-and-ubuntu)
+- [Fedora, RHEL, CentOS, Rocky, Alma](#fedora-rhel-centos-rocky-alma)
+- [Source Checkout With Venv](#source-checkout-with-venv)
+- [Wheel Install](#wheel-install)
+- [Debian Package Install](#debian-package-install)
+- [RPM Package Install](#rpm-package-install)
+- [Optional Python Plugin Dependencies](#optional-python-plugin-dependencies)
+- [Build Release Packages Locally](#build-release-packages-locally)
+- [Notes On System Python](#notes-on-system-python)
+
 ## Debian And Ubuntu
 
 For source checkout development, install Python, venv support, pip, and the

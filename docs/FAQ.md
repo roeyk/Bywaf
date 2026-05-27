@@ -3,6 +3,52 @@
 This FAQ is example-first. Each answer starts with the command you are most
 likely to type, then adds a short note about what it does.
 
+## Contents
+
+- [How do I start Bywaf?](#how-do-i-start-bywaf)
+- [How do I see what commands are available?](#how-do-i-see-what-commands-are-available)
+- [How do I get help for one commandlet?](#how-do-i-get-help-for-one-commandlet)
+- [How do I run a normal discovery pipeline?](#how-do-i-run-a-normal-discovery-pipeline)
+- [I started a port scanner. How do I see what it found?](#i-started-a-port-scanner-how-do-i-see-what-it-found)
+- [Can hostscanner scan DNS names?](#can-hostscanner-scan-dns-names)
+- [How do I see Nikto's raw output?](#how-do-i-see-niktos-raw-output)
+- [How do I run a pipeline in the background?](#how-do-i-run-a-pipeline-in-the-background)
+- [How do I show historical job, step, or pipeline?](#how-do-i-show-historical-job-step-or-pipeline)
+- [How do I create a clean project for a client?](#how-do-i-create-a-clean-project-for-a-client)
+- [How do I open an existing project?](#how-do-i-open-an-existing-project)
+- [How do I switch projects if active job are running?](#how-do-i-switch-projects-if-active-job-are-running)
+- [How do I archive a project?](#how-do-i-archive-a-project)
+- [How do I create or open an encrypted database?](#how-do-i-create-or-open-an-encrypted-database)
+- [How do I save a copy of the current database?](#how-do-i-save-a-copy-of-the-current-database)
+- [How do I load another database?](#how-do-i-load-another-database)
+- [How do I set a commandlet variable?](#how-do-i-set-a-commandlet-variable)
+- [How do I set variables without typing the commandlet prefix each time?](#how-do-i-set-variables-without-typing-the-commandlet-prefix-each-time)
+- [How do I set a secret such as a password?](#how-do-i-set-a-secret-such-as-a-password)
+- [How do I stop or pause work?](#how-do-i-stop-or-pause-work)
+- [When should I use `signal`?](#when-should-i-use-signal)
+- [How do I add a note to a step, job, or pipeline?](#how-do-i-add-a-note-to-a-step-job-or-pipeline)
+- [How do I import or attach a file as an artifact?](#how-do-i-import-or-attach-a-file-as-an-artifact)
+- [How do I find which commandlet produced an artifact?](#how-do-i-find-which-commandlet-produced-an-artifact)
+- [How do I see the producing commandlet's parameters and environment?](#how-do-i-see-the-producing-commandlets-parameters-and-environment)
+- [How do I verify that an artifact really came from that commandlet step?](#how-do-i-verify-that-an-artifact-really-came-from-that-commandlet-step)
+- [How do I export one artifact?](#how-do-i-export-one-artifact)
+- [How do I export all artifacts from a step or pipeline?](#how-do-i-export-all-artifacts-from-a-step-or-pipeline)
+- [Should I export a bare artifact or an evidence bundle?](#should-i-export-a-bare-artifact-or-an-evidence-bundle)
+- [How do I secure exported evidence?](#how-do-i-secure-exported-evidence)
+- [How do I search artifacts?](#how-do-i-search-artifacts)
+- [How do I find artifacts produced by one commandlet step?](#how-do-i-find-artifacts-produced-by-one-commandlet-step)
+- [How do I find which events are associated with a pipeline?](#how-do-i-find-which-events-are-associated-with-a-pipeline)
+- [How do I find the results of a commandlet step?](#how-do-i-find-the-results-of-a-commandlet-step)
+- [How do I export a findings table?](#how-do-i-export-a-findings-table)
+- [How do I run commands from a script?](#how-do-i-run-commands-from-a-script)
+- [How do I use targets from a file?](#how-do-i-use-targets-from-a-file)
+- [How do I exclude targets from a scan?](#how-do-i-exclude-targets-from-a-scan)
+- [How do I inspect events?](#how-do-i-inspect-events)
+- [How do I force IPv4 or IPv6 when a command resolves a DNS name?](#how-do-i-force-ipv4-or-ipv6-when-a-command-resolves-a-dns-name)
+- [How do I export audit data?](#how-do-i-export-audit-data)
+- [How do I load a local plugin?](#how-do-i-load-a-local-plugin)
+- [How do I check a plugin manifest?](#how-do-i-check-a-plugin-manifest)
+
 ## How do I start Bywaf?
 
 ```bash

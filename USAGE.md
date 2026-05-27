@@ -39,6 +39,36 @@ Core architectural references:
 - [docs/SYSTEM_DATAFLOW_DIAGRAM.pdf](docs/SYSTEM_DATAFLOW_DIAGRAM.pdf) focuses on command
   input, event, artifact, audit, request, and report data movement.
 
+## Contents
+
+- [Installation](#installation)
+- [Starting Bywaf](#starting-bywaf)
+- [REPL Basics](#repl-basics)
+- [Commandlets](#commandlets)
+- [Signing Keys](#signing-keys)
+- [Evidence Bundles](#evidence-bundles)
+- [Plugins](#plugins)
+- [Pipelines](#pipelines)
+- [Runtime Names](#runtime-names)
+- [Framework Notes](#framework-notes)
+- [Artifacts](#artifacts)
+- [At-File Arguments](#at-file-arguments)
+- [Variable Expansion](#variable-expansion)
+- [Plans And Policy](#plans-and-policy)
+- [Command Continuation And Sequences](#command-continuation-and-sequences)
+- [Background Execution](#background-execution)
+- [Database and Event Model](#database-and-event-model)
+- [Projects](#projects)
+- [Resource Files](#resource-files)
+- [Variables](#variables)
+- [History](#history)
+- [Scripts](#scripts)
+- [Bundled Commandlets](#bundled-commandlets)
+- [Common Workflows](#common-workflows)
+- [Troubleshooting](#troubleshooting)
+- [Developer Notes](#developer-notes)
+- [Reference](#reference)
+
 # Installation
 
 For OS-specific dependency blocks and package-build prerequisites, see
@@ -202,8 +232,8 @@ plugin's variables through that API. Shared provider variables are explicit via
 `context.vars.get_provider(...)` for the immediate provider only; global
 variables are explicit via `context.vars.get_global("name")`. When a commandlet
 step starts, Bywaf snapshots the effective commandlet, immediate provider, and
-global variables into SQLite under that `command_run_id`; `event step=<id>`
-displays the captured variables so step remain auditable and reproducible even
+global variables into the step's persisted variable snapshot. `event step=<id>`
+displays the captured variables so steps remain auditable and reproducible even
 when session variables change later.
 Runtime entities have two identities: local IDs for interactive typing
 (`job=12`, `step=1`, `pipeline=2`) and durable serials for audit/provenance.
@@ -870,13 +900,13 @@ In that example, `portscanner` listens for `host.found` rows created by the
 immediately upstream `hostscanner` step in the same pipeline. It does not consume
 unrelated `host.found` rows from older scans.
 
-A pipeline groups one or more step in the same command expression or attached
+A pipeline groups one or more steps in the same command expression or attached
 workflow. A step is one commandlet invocation inside that pipeline, such as the
 specific `hostscanner` step or `portscanner` step. A job is the supervised
 foreground/background execution lifecycle that runs one or more of those
-commandlet invocations. Operationally, job are chained together into pipeline
-by the step they supervise; one job may contribute the whole chain, or multiple
-job may contribute step when commandlets are attached later. See
+commandlet invocations. Operationally, jobs are chained together into pipelines
+by the steps they supervise; one job may contribute the whole chain, or multiple
+jobs may contribute steps when commandlets are attached later. See
 `docs/TERMINOLOGY.md` for the canonical definitions of job, pipeline, step, local
 IDs, serials, events, and topics.
 

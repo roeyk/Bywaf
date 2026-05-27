@@ -5,6 +5,17 @@ live in [Plugin Testing And Guidelines](plugin_author/testing-and-guidelines.md)
 this page explains how those checks fit with framework, package, metrics, and
 manual validation.
 
+## Contents
+
+- [Quick Checks](#quick-checks)
+- [Choosing The Right Layer](#choosing-the-right-layer)
+- [Plugin Testing](#plugin-testing)
+- [Framework Testing](#framework-testing)
+- [Package Tests](#package-tests)
+- [Manual Validation](#manual-validation)
+- [Environment Notes](#environment-notes)
+- [Pre-Commit Checklist](#pre-commit-checklist)
+
 ## Quick Checks
 
 Run the full Python test suite when practical:
@@ -33,12 +44,13 @@ Use architecture metrics before and after larger refactors:
 ```bash
 python scripts/architecture_metrics.py --top 12
 python scripts/architecture_metrics.py --top 12 --churn
+python scripts/architecture_metrics.py --doc-impact docs/REPORTING.md
 ```
 
 The metrics report includes both Python code pressure and documentation
 pressure. Documentation metrics are cohesion/coupling hints: they flag oversized
-pages, heavily linked pages, stale terms, repeated headings, and audience mixing
-so maintainers can decide whether to split, reroute, or clean up docs.
+pages, heavily linked pages, stale terms, repeated headings, audience mixing,
+and likely related pages to inspect after a documentation change.
 
 ## Choosing The Right Layer
 
