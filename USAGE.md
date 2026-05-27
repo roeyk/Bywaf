@@ -1265,6 +1265,12 @@ bywaf> script load file=scan.bywaf
 bywaf> script load file=./scripts/scan.bywaf
 bywaf> config save file=session.toml
 bywaf> config load file=session.toml
+bywaf> config theme name=classic
+bywaf> config theme file=theme.toml
+bywaf> pref theme name=classic
+bywaf> pref prompt "$u@$h> "
+bywaf> pref set identity.email=operator@example.com
+bywaf> pref set identity.fullname="Example Operator"
 bywaf> history save file=session-history.bywaf
 bywaf> history load file=session-history.bywaf
 ```
@@ -1287,7 +1293,7 @@ Set an explicit secret variable:
 
 ```text
 bywaf> set --secret network/ssh_probe.password=client-password
-network/ssh_probe.password=[REDACTED] fingerprint=hmac-sha256:...
+network/ssh_probe.password=[REDACTED#98a9bc10]
 ```
 
 If the value is empty, Bywaf opens the configured secret input method and
@@ -1348,7 +1354,9 @@ bywaf> set display/style.host=bold green
 bywaf> set display/style.comment=dim color245
 bywaf> set display/style.string=bold yellow
 bywaf> set display/style.value=green
+bywaf> set display/style.variable=cyan
 bywaf> set display/style.finding.severity.critical="#dc2626"
+bywaf> set display.expansion=changed
 bywaf> set discovery/hostscanner.targets=192.168.1.1-255
 bywaf> hostscanner
 ```
@@ -1368,10 +1376,82 @@ Display styles use `display/style.<subject>`. Current terminal rendering
 uses subjects such as `host`, `port`, `protocol`, `host.name`, `comment`, and
 `string`. The `string` subject applies to quoted spans in compact event output
 and live prompt input; `value` applies to the value side of live `key=value`
-input when the value is not quoted. Style values can combine attributes and
-colors, for example `bold green`, `dim color245`, `rgb:80,180,90`, or quoted
-hex values such as `"#00ff00"`. Unquoted `#` starts a REPL/script comment;
-quote or escape literal hashes.
+input when the value is not quoted; `variable` applies to live assignment keys
+such as `A` in `set A=...` and variable references such as `$A`. Style values
+can combine attributes and colors, for example `bold green`, `dim color245`,
+`rgb:80,180,90`, or quoted hex values such as `"#00ff00"`. Unquoted `#` starts
+a REPL/script comment; quote or escape literal hashes.
+
+Theme presets are bundled named sets of display variables:
+
+```text
+bywaf> config theme
+themes: classic, default, mono
+bywaf> config theme name=classic
+loaded theme=classic
+```
+
+Theme files are TOML or JSON mappings containing only `display.*` and
+`display/style.*` variables. Loading a theme merges those variables into the
+current session; it does not replace ordinary project variables.
+
+```toml
+[variables]
+"display/style.variable" = "bright-cyan"
+"display/style.string" = "bold yellow"
+"display.expansion" = "changed"
+```
+
+Use `pref` for user-local defaults that should follow you across projects.
+Preferences are intentionally limited to operator UX and identity/delivery
+defaults: themes, prompt pattern, completion behavior, history formatting,
+display expansion, `identity.email`, `identity.fullname`, `identity.username`,
+and non-secret mail/report delivery defaults. They are stored in
+`~/.bywaf/preferences.toml` by default and loaded when the REPL starts.
+Preference keys are not plugin variables: they are not scoped through
+provider/commandlet paths and commandlets do not receive them as scan options.
+
+```text
+bywaf> pref theme name=classic
+saved pref theme=classic
+bywaf> pref prompt "$u@$h> "
+saved pref prompt=$u@$h>
+bywaf> pref set identity.email=operator@example.com
+saved pref identity.email=operator@example.com
+bywaf> pref set identity.fullname="Example Operator"
+saved pref identity.fullname=Example Operator
+bywaf> pref set mail.smtp.host=smtp.example.com
+saved pref mail.smtp.host=smtp.example.com
+```
+
+Do not store SMTP passwords, API keys, tokens, or passphrases in preferences;
+use the secret store for credential material.
+
+```text
+bywaf> pref set display.events.key-color=green
+saved pref display.events.key-color=green
+bywaf> pref set mail.smtp.password=secret
+saved pref mail.smtp.password=secret
+```
+
+Command expansion previews are controlled by `display.expansion`:
+
+```text
+bywaf> set display.expansion=off
+bywaf> event port.open host=$A
+# no expansion preview
+
+bywaf> set display.expansion=changed
+bywaf> event port.open host=$A
+expanded: event port.open host=192.168.50.163
+
+bywaf> set display.expansion=on
+bywaf> event port.open host=192.168.50.163
+expanded: event port.open host=192.168.50.163
+```
+
+Variable expansion happens before commandlet execution. Expansion previews are
+for operator visibility; secret references are redacted before preview output.
 
 User preferences are separate from variables. The planned `pref` command is for
 operator-owned defaults that should live under `~/.bywaf`, such as colors,
@@ -1719,7 +1799,10 @@ findings from the latest pipeline that produced finding events, or from an
 explicit pipeline, job, or step scope. Use it when you want to quickly see what
 finished work produced without manually querying raw events. The heading always
 shows total, accepted, deferred, rejected, and unreviewed counts; the default
-view renders only the unreviewed groups that still need triage.
+view renders only the unreviewed groups that still need triage. After the
+summary table, `report` prints a Details section for each displayed group with
+affected resources, evidence snippets, sources, event/pipeline/step provenance,
+and the latest update timestamp.
 
 ```text
 bywaf> report
@@ -1989,6 +2072,12 @@ plugin load=<resource> [--force]
 db load file=<resource>
 db load file=<resource> --force
 config load file=<resource>
+config theme [name=<preset>|file=<resource>]
+pref [list|load|save] [file=<resource>]
+pref set key=value [file=<resource>]
+pref unset key [file=<resource>]
+pref theme name=<preset> [file=<resource>]
+pref prompt <pattern> [file=<resource>]
 history load file=<resource>
 script load file=<resource>
 db export file=<resource>

@@ -198,6 +198,55 @@ class ReportTests(unittest.TestCase):
             self.assertEqual(rendered.payload["groups"], ["service|CVE-2026-1234|192.0.2.10|443|tcp"])
             self.assertEqual(rendered.payload["rows"], 1)
 
+    def test_report_details_show_grouped_context(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            first = runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "finding-page-1",
+                    "group_key": "web|CVE-2026-1234|192.0.2.10",
+                    "title": "Example service CVE",
+                    "target": {"ip": "192.0.2.10", "port": "443", "protocol": "tcp"},
+                    "affected": [{"url": "https://example.test/page1"}],
+                    "evidence": "page1 proof\nwith newline",
+                    "sources": [{"tool": "web_cve_check", "topic": "http.response"}],
+                    "severity": "high",
+                },
+                "web_cve_check",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+            second = runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "finding-page-2",
+                    "group_key": "web|CVE-2026-1234|192.0.2.10",
+                    "title": "Example service CVE",
+                    "target": {"ip": "192.0.2.10", "port": "443", "protocol": "tcp"},
+                    "affected": [{"url": "https://example.test/admin"}],
+                    "evidence": "admin proof",
+                    "severity": "high",
+                },
+                "web_cve_check",
+                pipeline_id="pipeline-a",
+                command_run_id="run-b",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report pipeline=pipeline-a")
+                process_framework_requests(runner, ShellState())
+
+            text = output.getvalue()
+            self.assertIn("Details", text)
+            self.assertIn("#1 Example service CVE", text)
+            self.assertIn("Affected: https://example.test/page1; 192.0.2.10:443/tcp; https://example.test/admin", text)
+            self.assertIn("Evidence: page1 proof with newline; admin proof", text)
+            self.assertIn("Sources: web_cve_check:http.response; web_cve_check:finding.candidate", text)
+            self.assertIn(f"Provenance: events={first.id},{second.id}; pipeline=pipeline-a; step=run-a,run-b", text)
+            self.assertIn("Latest update:", text)
+
     def test_report_review_marker_matches_raw_finding_id_inside_group_key_group(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))

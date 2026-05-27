@@ -433,12 +433,18 @@ class ConfigPluginTests(unittest.TestCase):
         store.set("cloud/aws/s3/public_bucket.proxy", "http://127.0.0.1:8080")
         store.set("cloud/aws/s3/public_bucket/check.timeout", "5")
         store.set("cloud/other.value", "ignored")
+        store.set("display.expansion", "changed")
+        store.set("display/style.variable", "cyan")
+        store.set("identity.email", "operator@example.com")
         snapshot = effective_run_vars(store, "cloud/aws/s3/public_bucket/check")
         self.assertEqual(snapshot["cloud/aws/s3/public_bucket.proxy"], "http://127.0.0.1:8080")
         self.assertEqual(snapshot["cloud/aws/s3/public_bucket/check.timeout"], "5")
+        self.assertEqual(snapshot["display.expansion"], "changed")
+        self.assertEqual(snapshot["display/style.variable"], "cyan")
         self.assertNotIn("cloud/aws.region", snapshot)
         self.assertNotIn("cloud/aws/s3.bucket-list", snapshot)
         self.assertNotIn("cloud/other.value", snapshot)
+        self.assertNotIn("identity.email", snapshot)
 
     def test_varstore_items_sorted(self):
         store = VarStore()

@@ -35,7 +35,19 @@ from .display import (
     print_topics,
     print_triggers,
 )
+from .display import display_expansion_preview
 from .persistence import load_config, load_history, save_config, save_history
+from .preferences import (
+    THEME_KEY,
+    apply_preferences,
+    format_preference_assignment,
+    load_preferences,
+    preference_snapshot,
+    resolve_preferences_path,
+    save_preferences,
+    set_preference,
+    unset_preference,
+)
 from .resources import (
     DEFAULT_CONFIG,
     DEFAULT_HISTORY,
@@ -47,6 +59,7 @@ from .resources import (
     resolve_resource_path,
     run_script,
 )
+from .themes import apply_theme_file, apply_theme_name, theme_names
 from ..runner import Runner
 from ..secret.store import load_or_create_fingerprint_key
 from ..secret.input import SECRET_BLOCK_VALUE
@@ -124,9 +137,12 @@ def handle_config_command(runner: Runner, state: ShellState, rest: str | None, l
     del state, line
     tokens = shlex.split(rest) if rest else []
     if not tokens:
-        print("usage: config load file=<path>, config save file=<path> [--encrypt]")
+        print("usage: config load file=<path>, config save file=<path> [--encrypt], config theme name=<preset>, or config theme file=<path>")
         return None
     action = tokens[0]
+    if action == "theme":
+        apply_theme_command(runner, tokens[1:])
+        return None
     file_value = selector_value(tokens[1:], "file")
     path = resolve_resource_path(file_value or "", Path("."), DEFAULT_CONFIG)
     if action == "load":
@@ -134,8 +150,107 @@ def handle_config_command(runner: Runner, state: ShellState, rest: str | None, l
     elif action == "save":
         save_config(runner, path, encrypt="--encrypt" in tokens[1:])
     else:
-        print("usage: config load file=<path>, config save file=<path> [--encrypt]")
+        print("usage: config load file=<path>, config save file=<path> [--encrypt], config theme name=<preset>, or config theme file=<path>")
     return None
+
+
+def apply_theme_command(runner: Runner, tokens: list[str]) -> None:
+    """Apply a named or file-backed syntax/display theme."""
+    if not tokens:
+        print("themes: " + ", ".join(theme_names()))
+        return
+    name = selector_value(tokens, "name")
+    file_value = selector_value(tokens, "file")
+    if bool(name) == bool(file_value):
+        raise ValueError("usage: config theme name=<preset> or config theme file=<path>")
+    if name:
+        apply_theme_name(runner, name)
+        print(f"loaded theme={name}")
+        return
+    assert file_value is not None
+    path = resolve_resource_path(file_value, Path("."))
+    apply_theme_file(runner, path)
+    print(f"loaded theme={path}")
+
+
+def handle_pref_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
+    """Manage user-local preferences that should follow the operator."""
+    del line
+    tokens = shlex.split(rest) if rest else []
+    action = tokens[0] if tokens else "list"
+    args = tokens[1:] if tokens else []
+    file_value = selector_value(args, "file")
+    path = resolve_preferences_path(file_value)
+    if action == "list":
+        print_preferences(runner, state, path)
+    elif action == "load":
+        values = load_preferences(path)
+        apply_preferences(runner, state, values)
+        print(f"loaded pref={path}")
+    elif action == "save":
+        values = preference_snapshot(runner, state, load_preferences(path))
+        save_preferences(path, values)
+        print(f"saved pref={path}")
+    elif action == "set":
+        key, value = preference_assignment(args)
+        set_preference(runner, state, path, key, value)
+        print(f"saved pref {key}={value}")
+    elif action == "unset":
+        key = preference_key_argument(args)
+        removed = unset_preference(runner, state, path, key)
+        print(f"unset pref {key}" if removed else f"pref not set: {key}")
+    elif action == "theme":
+        name = selector_value(args, "name")
+        if not name:
+            raise ValueError("usage: pref theme name=<preset> [file=<path>]")
+        set_preference(runner, state, path, THEME_KEY, name)
+        print(f"saved pref theme={name}")
+    elif action == "prompt":
+        pattern = preference_prompt_pattern(args)
+        set_preference(runner, state, path, "prompt.pattern", pattern)
+        print(f"saved pref prompt={pattern}")
+    else:
+        print("usage: pref [list|load|save] [file=<path>], pref set key=value [file=<path>], pref unset key [file=<path>], pref theme name=<preset> [file=<path>], or pref prompt <pattern> [file=<path>]")
+    return None
+
+
+def print_preferences(runner: Runner, state: ShellState, path: Path) -> None:
+    """Print persisted preferences, or active preference-like values."""
+    values = load_preferences(path)
+    if not values:
+        values = preference_snapshot(runner, state, {})
+    for key, value in sorted(values.items()):
+        print(format_preference_assignment(key, value))
+
+
+def preference_assignment(tokens: Sequence[str]) -> tuple[str, str]:
+    """Return the first non-file `key=value` preference assignment."""
+    for token in tokens:
+        if token.startswith("file="):
+            continue
+        if "=" not in token:
+            continue
+        return token.split("=", 1)
+    raise ValueError("usage: pref set key=value [file=<path>]")
+
+
+def preference_key_argument(tokens: Sequence[str]) -> str:
+    """Return the first non-selector token as a preference key."""
+    for token in tokens:
+        if token.startswith("file="):
+            continue
+        if token:
+            return token
+    raise ValueError("usage: pref unset key [file=<path>]")
+
+
+def preference_prompt_pattern(tokens: Sequence[str]) -> str:
+    """Return prompt pattern text from `pref prompt` args."""
+    pattern_tokens = [token for token in tokens if not token.startswith("file=")]
+    pattern = " ".join(pattern_tokens)
+    if not pattern:
+        raise ValueError("usage: pref prompt <pattern> [file=<path>]")
+    return pattern
 
 
 def handle_script_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
@@ -386,10 +501,15 @@ def expand_builtin_filter_text(runner: Runner, state: ShellState, text: str | No
     filter syntax, so they need the same operator convenience before
     tokenization.
     """
-    if text is None or "$" not in text:
+    if text is None:
+        display_expansion_preview(runner, command, changed=False)
+        return None
+    if "$" not in text:
+        display_expansion_preview(runner, f"{command} {text}".strip(), changed=False)
         return text
     scope = state.active_context or command
     expanded, _names = expand_variables_in_text(text, runner.registry.varstore, scope)
+    display_expansion_preview(runner, f"{command} {expanded}".strip(), changed=expanded != text)
     return expanded
 
 
@@ -570,6 +690,7 @@ REPL_COMMAND_HANDLERS: dict[str, ReplCommandHandler] = {
     "plugin": handle_plugin_command,
     "plugins": handle_plugins_command,
     "pload": handle_pload_command,
+    "pref": handle_pref_command,
     "project": handle_project_command,
     PROJECT_ALIAS_COMMAND: handle_project_command,
     "prompt": handle_prompt_command,

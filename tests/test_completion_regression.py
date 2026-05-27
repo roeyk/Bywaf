@@ -154,6 +154,9 @@ class CompletionRegressionTests(unittest.TestCase):
                     ("script load file=scr", "file=script.bywaf"),
                     ("db load file=byw", "file=bywaf.sqlite3"),
                     ("config load file=byw", "file=bywaf.config.toml"),
+                    ("config theme name=cl", "name=classic"),
+                    ("pref theme name=cl", "name=classic"),
+                    ("pref set identity.em", "identity.email="),
                     ("history load file=his", "file=history.bywaf"),
                     ("db export file=byw", "file=bywaf.sqlite3"),
                     ("config save file=byw", "file=bywaf.config.toml"),
@@ -201,14 +204,32 @@ class CompletionRegressionTests(unittest.TestCase):
             Document = importlib.import_module("prompt_toolkit.document").Document
         except ImportError:
             self.skipTest("prompt_toolkit is not installed")
+        self.registry.varstore.set("display/style.variable", "cyan")
         self.registry.varstore.set("display/style.value", "green")
         self.registry.varstore.set("display/style.string", "bold yellow")
         lexer = BywafPromptLexer(Completer(self.registry), PromptSecretInputState())
-        fragments = lexer.lex_document(Document('set host=127.0.0.1 note="manual pass"'))(0)
+        fragments = lexer.lex_document(Document('set host=127.0.0.1 note="manual $A pass" event port.open host=$A'))(0)
 
+        self.assertIn(("ansicyan", "host"), fragments)
         self.assertIn(("ansigreen", "127.0.0.1"), fragments)
-        self.assertIn(("bold ansiyellow", '"manual pass"'), fragments)
+        self.assertIn(("ansicyan", "note"), fragments)
+        self.assertIn(("bold ansiyellow", '"manual '), fragments)
+        self.assertIn(("ansicyan", "$A"), fragments)
+        self.assertIn(("bold ansiyellow", ' pass"'), fragments)
+        self.assertIn(("ansicyan", "$A"), fragments)
 
+    def test_prompt_lexer_does_not_style_variables_inside_single_quotes(self):
+        try:
+            Document = importlib.import_module("prompt_toolkit.document").Document
+        except ImportError:
+            self.skipTest("prompt_toolkit is not installed")
+        self.registry.varstore.set("display/style.variable", "cyan")
+        self.registry.varstore.set("display/style.string", "bold yellow")
+        lexer = BywafPromptLexer(Completer(self.registry), PromptSecretInputState())
+        fragments = lexer.lex_document(Document("set note='literal $A' other=$A"))(0)
+
+        self.assertIn(("bold ansiyellow", "'literal $A'"), fragments)
+        self.assertIn(("ansicyan", "$A"), fragments)
 
 if __name__ == "__main__":
     unittest.main()

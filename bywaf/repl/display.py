@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -34,7 +35,7 @@ from ..runtime_display import (
     runtime_state_text,
 )
 from ..runner import Runner
-from ..secret.store import SECRET_REF_PREFIX, REDACTED_VALUE
+from ..secret.store import SECRET_REF_PREFIX
 from ..time_format import format_operator_timestamp, normalize_history_timestamp_for_display
 
 VAR_COLOR_MODE_VAR = "display.vars.color"
@@ -62,6 +63,8 @@ DEFAULT_HISTORY_TIMESTAMP_COLOR = "green"
 DEFAULT_HELP_COLOR_MODE = "auto"
 DEFAULT_HELP_COMMAND_COLOR = "green"
 EVENT_COMMANDLET_COLOR = "bright-yellow"
+DISPLAY_EXPANSION_VAR = "display.expansion"
+DISPLAY_EXPANSION_DEFAULT = "off"
 
 ANSI_COLORS = {
     "black": "30",
@@ -959,9 +962,9 @@ def display_var_value(runner: Runner, value: str) -> str:
         if value.startswith(SECRET_REF_PREFIX):
             # A secret ref may exist in persisted config before the cleartext has
             # been hydrated into this process.
-            return f"{REDACTED_VALUE} fingerprint=unavailable"
+            return redacted_secret_text("unavailable")
         return value
-    return f"{REDACTED_VALUE} fingerprint={secret_ref.fingerprint.format()}"
+    return redacted_secret_text(secret_ref.fingerprint.format())
 
 
 def format_var_assignment(runner: Runner, name: str, value: str, *, prefix: str = "") -> str:
@@ -1003,6 +1006,52 @@ def subject_text(runner: Runner | None, subject: str, value: object) -> str:
     if not style:
         return text
     return ansi_color(text, style)
+
+
+def display_expansion_preview(runner: Runner, expanded_command: str, *, changed: bool) -> None:
+    """Print an optional expanded command preview for REPL built-ins."""
+    mode = expansion_display_mode(runner)
+    if mode == "off" or (mode == "changed" and not changed):
+        return
+    print(f"expanded: {redact_expanded_command_text(runner, expanded_command)}")
+
+
+def redact_expanded_command_text(runner: Runner, text: str) -> str:
+    """Replace in-memory secret handles in preview text with redacted labels."""
+    redacted = text
+    for secret_ref in sorted(runner.registry.secrets.refs.values(), key=lambda item: len(item.ref), reverse=True):
+        redacted = redacted.replace(secret_ref.ref, redacted_secret_label(runner, secret_ref.fingerprint.format()))
+    return re.sub(
+        rf"{re.escape(SECRET_REF_PREFIX)}[A-Za-z0-9_]+",
+        redacted_secret_label(runner, "unavailable"),
+        redacted,
+    )
+
+
+def redacted_secret_label(runner: Runner, fingerprint: str) -> str:
+    """Return a redacted secret label with provenance metadata."""
+    if not vars_color_enabled(runner):
+        return redacted_secret_text(fingerprint)
+    return ansi_secret_redaction(redacted_secret_text(fingerprint))
+
+
+def redacted_secret_text(fingerprint: str) -> str:
+    """Return the display token for one redacted secret."""
+    return f"[REDACTED#{display_fingerprint_token(fingerprint)}]"
+
+
+def display_fingerprint_token(fingerprint: str) -> str:
+    """Return the compact digest part of a secret fingerprint."""
+    return fingerprint.rsplit(":", 1)[-1]
+
+
+def expansion_display_mode(runner: Runner) -> str:
+    """Return normalized command expansion preview mode."""
+    value = runner.registry.varstore.get(DISPLAY_EXPANSION_VAR, DISPLAY_EXPANSION_DEFAULT)
+    mode = str(value or DISPLAY_EXPANSION_DEFAULT).strip().casefold()
+    if mode in {"off", "changed", "on"}:
+        return mode
+    return DISPLAY_EXPANSION_DEFAULT
 
 
 def ansi_style_code(style: str) -> str | None:
@@ -1087,10 +1136,9 @@ def parse_color_int(raw: str, minimum: int, maximum: int) -> int | None:
 
 def ansi_var_value(text: str, color: str) -> str:
     """Wrap variable values, giving redacted secrets a warning-style badge."""
-    if not text.startswith(REDACTED_VALUE):
+    if not text.startswith("[REDACTED"):
         return ansi_color(text, color)
-    suffix = text.removeprefix(REDACTED_VALUE)
-    return f"{ansi_secret_redaction(REDACTED_VALUE)}{ansi_color(suffix, color)}"
+    return ansi_secret_redaction(text)
 
 
 def ansi_secret_redaction(text: str) -> str:

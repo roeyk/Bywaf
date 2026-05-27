@@ -20,6 +20,11 @@ from ..plugin import CommandContext, implied_capabilities
 from ..registry import PluginRegistry
 from ..varstore import VarStore
 
+RUN_DISPLAY_VAR_PREFIXES = (
+    "display.",
+    "display/style.",
+)
+
 
 def new_run_id(prefix: str) -> str:
     """Return a readable unique ID suitable for DB scope fields."""
@@ -98,15 +103,19 @@ def effective_run_vars(varstore: VarStore, commandlet: str) -> dict[str, str]:
 
     Commandlet variables are most specific, provider variables are shared by
     commandlets in the same provider, and `global.*` values are the last broad
-    layer.  The returned snapshot is stored per step so background work does
-    not change under an operator's later `set` commands.
+    layer. Display variables are included so rendered step behavior is stable
+    for background jobs. The returned snapshot is stored per step so background
+    work does not change under an operator's later `set` commands.
     """
     prefix = f"{commandlet}."
     provider_prefix = f"{provider_scope_for_commandlet_scope(commandlet)}."
     return {
         key: value
         for key, value in varstore.items()
-        if key.startswith(prefix) or key.startswith(provider_prefix) or key.startswith("global.")
+        if key.startswith(prefix)
+        or key.startswith(provider_prefix)
+        or key.startswith("global.")
+        or key.startswith(RUN_DISPLAY_VAR_PREFIXES)
     }
 
 

@@ -1124,7 +1124,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertTrue(runner.registry.secrets.is_ref(stored))
             self.assertEqual(runner.registry.secrets.get(stored), "supersecret")
             self.assertNotIn("supersecret", text)
-            self.assertIn("session.ticket=[REDACTED] fingerprint=hmac-sha256:", text)
+            self.assertIn("session.ticket=[REDACTED#", text)
 
     def test_vars_secret_flag_before_equals_marks_assignment_secret(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1144,7 +1144,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertTrue(runner.registry.secrets.is_ref(stored))
             self.assertEqual(runner.registry.secrets.get(stored), "supersecret")
             self.assertNotIn("supersecret", text)
-            self.assertIn("session.ticket=[REDACTED] fingerprint=hmac-sha256:", text)
+            self.assertIn("session.ticket=[REDACTED#", text)
 
     def test_vars_empty_explicit_secret_prompts_and_redacts(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1166,7 +1166,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertTrue(runner.registry.secrets.is_ref(stored))
             self.assertEqual(runner.registry.secrets.get(stored), "prompted-secret")
             self.assertNotIn("prompted-secret", text)
-            self.assertIn("pw=[REDACTED] fingerprint=hmac-sha256:", text)
+            self.assertIn("pw=[REDACTED#", text)
 
     def test_vars_redacted_block_uses_hidden_secret_value(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1188,7 +1188,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertTrue(runner.registry.secrets.is_ref(stored))
             self.assertEqual(runner.registry.secrets.get(stored), "block-secret")
             self.assertNotIn("block-secret", text)
-            self.assertIn("pw=[REDACTED] fingerprint=hmac-sha256:", text)
+            self.assertIn("pw=[REDACTED#", text)
 
     def test_vars_empty_secret_flag_before_equals_prompts_and_redacts(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1210,7 +1210,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertTrue(runner.registry.secrets.is_ref(stored))
             self.assertEqual(runner.registry.secrets.get(stored), "prompted-secret")
             self.assertNotIn("prompted-secret", text)
-            self.assertIn("session.ticket=[REDACTED] fingerprint=hmac-sha256:", text)
+            self.assertIn("session.ticket=[REDACTED#", text)
 
     def test_vars_can_color_names_and_values(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1264,7 +1264,7 @@ class AppDispatchTests(unittest.TestCase):
                 contextlib.redirect_stdout(output),
             ):
                 dispatch_repl_line(runner, "set --secret session.ticket=supersecret", state)
-            self.assertIn("\x1b[37;48;5;52m[REDACTED]\x1b[0m", output.getvalue())
+            self.assertIn("\x1b[37;48;5;52m[REDACTED#", output.getvalue())
             self.assertNotIn("supersecret", output.getvalue())
 
     def test_vars_secret_assignment_respects_active_context(self):
@@ -1502,6 +1502,46 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "event port.open host=$A")
             self.assertIn("192.0.2.20:443", output.getvalue())
+
+    def test_builtin_expansion_preview_honors_display_mode(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish("port.open", {"host": "192.0.2.20", "port": 443}, "portscanner")
+            dispatch_repl_line(runner, "set A=192.0.2.20")
+            dispatch_repl_line(runner, "set display.expansion=changed")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "event port.open host=$A")
+            self.assertIn("expanded: event port.open host=192.0.2.20", output.getvalue())
+
+    def test_builtin_expansion_preview_redacts_secret_references(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            with patch("bywaf.repl.commands.load_or_create_fingerprint_key", return_value=b"k" * 32):
+                dispatch_repl_line(runner, "set --secret TOKEN=supersecret", state)
+            dispatch_repl_line(runner, "set display.expansion=changed", state)
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "event port.open topic=$TOKEN", state)
+            text = output.getvalue()
+            self.assertIn("expanded: event port.open topic=[REDACTED#", text)
+            self.assertNotIn("$__secret_", text)
+            self.assertNotIn("supersecret", text)
+
+    def test_commandlet_expansion_preview_honors_display_mode(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            dispatch_repl_line(runner, "set TARGET=192.0.2.20")
+            dispatch_repl_line(runner, "set display.expansion=changed")
+            with patch(
+                "bywaf.plugins.network.portscanner.scan_open_ports",
+                return_value=[NmapPort("192.0.2.20", 80, "tcp", "open", "http")],
+            ):
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    dispatch_repl_line(runner, "network/portscanner host=$TARGET port=80")
+            self.assertIn("expanded: network/portscanner --host 192.0.2.20 --port 80", output.getvalue())
 
     def test_repl_strips_inline_comments_before_dispatch(self):
         with tempfile.TemporaryDirectory() as tmp:

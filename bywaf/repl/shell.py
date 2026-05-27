@@ -30,6 +30,7 @@ from .commands import REPL_COMMAND_HANDLERS, execute_repl_commandlet, execute_sh
 from .display import (
     friendly_error,
 )
+from .preferences import apply_preferences, load_preferences, resolve_preferences_path
 from ..plugins.network.nmap_backend import NmapScanError, NmapUnavailableError
 from ..projects import ProjectPaths
 from ..registry import PluginTrustError
@@ -76,6 +77,7 @@ def repl(runner: Runner) -> None:
     """Run the interactive shell until EOF, interrupt, or an exit command."""
 
     state = new_shell_state(runner)
+    apply_startup_preferences(runner, state)
     state.completer = Completer(runner.registry, runner.db)
     input_reader = build_input_reader(state.completer, state)
     start_default_services(runner)
@@ -263,6 +265,17 @@ def new_shell_state(runner: Runner) -> ShellState:
         framework_request_after_id=runner.events.latest_event_id(),
         history_path=history_path,
     )
+
+
+def apply_startup_preferences(runner: Runner, state: ShellState) -> None:
+    """Apply user-local preferences when the default preference file exists."""
+    path = resolve_preferences_path()
+    if not path.exists():
+        return
+    try:
+        apply_preferences(runner, state, load_preferences(path))
+    except (OSError, ValueError) as exc:
+        print(f"warning: could not load pref={path}: {friendly_error(exc)}")
 
 
 def execute_and_print(runner: Runner, command: str) -> int:

@@ -128,6 +128,7 @@ DEFAULT_COMPLETION_SELECT_KEY = "c-space"
 DISPLAY_STYLE_PREFIX = "display/style."
 DISPLAY_VALUE_STYLE_VAR = f"{DISPLAY_STYLE_PREFIX}value"
 DISPLAY_STRING_STYLE_VAR = f"{DISPLAY_STYLE_PREFIX}string"
+DISPLAY_VARIABLE_STYLE_VAR = f"{DISPLAY_STYLE_PREFIX}variable"
 
 PROMPT_TOOLKIT_COLOR_NAMES = {
     "black": "ansiblack",
@@ -274,9 +275,10 @@ def build_prompt_session(completer: Completer):
 class BywafPromptLexer(Lexer):
     """Style live REPL input without changing command parsing semantics.
 
-    Prompt-time styling is intentionally shallow.  It marks the value side of
-    `key=value` tokens and quoted string values so the operator gets immediate
-    visual feedback, while the normal parser remains the source of truth.
+    Prompt-time styling is intentionally shallow.  It marks variable names,
+    the value side of `key=value` tokens, and quoted string values so the
+    operator gets immediate visual feedback, while the normal parser remains
+    the source of truth.
     """
 
     def __init__(self, completer: Completer, secret_state: PromptSecretInputState) -> None:
@@ -294,32 +296,127 @@ class BywafPromptLexer(Lexer):
 
 
 def prompt_value_fragments(completer: Completer, text: str):
-    """Return prompt-toolkit fragments for values and quoted string values."""
+    """Return prompt-toolkit fragments for variables, values, and quoted strings."""
+    variable_style = prompt_fragment_style(completer.registry.varstore.get(DISPLAY_VARIABLE_STYLE_VAR, ""))
     value_style = prompt_fragment_style(completer.registry.varstore.get(DISPLAY_VALUE_STYLE_VAR, ""))
     string_style = prompt_fragment_style(completer.registry.varstore.get(DISPLAY_STRING_STYLE_VAR, ""))
-    if not value_style and not string_style:
+    if not variable_style and not value_style and not string_style:
         return [("", text)]
     fragments: list[tuple[str, str]] = []
     index = 0
     while index < len(text):
         equals = next_unquoted_equals(text, index)
         if equals is None:
-            fragments.append(("", text[index:]))
+            append_variable_reference_fragments(fragments, text[index:], variable_style)
             break
-        fragments.append(("", text[index:equals + 1]))
+        append_assignment_key_fragments(fragments, text[index:equals], variable_style)
+        fragments.append(("", "="))
         value_end = value_token_end(text, equals + 1)
         value_text = text[equals + 1:value_end]
         if value_text.startswith(("'", '"')):
             quote_end = prompt_closing_quote_index(value_text, 0)
             styled_len = len(value_text) if quote_end is None else quote_end + 1
             if styled_len:
-                fragments.append((string_style or value_style, value_text[:styled_len]))
+                quote_allows_variables = value_text.startswith('"')
+                if quote_allows_variables:
+                    append_styled_value_fragments(
+                        fragments,
+                        value_text[:styled_len],
+                        string_style or value_style,
+                        variable_style,
+                    )
+                else:
+                    fragments.append((string_style or value_style, value_text[:styled_len]))
             if styled_len < len(value_text):
-                fragments.append((value_style, value_text[styled_len:]))
+                append_styled_value_fragments(fragments, value_text[styled_len:], value_style, variable_style)
         else:
-            fragments.append((value_style, value_text))
+            append_styled_value_fragments(fragments, value_text, value_style, variable_style)
         index = value_end
     return [fragment for fragment in fragments if fragment[1]]
+
+
+def append_styled_value_fragments(
+    fragments: list[tuple[str, str]],
+    text: str,
+    value_style: str,
+    variable_style: str,
+) -> None:
+    """Append a value token, letting `$VAR` references override value styling."""
+    if not variable_style:
+        fragments.append((value_style, text))
+        return
+    index = 0
+    while index < len(text):
+        dollar = next_variable_reference_start(text, index)
+        if dollar is None:
+            fragments.append((value_style, text[index:]))
+            break
+        fragments.append((value_style, text[index:dollar]))
+        end = variable_reference_end(text, dollar + 1)
+        fragments.append((variable_style, text[dollar:end]))
+        index = end
+
+
+def append_assignment_key_fragments(fragments: list[tuple[str, str]], text: str, variable_style: str) -> None:
+    """Append text before `=`, styling only the assignment key token."""
+    if not variable_style:
+        append_variable_reference_fragments(fragments, text, variable_style)
+        return
+    key_start = assignment_key_start(text)
+    append_variable_reference_fragments(fragments, text[:key_start], variable_style)
+    fragments.append((variable_style, text[key_start:]))
+
+
+def assignment_key_start(text: str) -> int:
+    """Return the token start for the key immediately before an equals sign."""
+    index = len(text)
+    while index > 0 and not text[index - 1].isspace():
+        index -= 1
+    return index
+
+
+def append_variable_reference_fragments(fragments: list[tuple[str, str]], text: str, variable_style: str) -> None:
+    """Append plain text while styling `$VAR` references when configured."""
+    if not variable_style:
+        fragments.append(("", text))
+        return
+    index = 0
+    while index < len(text):
+        dollar = next_variable_reference_start(text, index)
+        if dollar is None:
+            fragments.append(("", text[index:]))
+            break
+        fragments.append(("", text[index:dollar]))
+        end = variable_reference_end(text, dollar + 1)
+        fragments.append((variable_style, text[dollar:end]))
+        index = end
+
+
+def next_variable_reference_start(text: str, start: int) -> int | None:
+    """Return the next unescaped `$` that begins a variable reference."""
+    index = start
+    while index < len(text):
+        char = text[index]
+        if char == "\\":
+            index += 2
+            continue
+        if char == "$" and index + 1 < len(text) and is_variable_reference_char(text[index + 1]):
+            return index
+        index += 1
+    return None
+
+
+def variable_reference_end(text: str, start: int) -> int:
+    """Return the end of a `$VAR` reference."""
+    index = start
+    while index < len(text) and is_variable_reference_char(text[index]):
+        index += 1
+    return index
+
+
+def is_variable_reference_char(char: str) -> bool:
+    """Return whether a character can appear in a Bywaf variable reference."""
+    return char.isalnum() or char in {"_", "-", ".", "/"}
 
 
 def next_unquoted_equals(text: str, start: int) -> int | None:

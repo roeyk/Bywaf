@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import multiprocessing as mp
 import os
+import shlex
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -223,6 +224,7 @@ class Runner:
                     stage.invocation.note,
                     stage.invocation.display_name,
                     stage.invocation.variable_expansions,
+                    stage.invocation.expanded_text,
                     stage.invocation.plan_only,
                     stage.invocation.approved,
                 ),
@@ -322,6 +324,7 @@ class Runner:
             note=original.note,
             display_name=original.display_name,
             variable_expansions=original.variable_expansions,
+            expanded_text=original.expanded_text,
             plan_only=original.plan_only,
             approved=original.approved,
         )
@@ -438,6 +441,7 @@ def execute_stage(
             publish_command_run_lifecycle(context, "completed", emitted=0, skipped=True)
             return StageResult([])
         expanded_args = normalize_valued_option_args(plugin, planned_args)
+        publish_expanded_command_preview(context, invocation, plugin, expanded_args)
         publish_command_run_arguments(context, plugin, expanded_args)
         for input_topic in sorted({event.topic for event in selected_input_events}):
             context.audit_capability(f"db.read:{input_topic}")
@@ -512,6 +516,63 @@ def normalize_valued_option_args(plugin, args: list[str]) -> list[str]:
             continue
         normalized.extend((f"--{key}", value))
     return normalized
+
+
+DISPLAY_EXPANSION_VAR = "display.expansion"
+DISPLAY_EXPANSION_DEFAULT = "off"
+
+
+def publish_expanded_command_preview(
+    context: CommandContext,
+    invocation: CommandInvocation,
+    plugin,
+    args: list[str],
+) -> Event | None:
+    """Print an optional redacted preview of the expanded command line."""
+    mode = expansion_display_mode(context)
+    if mode == "off" or context._db is None:
+        return None
+    if mode == "changed" and not invocation.expanded_text:
+        return None
+    redacted_args, _secret_args = redact_commandlet_args(context, plugin, args)
+    redacted_args = redact_secret_reference_args(context, redacted_args)
+    text = f"expanded: {invocation.name}"
+    if redacted_args:
+        text = f"{text} {' '.join(shlex.quote(arg) for arg in redacted_args)}"
+    return context._db.publish(
+        "framework.console.output.requested",
+        {"text": f"{text}\n", "end": ""},
+        "framework",
+        pipeline_id=context.pipeline_id,
+        command_run_id=context.command_run_id,
+        parent_command_run_id=context.parent_command_run_id,
+    )
+
+
+def redact_secret_reference_args(context: CommandContext, args: list[str]) -> list[str]:
+    """Redact expanded args that are direct secret references."""
+    redacted: list[str] = []
+    for arg in args:
+        if context._secrets.metadata(arg) is not None:
+            redacted.append(REDACTED_VALUE)
+            continue
+        if "=" in arg:
+            key, value = arg.split("=", 1)
+            if context._secrets.metadata(value) is not None:
+                redacted.append(f"{key}={REDACTED_VALUE}")
+                continue
+        redacted.append(arg)
+    return redacted
+
+
+def expansion_display_mode(context: CommandContext) -> str:
+    """Return normalized command expansion preview mode."""
+    run_vars = context.metadata.get("run_vars", {})
+    value = run_vars.get(DISPLAY_EXPANSION_VAR, DISPLAY_EXPANSION_DEFAULT) if isinstance(run_vars, dict) else DISPLAY_EXPANSION_DEFAULT
+    mode = str(value or DISPLAY_EXPANSION_DEFAULT).strip().casefold()
+    if mode in {"off", "changed", "on"}:
+        return mode
+    return DISPLAY_EXPANSION_DEFAULT
 
 
 def publish_command_run_lifecycle(context: CommandContext, status: str, **details: object) -> Event | None:
@@ -630,6 +691,7 @@ def run_stage_process(
     note: str | None,
     display_name: str | None,
     variable_expansions: tuple[str, ...],
+    expanded_text: str | None,
     plan_only: bool,
     approved: bool,
 ) -> None:
@@ -649,6 +711,7 @@ def run_stage_process(
             note=note,
             display_name=display_name,
             variable_expansions=variable_expansions,
+            expanded_text=expanded_text,
             plan_only=plan_only,
             approved=approved,
         ),

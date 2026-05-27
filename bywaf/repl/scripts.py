@@ -40,13 +40,6 @@ def repl_remove_line_continuation(line: str) -> str:
     return remove_line_continuation(line)
 
 
-def repl_split_command_sequence(line: str) -> list[str]:
-    """Split a logical REPL script line into commands."""
-    from .shell import split_command_sequence
-
-    return split_command_sequence(line)
-
-
 def run_script(runner: Runner, path: Path, state: ResourceState | None = None) -> None:
     """Run one command expression per non-comment script line."""
     state = state or default_resource_state(runner)
@@ -96,13 +89,50 @@ def script_commands(path: Path) -> list[tuple[int, str]]:
             continue
         buffer.append(line)
         logical_line = "\n".join(buffer).strip()
-        for command in repl_split_command_sequence(logical_line):
+        for command in split_script_command_sequence(logical_line):
             commands.append((start_line, command))
         buffer = []
     if buffer:
         logical_line = "\n".join(buffer).strip()
-        for command in repl_split_command_sequence(logical_line):
+        for command in split_script_command_sequence(logical_line):
             commands.append((start_line, command))
+    return commands
+
+
+def split_script_command_sequence(line: str) -> list[str]:
+    """Split semicolon command sequences while preserving continuation newlines."""
+    commands: list[str] = []
+    quote: str | None = None
+    escaped = False
+    current: list[str] = []
+    for char in line:
+        if escaped:
+            current.append(char)
+            escaped = False
+            continue
+        if char == "\\":
+            current.append(char)
+            escaped = True
+            continue
+        if quote is not None:
+            current.append(char)
+            if char == quote:
+                quote = None
+            continue
+        if char in {"'", '"'}:
+            current.append(char)
+            quote = char
+            continue
+        if char == ";":
+            command = "".join(current).strip()
+            if command:
+                commands.append(command)
+            current = []
+            continue
+        current.append(char)
+    command = "".join(current).strip()
+    if command:
+        commands.append(command)
     return commands
 
 

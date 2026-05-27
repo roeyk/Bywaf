@@ -101,8 +101,9 @@ Planning dates are release planning markers, not compatibility commitments.
   values such as `set display/style.host="#00ff00"` and safe alternatives such
   as `rgb:0,255,0` or `color46`.
 - Let users configure visible comment styling through `display/style.comment`.
-- Let users configure unquoted live prompt values through `display/style.value`
-  and quoted live prompt values through `display/style.string`.
+- Let users configure unquoted live prompt values through `display/style.value`,
+  quoted live prompt values through `display/style.string`, and live assignment
+  keys plus `$VAR` references through `display/style.variable`.
 - Add a proper operator preference/theme file under `~/.bywaf` so display
   colors can live outside project variables and travel across projects.
 - Document the plugin contract so authors know how to expose semantically typed

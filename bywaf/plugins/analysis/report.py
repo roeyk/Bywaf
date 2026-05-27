@@ -27,7 +27,7 @@ from bywaf.plugin import (
     option,
 )
 from bywaf.plugins._args import key_value_to_long_options
-from bywaf.plugins.analysis.finding_report import REPORT_FINDING_TOPICS, finding_rows
+from bywaf.plugins.analysis.finding_report import REPORT_FINDING_TOPICS, compact_table_text, finding_rows
 from bywaf.plugins.runtime.audit import resolve_pipeline_selector, resolve_run_selector
 from bywaf.rendering import Column, Table, render_table
 
@@ -285,6 +285,7 @@ def render_finding_report(context: CommandContext, events: list[Event], parsed: 
     context.output(render_status_heading(parsed.status))
     table = indexed_findings_table(filtered_groups)
     context.output(render_table(table, "console"))
+    context.output(render_group_details(filtered_groups))
     context.events.publish(
         "report.rendered",
         report_rendered_payload(
@@ -536,6 +537,136 @@ def indexed_findings_table(groups: list[FindingGroup]) -> Table:
         ),
         title="Findings",
     )
+
+
+def render_group_details(groups: list[FindingGroup]) -> str:
+    """Return compact per-group details for the currently displayed rows."""
+    lines = ["Details"]
+    for index, group in enumerate(groups, start=1):
+        payloads = [effective_finding_payload(event) for event in group.events]
+        representative = effective_finding_payload(group.representative)
+        title = str(representative.get("title") or representative.get("class") or group.finding_id)
+        lines.append(f"#{index} {title}")
+        append_detail_line(lines, "Affected", affected_values(payloads))
+        append_detail_line(lines, "Evidence", evidence_values(payloads), limit=3)
+        append_detail_line(lines, "Sources", source_values(group))
+        append_detail_line(lines, "Provenance", provenance_values(group))
+        latest = max(group.events, key=lambda event: event.created_at).created_at.isoformat()
+        append_detail_line(lines, "Latest update", [latest])
+    return "\n".join(lines)
+
+
+def append_detail_line(lines: list[str], label: str, values: list[str], *, limit: int = 5) -> None:
+    """Append one formatted detail line, truncating long value lists."""
+    if not values:
+        return
+    shown = values[:limit]
+    suffix = f"; +{len(values) - limit} more" if len(values) > limit else ""
+    lines.append(f"  {label}: {'; '.join(shown)}{suffix}")
+
+
+def affected_values(payloads: list[Mapping[str, Any]]) -> list[str]:
+    """Return unique affected targets from all payloads in a group."""
+    values: list[str] = []
+    for payload in payloads:
+        values.extend(values_from_affected(payload.get("affected")))
+        target_value = compact_target_value(payload.get("target"))
+        if target_value:
+            values.append(target_value)
+    return unique_compact_values(values)
+
+
+def values_from_affected(raw: object) -> list[str]:
+    """Return display strings from a normalized affected list."""
+    if not isinstance(raw, list):
+        return []
+    values: list[str] = []
+    for item in raw:
+        value = compact_target_value(item)
+        if value:
+            values.append(value)
+    return values
+
+
+def compact_target_value(raw: object) -> str:
+    """Return one compact target/affected resource string."""
+    if not isinstance(raw, Mapping):
+        return str(raw) if raw else ""
+    url = raw.get("url")
+    if url:
+        return str(url)
+    host = str(raw.get("host") or raw.get("ip") or "")
+    port = str(raw.get("port") or "")
+    protocol = str(raw.get("protocol") or "")
+    path = str(raw.get("path") or "")
+    scheme = str(raw.get("scheme") or "")
+    if host:
+        authority = f"{host}:{port}" if port else host
+        if protocol:
+            authority = f"{authority}/{protocol}"
+        return f"{scheme}://{authority}{path}" if scheme else f"{authority}{path}"
+    return compact_table_text(raw)
+
+
+def evidence_values(payloads: list[Mapping[str, Any]]) -> list[str]:
+    """Return unique evidence snippets from all payloads in a group."""
+    return unique_compact_values(
+        compact_table_text(payload.get("evidence") or payload.get("description") or "")
+        for payload in payloads
+    )
+
+
+def source_values(group: FindingGroup) -> list[str]:
+    """Return unique source descriptions from payload and event provenance."""
+    values: list[str] = []
+    for event in group.events:
+        payload = effective_finding_payload(event)
+        raw_sources = payload.get("sources")
+        if isinstance(raw_sources, list):
+            for source in raw_sources:
+                values.append(compact_source_value(source))
+        values.append(f"{event.source}:{event.topic}")
+    return unique_compact_values(values)
+
+
+def compact_source_value(raw: object) -> str:
+    """Return a compact source string."""
+    if not isinstance(raw, Mapping):
+        return str(raw) if raw else ""
+    tool = raw.get("tool") or raw.get("source") or raw.get("name")
+    topic = raw.get("topic")
+    if tool and topic:
+        return f"{tool}:{topic}"
+    if tool:
+        return str(tool)
+    return compact_table_text(raw)
+
+
+def provenance_values(group: FindingGroup) -> list[str]:
+    """Return event, pipeline, and step provenance strings for one group."""
+    event_ids = [str(event.id) for event in group.events if event.id is not None]
+    pipelines = unique_compact_values(event.pipeline_id or "" for event in group.events)
+    steps = unique_compact_values(event.command_run_id or "" for event in group.events)
+    values = []
+    if event_ids:
+        values.append(f"events={','.join(event_ids)}")
+    if pipelines:
+        values.append(f"pipeline={','.join(pipelines)}")
+    if steps:
+        values.append(f"step={','.join(steps)}")
+    return values
+
+
+def unique_compact_values(values: Iterable[object]) -> list[str]:
+    """Return stable unique non-empty compact strings."""
+    unique: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        text = compact_table_text(value)
+        if text and text not in seen:
+            unique.append(text)
+            seen.add(text)
+    return unique
 
 
 def events_for_groups(groups: list[FindingGroup]) -> list[Event]:

@@ -36,11 +36,20 @@ the latest pipeline first, then job or step context when that is the only
 available scope. It shows a count summary before listing rows:
 
 ```text
-Findings: total=12 accepted=3 deferred=1 rejected=0 unreviewed=8
+Findings: 12 total, 3 accepted, 1 deferred, 0 rejected, 8 unreviewed
 
-ID  Severity  Confidence  Class                    Target
-1   high      high        web.exposure.git_config  https://example.test
-2   medium    medium      web.header.missing_hsts  https://example.test
+Unreviewed findings:
+Findings
+#  Finding name                          Description                 Host(s) affected   Severity rating
+1  Exposed Git repository configuration  /.git/config returned data  https://example    high
+
+Details
+#1 Exposed Git repository configuration
+  Affected: https://example/.git/config
+  Evidence: /.git/config returned Git configuration content
+  Sources: git_expose_check:repo.git_config.checked
+  Provenance: events=42; pipeline=...; step=...
+  Latest update: 2026-05-27T12:00:00+00:00
 ```
 
 By default, `report` shows unreviewed findings. Use `status=all`,

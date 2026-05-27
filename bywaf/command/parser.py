@@ -32,6 +32,7 @@ class CommandInvocation:
     note: str | None = None
     display_name: str | None = None
     variable_expansions: tuple[str, ...] = ()
+    expanded_text: str | None = None
     plan_only: bool = False
     approved: bool = False
 
@@ -79,7 +80,11 @@ def parse_invocation(
         # command uses the same commandlet variable namespace that execution
         # will snapshot later.
         variable_scope = command_scope_resolver(commandlet) if command_scope_resolver is not None else commandlet
+        original_text = text
         text, variable_expansions = expand_variables_in_text(text, varstore, variable_scope)
+        expanded_text = text if text != original_text else None
+    else:
+        expanded_text = None
     tokens = shlex.split(text)
     background = False
     if tokens:
@@ -102,6 +107,7 @@ def parse_invocation(
         note=note,
         display_name=display_name,
         variable_expansions=variable_expansions,
+        expanded_text=expanded_text,
         plan_only=selectors["plan_only"] == "true",
         approved=selectors["approved"] == "true",
     )
@@ -165,6 +171,7 @@ def parse_pipeline(
             note=last.note,
             display_name=last.display_name,
             variable_expansions=last.variable_expansions,
+            expanded_text=last.expanded_text,
             plan_only=last.plan_only,
             approved=last.approved,
         )

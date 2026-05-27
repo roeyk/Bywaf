@@ -851,7 +851,7 @@ With:
 
 ```text
 bywaf> set --secret secret_demo.password=client-password
-secret_demo.password=[REDACTED] fingerprint=hmac-sha256:7e3...
+secret_demo.password=[REDACTED#7e3...]
 bywaf> secret_demo
 subprocess saw password=client-password
 ```

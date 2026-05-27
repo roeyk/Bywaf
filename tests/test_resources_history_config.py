@@ -668,6 +668,93 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
                 dispatch_repl_line(runner, f"config load file={config}")
             self.assertEqual(runner.registry.varstore.get("test.value"), "legacy")
 
+    def test_config_theme_loads_named_preset(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            with contextlib.redirect_stdout(io.StringIO()):
+                dispatch_repl_line(runner, "config theme name=classic")
+            self.assertEqual(runner.registry.varstore.get("display/style.variable"), "cyan")
+            self.assertEqual(runner.registry.varstore.get("display/style.string"), "bold yellow")
+
+    def test_config_theme_loads_file_without_replacing_config(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            theme = Path(tmp, "theme.toml")
+            theme.write_text(
+                '[variables]\n"display/style.variable" = "bright-cyan"\n"display.expansion" = "changed"\n',
+                encoding="utf-8",
+            )
+            runner.registry.varstore.set("test.value", "kept")
+            with contextlib.redirect_stdout(io.StringIO()):
+                dispatch_repl_line(runner, f"config theme file={theme}")
+            self.assertEqual(runner.registry.varstore.get("display/style.variable"), "bright-cyan")
+            self.assertEqual(runner.registry.varstore.get("display.expansion"), "changed")
+            self.assertEqual(runner.registry.varstore.get("test.value"), "kept")
+
+    def test_config_theme_rejects_non_display_variables(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            theme = Path(tmp, "bad-theme.toml")
+            theme.write_text('[variables]\n"network/portscanner.host" = "127.0.0.1"\n', encoding="utf-8")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, f"config theme file={theme}")
+            self.assertIn("theme variable must start with display.", output.getvalue())
+
+    def test_pref_set_saves_and_applies_user_preference(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            prefs = Path(tmp, "preferences.toml")
+            with contextlib.redirect_stdout(io.StringIO()):
+                dispatch_repl_line(runner, f"pref set display.expansion=changed file={prefs}")
+            self.assertEqual(runner.registry.varstore.get("display.expansion"), "changed")
+            self.assertIn('"display.expansion" = "changed"', prefs.read_text())
+
+    def test_pref_theme_saves_and_applies_named_theme(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            prefs = Path(tmp, "preferences.toml")
+            with contextlib.redirect_stdout(io.StringIO()):
+                dispatch_repl_line(runner, f"pref theme name=classic file={prefs}")
+            self.assertEqual(runner.registry.varstore.get("display/style.variable"), "cyan")
+            self.assertIn('"theme" = "classic"', prefs.read_text())
+
+            other = make_runner(Path(tmp, "other.sqlite3"))
+            with contextlib.redirect_stdout(io.StringIO()):
+                dispatch_repl_line(other, f"pref load file={prefs}")
+            self.assertEqual(other.registry.varstore.get("display/style.variable"), "cyan")
+
+    def test_pref_prompt_pattern_applies_to_shell_state(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            prefs = Path(tmp, "preferences.toml")
+            with contextlib.redirect_stdout(io.StringIO()):
+                dispatch_repl_line(runner, f"pref set prompt.pattern='test> ' file={prefs}", state)
+            self.assertEqual(state.prompt_pattern, "test> ")
+            self.assertIn('"prompt.pattern" = "test> "', prefs.read_text())
+
+    def test_pref_prompt_short_form_persists_prompt_pattern(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            prefs = Path(tmp, "preferences.toml")
+            with contextlib.redirect_stdout(io.StringIO()):
+                dispatch_repl_line(runner, f"pref prompt '$u@$h> ' file={prefs}", state)
+            self.assertEqual(state.prompt_pattern, "$u@$h> ")
+            self.assertIn('"prompt.pattern" = "$u@$h> "', prefs.read_text())
+
+    def test_pref_rejects_scanner_variables_but_allows_credential_names(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            prefs = Path(tmp, "preferences.toml")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, f"pref set network/portscanner.host=127.0.0.1 file={prefs}")
+                dispatch_repl_line(runner, f"pref set mail.smtp.password=secret file={prefs}")
+            self.assertIn("not a preference key", output.getvalue())
+            self.assertEqual(runner.registry.varstore.get("mail.smtp.password"), "secret")
+
     def test_save_and_load_database(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

@@ -32,6 +32,7 @@ from ..command.names import (
     SET_COMMAND,
     SETG_COMMAND,
 )
+from ..repl.themes import theme_names
 from ..specs import CompletionSpec
 from ..utils import complete_path
 from .constants import FRAMEWORK_OPTION_COMPLETIONS, option_is_binary
@@ -59,6 +60,7 @@ class CoreCompleter:
         "?",
         "history",
         "config",
+        "pref",
         "info",
         "jobs",
         "pipelines",
@@ -133,6 +135,7 @@ class CoreCompleter:
             "plugin": lambda current_prefix: self.plugin_resource_candidates(current_prefix, rest),
             "plugins": lambda _prefix: [],
             "pload": self.pload_candidates,
+            "pref": self.pref_candidates,
             "prompt": lambda _prefix: [],
             PROJECT_ALIAS_COMMAND: lambda current_prefix: self.project_candidates(current_prefix, rest),
             PROJECT_COMMAND: lambda current_prefix: self.project_candidates(current_prefix, rest),
@@ -449,7 +452,41 @@ class CoreCompleter:
 
     def config_candidates(self, prefix: str) -> list[str]:
         """Complete config subcommands and selectors."""
-        return resource_candidates(prefix, ("load", "save", "file=", "--encrypt"))
+        if prefix.startswith("name="):
+            value = prefix.split("=", 1)[1]
+            return [f"name={name}" for name in theme_names() if name.startswith(value)]
+        return resource_candidates(prefix, ("load", "save", "theme", "file=", "name=", "--encrypt"))
+
+    def pref_candidates(self, prefix: str) -> list[str]:
+        """Complete preference actions and common preference keys."""
+        common = (
+            "list",
+            "load",
+            "save",
+            "set",
+            "unset",
+            "theme",
+            "prompt",
+            "file=",
+            "name=",
+            "theme=",
+            "prompt.pattern=",
+            "display.expansion=",
+            "completion.select-key=",
+            "history.timestamp-format=",
+            "identity.email=",
+            "identity.fullname=",
+            "identity.username=",
+            "mail.smtp.host=",
+            "mail.smtp.port=",
+        )
+        if prefix.startswith("name="):
+            value = prefix.split("=", 1)[1]
+            return [f"name={name}" for name in theme_names() if name.startswith(value)]
+        if prefix.startswith("theme="):
+            value = prefix.split("=", 1)[1]
+            return [f"theme={name}" for name in theme_names() if name.startswith(value)]
+        return resource_candidates(prefix, common)
 
     def history_candidates(self, prefix: str) -> list[str]:
         """Complete history selectors and resource actions."""
