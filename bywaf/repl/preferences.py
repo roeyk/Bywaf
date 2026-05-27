@@ -62,6 +62,12 @@ def load_preferences(path: Path) -> dict[str, str]:
     return flattened
 
 
+def ensure_preferences_file(path: Path) -> None:
+    """Create an empty preferences file for first-run operator discovery."""
+    if not path.exists():
+        save_preferences(path, {})
+
+
 def save_preferences(path: Path, values: dict[str, str]) -> None:
     """Persist preference values as a flat TOML table."""
     path.parent.mkdir(parents=True, exist_ok=True)

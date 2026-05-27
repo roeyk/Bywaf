@@ -30,7 +30,7 @@ from .commands import REPL_COMMAND_HANDLERS, execute_repl_commandlet, execute_sh
 from .display import (
     friendly_error,
 )
-from .preferences import apply_preferences, load_preferences, resolve_preferences_path
+from .preferences import apply_preferences, ensure_preferences_file, load_preferences, resolve_preferences_path
 from ..plugins.network.nmap_backend import NmapScanError, NmapUnavailableError
 from ..projects import ProjectPaths
 from ..registry import PluginTrustError
@@ -268,11 +268,10 @@ def new_shell_state(runner: Runner) -> ShellState:
 
 
 def apply_startup_preferences(runner: Runner, state: ShellState) -> None:
-    """Apply user-local preferences when the default preference file exists."""
+    """Ensure and apply user-local preferences at REPL startup."""
     path = resolve_preferences_path()
-    if not path.exists():
-        return
     try:
+        ensure_preferences_file(path)
         apply_preferences(runner, state, load_preferences(path))
     except (OSError, ValueError) as exc:
         print(f"warning: could not load pref={path}: {friendly_error(exc)}")

@@ -33,6 +33,7 @@ from bywaf.app import (
     strip_inline_comment,
 )
 from bywaf.plugins.network.nmap_backend import NmapScanError, NmapUnavailableError
+from bywaf.repl.shell import apply_startup_preferences
 from bywaf.style import subject_style
 
 
@@ -770,6 +771,16 @@ bold = true
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "pref theme")
             self.assertIn("themes: classic, default, mono", output.getvalue())
+
+    def test_startup_preferences_create_default_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            prefs = Path(tmp, "home", ".bywaf", "preferences.toml")
+            with patch("bywaf.repl.preferences.DEFAULT_PREFERENCES", prefs):
+                apply_startup_preferences(runner, state)
+            self.assertTrue(prefs.exists())
+            self.assertEqual(prefs.read_text(encoding="utf-8"), "[preferences]\n")
 
     def test_pref_prompt_pattern_applies_to_shell_state(self):
         with tempfile.TemporaryDirectory() as tmp:
