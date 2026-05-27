@@ -88,6 +88,32 @@ class ReportTests(unittest.TestCase):
             self.assertEqual(rendered.payload["events"], [candidate.id])
             self.assertEqual(rendered.payload["groups"], ["candidate-1"])
 
+    def test_report_compacts_multiline_evidence_in_table_rows(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "candidate-1",
+                    "title": "Exposed Git repository configuration",
+                    "target": {"url": "http://127.0.0.1:8088/.git/config"},
+                    "severity": "high",
+                    "evidence": "[core]\n\trepositoryformatversion = 0\n",
+                },
+                "git_expose_check",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report pipeline=pipeline-a")
+                process_framework_requests(runner, ShellState())
+
+            text = output.getvalue()
+            self.assertIn("[core] repositoryformatversion = 0", text)
+            self.assertNotIn("[core]\n\t", text)
+
     def test_report_groups_duplicate_finding_events(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))

@@ -168,6 +168,9 @@ class CoreCompleter:
         if variable_candidates:
             return variable_candidates
 
+        if self.in_from_selector_context(args, prefix):
+            return self.framework_from_selector_candidates(prefix)
+
         # Prefer exact key=value option completions before plugin hooks so
         # documented OptionSpec metadata stays authoritative for common options.
         if "=" in prefix and not prefix.startswith("--"):
@@ -202,13 +205,41 @@ class CoreCompleter:
         binary_flags = [f"--{option.name}" for option in plugin.spec.options if option_is_binary(option.name)]
         valued_options = [f"{option.name}=" for option in plugin.spec.options if not option_is_binary(option.name)]
         options = ["-h", "--help", *binary_flags]
-        options.extend(("--from-step", "--from-pipeline", "--from-topic"))
+        options.append("--from")
         if prefix.startswith(".") or "/" in prefix:
             return complete_path(prefix)
         # Final fallback includes valued option forms plus topic names from the
         # commandlet contract, which helps users discover valid pipeline inputs
         # and outputs while typing.
         return [*valued_options, *options, *plugin.spec.consumes, *plugin.spec.emits]
+
+    def framework_from_selector_candidates(self, prefix: str) -> list[str]:
+        """Complete selector values used after `--from`."""
+        selectors = (("job=", "job"), ("pipeline=", "pipeline"), ("step=", "step"), ("topic=", "topic"))
+        for selector, spec_kind in selectors:
+            if prefix.startswith(selector):
+                value_prefix = prefix.split("=", 1)[1]
+                return [f"{selector}{value}" for value in self.complete_by_spec(CompletionSpec(spec_kind), value_prefix)]
+        return [selector for selector, _spec_kind in selectors if selector.startswith(prefix)]
+
+    def in_from_selector_context(self, args: list[str], prefix: str) -> bool:
+        """Return whether the current token belongs to framework `--from` selectors."""
+        if "--from" not in args:
+            return False
+        if prefix and not any(selector.startswith(prefix) or prefix.startswith(selector) for selector in ("job=", "pipeline=", "step=", "topic=")):
+            return False
+        from_index = args.index("--from")
+        following = args[from_index + 1 :]
+        if prefix and following and following[-1] == prefix:
+            following = following[:-1]
+        if not following:
+            return True
+        return all(self.is_from_selector_token(token) for token in following)
+
+    def is_from_selector_token(self, token: str) -> bool:
+        """Return whether one token is a complete `--from` selector assignment."""
+        key, separator, value = token.partition("=")
+        return bool(separator and value and key in {"job", "pipeline", "step", "topic"})
 
     def plugin_variable_candidates(self, plugin_name: str, prefix: str) -> list[str]:
         """Complete variable references in positional or key=value arguments."""

@@ -44,17 +44,37 @@ def select_input_events(
     """Choose pipeline input events or DB-selected events for one invocation.
 
     Normal foreground pipelines pass in-memory events from the previous stage.
-    Replay/attach selectors (`step=`, `pipeline=`, `topic=`) instead read from
-    the database so a new stage can continue from historical work.
+    Replay/attach selectors (`step=`, `pipeline=`, `job=`, `topic=`) instead
+    read from the database so a new stage can continue from historical work.
     """
-    if not any((invocation.from_step, invocation.from_pipeline, invocation.from_topic)):
+    if not any((invocation.from_step, invocation.from_pipeline, invocation.from_job, invocation.from_topic)):
         return fallback_events
+    if invocation.from_job:
+        events = db.events_for_job(resolve_job_id(db, invocation.from_job), limit=100000)
+        return [
+            event
+            for event in events
+            if event.id is not None
+            and event.id > invocation.replay_after_id
+            and (invocation.from_topic is None or event.topic == invocation.from_topic)
+        ]
     return db.events_matching(
         command_run_id=db.resolve_run_serial(invocation.from_step) if invocation.from_step else None,
         pipeline_id=db.resolve_pipeline_serial(invocation.from_pipeline) if invocation.from_pipeline else None,
         topic=invocation.from_topic,
         after_id=invocation.replay_after_id,
     )
+
+
+def resolve_job_id(db: EventStore, value: str) -> int:
+    """Resolve a local job id or durable job serial for replay selectors."""
+    try:
+        return int(value)
+    except ValueError:
+        local_id = db.job_id_for_serial(value)
+        if local_id is None:
+            raise ValueError(f"unknown job: {value}") from None
+        return int(local_id)
 
 
 def prepare_stage_runs(commands: tuple[CommandInvocation, ...]) -> tuple[StageRun, ...]:
@@ -174,6 +194,7 @@ def build_context(
             "background": invocation.background,
             "from_step": invocation.from_step,
             "from_pipeline": invocation.from_pipeline,
+            "from_job": invocation.from_job,
             "from_topic": invocation.from_topic,
             "note": invocation.note,
             "replace_db": replace_db,

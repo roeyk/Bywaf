@@ -323,6 +323,25 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("192.0.2.10", lines[0])
             self.assertIn("192.0.2.20", lines[1])
 
+    def test_event_filters_support_include_exclude_and_network_values(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish("port.open", {"host": "192.168.50.10", "port": 80}, "test")
+            runner.db.publish("port.open", {"host": "192.168.50.130", "port": 80}, "test")
+            runner.db.publish("port.open", {"host": "192.168.51.20", "port": 443}, "test")
+            runner.db.publish("port.open", {"host": "198.51.100.10", "port": 80}, "test")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(
+                    runner,
+                    "event port.open host=192.168.50.0/24,!192.168.50.1-128 port=80",
+                )
+            text = output.getvalue()
+            self.assertNotIn("192.168.50.10", text)
+            self.assertIn("192.168.50.130:80", text)
+            self.assertNotIn("192.168.51.20", text)
+            self.assertNotIn("198.51.100.10", text)
+
     def test_step_without_id_prints_help(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

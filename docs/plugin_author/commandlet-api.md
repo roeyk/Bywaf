@@ -309,10 +309,14 @@ none        no completion
 Framework selectors use these same specs:
 
 ```text
---from-step
---from-pipeline
---from-topic
+--from step=<id> [topic=<topic>]
+--from pipeline=<id> [topic=<topic>]
+--from job=<id> [topic=<topic>]
 ```
+
+`--from` replays prior events into a commandlet. `step=`, `pipeline=`, and
+`job=` select the provenance scope; optional `topic=` narrows that replay
+stream and does not stand alone.
 
 ## Custom Completion
 

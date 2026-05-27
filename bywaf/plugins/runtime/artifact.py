@@ -39,7 +39,7 @@ ArtifactActionHandler = Callable[[CommandContext, list[str]], None]
 @commandlet(
     name="artifact",
     description="Import, attach, list, export, replace, remove, and verify artifacts.",
-    usage="artifact <import|attach|list|export|replace|remove|search|verify> [serial=id|artifact=id|step=id|pipeline=id|job=id] [file=path|dir=path]",
+    usage="artifact <import|attach|list|export|replace|remove|search|verify> [serial=id|artifact=id|step=id|pipeline=id|job=id|topic=name] [file=path|dir=path]",
     examples=(
         "artifact attach step=1 file=snapshot.html name='Landing page'",
         "artifact attach serial=run-... file=snapshot.html",
@@ -104,6 +104,8 @@ class ArtifactCommand(CommandletBase):
             return [f"artifact={value}" for value in artifact_ids(context)]
         if prefix.startswith("serial="):
             return [f"serial={value}" for value in serial_ids(context)]
+        if prefix.startswith("topic="):
+            return [f"topic={value}" for value in artifact_topics(context)]
         return artifact_completion_selectors().get(args[0], list(ARTIFACT_ACTIONS))
 
 
@@ -128,9 +130,9 @@ def artifact_completion_selectors() -> dict[str, list[str]]:
         "import": ["file=", "name=", "note="],
         "replace": ["artifact=", "file=", "name=", "note="],
         "remove": ["artifact=", "serial=", "step=", "pipeline=", "job="],
-        "list": ["artifact=", "serial=", "step=", "pipeline=", "job=", "--page"],
-        "verify": ["artifact=", "serial=", "step=", "pipeline=", "job="],
-        "export": ["artifact=", "serial=", "step=", "pipeline=", "job=", "file=", "dir="],
+        "list": ["artifact=", "serial=", "step=", "pipeline=", "job=", "topic=", "--page"],
+        "verify": ["artifact=", "serial=", "step=", "pipeline=", "job=", "topic="],
+        "export": ["artifact=", "serial=", "step=", "pipeline=", "job=", "topic=", "file=", "dir="],
         "search": [
             "name=",
             "filename=",
@@ -257,7 +259,7 @@ def parse_artifact_selectors(tokens: list[str], *, allow_page: bool = False) -> 
             index = len(tokens)
         else:
             index += 1
-        if key not in {"artifact", "step", "pipeline", "job", "serial", "file", "dir", "name", "note"}:
+        if key not in {"artifact", "step", "pipeline", "job", "serial", "topic", "file", "dir", "name", "note"}:
             raise ValueError(f"unknown artifact selector: {key}")
         if not value:
             raise ValueError(f"artifact selector {key}= requires a value")
@@ -492,21 +494,24 @@ def verify_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
 
 
 def select_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> list[Artifact]:
-    """Return artifacts selected by artifact=, step=, pipeline=, or job=."""
+    """Return artifacts selected by id, provenance, serial, or topic."""
     context.audit_capability("artifact.read")
     store = context.artifact_store("artifact")
     artifact_id = single_value(selectors, "artifact")
     if artifact_id is not None:
-        return [store.get(artifact_id)]
+        artifacts = [store.get(artifact_id)]
+        return filter_artifacts_by_topic(context, artifacts, selectors.get("topic", []))
     serial = single_value(selectors, "serial")
     if serial is not None and serial.startswith("artifact-"):
-        return [store.get(serial)]
+        artifacts = [store.get(serial)]
+        return filter_artifacts_by_topic(context, artifacts, selectors.get("topic", []))
     scope = resolve_artifact_scope(context, selectors)
-    return store.list(
+    artifacts = store.list(
         job_id=scope.job_id,
         pipeline_id=scope.pipeline_id,
         command_run_id=scope.command_run_id,
     )
+    return filter_artifacts_by_topic(context, artifacts, selectors.get("topic", []))
 
 
 def search_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> list[Artifact]:
@@ -536,6 +541,30 @@ def search_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
         since=single_value(selectors, "since"),
         until=single_value(selectors, "until"),
     )
+
+
+def filter_artifacts_by_topic(
+    context: CommandContext,
+    artifacts: list[Artifact],
+    topics: list[str],
+) -> list[Artifact]:
+    """Filter artifacts by main-DB artifact event topics."""
+    if not topics:
+        return artifacts
+    allowed_ids = artifact_ids_for_topics(context, topics)
+    return [artifact for artifact in artifacts if artifact.artifact_id in allowed_ids]
+
+
+def artifact_ids_for_topics(context: CommandContext, topics: list[str]) -> set[str]:
+    """Return artifact durable ids referenced by selected artifact topics."""
+    ids: set[str] = set()
+    events = context.event_store("artifact topic selector")
+    for topic in topics:
+        for event in events.events_matching(topic=topic, limit=100000):
+            artifact_id = event.payload.get("artifact_id")
+            if artifact_id:
+                ids.add(str(artifact_id))
+    return ids
 
 
 def search_artifact_command(context: CommandContext, tokens: list[str]) -> None:
@@ -836,6 +865,13 @@ def serial_ids(context: CompletionContext) -> list[str]:
     if context.db is None:
         return []
     return context.db.serials()
+
+
+def artifact_topics(context: CompletionContext) -> list[str]:
+    """Return artifact event topics for selector completion."""
+    if context.db is None:
+        return []
+    return sorted(topic for topic in context.db.topics() if topic.startswith("artifact."))
 
 
 def plugins() -> tuple[Commandlet, ...]:

@@ -9,12 +9,22 @@ Used by:
 
 from __future__ import annotations
 
+import ipaddress
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Any
 
 from .events import Event
 
 EVENT_SORT_ALIASES = {"transport": "protocol", "status": "state"}
+
+
+@dataclass(frozen=True, slots=True)
+class SelectorExpression:
+    """Parsed selector values with positive matches and negated exclusions."""
+
+    include: tuple[str, ...]
+    exclude: tuple[str, ...]
 
 
 def parse_event_sort(raw: str) -> str:
@@ -50,13 +60,17 @@ def event_sort_value(event: Event, sort_key: str) -> tuple[str, int]:
 
 
 def event_matches_payload_filters(event: Event, filters: dict[str, str]) -> bool:
-    """Check one event against comma-separated payload field filters."""
+    """Check one event against comma-separated payload field filters.
+
+    Values inside one selector are ORed, leading `!` values are exclusions, and
+    different selector keys are ANDed by the caller's loop.  For example,
+    `host=10.0.0.0/24,!10.0.0.5 port=80,443` means host is inside that network
+    except one address, and port is either 80 or 443.
+    """
     for key, raw_values in filters.items():
-        accepted = {value.strip() for value in raw_values.split(",") if value.strip()}
-        if not accepted:
-            raise ValueError(f"{key}= requires at least one value")
+        selector = parse_selector_expression(raw_values, key)
         values = payload_filter_values(event.payload, key)
-        if not any(str(value) in accepted for value in values):
+        if not selector_matches_values(selector, values):
             return False
     return True
 
@@ -77,6 +91,76 @@ def parse_payload_filter_tokens(tokens: Sequence[str]) -> dict[str, str]:
             raise ValueError("filters must be field=value")
         filters[key] = value
     return filters
+
+
+def parse_selector_expression(raw_values: str, key: str = "selector") -> SelectorExpression:
+    """Parse comma-separated selector values with `!` exclusions."""
+    include: list[str] = []
+    exclude: list[str] = []
+    for raw_value in raw_values.split(","):
+        value = raw_value.strip()
+        if not value:
+            raise ValueError(f"{key}= contains an empty selector value")
+        if value.startswith("!"):
+            excluded = value[1:].strip()
+            if not excluded:
+                raise ValueError(f"{key}= contains an empty excluded value")
+            exclude.append(excluded)
+        else:
+            include.append(value)
+    if not include and not exclude:
+        raise ValueError(f"{key}= requires at least one value")
+    return SelectorExpression(tuple(include), tuple(exclude))
+
+
+def selector_matches_values(selector: SelectorExpression, values: Sequence[Any]) -> bool:
+    """Return whether candidate values satisfy include-minus-exclude semantics."""
+    text_values = [str(value) for value in values if value is not None]
+    if not text_values:
+        return False
+    if selector.include and not any(selector_value_matches(value, pattern) for value in text_values for pattern in selector.include):
+        return False
+    return not any(selector_value_matches(value, pattern) for value in text_values for pattern in selector.exclude)
+
+
+def selector_value_matches(value: str, pattern: str) -> bool:
+    """Return exact, CIDR, or IPv4 last-octet-range match for one value."""
+    if value == pattern:
+        return True
+    if ipv4_last_octet_range_matches(value, pattern):
+        return True
+    if "/" not in pattern:
+        return False
+    try:
+        return ipaddress.ip_address(value) in ipaddress.ip_network(pattern, strict=False)
+    except ValueError:
+        return False
+
+
+def ipv4_last_octet_range_matches(value: str, pattern: str) -> bool:
+    """Match compact IPv4 ranges like `192.168.50.1-128`."""
+    if "-" not in pattern:
+        return False
+    prefix, separator, end = pattern.rpartition(".")
+    if not separator or "-" not in end:
+        return False
+    start_text, end_text = end.split("-", 1)
+    try:
+        start = int(start_text)
+        stop = int(end_text)
+        value_ip = ipaddress.ip_address(value)
+    except ValueError:
+        return False
+    if value_ip.version != 4 or not (0 <= start <= stop <= 255):
+        return False
+    octets = value.split(".")
+    if len(octets) != 4 or ".".join(octets[:3]) != prefix:
+        return False
+    try:
+        last = int(octets[3])
+    except ValueError:
+        return False
+    return start <= last <= stop
 
 
 def payload_filter_values(payload: dict[str, Any], key: str) -> list[Any]:

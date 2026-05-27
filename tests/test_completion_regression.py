@@ -126,9 +126,10 @@ class CompletionRegressionTests(unittest.TestCase):
                 ("event step=", "step=1"),
                 ("event pipeline=", "pipeline=1"),
                 ("signal serial=", "serial=run-1"),
-                ("portscanner --from-step ", "1"),
-                ("portscanner --from-pipeline ", "1"),
-                ("portscanner --from-topic ", "host.found"),
+                ("portscanner --from job=", f"job={job_id}"),
+                ("portscanner --from step=", "step=1"),
+                ("portscanner --from pipeline=", "pipeline=1"),
+                ("portscanner --from topic=", "topic=host.found"),
             )
             for line, expected in cases:
                 with self.subTest(line=line):

@@ -59,6 +59,12 @@ bywaf> report step=12
 bywaf> report status=all pipeline=1
 ```
 
+Selector values use the same include/exclude grammar as event inspection:
+comma-separated values are ORed, `!value` excludes values, and different
+selector keys are ANDed together. Host/event selectors also accept CIDR and
+compact IPv4 last-octet ranges, for example
+`host=192.168.50.0/24,!192.168.50.1-128`.
+
 Use the selector that matches the question:
 
 | Selector | Use when |

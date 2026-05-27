@@ -26,6 +26,7 @@ class CommandInvocation:
     background: bool = False
     from_step: str | None = None
     from_pipeline: str | None = None
+    from_job: str | None = None
     from_topic: str | None = None
     replay_after_id: int = 0
     note: str | None = None
@@ -52,8 +53,9 @@ def parse_invocation(
 ) -> CommandInvocation:
     """Parse one commandlet expression.
 
-    This function strips Bywaf framework selectors such as `--from-step` before
-    plugin argparse sees the remaining plugin-owned arguments.
+    This function strips Bywaf framework selectors such as
+    `--from step=1 topic=host.found` before plugin argparse sees the remaining
+    plugin-owned arguments.
     """
     commandlet = provisional_command_name(text)
     commandlet_for_selectors = commandlet
@@ -95,6 +97,7 @@ def parse_invocation(
         background=background,
         from_step=selectors["from_step"],
         from_pipeline=selectors["from_pipeline"],
+        from_job=selectors["from_job"],
         from_topic=selectors["from_topic"],
         note=note,
         display_name=display_name,
@@ -156,6 +159,7 @@ def parse_pipeline(
             background=True,
             from_step=last.from_step,
             from_pipeline=last.from_pipeline,
+            from_job=last.from_job,
             from_topic=last.from_topic,
             replay_after_id=last.replay_after_id,
             note=last.note,
@@ -454,6 +458,7 @@ def peel_context_selectors(args: list[str]) -> tuple[list[str], dict[str, str | 
     selectors: dict[str, str | None] = {
         "from_step": None,
         "from_pipeline": None,
+        "from_job": None,
         "from_topic": None,
         "plan_only": "false",
         "approved": "false",
@@ -462,10 +467,20 @@ def peel_context_selectors(args: list[str]) -> tuple[list[str], dict[str, str | 
     index = 0
     while index < len(args):
         token = args[index]
-        selector_key = CONTEXT_SELECTOR_VALUE_FLAGS.get(token)
-        if selector_key is not None:
-            selectors[selector_key] = require_selector_value(args, index, token)
-            index += 2
+        if token == "--from":
+            index += 1
+            replay_selectors: set[str] = set()
+            while index < len(args):
+                key, value = context_selector_assignment(args[index])
+                if key is None:
+                    break
+                selectors[key] = value
+                replay_selectors.add(key)
+                index += 1
+            if not replay_selectors:
+                raise ValueError("--from requires job=, pipeline=, or step=")
+            if replay_selectors.isdisjoint({"from_job", "from_pipeline", "from_step"}):
+                raise ValueError("--from requires job=, pipeline=, or step=; topic= only narrows replay input")
             continue
         selector_value = CONTEXT_SELECTOR_BOOL_FLAGS.get(token)
         if selector_value is not None:
@@ -478,13 +493,11 @@ def peel_context_selectors(args: list[str]) -> tuple[list[str], dict[str, str | 
     return cleaned, selectors
 
 
-CONTEXT_SELECTOR_VALUE_FLAGS = {
-    "--from": "from_step",
-    "--from-pipeline": "from_pipeline",
-    "--from-step": "from_step",
-    "--from-topic": "from_topic",
-    "--pipeline": "from_pipeline",
-    "--topic": "from_topic",
+CONTEXT_SELECTOR_KEYS = {
+    "pipeline": "from_pipeline",
+    "job": "from_job",
+    "step": "from_step",
+    "topic": "from_topic",
 }
 CONTEXT_SELECTOR_BOOL_FLAGS = {
     "--test": ("plan_only", "true"),
@@ -492,9 +505,14 @@ CONTEXT_SELECTOR_BOOL_FLAGS = {
 }
 
 
-def require_selector_value(args: list[str], index: int, token: str) -> str:
-    """Return the value after a selector flag or raise a friendly parse error."""
-    try:
-        return args[index + 1]
-    except IndexError as exc:
-        raise ValueError(f"{token} requires a value") from exc
+def context_selector_assignment(token: str) -> tuple[str | None, str | None]:
+    """Return a framework replay selector assignment, if the token is one."""
+    key, separator, value = token.partition("=")
+    if not separator:
+        return None, None
+    selector = CONTEXT_SELECTOR_KEYS.get(key)
+    if selector is None:
+        return None, None
+    if not value:
+        raise ValueError(f"--from {key}= requires a value")
+    return selector, value

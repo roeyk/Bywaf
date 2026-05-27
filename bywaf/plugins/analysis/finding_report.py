@@ -191,11 +191,11 @@ def row_from_event(event: Event) -> dict[str, str]:
     normalized = normalize_event(event)
     return {
         "finding_name": normalized.title,
-        "description": normalized.evidence or normalized.finding_class,
+        "description": compact_table_text(normalized.evidence or normalized.finding_class),
         "hosts_affected": host_from_target(normalized.target.as_payload()),
         "cve": cve_values(normalized.identifiers),
         "severity": normalized.severity,
-        "recommendation": recommendation_for(normalized.finding_class, normalized.raw),
+        "recommendation": compact_table_text(recommendation_for(normalized.finding_class, normalized.raw)),
     }
 
 
@@ -203,7 +203,7 @@ def row_from_payload(payload: Mapping[str, Any]) -> dict[str, str]:
     """Return one reporting row from a normalized finding payload."""
     title = str(payload.get("title") or payload.get("class") or "finding")
     finding_class = str(payload.get("class") or "")
-    description = str(payload.get("description") or payload.get("evidence") or finding_class)
+    description = compact_table_text(payload.get("description") or payload.get("evidence") or finding_class)
     identifiers = identifiers_from_payload(payload)
     return {
         "finding_name": title,
@@ -211,8 +211,13 @@ def row_from_payload(payload: Mapping[str, Any]) -> dict[str, str]:
         "hosts_affected": host_from_target(payload.get("target")),
         "cve": cve_values(identifiers),
         "severity": str(payload.get("severity") or "unknown"),
-        "recommendation": recommendation_for(finding_class, dict(payload)),
+        "recommendation": compact_table_text(recommendation_for(finding_class, dict(payload))),
     }
+
+
+def compact_table_text(value: object) -> str:
+    """Return single-line text for compact report tables."""
+    return " ".join(str(value).split())
 
 
 def candidate_payload(payload: Mapping[str, Any]) -> Mapping[str, Any]:

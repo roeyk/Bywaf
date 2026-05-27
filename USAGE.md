@@ -726,6 +726,7 @@ List, search, export, and verify artifacts:
 
 ```text
 bywaf> artifact list step=<step-id>
+bywaf> artifact list topic=artifact.attached
 bywaf> search step=<step-id> name=landing
 bywaf> search step=<step-id> filename=snapshot.html
 bywaf> search step=<step-id> content=csrf
@@ -734,6 +735,7 @@ bywaf> artifact replace artifact=1 file=snapshot-v2.html
 bywaf> artifact remove artifact=1
 bywaf> artifact export artifact=1 file=snapshot.html
 bywaf> artifact export serial=<artifact-serial> file=snapshot.html
+bywaf> artifact export topic=artifact.attached dir=artifacts/
 bywaf> artifact export step=<step-id> dir=artifacts/
 bywaf> artifact verify pipeline=<pipeline-id>
 ```
@@ -1072,10 +1074,18 @@ bywaf> event port.open sort=protocol
 
 `event <topic> field=value` filters by event payload fields. The `host=`
 shortcut matches both top-level `host` payloads and common nested target host
-fields such as `target.host`. Comma-separated values match any listed value.
-Use `sort=time` (default), `sort=host`, `sort=protocol`, `sort=state`,
-`sort=topic`, or `sort=source` to order displayed rows. `sort=transport` is an
-alias for `protocol`, and `sort=status` is an alias for `state`.
+fields such as `target.host`. Selector values are comma-separated OR lists;
+values prefixed with `!` exclude matches from the selected set. Host-like
+values also accept CIDR ranges and compact IPv4 last-octet ranges:
+
+```text
+bywaf> event port.open host=192.168.50.0/24,!192.168.50.1-128 port=80,443
+```
+
+Different selector keys are ANDed together. Use `sort=time` (default),
+`sort=host`, `sort=protocol`, `sort=state`, `sort=topic`, or `sort=source` to
+order displayed rows. `sort=transport` is an alias for `protocol`, and
+`sort=status` is an alias for `state`.
 
 List commandlet steps:
 
@@ -1459,7 +1469,7 @@ Scripts are text files with one command expression per line:
 ```text
 # scan local host
 hostscanner 127.0.0.1
-portscanner --from-topic host.found
+portscanner --from step=<step-id> topic=host.found
 ```
 
 Blank lines and lines beginning with `#` are ignored. Inline comments are also

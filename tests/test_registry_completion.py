@@ -477,12 +477,14 @@ class RegistryCompletionTests(unittest.TestCase):
                 pipeline_id="pipeline-1",
                 command_run_id="run-1",
             )
+            job_id = db.record_job("hostscanner 127.0.0.1", 123, "running")
             completer = Completer(self.registry, db)
-            self.assertEqual(completer.candidates("portscanner --from-step "), ["1"])
-            self.assertEqual(completer.candidates("portscanner --from-pipeline "), ["1"])
+            self.assertEqual(completer.candidates("portscanner --from job="), [f"job={job_id}"])
+            self.assertEqual(completer.candidates("portscanner --from step="), ["step=1"])
+            self.assertEqual(completer.candidates("portscanner --from pipeline="), ["pipeline=1"])
             self.assertIn("serial=run-1", completer.candidates("event serial="))
             self.assertIn("serial=pipeline-1", completer.candidates("event serial="))
-            self.assertIn("host.found", completer.candidates("portscanner --from-topic "))
+            self.assertIn("topic=host.found", completer.candidates("portscanner --from topic="))
 
     def test_show_completes_selector_values(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -532,7 +534,8 @@ class RegistryCompletionTests(unittest.TestCase):
     def test_completes_plugin_options(self):
         completer = Completer(self.registry)
         self.assertIn("port=", completer.candidates("portscanner por"))
-        self.assertIn("--from-step", completer.candidates("portscanner --from"))
+        self.assertIn("--from", completer.candidates("portscanner --"))
+        self.assertIn("step=", completer.candidates("portscanner --from "))
         http_options = completer.candidates("http_headers --")
         self.assertIn("--help", http_options)
         self.assertIn("port=", completer.candidates("http_headers po"))
@@ -552,6 +555,7 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn("file=", completer.candidates("artifact import "))
         self.assertIn("file=", completer.candidates("artifact replace "))
         self.assertIn("dir=", completer.candidates("artifact export "))
+        self.assertIn("topic=", completer.candidates("artifact list "))
         self.assertIn("note=", completer.candidates("artifact search "))
         self.assertIn("--regexp", completer.candidates("search "))
         self.assertIn("filename=", completer.candidates("search "))
@@ -618,9 +622,7 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertEqual(
             completer.candidates("portscanner --"),
             [
-                "--from-pipeline",
-                "--from-step",
-                "--from-topic",
+                "--from",
                 "--help",
                 "--listen",
                 "--silent",

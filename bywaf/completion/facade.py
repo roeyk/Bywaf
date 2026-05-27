@@ -512,6 +512,18 @@ def register_select_completion_binding(bindings, select_key: str) -> None:
     def _accept_completion(event) -> None:
         apply_current_completion(event)
 
+    @bindings.add("tab", filter=has_completions)
+    def _accept_completion_with_tab(event) -> None:
+        apply_current_completion(event)
+
+    @bindings.add("right", filter=has_completions)
+    def _right_completion(event) -> None:
+        event.current_buffer.complete_next()
+
+    @bindings.add("left", filter=has_completions)
+    def _left_completion(event) -> None:
+        event.current_buffer.complete_previous()
+
     @bindings.add("escape", filter=has_completions, eager=True)
     def _cancel_completion(event) -> None:
         cancel_completion_menu(event)

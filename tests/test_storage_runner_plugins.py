@@ -31,6 +31,7 @@ from bywaf.plugins.network.nmap_backend import NmapPort
 from bywaf.plugins.discovery.hostscanner import HostScanner
 from bywaf.plugins.discovery.hostscanner import expand_targets
 from bywaf.plugins.network.portscanner import PortScanner
+from bywaf.plugins.runtime.artifact import select_artifacts
 from bywaf.plugins.runtime.watchdog import Watchdog
 from bywaf.plugins.storage.db import encrypt_active_database
 from bywaf.plugin import CommandContext
@@ -68,12 +69,17 @@ class StorageRunnerPluginTests(unittest.TestCase):
 
     def test_parse_framework_context_selectors(self):
         invocation = parse_invocation(
-            "portscanner --from-step host-run --from-pipeline pipe --from-topic host.found port=80"
+            "portscanner --from step=host-run pipeline=pipe job=7 topic=host.found port=80"
         )
         self.assertEqual(invocation.from_step, "host-run")
         self.assertEqual(invocation.from_pipeline, "pipe")
+        self.assertEqual(invocation.from_job, "7")
         self.assertEqual(invocation.from_topic, "host.found")
         self.assertEqual(invocation.args, ["port=80"])
+
+    def test_from_selector_requires_replay_scope(self):
+        with self.assertRaisesRegex(ValueError, "topic= only narrows"):
+            parse_invocation("portscanner --from topic=host.found port=80")
 
     def test_parse_invocation_strips_final_unquoted_note(self):
         invocation = parse_invocation("hostscanner 127.0.0.1 note=client approved target")
@@ -485,6 +491,22 @@ class StorageRunnerPluginTests(unittest.TestCase):
             self.assertEqual(attached.id, imported.id)
             self.assertEqual(attached.name, "Landing page")
             self.assertTrue(runner.db.events_for_topic("artifact.attached"))
+
+    def test_artifact_list_filters_by_topic_selector(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp, "db.sqlite3")
+            source = Path(tmp, "snapshot.html")
+            source.write_text("<html>ok</html>")
+            runner = make_runner(db_path)
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute(f"artifact import file={source} name='Imported page'")
+                process_framework_requests(runner, ShellState())
+            context = CommandContext(runner.db, source="artifact")
+            imported = select_artifacts(context, {"topic": ["artifact.imported"]})
+            attached = select_artifacts(context, {"topic": ["artifact.attached"]})
+
+            self.assertEqual([artifact.name for artifact in imported], ["Imported page"])
+            self.assertEqual(attached, [])
 
     @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
     def test_artifact_attach_rejects_artifact_parent_serial(self):
@@ -1085,7 +1107,25 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 return_value=[NmapPort("127.0.0.1", 80, "tcp", "open")],
             ) as scan:
                 with contextlib.redirect_stdout(io.StringIO()):
-                    events = runner.execute("portscanner --from-step host-run port=80")
+                    events = runner.execute("portscanner --from step=host-run port=80")
+            self.assertEqual(events[0].payload["host"], "127.0.0.1")
+            self.assertEqual(scan.call_args.args[0], ["127.0.0.1"])
+
+    def test_commandlet_can_use_events_from_prior_job(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("hostscanner 127.0.0.1", 123, "finished")
+            runner.db.publish(
+                "host.found",
+                {"host": "127.0.0.1", "job_id": job_id},
+                "hostscanner",
+            )
+            with patch(
+                "bywaf.plugins.network.portscanner.scan_open_ports",
+                return_value=[NmapPort("127.0.0.1", 80, "tcp", "open")],
+            ) as scan:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    events = runner.execute(f"portscanner --from job={job_id} topic=host.found port=80")
             self.assertEqual(events[0].payload["host"], "127.0.0.1")
             self.assertEqual(scan.call_args.args[0], ["127.0.0.1"])
 

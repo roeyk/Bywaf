@@ -12,13 +12,7 @@ from __future__ import annotations
 
 from ..specs import CompletionSpec
 
-FRAMEWORK_OPTION_COMPLETIONS = {
-    # These options are framework selectors parsed outside commandlet-specific
-    # argparse, so completion metadata lives with the completion engine.
-    "--from-step": CompletionSpec("step"),
-    "--from-pipeline": CompletionSpec("pipeline"),
-    "--from-topic": CompletionSpec("topic"),
-}
+FRAMEWORK_OPTION_COMPLETIONS: dict[str, CompletionSpec] = {}
 # Binary options complete as bare flags instead of expecting a following value.
 BINARY_OPTION_NAMES = {"listen", "silent"}
 
