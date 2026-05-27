@@ -1,0 +1,44 @@
+# Manual finding/report workflow checklist.
+#
+# Run inside Bywaf:
+#   script load file=scripts/manual_finding_report_flow.bywaf
+#
+# Stages 1-3 are safe defaults against google.com and should run as-is.
+# Stages 4-6 need local authorized targets; edit the placeholder values and
+# remove the leading "# " from those command lines before running them.
+
+# 1. Fresh DB
+db new
+
+# 2. Portscanner sanity
+network/portscanner host=google.com ports=80,443 arguments="-Pn -sT -4"
+event port.open
+event name.resolved
+
+# 3. Filtering/provenance
+# Choose one IP from the port.open output above and set A to that value.
+# Example:
+# set A=142.251.16.138
+# event port.open host=$A
+# jobs host=$A
+# steps host=$A
+# pipelines host=$A
+
+# 4. Telnet-like finding path
+# Replace <host> with an authorized test host that has Telnet-like service
+# exposure on port 23 or 2323.
+# network/portscanner host=<host> ports=23,2323 arguments="-Pn -sT"
+# event finding.candidate
+# report
+
+# 5. HTTP/repo exposure
+# Replace <test-host> with a controlled HTTP server exposing /.git/config.
+# http/repo_exposure/git_expose_check target=http://<test-host>
+# event finding.candidate
+# report
+
+# 6. Triage
+# Run only after report shows findings you intend to mark reviewed.
+# report accept all note="confirmed in manual pass"
+# report
+# event finding.reviewed
