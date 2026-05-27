@@ -529,6 +529,8 @@ class RegistryCompletionTests(unittest.TestCase):
             self.assertIn("artifacts=1", completer.completion_meta("step=1", "event step=", "step="))
             self.assertIn("artifacts=1", completer.completion_meta("pipeline=1", "event pipeline=", "pipeline="))
             self.assertIn("artifacts=1", completer.completion_meta(f"job={job_id}", "event job=", "job="))
+            self.assertEqual(completer.completion_meta("pipeline=", "report ", ""), "")
+            self.assertEqual(completer.completion_meta("pipeline=pr", "report pipeline=pr", "pipeline=pr"), "")
 
     def test_tokens_after_last_pipe(self):
         self.assertEqual(tokens_after_last_pipe(["hostscanner", "x", "|", "por"]), ["por"])

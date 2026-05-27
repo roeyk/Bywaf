@@ -27,7 +27,7 @@ class RuntimeCompletionMetadataMixin:
         if self.db is None:
             return ""
         kind, value = runtime_completion_target(candidate, line, prefix)
-        if kind is None:
+        if kind is None or not value:
             return ""
         dispatch = {
             "job": self.job_completion_meta,
@@ -54,7 +54,10 @@ class RuntimeCompletionMetadataMixin:
         """Return prompt metadata for one run completion."""
         if self.db is None:
             return ""
-        serial = self.db.resolve_run_serial(value)
+        try:
+            serial = self.db.resolve_run_serial(value)
+        except ValueError:
+            return ""
         artifacts = self.db.artifact_counts_by_run().get(serial, 0)
         for row in self.db.runs(active_only=False):
             if row["command_run_id"] == serial:
@@ -65,7 +68,10 @@ class RuntimeCompletionMetadataMixin:
         """Return prompt metadata for one pipeline completion."""
         if self.db is None:
             return ""
-        serial = self.db.resolve_pipeline_serial(value)
+        try:
+            serial = self.db.resolve_pipeline_serial(value)
+        except ValueError:
+            return ""
         artifacts = self.db.artifact_counts_by_pipeline().get(serial, 0)
         for row in self.db.pipelines(active_only=False):
             if row["pipeline_id"] == serial:
