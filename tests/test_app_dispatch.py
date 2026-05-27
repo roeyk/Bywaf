@@ -37,6 +37,7 @@ from bywaf.app import (
 from bywaf.cli_trust import plugin_trust_policy_from_args
 from bywaf.db import EventStore
 from bywaf.events import Event
+from bywaf.plugins.network.nmap_backend import NmapPort
 from bywaf.projects import ProjectPaths
 from bywaf.specs import TriggerSpec
 from bywaf.triggers import start_default_services
@@ -1442,6 +1443,26 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("portscanner host=192.0.2.20", text)
             self.assertIn("pipe-done", text)
             self.assertIn("step-done", text)
+
+    def test_runtime_filters_match_foreground_portscanner_events(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            with patch(
+                "bywaf.plugins.network.portscanner.scan_open_ports",
+                return_value=[NmapPort("192.0.2.10", 80, "tcp", "open", "http")],
+            ):
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    dispatch_repl_line(runner, "network/portscanner host=192.0.2.10 ports=80", state)
+                    dispatch_repl_line(runner, "jobs host=192.0.2.10", state)
+                    dispatch_repl_line(runner, "steps host=192.0.2.10", state)
+                    dispatch_repl_line(runner, "pipelines host=192.0.2.10", state)
+            text = output.getvalue()
+            self.assertIn("network/portscanner host=192.0.2.10 ports=80", text)
+            self.assertIn("network/portscanner", text)
+            self.assertIn("STEP", text)
+            self.assertIn("PIPELINE", text)
 
     def test_builtin_filters_expand_variables(self):
         with tempfile.TemporaryDirectory() as tmp:
