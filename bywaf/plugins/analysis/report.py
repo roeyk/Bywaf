@@ -27,9 +27,10 @@ from bywaf.plugins.analysis.finding_report import REPORT_FINDING_TOPICS
 
 from .report_events import select_report_scope_events
 from .report_render import render_finding_report
-from .report_review import review_report_groups
+from .report_review import REVIEW_DECISIONS, review_report_groups
 
-REPORT_ACTIONS = ("accept", "defer", "reject")
+REPORT_ACTIONS = ("accept", "defer", "reject", "detail")
+REPORT_REVIEW_ACTIONS = tuple(REVIEW_DECISIONS)
 REPORT_OPTION_KEYS = {"job", "pipeline", "step", "limit", "note", "page", "status"}
 REPORT_STATUS_CHOICES = ("all", "accepted", "deferred", "rejected", "unreviewed")
 
@@ -38,11 +39,13 @@ REPORT_STATUS_CHOICES = ("all", "accepted", "deferred", "rejected", "unreviewed"
     name="report",
     description="Show grouped finding reports for recent, step, job, or pipeline scopes.",
     usage=(
-        "report [accept|defer|reject <index-range|all>] "
+        "report [<index-range>|detail <index-range>|accept|defer|reject <index-range|all>] "
         "[pipeline=<ids>] [job=<ids>] [step=<ids>] [status=<filter>]"
     ),
     examples=(
         "report",
+        "report 1",
+        "report detail 1-3",
         "report accept 1-3,7",
         "report defer 4 note=needs manual validation",
         "report pipeline=1",
@@ -82,7 +85,7 @@ class Report(CommandletBase):
         """Parse and render one report view."""
         parser = self.parser()
         parser.usage = self.spec.usage
-        parser.add_argument("action", nargs="?", choices=REPORT_ACTIONS)
+        parser.add_argument("action", nargs="?")
         parser.add_argument("selection", nargs="?")
         parser.add_argument("--job", default="", help="job id or comma-separated job ids")
         parser.add_argument(
@@ -96,10 +99,11 @@ class Report(CommandletBase):
         parser.add_argument("--page", choices=("true", "false"), default="true")
         parser.add_argument("--status", choices=REPORT_STATUS_CHOICES, default="unreviewed")
         parsed = parser.parse_args(normalize_report_args(args))
+        normalize_report_action(parsed)
 
         input_findings = [event for event in input_events if event.topic in REPORT_FINDING_TOPICS]
         events = input_findings or select_report_scope_events(context, parsed)
-        if parsed.action:
+        if parsed.action in REPORT_REVIEW_ACTIONS:
             review_report_groups(context, parsed, events)
             return ()
         render_finding_report(context, events, parsed)
@@ -111,6 +115,7 @@ class Report(CommandletBase):
         candidates = (
             *REPORT_ACTIONS,
             "all",
+            "detail",
             "pipeline=",
             "job=",
             "step=",
@@ -145,6 +150,17 @@ def normalize_report_args(args: list[str]) -> list[str]:
         index += 1
     return key_value_to_long_options(normalized, REPORT_OPTION_KEYS)
 
+
+def normalize_report_action(parsed) -> None:
+    """Normalize shorthand detail selections after argparse parsing."""
+    if parsed.action is None:
+        return
+    if parsed.action in REPORT_ACTIONS:
+        return
+    # `report 1` is the common drill-down form. Treat the first positional as a
+    # detail selection rather than forcing users to type `report detail 1`.
+    parsed.selection = parsed.action if parsed.selection is None else f"{parsed.action},{parsed.selection}"
+    parsed.action = "detail"
 
 
 

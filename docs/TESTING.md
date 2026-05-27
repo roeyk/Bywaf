@@ -148,8 +148,12 @@ The install guide lists OS dependency blocks and optional plugin dependencies:
 Manual tests should exercise the operator workflow, not just isolated commands.
 Good manual passes include:
 
-- Port discovery with a fresh DB:
-  `network/portscanner host=google.com ports=80,443 arguments="-Pn -sT -4"`.
+- Port discovery with a fresh DB against an authorized target. For local
+  testing, start `scripts/fake_telnet_service.py` and scan
+  `network/portscanner host=127.0.0.1 port=2323 arguments="-Pn -sT -sV"`.
+  Host values may be single hosts, DNS names, CIDR ranges, dash ranges, or
+  comma/space-separated lists; port values may be comma-separated ports and
+  ranges, such as `22,80,443` or `1-60,80-90`.
 - Runtime scoping:
   `event port.open host=<ip>`, `jobs host=<ip>`, `steps host=<ip>`,
   `pipelines host=<ip>`.
@@ -165,7 +169,8 @@ Good manual passes include:
   `script load file=scripts/manual_finding_report_flow.bywaf`.
 
 Use `db new` before manual sessions when old events would make results hard to
-read.
+read. Do not bake third-party targets into committed scripts; use local
+fixtures or systems you own or are explicitly authorized to test.
 
 ## Environment Notes
 

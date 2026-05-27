@@ -57,6 +57,9 @@ offensive frameworks, do not look for Veil-style modules, Metasploit-style
   package builds, metrics, and manual validation.
 - [Architecture Metrics](ARCHITECTURE_METRICS.md): dependency, size, fan-in,
   fan-out, and cycle checks for refactoring decisions.
+- [Output Subjects And Theme Styles](plugin_author/output-subjects-and-styles.md):
+  semantic output subjects, syntax-highlight styling, and report/table theme
+  variables.
 
 ## Authoring And Operations
 

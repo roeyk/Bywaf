@@ -18,6 +18,7 @@ from bywaf.events import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
 from bywaf.runtime_display import (
     active_listing_format,
+    command_context_style_getter,
     display_runtime_serial,
     format_runtime_timestamp,
     render_table,
@@ -119,6 +120,8 @@ def print_steps(context: CommandContext, *, active_only: bool = True, filters: d
         render_table(
             ("STEP", "SERIAL", "STATE", "NAME", "PIPELINE", "PIPELINE_SERIAL", "SOURCE", "EVENTS", "ARTIFACTS", "FIRST", "LAST"),
             table_rows,
+            cell_subjects=("step", "serial", "", "", "pipeline", "serial", "", "", "", "timestamp", "timestamp"),
+            style_getter=command_context_style_getter(context),
         )
     )
 

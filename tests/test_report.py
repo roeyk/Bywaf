@@ -133,7 +133,7 @@ class ReportTests(unittest.TestCase):
 
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                runner.execute("report pipeline=pipeline-a")
+                runner.execute("report detail 1 pipeline=pipeline-a")
                 process_framework_requests(runner, ShellState())
 
             text = output.getvalue()
@@ -165,7 +165,7 @@ class ReportTests(unittest.TestCase):
                 process_framework_requests(runner, ShellState())
 
             text = output.getvalue()
-            self.assertIn("\x1b[1;33mFinding name", text)
+            self.assertIn("\x1b[1;33mFinding", text)
             self.assertIn("\x1b[36m1", text)
             self.assertIn("\x1b[1;31mhigh", text)
 
@@ -225,7 +225,7 @@ class ReportTests(unittest.TestCase):
 
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                runner.execute("report pipeline=pipeline-a")
+                runner.execute("report detail 1 pipeline=pipeline-a")
                 process_framework_requests(runner, ShellState())
 
             text = output.getvalue()
@@ -329,7 +329,7 @@ class ReportTests(unittest.TestCase):
 
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                runner.execute("report pipeline=pipeline-a")
+                runner.execute("report detail 1 pipeline=pipeline-a")
                 process_framework_requests(runner, ShellState())
 
             text = output.getvalue()

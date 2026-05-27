@@ -24,6 +24,7 @@ Bywaf is a commandlet framework built around a few stable ideas:
   - [Plugins And Registry](#plugins-and-registry)
   - [Persistence](#persistence)
   - [Findings, Reports, And Artifacts](#findings-reports-and-artifacts)
+  - [Display, Subjects, And Syntax Highlighting](#display-subjects-and-syntax-highlighting)
   - [Configuration, Secrets, And Preferences](#configuration-secrets-and-preferences)
 - [Common Change Paths](#common-change-paths)
   - [Add Or Change A View Command](#add-or-change-a-view-command)
@@ -115,6 +116,22 @@ multiprocess behavior and avoid hidden per-process state.
 
 Findings are append-only evidence. Review decisions are emitted as events, not
 mutations of original findings.
+
+### Display, Subjects, And Syntax Highlighting
+
+- `bywaf/style.py`: parses terminal style strings, RGB/256-color values,
+  structured foreground/background settings, and subject style inheritance.
+- `bywaf/repl/display/`: REPL-facing rendering helpers for events, variables,
+  expansion previews, runtime tables, and pager output.
+- `bywaf/completion/prompt_ui.py`: live prompt syntax highlighting for comments,
+  quoted strings, assignment values, and `$VARIABLE` references.
+- `docs/plugin_author/output-subjects-and-styles.md`: canonical subject and
+  theme contract for plugin authors and renderer maintainers.
+
+Renderers should style by semantic subject (`host`, `serial`, `finding.title`,
+`table.header`) instead of hard-coding colors. Broad subjects provide defaults;
+more specific subjects override them when nested in strings, tables, or report
+details.
 
 ### Configuration, Secrets, And Preferences
 

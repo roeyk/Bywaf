@@ -7,9 +7,23 @@
 # auto-select the first open-port host into variable A and exercise host=$A
 # runtime filters, run:
 #   python3 scripts/manual_portscanner_flow.py
+#
+# Start the local fixture in another terminal first:
+#   python3 scripts/fake_telnet_service.py --host 127.0.0.1 --port 2323
+#
+# Then set script variables before loading:
+#   set TARGET=127.0.0.1
+#   set PORTS=2323
+#   set NMAP_ARGS="-Pn -sT -sV"
+#
+# TARGET accepts what nmap accepts through Bywaf: one host, DNS name, CIDR,
+# dash range, or comma/space-separated list, such as 127.0.0.1,
+# lab.example.test, 192.168.50.0/24, or 192.168.50.1-128.
+# PORTS accepts comma-separated ports and ranges, such as 22,80,443 or 1-60,80-90.
 
 db new
-network/portscanner host=google.com port=80,443 arguments="-Pn -sT -4"
+
+network/portscanner host=$TARGET port=$PORTS arguments="$NMAP_ARGS"
 event port.open
 event name.resolved
 job

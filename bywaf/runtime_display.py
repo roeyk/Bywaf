@@ -11,9 +11,10 @@ Used by:
 from __future__ import annotations
 
 import shlex
-from collections.abc import Sequence
+from collections.abc import Callable, Mapping, Sequence
 from .command.parser import parse_pipeline
 from .db.support import SERIAL_DISPLAY_LENGTH, serial_body
+from .style import styled_subject_text
 from .time_format import format_compact_runtime_timestamp
 
 ACTIVE_LISTING_FORMAT_VAR = "listing.active-format"
@@ -122,8 +123,31 @@ def format_command_args(args: Sequence[str]) -> str:
     return " ".join(shlex.quote(arg) for arg in args)
 
 
-def render_table(headers: tuple[str, ...], rows: Sequence[Sequence[object]]) -> str:
-    """Render a small plain-text table with padded columns."""
+StyleGetter = Callable[[str, str], object]
+
+
+def command_context_style_getter(context) -> StyleGetter:
+    """Return a display-style getter for a commandlet context."""
+    def get(key: str, default: str = "") -> object:
+        run_vars = context.metadata.get("run_vars", {})
+        if isinstance(run_vars, Mapping) and key in run_vars:
+            return str(run_vars[key])
+        display_vars = context.metadata.get("display_vars")
+        if isinstance(display_vars, Mapping):
+            return str(display_vars.get(key, default))
+        return default
+
+    return get
+
+
+def render_table(
+    headers: tuple[str, ...],
+    rows: Sequence[Sequence[object]],
+    *,
+    cell_subjects: Sequence[str] = (),
+    style_getter: StyleGetter | None = None,
+) -> str:
+    """Render a small table, optionally styling aligned cells by subject."""
     if not rows:
         return ""
     text_rows = [[str(value) if value is not None else "" for value in row] for row in rows]
@@ -136,7 +160,21 @@ def render_table(headers: tuple[str, ...], rows: Sequence[Sequence[object]]) -> 
         "  ".join("-" * width for width in widths),
     ]
     lines.extend(
-        "  ".join(value.ljust(widths[index]) for index, value in enumerate(row))
+        "  ".join(
+            style_table_cell(
+                value.ljust(widths[index]),
+                cell_subjects[index] if index < len(cell_subjects) else "",
+                style_getter,
+            )
+            for index, value in enumerate(row)
+        )
         for row in text_rows
     )
     return "\n".join(lines)
+
+
+def style_table_cell(value: str, subject: str, style_getter: StyleGetter | None) -> str:
+    """Apply a subject style to a padded table cell when configured."""
+    if not subject or style_getter is None or not value.strip():
+        return value
+    return styled_subject_text(style_getter, subject, value)

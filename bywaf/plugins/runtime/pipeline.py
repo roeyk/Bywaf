@@ -27,6 +27,7 @@ from bywaf.plugin import (
 from bywaf.plugins.runtime.job import cancel_job, kill_job
 from bywaf.runtime_display import (
     active_listing_format,
+    command_context_style_getter,
     display_runtime_serial,
     format_runtime_timestamp,
     render_table,
@@ -34,6 +35,7 @@ from bywaf.runtime_display import (
     runtime_state_text,
     state_marker,
 )
+from bywaf.style import styled_subject_text
 
 PIPELINE_ACTIONS = ("attach", "cancel", "end", "kill")
 REMOVED_PIPELINE_ACTIONS = {"list", "show"}
@@ -151,7 +153,14 @@ def show_pipeline_action(context: CommandContext, parsed: Namespace) -> None:
     runtime = context.runtime_store("pipeline show")
     display_name = runtime.runtime_names().get(("pipeline", str(row["pipeline_id"])))
     alias = runtime.pipeline_aliases().get(str(row["pipeline_id"]))
-    context.output(format_pipeline(row, display_name=display_name, alias=alias))
+    context.output(
+        format_pipeline(
+            row,
+            display_name=display_name,
+            alias=alias,
+            style_getter=command_context_style_getter(context),
+        )
+    )
 
 
 def cancel_pipeline_action(context: CommandContext, parsed: Namespace) -> None:
@@ -217,6 +226,8 @@ def print_pipelines(
     output = render_table(
         ("PIPELINE", "SERIAL", "STATE", "NAME", "JOB", "STATUS", "STEPS", "EVENTS", "ARTIFACTS", "FIRST", "LAST"),
         table_rows,
+        cell_subjects=("pipeline", "serial", "", "", "job", "", "", "", "", "timestamp", "timestamp"),
+        style_getter=command_context_style_getter(context),
     )
     if page:
         context.page_text(output)
@@ -241,6 +252,7 @@ def format_pipeline(
     alias: str | None = None,
     show_active: bool = False,
     marker_style: str = "short",
+    style_getter=None,
 ) -> str:
     """Format one pipeline summary row."""
     statuses = row["job_statuses"] or "unknown"
@@ -251,8 +263,12 @@ def format_pipeline(
         timestamp = row["first_seen"] if label in {"active", "in progress"} else row["last_seen"]
         prefix, detail = state_marker(label, timestamp, style=marker_style)
     name_part = f" name={display_name}" if display_name else ""
+    pipeline_id = alias or row["pipeline_id"]
+    pipeline_id = styled_subject_text(style_getter, "pipeline", pipeline_id) if style_getter else pipeline_id
+    serial = display_runtime_serial(row["pipeline_id"])
+    serial = styled_subject_text(style_getter, "serial", serial) if style_getter else serial
     line = (
-        f"{prefix}pipeline={alias or row['pipeline_id']} serial={display_runtime_serial(row['pipeline_id'])}"
+        f"{prefix}pipeline={pipeline_id} serial={serial}"
         f"{name_part} job={row['job_id']} status={statuses} steps={row['runs']} events={row['events']}"
     )
     return f"{line}\n{detail}" if detail else line

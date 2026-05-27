@@ -19,7 +19,14 @@ from bywaf.rendering import Column, Table, align_text, table_values
 
 from .report_details import render_group_details
 from .report_model import FindingGroup, effective_finding_payload, events_for_groups, group_finding_events
-from .report_review import filter_groups_by_status, latest_review_decisions, review_counts
+from .report_review import (
+    ReviewDecision,
+    filter_groups_by_status,
+    latest_review_decisions,
+    review_counts,
+    review_status,
+    selected_groups,
+)
 from .report_style import finding_text, report_text, table_text
 
 
@@ -30,6 +37,11 @@ def render_finding_report(context: CommandContext, events: list[Event], parsed: 
     groups = group_finding_events(events)
     decisions = latest_review_decisions(context)
     filtered_groups = filter_groups_by_status(groups, decisions, parsed.status)
+    displayed_groups = filtered_groups
+    if parsed.action == "detail":
+        if not parsed.selection:
+            raise ValueError("report detail requires a selection such as 1, 1-3, or all")
+        displayed_groups = selected_groups(filtered_groups, str(parsed.selection))
     filtered_events = events_for_groups(filtered_groups)
     output_lines = [
         report_text(context, "heading", report_heading(parsed, events, groups)),
@@ -39,7 +51,7 @@ def render_finding_report(context: CommandContext, events: list[Event], parsed: 
             review_summary_line(review_counts(groups, decisions), severity_class_counts(groups)),
         ),
     ]
-    if not filtered_groups:
+    if not displayed_groups:
         output_lines.append(
             "no unreviewed findings"
             if parsed.status == "unreviewed"
@@ -51,23 +63,28 @@ def render_finding_report(context: CommandContext, events: list[Event], parsed: 
             report_rendered_payload(
                 parsed,
                 filtered_events,
-                groups=filtered_groups,
+                groups=displayed_groups,
                 rows=0,
                 counts=review_counts(groups, decisions),
             ),
         )
         return
-    output_lines.append(report_text(context, "section", render_status_heading(parsed.status)))
-    table = indexed_findings_table(filtered_groups)
+    output_lines.append(report_text(context, "section", render_status_heading(parsed)))
+    table = indexed_findings_table(displayed_groups, decisions=decisions, show_review_status=parsed.status == "all")
     output_lines.append(render_styled_report_table(context, table))
-    output_lines.append(render_group_details(context, filtered_groups))
+    if parsed.action == "detail":
+        output_lines.append(render_group_details(context, displayed_groups))
+    else:
+        output_lines.append(
+            report_text(context, "hint", "Use `report <#>` or `report detail <#>` for evidence, artifacts, and provenance.")
+        )
     emit_report_output(context, output_lines, parsed)
     context.events.publish(
         "report.rendered",
         report_rendered_payload(
             parsed,
-            filtered_events,
-            groups=filtered_groups,
+            events_for_groups(displayed_groups),
+            groups=displayed_groups,
             rows=len(table.rows),
             counts=review_counts(groups, decisions),
         ),
@@ -170,29 +187,43 @@ def severity_class_counts(groups: list[FindingGroup]) -> dict[str, int]:
     return counts
 
 
-def render_status_heading(status: str) -> str:
+def render_status_heading(parsed: Namespace) -> str:
     """Return the subheading shown before filtered report rows."""
+    status = parsed.status
+    if parsed.action == "detail":
+        selection = parsed.selection or ""
+        return f"Finding detail: {selection}"
     return "All findings:" if status == "all" else f"{status.capitalize()} findings:"
 
 
-def indexed_findings_table(groups: list[FindingGroup]) -> Table:
+def indexed_findings_table(
+    groups: list[FindingGroup],
+    *,
+    decisions: Mapping[str, ReviewDecision],
+    show_review_status: bool = False,
+) -> Table:
     """Return a report table with stable 1-based row indexes."""
     representatives = [group.representative for group in groups]
     rows = [
-        {"index": index, **row}
-        for index, row in enumerate(finding_rows(representatives, include_candidates=True), start=1)
+        {
+            "index": index,
+            **row,
+            "review": review_status(group, decisions),
+        }
+        for index, (group, row) in enumerate(zip(groups, finding_rows(representatives, include_candidates=True), strict=True), start=1)
     ]
+    columns = [
+        Column("index", "#", "right"),
+        Column("finding_name", "Finding"),
+        Column("hosts_affected", "Affected"),
+        Column("cve", "CVE"),
+        Column("severity", "Severity"),
+    ]
+    if show_review_status:
+        columns.append(Column("review", "Review"))
     return Table.from_rows(
         rows,
-        (
-            Column("index", "#", "right"),
-            Column("finding_name", "Finding name"),
-            Column("description", "Description"),
-            Column("hosts_affected", "Host(s) affected"),
-            Column("cve", "CVE"),
-            Column("severity", "Severity rating"),
-            Column("recommendation", "Recommendation"),
-        ),
+        tuple(columns),
         title="Findings",
     )
 

@@ -3,15 +3,26 @@
 # Run inside Bywaf:
 #   script load file=scripts/manual_finding_report_flow.bywaf
 #
-# Stages 1-3 are safe defaults against google.com and should run as-is.
-# Stages 4-6 need local authorized targets; edit the placeholder values and
+# Stages 1-4 use local/controlled targets only. Start the fake Telnet fixture
+# in another terminal before running this script:
+#   python3 scripts/fake_telnet_service.py --host 127.0.0.1 --port 2323
+# Then set script variables before loading:
+#   set TARGET=127.0.0.1
+#   set PORTS=2323
+#   set NMAP_ARGS="-Pn -sT -sV"
+#   set REPO_TARGET=http://127.0.0.1:8088
+# TARGET accepts one host, DNS name, CIDR, dash range, or comma/space-separated
+# list, such as 127.0.0.1, lab.example.test, 192.168.50.0/24, or
+# 192.168.50.1-128. PORTS accepts comma-separated ports and ranges, such as
+# 22,80,443 or 1-60,80-90.
+# Stages 5-6 need a controlled HTTP server; edit the placeholder values and
 # remove the leading "# " from those command lines before running them.
 
 # 1. Fresh DB
 db new
 
 # 2. Portscanner sanity
-network/portscanner host=google.com port=80,443 arguments="-Pn -sT -4"
+network/portscanner host=$TARGET port=$PORTS arguments="$NMAP_ARGS"
 event port.open
 event name.resolved
 
@@ -25,15 +36,13 @@ event name.resolved
 # pipeline host=$A
 
 # 4. Telnet-like finding path
-# Replace <host> with an authorized test host that has Telnet-like service
-# exposure on port 23 or 2323.
-# network/portscanner host=<host> port=23,2323 arguments="-Pn -sT"
-# event finding.candidate
-# report
+network/portscanner host=$TARGET port=$PORTS arguments="$NMAP_ARGS"
+event finding.candidate
+report
 
 # 5. HTTP/repo exposure
 # Replace <test-host> with a controlled HTTP server exposing /.git/config.
-# http/repo_exposure/git_expose_check target=http://<test-host>
+# http/repo_exposure/git_expose_check target=$REPO_TARGET
 # event finding.candidate
 # report
 

@@ -1886,13 +1886,15 @@ explicit pipeline, job, or step scope. Use it when you want to quickly see what
 finished work produced without manually querying raw events. The heading always
 shows total, accepted, deferred, rejected, and unreviewed counts; the default
 view renders only the unreviewed groups that still need triage. After the
-summary table, `report` prints a Details section for each displayed group with
-affected resources, evidence snippets, sources, related artifacts,
-event/pipeline/step provenance, and the latest update timestamp. Reports page by
-default; use `page=false` to print inline.
+compact summary table, use `report <#>` or `report detail <#>` to show affected
+resources, evidence snippets, sources, related artifacts, event/pipeline/step
+provenance, and the latest update timestamp. Reports page by default; use
+`page=false` to print inline.
 
 ```text
 bywaf> report
+bywaf> report 1
+bywaf> report detail 1-3
 bywaf> report page=false
 bywaf> report pipeline=1,2,3
 bywaf> report job=7
@@ -2062,12 +2064,18 @@ The Python wrapper runs the same style of workflow and also auto-selects the
 first open-port host into `A` before checking `host=$A` filters:
 
 ```bash
+python3 scripts/fake_telnet_service.py --host 127.0.0.1 --port 2323
 python3 scripts/manual_portscanner_flow.py
-python3 scripts/manual_portscanner_flow.py --target google.com --ports 80,443 --arguments "-Pn -sT -4"
+python3 scripts/manual_portscanner_flow.py --target <authorized-host> --ports 80,443 --arguments "-Pn -sT"
 ```
 
 Both workflows create a fresh database, scan the target, print `port.open` and
 `name.resolved`, and exercise runtime listings.
+
+For the `.bywaf` script, set `TARGET`, `PORTS`, and `NMAP_ARGS` before loading
+it. `TARGET` can be a single host, DNS name, CIDR range, dash range, or
+comma/space-separated list. `PORTS` can be comma-separated ports and ranges,
+such as `22,80,443` or `1-60,80-90`.
 
 Validate a filesystem plugin package outside the Bywaf interpreter:
 

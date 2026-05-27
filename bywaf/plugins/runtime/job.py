@@ -20,6 +20,7 @@ from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionC
 from bywaf.runtime_display import (
     active_listing_format,
     args_from_command_line,
+    command_context_style_getter,
     commandlet_from_command_line,
     display_runtime_serial,
     format_command_args,
@@ -29,6 +30,7 @@ from bywaf.runtime_display import (
     runtime_state_text,
     state_marker,
 )
+from bywaf.style import styled_subject_text
 
 ACTIVE_STATUSES = {"queued", "claimed", "running", "pausing", "paused", "cancelling"}
 JOB_ACTIONS = ("cancel", "end", "kill")
@@ -127,7 +129,14 @@ def show_job_action(context: CommandContext, parsed: Namespace) -> None:
     """Run `job show`."""
     row = require_job(context, parsed.id)
     display_name = context.runtime_store("job show").runtime_names().get(("job", str(row["id"])))
-    context.output(format_job(row, display_name=display_name, args=latest_job_args(context, row["id"])))
+    context.output(
+        format_job(
+            row,
+            display_name=display_name,
+            args=latest_job_args(context, row["id"]),
+            style_getter=command_context_style_getter(context),
+        )
+    )
 
 
 def cancel_job_action(context: CommandContext, parsed: Namespace) -> None:
@@ -192,6 +201,8 @@ def print_jobs(
     output = render_table(
         ("JOB", "SERIAL", "STATE", "PID", "STATUS", "ARTIFACTS", "NAME", "STARTED", "FINISHED", "COMMANDLET", "ARGS"),
         table_rows,
+        cell_subjects=("job", "serial", "", "", "", "", "", "timestamp", "timestamp", "", ""),
+        style_getter=command_context_style_getter(context),
     )
     if page:
         context.page_text(output)
@@ -216,6 +227,7 @@ def format_job(
     show_active: bool = False,
     marker_style: str = "short",
     args: list[str] | None = None,
+    style_getter=None,
 ) -> str:
     """Format one job row in the same compact format used by the old `jobs`."""
     prefix = ""
@@ -225,12 +237,14 @@ def format_job(
         timestamp = row["started_at"] if label in {"active", "in progress"} else row["finished_at"]
         prefix, detail = state_marker(label, timestamp, style=marker_style)
     name_part = f" name={display_name}" if display_name else ""
+    job_id = styled_subject_text(style_getter, "job", row["id"]) if style_getter else row["id"]
     serial = display_runtime_serial(row["serial"])
+    serial = styled_subject_text(style_getter, "serial", serial) if style_getter else serial
     command = str(row["command_line"])
     displayed_args = args or list(args_from_command_line(command))
     args_part = f" args={format_command_args(displayed_args)}" if displayed_args else ""
     line = (
-        f"{prefix}#{row['id']} serial={serial} pid={row['pid']} status={row['status']}{name_part}"
+        f"{prefix}#{job_id} serial={serial} pid={row['pid']} status={row['status']}{name_part}"
         f" launched={format_runtime_timestamp(row['started_at'])}"
         f" finished={format_runtime_timestamp(row['finished_at'])}"
         f" commandlet={commandlet_from_command_line(command)}"

@@ -11,6 +11,7 @@ payloads, raw facts, artifacts, notes, or audit history.
 
 - [What Becomes Reportable](#what-becomes-reportable)
 - [Default View](#default-view)
+- [Finding Detail](#finding-detail)
 - [Scoped Views](#scoped-views)
 - [Grouping Behavior](#grouping-behavior)
 - [Review State](#review-state)
@@ -49,21 +50,39 @@ Findings: 12 total, 3 accepted, 1 deferred, 0 rejected, 8 unreviewed
 
 Unreviewed findings:
 Findings
-#  Finding name                          Description                 Host(s) affected   Severity rating
-1  Exposed Git repository configuration  /.git/config returned data  https://example    high
+#  Finding                               Affected                      CVE      Severity
+1  Exposed Git repository configuration  https://example/.git/config   CWE-538  high
 
-Details
-#1 Exposed Git repository configuration
-  Affected: https://example/.git/config
-  Evidence: /.git/config returned Git configuration content
-  Sources: git_expose_check:repo.git_config.checked
-  Provenance: events=42; pipeline=...; step=...
-  Latest update: 2026-05-27T12:00:00+00:00
+Use `report <#>` or `report detail <#>` for evidence, artifacts, and provenance.
 ```
 
 By default, `report` shows unreviewed findings. Use `status=all`,
 `status=accepted`, `status=deferred`, or `status=rejected` to inspect other
 review states.
+
+## Finding Detail
+
+Use a row number from the current report view to drill into the finding:
+
+```text
+bywaf> report 1
+bywaf> report detail 1-3
+bywaf> report detail 1 pipeline=7
+```
+
+The detail view keeps the same scope and status selectors, then adds evidence,
+affected resources, sources, artifacts, provenance, and latest update time:
+
+```text
+Details
+1. Exposed Git repository configuration
+  Affected: https://example/.git/config
+  Evidence: /.git/config returned Git configuration content
+  Sources: git_expose_check:repo.git_config.checked
+  Artifacts: #3 proof.txt text/plain size=12 artifact-proof
+  Provenance: events=42; pipeline=...; step=...
+  Latest update: 2026-05-27T12:00:00+00:00
+```
 
 ## Scoped Views
 

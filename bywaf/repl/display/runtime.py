@@ -22,6 +22,7 @@ from ...runtime_display import (
     runtime_state_text,
 )
 from ...runner import Runner
+from .variables import subject_text
 
 def print_jobs(runner: Runner) -> None:
     """Print known background jobs."""
@@ -44,7 +45,14 @@ def print_jobs(runner: Runner) -> None:
         for row in runtime.jobs()
     ]
     if rows:
-        print(render_table(("JOB", "SERIAL", "PID", "STATUS", "ARTIFACTS", "NAME", "STARTED", "FINISHED", "COMMANDLET", "ARGS"), rows))
+        print(
+            render_table(
+                ("JOB", "SERIAL", "PID", "STATUS", "ARTIFACTS", "NAME", "STARTED", "FINISHED", "COMMANDLET", "ARGS"),
+                rows,
+                cell_subjects=("job", "serial", "", "", "", "", "timestamp", "timestamp", "", ""),
+                style_getter=runner.registry.varstore.get,
+            )
+        )
 
 
 def print_info(runner: Runner) -> None:
@@ -128,6 +136,8 @@ def print_runs(runner: Runner, *, active_only: bool = True, filters: dict[str, s
         render_table(
             ("STEP", "SERIAL", "STATE", "NAME", "PIPELINE", "PIPELINE_SERIAL", "SOURCE", "EVENTS", "ARTIFACTS", "FIRST", "LAST"),
             table_rows,
+            cell_subjects=("step", "serial", "", "", "pipeline", "serial", "", "", "", "timestamp", "timestamp"),
+            style_getter=runner.registry.varstore.get,
         )
     )
 
@@ -141,7 +151,8 @@ def print_job(runner: Runner, job_id: str) -> None:
             args = format_command_args(args_from_command_line(str(row["command_line"])))
             args_part = f" args={args}" if args else ""
             print(
-                f"#{row['id']} serial={row['serial']} pid={row['pid']} status={row['status']}"
+                f"#{subject_text(runner, 'job', row['id'])} serial={subject_text(runner, 'serial', row['serial'])}"
+                f" pid={row['pid']} status={row['status']}"
                 f"{format_runtime_name(names.get(('job', str(row['id']))))}"
                 f" launched={format_runtime_timestamp(row['started_at'])}"
                 f" finished={format_runtime_timestamp(row['finished_at'])}"

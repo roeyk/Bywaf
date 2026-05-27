@@ -9,7 +9,7 @@ Used by:
 
 import unittest
 
-from bywaf.runtime_display import display_runtime_serial, format_runtime_timestamp
+from bywaf.runtime_display import display_runtime_serial, format_runtime_timestamp, render_table
 
 
 class RuntimeDisplayTests(unittest.TestCase):
@@ -32,6 +32,16 @@ class RuntimeDisplayTests(unittest.TestCase):
 
     def test_display_runtime_serial_keeps_commandlet_prefixed_runs(self):
         self.assertEqual(display_runtime_serial("hostscanner-abc123"), "hostscanner-abc123")
+
+    def test_render_table_styles_subject_cells_after_alignment(self):
+        rendered = render_table(
+            ("JOB", "SERIAL"),
+            ((1, "ABC12345"),),
+            cell_subjects=("job", "serial"),
+            style_getter=lambda key, default="": {"display/style.serial": "cyan"}.get(key, default),
+        )
+
+        self.assertIn("1    \x1b[36mABC12345", rendered)
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ impact label and sorted from highest to lowest operator/developer impact:
 
 ## Contents
 
+- [Unreleased](#unreleased)
 - [0.12.2 - 2026-05-27](#0122---2026-05-27)
 - [0.12.1 - 2026-05-27](#0121---2026-05-27)
 - [0.12.0 - 2026-05-26](#0120---2026-05-26)
@@ -18,6 +19,18 @@ impact label and sorted from highest to lowest operator/developer impact:
 - [0.9.2 - 2026-05-18](#092---2026-05-18)
 - [0.9.1 - 2026-05-18](#091---2026-05-18)
 - [0.9.0 - 2026-05-13](#090---2026-05-13)
+
+## [Unreleased]
+
+### Changed
+
+- [high] Made `report` default to a compact finding inbox and added
+  `report <#>` / `report detail <#>` drill-down for evidence, artifacts,
+  provenance, and latest-update details.
+- [medium] Updated manual validation scripts to use local/authorized targets by
+  default and documented target/port range syntax for script variables.
+- [low] Documented display syntax-highlighting internals in the framework
+  development guide and wired runtime table serial cells to the `serial` subject.
 
 ## [0.12.2] - 2026-05-27
 

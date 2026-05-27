@@ -22,9 +22,9 @@ from bywaf.app import dispatch_repl_line, make_runner, new_shell_state
 def main() -> int:
     """Run the manual smoke workflow."""
     parser = argparse.ArgumentParser(prog="manual_portscanner_flow.py")
-    parser.add_argument("--target", default="google.com", help="DNS name or host to scan")
-    parser.add_argument("--ports", default="80,443", help="comma-separated ports to scan")
-    parser.add_argument("--arguments", default="-Pn -sT -4", help="nmap arguments")
+    parser.add_argument("--target", default="127.0.0.1", help="authorized DNS name or host to scan")
+    parser.add_argument("--ports", default="2323", help="comma-separated ports to scan")
+    parser.add_argument("--arguments", default="-Pn -sT -sV", help="nmap arguments")
     parser.add_argument("--database", type=Path, help="database path to create/use")
     args = parser.parse_args()
 

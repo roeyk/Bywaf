@@ -435,7 +435,7 @@ from bywaf.plugin import (
     usage="http_header_check <url>",
     examples=(
         "http_header_check https://example.com",
-        "http_header_check https://google.com",
+        "http_header_check https://app.example.test",
     ),
     emits=("http.headers.checked",),
     capabilities=(
