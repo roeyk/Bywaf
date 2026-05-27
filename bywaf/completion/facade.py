@@ -26,8 +26,10 @@ try:
     from prompt_toolkit.formatted_text import HTML
     from prompt_toolkit.key_binding import KeyBindings
     from prompt_toolkit.key_binding import merge_key_bindings
+    from prompt_toolkit.lexers import Lexer
     from prompt_toolkit.shortcuts import PromptSession
     from prompt_toolkit.shortcuts.prompt import CompleteStyle
+    from prompt_toolkit.styles import Style
 except ImportError:  # pragma: no cover - exercised only on minimal installs.
     Completion = None
     PromptToolkitCompleterBase = object
@@ -35,9 +37,11 @@ except ImportError:  # pragma: no cover - exercised only on minimal installs.
     has_completions = None
     HTML = None
     KeyBindings = None
+    Lexer = object
     merge_key_bindings = None
     PromptSession = None
     CompleteStyle = None
+    Style = None
 
 from .constants import BINARY_OPTION_NAMES, option_is_binary
 from .engine import CoreCompleter
@@ -60,7 +64,6 @@ from ..secret.input import (
     PromptSecretLexer,
     prompt_secret_key_bindings,
     prompt_secret_output,
-    prompt_secret_style,
 )
 
 # Public re-export surface for this module.  Importers can use
@@ -69,6 +72,7 @@ from ..secret.input import (
 # makes wildcard imports deterministic for tests and older integrations.
 __all__ = [
     "BINARY_OPTION_NAMES",
+    "BywafPromptLexer",
     "COMPLETION_SELECT_KEY_VAR",
     "COMPLETION_WASD_SELECTION_VAR",
     "DEFAULT_COMPLETION_SELECT_KEY",
@@ -121,6 +125,35 @@ __all__ = [
 COMPLETION_SELECT_KEY_VAR = "completion.select-key"
 COMPLETION_WASD_SELECTION_VAR = "completion.wasd-selection"
 DEFAULT_COMPLETION_SELECT_KEY = "c-space"
+DISPLAY_STYLE_PREFIX = "display/style."
+DISPLAY_VALUE_STYLE_VAR = f"{DISPLAY_STYLE_PREFIX}value"
+DISPLAY_STRING_STYLE_VAR = f"{DISPLAY_STYLE_PREFIX}string"
+
+PROMPT_TOOLKIT_COLOR_NAMES = {
+    "black": "ansiblack",
+    "red": "ansired",
+    "green": "ansigreen",
+    "yellow": "ansiyellow",
+    "blue": "ansiblue",
+    "magenta": "ansimagenta",
+    "cyan": "ansicyan",
+    "white": "ansiwhite",
+    "bright-black": "ansibrightblack",
+    "bright-red": "ansibrightred",
+    "bright-green": "ansibrightgreen",
+    "bright-yellow": "ansibrightyellow",
+    "bright-blue": "ansibrightblue",
+    "bright-magenta": "ansibrightmagenta",
+    "bright-cyan": "ansibrightcyan",
+    "bright-white": "ansibrightwhite",
+}
+
+PROMPT_TOOLKIT_ATTR_NAMES = {
+    "bold",
+    "italic",
+    "underline",
+    "reverse",
+}
 
 
 class Completer(CoreCompleter):
@@ -218,8 +251,8 @@ def build_prompt_session(completer: Completer):
     secret_bindings = prompt_secret_key_bindings(secret_state, enabled=lambda: secret_input_mode(completer) == "block")
     key_bindings = merge_prompt_key_bindings(completion_bindings, secret_bindings)
     session_kwargs = {
-        "lexer": PromptSecretLexer(secret_state),
-        "style": prompt_secret_style(),
+        "lexer": BywafPromptLexer(completer, secret_state),
+        "style": prompt_input_style(),
         "output": prompt_secret_output(secret_state),
     }
     session = PromptSession(
@@ -236,6 +269,190 @@ def build_prompt_session(completer: Completer):
     # the session that owns the corresponding lexer/output objects.
     setattr(session, "secret_state", secret_state)
     return session
+
+
+class BywafPromptLexer(Lexer):
+    """Style live REPL input without changing command parsing semantics.
+
+    Prompt-time styling is intentionally shallow.  It marks the value side of
+    `key=value` tokens and quoted string values so the operator gets immediate
+    visual feedback, while the normal parser remains the source of truth.
+    """
+
+    def __init__(self, completer: Completer, secret_state: PromptSecretInputState) -> None:
+        self.completer = completer
+        self.secret_lexer = PromptSecretLexer(secret_state)
+
+    def lex_document(self, document):
+        secret_get_line = self.secret_lexer.lex_document(document)
+
+        def get_line(lineno: int):
+            fragments = prompt_value_fragments(self.completer, document.lines[lineno])
+            return overlay_secret_fragments(fragments, secret_get_line(lineno))
+
+        return get_line
+
+
+def prompt_value_fragments(completer: Completer, text: str):
+    """Return prompt-toolkit fragments for values and quoted string values."""
+    value_style = prompt_fragment_style(completer.registry.varstore.get(DISPLAY_VALUE_STYLE_VAR, ""))
+    string_style = prompt_fragment_style(completer.registry.varstore.get(DISPLAY_STRING_STYLE_VAR, ""))
+    if not value_style and not string_style:
+        return [("", text)]
+    fragments: list[tuple[str, str]] = []
+    index = 0
+    while index < len(text):
+        equals = next_unquoted_equals(text, index)
+        if equals is None:
+            fragments.append(("", text[index:]))
+            break
+        fragments.append(("", text[index:equals + 1]))
+        value_end = value_token_end(text, equals + 1)
+        value_text = text[equals + 1:value_end]
+        if value_text.startswith(("'", '"')):
+            quote_end = prompt_closing_quote_index(value_text, 0)
+            styled_len = len(value_text) if quote_end is None else quote_end + 1
+            if styled_len:
+                fragments.append((string_style or value_style, value_text[:styled_len]))
+            if styled_len < len(value_text):
+                fragments.append((value_style, value_text[styled_len:]))
+        else:
+            fragments.append((value_style, value_text))
+        index = value_end
+    return [fragment for fragment in fragments if fragment[1]]
+
+
+def next_unquoted_equals(text: str, start: int) -> int | None:
+    """Return the next equals sign outside shell-style quotes."""
+    quote = ""
+    escaped = False
+    for index in range(start, len(text)):
+        char = text[index]
+        if escaped:
+            escaped = False
+            continue
+        if char == "\\":
+            escaped = True
+            continue
+        if quote:
+            if char == quote:
+                quote = ""
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            continue
+        if char == "=":
+            return index
+    return None
+
+
+def value_token_end(text: str, start: int) -> int:
+    """Return the end of the key=value value token."""
+    quote = ""
+    escaped = False
+    index = start
+    while index < len(text):
+        char = text[index]
+        if escaped:
+            escaped = False
+        elif char == "\\":
+            escaped = True
+        elif quote:
+            if char == quote:
+                quote = ""
+        elif char in {"'", '"'}:
+            quote = char
+        elif char.isspace():
+            break
+        index += 1
+    return index
+
+
+def prompt_closing_quote_index(text: str, start: int) -> int | None:
+    """Return the matching prompt quote index, ignoring escaped quotes."""
+    quote = text[start]
+    escaped = False
+    for index in range(start + 1, len(text)):
+        char = text[index]
+        if escaped:
+            escaped = False
+        elif char == "\\":
+            escaped = True
+        elif char == quote:
+            return index
+    return None
+
+
+def overlay_secret_fragments(base_fragments, secret_fragments):
+    """Let secret-span styling override value/string styling."""
+    secret_style_by_index: dict[int, str] = {}
+    position = 0
+    for style, text in secret_fragments:
+        if style:
+            for offset in range(len(text)):
+                secret_style_by_index[position + offset] = style
+        position += len(text)
+    if not secret_style_by_index:
+        return base_fragments
+    merged: list[tuple[str, str]] = []
+    position = 0
+    for style, text in base_fragments:
+        for char in text:
+            final_style = secret_style_by_index.get(position, style)
+            if merged and merged[-1][0] == final_style:
+                merged[-1] = (final_style, f"{merged[-1][1]}{char}")
+            else:
+                merged.append((final_style, char))
+            position += 1
+    return merged
+
+
+def prompt_input_style():
+    """Return prompt-toolkit style classes used by secret-input rendering."""
+    if Style is None:
+        return None
+    return Style.from_dict(
+        {
+            "secret.focused": "bg:ansired #ffffff blink bold",
+            "secret.inactive": "bg:#5f0000 #ffffff",
+        }
+    )
+
+
+def prompt_fragment_style(style: str) -> str:
+    """Translate Bywaf display-style tokens into prompt-toolkit fragments."""
+    parts: list[str] = []
+    for token in style.split():
+        normalized = token.strip().casefold().replace("_", "-")
+        if not normalized:
+            continue
+        if normalized in PROMPT_TOOLKIT_ATTR_NAMES:
+            parts.append(normalized)
+        elif normalized in {"dim", "blink", "strikethrough"}:
+            # These are valid terminal SGR ideas but are not consistently
+            # supported in prompt-toolkit style strings, so prompt input ignores
+            # them while event rendering still honors them.
+            continue
+        elif normalized in PROMPT_TOOLKIT_COLOR_NAMES:
+            parts.append(PROMPT_TOOLKIT_COLOR_NAMES[normalized])
+        elif normalized.startswith("#") and len(normalized) in {4, 7}:
+            parts.append(normalized)
+        elif normalized.startswith("rgb:"):
+            hex_color = rgb_style_to_hex(normalized)
+            if hex_color:
+                parts.append(hex_color)
+    return " ".join(parts)
+
+
+def rgb_style_to_hex(token: str) -> str | None:
+    """Convert `rgb:R,G,B` into a prompt-toolkit hex color."""
+    try:
+        values = [int(part.strip()) for part in token.removeprefix("rgb:").split(",")]
+    except ValueError:
+        return None
+    if len(values) != 3 or any(value < 0 or value > 255 for value in values):
+        return None
+    return "#" + "".join(f"{value:02x}" for value in values)
 
 
 def merge_prompt_key_bindings(*bindings):

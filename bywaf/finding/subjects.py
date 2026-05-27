@@ -32,6 +32,7 @@ SUBJECTS = frozenset(
         "protocol",
         "service",
         "severity",
+        "string",
         "timestamp",
         "url",
         "username",

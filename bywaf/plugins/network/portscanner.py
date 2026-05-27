@@ -33,7 +33,7 @@ DEFAULTS = {
     "listen": "false",
     "listen-interval": "1.0",
     "listen-timeout": "0",
-    "ports": "",
+    "port": "",
     "silent": "false",
 }
 
@@ -44,7 +44,7 @@ DEFAULTS = {
     usage="portscanner [options] [host ...]",
     examples=(
         "hostscanner 127.0.0.1 | portscanner",
-        "portscanner ports=22,80,443 host=127.0.0.1",
+        "portscanner port=22,80,443 host=127.0.0.1",
         "hostscanner 192.168.0.1-255& | portscanner&",
     ),
     consumes=("host.found",),
@@ -64,7 +64,7 @@ DEFAULTS = {
 @option("listen", "poll scoped upstream host.found events", "false")
 @option("listen-interval", "poll interval in seconds", "1.0")
 @option("listen-timeout", "seconds to listen; 0 means forever", "0")
-@option("ports", "optional comma/range port list; omit for nmap top ports")
+@option("port", "optional comma/range port list; omit for nmap top ports")
 @option("silent", "suppress discovery alerts", "false")
 class PortScanner(CommandletBase):
     def run(
@@ -83,7 +83,10 @@ class PortScanner(CommandletBase):
         parser.add_argument("--listen", action="store_true", default=self.var_default(context, "listen", False, cast=parse_bool))
         parser.add_argument("--listen-interval", type=float, default=self.var_default(context, "listen-interval", 1.0, cast=float))
         parser.add_argument("--listen-timeout", type=float, default=self.var_default(context, "listen-timeout", 0.0, cast=float))
-        parser.add_argument("--ports", default=self.var_default(context, "ports", None))
+        parser.add_argument("--port", dest="port_option", default=self.var_default(context, "port", None))
+        # Compatibility alias for older scripts.  The advertised Bywaf syntax is
+        # `port=...`, mirroring `host=...`.
+        parser.add_argument("--ports", dest="port_option")
         parsed = parser.parse_args(normalize_value_args(args))
         parsed.hosts = explicit_hosts_or_var(parsed.hosts, parsed.host_option)
         parsed.excluded_hosts = set(split_var_values(parsed.except_))
@@ -112,7 +115,7 @@ def scan_events_or_hosts(
     if parsed.hosts:
         hosts = resolve_explicit_hosts(context, hosts, parsed.arguments)
     hosts = [host for host in hosts if host not in parsed.excluded_hosts]
-    yield from scan_hosts(context, hosts, parsed.ports, parsed.arguments, seen_hosts, parsed.silent)
+    yield from scan_hosts(context, hosts, parsed.port_option, parsed.arguments, seen_hosts, parsed.silent)
 
 
 def resolve_explicit_hosts(context: CommandContext, hosts: Iterable[str], arguments: str) -> list[str]:
@@ -221,7 +224,7 @@ def listen_for_upstream_hosts(context: CommandContext, parsed, seen_hosts: set[s
         yield from scan_hosts(
             context,
             [event.payload["host"]],
-            parsed.ports,
+            parsed.port_option,
             parsed.arguments,
             seen_hosts,
             parsed.silent,
@@ -233,7 +236,7 @@ def plugin() -> Commandlet:
     return PortScanner()
 
 
-VALUE_OPTION_KEYS = {"arguments", "except", "host", "listen-interval", "listen-timeout", "ports"}
+VALUE_OPTION_KEYS = {"arguments", "except", "host", "listen-interval", "listen-timeout", "port", "ports"}
 
 
 def normalize_value_args(args: list[str]) -> list[str]:

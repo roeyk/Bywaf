@@ -415,6 +415,16 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "event port.open")
             self.assertIn("\x1b[38;2;0;255;0m192.0.2.10\x1b[0m:443/tcp", output.getvalue())
 
+    def test_events_style_quoted_string_spans(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.registry.varstore.set("display/style.string", "bold yellow")
+            runner.db.publish("example.topic", {"message": "quoted value"}, "test")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "event example.topic")
+            self.assertIn("\x1b[1;33m'quoted value'\x1b[0m", output.getvalue())
+
     def test_event_id_prints_event_runtime_context(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -1454,12 +1464,12 @@ class AppDispatchTests(unittest.TestCase):
             ):
                 output = io.StringIO()
                 with contextlib.redirect_stdout(output):
-                    dispatch_repl_line(runner, "network/portscanner host=192.0.2.10 ports=80", state)
+                    dispatch_repl_line(runner, "network/portscanner host=192.0.2.10 port=80", state)
                     dispatch_repl_line(runner, "jobs host=192.0.2.10", state)
                     dispatch_repl_line(runner, "steps host=192.0.2.10", state)
                     dispatch_repl_line(runner, "pipelines host=192.0.2.10", state)
             text = output.getvalue()
-            self.assertIn("network/portscanner host=192.0.2.10 ports=80", text)
+            self.assertIn("network/portscanner host=192.0.2.10 port=80", text)
             self.assertIn("network/portscanner", text)
             self.assertIn("STEP", text)
             self.assertIn("PIPELINE", text)

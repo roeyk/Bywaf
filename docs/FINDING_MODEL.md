@@ -102,9 +102,9 @@ payload = candidate_payload(
 ```
 
 Starter subjects include `host`, `ip`, `port`, `protocol`, `url`, `path`,
-`username`, `account`, `email`, `service`, `timestamp`, `comment`, `cve`, `cwe`,
-`severity`, `finding.title`, `finding.class`, `finding.status`, `evidence`,
-`explanation`, and `artifact`.
+`username`, `account`, `email`, `service`, `timestamp`, `comment`, `string`,
+`cve`, `cwe`, `severity`, `finding.title`, `finding.class`, `finding.status`,
+`evidence`, `explanation`, and `artifact`.
 
 ## Finding Classes
 

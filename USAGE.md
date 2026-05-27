@@ -1336,6 +1336,8 @@ bywaf> set display.help.color=auto
 bywaf> set display.help.command-color=green
 bywaf> set display/style.host=bold green
 bywaf> set display/style.comment=dim color245
+bywaf> set display/style.string=bold yellow
+bywaf> set display/style.value=green
 bywaf> set display/style.finding.severity.critical="#dc2626"
 bywaf> set discovery/hostscanner.targets=192.168.1.1-255
 bywaf> hostscanner
@@ -1353,10 +1355,13 @@ values such as `rgb:80,180,90`; and background forms such as `bg-ansi:52` and
 are yellow; history timestamps and help commands are green.
 
 Display styles use `display/style.<subject>`. Current terminal rendering
-uses subjects such as `host`, `port`, `protocol`, `host.name`, and `comment`.
-Style values can combine attributes and colors, for example `bold green`,
-`dim color245`, `rgb:80,180,90`, or quoted hex values such as `"#00ff00"`.
-Unquoted `#` starts a REPL/script comment; quote or escape literal hashes.
+uses subjects such as `host`, `port`, `protocol`, `host.name`, `comment`, and
+`string`. The `string` subject applies to quoted spans in compact event output
+and live prompt input; `value` applies to the value side of live `key=value`
+input when the value is not quoted. Style values can combine attributes and
+colors, for example `bold green`, `dim color245`, `rgb:80,180,90`, or quoted
+hex values such as `"#00ff00"`. Unquoted `#` starts a REPL/script comment;
+quote or escape literal hashes.
 
 User preferences are separate from variables. The planned `pref` command is for
 operator-owned defaults that should live under `~/.bywaf`, such as colors,
@@ -1514,11 +1519,11 @@ It emits `host.found` events.
 
 ```text
 bywaf> portscanner 127.0.0.1
-bywaf> portscanner ports=22,80,443 host=127.0.0.1
-bywaf> portscanner arguments="-Pn -sT" ports=33169,33199 host=example.test
+bywaf> portscanner port=22,80,443 host=127.0.0.1
+bywaf> portscanner arguments="-Pn -sT" port=33169,33199 host=example.test
 ```
 
-If `ports=` is omitted, nmap uses its normal default top-port behavior. It
+If `port=` is omitted, nmap uses its normal default top-port behavior. It
 emits `port.open` events.
 
 `host=` accepts one host or a comma/space-separated host list. When an explicit
@@ -1600,7 +1605,7 @@ bywaf> http_probe https://example.com/
 metadata and promotes confirmed-looking exposures into `finding.candidate`:
 
 ```text
-bywaf> git_expose_check https://example.com/
+bywaf> git_expose_check target=https://example.com/
 bywaf> http_probe https://example.com/ | git_expose_check
 ```
 
@@ -1609,7 +1614,7 @@ checks. It currently runs the Git config exposure check and marks emitted
 payloads with `family=repo_exposure` and `check=git_config`:
 
 ```text
-bywaf> repo_exposure https://example.com/
+bywaf> repo_exposure target=https://example.com/
 bywaf> http_probe https://example.com/ | repo_exposure
 ```
 
@@ -1756,13 +1761,13 @@ bywaf> hostscanner 192.168.0.1-255 & | portscanner &
 Probe HTTP services after port scanning:
 
 ```text
-bywaf> hostscanner 127.0.0.1 | portscanner --ports 80,443 | http_probe
+bywaf> hostscanner 127.0.0.1 | portscanner port=80,443 | http_probe
 ```
 
 Fingerprint HTTP services after probing:
 
 ```text
-bywaf> hostscanner 127.0.0.1 | portscanner --ports 80,443 | http_probe --method GET | webfin
+bywaf> hostscanner 127.0.0.1 | portscanner port=80,443 | http_probe --method GET | webfin
 ```
 
 Save the current database:

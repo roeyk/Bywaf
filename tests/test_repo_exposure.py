@@ -45,6 +45,20 @@ class RepoExposureTests(unittest.TestCase):
         self.assertEqual(payload["host"], "example.test")
         self.assertEqual(payload["port"], 8443)
 
+    def test_run_accepts_target_key_value_argument(self):
+        context = CommandContext(db=None, source="git_expose_check", metadata={"command_run_id": "run-1"})
+        result = base_result(
+            {"url": "http://127.0.0.1:8088/", "host": "127.0.0.1", "port": 8088, "scheme": "http"},
+            "http://127.0.0.1:8088/.git/config",
+            DetectionStatus.SAFE,
+            http_status=404,
+        )
+        with patch("bywaf.plugins.http.repo_exposure.command.probe_git_config", return_value=result) as probe:
+            events = list(GitExposeCheck().run(context, ["target=http://127.0.0.1:8088"], []))
+
+        self.assertEqual(probe.call_args.args[1]["url"], "http://127.0.0.1:8088")
+        self.assertEqual(events[0]["checked_url"], "http://127.0.0.1:8088/.git/config")
+
     def test_pipeline_targets_use_http_endpoint_events(self):
         event = Event.new("http.endpoint", {"url": "https://example.test/", "host": "example.test", "port": 443}, "test")
         self.assertEqual(git_targets([], [event]), [event.payload])

@@ -205,7 +205,7 @@ The distinction follows what the operator types:
 | --- | --- | --- |
 | Positional value | `@argument(...)` | `cat README.md` |
 | Optional positional value | `@argument(..., required=False)` | `hello` or `hello world` |
-| Named setting | `@option(...)` | `portscanner ports=22,80,443` |
+| Named setting | `@option(...)` | `portscanner port=22,80,443` |
 | Named flag | `@option(...)` plus `action="store_true"` in `parser.add_argument(...)` | `portscanner --listen` |
 | Secret named setting | `@option(..., secret=True)` | `ssh_probe password=...` |
 

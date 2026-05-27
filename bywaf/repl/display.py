@@ -44,6 +44,7 @@ EVENT_COLOR_MODE_VAR = "display.events.color"
 EVENT_KEY_COLOR_VAR = "display.events.key-color"
 DISPLAY_STYLE_PREFIX = "display/style."
 DISPLAY_COMMENT_STYLE_VAR = f"{DISPLAY_STYLE_PREFIX}comment"
+DISPLAY_STRING_STYLE_VAR = f"{DISPLAY_STYLE_PREFIX}string"
 DEFAULT_VAR_COLOR_MODE = "auto"
 DEFAULT_VAR_NAME_COLOR = "cyan"
 DEFAULT_VAR_VALUE_COLOR = "green"
@@ -380,13 +381,57 @@ def print_events(events, runner: Runner | None = None) -> None:
 
 
 def format_event_listing_line(runner: Runner | None, event, line: str) -> str:
-    """Color the event id and commandlet name at the start of a compact event row."""
-    if runner is None or not event_color_enabled(runner):
+    """Color a compact event row using configured event and subject styles."""
+    if runner is None:
         return line
+    if not event_color_enabled(runner):
+        return style_quoted_strings(runner, line)
     event_id, separator, rest = line.partition(": ")
     if not separator:
-        return line
-    return f"{ansi_color(event_id, EVENT_ID_COLOR)}: {color_event_listing_commandlet(event, rest)}"
+        return style_quoted_strings(runner, line)
+    styled = f"{ansi_color(event_id, EVENT_ID_COLOR)}: {color_event_listing_commandlet(event, rest)}"
+    return style_quoted_strings(runner, styled)
+
+
+def style_quoted_strings(runner: Runner | None, text: str) -> str:
+    """Apply `display/style.string` to single- or double-quoted spans."""
+    if runner is None:
+        return text
+    style = runner.registry.varstore.get(DISPLAY_STRING_STYLE_VAR, "")
+    if not style:
+        return text
+    parts: list[str] = []
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if char not in {"'", '"'}:
+            parts.append(char)
+            index += 1
+            continue
+        end = closing_quote_index(text, index)
+        if end is None:
+            parts.append(ansi_color(text[index:], style))
+            break
+        parts.append(ansi_color(text[index:end + 1], style))
+        index = end + 1
+    return "".join(parts)
+
+
+def closing_quote_index(text: str, start: int) -> int | None:
+    """Return the matching quote index, ignoring backslash-escaped quotes."""
+    quote = text[start]
+    index = start + 1
+    escaped = False
+    while index < len(text):
+        char = text[index]
+        if escaped:
+            escaped = False
+        elif char == "\\":
+            escaped = True
+        elif char == quote:
+            return index
+        index += 1
+    return None
 
 
 def color_event_listing_commandlet(event, text: str) -> str:

@@ -13,9 +13,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from bywaf.completion import Completer, PromptToolkitCompleter, completion_results, option_is_binary
+from bywaf.completion import BywafPromptLexer, Completer, PromptToolkitCompleter, completion_results, option_is_binary
 from bywaf.db import EventStore
 from bywaf.registry import PluginRegistry
+from bywaf.secret.input import PromptSecretInputState
 
 
 class CompletionRegressionTests(unittest.TestCase):
@@ -193,6 +194,19 @@ class CompletionRegressionTests(unittest.TestCase):
         display_texts = [completion.display_text for completion in completions]
         self.assertIn("report.md", display_texts)
         self.assertNotIn("export=report.md", display_texts)
+
+    def test_prompt_lexer_styles_values_and_quoted_strings(self):
+        try:
+            Document = importlib.import_module("prompt_toolkit.document").Document
+        except ImportError:
+            self.skipTest("prompt_toolkit is not installed")
+        self.registry.varstore.set("display/style.value", "green")
+        self.registry.varstore.set("display/style.string", "bold yellow")
+        lexer = BywafPromptLexer(Completer(self.registry), PromptSecretInputState())
+        fragments = lexer.lex_document(Document('set host=127.0.0.1 note="manual pass"'))(0)
+
+        self.assertIn(("ansigreen", "127.0.0.1"), fragments)
+        self.assertIn(("bold ansiyellow", '"manual pass"'), fragments)
 
 
 if __name__ == "__main__":

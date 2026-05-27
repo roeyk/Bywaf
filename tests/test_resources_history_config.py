@@ -777,7 +777,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "set")
-            self.assertIn("network/portscanner.ports=", output.getvalue())
+            self.assertIn("network/portscanner.port=", output.getvalue())
 
     def test_dispatch_vars_assignment_sets_value(self):
         with tempfile.TemporaryDirectory() as tmp:

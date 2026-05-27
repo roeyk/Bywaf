@@ -38,7 +38,7 @@ DEFAULTS = {
     examples=(
         "http_probe https://example.test/ | webfin",
         "webfin https://example.test/",
-        "hostscanner 127.0.0.1 | portscanner --ports 80,443 | http_probe --method GET | webfin",
+        "hostscanner 127.0.0.1 | portscanner port=80,443 | http_probe --method GET | webfin",
     ),
     consumes=("http.endpoint",),
     emits=("web.fingerprint",),

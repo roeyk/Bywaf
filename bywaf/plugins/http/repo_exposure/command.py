@@ -21,6 +21,7 @@ from typing import Any
 
 from bywaf.events import Event
 from bywaf.plugin import CommandContext, CommandletBase
+from bywaf.plugins._args import key_value_to_long_options
 from bywaf.plugins.http.http_probe import build_opener, target_from_text
 
 from .detect import probe_git_config
@@ -39,13 +40,15 @@ def run_git_config_check(
     # Keep parser construction close to the commandlet invocation boundary.
     # The probe and finding modules should stay free of argparse/Bywaf context.
     parser.add_argument("targets", nargs="*")
+    parser.add_argument("--target", dest="target_options", action="append", default=[])
     parser.add_argument("-s", "--silent", action="store_true", default=commandlet.var_default(context, "silent", False, cast=parse_bool))
     parser.add_argument("--timeout", type=float, default=commandlet.var_default(context, "timeout", 5, cast=float))
     parser.add_argument("--user-agent", default=commandlet.var_default(context, "user-agent", "Bywaf/0.9"))
-    parsed = parser.parse_args(args)
+    parsed = parser.parse_args(normalize_value_args(args))
 
     opener = build_opener(None, None, False)
-    for target in git_targets(parsed.targets, input_events):
+    explicit_targets = [*parsed.target_options, *parsed.targets]
+    for target in git_targets(explicit_targets, input_events):
         context.raise_if_cancelled()
         context.audit_capability("network.connect")
         # The command layer bridges pure detection to framework events: first
@@ -75,6 +78,11 @@ def git_targets(targets: list[str], input_events: Iterable[Event]) -> list[dict[
     # Pipeline use consumes only HTTP endpoint facts. Other upstream events pass
     # through the pipeline but are not meaningful for repository exposure checks.
     return [dict(event.payload) for event in input_events if event.topic == "http.endpoint" and event.payload.get("url")]
+
+
+def normalize_value_args(args: list[str]) -> list[str]:
+    """Convert Bywaf `target=value` tokens into argparse options."""
+    return key_value_to_long_options(args, {"target"})
 
 
 def endpoint_from_target_text(target: str) -> dict[str, Any]:

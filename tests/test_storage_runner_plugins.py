@@ -47,7 +47,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
         self.assertEqual(invocation.args, ["127.0.0.1"])
 
     def test_parse_pipeline(self):
-        pipeline = parse_pipeline("hostscanner 127.0.0.1 | portscanner --ports 80 &")
+        pipeline = parse_pipeline("hostscanner 127.0.0.1 | portscanner port=80 &")
         self.assertTrue(pipeline.background)
         self.assertEqual([command.name for command in pipeline.commands], ["hostscanner", "portscanner"])
         self.assertFalse(pipeline.commands[0].background)
@@ -68,12 +68,12 @@ class StorageRunnerPluginTests(unittest.TestCase):
 
     def test_parse_framework_context_selectors(self):
         invocation = parse_invocation(
-            "portscanner --from-step host-run --from-pipeline pipe --from-topic host.found --ports 80"
+            "portscanner --from-step host-run --from-pipeline pipe --from-topic host.found port=80"
         )
         self.assertEqual(invocation.from_step, "host-run")
         self.assertEqual(invocation.from_pipeline, "pipe")
         self.assertEqual(invocation.from_topic, "host.found")
-        self.assertEqual(invocation.args, ["--ports", "80"])
+        self.assertEqual(invocation.args, ["port=80"])
 
     def test_parse_invocation_strips_final_unquoted_note(self):
         invocation = parse_invocation("hostscanner 127.0.0.1 note=client approved target")
@@ -969,7 +969,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 runner = make_runner(Path(tmp, "db.sqlite3"))
                 output = io.StringIO()
                 with contextlib.redirect_stdout(output):
-                    events = runner.execute("hostscanner 127.0.0.1 | portscanner --ports 8080")
+                    events = runner.execute("hostscanner 127.0.0.1 | portscanner port=8080")
                     process_framework_requests(runner, ShellState())
                 self.assertEqual(events[-1].topic, "port.open")
                 self.assertEqual(events[-1].payload["port"], 8080)
@@ -990,7 +990,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with patch("bywaf.plugins.network.portscanner.scan_open_ports", return_value=[]):
                 with contextlib.redirect_stdout(io.StringIO()):
-                    events = runner.execute("portscanner --ports 1-1000 127.0.0.1")
+                    events = runner.execute("portscanner port=1-1000 127.0.0.1")
             self.assertEqual(events, [])
             self.assertEqual(runner.db.events_for_topic("port.open"), [])
             topics = {event.topic for event in runner.db.recent_events(100)}
@@ -1016,7 +1016,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 ],
             ):
                 with contextlib.redirect_stdout(io.StringIO()):
-                    runner.execute("portscanner --ports 23 192.0.2.10")
+                    runner.execute("portscanner port=23 192.0.2.10")
 
             candidates = runner.db.events_for_topic("finding.candidate")
             self.assertEqual(len(candidates), 1)
@@ -1040,7 +1040,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 ],
             ):
                 with contextlib.redirect_stdout(io.StringIO()):
-                    runner.execute("portscanner --ports 2323 192.0.2.10")
+                    runner.execute("portscanner port=2323 192.0.2.10")
 
             candidates = runner.db.events_for_topic("finding.candidate")
             self.assertEqual(len(candidates), 1)
@@ -1063,7 +1063,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 ],
             ):
                 with contextlib.redirect_stdout(io.StringIO()):
-                    runner.execute("portscanner --ports 23 192.0.2.10")
+                    runner.execute("portscanner port=23 192.0.2.10")
 
             candidates = runner.db.events_for_topic("finding.candidate")
             self.assertEqual(len(candidates), 1)
@@ -1085,14 +1085,14 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 return_value=[NmapPort("127.0.0.1", 80, "tcp", "open")],
             ) as scan:
                 with contextlib.redirect_stdout(io.StringIO()):
-                    events = runner.execute("portscanner --from-step host-run --ports 80")
+                    events = runner.execute("portscanner --from-step host-run port=80")
             self.assertEqual(events[0].payload["host"], "127.0.0.1")
             self.assertEqual(scan.call_args.args[0], ["127.0.0.1"])
 
-    def test_portscanner_ports_variable_is_default_but_cli_overrides(self):
+    def test_portscanner_port_variable_is_default_but_cli_overrides(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
-            runner.registry.varstore.set("network/portscanner.ports", "22")
+            runner.registry.varstore.set("network/portscanner.port", "22")
             with patch(
                 "bywaf.plugins.network.portscanner.scan_open_ports",
                 return_value=[NmapPort("127.0.0.1", 22, "tcp", "open")],
@@ -1105,10 +1105,10 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 return_value=[NmapPort("127.0.0.1", 80, "tcp", "open")],
             ) as scan:
                 with contextlib.redirect_stdout(io.StringIO()):
-                    runner.execute("portscanner --ports 80 127.0.0.1")
+                    runner.execute("portscanner port=80 127.0.0.1")
             self.assertEqual(scan.call_args.args[1], "80")
 
-    def test_portscanner_accepts_key_value_host_list_and_ports(self):
+    def test_portscanner_accepts_key_value_host_list_and_port(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with patch(
@@ -1116,7 +1116,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 return_value=[NmapPort("192.0.2.10", 33169, "tcp", "open")],
             ) as scan:
                 with contextlib.redirect_stdout(io.StringIO()):
-                    events = runner.execute("portscanner host=192.0.2.10 ports=33169,33199")
+                    events = runner.execute("portscanner host=192.0.2.10 port=33169,33199")
             self.assertEqual(scan.call_args.args[0], ["192.0.2.10"])
             self.assertEqual(scan.call_args.args[1], "33169,33199")
             self.assertEqual(events[0].payload["port"], 33169)
@@ -1132,7 +1132,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 ) as scan,
             ):
                 with contextlib.redirect_stdout(io.StringIO()):
-                    events = runner.execute("portscanner host=example.test ports=33169")
+                    events = runner.execute("portscanner host=example.test port=33169")
             self.assertEqual(scan.call_args.args[0], ["192.0.2.55"])
             self.assertEqual(events[0].payload["host"], "192.0.2.55")
             resolved = runner.db.events_for_topic("name.resolved")
@@ -1150,7 +1150,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 ) as scan,
             ):
                 with contextlib.redirect_stdout(io.StringIO()):
-                    events = runner.execute('portscanner host=example.test ports=443 arguments="-Pn -sT -4"')
+                    events = runner.execute('portscanner host=example.test port=443 arguments="-Pn -sT -4"')
             self.assertEqual(scan.call_args.args[0], ["192.0.2.55"])
             self.assertEqual(events[0].payload["host"], "192.0.2.55")
             resolved = runner.db.events_for_topic("name.resolved")
@@ -1167,7 +1167,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 ) as scan,
             ):
                 with contextlib.redirect_stdout(io.StringIO()):
-                    events = runner.execute('portscanner host=example.test ports=443 arguments="-Pn -sT -6"')
+                    events = runner.execute('portscanner host=example.test port=443 arguments="-Pn -sT -6"')
             self.assertEqual(scan.call_args.args[0], ["2001:db8::55"])
             self.assertEqual(events[0].payload["host"], "2001:db8::55")
             resolved = runner.db.events_for_topic("name.resolved")

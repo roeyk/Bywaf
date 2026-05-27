@@ -52,7 +52,7 @@ Planning dates are release planning markers, not compatibility commitments.
     `http/repo_exposure/git_expose_check` against a controlled server exposing
     `/.git/config`.
   - Exercise the Telnet-like finding path with
-    `network/portscanner host=<host> ports=23,2323 arguments="-Pn -sT"`,
+    `network/portscanner host=<host> port=23,2323 arguments="-Pn -sT"`,
     then inspect `event finding.candidate` and `report`.
   - Exercise repository exposure with
     `http/repo_exposure/git_expose_check target=http://<test-host>`, then
@@ -101,6 +101,10 @@ Planning dates are release planning markers, not compatibility commitments.
   values such as `set display/style.host="#00ff00"` and safe alternatives such
   as `rgb:0,255,0` or `color46`.
 - Let users configure visible comment styling through `display/style.comment`.
+- Let users configure unquoted live prompt values through `display/style.value`
+  and quoted live prompt values through `display/style.string`.
+- Add a proper operator preference/theme file under `~/.bywaf` so display
+  colors can live outside project variables and travel across projects.
 - Document the plugin contract so authors know how to expose semantically typed
   data without coupling plugin output to one frontend.
 

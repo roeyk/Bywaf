@@ -34,7 +34,7 @@ def main() -> int:
     state = new_shell_state(runner)
 
     print(f"database={database}")
-    run_line(runner, state, f'network/portscanner host={args.target} ports={args.ports} arguments="{args.arguments}"')
+    run_line(runner, state, f'network/portscanner host={args.target} port={args.ports} arguments="{args.arguments}"')
     run_line(runner, state, "event port.open")
     run_line(runner, state, "event name.resolved")
 

@@ -286,7 +286,7 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertEqual(self.registry.resolve_commandlet_name("http/http_probe"), "http_probe")
 
     def test_loads_package_defaults_into_varstore(self):
-        self.assertEqual(self.registry.varstore.get("network/portscanner.ports"), "")
+        self.assertEqual(self.registry.varstore.get("network/portscanner.port"), "")
 
     def test_get_unknown_raises_clear_key_error(self):
         with self.assertRaisesRegex(KeyError, "unknown commandlet"):
@@ -531,7 +531,7 @@ class RegistryCompletionTests(unittest.TestCase):
 
     def test_completes_plugin_options(self):
         completer = Completer(self.registry)
-        self.assertIn("ports=", completer.candidates("portscanner por"))
+        self.assertIn("port=", completer.candidates("portscanner por"))
         self.assertIn("--from-step", completer.candidates("portscanner --from"))
         http_options = completer.candidates("http_headers --")
         self.assertIn("--help", http_options)

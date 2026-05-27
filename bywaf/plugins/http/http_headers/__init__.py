@@ -43,7 +43,7 @@ DEFAULTS = {"port": "", "ssl": "false", "target": "", "timeout": 5}
     usage="http_headers [options] [target]",
     examples=(
         "http_headers --ssl true example.test",
-        "hostscanner 127.0.0.1 | portscanner --ports 80,443 | http_headers",
+        "hostscanner 127.0.0.1 | portscanner port=80,443 | http_headers",
     ),
     consumes=("port.open",),
     emits=("http.headers", "finding.candidate"),

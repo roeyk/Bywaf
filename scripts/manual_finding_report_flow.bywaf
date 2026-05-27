@@ -11,7 +11,7 @@
 db new
 
 # 2. Portscanner sanity
-network/portscanner host=google.com ports=80,443 arguments="-Pn -sT -4"
+network/portscanner host=google.com port=80,443 arguments="-Pn -sT -4"
 event port.open
 event name.resolved
 
@@ -27,7 +27,7 @@ event name.resolved
 # 4. Telnet-like finding path
 # Replace <host> with an authorized test host that has Telnet-like service
 # exposure on port 23 or 2323.
-# network/portscanner host=<host> ports=23,2323 arguments="-Pn -sT"
+# network/portscanner host=<host> port=23,2323 arguments="-Pn -sT"
 # event finding.candidate
 # report
 
