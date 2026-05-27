@@ -44,6 +44,28 @@ Theme files set display variables. The renderer looks up subject styles with the
 "display/style.finding.severity.high" = "bold red"
 ```
 
+Theme files may also use structured style tables. This is equivalent to the
+compact string form, but easier to read for styles with both foreground and
+background colors:
+
+```toml
+[variables."display/style.host"]
+foreground = "cyan"
+background = "transparent"
+bold = true
+
+[variables."display/style.finding.severity_class.emergency"]
+foreground = "white"
+background = "ansi:52"
+bold = true
+```
+
+`background = "transparent"` means the subject does not set its own background;
+an enclosing table or report style can continue to show through. The same
+structured fields can be set directly as preferences or variables, for example
+`display/style.host.foreground=cyan` and
+`display/style.host.background=transparent`.
+
 Subject styles are semantic overrides. Broad styles provide a baseline, and more
 specific subjects win inside that baseline. For example:
 
@@ -98,6 +120,16 @@ Renderers should use table styles as defaults and semantic subjects as overrides
 "display/style.pipeline" = "color39"
 "display/style.finding.severity_class.urgent" = "bold red"
 "display/style.finding.severity_class.emergency" = "bold white bg-ansi:52"
+```
+
+The same emergency style can be written with explicit foreground/background
+fields:
+
+```toml
+[variables."display/style.finding.severity_class.emergency"]
+foreground = "white"
+background = "ansi:52"
+bold = true
 ```
 
 Table/report styles are renderer-owned presentation defaults. Plugin payloads

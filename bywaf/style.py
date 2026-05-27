@@ -31,6 +31,24 @@ ANSI_COLORS = {
     "bright-cyan": "96",
     "bright-white": "97",
 }
+ANSI_BACKGROUND_COLORS = {
+    "black": "40",
+    "red": "41",
+    "green": "42",
+    "yellow": "43",
+    "blue": "44",
+    "magenta": "45",
+    "cyan": "46",
+    "white": "47",
+    "bright-black": "100",
+    "bright-red": "101",
+    "bright-green": "102",
+    "bright-yellow": "103",
+    "bright-blue": "104",
+    "bright-magenta": "105",
+    "bright-cyan": "106",
+    "bright-white": "107",
+}
 
 ANSI_STYLE_TOKENS = {
     "bold": "1",
@@ -41,6 +59,7 @@ ANSI_STYLE_TOKENS = {
     "reverse": "7",
     "strikethrough": "9",
 }
+STRUCTURED_STYLE_FLAGS = frozenset(ANSI_STYLE_TOKENS)
 
 
 def ansi_color(text: str, style: str) -> str:
@@ -80,6 +99,8 @@ def ansi_color_code(color: str) -> str | None:
     if normalized.startswith("#"):
         rgb = parse_hex_color(normalized)
         return f"38;2;{rgb[0]};{rgb[1]};{rgb[2]}" if rgb is not None else None
+    if normalized.startswith("bg:"):
+        return ansi_background_color_code(normalized.removeprefix("bg:"))
     if normalized.startswith("ansi:"):
         number = parse_color_int(normalized.removeprefix("ansi:"), 0, 255)
         return f"38;5;{number}" if number is not None else None
@@ -91,6 +112,28 @@ def ansi_color_code(color: str) -> str | None:
         return f"38;2;{rgb[0]};{rgb[1]};{rgb[2]}" if rgb is not None else None
     if normalized.startswith("bg-rgb:"):
         rgb = parse_rgb_color(normalized.removeprefix("bg-rgb:"))
+        return f"48;2;{rgb[0]};{rgb[1]};{rgb[2]}" if rgb is not None else None
+    return None
+
+
+def ansi_background_color_code(color: str) -> str | None:
+    """Return an SGR background color code for named, indexed, or truecolor input."""
+    normalized = color.strip().casefold().replace("_", "-")
+    if not normalized:
+        return None
+    if normalized in ANSI_BACKGROUND_COLORS:
+        return ANSI_BACKGROUND_COLORS[normalized]
+    if normalized.startswith("color"):
+        number = parse_color_int(normalized.removeprefix("color"), 0, 255)
+        return f"48;5;{number}" if number is not None else None
+    if normalized.startswith("#"):
+        rgb = parse_hex_color(normalized)
+        return f"48;2;{rgb[0]};{rgb[1]};{rgb[2]}" if rgb is not None else None
+    if normalized.startswith("ansi:"):
+        number = parse_color_int(normalized.removeprefix("ansi:"), 0, 255)
+        return f"48;5;{number}" if number is not None else None
+    if normalized.startswith("rgb:"):
+        rgb = parse_rgb_color(normalized.removeprefix("rgb:"))
         return f"48;2;{rgb[0]};{rgb[1]};{rgb[2]}" if rgb is not None else None
     return None
 
@@ -133,13 +176,47 @@ def subject_style(getter, subject: str) -> str:
     """Return the configured style for a subject, falling back to parents."""
     current = subject
     while current:
-        style = getter(f"display/style.{current}", "")
+        key = f"display/style.{current}"
+        style = getter(key, "")
         if style:
             return str(style)
+        structured = structured_subject_style(getter, key)
+        if structured:
+            return structured
         if "." not in current:
             break
         current = current.rsplit(".", 1)[0]
     return ""
+
+
+def structured_subject_style(getter, key: str) -> str:
+    """Return a style assembled from `.foreground`, `.background`, and flags."""
+    tokens: list[str] = []
+    for flag in sorted(STRUCTURED_STYLE_FLAGS):
+        if truthy_style_flag(getter(f"{key}.{flag}", "")):
+            tokens.append(flag)
+    foreground = inherited_color_value(getter(f"{key}.foreground", ""))
+    if foreground:
+        tokens.append(foreground)
+    background = inherited_color_value(getter(f"{key}.background", ""))
+    if background:
+        tokens.append(f"bg:{background}")
+    return " ".join(tokens)
+
+
+def truthy_style_flag(value: object) -> bool:
+    """Return whether a structured style flag is enabled."""
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().casefold() in {"1", "true", "yes", "on"}
+
+
+def inherited_color_value(value: object) -> str:
+    """Return a color token, treating transparent-like values as inherited."""
+    text = str(value).strip()
+    if text.casefold() in {"", "transparent", "none", "inherit"}:
+        return ""
+    return text
 
 
 def styled_subject_text(getter, subject: str, value: object) -> str:

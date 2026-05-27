@@ -1268,8 +1268,6 @@ bywaf> script load file=scan.bywaf
 bywaf> script load file=./scripts/scan.bywaf
 bywaf> config save file=session.toml
 bywaf> config load file=session.toml
-bywaf> config theme name=classic
-bywaf> config theme file=theme.toml
 bywaf> pref theme=classic
 bywaf> pref prompt "$u@$h> "
 bywaf> pref set identity.email=operator@example.com
@@ -1404,13 +1402,38 @@ values can combine attributes and colors, for example `bold green`, `dim
 color245`, `rgb:80,180,90`, or quoted hex values such as `"#00ff00"`. Unquoted
 `#` starts a REPL/script comment; quote or escape literal hashes.
 
+Theme files may use explicit foreground/background tables when that is clearer
+than a compact style string:
+
+```toml
+[variables."display/style.host"]
+foreground = "cyan"
+background = "transparent"
+bold = true
+
+[variables."display/style.finding.severity_class.emergency"]
+foreground = "white"
+background = "ansi:52"
+bold = true
+```
+
+`background = "transparent"` means the subject does not set a background and an
+outer style, such as a table or report style, can continue to show through. The
+same structured fields can also be set directly, for example:
+
+```text
+bywaf> set display/style.host.foreground=cyan
+bywaf> set display/style.host.background=transparent
+bywaf> set display/style.host.bold=true
+```
+
 Theme presets are bundled named sets of display variables:
 
 ```text
-bywaf> config theme
+bywaf> pref theme
 themes: classic, default, mono
-bywaf> config theme name=classic
-loaded theme=classic
+bywaf> pref theme=classic
+saved pref theme=classic
 ```
 
 Theme files are TOML or JSON mappings containing only `display.*` and
@@ -2096,7 +2119,6 @@ plugin load=<resource> [--force]
 db load file=<resource>
 db load file=<resource> --force
 config load file=<resource>
-config theme [name=<preset>|file=<resource>]
 pref [list|load|save] [file=<resource>]
 pref set key=value [file=<resource>]
 pref unset key [file=<resource>]

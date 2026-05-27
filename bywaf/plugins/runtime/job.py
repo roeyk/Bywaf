@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import os
 import signal
-import shlex
 from argparse import Namespace
 from collections.abc import Callable, Iterable
 
@@ -20,8 +19,10 @@ from bywaf.event_filters import any_event_matches_payload_filters, parse_payload
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
 from bywaf.runtime_display import (
     active_listing_format,
+    args_from_command_line,
     commandlet_from_command_line,
     display_runtime_serial,
+    format_command_args,
     format_runtime_timestamp,
     render_table,
     runtime_state_label,
@@ -184,11 +185,12 @@ def print_jobs(
                 names.get(("job", str(row["id"])), ""),
                 format_runtime_timestamp(row["started_at"]),
                 format_runtime_timestamp(row["finished_at"]),
-                row["command_line"],
+                commandlet_from_command_line(str(row["command_line"])),
+                format_command_args(args_from_command_line(str(row["command_line"]))),
             )
         )
     output = render_table(
-        ("JOB", "SERIAL", "STATE", "PID", "STATUS", "ARTIFACTS", "NAME", "STARTED", "FINISHED", "COMMAND"),
+        ("JOB", "SERIAL", "STATE", "PID", "STATUS", "ARTIFACTS", "NAME", "STARTED", "FINISHED", "COMMANDLET", "ARGS"),
         table_rows,
     )
     if page:
@@ -225,13 +227,13 @@ def format_job(
     name_part = f" name={display_name}" if display_name else ""
     serial = display_runtime_serial(row["serial"])
     command = str(row["command_line"])
-    args_part = f" args={format_job_args(args)}" if args else ""
+    displayed_args = args or list(args_from_command_line(command))
+    args_part = f" args={format_command_args(displayed_args)}" if displayed_args else ""
     line = (
         f"{prefix}#{row['id']} serial={serial} pid={row['pid']} status={row['status']}{name_part}"
         f" launched={format_runtime_timestamp(row['started_at'])}"
         f" finished={format_runtime_timestamp(row['finished_at'])}"
         f" commandlet={commandlet_from_command_line(command)}"
-        f" command={command}"
         f"{args_part}"
     )
     return f"{line}\n{detail}" if detail else line
@@ -247,11 +249,6 @@ def latest_job_args(context: CommandContext, job_id: int | str) -> list[str]:
     if isinstance(payload_args, list):
         return [str(arg) for arg in payload_args]
     return []
-
-
-def format_job_args(args: list[str]) -> str:
-    """Return shell-style commandlet arguments for job inspection."""
-    return " ".join(shlex.quote(arg) for arg in args)
 
 
 def require_job(context: CommandContext, job_id: str | None):

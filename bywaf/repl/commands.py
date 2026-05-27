@@ -185,6 +185,8 @@ def handle_pref_command(runner: Runner, state: ShellState, rest: str | None, lin
     if theme_value:
         set_preference(runner, state, path, THEME_KEY, theme_value)
         print(f"saved pref theme={theme_value}")
+    elif action == "theme":
+        print("themes: " + ", ".join(theme_names()))
     elif action == "list":
         print_preferences(runner, state, path)
     elif action == "load":

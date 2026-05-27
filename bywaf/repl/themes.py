@@ -15,6 +15,9 @@ from typing import Any
 from ..runner import Runner
 from ..toml_support import load_data_text
 
+STYLE_FLAGS = frozenset({"bold", "dim", "italic", "underline", "blink", "reverse", "strikethrough"})
+STYLE_KEYS = STYLE_FLAGS | {"foreground", "background", "modifiers"}
+
 
 THEME_PRESETS: dict[str, dict[str, str]] = {
     "default": {},
@@ -108,12 +111,50 @@ def flatten_theme_values(values: dict[str, Any]) -> dict[str, str]:
     """Return flat display variable assignments from theme data."""
     flattened: dict[str, str] = {}
     for key, value in values.items():
+        if isinstance(value, dict) and is_style_table(value):
+            flattened[str(key)] = style_table_to_string(value)
+            continue
         if not isinstance(value, dict):
             flattened[str(key)] = str(value)
             continue
         for child_key, child_value in flatten_theme_values(value).items():
             flattened[f"{key}.{child_key}"] = child_value
     return flattened
+
+
+def is_style_table(value: dict[str, Any]) -> bool:
+    """Return whether a nested TOML table describes one display style."""
+    return any(str(key) in STYLE_KEYS for key in value)
+
+
+def style_table_to_string(value: dict[str, Any]) -> str:
+    """Convert structured foreground/background style data to style tokens."""
+    tokens: list[str] = []
+    for flag in sorted(STYLE_FLAGS):
+        if value.get(flag) is True:
+            tokens.append(flag)
+    modifiers = value.get("modifiers", ())
+    if isinstance(modifiers, str):
+        tokens.extend(part for part in modifiers.split() if part)
+    elif isinstance(modifiers, list):
+        tokens.extend(str(part) for part in modifiers if str(part))
+    foreground = color_value(value.get("foreground"))
+    if foreground:
+        tokens.append(foreground)
+    background = color_value(value.get("background"))
+    if background:
+        tokens.append(f"bg:{background}")
+    return " ".join(tokens)
+
+
+def color_value(value: Any) -> str:
+    """Return a color token, treating transparent/none as an inherited value."""
+    if value is None:
+        return ""
+    text = str(value).strip()
+    if text.casefold() in {"", "transparent", "none", "inherit"}:
+        return ""
+    return text
 
 
 def apply_theme_values(runner: Runner, values: dict[str, str]) -> None:

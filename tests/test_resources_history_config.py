@@ -33,6 +33,7 @@ from bywaf.app import (
     strip_inline_comment,
 )
 from bywaf.plugins.network.nmap_backend import NmapScanError, NmapUnavailableError
+from bywaf.style import subject_style
 
 
 
@@ -691,6 +692,44 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             self.assertEqual(runner.registry.varstore.get("display.expansion"), "changed")
             self.assertEqual(runner.registry.varstore.get("test.value"), "kept")
 
+    def test_config_theme_accepts_structured_foreground_background_styles(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            theme = Path(tmp, "theme.toml")
+            theme.write_text(
+                """
+[variables."display/style.host"]
+foreground = "cyan"
+background = "transparent"
+bold = true
+
+[variables."display/style.finding.severity_class.emergency"]
+foreground = "white"
+background = "ansi:52"
+bold = true
+""",
+                encoding="utf-8",
+            )
+            with contextlib.redirect_stdout(io.StringIO()):
+                dispatch_repl_line(runner, f"config theme file={theme}")
+            self.assertEqual(runner.registry.varstore.get("display/style.host"), "bold cyan")
+            self.assertEqual(
+                runner.registry.varstore.get("display/style.finding.severity_class.emergency"),
+                "bold white bg:ansi:52",
+            )
+
+    def test_subject_style_accepts_direct_structured_variables(self):
+        values = {
+            "display/style.host.bold": "true",
+            "display/style.host.foreground": "cyan",
+            "display/style.host.background": "transparent",
+            "display/style.finding.severity_class.emergency.foreground": "white",
+            "display/style.finding.severity_class.emergency.background": "ansi:52",
+        }
+
+        self.assertEqual(subject_style(values.get, "host"), "bold cyan")
+        self.assertEqual(subject_style(values.get, "finding.severity_class.emergency"), "white bg:ansi:52")
+
     def test_config_theme_rejects_non_display_variables(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -723,6 +762,14 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             with contextlib.redirect_stdout(io.StringIO()):
                 dispatch_repl_line(other, f"pref load file={prefs}")
             self.assertEqual(other.registry.varstore.get("display/style.variable"), "cyan")
+
+    def test_pref_theme_lists_available_themes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "pref theme")
+            self.assertIn("themes: classic, default, mono", output.getvalue())
 
     def test_pref_prompt_pattern_applies_to_shell_state(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -894,7 +941,8 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, f"event job={job_id}")
-            self.assertIn("hostscanner 127.0.0.1", output.getvalue())
+            self.assertIn("commandlet=hostscanner", output.getvalue())
+            self.assertIn("args=127.0.0.1", output.getvalue())
 
     def test_dispatch_prompt_sets_pattern(self):
         with tempfile.TemporaryDirectory() as tmp:

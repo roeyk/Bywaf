@@ -219,7 +219,9 @@ def handle_file_page_request(runner: Runner, state: FrameworkRequestState, event
     try:
         pager = shutil.which("less")
         if pager and sys.stdin.isatty() and sys.stdout.isatty():
-            subprocess.run([pager, str(path)], check=False)
+            # -R lets less render ANSI color escapes while still protecting
+            # against arbitrary control characters.
+            subprocess.run([pager, "-R", str(path)], check=False)
             return
         print(path.read_text(errors="replace"), end="", flush=True)
     finally:

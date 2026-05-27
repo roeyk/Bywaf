@@ -26,8 +26,10 @@ from ..plugin import CommandContext
 from ..rendering import Column, Table, render_console_table
 from ..runtime_display import (
     ACTIVE_LISTING_FORMAT_VAR,
+    args_from_command_line,
     commandlet_from_command_line,
     display_runtime_serial,
+    format_command_args,
     format_runtime_timestamp,
     normalize_active_listing_format,
     render_table,
@@ -36,7 +38,7 @@ from ..runtime_display import (
 )
 from ..runner import Runner
 from ..secret.store import SECRET_REF_PREFIX
-from ..style import ansi_color
+from ..style import ansi_color, subject_style
 from ..time_format import format_operator_timestamp, normalize_history_timestamp_for_display
 
 VAR_COLOR_MODE_VAR = "display.vars.color"
@@ -809,12 +811,13 @@ def print_jobs(runner: Runner) -> None:
             names.get(("job", str(row["id"])), ""),
             format_runtime_timestamp(row["started_at"]),
             format_runtime_timestamp(row["finished_at"]),
-            row["command_line"],
+            commandlet_from_command_line(str(row["command_line"])),
+            format_command_args(args_from_command_line(str(row["command_line"]))),
         )
         for row in runtime.jobs()
     ]
     if rows:
-        print(render_table(("JOB", "SERIAL", "PID", "STATUS", "ARTIFACTS", "NAME", "STARTED", "FINISHED", "COMMAND"), rows))
+        print(render_table(("JOB", "SERIAL", "PID", "STATUS", "ARTIFACTS", "NAME", "STARTED", "FINISHED", "COMMANDLET", "ARGS"), rows))
 
 
 def print_info(runner: Runner) -> None:
@@ -908,13 +911,15 @@ def print_job(runner: Runner, job_id: str) -> None:
     names = runtime.runtime_names()
     for row in runtime.jobs():
         if str(row["id"]) == job_id:
+            args = format_command_args(args_from_command_line(str(row["command_line"])))
+            args_part = f" args={args}" if args else ""
             print(
                 f"#{row['id']} serial={row['serial']} pid={row['pid']} status={row['status']}"
                 f"{format_runtime_name(names.get(('job', str(row['id']))))}"
                 f" launched={format_runtime_timestamp(row['started_at'])}"
                 f" finished={format_runtime_timestamp(row['finished_at'])}"
                 f" commandlet={commandlet_from_command_line(str(row['command_line']))}"
-                f" command={row['command_line']}"
+                f"{args_part}"
             )
             return
     print(f"error: unknown job: {job_id}")
@@ -962,9 +967,7 @@ def subject_text(runner: Runner | None, subject: str, value: object) -> str:
     text = str(value)
     if runner is None:
         return text
-    style = runner.registry.varstore.get(f"{DISPLAY_STYLE_PREFIX}{subject}", "")
-    if not style and "." in subject:
-        style = runner.registry.varstore.get(f"{DISPLAY_STYLE_PREFIX}{subject.rsplit('.', 1)[0]}", "")
+    style = subject_style(runner.registry.varstore.get, subject)
     if not style:
         return text
     return ansi_color(text, style)
@@ -1176,7 +1179,7 @@ def page_generated_text(text: str) -> None:
         if pager and sys.stdin.isatty() and sys.stdout.isatty():
             # Use an external pager only for interactive terminals; test and
             # redirected output should receive plain stdout.
-            subprocess.run([pager, str(path)], check=False)
+            subprocess.run([pager, "-R", str(path)], check=False)
             return
         print(path.read_text(errors="replace"), end="", flush=True)
     finally:

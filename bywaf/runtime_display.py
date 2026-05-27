@@ -10,6 +10,7 @@ Used by:
 
 from __future__ import annotations
 
+import shlex
 from collections.abc import Sequence
 from .command.parser import parse_pipeline
 from .time_format import format_compact_runtime_timestamp
@@ -101,6 +102,23 @@ def commandlet_from_command_line(command_line: str) -> str:
     if not pipeline.commands:
         return ""
     return pipeline.commands[0].name
+
+
+def args_from_command_line(command_line: str) -> tuple[str, ...]:
+    """Return plugin-owned arguments for the first commandlet in a stored line."""
+    try:
+        pipeline = parse_pipeline(command_line)
+    except ValueError:
+        tokens = command_line.split()
+        return tuple(tokens[1:]) if len(tokens) > 1 else ()
+    if not pipeline.commands:
+        return ()
+    return tuple(pipeline.commands[0].args)
+
+
+def format_command_args(args: Sequence[str]) -> str:
+    """Return shell-style commandlet arguments for inspection output."""
+    return " ".join(shlex.quote(arg) for arg in args)
 
 
 def render_table(headers: tuple[str, ...], rows: Sequence[Sequence[object]]) -> str:

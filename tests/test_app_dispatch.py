@@ -700,7 +700,8 @@ class AppDispatchTests(unittest.TestCase):
             run.assert_called_once()
             argv = run.call_args.args[0]
             self.assertEqual(argv[0], "/usr/bin/less")
-            self.assertFalse(Path(argv[1]).exists())
+            self.assertEqual(argv[1], "-R")
+            self.assertFalse(Path(argv[2]).exists())
 
     def test_start_default_services_launches_session_watchdog_once(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1343,7 +1344,7 @@ class AppDispatchTests(unittest.TestCase):
                 patch("bywaf.repl.display.subprocess.run") as run,
             ):
                 dispatch_repl_line(runner, f"less {path}")
-            run.assert_called_once_with(["/usr/bin/less", str(path)], check=False)
+            run.assert_called_once_with(["/usr/bin/less", "-R", str(path)], check=False)
 
     def test_list_action_page_uses_system_pager_for_generated_output(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1359,7 +1360,8 @@ class AppDispatchTests(unittest.TestCase):
             run.assert_called_once()
             argv = run.call_args.args[0]
             self.assertEqual(argv[0], "/usr/bin/less")
-            self.assertFalse(Path(argv[1]).exists())
+            self.assertEqual(argv[1], "-R")
+            self.assertFalse(Path(argv[2]).exists())
 
     def test_dispatch_unknown_command_prints_error(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1468,7 +1470,8 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "pipeline host=192.0.2.20")
                 dispatch_repl_line(runner, "step host=192.0.2.20")
             text = output.getvalue()
-            self.assertIn("portscanner host=192.0.2.20", text)
+            self.assertIn("portscanner", text)
+            self.assertIn("host=192.0.2.20", text)
             self.assertIn("pipe-done", text)
             self.assertIn("step-done", text)
 
@@ -1487,8 +1490,8 @@ class AppDispatchTests(unittest.TestCase):
                     dispatch_repl_line(runner, "step host=192.0.2.10", state)
                     dispatch_repl_line(runner, "pipeline host=192.0.2.10", state)
             text = output.getvalue()
-            self.assertIn("network/portscanner host=192.0.2.10 port=80", text)
             self.assertIn("network/portscanner", text)
+            self.assertIn("host=192.0.2.10 port=80", text)
             self.assertIn("STEP", text)
             self.assertIn("PIPELINE", text)
 
@@ -1597,7 +1600,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("pipeline name", text)
             self.assertIn("job name", text)
             self.assertIn("commandlet=hostscanner", text)
-            self.assertIn("command=hostscanner 127.0.0.1", text)
+            self.assertIn("args=127.0.0.1", text)
             self.assertIn("ARTIFACTS", text)
 
     def test_job_show_includes_recorded_commandlet_arguments(self):
@@ -1624,7 +1627,8 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, f"job {job_id}")
 
             text = output.getvalue()
-            self.assertIn("command=network/portscanner", text)
+            self.assertIn("commandlet=network/portscanner", text)
+            self.assertNotIn(" command=", text)
             self.assertIn("args=host=192.0.2.10 ports=80,443", text)
             self.assertIn("'arguments=\"-Pn -sT\"'", text)
 
@@ -1643,8 +1647,10 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, f"job serial={serial}")
 
             self.assertIn(f"serial={serial.removeprefix('job-')}", direct_output.getvalue())
-            self.assertIn("command=hostscanner 127.0.0.1", direct_output.getvalue())
-            self.assertIn("command=hostscanner 127.0.0.1", selector_output.getvalue())
+            self.assertIn("commandlet=hostscanner", direct_output.getvalue())
+            self.assertIn("args=127.0.0.1", direct_output.getvalue())
+            self.assertIn("commandlet=hostscanner", selector_output.getvalue())
+            self.assertIn("args=127.0.0.1", selector_output.getvalue())
 
     def test_event_job_selector_accepts_durable_serial(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1713,7 +1719,10 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "job")
             self.assertIn("ARTIFACTS", output.getvalue())
             self.assertRegex(output.getvalue(), r"\n1\s+[0-9a-f]{32}\s+active\s+123\s+running\s+0\s+")
-            self.assertIn("hostscanner 127.0.0.1", output.getvalue())
+            self.assertIn("COMMANDLET", output.getvalue())
+            self.assertIn("ARGS", output.getvalue())
+            self.assertIn("hostscanner", output.getvalue())
+            self.assertIn("127.0.0.1", output.getvalue())
 
     def test_jobs_all_marks_active_state(self):
         with tempfile.TemporaryDirectory() as tmp:
