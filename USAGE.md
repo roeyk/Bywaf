@@ -316,6 +316,8 @@ bywaf>
 Set a custom prompt with `prompt <pattern>`. Prompt patterns support the older
 `%u`, `%h`, `%H`, `%m`, and `%T` placeholders, plus `$u` for user, `$Y` year,
 `$M` month, `$D` day, `$h` hour, `$m` minute, `$s` second, and `$Z` timezone.
+Focus placeholders are `%p` for provider, `%c` for commandlet, `%P` for the
+full active focus, and `%F` for a leading-space focus suffix when focus is set.
 
 Commandlets can be run directly:
 
@@ -1390,7 +1392,7 @@ Common examples:
 
 ```text
 bywaf> set http/http_probe.cookie-file=/tmp/cookies.txt
-bywaf> set history.timestamp-format=%Y-%m-%d %H:%M:%S %Z
+bywaf> set history.timestamp-format=%Y%m%d %H:%M:%S %Z
 bywaf> set display.vars.color=auto
 bywaf> set display.vars.name-color=cyan
 bywaf> set display.vars.value-color=green
@@ -1604,7 +1606,7 @@ Every non-empty REPL command is appended to:
 History lines are stored as commands followed by a timestamp comment:
 
 ```text
-hostscanner 127.0.0.1  # 2026-05-12 10:15:30 EDT
+hostscanner 127.0.0.1  # 20260512 10:15:30 EDT
 ```
 
 The `history` command shows only commands from the current REPL invocation,
@@ -1612,7 +1614,7 @@ with timestamps displayed first for easier scanning:
 
 ```text
 bywaf> history
-2026-05-17 10:00:00 EDT  plugins
+20260517 10:00:00 EDT  plugins
 ```
 
 Limit session history by timestamp with `since=` and `until=`. Unqualified

@@ -191,7 +191,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             session_history = []
             entry = record_command_history("ls bywaf", path, session_history)
             text = path.read_text()
-            self.assertRegex(text, r"^ls bywaf  # \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}( [A-Z]+)?\n$")
+            self.assertRegex(text, r"^ls bywaf  # \d{8} \d{2}:\d{2}:\d{2}( [A-Z]+)?\n$")
             self.assertEqual(script_commands(path)[0][1], "ls bywaf")
             self.assertEqual(session_history, [entry])
 
@@ -212,11 +212,11 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
     def test_format_history_entry_for_display_puts_timestamp_first(self):
         self.assertEqual(
             format_history_entry_for_display("plugins  # 2026-05-17 10:00:00 EDT"),
-            "2026-05-17 10:00:00 EDT  plugins",
+            "20260517 10:00:00 EDT  plugins",
         )
         self.assertEqual(
             format_history_entry_for_display("plugins  # 2026-05-17 EDT 10:00:00"),
-            "2026-05-17 10:00:00 EDT  plugins",
+            "20260517 10:00:00 EDT  plugins",
         )
 
     def test_dispatch_history_prints_session_history_only(self):
@@ -228,7 +228,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "history", state)
-            self.assertIn("2026-05-17 10:00:00 EDT  plugins", output.getvalue())
+            self.assertIn("20260517 10:00:00 EDT  plugins", output.getvalue())
             self.assertNotIn("old-command", output.getvalue())
 
     def test_dispatch_history_colors_timestamp_when_enabled(self):
@@ -239,7 +239,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "history", state)
-            self.assertIn("\x1b[32m2026-05-17 10:00:00 EDT\x1b[0m  plugins", output.getvalue())
+            self.assertIn("\x1b[32m20260517 10:00:00 EDT\x1b[0m  plugins", output.getvalue())
 
     def test_dispatch_history_uses_semantic_comment_style_when_set(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -249,7 +249,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "history", state)
-            self.assertIn("\x1b[1;38;5;245m2026-05-17 10:00:00 EDT\x1b[0m  plugins", output.getvalue())
+            self.assertIn("\x1b[1;38;5;245m20260517 10:00:00 EDT\x1b[0m  plugins", output.getvalue())
 
     def test_dispatch_history_filters_since_until(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -969,7 +969,7 @@ bold = true
             state = ShellState()
             set_prompt_pattern(runner, state, "new> ", source="test")
             event = runner.db.events_for_topic("shell.prompt.updated")[0]
-            self.assertEqual(event.payload["old_prompt"], "$Y$M$D $h:$m:$s $Z> ")
+            self.assertEqual(event.payload["old_prompt"], "$Y$M$D $h:$m:$s $Z%F> ")
             self.assertEqual(event.payload["new_prompt"], "new> ")
 
 

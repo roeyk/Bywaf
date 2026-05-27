@@ -77,7 +77,7 @@ HELP_COMMANDS = (
         "events [tail|--tail] [last=N]",
         ("events", "events tail", "events tail last=50"),
     ),
-    HelpEntry("prompt [pattern]", "show or set prompt pattern", "prompt [pattern]", ("prompt $Y$M$D $h:$m:$s $Z> ",)),
+    HelpEntry("prompt [pattern]", "show or set prompt pattern", "prompt [pattern]", ("prompt $Y$M$D $h:$m:$s $Z%F> ",)),
     HelpEntry("plugin", "load filesystem plugins", "plugin load=<path> [--force]"),
     HelpEntry("pload", "short alias for plugin load", "pload <path> [--force]"),
     HelpEntry("config", "load or save session configuration", "config <load|save> file=<path> [--encrypt]"),

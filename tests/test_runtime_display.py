@@ -14,10 +14,10 @@ from bywaf.runtime_display import display_runtime_serial, format_runtime_timesta
 
 class RuntimeDisplayTests(unittest.TestCase):
     def test_format_runtime_timestamp_shows_time_and_utc(self):
-        self.assertEqual(format_runtime_timestamp("2026-05-18T12:34:56+00:00"), "2026-05-18 12:34:56 UTC")
+        self.assertEqual(format_runtime_timestamp("2026-05-18T12:34:56+00:00"), "20260518 12:34:56 UTC")
 
     def test_format_runtime_timestamp_shows_time_and_offset_timezone(self):
-        self.assertEqual(format_runtime_timestamp("2026-05-18T08:34:56-04:00"), "2026-05-18 08:34:56 UTC-04:00")
+        self.assertEqual(format_runtime_timestamp("2026-05-18T08:34:56-04:00"), "20260518 08:34:56 UTC-04:00")
 
     def test_format_runtime_timestamp_handles_missing_value(self):
         self.assertEqual(format_runtime_timestamp(None), "unknown")

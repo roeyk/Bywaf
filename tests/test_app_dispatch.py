@@ -463,7 +463,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("Source: runner", text)
             self.assertIn("Created: ", text)
             created = text.split("Created: ", 1)[1].splitlines()[0]
-            self.assertRegex(created, r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [A-Z]+")
+            self.assertRegex(created, r"\d{8} \d{2}:\d{2}:\d{2} [A-Z]+")
             self.assertIn("Job:", text)
             self.assertIn("Commandlet: hostscanner", text)
             self.assertIn("Command: hostscanner 127.0.0.1", text)

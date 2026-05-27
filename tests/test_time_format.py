@@ -21,11 +21,11 @@ from bywaf.time_format import (
 class TimeFormatTests(unittest.TestCase):
     def test_format_operator_timestamp_uses_date_time_timezone_order(self):
         text = format_operator_timestamp(datetime(2026, 5, 22, 12, 28, 32, tzinfo=timezone.utc))
-        self.assertRegex(text, r"2026-05-22 \d{2}:\d{2}:\d{2} [A-Z]+")
+        self.assertRegex(text, r"20260522 \d{2}:\d{2}:\d{2} [A-Z]+")
 
     def test_format_compact_runtime_timestamp_preserves_source_timezone(self):
-        self.assertEqual(format_compact_runtime_timestamp("2026-05-18T12:34:56+00:00"), "2026-05-18 12:34:56 UTC")
-        self.assertEqual(format_compact_runtime_timestamp("2026-05-18T08:34:56-04:00"), "2026-05-18 08:34:56 UTC-04:00")
+        self.assertEqual(format_compact_runtime_timestamp("2026-05-18T12:34:56+00:00"), "20260518 12:34:56 UTC")
+        self.assertEqual(format_compact_runtime_timestamp("2026-05-18T08:34:56-04:00"), "20260518 08:34:56 UTC-04:00")
 
     def test_format_duration_between_formats_human_runtime_duration(self):
         self.assertEqual(
@@ -41,11 +41,11 @@ class TimeFormatTests(unittest.TestCase):
     def test_normalize_history_timestamp_moves_timezone_after_time(self):
         self.assertEqual(
             normalize_history_timestamp_for_display("2026-05-17 EDT 10:00:00"),
-            "2026-05-17 10:00:00 EDT",
+            "20260517 10:00:00 EDT",
         )
         self.assertEqual(
             normalize_history_timestamp_for_display("2026-05-17 10:00:00 EDT"),
-            "2026-05-17 10:00:00 EDT",
+            "20260517 10:00:00 EDT",
         )
 
 

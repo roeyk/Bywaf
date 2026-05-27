@@ -47,7 +47,7 @@ class FrameworkHttpAppTests(unittest.TestCase):
             state = ShellState()
             request = runner.db.publish("shell.prompt.requested", {"prompt": ""}, "test")
             process_framework_requests(runner, state)
-            self.assertEqual(state.prompt_pattern, "$Y$M$D $h:$m:$s $Z> ")
+            self.assertEqual(state.prompt_pattern, "$Y$M$D $h:$m:$s $Z%F> ")
             denied = runner.db.events_for_topic("framework.request.denied")[0]
             self.assertEqual(denied.payload["request_event_id"], request.id)
 
@@ -342,6 +342,11 @@ class FrameworkHttpAppTests(unittest.TestCase):
         for placeholder in ("$u", "$Y", "$M", "$D", "$h", "$m", "$s", "$Z"):
             self.assertNotIn(placeholder, rendered)
         self.assertIn(">", rendered)
+
+    def test_render_prompt_replaces_focus_placeholders(self):
+        rendered = render_prompt("%p|%c|%P|%F> ", active_context="http/repo_exposure/git_expose_check")
+        self.assertEqual(rendered, "http/repo_exposure|git_expose_check|http/repo_exposure/git_expose_check| http/repo_exposure/git_expose_check> ")
+        self.assertEqual(render_prompt("%F> "), "> ")
 
     def test_make_runner_loads_external_plugin_config(self):
         with tempfile.TemporaryDirectory() as tmp:

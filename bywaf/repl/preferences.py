@@ -132,7 +132,7 @@ def unset_preference(runner: Runner, state: ShellState, path: Path, key: str) ->
     values.pop(key, None)
     save_preferences(path, values)
     if key == PROMPT_PATTERN_KEY:
-        state.prompt_pattern = "$Y$M$D $h:$m:$s $Z> "
+        state.prompt_pattern = "$Y$M$D $h:$m:$s $Z%F> "
     elif key != THEME_KEY:
         runner.registry.varstore.values.pop(key, None)
     return removed

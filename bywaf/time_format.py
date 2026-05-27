@@ -13,12 +13,12 @@ from __future__ import annotations
 from datetime import datetime
 
 
-OPERATOR_TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S %Z"
-COMPACT_RUNTIME_TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S"
+OPERATOR_TIMESTAMP_FORMAT = "%Y%m%d %H:%M:%S %Z"
+COMPACT_RUNTIME_TIMESTAMP_FORMAT = "%Y%m%d %H:%M:%S"
 
 
 def format_operator_timestamp(value: datetime) -> str:
-    """Return `YYYY-MM-DD HH:MM:SS TZ` in the operator's local timezone."""
+    """Return `YYYYMMDD HH:MM:SS TZ` in the operator's local timezone."""
     return value.astimezone().strftime(OPERATOR_TIMESTAMP_FORMAT)
 
 
@@ -64,10 +64,19 @@ def parse_iso_timestamp(value: str) -> datetime | None:
 
 
 def normalize_history_timestamp_for_display(timestamp: str) -> str:
-    """Normalize known history timestamp layouts to `YYYY-MM-DD HH:MM:SS TZ`."""
+    """Normalize known history timestamp layouts to `YYYYMMDD HH:MM:SS TZ`."""
     parts = timestamp.split()
     if len(parts) == 3 and len(parts[0]) == 10 and ":" in parts[2]:
         # Older history entries stored date timezone time. New display prefers
         # date time timezone, but the file remains script-friendly either way.
-        return f"{parts[0]} {parts[2]} {parts[1]}"
+        return f"{compact_date(parts[0])} {parts[2]} {parts[1]}"
+    if len(parts) == 3 and len(parts[0]) == 10 and ":" in parts[1]:
+        return f"{compact_date(parts[0])} {parts[1]} {parts[2]}"
     return timestamp
+
+
+def compact_date(value: str) -> str:
+    """Return YYYYMMDD for known dashed dates, otherwise preserve the value."""
+    if len(value) == 10 and value[4] == "-" and value[7] == "-":
+        return value.replace("-", "")
+    return value

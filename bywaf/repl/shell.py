@@ -50,7 +50,7 @@ HISTORY_TIMESTAMP_FORMAT_VAR = "history.timestamp-format"
 class ShellState:
     """Mutable REPL-only state that should not live in the database."""
 
-    prompt_pattern: str = "$Y$M$D $h:$m:$s $Z> "
+    prompt_pattern: str = "$Y$M$D $h:$m:$s $Z%F> "
     history_path: Path = field(default_factory=lambda: DEFAULT_HISTORY)
     session_history: list[str] = field(default_factory=list)
     handled_request_ids: set[int] = field(default_factory=set)
@@ -60,7 +60,7 @@ class ShellState:
     secret_values: dict[str, str] = field(default_factory=dict)
 
     def prompt(self) -> str:
-        return render_prompt(self.prompt_pattern)
+        return render_prompt(self.prompt_pattern, active_context=self.active_context)
 
 
 def shutdown_runner(runner: Runner) -> None:
@@ -426,17 +426,23 @@ def redact_history_command(command: str) -> str:
     return result.command
 
 
-def render_prompt(pattern: str) -> str:
+def render_prompt(pattern: str, *, active_context: str | None = None) -> str:
     """Render prompt placeholders using local process and host metadata."""
     user = os.getenv("USER", "")
     host_full = socket.gethostname()
     now = datetime.now().astimezone()
+    provider, commandlet = prompt_scope_parts(active_context)
+    focus = f" {active_context}" if active_context else ""
     replacements = {
         "%u": user,
         "%h": host_full.split(".", 1)[0],
         "%H": host_full,
         "%m": platform.machine(),
         "%T": now.strftime("%H:%M:%S"),
+        "%p": provider,
+        "%c": commandlet,
+        "%P": active_context or "",
+        "%F": focus,
         "$u": user,
         "$Y": now.strftime("%Y"),
         "$M": now.strftime("%m"),
@@ -450,3 +456,13 @@ def render_prompt(pattern: str) -> str:
     for key, value in replacements.items():
         prompt = prompt.replace(key, value)
     return prompt
+
+
+def prompt_scope_parts(active_context: str | None) -> tuple[str, str]:
+    """Return provider and commandlet prompt fields for the current focus."""
+    if not active_context:
+        return "", ""
+    provider, separator, commandlet = active_context.rpartition("/")
+    if not separator:
+        return active_context, ""
+    return provider, commandlet
