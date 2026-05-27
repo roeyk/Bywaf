@@ -108,7 +108,7 @@ Renderers should use table styles as defaults and semantic subjects as overrides
 
 ```toml
 [variables]
-"display/style.table.header" = "bold color39"
+"display/style.table.header" = "bold white"
 "display/style.table.body" = "color250"
 "display/style.table.index" = "bold color245"
 "display/style.report.heading" = "bold color39"

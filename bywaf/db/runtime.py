@@ -9,11 +9,10 @@ Used by:
 
 from __future__ import annotations
 
+import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime, timezone
-from typing import Any
-
 from .backends import DatabaseConnection
 from .support import ACTIVE_JOB_STATUSES, resolve_serial_match
 
@@ -131,7 +130,7 @@ class EventStoreRuntimeMixin:
             )
             return {row["name"]: row["value"] for row in rows}
 
-    def command_run_var_rows(self, command_run_id: str) -> list[Any]:
+    def command_run_var_rows(self, command_run_id: str) -> list[sqlite3.Row]:
         """Return variable snapshot rows for display/audit output."""
         with self.connect() as conn:
             return list(
@@ -145,7 +144,7 @@ class EventStoreRuntimeMixin:
                     (command_run_id,),
                 )
             )
-    def runs(self, *, active_only: bool = False) -> list[Any]:
+    def runs(self, *, active_only: bool = False) -> list[sqlite3.Row]:
         """Summarize commandlet executions that produced events."""
         self.ensure_run_aliases()
         with self.connect() as conn:
@@ -182,7 +181,7 @@ class EventStoreRuntimeMixin:
                 )
             )
 
-    def pipelines(self, *, active_only: bool = False) -> list[Any]:
+    def pipelines(self, *, active_only: bool = False) -> list[sqlite3.Row]:
         """Summarize known pipeline IDs from events and run-variable snapshots."""
         self.ensure_pipeline_aliases()
         with self.connect() as conn:
@@ -348,7 +347,7 @@ class EventStoreRuntimeMixin:
                 conn.execute("ROLLBACK")
                 raise
 
-    def runs_without_alias_backfill(self, *, active_only: bool = False) -> list[Any]:
+    def runs_without_alias_backfill(self, *, active_only: bool = False) -> list[sqlite3.Row]:
         """Summarize runs without recursively allocating local IDs."""
         with self.connect() as conn:
             return list(
@@ -381,7 +380,7 @@ class EventStoreRuntimeMixin:
                 )
             )
 
-    def pipelines_without_alias_backfill(self, *, active_only: bool = False) -> list[Any]:
+    def pipelines_without_alias_backfill(self, *, active_only: bool = False) -> list[sqlite3.Row]:
         """Summarize pipelines without recursively allocating local IDs."""
         with self.connect() as conn:
             return list(

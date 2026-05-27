@@ -12,6 +12,7 @@ import unittest
 
 from bywaf.time_format import (
     format_compact_runtime_timestamp,
+    format_duration_between,
     format_operator_timestamp,
     normalize_history_timestamp_for_display,
 )
@@ -23,8 +24,15 @@ class TimeFormatTests(unittest.TestCase):
         self.assertRegex(text, r"2026-05-22 \d{2}:\d{2}:\d{2} [A-Z]+")
 
     def test_format_compact_runtime_timestamp_preserves_source_timezone(self):
-        self.assertEqual(format_compact_runtime_timestamp("2026-05-18T12:34:56+00:00"), "12:34:56 UTC")
-        self.assertEqual(format_compact_runtime_timestamp("2026-05-18T08:34:56-04:00"), "08:34:56 UTC-04:00")
+        self.assertEqual(format_compact_runtime_timestamp("2026-05-18T12:34:56+00:00"), "2026-05-18 12:34:56 UTC")
+        self.assertEqual(format_compact_runtime_timestamp("2026-05-18T08:34:56-04:00"), "2026-05-18 08:34:56 UTC-04:00")
+
+    def test_format_duration_between_formats_human_runtime_duration(self):
+        self.assertEqual(
+            format_duration_between("2026-05-18T12:00:00+00:00", "2026-05-18T13:05:00+00:00"),
+            "1h 5m",
+        )
+        self.assertEqual(format_duration_between("2026-05-18T12:00:00+00:00", None), "ongoing")
 
     def test_format_compact_runtime_timestamp_handles_missing_and_malformed_values(self):
         self.assertEqual(format_compact_runtime_timestamp(None), "unknown")

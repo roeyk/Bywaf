@@ -15,6 +15,7 @@ from ...runtime_display import (
     commandlet_from_command_line,
     display_runtime_serial,
     format_command_args,
+    format_runtime_duration,
     format_runtime_timestamp,
     normalize_active_listing_format,
     render_table,
@@ -38,7 +39,7 @@ def print_jobs(runner: Runner) -> None:
             artifact_counts.get(str(row["id"]), 0),
             names.get(("job", str(row["id"])), ""),
             format_runtime_timestamp(row["started_at"]),
-            format_runtime_timestamp(row["finished_at"]),
+            format_runtime_duration(row["started_at"], row["finished_at"]),
             commandlet_from_command_line(str(row["command_line"])),
             format_command_args(args_from_command_line(str(row["command_line"]))),
         )
@@ -47,7 +48,7 @@ def print_jobs(runner: Runner) -> None:
     if rows:
         print(
             render_table(
-                ("JOB", "SERIAL", "PID", "STATUS", "ARTIFACTS", "NAME", "STARTED", "FINISHED", "COMMANDLET", "ARGS"),
+                ("JOB", "SERIAL", "PID", "STATUS", "ARTIFACTS", "NAME", "STARTED", "DURATION", "COMMANDLET", "ARGS"),
                 rows,
                 cell_subjects=("job", "serial", "", "", "", "", "timestamp", "timestamp", "", ""),
                 style_getter=runner.registry.varstore.get,
@@ -129,12 +130,12 @@ def print_runs(runner: Runner, *, active_only: bool = True, filters: dict[str, s
                 row["events"],
                 artifact_counts.get(run_serial, 0),
                 format_runtime_timestamp(row["first_event"]),
-                format_runtime_timestamp(row["last_event"]),
+                format_runtime_duration(row["first_event"], row["last_event"]),
             )
         )
     print(
         render_table(
-            ("STEP", "SERIAL", "STATE", "NAME", "PIPELINE", "PIPELINE_SERIAL", "SOURCE", "EVENTS", "ARTIFACTS", "FIRST", "LAST"),
+            ("STEP", "SERIAL", "STATE", "NAME", "PIPELINE", "PIPELINE_SERIAL", "SOURCE", "EVENTS", "ARTIFACTS", "FIRST_SEEN", "DURATION"),
             table_rows,
             cell_subjects=("step", "serial", "", "", "pipeline", "serial", "", "", "", "timestamp", "timestamp"),
             style_getter=runner.registry.varstore.get,

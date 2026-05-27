@@ -9,11 +9,18 @@ Used by:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from .runtime import runtime_completion_target
+
+if TYPE_CHECKING:
+    from ..db import EventStore
 
 
 class RuntimeCompletionMetadataMixin:
     """Prompt metadata helpers for runtime-backed completion candidates."""
+
+    db: "EventStore | None"
 
     def completion_meta(self, candidate: str, line: str, prefix: str) -> str:
         """Return prompt-toolkit metadata for runtime entity completions."""

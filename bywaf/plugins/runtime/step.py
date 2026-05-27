@@ -20,6 +20,7 @@ from bywaf.runtime_display import (
     active_listing_format,
     command_context_style_getter,
     display_runtime_serial,
+    format_runtime_duration,
     format_runtime_timestamp,
     render_table,
     runtime_state_label,
@@ -113,12 +114,12 @@ def print_steps(context: CommandContext, *, active_only: bool = True, filters: d
                 row["events"],
                 artifact_counts.get(run_serial, 0),
                 format_runtime_timestamp(row["first_event"]),
-                format_runtime_timestamp(row["last_event"]),
+                format_runtime_duration(row["first_event"], row["last_event"]),
             )
         )
     context.output(
         render_table(
-            ("STEP", "SERIAL", "STATE", "NAME", "PIPELINE", "PIPELINE_SERIAL", "SOURCE", "EVENTS", "ARTIFACTS", "FIRST", "LAST"),
+            ("STEP", "SERIAL", "STATE", "NAME", "PIPELINE", "PIPELINE_SERIAL", "SOURCE", "EVENTS", "ARTIFACTS", "FIRST_SEEN", "DURATION"),
             table_rows,
             cell_subjects=("step", "serial", "", "", "pipeline", "serial", "", "", "", "timestamp", "timestamp"),
             style_getter=command_context_style_getter(context),

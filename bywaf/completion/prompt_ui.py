@@ -8,6 +8,8 @@ Used by:
 - bywaf.completion.facade: builds prompt-toolkit sessions.
 """
 
+# pyright: reportMissingImports=false, reportGeneralTypeIssues=false
+
 from __future__ import annotations
 
 from typing import Any
@@ -269,7 +271,7 @@ def prompt_closing_quote_index(text: str, start: int) -> int | None:
     return None
 
 
-def overlay_secret_fragments(base_fragments, secret_fragments):
+def overlay_secret_fragments(base_fragments: list[tuple[str, str]], secret_fragments: list[tuple[str, str]]) -> list[tuple[str, str]]:
     """Let secret-span styling override value/string styling."""
     secret_style_by_index: dict[int, str] = {}
     position = 0

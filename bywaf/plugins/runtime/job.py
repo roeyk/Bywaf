@@ -24,6 +24,7 @@ from bywaf.runtime_display import (
     commandlet_from_command_line,
     display_runtime_serial,
     format_command_args,
+    format_runtime_duration,
     format_runtime_timestamp,
     render_table,
     runtime_state_label,
@@ -193,13 +194,13 @@ def print_jobs(
                 artifact_counts.get(str(row["id"]), 0),
                 names.get(("job", str(row["id"])), ""),
                 format_runtime_timestamp(row["started_at"]),
-                format_runtime_timestamp(row["finished_at"]),
+                format_runtime_duration(row["started_at"], row["finished_at"]),
                 commandlet_from_command_line(str(row["command_line"])),
                 format_command_args(args_from_command_line(str(row["command_line"]))),
             )
         )
     output = render_table(
-        ("JOB", "SERIAL", "STATE", "PID", "STATUS", "ARTIFACTS", "NAME", "STARTED", "FINISHED", "COMMANDLET", "ARGS"),
+        ("JOB", "SERIAL", "STATE", "PID", "STATUS", "ARTIFACTS", "NAME", "STARTED", "DURATION", "COMMANDLET", "ARGS"),
         table_rows,
         cell_subjects=("job", "serial", "", "", "", "", "", "timestamp", "timestamp", "", ""),
         style_getter=command_context_style_getter(context),

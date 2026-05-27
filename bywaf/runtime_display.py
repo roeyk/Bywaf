@@ -15,7 +15,7 @@ from collections.abc import Callable, Mapping, Sequence
 from .command.parser import parse_pipeline
 from .db.support import SERIAL_DISPLAY_LENGTH, serial_body
 from .style import styled_subject_text
-from .time_format import format_compact_runtime_timestamp
+from .time_format import format_compact_runtime_timestamp, format_duration_between
 
 ACTIVE_LISTING_FORMAT_VAR = "listing.active-format"
 DEFAULT_ACTIVE_LISTING_FORMAT = "short"
@@ -82,6 +82,11 @@ def runtime_state_text(statuses: str | list[str] | tuple[str, ...] | None, times
 def format_runtime_timestamp(value: str | None) -> str:
     """Render an ISO timestamp compactly for runtime listings."""
     return format_compact_runtime_timestamp(value)
+
+
+def format_runtime_duration(start: str | None, end: str | None) -> str:
+    """Render a human duration for runtime listings."""
+    return format_duration_between(start, end)
 
 
 def display_runtime_serial(value: object | None) -> str:

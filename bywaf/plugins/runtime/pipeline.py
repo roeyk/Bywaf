@@ -29,6 +29,7 @@ from bywaf.runtime_display import (
     active_listing_format,
     command_context_style_getter,
     display_runtime_serial,
+    format_runtime_duration,
     format_runtime_timestamp,
     render_table,
     runtime_state_label,
@@ -220,11 +221,11 @@ def print_pipelines(
                 row["events"],
                 artifact_counts.get(str(row["pipeline_id"]), 0),
                 format_runtime_timestamp(row["first_seen"]),
-                format_runtime_timestamp(row["last_seen"]),
+                format_runtime_duration(row["first_seen"], row["last_seen"]),
             )
         )
     output = render_table(
-        ("PIPELINE", "SERIAL", "STATE", "NAME", "JOB", "STATUS", "STEPS", "EVENTS", "ARTIFACTS", "FIRST", "LAST"),
+        ("PIPELINE", "SERIAL", "STATE", "NAME", "JOB", "STATUS", "STEPS", "EVENTS", "ARTIFACTS", "FIRST_SEEN", "DURATION"),
         table_rows,
         cell_subjects=("pipeline", "serial", "", "", "job", "", "", "", "", "timestamp", "timestamp"),
         style_getter=command_context_style_getter(context),

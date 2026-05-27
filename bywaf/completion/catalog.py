@@ -10,14 +10,20 @@ Used by:
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ..registry.config import normalize_catalog_path
 from ..registry.manifest import parse_plugin_manifest
 from ..toml_support import load_data_file
 
+if TYPE_CHECKING:
+    from ..registry import PluginRegistry
+
 
 class CatalogCompletionMixin:
     """Completion helpers backed by local plugin catalog files."""
+
+    registry: "PluginRegistry"
 
     def catalog_path_candidates(self, prefix: str) -> list[str]:
         """Complete known loaded provider and commandlet catalog paths."""

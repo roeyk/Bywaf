@@ -38,7 +38,7 @@ THEME_PRESETS: dict[str, dict[str, str]] = {
         "display/style.host": "bold green",
         "display/style.port": "yellow",
         "display/style.protocol": "cyan",
-        "display/style.table.header": "bold color39",
+        "display/style.table.header": "bold white",
         "display/style.table.index": "bold color245",
         "display/style.report.heading": "bold color39",
         "display/style.report.section": "bold white",

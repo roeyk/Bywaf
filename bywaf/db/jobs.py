@@ -13,7 +13,7 @@ import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime, timezone
-from typing import Any
+from typing import overload
 
 from .backends import DatabaseConnection
 from .support import ACTIVE_JOB_STATUSES, new_serial, process_exists, resolve_serial_match
@@ -79,7 +79,7 @@ class EventStoreJobMixin:
         with self.connect() as conn:
             conn.execute("UPDATE jobs SET status = ? WHERE id = ?", (status, job_id))
 
-    def jobs(self, *, active_only: bool = False) -> list[Any]:
+    def jobs(self, *, active_only: bool = False) -> list[sqlite3.Row]:
         """Return known jobs with newest jobs first."""
         self.ensure_job_serials()
         with self.connect() as conn:
@@ -118,7 +118,13 @@ class EventStoreJobMixin:
                 )
         return len(stale_ids)
 
-    def job(self, job_id: int | None = None) -> Any | list[Any] | None:
+    @overload
+    def job(self, job_id: None = None) -> list[sqlite3.Row]: ...
+
+    @overload
+    def job(self, job_id: int) -> sqlite3.Row | None: ...
+
+    def job(self, job_id: int | None = None) -> sqlite3.Row | list[sqlite3.Row] | None:
         """Return one job row by ID, or all jobs when no ID is supplied."""
         self.ensure_job_serials()
         if job_id is None:
@@ -163,7 +169,7 @@ class EventStoreJobMixin:
                 else:
                     raise RuntimeError("could not allocate a unique job serial")
 
-    def jobs_for_pipeline(self, pipeline_id: str) -> list[Any]:
+    def jobs_for_pipeline(self, pipeline_id: str) -> list[sqlite3.Row]:
         """Return jobs associated with a pipeline-step variable snapshot pipeline."""
         with self.connect() as conn:
             return list(
@@ -180,7 +186,7 @@ class EventStoreJobMixin:
                 )
             )
 
-    def jobs_for_run(self, command_run_id: str) -> list[Any]:
+    def jobs_for_run(self, command_run_id: str) -> list[sqlite3.Row]:
         """Return jobs associated with one pipeline-step variable snapshot."""
         with self.connect() as conn:
             return list(

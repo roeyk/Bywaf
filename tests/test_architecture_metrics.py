@@ -70,6 +70,7 @@ def test_architecture_metrics_reports_documentation_pressure(tmp_path: Path) -> 
 
     metrics = collect_architecture_metrics(root, package="pkg", docs_root=docs)
     report = format_metrics(metrics, top=3)
+    assert metrics.docs is not None
     docs_by_path = {document.path: document for document in metrics.docs.documents}
 
     assert "Documentation metrics" in report

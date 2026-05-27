@@ -9,6 +9,8 @@ Used by:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from ..command.names import (
     PROJECT_ACTIONS,
     PROJECT_ARCHIVE,
@@ -22,9 +24,22 @@ from ..utils import complete_path
 from .providers import bundle_candidates, key_candidates
 from .resources import complete_at_file_prefix, complete_resource_value, resource_candidates
 
+if TYPE_CHECKING:
+    from ..db import EventStore
+    from ..registry import PluginRegistry
+
 
 class BuiltinCompletionMixin:
     """Completion helpers for REPL built-ins and runtime selectors."""
+
+    registry: "PluginRegistry"
+    db: "EventStore | None"
+    active_context: str | None
+    builtins: tuple[str, ...]
+
+    if TYPE_CHECKING:
+        def catalog_path_candidates(self, prefix: str) -> list[str]: ...
+        def catalog_variable_names(self) -> list[str]: ...
 
     def topic_candidates(self) -> list[str]:
         """Return topic-like candidates from plugin specs and the active DB."""

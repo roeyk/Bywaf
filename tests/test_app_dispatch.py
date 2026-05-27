@@ -990,8 +990,9 @@ class AppDispatchTests(unittest.TestCase):
                 self.assertEqual(runner.db.path, Path(tmp, ".bywaf", "projects", "client-a", "bywaf.sqlite3"))
                 self.assertEqual(state.history_path, Path(tmp, ".bywaf", "projects", "client-a", "history.bywaf"))
                 self.assertIsNone(runner.registry.varstore.get("global.marker"))
-                assert old_db.job(job_id) is not None
-                self.assertEqual(old_db.job(job_id)["status"], "killed")
+                old_job = old_db.job(job_id)
+                assert old_job is not None
+                self.assertEqual(old_job["status"], "killed")
                 events = old_db.events_for_topic("project.switch.force_stopped")
                 self.assertEqual(events[-1].payload["count"], 1)
                 self.assertEqual(events[-1].payload["jobs"][0]["job_id"], job_id)

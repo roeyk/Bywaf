@@ -871,7 +871,7 @@ class RegistryCompletionTests(unittest.TestCase):
                 self.assertEqual(completer.candidates("project use name=client-"), ["name=client-a", "name=client-b"])
                 self.assertEqual(completer.candidates("project use c"), ["client-a", "client-b"])
                 self.assertEqual(completer.candidates("project use --f"), ["--force"])
-                self.assertEqual(completer.candidates("project archive "), ["--encrypt", "file="])
+        self.assertEqual(completer.candidates("project archive "), ["--encrypt", "file="])
 
     def test_builtin_commands_do_not_fall_back_to_root_completion(self):
         completer = Completer(self.registry)
@@ -884,9 +884,13 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertEqual(completer.candidates("cmds "), ["--page"])
         self.assertEqual(completer.candidates("cmds --"), ["--page"])
         self.assertIn("--all", completer.candidates("job "))
+        self.assertIn("--all", completer.candidates("job --a"))
         self.assertIn("--page", completer.candidates("job "))
         self.assertIn("--page", completer.candidates("pipeline "))
+        self.assertIn("--all", completer.candidates("pipeline --a"))
+        self.assertIn("--page", completer.candidates("pipeline --p"))
         self.assertIn("--all", completer.candidates("step "))
+        self.assertIn("--all", completer.candidates("step --a"))
         self.assertIn("plugins", completer.candidates("help plu"))
         self.assertIn("project", completer.candidates("? pro"))
 

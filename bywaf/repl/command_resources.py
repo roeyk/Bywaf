@@ -166,7 +166,8 @@ def preference_assignment(tokens: Sequence[str]) -> tuple[str, str]:
             continue
         if "=" not in token:
             continue
-        return token.split("=", 1)
+        key, value = token.split("=", 1)
+        return key, value
     raise ValueError("usage: pref set key=value [file=<path>]")
 
 

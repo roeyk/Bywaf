@@ -9,6 +9,8 @@ Used by:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from ..plugin import CompletionContext
 from ..specs import CompletionSpec
 from ..utils import complete_path
@@ -17,9 +19,19 @@ from .resources import complete_at_file_prefix
 from .tokens import positional_index
 from .variables import variable_reference_candidates
 
+if TYPE_CHECKING:
+    from ..db import EventStore
+    from ..registry import PluginRegistry
+
 
 class PluginArgumentCompletionMixin:
     """Completion helpers for commandlet-owned arguments and options."""
+
+    registry: "PluginRegistry"
+    db: "EventStore | None"
+
+    if TYPE_CHECKING:
+        def complete_by_spec(self, spec: CompletionSpec, prefix: str) -> list[str]: ...
 
     def plugin_candidates(self, name: str, prefix: str, args: list[str]) -> list[str]:
         """Return candidates owned by a plugin commandlet."""
@@ -45,11 +57,10 @@ class PluginArgumentCompletionMixin:
             if value_candidates:
                 return value_candidates
 
-        if not prefix.startswith("--"):
-            custom_candidates = self.plugin_custom_candidates(name, prefix, args)
-            matching_custom_candidates = [candidate for candidate in custom_candidates if candidate.startswith(prefix)]
-            if matching_custom_candidates:
-                return matching_custom_candidates
+        custom_candidates = self.plugin_custom_candidates(name, prefix, args)
+        matching_custom_candidates = [candidate for candidate in custom_candidates if candidate.startswith(prefix)]
+        if matching_custom_candidates:
+            return matching_custom_candidates
 
         if not prefix.startswith("--"):
             positional_candidates = self.plugin_positional_candidates(name, prefix, args)

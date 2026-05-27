@@ -14,7 +14,7 @@ from datetime import datetime
 
 
 OPERATOR_TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S %Z"
-COMPACT_RUNTIME_TIMESTAMP_FORMAT = "%H:%M:%S"
+COMPACT_RUNTIME_TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
 def format_operator_timestamp(value: datetime) -> str:
@@ -32,6 +32,27 @@ def format_compact_runtime_timestamp(value: str | None) -> str:
     timezone = parsed.tzname()
     suffix = f" {timezone}" if timezone else ""
     return f"{parsed.strftime(COMPACT_RUNTIME_TIMESTAMP_FORMAT)}{suffix}"
+
+
+def format_duration_between(start: str | None, end: str | None) -> str:
+    """Return a compact human duration between two ISO timestamps."""
+    parsed_start = parse_iso_timestamp(start) if start else None
+    parsed_end = parse_iso_timestamp(end) if end else None
+    if parsed_start is not None and parsed_end is None:
+        return "ongoing"
+    if parsed_start is None or parsed_end is None:
+        return ""
+    total_seconds = max(0, int((parsed_end - parsed_start).total_seconds()))
+    if total_seconds < 60:
+        return f"{total_seconds}s"
+    minutes, seconds = divmod(total_seconds, 60)
+    if minutes < 60:
+        return f"{minutes}m {seconds}s" if seconds else f"{minutes}m"
+    hours, minutes = divmod(minutes, 60)
+    if hours < 24:
+        return f"{hours}h {minutes}m" if minutes else f"{hours}h"
+    days, hours = divmod(hours, 24)
+    return f"{days}d {hours}h" if hours else f"{days}d"
 
 
 def parse_iso_timestamp(value: str) -> datetime | None:
