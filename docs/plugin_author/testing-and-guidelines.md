@@ -82,8 +82,12 @@ then writes a `console.output` event and owns the actual print. Advanced plugins
 can call `context.request(topic, payload)` directly when Bywaf grows new
 framework request types.
 
-For vulnerability and discovery plugins, structured events are the primary
-interface:
+For vulnerability and discovery plugins, the usual flow is: detect something,
+emit structured evidence, and let a final renderer such as `report` explain it
+to the operator. This keeps pipeline stages composable while still producing a
+clear human-facing result at the end.
+
+Structured events are the primary interface:
 
 - Detection plugins emit structured facts, finding candidates, confirmations,
   and artifacts.
