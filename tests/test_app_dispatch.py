@@ -1686,6 +1686,20 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("commandlet=hostscanner", selector_output.getvalue())
             self.assertIn("args=127.0.0.1", selector_output.getvalue())
 
+    def test_job_show_numeric_serial_prefix_falls_back_after_missing_local_id(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("hostscanner 127.0.0.1", 123, "running")
+            with runner.db.connect() as conn:
+                conn.execute("UPDATE jobs SET serial = ? WHERE id = ?", ("41864964abcdef", job_id))
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "job 41864964")
+
+            self.assertIn("serial=41864964", output.getvalue())
+            self.assertIn("commandlet=hostscanner", output.getvalue())
+
     def test_event_job_selector_accepts_durable_serial(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

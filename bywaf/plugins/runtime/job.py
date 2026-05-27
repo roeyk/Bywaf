@@ -307,6 +307,10 @@ def require_job(context: CommandContext, job_id: str | None):
             raise ValueError(f"unknown job: {job_id}") from None
         numeric_id = int(resolved)
     row = runtime.job(numeric_id)
+    if row is None and job_id.isdigit():
+        resolved = runtime.job_id_for_serial(job_id)
+        if resolved is not None:
+            row = runtime.job(int(resolved))
     if row is None:
         raise ValueError(f"unknown job: {job_id}")
     return row
