@@ -310,6 +310,25 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
                 dispatch_repl_line(runner, f"script load file={script}")
             self.assertEqual(runner.registry.varstore.get("loaded.value"), "yes")
 
+    def test_script_load_prefers_existing_relative_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            script_dir = Path(tmp, "scripts")
+            script_dir.mkdir()
+            script = script_dir / "manual.bywaf"
+            script.write_text("set loaded.relative=yes\n")
+            old_cwd = Path.cwd()
+            with (
+                patch("bywaf.repl.commands.DEFAULT_SCRIPT_DIR", Path(tmp, ".bywaf/scripts")),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                try:
+                    os.chdir(tmp)
+                    dispatch_repl_line(runner, "script load file=scripts/manual.bywaf")
+                finally:
+                    os.chdir(old_cwd)
+            self.assertEqual(runner.registry.varstore.get("loaded.relative"), "yes")
+
     def test_load_script_records_auditable_serial(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

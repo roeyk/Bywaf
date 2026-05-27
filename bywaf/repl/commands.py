@@ -150,7 +150,7 @@ def handle_script_command(runner: Runner, state: ShellState, rest: str | None, l
     if action == "load":
         if not file_value:
             raise ValueError("usage: script load file=<path>")
-        run_script(runner, resolve_resource_path(file_value, DEFAULT_SCRIPT_DIR), state)
+        run_script(runner, resolve_script_load_path(file_value), state)
     elif action == "save":
         path = resolve_resource_path(file_value or "", Path("."), DEFAULT_HISTORY)
         save_history(state, path, encrypt="--encrypt" in tokens[1:])
@@ -633,6 +633,14 @@ def selector_value(tokens: Sequence[str], key: str) -> str | None:
         if token.startswith(prefix):
             return token.split("=", 1)[1]
     return None
+
+
+def resolve_script_load_path(file_value: str) -> Path:
+    """Resolve script loads from cwd first, then the project script directory."""
+    direct = Path(file_value).expanduser()
+    if direct.exists():
+        return direct
+    return resolve_resource_path(file_value, DEFAULT_SCRIPT_DIR)
 
 
 def parse_history_selectors(tokens: Sequence[str]) -> dict[str, str]:
