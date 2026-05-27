@@ -26,7 +26,6 @@ from bywaf.plugin import (
 )
 from bywaf.plugins.runtime.job import cancel_job, kill_job
 from bywaf.runtime_display import (
-    active_listing_format,
     command_context_style_getter,
     display_runtime_serial,
     format_runtime_duration,
@@ -35,7 +34,7 @@ from bywaf.runtime_display import (
     render_table,
     runtime_sort_note,
     runtime_state_label,
-    runtime_state_text,
+    runtime_status_summary,
     state_marker,
     terminal_table_width,
 )
@@ -151,7 +150,7 @@ def list_pipeline_action(context: CommandContext, parsed: Namespace) -> None:
     """Run `pipeline list`."""
     print_pipelines(
         context,
-        active_only=not parsed.all and not parsed.filters,
+        active_only=False,
         show_active=parsed.all,
         page=parsed.page,
         filters=parsed.filters,
@@ -219,16 +218,15 @@ def print_pipelines(
     aliases = runtime.pipeline_aliases()
     artifact_counts = runtime.artifact_counts_by_pipeline()
     table_rows: list[tuple[object, ...]] = []
+    row_subjects: list[str] = []
     for row in rows:
         statuses = row["job_statuses"] or "unknown"
-        label = runtime_state_label(statuses)
-        timestamp = row["first_seen"] if label in {"active", "in progress"} else row["last_seen"]
+        state = runtime_state_label(statuses)
         table_rows.append(
             (
                 aliases.get(str(row["pipeline_id"]), str(row["pipeline_id"])),
-                runtime_state_text(statuses, timestamp, style=active_listing_format(context.vars.get_global)),
+                runtime_status_summary(statuses),
                 row["job_id"],
-                statuses,
                 row["runs"],
                 row["events"],
                 artifact_counts.get(str(row["pipeline_id"]), 0),
@@ -237,10 +235,13 @@ def print_pipelines(
                 names.get(("pipeline", str(row["pipeline_id"])), ""),
             )
         )
+        row_subjects.append("table.active_row" if state in {"active", "in progress"} else "")
     output = render_table(
-        ("PIPELINE", "STATE", "JOB", "STATUS", "STEPS", "EVENTS", "ART", "STARTED", "DUR", "NAME"),
+        ("PIPELINE", "STATUS", "JOB", "STEPS", "EVENTS", "ART", "STARTED", "DUR", "NAME"),
         table_rows,
-        cell_subjects=("pipeline", "", "job", "", "", "", "", "timestamp", "timestamp", ""),
+        cell_subjects=("pipeline", "", "job", "", "", "", "timestamp", "timestamp", ""),
+        row_subjects=row_subjects,
+        active_column_indexes=(1,),
         style_getter=command_context_style_getter(context),
         max_width=terminal_table_width(),
     )

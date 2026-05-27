@@ -49,6 +49,39 @@ class RuntimeDisplayTests(unittest.TestCase):
         self.assertTrue(all(len(line) <= 24 for line in rendered.splitlines()))
         self.assertIn("…", rendered)
 
+    def test_render_table_applies_header_index_and_body_styles(self):
+        rendered = render_table(
+            ("ID", "VALUE"),
+            ((1, "plain"),),
+            style_getter=lambda key, default="": {
+                "display/style.table.header": "bold white",
+                "display/style.table.index": "cyan",
+                "display/style.table.body": "green",
+            }.get(key, default),
+        )
+
+        self.assertIn("\x1b[1;37mID", rendered)
+        self.assertIn("\x1b[36m1", rendered)
+        self.assertIn("\x1b[32mplain", rendered)
+
+    def test_render_table_applies_active_row_and_column_styles(self):
+        rendered = render_table(
+            ("JOB", "STATUS", "COMMAND"),
+            ((1, "active/running", "scan"), (2, "completed/finished", "report")),
+            row_subjects=("table.active_row", ""),
+            active_column_indexes=(1,),
+            style_getter=lambda key, default="": {
+                "display/style.table.active_row": "green",
+                "display/style.table.active_column": "bold white",
+            }.get(key, default),
+        )
+
+        self.assertIn("\x1b[32m1", rendered)
+        self.assertIn("\x1b[1;37mactive/running", rendered)
+        self.assertIn("completed/finished", rendered)
+        self.assertNotIn("\x1b[1;37mcompleted/finished", rendered)
+        self.assertNotIn("\x1b[32m2", rendered)
+
 
 if __name__ == "__main__":
     unittest.main()

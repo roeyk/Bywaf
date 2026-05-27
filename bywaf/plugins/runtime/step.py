@@ -17,7 +17,6 @@ from bywaf.event_filters import any_event_matches_payload_filters
 from bywaf.events import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
 from bywaf.runtime_display import (
-    active_listing_format,
     command_context_style_getter,
     format_runtime_duration,
     format_runtime_timestamp,
@@ -25,7 +24,7 @@ from bywaf.runtime_display import (
     render_table,
     runtime_sort_note,
     runtime_state_label,
-    runtime_state_text,
+    runtime_status_summary,
     terminal_table_width,
 )
 
@@ -60,7 +59,7 @@ class Step(CommandletBase):
         else:
             print_steps(
                 context,
-                active_only=not parsed.all and not operation.filters,
+                active_only=False,
                 filters=operation.filters,
                 sort_key=operation.sort,
             )
@@ -111,21 +110,20 @@ def print_steps(
     if not rows:
         context.output("no matching steps" if filters else "no active steps" if active_only else "no steps")
         return
-    marker_style = active_listing_format(context.vars.get_global)
     names = runtime.runtime_names()
     run_aliases = runtime.run_aliases()
     pipeline_aliases = runtime.pipeline_aliases()
     artifact_counts = runtime.artifact_counts_by_run()
     table_rows: list[tuple[object, ...]] = []
+    row_subjects: list[str] = []
     for row in rows:
         run_serial = str(row["command_run_id"])
         pipeline_serial = str(row["pipeline_id"]) if row["pipeline_id"] is not None else ""
-        label = runtime_state_label(row["job_statuses"])
-        timestamp = row["first_event"] if label in {"active", "in progress"} else row["last_event"]
+        state = runtime_state_label(row["job_statuses"])
         table_rows.append(
             (
                 run_aliases.get(run_serial, run_serial),
-                runtime_state_text(row["job_statuses"], timestamp, style=marker_style),
+                runtime_status_summary(row["job_statuses"]),
                 pipeline_aliases.get(pipeline_serial, ""),
                 row["source"],
                 row["events"],
@@ -135,10 +133,13 @@ def print_steps(
                 names.get(("run", run_serial), ""),
             )
         )
+        row_subjects.append("table.active_row" if state in {"active", "in progress"} else "")
     output = render_table(
-        ("STEP", "STATE", "PIPELINE", "SOURCE", "EVENTS", "ART", "STARTED", "DUR", "NAME"),
+        ("STEP", "STATUS", "PIPELINE", "SOURCE", "EVENTS", "ART", "STARTED", "DUR", "NAME"),
         table_rows,
         cell_subjects=("step", "", "pipeline", "", "", "", "timestamp", "timestamp", ""),
+        row_subjects=row_subjects,
+        active_column_indexes=(1,),
         style_getter=command_context_style_getter(context),
         max_width=terminal_table_width(),
     )

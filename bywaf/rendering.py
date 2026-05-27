@@ -166,11 +166,11 @@ def table_renderers() -> dict[str, TableRenderer]:
     }
 
 
-def render_console_table(table: Table) -> str:
+def render_console_table(table: Table, style_getter=None) -> str:
     """Render a table for monospaced terminal output."""
     if not table.columns:
         return table.title or ""
-    from .runtime_display import shrink_table_widths, terminal_table_width, truncate_cell
+    from .runtime_display import shrink_table_widths, style_table_cell, style_table_header, terminal_table_width, truncate_cell
 
     values = table_values(table)
     widths = [
@@ -187,13 +187,25 @@ def render_console_table(table: Table) -> str:
         lines.append(table.title)
     lines.append(
         "  ".join(
-            align_text(truncate_cell(column.heading, widths[index]), widths[index], column.align)
+            style_table_header(
+                align_text(truncate_cell(column.heading, widths[index]), widths[index], column.align),
+                style_getter,
+            )
             for index, column in enumerate(table.columns)
         )
     )
-    lines.append("  ".join("-" * width for width in widths))
+    lines.append("  ".join(style_table_header("-" * width, style_getter) for width in widths))
     lines.extend(
-        "  ".join(align_text(value, widths[index], table.columns[index].align) for index, value in enumerate(row))
+        "  ".join(
+            style_table_cell(
+                align_text(value, widths[index], table.columns[index].align),
+                "",
+                style_getter,
+                column_index=index,
+                row_subject="",
+            )
+            for index, value in enumerate(row)
+        )
         for row in values
     )
     return "\n".join(lines)

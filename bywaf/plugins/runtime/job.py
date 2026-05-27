@@ -18,7 +18,6 @@ from bywaf.events import Event
 from bywaf.event_filters import any_event_matches_payload_filters
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
 from bywaf.runtime_display import (
-    active_listing_format,
     args_from_command_line,
     command_context_style_getter,
     commandlet_from_command_line,
@@ -30,7 +29,7 @@ from bywaf.runtime_display import (
     render_table,
     runtime_sort_note,
     runtime_state_label,
-    runtime_state_text,
+    runtime_status_summary,
     state_marker,
     terminal_table_width,
 )
@@ -129,7 +128,7 @@ def list_job_action(context: CommandContext, parsed: Namespace) -> None:
     """Run `job list`."""
     print_jobs(
         context,
-        active_only=not parsed.all and not parsed.filters,
+        active_only=False,
         show_active=parsed.all,
         page=parsed.page,
         filters=parsed.filters,
@@ -193,16 +192,15 @@ def print_jobs(
     names = runtime.runtime_names()
     artifact_counts = runtime.artifact_counts_by_job()
     table_rows: list[tuple[object, ...]] = []
+    row_subjects: list[str] = []
     for row in rows:
-        # The STATE column is operator-oriented and time-aware; STATUS keeps the
-        # raw lifecycle value for scripts and debugging.
-        label = runtime_state_label(row["status"])
-        timestamp = row["started_at"] if label in {"active", "in progress"} else row["finished_at"]
+        # Listings keep time in STARTED/DUR only. Detail views can carry richer
+        # lifecycle prose without duplicating timestamps across table cells.
+        state = runtime_state_label(row["status"])
         table_rows.append(
             (
                 row["id"],
-                runtime_state_text(row["status"], timestamp, style=active_listing_format(context.vars.get_global)),
-                row["status"],
+                runtime_status_summary(row["status"]),
                 format_runtime_timestamp(row["started_at"]),
                 format_runtime_duration(row["started_at"], row["finished_at"]),
                 artifact_counts.get(str(row["id"]), 0),
@@ -210,10 +208,13 @@ def print_jobs(
                 format_job_command(str(row["command_line"])),
             )
         )
+        row_subjects.append("table.active_row" if state in {"active", "in progress"} else "")
     output = render_table(
-        ("JOB", "STATE", "STATUS", "STARTED", "DUR", "ART", "NAME", "COMMAND"),
+        ("JOB", "STATUS", "STARTED", "DUR", "ART", "NAME", "COMMAND"),
         table_rows,
-        cell_subjects=("job", "", "", "timestamp", "timestamp", "", "", ""),
+        cell_subjects=("job", "", "timestamp", "timestamp", "", "", ""),
+        row_subjects=row_subjects,
+        active_column_indexes=(1,),
         style_getter=command_context_style_getter(context),
         max_width=terminal_table_width(),
     )

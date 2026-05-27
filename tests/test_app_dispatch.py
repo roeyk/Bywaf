@@ -349,7 +349,8 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "step")
             text = output.getvalue()
-            self.assertIn("no active steps", text)
+            self.assertIn("STEP", text)
+            self.assertIn("STATUS", text)
 
     def test_exec_without_shell_command_prints_help(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1450,7 +1451,7 @@ class AppDispatchTests(unittest.TestCase):
             text = output.getvalue()
             self.assertIn("STEP", text)
             self.assertIn("ART", text)
-            self.assertRegex(text, r"\n1\s+active\s+\s*1\s+hostscanner\s+2\s+1\s+")
+            self.assertRegex(text, r"\n1\s+active/running\s+1\s+hostscanner\s+2\s+1\s+")
             self.assertEqual(text.count("hostscanner"), 1)
 
     def test_runtime_lists_filter_by_host_payload(self):
@@ -1823,7 +1824,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn(f"#{job_id}", output.getvalue())
             self.assertIn(f"serial={serial}", output.getvalue())
 
-    def test_dispatch_steps_defaults_to_active_unless_all_requested(self):
+    def test_dispatch_steps_lists_historical_steps_by_default(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("hostscanner done", 123, "finished")
@@ -1838,11 +1839,11 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "step")
-            self.assertIn("no active step", output.getvalue())
+            self.assertRegex(output.getvalue(), r"\n1\s+completed/finished\s+1\s+hostscanner\s+1\s+0\s+")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "step --all")
-            self.assertRegex(output.getvalue(), r"\n1\s+completed\s+1\s+hostscanner\s+1\s+0\s+")
+            self.assertRegex(output.getvalue(), r"\n1\s+completed/finished\s+1\s+hostscanner\s+1\s+0\s+")
 
     def test_make_runner_marks_dead_runtime_jobs_stale_on_startup(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1864,7 +1865,7 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "pipeline")
-            self.assertIn("no active pipeline", output.getvalue())
+            self.assertIn("failed/stale", output.getvalue())
 
     def test_job_lists_by_default(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1877,7 +1878,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("ART", text)
             self.assertIn("COMMAND", text)
             self.assertNotIn("COMMANDLET", text)
-            self.assertRegex(text, r"\n1\s+active\s+running\s+")
+            self.assertRegex(text, r"\n1\s+active/running\s+")
             self.assertIn("hostscanner 127.0.0.1", text)
 
     def test_jobs_all_marks_active_state(self):
@@ -1889,8 +1890,25 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "job --all")
             text = output.getvalue()
-            self.assertRegex(text, r"\n1\s+active\s+running\s+")
-            self.assertRegex(text, r"\n2\s+completed\s+finished\s+")
+            self.assertRegex(text, r"\n1\s+active/running\s+")
+            self.assertRegex(text, r"\n2\s+completed/finished\s+")
+
+    def test_job_list_styles_active_row_and_status_column(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.registry.varstore.set("display/style.table.active_row", "green")
+            runner.registry.varstore.set("display/style.table.active_column", "bold white")
+            runner.db.record_job("active", 123, "running")
+            runner.db.record_job("old", 456, "finished")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "job")
+            text = output.getvalue()
+            self.assertIn("\x1b[32m1", text)
+            self.assertIn("\x1b[1;37mactive/running", text)
+            self.assertIn("completed/finished", text)
+            completed_row = next(line for line in text.splitlines() if "completed/finished" in line)
+            self.assertNotIn("\x1b[", completed_row)
 
     def test_job_listing_fits_terminal_width(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1952,7 +1970,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("created db=", text)
             self.assertIn("hostscanner", text)
 
-    def test_jobs_all_can_use_long_active_marker(self):
+    def test_job_listing_keeps_state_short_when_long_active_format_is_set(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.registry.varstore.set("global.listing.active-format", "long")
@@ -1960,8 +1978,8 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "job --all")
-            self.assertIn("active since ", output.getvalue())
-            self.assertRegex(output.getvalue(), r"\n1\s+active since ")
+            self.assertNotIn("active since ", output.getvalue())
+            self.assertRegex(output.getvalue(), r"\n1\s+active/running\s+")
 
     def test_pipeline_lists_by_default(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1979,9 +1997,9 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "pipeline")
             text = output.getvalue()
             self.assertIn("ART", text)
-            self.assertRegex(text, rf"\n1\s+active\s+{job_id}\s+running\s+1\s+0\s+0\s+")
+            self.assertRegex(text, rf"\n1\s+active/running\s+{job_id}\s+1\s+0\s+0\s+")
 
-    def test_pipeline_list_defaults_to_active_unless_all_requested(self):
+    def test_pipeline_list_lists_historical_pipelines_by_default(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("hostscanner done", 123, "finished")
@@ -1995,11 +2013,11 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "pipeline")
-            self.assertIn("no active pipeline", output.getvalue())
+            self.assertRegex(output.getvalue(), r"\n1\s+completed/finished\s+1\s+1\s+0\s+0\s+")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "pipeline --all")
-            self.assertRegex(output.getvalue(), r"\n1\s+completed\s+1\s+finished\s+1\s+")
+            self.assertRegex(output.getvalue(), r"\n1\s+completed/finished\s+1\s+1\s+0\s+0\s+")
 
     def test_job_cancel_records_soft_cancellation(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -16,7 +16,7 @@ from collections.abc import Callable, Mapping, Sequence
 from .command.parser import parse_pipeline
 from .db.support import SERIAL_DISPLAY_LENGTH, serial_body
 from .event_filters import parse_payload_filter_tokens
-from .style import styled_subject_text
+from .style import styled_subject_text, subject_style
 from .time_format import format_compact_runtime_timestamp, format_duration_between
 
 ACTIVE_LISTING_FORMAT_VAR = "listing.active-format"
@@ -80,6 +80,13 @@ def runtime_state_text(statuses: str | list[str] | tuple[str, ...] | None, times
     if style == "long":
         return f"{label} since {format_runtime_timestamp(timestamp)}"
     return label
+
+
+def runtime_status_summary(statuses: str | list[str] | tuple[str, ...] | None) -> str:
+    """Return one compact lifecycle cell combining state and raw status."""
+    label = runtime_state_label(statuses)
+    raw = "/".join(normalize_statuses(statuses)) or "unknown"
+    return label if raw == label else f"{label}/{raw}"
 
 
 def format_runtime_timestamp(value: str | None) -> str:
@@ -191,6 +198,8 @@ def render_table(
     rows: Sequence[Sequence[object]],
     *,
     cell_subjects: Sequence[str] = (),
+    row_subjects: Sequence[str] = (),
+    active_column_indexes: Sequence[int] = (),
     style_getter: StyleGetter | None = None,
     max_width: int | None = None,
 ) -> str:
@@ -206,8 +215,14 @@ def render_table(
         widths = shrink_table_widths(widths, headers, max_width)
         text_rows = [[truncate_cell(value, widths[index]) for index, value in enumerate(row)] for row in text_rows]
     lines = [
-        "  ".join(truncate_cell(header, widths[index]).ljust(widths[index]) for index, header in enumerate(headers)),
-        "  ".join("-" * width for width in widths),
+        "  ".join(
+            style_table_header(
+                truncate_cell(header, widths[index]).ljust(widths[index]),
+                style_getter,
+            )
+            for index, header in enumerate(headers)
+        ),
+        "  ".join(style_table_header("-" * width, style_getter) for width in widths),
     ]
     lines.extend(
         "  ".join(
@@ -215,10 +230,14 @@ def render_table(
                 value.ljust(widths[index]),
                 cell_subjects[index] if index < len(cell_subjects) else "",
                 style_getter,
+                column_index=index,
+                row_subject=row_subject,
+                active_column=bool(row_subject) and index in active_column_indexes,
             )
             for index, value in enumerate(row)
         )
-        for row in text_rows
+        for row_index, row in enumerate(text_rows)
+        for row_subject in (row_subjects[row_index] if row_index < len(row_subjects) else "",)
     )
     return "\n".join(lines)
 
@@ -264,8 +283,52 @@ def truncate_cell(value: str, width: int) -> str:
     return value[: width - 1] + "…"
 
 
-def style_table_cell(value: str, subject: str, style_getter: StyleGetter | None) -> str:
-    """Apply a subject style to a padded table cell when configured."""
-    if not subject or style_getter is None or not value.strip():
+def style_table_header(value: str, style_getter: StyleGetter | None) -> str:
+    """Apply the configured table-heading style to one header/ruler cell."""
+    if style_getter is None or not value.strip():
         return value
-    return styled_subject_text(style_getter, subject, value)
+    return styled_subject_text(style_getter, "table.header", value)
+
+
+def style_table_cell(
+    value: str,
+    subject: str,
+    style_getter: StyleGetter | None,
+    *,
+    column_index: int,
+    row_subject: str = "",
+    active_column: bool = False,
+) -> str:
+    """Apply a subject style to a padded table cell when configured."""
+    if style_getter is None or not value.strip():
+        return value
+    cell_subject = table_cell_subject(
+        subject,
+        style_getter,
+        column_index=column_index,
+        row_subject=row_subject,
+        active_column=active_column,
+    )
+    return styled_subject_text(style_getter, cell_subject, value) if cell_subject else value
+
+
+def table_cell_subject(
+    subject: str,
+    style_getter: StyleGetter,
+    *,
+    column_index: int,
+    row_subject: str = "",
+    active_column: bool = False,
+) -> str:
+    """Return the most specific configured style subject for a table cell."""
+    if active_column and subject_style(style_getter, "table.active_column"):
+        return "table.active_column"
+    if row_subject and subject_style(style_getter, row_subject):
+        return row_subject
+    if subject and subject_style(style_getter, subject):
+        return subject
+    if column_index == 0 and subject_style(style_getter, "table.index"):
+        return "table.index"
+    if subject_style(style_getter, "table.body"):
+        return "table.body"
+    return subject

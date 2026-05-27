@@ -111,6 +111,8 @@ Renderers should use table styles as defaults and semantic subjects as overrides
 "display/style.table.header" = "bold white"
 "display/style.table.body" = "color250"
 "display/style.table.index" = "bold color245"
+"display/style.table.active_row" = "bold"
+"display/style.table.active_column" = "bold white"
 "display/style.report.heading" = "bold color39"
 "display/style.report.section" = "bold white"
 "display/style.report.label" = "bold color245"

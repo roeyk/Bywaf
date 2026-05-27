@@ -54,6 +54,25 @@ class RenderingTests(unittest.TestCase):
         self.assertTrue(all(len(line) <= 24 for line in rendered.splitlines()))
         self.assertIn("…", rendered)
 
+    def test_console_renderer_applies_table_styles(self):
+        table = Table.from_rows(({"id": "1", "value": "plain"},), ("id", "value"))
+        rendered = render_table(table, "console")
+        self.assertNotIn("\x1b[", rendered)
+
+        from bywaf.rendering import render_console_table
+
+        styled = render_console_table(
+            table,
+            lambda key, default="": {
+                "display/style.table.header": "bold white",
+                "display/style.table.index": "cyan",
+                "display/style.table.body": "green",
+            }.get(key, default),
+        )
+        self.assertIn("\x1b[1;37mid", styled)
+        self.assertIn("\x1b[36m1", styled)
+        self.assertIn("\x1b[32mplain", styled)
+
     def test_markdown_renderer_escapes_pipes(self):
         table = Table.from_rows(({"name": "a|b"},), ("name",))
         self.assertIn("a\\|b", render_table(table, "md"))

@@ -1408,6 +1408,8 @@ bywaf> set display/style.variable=cyan
 bywaf> set display/style.table.header="bold white"
 bywaf> set display/style.table.body=color250
 bywaf> set display/style.table.index="bold color245"
+bywaf> set display/style.table.active_row=bold
+bywaf> set display/style.table.active_column="bold white"
 bywaf> set display/style.report.heading="bold color39"
 bywaf> set display/style.report.section="bold white"
 bywaf> set display/style.report.label="bold color245"
@@ -1437,7 +1439,8 @@ are yellow; history timestamps and help commands are green.
 
 Display styles use `display/style.<subject>`. Current terminal rendering
 uses subjects such as `host`, `port`, `protocol`, `host.name`, `comment`,
-`string`, `table.header`, `table.body`, `table.index`, `report.heading`,
+`string`, `table.header`, `table.body`, `table.index`,
+`table.active_row`, `table.active_column`, `report.heading`,
 `report.section`, `report.label`, `finding.severity.high`, and
 `finding.severity_class.urgent`. Runtime and provenance values can use subjects
 such as `serial`, `job`, `step`, and `pipeline`. The `string` subject applies to

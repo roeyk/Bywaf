@@ -163,7 +163,7 @@ def handle_render_table_request(runner: Runner, state: FrameworkRequestState, ev
     except ValueError as exc:
         deny_framework_request(runner, event, str(exc))
         return
-    rendered = render_console_table(table)
+    rendered = render_console_table(table, runner.registry.varstore.get)
     runner.events.publish(
         "render.table",
         {

@@ -42,7 +42,8 @@ def print_plugins(runner: Runner) -> None:
                         Column("description", "WHAT IT DOES"),
                     ),
                     tuple(rows),
-                )
+                ),
+                runner.registry.varstore.get,
             )
         )
 
@@ -114,7 +115,8 @@ def print_triggers(runner: Runner) -> None:
                     Column("cursor", "CURSOR"),
                 ),
                 tuple(rows),
-            )
+            ),
+            runner.registry.varstore.get,
         )
     )
 
@@ -143,7 +145,8 @@ def render_commandlets(runner: Runner) -> list[str]:
                     Column("description", "WHAT IT DOES"),
                 ),
                 tuple(rows),
-            )
+            ),
+            runner.registry.varstore.get,
         )
     ]
 
