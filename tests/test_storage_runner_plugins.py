@@ -1161,6 +1161,20 @@ class StorageRunnerPluginTests(unittest.TestCase):
             self.assertEqual(scan.call_args.args[1], "33169,33199")
             self.assertEqual(events[0].payload["port"], 33169)
 
+    def test_portscanner_keeps_cidr_and_ip_range_targets_unresolved(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            with (
+                patch("bywaf.plugins.network.portscanner.resolve_target", side_effect=AssertionError("should not resolve IP ranges")),
+                patch(
+                    "bywaf.plugins.network.portscanner.scan_open_ports",
+                    return_value=[NmapPort("192.0.2.10", 80, "tcp", "open")],
+                ) as scan,
+            ):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    runner.execute("portscanner host=192.0.2.0/24 192.0.3.1-5 port=80")
+            self.assertCountEqual(scan.call_args.args[0], ["192.0.2.0/24", "192.0.3.1-5"])
+
     def test_portscanner_accepts_singular_host_and_records_resolution(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -1235,6 +1249,20 @@ class StorageRunnerPluginTests(unittest.TestCase):
             contextlib.redirect_stdout(output),
         ):
             events = list(PortScanner().run(context, ["-s", "127.0.0.1"], []))
+        self.assertEqual(events[0]["port"], 80)
+        self.assertEqual(output.getvalue(), "")
+
+    def test_portscanner_quiet_alias_suppresses_alert(self):
+        context = CommandContext(db=None, source="portscanner", metadata={"command_run_id": "run-1"})
+        output = io.StringIO()
+        with (
+            patch(
+                "bywaf.plugins.network.portscanner.scan_open_ports",
+                return_value=[NmapPort("127.0.0.1", 80, "tcp", "open")],
+            ),
+            contextlib.redirect_stdout(output),
+        ):
+            events = list(PortScanner().run(context, ["--quiet", "127.0.0.1"], []))
         self.assertEqual(events[0]["port"], 80)
         self.assertEqual(output.getvalue(), "")
 

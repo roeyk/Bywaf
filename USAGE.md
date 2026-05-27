@@ -1704,18 +1704,21 @@ It emits `host.found` events.
 ```text
 bywaf> portscanner 127.0.0.1
 bywaf> portscanner port=22,80,443 host=127.0.0.1
+bywaf> portscanner port=1-65535 host=192.168.50.0/24
 bywaf> portscanner arguments="-Pn -sT" port=33169,33199 host=example.test
+bywaf> portscanner --quiet port=22,80,443 host=127.0.0.1
 ```
 
 If `port=` is omitted, nmap uses its normal default top-port behavior. It
 emits `port.open` events.
 
-`host=` accepts one host or a comma/space-separated host list. When an explicit
-host is a DNS name, `portscanner` resolves it before scanning, prints the
-resolved address set, and records a `name.resolved` provenance event.
+`host=` accepts one host, a CIDR network, an IP range, or a comma/space-separated
+host list. IP scan targets are passed through to nmap; DNS names are resolved
+before scanning, printed, and recorded as `name.resolved` provenance events.
 If `arguments=` includes `-4` or `-6`, the pre-scan DNS resolution keeps only
 matching IPv4 or IPv6 addresses so the printed provenance matches what nmap
-will scan.
+will scan. Use `--quiet` or `--silent` to suppress per-port console alerts while
+still emitting `port.open` events.
 
 Use listen mode to consume newly inserted hosts:
 

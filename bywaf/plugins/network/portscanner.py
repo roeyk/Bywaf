@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from bywaf.events import Event
-from bywaf.plugins.addressing import filter_addresses_for_ip_family
+from bywaf.plugins.addressing import filter_addresses_for_ip_family, is_ip_scan_target, target_matches_ip_family
 from bywaf.plugins.discovery.hostscanner import publish_name_resolution_events, resolve_target
 from bywaf.plugins.network.nmap_backend import scan_open_ports
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option, split_var_values
@@ -78,7 +78,13 @@ class PortScanner(CommandletBase):
         parser.add_argument("hosts", nargs="*")
         parser.add_argument("--host", dest="host_option", default=self.var_default(context, "host", ""))
         parser.add_argument("--except", dest="except_", default=self.var_default(context, "except", ""))
-        parser.add_argument("-s", "--silent", action="store_true", default=self.var_default(context, "silent", False, cast=parse_bool))
+        parser.add_argument(
+            "-s",
+            "--silent",
+            "--quiet",
+            action="store_true",
+            default=self.var_default(context, "silent", False, cast=parse_bool),
+        )
         parser.add_argument("--arguments", default=self.var_default(context, "arguments", "-sT"))
         parser.add_argument("--listen", action="store_true", default=self.var_default(context, "listen", False, cast=parse_bool))
         parser.add_argument("--listen-interval", type=float, default=self.var_default(context, "listen-interval", 1.0, cast=float))
@@ -123,6 +129,12 @@ def resolve_explicit_hosts(context: CommandContext, hosts: Iterable[str], argume
     resolved: list[str] = []
     names_by_host: dict[str, str] = {}
     for host in hosts:
+        if is_ip_scan_target(host):
+            if target_matches_ip_family(host, arguments):
+                resolved.append(host)
+            else:
+                context.alert(f"scan target {host} does not match nmap address-family arguments")
+            continue
         addresses = filter_addresses_for_ip_family(resolve_target(host), arguments)
         if not addresses:
             context.alert(f"no resolved addresses for {host} match nmap address-family arguments")

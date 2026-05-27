@@ -122,6 +122,15 @@ Planning dates are release planning markers, not compatibility commitments.
 - Future work: define reverse ordering consistently, likely as `reverse=true`
   or a similarly explicit selector rather than a `--reverse` flag.
 
+### Item: Targeted Portscanner Alerts
+
+- Decide whether `alertports=` should mean “only alert these open ports” or
+  “alert all open ports, but emphasize these ports.”
+- Keep `--quiet`/`--silent` as the simple mode for suppressing all per-port
+  console alerts while preserving structured `port.open` events.
+- If implemented, prefer selector syntax such as `alert-port=22,3389` or
+  `alert-port=23,2323` and document its interaction with quiet mode.
+
 ### Item: CVE Detection And Confirmation Plugins
 
 - Research a short list of high-value, low-hanging-fruit CVE checks from

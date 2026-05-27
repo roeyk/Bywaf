@@ -30,3 +30,38 @@ def ip_version(address: str) -> int | None:
         return ipaddress.ip_address(address).version
     except ValueError:
         return None
+
+
+def scan_target_ip_version(target: str) -> int | None:
+    """Return IP version for an IP scan target, including networks and ranges."""
+    try:
+        return ipaddress.ip_address(target).version
+    except ValueError:
+        pass
+    try:
+        return ipaddress.ip_network(target, strict=False).version
+    except ValueError:
+        pass
+    if "-" in target:
+        base = target.split("-", 1)[0]
+        try:
+            return ipaddress.ip_address(base).version
+        except ValueError:
+            return None
+    return None
+
+
+def target_matches_ip_family(target: str, arguments: str) -> bool:
+    """Return whether a scan target matches `-4` or `-6` arguments."""
+    version = scan_target_ip_version(target)
+    tokens = set(shlex.split(arguments))
+    if "-4" in tokens and "-6" not in tokens:
+        return version == 4
+    if "-6" in tokens and "-4" not in tokens:
+        return version == 6
+    return True
+
+
+def is_ip_scan_target(target: str) -> bool:
+    """Return whether a target is an IP literal, CIDR network, or IP range."""
+    return scan_target_ip_version(target) is not None
