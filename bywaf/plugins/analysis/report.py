@@ -65,6 +65,7 @@ REPORT_STATUS_CHOICES = ("all", "accepted", "deferred", "rejected", "unreviewed"
         "db.write:report.rendered",
         "db.write:finding.reviewed",
         "framework.console.output",
+        "framework.file.page",
     ),
 )
 @option("job", "job id or comma-separated job ids", completion="job")

@@ -6,6 +6,7 @@ service = false
 name = "pipeline"
 capabilities = [
   "framework.console.output",
+  "framework.file.page",
   "framework.pipeline.control",
   "framework.job.control",
 ]

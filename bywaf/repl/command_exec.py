@@ -52,7 +52,10 @@ def handle_exec_command(runner: Runner, state: ShellState, rest: str | None, lin
 
 def execute_repl_commandlet(runner: Runner, state: ShellState, command: str) -> None:
     """Run a commandlet line and print emitted events."""
+    original_db = runner.db
     events = runner.execute(command)
+    if runner.db is not original_db:
+        reset_framework_request_cursor(state)
     process_framework_requests(runner, state)
     # Some commandlets emit audit events after also requesting formatted console
     # output. Keep those events in storage, but avoid echoing raw payloads in
@@ -63,6 +66,12 @@ def execute_repl_commandlet(runner: Runner, state: ShellState, command: str) -> 
 def visible_commandlet_events(events: list[Any]) -> list[Any]:
     """Return commandlet events that should be echoed after execution."""
     return [event for event in events if event.topic not in SUPPRESSED_COMMANDLET_OUTPUT_TOPICS]
+
+
+def reset_framework_request_cursor(state: ShellState) -> None:
+    """Reset REPL request tracking after switching to a different database."""
+    state.framework_request_after_id = 0
+    state.handled_request_ids.clear()
 
 
 def execute_shell_command(runner: Runner, command: str) -> int:

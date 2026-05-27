@@ -59,7 +59,7 @@ PipelineActionHandler = Callable[[CommandContext, Namespace], None]
         "pipeline kill --hard 1",
         "pipeline attach 1 portscanner step=1 since=beginning",
     ),
-    capabilities=("framework.console.output", "framework.pipeline.control", "framework.job.control"),
+    capabilities=("framework.console.output", "framework.file.page", "framework.pipeline.control", "framework.job.control"),
 )
 @argument("action", "pipeline operation", required=False, completion=CompletionSpec("choice", PIPELINE_ACTIONS))
 @argument("id", "pipeline id", required=False, completion="pipeline")

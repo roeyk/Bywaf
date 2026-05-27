@@ -1774,6 +1774,22 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("sorted by source ascending", text)
             self.assertIn("error: pipeline uses selector syntax; use sort=<key>, not --sort=events", text)
 
+    def test_db_new_resets_repl_framework_request_cursor(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "old.sqlite3"))
+            for index in range(5):
+                runner.db.publish("noise", {"index": index}, "test")
+            state = ShellState(framework_request_after_id=runner.db.latest_event_id())
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, f"db new file={Path(tmp, 'new.sqlite3')}", state)
+                runner.db.record_job("hostscanner 127.0.0.1", 123, "finished")
+                dispatch_repl_line(runner, "job --all", state)
+
+            text = output.getvalue()
+            self.assertIn("created db=", text)
+            self.assertIn("hostscanner", text)
+
     def test_jobs_all_can_use_long_active_marker(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

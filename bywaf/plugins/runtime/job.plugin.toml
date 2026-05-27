@@ -6,6 +6,7 @@ service = false
 name = "job"
 capabilities = [
   "framework.console.output",
+  "framework.file.page",
   "framework.job.control",
 ]
 module = "bywaf.plugins.runtime.job"
