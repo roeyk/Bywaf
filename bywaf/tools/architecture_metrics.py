@@ -1,7 +1,7 @@
-"""Lightweight architecture metrics for Bywaf source modules.
+"""Lightweight architecture metrics for Bywaf source and documentation.
 
 Provides import dependency, size, fan-in/fan-out, complexity, test-reference,
-churn, security-surface, and cycle metrics for Python packages without
+churn, security-surface, cycle, and documentation pressure metrics without
 requiring optional analysis dependencies.
 
 Used by:
@@ -19,6 +19,8 @@ from collections import defaultdict
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable
+
+from .documentation_metrics import DocumentationMetrics, collect_documentation_metrics
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,6 +50,7 @@ class ArchitectureMetrics:
     edge_count: int
     cycles: tuple[tuple[str, ...], ...]
     modules: tuple[ModuleMetric, ...]
+    docs: "DocumentationMetrics | None" = None
 
 
 def collect_architecture_metrics(
@@ -55,6 +58,7 @@ def collect_architecture_metrics(
     *,
     package: str | None = None,
     tests_root: Path | None = None,
+    docs_root: Path | None = None,
     include_churn: bool = False,
 ) -> ArchitectureMetrics:
     """Collect import and size metrics for a Python package directory."""
@@ -102,7 +106,8 @@ def collect_architecture_metrics(
     )
     cycles = tuple(tuple(sorted(component)) for component in strongly_connected_components(adjacency) if len(component) > 1)
     edge_count = sum(len(targets) for targets in adjacency.values())
-    return ArchitectureMetrics(package, len(modules), edge_count, tuple(sorted(cycles)), module_metrics)
+    docs = collect_documentation_metrics(repo_root, docs_root=docs_root)
+    return ArchitectureMetrics(package, len(modules), edge_count, tuple(sorted(cycles)), module_metrics, docs)
 
 
 @dataclass(frozen=True, slots=True)
@@ -369,6 +374,54 @@ def format_metrics(metrics: ArchitectureMetrics, *, top: int = 12) -> str:
         lines.extend(["", "Import cycles:"])
         for cycle in metrics.cycles[:top]:
             lines.append(f"- {', '.join(cycle)}")
+    if metrics.docs is not None:
+        lines.extend(["", format_documentation_metrics(metrics.docs, top=top)])
+    return "\n".join(lines)
+
+
+def format_documentation_metrics(metrics: DocumentationMetrics, *, top: int = 12) -> str:
+    """Render documentation cohesion and coupling pressure sections."""
+    documents = list(metrics.documents)
+    largest = sorted(documents, key=lambda document: document.words, reverse=True)[:top]
+    many_headings = sorted(documents, key=lambda document: document.headings, reverse=True)[:top]
+    doc_hubs = sorted(
+        documents,
+        key=lambda document: document.inbound_links + document.outbound_links,
+        reverse=True,
+    )[:top]
+    stale = sorted(documents, key=lambda document: document.stale_terms, reverse=True)[:top]
+    mixed_audience = sorted(documents, key=lambda document: document.audience_hits, reverse=True)[:top]
+    duplicate_headings = sorted(documents, key=lambda document: document.duplicate_headings, reverse=True)[:top]
+    lines = [
+        "Documentation metrics:",
+        f"documents={metrics.document_count} links={metrics.link_count} broken_links={len(metrics.broken_links)}",
+        "",
+        section("Largest docs", ((document.path, document.words) for document in largest), "words"),
+        section("Most doc headings", ((document.path, document.headings) for document in many_headings), "headings"),
+        detail_section(
+            "Highest doc link coupling",
+            (
+                (
+                    document.path,
+                    f"in={document.inbound_links} out={document.outbound_links}",
+                )
+                for document in doc_hubs
+            ),
+        ),
+        section("Most stale-term hits", ((document.path, document.stale_terms) for document in stale), "hits"),
+        section(
+            "Most audience-mixing hints",
+            ((document.path, document.audience_hits) for document in mixed_audience),
+            "hints",
+        ),
+        section(
+            "Most duplicate headings",
+            ((document.path, document.duplicate_headings) for document in duplicate_headings),
+            "duplicates",
+        ),
+    ]
+    if metrics.broken_links:
+        lines.append(detail_section("Broken local doc links", ((link, "") for link in metrics.broken_links[:top])))
     return "\n".join(lines)
 
 
@@ -394,6 +447,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("root", nargs="?", default="bywaf", help="Python package directory to inspect")
     parser.add_argument("--package", default=None, help="Dotted package name; defaults to root directory name")
     parser.add_argument("--tests-root", default=None, help="Test directory for rough module reference counts")
+    parser.add_argument("--docs-root", default=None, help="Docs directory for Markdown cohesion/coupling metrics")
     parser.add_argument("--top", type=int, default=12, help="Rows to show in each section")
     parser.add_argument("--churn", action="store_true", help="Include git churn counts from local history")
     parser.add_argument("--json", action="store_true", help="Emit JSON instead of text")
@@ -402,6 +456,7 @@ def main(argv: list[str] | None = None) -> int:
         Path(args.root),
         package=args.package,
         tests_root=Path(args.tests_root) if args.tests_root else None,
+        docs_root=Path(args.docs_root) if args.docs_root else None,
         include_churn=args.churn,
     )
     if args.json:

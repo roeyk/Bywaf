@@ -1,0 +1,168 @@
+# Framework Development
+
+This guide is for contributors changing Bywaf itself. If you want to write a
+plugin, start with `docs/plugin_author/README.md` instead; plugin authors should
+not need to learn the whole framework internals first.
+
+Bywaf is a commandlet framework built around a few stable ideas:
+
+- command text is parsed into commandlet invocations;
+- commandlets emit structured events;
+- jobs, pipelines, and steps provide runtime provenance;
+- reports, artifacts, bundles, and view commands render or package stored
+  framework state;
+- plugin manifests describe commandlets without importing executable plugin
+  code.
+
+## Fast Orientation
+
+Read these first when changing core behavior:
+
+- `docs/TERMINOLOGY.md`: canonical vocabulary.
+- `docs/RUNTIME_MODEL.md`: jobs, pipelines, steps, variables, and snapshots.
+- `docs/EVENT_MODEL.md`: event rows, topics, replay, and provenance.
+- `docs/CAPABILITY_MODEL.md`: capability audit and trust boundaries.
+- `docs/ARCHITECTURE_METRICS.md`: how to choose refactor targets.
+
+Then inspect the relevant package below.
+
+## Package Map
+
+### CLI And REPL
+
+- `bywaf/__main__.py`: command-line entry point.
+- `bywaf/app.py`: application facade that wires registry, project, database,
+  runner, and shell behavior.
+- `bywaf/repl/`: interactive shell commands, script loading, preferences,
+  display, and command dispatch.
+- `bywaf/completion/`: readline and prompt-toolkit completion.
+
+The REPL is a frontend. It should avoid owning core behavior that would also
+matter to scripts, future GUI/web frontends, or API callers.
+
+### Command Parsing
+
+- `bywaf/command/parser.py`: parses command text into pipeline and invocation
+  structures.
+- `bywaf/command/names.py`: shared command/action constants.
+
+Parser changes are high-impact. Add regression tests for quoting, comments,
+selectors, pipelines, at-file syntax, variables, and framework-owned selectors.
+
+### Runner
+
+- `bywaf/runner/core.py`: `Runner` facade and job/pipeline orchestration.
+- `bywaf/runner/stages.py`: one pipeline step lifecycle, argument expansion,
+  redaction, commandlet execution, and emitted event persistence.
+- `bywaf/runner/context.py`: runtime context construction, variable snapshots,
+  replay selectors, and step identity.
+- `bywaf/runner/jobs.py`: foreground/background job lifecycle and child-process
+  entry points.
+- `bywaf/runner/runtime_events.py`: small helpers for framework runtime events.
+
+The runner is the control plane. Keep it narrow: orchestration belongs here,
+domain rendering and plugin-specific behavior do not.
+
+### Plugins And Registry
+
+- `bywaf/plugin/`: commandlet API, `CommandContext`, process/services helpers,
+  and plugin-facing framework interfaces.
+- `bywaf/registry/`: plugin discovery, provider paths, aliases, manifests,
+  variable scopes, and trigger ownership.
+- `bywaf/plugins/`: bundled commandlets organized by provider path.
+- `docs/plugin_author/`: plugin author-facing contracts.
+
+Manifest metadata should describe plugin shape before import. Runtime plugin
+code should go through framework APIs for events, artifacts, processes, and
+operator-facing output wherever possible.
+
+### Persistence
+
+- `bywaf/db/`: SQLite-backed store facade and focused mixins for events, jobs,
+  runtime state, artifacts, secrets, triggers, and maintenance.
+- `bywaf/stores.py`: protocol surfaces used to keep callers from depending on
+  concrete SQLite implementation details.
+
+Persistence code is shared by foreground and background work. Preserve
+multiprocess behavior and avoid hidden per-process state.
+
+### Findings, Reports, And Artifacts
+
+- `bywaf/finding/`: normalized finding payloads, grouping, severity, taxonomy,
+  and subject metadata.
+- `bywaf/plugins/analysis/report.py`: operator reporting commandlet.
+- `bywaf/plugins/analysis/report_render.py`: report table rendering helpers.
+- `bywaf/artifacts.py` and `bywaf/plugins/runtime/artifact*`: artifact storage,
+  selectors, verification, and export/import workflows.
+
+Findings are append-only evidence. Review decisions are emitted as events, not
+mutations of original findings.
+
+### Configuration, Secrets, And Preferences
+
+- `bywaf/config/`: project/global config loading, canonicalization, and
+  resource paths.
+- `bywaf/secret/`: secret references, redaction, fingerprints, and prompt
+  handling.
+- `bywaf/keyring/`: signing and key-management support.
+- `bywaf/repl/preferences.py` and `bywaf/repl/themes.py`: operator preferences
+  and display themes.
+
+Secrets must never be displayed directly. Redacted values should preserve enough
+fingerprint provenance for audit without exposing reusable handles.
+
+## Common Change Paths
+
+### Add Or Change A View Command
+
+1. Update the commandlet or REPL command.
+2. Use selector-style filters such as `job=`, `pipeline=`, `step=`, `host=`,
+   `topic=`, and `sort=`.
+3. Keep rendering in a rendering helper when the command grows.
+4. Add tests for selectors, empty output, and table shape.
+
+### Add A Runtime Selector
+
+1. Update parser or command dispatch if the selector is framework-owned.
+2. Add shared matching logic rather than duplicating host/job/pipeline/step
+   scans in each command.
+3. Update completion.
+4. Add tests across all view commands that should support it.
+
+### Refactor A Large Module
+
+1. Run `python scripts/architecture_metrics.py --top 12 --churn`.
+2. Pick modules with multiple signals, not just high LOC.
+3. Add or identify focused regression tests first.
+4. Split by responsibility: parsing, querying, rendering, lifecycle, storage,
+   or data conversion.
+5. Rerun the metrics and compare whether fan-out, complexity, or cycles
+   improved.
+
+### Change Plugin Contracts
+
+1. Update plugin API or manifest schema.
+2. Update `plugin_check`.
+3. Update skeletons and `docs/plugin_author/`.
+4. Add tests for both valid and invalid plugin examples.
+
+## Testing Expectations
+
+For the full testing map, including plugin tests, package smoke tests, manual
+validation flows, and environment notes, see [Testing](TESTING.md).
+
+Useful focused checks:
+
+```bash
+PYTHONPATH=. pytest -q tests/test_registry_completion.py tests/test_completion_regression.py
+PYTHONPATH=. pytest -q tests/test_app_dispatch.py tests/test_resources_history_config.py
+PYTHONPATH=. pytest -q tests/test_plugin_check.py tests/test_repo_exposure.py
+PYTHONPATH=. pytest -q tests/test_report.py tests/test_finding_grouping.py
+```
+
+Use the architecture metrics report before and after non-trivial refactors:
+
+```bash
+python scripts/architecture_metrics.py --top 12
+python scripts/architecture_metrics.py --top 12 --churn
+```

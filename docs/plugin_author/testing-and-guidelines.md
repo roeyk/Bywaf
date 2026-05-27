@@ -1,6 +1,8 @@
 # Plugin Testing And Guidelines
 
 Testing expectations and practical implementation guidance for plugin authors.
+For project-wide framework, package, metrics, and manual validation guidance,
+see [Testing](../TESTING.md).
 
 ## Testing a Plugin
 

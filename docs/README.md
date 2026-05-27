@@ -22,6 +22,8 @@ offensive frameworks, do not look for Veil-style modules, Metasploit-style
   [Commandlet API Reference](plugin_author/commandlet-api.md) ->
   [Plugin Packaging And Checking](plugin_author/packaging-and-checking.md)
 - **Maintainer:** [Changelog](../CHANGELOG.md) -> [TODO](TODO.md) ->
+  [Framework Development](FRAMEWORK_DEVELOPMENT.md) ->
+  [Testing](TESTING.md) ->
   [Key Management](KEY_MANAGEMENT.md) -> [Design Notes](DESIGN.md)
 
 ## Core References
@@ -49,6 +51,10 @@ offensive frameworks, do not look for Veil-style modules, Metasploit-style
 - [Framework Surface](FRAMEWORK_SURFACE.md): enumerated base resources,
   including capabilities, trigger rules, plugin data topics, and framework
   audit/control topics.
+- [Framework Development](FRAMEWORK_DEVELOPMENT.md): package map, core control
+  flow, common change paths, and focused development checks.
+- [Testing](TESTING.md): project-level test map for plugins, framework code,
+  package builds, metrics, and manual validation.
 - [Architecture Metrics](ARCHITECTURE_METRICS.md): dependency, size, fan-in,
   fan-out, and cycle checks for refactoring decisions.
 

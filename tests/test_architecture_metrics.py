@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from bywaf.tools.architecture_metrics import collect_architecture_metrics, format_metrics
+from bywaf.tools.documentation_metrics import collect_documentation_metrics
 
 
 def write(path: Path, text: str) -> None:
@@ -45,3 +46,44 @@ def test_architecture_metrics_text_report_names_pressure_points(tmp_path: Path) 
     assert "Highest module complexity" in report
     assert "High hub score with low test references" in report
     assert "pkg.hub" in report
+
+
+def test_architecture_metrics_reports_documentation_pressure(tmp_path: Path) -> None:
+    root = tmp_path / "pkg"
+    docs = tmp_path / "docs"
+    write(root / "__init__.py", "")
+    write(root / "a.py", "VALUE = 1\n")
+    write(
+        docs / "README.md",
+        "# Docs\n\n"
+        "For plugin author and operator paths, see [Guide](guide.md).\n\n"
+        "## Run\n\n"
+        "Old run= wording.\n\n"
+        "## Run\n\n"
+        "Duplicate heading.\n",
+    )
+    write(docs / "guide.md", "# Guide\n\nSee [Missing](missing.md).\n")
+
+    metrics = collect_architecture_metrics(root, package="pkg", docs_root=docs)
+    report = format_metrics(metrics, top=3)
+    docs_by_path = {document.path: document for document in metrics.docs.documents}
+
+    assert "Documentation metrics" in report
+    assert "Highest doc link coupling" in report
+    assert docs_by_path["docs/README.md"].duplicate_headings == 1
+    assert docs_by_path["docs/README.md"].stale_terms >= 1
+    assert metrics.docs.broken_links == ("docs/guide.md -> missing.md",)
+
+
+def test_documentation_metrics_can_run_without_python_package(tmp_path: Path) -> None:
+    docs = tmp_path / "docs"
+    write(docs / "a.md", "# A\n\nSee [B](b.md).\n")
+    write(docs / "b.md", "# B\n")
+
+    metrics = collect_documentation_metrics(tmp_path, docs_root=docs)
+    by_path = {document.path: document for document in metrics.documents}
+
+    assert metrics.document_count == 2
+    assert metrics.link_count == 1
+    assert by_path["docs/a.md"].outbound_links == 1
+    assert by_path["docs/b.md"].inbound_links == 1

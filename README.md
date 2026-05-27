@@ -192,8 +192,19 @@ python3 scripts/plugin_check.py path/to/plugin_dir
 - [docs/SAVE_EXPORT_MODEL.md](docs/SAVE_EXPORT_MODEL.md): load/save/export/archive semantics.
 - [docs/MANIFEST_SPECIFICATION.md](docs/MANIFEST_SPECIFICATION.md): plugin sidecar TOML schema.
 - [docs/FRAMEWORK_SURFACE.md](docs/FRAMEWORK_SURFACE.md): capabilities, topics, and bundled commandlets.
+- [docs/TESTING.md](docs/TESTING.md): plugin, framework, package, metrics, and manual testing map.
+- [docs/plugin_author/README.md](docs/plugin_author/README.md): plugin developer guide.
+- [docs/FRAMEWORK_DEVELOPMENT.md](docs/FRAMEWORK_DEVELOPMENT.md): core framework contributor guide.
 
 ## Development
+
+For plugin work, start with [docs/plugin_author/README.md](docs/plugin_author/README.md)
+and the skeletons in [docs/plugin_skeletons/](docs/plugin_skeletons/). For core
+framework work, start with
+[docs/FRAMEWORK_DEVELOPMENT.md](docs/FRAMEWORK_DEVELOPMENT.md), then use
+[docs/ARCHITECTURE_METRICS.md](docs/ARCHITECTURE_METRICS.md) to pick and check
+refactor targets. For test selection, package smoke checks, and manual
+validation flows, see [docs/TESTING.md](docs/TESTING.md).
 
 Run the focused test suite while working:
 

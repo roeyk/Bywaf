@@ -48,6 +48,14 @@ The built-in metrics report currently covers:
 - **Security-surface hits:** rough token hits for secrets, credentials,
   capabilities, subprocesses, sockets, artifacts, and similar review-sensitive
   areas.
+- **Documentation size:** word and heading counts for Markdown pages. This is a
+  readability pressure signal, not a strict limit.
+- **Documentation coupling:** inbound and outbound local Markdown links. High
+  link coupling can be right for indexes and routing pages, but it means
+  changes need link review.
+- **Documentation cohesion hints:** duplicate headings, stale vocabulary hits,
+  and audience-mixing hints. These point to pages that may need splitting,
+  rerouting, or terminology cleanup.
 
 ## What Else Matters
 
@@ -56,6 +64,12 @@ we also care about:
 
 - **Cohesion:** whether a module has one clear reason to change. This is partly
   qualitative; size and mixed-domain imports are clues, not proof.
+- **Documentation cohesion:** whether a page has one clear reader goal. A page
+  that mixes operator workflow, plugin author contracts, and framework internals
+  may need to become a short index plus focused child pages.
+- **Documentation coupling:** whether one conceptual change forces edits across
+  many pages. Some coupling is healthy through indexes and canonical model
+  pages; accidental duplication is not.
 - **Security surface:** secret handling, plugin capability enforcement, process
   boundaries, config file trust, and artifact/report rendering.
 - **Operator UX surface:** commands that render tables, mutate state, or launch
@@ -81,3 +95,8 @@ Use the metrics as triage signals:
 - **High churn plus high complexity:** prioritize tests before refactoring.
 - **High security hits:** review redaction, capability checks, path handling,
   subprocess boundaries, and artifact/report rendering before changing shape.
+- **High doc size or headings:** check whether the page still has one reader
+  goal. Split only when the split makes the first useful action easier to find.
+- **High doc link coupling:** check the page as a routing point. Index pages can
+  have high coupling; model or task pages should avoid becoming catch-alls.
+- **High stale-term hits:** fix vocabulary drift before adding more examples.

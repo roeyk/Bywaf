@@ -8,6 +8,8 @@ ID, serial, event, topic, commandlet, and capability, see `TERMINOLOGY.md`.
 For the stable architecture model, see `RUNTIME_MODEL.md`, `EVENT_MODEL.md`,
 `CAPABILITY_MODEL.md`, `SYSTEM_BLOCK_DIAGRAM.pdf`, and
 `SYSTEM_DATAFLOW_DIAGRAM.pdf`.
+For measurable refactoring signals, see `ARCHITECTURE_METRICS.md`; the short
+section below explains how those signals fit into design triage.
 
 ## Document Index
 
@@ -18,6 +20,7 @@ For the stable architecture model, see `RUNTIME_MODEL.md`, `EVENT_MODEL.md`,
 - [At-File Argument Expansion](#at-file-argument-expansion)
 - [Command Input Normalization](#command-input-normalization)
 - [Architecture Metrics And Refactoring Triage](#architecture-metrics-and-refactoring-triage)
+- [Documentation Cohesion](#documentation-cohesion)
 - [Open Design Questions](#open-design-questions)
 
 ## Framework Request IPC
@@ -416,6 +419,32 @@ work we do:
 The goal is a granular view of maintainability: distinguish a large but cohesive
 module from a small module that is over-coupled, under-tested, and
 security-sensitive.
+
+## Documentation Cohesion
+
+Docs have cohesion pressure just like code. A cohesive page has one clear reader
+goal and one dominant level of detail. When a page starts serving multiple
+audiences, mixes operator workflow with framework internals, or repeats the
+same contract in several places, it becomes harder for humans and generated
+agents to follow.
+
+Use these checks when reviewing docs:
+
+- **Reader cohesion:** each page should primarily serve one reader type:
+  operator, plugin author, framework maintainer, packager, or security reviewer.
+- **Task cohesion:** a guide should answer one task path, such as "write a
+  plugin", "test a framework change", or "interpret report output".
+- **Contract locality:** canonical rules should live in one page and be linked
+  elsewhere. For example, plugin testing details belong in
+  `plugin_author/testing-and-guidelines.md`, while project-wide test selection
+  belongs in `TESTING.md`.
+- **Summary before depth:** impatient developers should find the first command
+  or decision point near the top, then follow links for deeper rationale.
+- **Link instead of absorb:** if a design note starts duplicating a stable model
+  page, replace the duplicate text with a short rationale and a link.
+
+The documentation index is the routing layer. Prefer adding or improving links
+there before turning one document into a broad catch-all.
 
 ## Open Design Questions
 
