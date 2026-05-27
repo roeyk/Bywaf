@@ -60,9 +60,51 @@ The current normalized finding payload is intentionally small:
 | `group_key` | Optional plugin-provided grouping key when the plugin knows the semantic grouping better than the generic id hash. |
 | `evidence` | Evidence snippets or references to artifact/event ids. |
 | `sources` | Commandlets, tools, or topics that contributed evidence. |
+| `subjects` | Optional map from payload paths to what each value describes, such as `target.host=host` or `evidence=explanation`. |
 
 Commandlets may emit richer fact payloads. The normalized finding layer keeps a
 stable subset so reporting does not depend on every tool's native schema.
+
+## Subjects
+
+Subjects describe what an output value is about. They are not plugin roles,
+access-control roles, Python types, or display colors. Plugins provide subjects
+so report/render layers can decide how to label, group, or color values without
+each plugin hard-coding terminal presentation.
+
+`candidate_payload(...)` infers common subjects from canonical field names:
+
+```json
+{
+  "target": {"host": "192.0.2.10", "port": 443},
+  "subjects": {
+    "title": "finding.title",
+    "target.host": "host",
+    "target.port": "port",
+    "severity": "severity",
+    "evidence": "evidence"
+  }
+}
+```
+
+Use `subject_value(...)` when the key alone is ambiguous:
+
+```python
+from bywaf.finding import candidate_payload, subject_value
+
+payload = candidate_payload(
+    title="Weak login wording",
+    finding_class="web.auth.weak_login",
+    target={"host": "example.test"},
+    affected=[{"login": subject_value("username", "admin"), "path": "/admin"}],
+    evidence=subject_value("explanation", "Nikto reported weak login wording."),
+)
+```
+
+Starter subjects include `host`, `ip`, `port`, `protocol`, `url`, `path`,
+`username`, `account`, `email`, `service`, `timestamp`, `comment`, `cve`, `cwe`,
+`severity`, `finding.title`, `finding.class`, `finding.status`, `evidence`,
+`explanation`, and `artifact`.
 
 ## Finding Classes
 

@@ -262,6 +262,7 @@ class CapabilityVisitor(ast.NodeVisitor):
                     "recommendation",
                     "identifiers",
                     "source",
+                    "subjects",
                 },
                 code="invalid-candidate-payload-keyword",
                 guidance="Use the exact bywaf.finding.candidate_payload(...) keyword names from the docs.",

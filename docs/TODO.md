@@ -81,20 +81,20 @@ Planning dates are release planning markers, not compatibility commitments.
 ### Item: Semantic Display Roles And Theme Configuration
 
 - Add a structured display/theme configuration model under `display/...` for
-  semantic roles such as timestamp, provider, commandlet, arguments, host,
+  subjects such as timestamp, provider, commandlet, arguments, host,
   port, protocol, event topic, severity, finding status, job, pipeline, and
   step identifiers.
-- Renderers should ask for semantic roles such as `host`,
+- Renderers should ask for subjects such as `host`,
   `severity.high`, or `finding.status.accepted`; they should not hard-code
   terminal colors at each call site.
-- Plugins should emit structured payload fields and optional display-role hints
+- Plugins should emit structured payload fields and optional subject hints
   for non-obvious fields. They should describe what a value means, not choose
   terminal colors directly.
 - Keep the initial theme format simple and terminal-safe, with names like
   `dim`, `red`, `green`, `yellow`, `cyan`, `magenta`, and `bold`, then let
-  richer frontends map the same semantic roles into GUI/web styles.
+  richer frontends map the same subjects into GUI/web styles.
 - Let users configure either portable color/style names or explicit RGB/hex
-  values per semantic role. Terminal renderers should gracefully degrade RGB
+  values per subject. Terminal renderers should gracefully degrade RGB
   values when truecolor is unavailable; GUI/web renderers can use the precise
   values directly.
 - Treat unquoted `#` as the REPL/script comment marker; document quoted hex

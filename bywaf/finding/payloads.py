@@ -16,6 +16,7 @@ from typing import Any
 
 from .grouping import finding_group_key as derived_finding_group_key
 from .grouping import normalized_target_scope
+from .subjects import infer_subjects, merge_subjects
 from .taxonomy import validate_finding_class
 
 
@@ -26,7 +27,7 @@ def candidate_payload(
     target: dict[str, Any],
     severity: str = "info",
     confidence: str = "medium",
-    evidence: str = "",
+    evidence: Any = "",
     recommendation: str = "",
     identifiers: dict[str, list[str]] | None = None,
     source: dict[str, Any] | None = None,
@@ -34,6 +35,7 @@ def candidate_payload(
     target_scope: dict[str, Any] | None = None,
     affected: list[dict[str, Any]] | None = None,
     group_key: str = "",
+    subjects: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Return a normalized finding candidate payload."""
     finding_class = validate_finding_class(finding_class)
@@ -66,6 +68,7 @@ def candidate_payload(
         # exact candidate shape, so the two values intentionally differ.
         payload["group_key"] = derived_finding_group_key(payload, fallback="")
     payload["finding_id"] = stable_finding_id(payload)
+    payload["subjects"] = merge_subjects(infer_subjects(payload), subjects)
     return compact(payload)
 
 

@@ -46,7 +46,7 @@ LLM Guardrails:
 Exact finding helper shape:
 
 ```python
-from bywaf.finding import candidate_payload
+from bywaf.finding import candidate_payload, subject_value
 
 payload = candidate_payload(
     title="Missing Strict Transport Security",
@@ -61,6 +61,12 @@ payload = candidate_payload(
     source={"tool": "my_plugin", "topic": "finding.candidate"},
 )
 ```
+
+Use `subject_value(...)` when an output value's meaning is not obvious from the
+field name. For example, use `subject_value("username", "admin")` for a login
+name, or `subject_value("explanation", text)` for scanner prose that explains a
+vulnerability. Subjects describe what a value is about; reporters map subjects
+to colors and labels.
 
 Use the smallest skeleton that fits:
 

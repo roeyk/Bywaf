@@ -12,17 +12,22 @@ from .payloads import candidate_payload
 from .payloads import missing_http_security_header_candidates
 from .payloads import stable_finding_id
 from .payloads import telnet_open_candidate
+from .subjects import SUBJECTS, infer_subjects, subject_value, validate_subject
 from .taxonomy import STARTER_FINDING_CLASSES, FindingClassInfo, known_finding_class, validate_finding_class
 
 __all__ = [
     "FindingClassInfo",
+    "SUBJECTS",
     "STARTER_FINDING_CLASSES",
     "candidate_payload",
     "finding_group_key",
+    "infer_subjects",
     "known_finding_class",
     "missing_http_security_header_candidates",
     "normalized_target_scope",
     "stable_finding_id",
+    "subject_value",
     "telnet_open_candidate",
+    "validate_subject",
     "validate_finding_class",
 ]

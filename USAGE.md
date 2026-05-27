@@ -1352,8 +1352,8 @@ values such as `rgb:80,180,90`; and background forms such as `bg-ansi:52` and
 `bg-rgb:80,0,0`. Event-list IDs are bright blue; detailed event section headers
 are yellow; history timestamps and help commands are green.
 
-Semantic display roles use `display/style.<role>`. Current terminal rendering
-uses roles such as `host`, `port`, `protocol`, `host.name`, and `comment`.
+Display styles use `display/style.<subject>`. Current terminal rendering
+uses subjects such as `host`, `port`, `protocol`, `host.name`, and `comment`.
 Style values can combine attributes and colors, for example `bold green`,
 `dim color245`, `rgb:80,180,90`, or quoted hex values such as `"#00ff00"`.
 Unquoted `#` starts a REPL/script comment; quote or escape literal hashes.

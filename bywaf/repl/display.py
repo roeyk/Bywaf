@@ -200,9 +200,9 @@ def format_event(event, runner: Runner | None = None) -> str:
 def format_port_open_event(event, runner: Runner | None = None) -> str:
     """Render an open port as operator-facing evidence."""
     payload = event.payload
-    host = semantic_text(runner, "host", payload.get("host", ""))
-    port = semantic_text(runner, "port", payload.get("port", ""))
-    protocol = semantic_text(runner, "protocol", payload.get("protocol", "tcp"))
+    host = subject_text(runner, "host", payload.get("host", ""))
+    port = subject_text(runner, "port", payload.get("port", ""))
+    protocol = subject_text(runner, "protocol", payload.get("protocol", "tcp"))
     service = payload.get("service", "")
     reason = payload.get("reason", "")
     details = " ".join(str(value) for value in (service, reason) if value)
@@ -213,7 +213,7 @@ def format_port_open_event(event, runner: Runner | None = None) -> str:
 def format_host_found_event(event, runner: Runner | None = None) -> str:
     """Render a discovered host as operator-facing evidence."""
     payload = event.payload
-    host = semantic_text(runner, "host", payload.get("host", ""))
+    host = subject_text(runner, "host", payload.get("host", ""))
     name = payload.get("name", "")
     status = payload.get("status", "")
     scanner = payload.get("scanner", "")
@@ -225,12 +225,12 @@ def format_host_found_event(event, runner: Runner | None = None) -> str:
 def format_name_resolved_event(event, runner: Runner | None = None) -> str:
     """Render DNS resolution provenance for scan targets."""
     payload = event.payload
-    name = semantic_text(runner, "host.name", payload.get("name", ""))
+    name = subject_text(runner, "host.name", payload.get("name", ""))
     addresses = payload.get("addresses", ())
     if isinstance(addresses, list | tuple):
-        address_text = ", ".join(semantic_text(runner, "host", address) for address in addresses)
+        address_text = ", ".join(subject_text(runner, "host", address) for address in addresses)
     else:
-        address_text = semantic_text(runner, "host", addresses)
+        address_text = subject_text(runner, "host", addresses)
     return f"{event.id}: name.resolved {name} -> {address_text}".strip()
 
 
@@ -947,14 +947,14 @@ def ansi_color(text: str, color: str) -> str:
     return f"\x1b[{code}m{text}\x1b[0m"
 
 
-def semantic_text(runner: Runner | None, role: str, value: object) -> str:
-    """Render a value using a user-configured semantic display role."""
+def subject_text(runner: Runner | None, subject: str, value: object) -> str:
+    """Render a value using a user-configured display style for its subject."""
     text = str(value)
     if runner is None:
         return text
-    style = runner.registry.varstore.get(f"{DISPLAY_STYLE_PREFIX}{role}", "")
-    if not style and "." in role:
-        style = runner.registry.varstore.get(f"{DISPLAY_STYLE_PREFIX}{role.rsplit('.', 1)[0]}", "")
+    style = runner.registry.varstore.get(f"{DISPLAY_STYLE_PREFIX}{subject}", "")
+    if not style and "." in subject:
+        style = runner.registry.varstore.get(f"{DISPLAY_STYLE_PREFIX}{subject.rsplit('.', 1)[0]}", "")
     if not style:
         return text
     return ansi_color(text, style)

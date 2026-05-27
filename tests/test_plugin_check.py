@@ -207,6 +207,24 @@ class PluginCheckTests(unittest.TestCase):
             self.assertFalse(report["ok"])
             self.assertEqual(report["diagnostics"][0]["code"], "invalid-candidate-payload-keyword")
 
+    def test_check_plugin_accepts_candidate_payload_subjects_keyword(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(
+                Path(tmp),
+                capabilities=(),
+                imports="from bywaf.finding import candidate_payload\n",
+                run_body=(
+                    "        yield candidate_payload("
+                    "title='t', finding_class='web.header.missing_hsts', "
+                    "target={'host': 'example.test'}, subjects={'target.host': 'host'})\n"
+                ),
+            )
+
+            report = check_plugin(plugin_dir)
+
+            diagnostics = [item["code"] for item in report["diagnostics"]]
+            self.assertNotIn("invalid-candidate-payload-keyword", diagnostics)
+
     def test_check_plugin_reports_boolean_option_without_default(self):
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(

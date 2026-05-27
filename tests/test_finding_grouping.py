@@ -4,7 +4,7 @@ import unittest
 
 from bywaf.finding.grouping import finding_group_key, normalized_target_scope
 from bywaf.finding.taxonomy import validate_finding_class
-from bywaf.finding import candidate_payload
+from bywaf.finding import candidate_payload, subject_value
 
 
 class FindingGroupingTests(unittest.TestCase):
@@ -64,6 +64,29 @@ class FindingGroupingTests(unittest.TestCase):
 
         self.assertEqual(payload["target_scope"], {"kind": "web_origin", "value": "https://example.test"})
         self.assertEqual(payload["group_key"], "web.header.missing_hsts|web_origin:https://example.test|cwe:CWE-319")
+        self.assertEqual(payload["subjects"]["title"], "finding.title")
+        self.assertEqual(payload["subjects"]["target.host"], "host")
+        self.assertEqual(payload["subjects"]["target.port"], "port")
+        self.assertEqual(payload["subjects"]["target.path"], "path")
+        self.assertEqual(payload["subjects"]["severity"], "severity")
+        self.assertEqual(payload["subjects"]["evidence"], "evidence")
+
+    def test_candidate_payload_accepts_subject_overrides_and_typed_values(self):
+        payload = candidate_payload(
+            title="Weak login",
+            finding_class="web.auth.weak_login",
+            severity="high",
+            target={"host": "example.test"},
+            evidence=subject_value("explanation", "Nikto reported weak login wording."),
+            affected=[{"login": subject_value("username", "admin"), "path": "/admin"}],
+            subjects={"affected[].login": "username"},
+        )
+
+        self.assertEqual(payload["evidence"]["subject"], "explanation")
+        self.assertEqual(payload["affected"][0]["login"]["subject"], "username")
+        self.assertEqual(payload["subjects"]["evidence"], "explanation")
+        self.assertEqual(payload["subjects"]["affected[].login"], "username")
+        self.assertEqual(payload["subjects"]["affected[].path"], "path")
 
     def test_normalized_target_scope_supports_host_port(self):
         scope = normalized_target_scope(
