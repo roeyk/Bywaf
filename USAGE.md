@@ -415,11 +415,10 @@ artifacts.
 Interactive shells use `prompt_toolkit` when a real terminal is available.
 `Ctrl-Space` enters completion-selection mode by opening the menu and selecting
 the first candidate. Then arrow keys move through candidates, `Enter` selects
-the highlighted completion, and `Esc` returns to the command line. A bottom
-toolbar shows that hint while a completion menu is open. The selection-mode key
-is configurable with `set completion.select-key=<key>` using prompt-toolkit key
-names, because some desktop environments or terminal stacks reserve
-`Ctrl-Space`. `set completion.wasd-selection=true` enables optional
+the highlighted completion, and `Esc` returns to the command line. The
+selection-mode key is configurable with `set completion.select-key=<key>` using
+prompt-toolkit key names, because some desktop environments or terminal stacks
+reserve `Ctrl-Space`. `set completion.wasd-selection=true` enables optional
 WASD-style menu navigation (`w`/`a` move backward, `s`/`d` move forward,
 following prompt-toolkit's flat completion order), but it is off by default so
 ordinary typing is not intercepted. Minimal
@@ -1145,7 +1144,7 @@ bywaf> pipeline host=192.168.50.163
 bywaf> job sort=started
 bywaf> job sort=-started
 bywaf> pipeline sort=events
-bywaf> step sort=source
+bywaf> step sort=started
 ```
 
 Runtime view commands use selector syntax for sorting, not flags. Supported
@@ -1931,14 +1930,14 @@ shows total, accepted, deferred, rejected, and unreviewed counts; the default
 view renders only the unreviewed groups that still need triage. After the
 compact summary table, use `report <#>` or `report detail <#>` to show affected
 resources, evidence snippets, sources, related artifacts, event/pipeline/step
-provenance, and the latest update timestamp. Reports page by default; use
-`page=false` to print inline.
+provenance, and the latest update timestamp. Reports print inline by default;
+use `page=true` when you explicitly want a pager.
 
 ```text
 bywaf> report
 bywaf> report 1
 bywaf> report detail 1-3
-bywaf> report page=false
+bywaf> report page=true
 bywaf> report pipeline=1,2,3
 bywaf> report job=7
 bywaf> report step=12

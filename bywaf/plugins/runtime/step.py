@@ -13,9 +13,9 @@ from __future__ import annotations
 from argparse import Namespace
 from collections.abc import Iterable
 
-from bywaf.event_filters import any_event_matches_payload_filters
 from bywaf.events import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
+from bywaf.plugins.runtime.view_common import filter_runtime_rows_by_events, view_selector_candidates
 from bywaf.runtime_display import (
     command_context_style_getter,
     format_runtime_duration,
@@ -23,7 +23,6 @@ from bywaf.runtime_display import (
     parse_runtime_list_selectors,
     render_table,
     runtime_sort_note,
-    runtime_sort_completion_candidates,
     runtime_sort_key,
     runtime_sort_reverse,
     runtime_state_label,
@@ -31,7 +30,7 @@ from bywaf.runtime_display import (
     terminal_table_width,
 )
 
-STEP_SORT_KEYS = ("id", "serial", "state", "pipeline", "source", "events", "first")
+STEP_SORT_KEYS = ("id", "serial", "state", "pipeline", "source", "events", "started")
 
 
 @commandlet(
@@ -74,7 +73,8 @@ class Step(CommandletBase):
         if not args:
             return candidates
         if args and args[-1].startswith("sort="):
-            return runtime_sort_completion_candidates(args[-1], STEP_SORT_KEYS)
+            return view_selector_candidates(args[-1], STEP_SORT_KEYS)
+        candidates.extend(view_selector_candidates(prefix, STEP_SORT_KEYS))
         return [candidate for candidate in candidates if candidate.startswith(prefix)]
 
 
@@ -100,14 +100,7 @@ def print_steps(
     rows = runtime.runs(active_only=active_only)
     if filters:
         events = context.event_store("step")
-        rows = [
-            row
-            for row in rows
-            if any_event_matches_payload_filters(
-                events.events_matching(command_run_id=str(row["command_run_id"]), limit=10000),
-                filters,
-            )
-        ]
+        rows = filter_runtime_rows_by_events(events, "step", rows, filters)
     if sort_key:
         rows = sort_step_rows(rows, sort_key)
     if not rows:
@@ -161,7 +154,7 @@ def sort_step_rows(rows: list[dict], sort_key: str) -> list[dict]:
         "pipeline": lambda row: str(row["pipeline_id"] or ""),
         "source": lambda row: str(row["source"] or ""),
         "events": lambda row: int(row["events"]),
-        "first": lambda row: str(row["first_event"] or ""),
+        "started": lambda row: str(row["first_event"] or ""),
     }
     return sorted(rows, key=sorters[display_key], reverse=runtime_sort_reverse(sort_key))
 

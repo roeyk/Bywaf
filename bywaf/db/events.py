@@ -18,6 +18,7 @@ from typing import Any, cast
 from .backends import DatabaseConnection
 from .support import artifact_count_queries, resolve_serial_match
 from ..events import Event
+from ..event_filters import event_matches_payload_filters
 from ..subscriptions import Subscription
 
 
@@ -239,6 +240,95 @@ class EventStoreEventMixin:
                 (job_id, job_id, limit),
             )
             return [Event.from_row(row) for row in rows]
+
+    def job_ids_matching_payload_filters(self, filters: dict[str, str], *, limit: int = 100000) -> set[int]:
+        """Return job ids whose associated events match payload filters.
+
+        Runtime list filters need to answer "which jobs produced events matching
+        host=...?" Doing that by querying every job separately scales poorly on
+        real project databases, so this scans the event/job association once
+        and then lets the caller filter its already-loaded job rows by id.
+        """
+        if not filters:
+            return set()
+        matched: set[int] = set()
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT DISTINCT command_run_vars.job_id AS matched_job_id,
+                                events.*
+                FROM events
+                JOIN command_run_vars
+                  ON command_run_vars.command_run_id = events.command_run_id
+                  OR command_run_vars.pipeline_id = events.pipeline_id
+                WHERE command_run_vars.job_id IS NOT NULL
+                ORDER BY events.id DESC
+                LIMIT ?
+                """,
+                (limit,),
+            )
+            for row in rows:
+                if event_matches_payload_filters(Event.from_row(row), filters):
+                    matched.add(int(row["matched_job_id"]))
+            payload_rows = conn.execute(
+                """
+                SELECT json_extract(payload_json, '$.job_id') AS matched_job_id,
+                       events.*
+                FROM events
+                WHERE json_extract(payload_json, '$.job_id') IS NOT NULL
+                ORDER BY events.id DESC
+                LIMIT ?
+                """,
+                (limit,),
+            )
+            for row in payload_rows:
+                if event_matches_payload_filters(Event.from_row(row), filters):
+                    matched.add(int(row["matched_job_id"]))
+        return matched
+
+    def pipeline_ids_matching_payload_filters(self, filters: dict[str, str], *, limit: int = 100000) -> set[str]:
+        """Return pipeline serials whose events match payload filters."""
+        if not filters:
+            return set()
+        matched: set[str] = set()
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT *
+                FROM events
+                WHERE pipeline_id IS NOT NULL
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (limit,),
+            )
+            for row in rows:
+                event = Event.from_row(row)
+                if event.pipeline_id and event_matches_payload_filters(event, filters):
+                    matched.add(event.pipeline_id)
+        return matched
+
+    def run_ids_matching_payload_filters(self, filters: dict[str, str], *, limit: int = 100000) -> set[str]:
+        """Return command-run serials whose events match payload filters."""
+        if not filters:
+            return set()
+        matched: set[str] = set()
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT *
+                FROM events
+                WHERE command_run_id IS NOT NULL
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (limit,),
+            )
+            for row in rows:
+                event = Event.from_row(row)
+                if event.command_run_id and event_matches_payload_filters(event, filters):
+                    matched.add(event.command_run_id)
+        return matched
 
     def events_for_serial(self, serial: str, *, limit: int = 1000) -> list[Event]:
         """Return events associated with a durable audit serial or unique prefix."""

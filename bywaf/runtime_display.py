@@ -22,6 +22,16 @@ from .time_format import format_compact_runtime_timestamp, format_duration_betwe
 ACTIVE_LISTING_FORMAT_VAR = "listing.active-format"
 DEFAULT_ACTIVE_LISTING_FORMAT = "short"
 SORT_SELECTOR = "sort"
+RUNTIME_FILTER_COMPLETIONS = (
+    "host=",
+    "port=",
+    "protocol=",
+    "service=",
+    "state=",
+    "status=",
+    "source=",
+    "topic=",
+)
 
 
 def normalize_active_listing_format(value: str | None) -> str:
@@ -155,6 +165,14 @@ def runtime_sort_completion_candidates(prefix: str, allowed_sort_keys: Sequence[
     """Return ascending and descending `sort=` completion candidates."""
     candidates = [f"sort={key}" for key in allowed_sort_keys]
     candidates.extend(f"sort=-{key}" for key in allowed_sort_keys)
+    return [candidate for candidate in candidates if candidate.startswith(prefix)]
+
+
+def runtime_view_completion_candidates(prefix: str, allowed_sort_keys: Sequence[str]) -> list[str]:
+    """Return common runtime view selector completion candidates."""
+    candidates = [*RUNTIME_FILTER_COMPLETIONS, "sort="]
+    if prefix.startswith("sort="):
+        candidates = runtime_sort_completion_candidates(prefix, allowed_sort_keys)
     return [candidate for candidate in candidates if candidate.startswith(prefix)]
 
 

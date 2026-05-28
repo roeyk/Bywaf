@@ -1950,15 +1950,52 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "job sort=started")
                 dispatch_repl_line(runner, "job sort=-started")
                 dispatch_repl_line(runner, "pipeline sort=events")
-                dispatch_repl_line(runner, "step sort=source")
+                dispatch_repl_line(runner, "step sort=started")
                 dispatch_repl_line(runner, "pipeline --sort=events")
 
             text = output.getvalue()
             self.assertIn("sorted by started ascending (use sort=-started to sort descending)", text)
             self.assertIn("sorted by started descending (use sort=started to sort ascending)", text)
             self.assertIn("sorted by events ascending (use sort=-events to sort descending)", text)
-            self.assertIn("sorted by source ascending (use sort=-source to sort descending)", text)
+            self.assertIn("sorted by started ascending (use sort=-started to sort descending)", text)
             self.assertIn("error: pipeline uses selector syntax; use sort=<key>, not --sort=events", text)
+
+    def test_runtime_view_filters_share_event_matching(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            first_job = runner.db.record_job("portscanner host=192.0.2.10", 123, "finished")
+            second_job = runner.db.record_job("portscanner host=192.0.2.20", 123, "finished")
+            for job_id, pipeline_id, run_id, host in (
+                (first_job, "pipe-1", "run-1", "192.0.2.10"),
+                (second_job, "pipe-2", "run-2", "192.0.2.20"),
+            ):
+                runner.db.record_command_run_vars(
+                    job_id=job_id,
+                    pipeline_id=pipeline_id,
+                    command_run_id=run_id,
+                    commandlet="portscanner",
+                    values={},
+                )
+                runner.db.publish(
+                    "port.open",
+                    {"host": host, "port": 80, "protocol": "tcp"},
+                    "portscanner",
+                    pipeline_id=pipeline_id,
+                    command_run_id=run_id,
+                )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "job host=192.0.2.20")
+                dispatch_repl_line(runner, "pipeline host=192.0.2.20")
+                dispatch_repl_line(runner, "step host=192.0.2.20")
+
+            text = output.getvalue()
+            self.assertIn("portscanner host=192.0.2.20", text)
+            self.assertIn("PIPELINE", text)
+            self.assertIn("STEP", text)
+            self.assertIn("2", text)
+            self.assertNotIn("portscanner host=192.0.2.10", text)
 
     def test_db_new_resets_repl_framework_request_cursor(self):
         with tempfile.TemporaryDirectory() as tmp:

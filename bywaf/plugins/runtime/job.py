@@ -15,8 +15,8 @@ from argparse import Namespace
 from collections.abc import Callable, Iterable
 
 from bywaf.events import Event
-from bywaf.event_filters import any_event_matches_payload_filters
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
+from bywaf.plugins.runtime.view_common import filter_runtime_rows_by_events, view_selector_candidates
 from bywaf.runtime_display import (
     args_from_command_line,
     command_context_style_getter,
@@ -28,7 +28,6 @@ from bywaf.runtime_display import (
     parse_runtime_list_selectors,
     render_table,
     runtime_sort_note,
-    runtime_sort_completion_candidates,
     runtime_sort_key,
     runtime_sort_reverse,
     runtime_state_label,
@@ -87,9 +86,10 @@ class Job(CommandletBase):
         if len(args) == 1 and args[0] in JOB_ACTIONS:
             return job_ids(context)
         if args and args[-1].startswith("sort="):
-            return runtime_sort_completion_candidates(args[-1], JOB_SORT_KEYS)
+            return view_selector_candidates(args[-1], JOB_SORT_KEYS)
         if len(args) == 1:
             candidates = ["--all", "--page", "sort=", *job_ids(context), *JOB_ACTIONS]
+            candidates.extend(view_selector_candidates(prefix, JOB_SORT_KEYS))
             return [candidate for candidate in candidates if candidate.startswith(prefix)]
         if len(args) >= 2 and args[0] in JOB_ACTIONS:
             return job_ids(context)
@@ -182,11 +182,7 @@ def print_jobs(
     rows = runtime.jobs(active_only=active_only)
     if filters:
         events = context.event_store("job list")
-        rows = [
-            row
-            for row in rows
-            if any_event_matches_payload_filters(events.events_for_job(row["id"], limit=10000), filters)
-        ]
+        rows = filter_runtime_rows_by_events(events, "job", rows, filters)
     if sort_key:
         rows = sort_job_rows(rows, sort_key)
     if not rows:

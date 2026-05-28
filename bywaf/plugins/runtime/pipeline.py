@@ -13,7 +13,6 @@ import shlex
 from argparse import Namespace
 from collections.abc import Callable, Iterable
 
-from bywaf.event_filters import any_event_matches_payload_filters
 from bywaf.events import Event
 from bywaf.plugin import (
     CommandContext,
@@ -25,6 +24,7 @@ from bywaf.plugin import (
     commandlet,
 )
 from bywaf.plugins.runtime.job import cancel_job, kill_job
+from bywaf.plugins.runtime.view_common import filter_runtime_rows_by_events, view_selector_candidates
 from bywaf.runtime_display import (
     command_context_style_getter,
     display_runtime_serial,
@@ -33,7 +33,6 @@ from bywaf.runtime_display import (
     parse_runtime_list_selectors,
     render_table,
     runtime_sort_note,
-    runtime_sort_completion_candidates,
     runtime_sort_key,
     runtime_sort_reverse,
     runtime_state_label,
@@ -45,7 +44,7 @@ from bywaf.style import styled_subject_text
 
 PIPELINE_ACTIONS = ("attach", "cancel", "end", "kill")
 REMOVED_PIPELINE_ACTIONS = {"list", "show"}
-PIPELINE_SORT_KEYS = ("id", "serial", "state", "job", "status", "steps", "events", "first")
+PIPELINE_SORT_KEYS = ("id", "serial", "state", "job", "status", "steps", "events", "started")
 PipelineActionHandler = Callable[[CommandContext, Namespace], None]
 
 
@@ -107,9 +106,10 @@ class Pipeline(CommandletBase):
         if len(args) == 1 and args[0] in {"cancel", "end", "kill"}:
             return pipeline_ids(context)
         if args and args[-1].startswith("sort="):
-            return runtime_sort_completion_candidates(args[-1], PIPELINE_SORT_KEYS)
+            return view_selector_candidates(args[-1], PIPELINE_SORT_KEYS)
         if len(args) == 1:
             candidates = ["--all", "--page", "sort=", *pipeline_ids(context), *PIPELINE_ACTIONS]
+            candidates.extend(view_selector_candidates(prefix, PIPELINE_SORT_KEYS))
             return [candidate for candidate in candidates if candidate.startswith(prefix)]
         if args and args[0] == "attach":
             return attach_candidates(context, args, prefix)
@@ -204,14 +204,7 @@ def print_pipelines(
     rows = runtime.pipelines(active_only=active_only)
     if filters:
         events = context.event_store("pipeline list")
-        rows = [
-            row
-            for row in rows
-            if any_event_matches_payload_filters(
-                events.events_matching(pipeline_id=str(row["pipeline_id"]), limit=10000),
-                filters,
-            )
-        ]
+        rows = filter_runtime_rows_by_events(events, "pipeline", rows, filters)
     if sort_key:
         rows = sort_pipeline_rows(rows, sort_key)
     if not rows:
@@ -267,7 +260,7 @@ def sort_pipeline_rows(rows: list[dict], sort_key: str) -> list[dict]:
         "status": lambda row: str(row["job_statuses"] or "unknown"),
         "steps": lambda row: int(row["runs"]),
         "events": lambda row: int(row["events"]),
-        "first": lambda row: str(row["first_seen"] or ""),
+        "started": lambda row: str(row["first_seen"] or ""),
     }
     return sorted(rows, key=sorters[display_key], reverse=runtime_sort_reverse(sort_key))
 

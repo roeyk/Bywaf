@@ -209,9 +209,8 @@ def build_prompt_session(completer: Completer):
     """Create a prompt-toolkit session with Bywaf completion behavior.
 
     The REPL uses this when prompt-toolkit is installed.  The session wires
-    together completion, secret-input masking, the bottom toolbar, and custom
-    keybindings so the shell can offer a richer UI without changing commandlet
-    parsing semantics.
+    together completion, secret-input masking, and custom keybindings so the
+    shell can offer a richer UI without changing commandlet parsing semantics.
     """
     if not prompt_toolkit_available():
         return None
@@ -231,7 +230,6 @@ def build_prompt_session(completer: Completer):
         complete_while_typing=False,
         complete_style=CompleteStyle.MULTI_COLUMN,
         reserve_space_for_menu=8,
-        bottom_toolbar=lambda: secret_input_bottom_toolbar(secret_state),
         key_bindings=key_bindings,
         **{key: value for key, value in session_kwargs.items() if value is not None},
     )

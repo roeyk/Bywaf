@@ -16,6 +16,8 @@ from datetime import datetime, timezone
 from .backends import DatabaseConnection
 from .support import ACTIVE_JOB_STATUSES, resolve_serial_match
 
+RUN_ASSOCIATION_NAME = "__bywaf.run"
+
 
 class EventStoreRuntimeMixin:
     @contextmanager
@@ -93,6 +95,13 @@ class EventStoreRuntimeMixin:
         processes a stable snapshot to reconstruct from.
         """
         now = datetime.now(timezone.utc).isoformat()
+        rows = [
+            (job_id, pipeline_id, command_run_id, commandlet, RUN_ASSOCIATION_NAME, "", "association", now),
+            *(
+                (job_id, pipeline_id, command_run_id, commandlet, name, value, source, now)
+                for name, value in sorted(values.items())
+            ),
+        ]
         with self.connect() as conn:
             conn.executemany(
                 """
@@ -108,10 +117,7 @@ class EventStoreRuntimeMixin:
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                [
-                    (job_id, pipeline_id, command_run_id, commandlet, name, value, source, now)
-                    for name, value in sorted(values.items())
-                ],
+                rows,
             )
         self.ensure_runtime_entity("pipeline", pipeline_id, now)
         self.ensure_runtime_entity("run", command_run_id, now)
@@ -124,9 +130,10 @@ class EventStoreRuntimeMixin:
                 SELECT name, value
                 FROM command_run_vars
                 WHERE command_run_id = ?
+                  AND name != ?
                 ORDER BY name
                 """,
-                (command_run_id,),
+                (command_run_id, RUN_ASSOCIATION_NAME),
             )
             return {row["name"]: row["value"] for row in rows}
 
@@ -139,9 +146,10 @@ class EventStoreRuntimeMixin:
                     SELECT *
                     FROM command_run_vars
                     WHERE command_run_id = ?
+                      AND name != ?
                     ORDER BY name
                     """,
-                    (command_run_id,),
+                    (command_run_id, RUN_ASSOCIATION_NAME),
                 )
             )
     def runs(self, *, active_only: bool = False) -> list[sqlite3.Row]:

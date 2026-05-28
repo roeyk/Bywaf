@@ -372,7 +372,7 @@ class ReportTests(unittest.TestCase):
             self.assertIn(f"Provenance: events={first.id},{second.id}; pipeline=pipeline-a; step=run-a,run-b", text)
             self.assertIn("Latest update:", text)
 
-    def test_report_pages_by_default_and_can_print_inline(self):
+    def test_report_prints_inline_by_default_and_can_page(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.publish(
@@ -391,14 +391,14 @@ class ReportTests(unittest.TestCase):
             with contextlib.redirect_stdout(io.StringIO()):
                 runner.execute("report pipeline=pipeline-a")
                 process_framework_requests(runner, ShellState())
-            self.assertEqual(len(runner.db.events_for_topic("framework.file.page.requested")), 1)
+            self.assertEqual(runner.db.events_for_topic("framework.file.page.requested"), [])
 
-            runner = make_runner(Path(tmp, "bywaf-inline.sqlite3"))
+            runner = make_runner(Path(tmp, "bywaf-page.sqlite3"))
             runner.db.publish(
                 "finding.candidate",
                 {
                     "finding_id": "candidate-1",
-                    "title": "Inline finding",
+                    "title": "Paged finding",
                     "target": {"host": "example.test"},
                     "severity": "medium",
                 },
@@ -407,9 +407,9 @@ class ReportTests(unittest.TestCase):
                 command_run_id="run-a",
             )
             with contextlib.redirect_stdout(io.StringIO()):
-                runner.execute("report pipeline=pipeline-a page=false")
+                runner.execute("report pipeline=pipeline-a page=true")
                 process_framework_requests(runner, ShellState())
-            self.assertEqual(runner.db.events_for_topic("framework.file.page.requested"), [])
+            self.assertEqual(len(runner.db.events_for_topic("framework.file.page.requested")), 1)
 
     def test_report_review_marker_matches_raw_finding_id_inside_group_key_group(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -97,7 +97,7 @@ class Report(CommandletBase):
         parser.add_argument("--step", default="", help="step id or comma-separated step ids")
         parser.add_argument("--limit", type=int, default=1000)
         parser.add_argument("--note", default="")
-        parser.add_argument("--page", choices=("true", "false"), default="true")
+        parser.add_argument("--page", choices=("true", "false"), default="false")
         parser.add_argument("--status", choices=REPORT_STATUS_CHOICES, default="unreviewed")
         parsed = parser.parse_args(normalize_report_args(args))
         normalize_report_action(parsed)
