@@ -175,10 +175,26 @@ def show_pipeline_action(context: CommandContext, parsed: Namespace) -> None:
             alias=alias,
             style_getter=style_getter,
         ),
+        format_pipeline_inspection_hints(context, str(row["pipeline_id"])),
         format_pipeline_jobs(context, str(row["pipeline_id"])),
         format_pipeline_steps(context, str(row["pipeline_id"])),
     ]
     context.output("\n\n".join(section for section in sections if section))
+
+
+def format_pipeline_inspection_hints(context: CommandContext, pipeline_id: str) -> str:
+    """Show the follow-up commands that inspect this pipeline's linked work."""
+    runtime = context.runtime_store("pipeline show inspect")
+    jobs = runtime.jobs_for_pipeline(pipeline_id)
+    runs = [row for row in runtime.runs(active_only=False) if str(row["pipeline_id"]) == pipeline_id]
+    run_aliases = runtime.run_aliases()
+    commands: list[str] = []
+    commands.extend(f"job {row['id']}" for row in jobs)
+    for row in sorted(runs, key=lambda run: str(run["first_event"] or "")):
+        step_id = run_aliases.get(str(row["command_run_id"]), str(row["command_run_id"]))
+        commands.append(f"step {step_id}")
+        commands.append(f"event step={step_id}")
+    return "Inspect: " + "; ".join(commands) if commands else ""
 
 
 def format_pipeline_jobs(context: CommandContext, pipeline_id: str) -> str:

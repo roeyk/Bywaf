@@ -80,7 +80,7 @@ class EventStoreJobMixin:
             conn.execute("UPDATE jobs SET status = ? WHERE id = ?", (status, job_id))
 
     def jobs(self, *, active_only: bool = False) -> list[sqlite3.Row]:
-        """Return known jobs with newest jobs first."""
+        """Return known jobs in chronological order."""
         self.ensure_job_serials()
         with self.connect() as conn:
             return list(
@@ -89,7 +89,7 @@ class EventStoreJobMixin:
                     SELECT *
                     FROM jobs
                     WHERE ? = 0 OR status IN (?, ?, ?, ?, ?, ?)
-                    ORDER BY id DESC
+                    ORDER BY id ASC
                     """,
                     (1 if active_only else 0, *ACTIVE_JOB_STATUSES),
                 )

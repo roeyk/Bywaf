@@ -1806,8 +1806,38 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("pipeline=1", text)
             self.assertIn("Jobs", text)
             self.assertIn("Steps", text)
+            self.assertIn("Inspect: job 1; step 1; event step=1", text)
             self.assertIn("network/portscanner host=192.0.", text)
             self.assertRegex(text, r"\n1\s+completed/finished\s+network/portscanner\s+")
+
+    def test_runtime_views_default_to_chronological_order(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            first_job = runner.db.record_job("first", 123, "finished")
+            second_job = runner.db.record_job("second", 123, "finished")
+            for job_id, pipeline_id, run_id in (
+                (first_job, "pipeline-a", "run-a"),
+                (second_job, "pipeline-b", "run-b"),
+            ):
+                runner.db.record_command_run_vars(
+                    job_id=job_id,
+                    pipeline_id=pipeline_id,
+                    command_run_id=run_id,
+                    commandlet="hostscanner",
+                    values={"test.marker": str(job_id)},
+                )
+                runner.db.publish("host.found", {"host": f"192.0.2.{job_id}"}, "hostscanner", pipeline_id=pipeline_id, command_run_id=run_id)
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "job")
+                dispatch_repl_line(runner, "pipeline")
+                dispatch_repl_line(runner, "step")
+
+            text = output.getvalue()
+            self.assertLess(text.index("first"), text.index("second"))
+            self.assertLess(text.index("\n1         completed/finished"), text.index("\n2         completed/finished"))
+            self.assertLess(text.index("\n1     completed/finished"), text.index("\n2     completed/finished"))
 
     def test_job_show_accepts_durable_serial_selector(self):
         with tempfile.TemporaryDirectory() as tmp:

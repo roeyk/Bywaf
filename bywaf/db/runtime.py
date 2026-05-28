@@ -183,7 +183,7 @@ class EventStoreRuntimeMixin:
                     WHERE events.command_run_id IS NOT NULL
                     GROUP BY events.command_run_id, events.pipeline_id
                     HAVING ? = 0 OR active_jobs > 0
-                    ORDER BY MAX(events.id) DESC
+                    ORDER BY MIN(events.id) ASC
                     """,
                     (*ACTIVE_JOB_STATUSES, 1 if active_only else 0),
                 )
@@ -222,7 +222,7 @@ class EventStoreRuntimeMixin:
                       ON events.pipeline_id = known_pipelines.pipeline_id
                     GROUP BY known_pipelines.pipeline_id
                     HAVING ? = 0 OR active_jobs > 0
-                    ORDER BY last_seen DESC
+                    ORDER BY first_seen ASC
                     """,
                     (*ACTIVE_JOB_STATUSES, 1 if active_only else 0),
                 )
