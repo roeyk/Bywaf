@@ -2098,10 +2098,10 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, f"job {job_id}")
 
             text = output.getvalue()
-            self.assertIn("commandlet: network/portscanner", text)
+            self.assertIn("command line: network/portscanner host=192.0.2.10 ports=80,443", text)
             self.assertNotIn(" command=", text)
             self.assertNotIn("command:", text)
-            self.assertIn("args: network/portscanner host=192.0.2.10 ports=80,443", text)
+            self.assertNotIn("args:", text)
             self.assertIn("'arguments=\"-Pn -sT\"'", text)
 
     def test_pipeline_show_includes_attached_jobs_and_steps(self):
@@ -2181,10 +2181,10 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, f"job serial={serial}")
 
             self.assertIn(f"serial: {serial.split('-', 1)[1][:8]}", direct_output.getvalue())
-            self.assertIn("commandlet: hostscanner", direct_output.getvalue())
-            self.assertIn("args: hostscanner 127.0.0.1", direct_output.getvalue())
-            self.assertIn("commandlet: hostscanner", selector_output.getvalue())
-            self.assertIn("args: hostscanner 127.0.0.1", selector_output.getvalue())
+            self.assertIn("command line: hostscanner 127.0.0.1", direct_output.getvalue())
+            self.assertNotIn("args:", direct_output.getvalue())
+            self.assertIn("command line: hostscanner 127.0.0.1", selector_output.getvalue())
+            self.assertNotIn("args:", selector_output.getvalue())
 
     def test_job_show_numeric_serial_prefix_falls_back_after_missing_local_id(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -2198,7 +2198,7 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "job 41864964")
 
             self.assertIn("serial: 41864964", output.getvalue())
-            self.assertIn("commandlet: hostscanner", output.getvalue())
+            self.assertIn("command line: hostscanner 127.0.0.1", output.getvalue())
 
     def test_event_job_selector_accepts_durable_serial(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -2294,7 +2294,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("artifact list topic=port.open", text.split("Job summary", 1)[0])
             self.assertIn("report accept all note=confirmed", text)
             self.assertIn("artifact attach file=evidence", text)
-            self.assertIn("args: report status=all", text)
+            self.assertIn("command line: report status=all", text)
 
     def test_jobs_all_marks_active_state(self):
         with tempfile.TemporaryDirectory() as tmp:

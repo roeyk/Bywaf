@@ -288,8 +288,7 @@ def format_job(
         f"  launched: {format_runtime_timestamp(row['started_at'])}",
         f"  finished: {format_runtime_timestamp(row['finished_at'])}",
         f"  duration: {format_runtime_duration(row['started_at'], row['finished_at'])}",
-        f"  commandlet: {commandlet}",
-        f"  args: {displayed_command}",
+        f"  command line: {displayed_command}",
     ]
     if display_name:
         lines.insert(3, f"  name: {display_name}")
