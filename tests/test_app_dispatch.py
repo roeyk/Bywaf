@@ -1779,6 +1779,36 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("args=host=192.0.2.10 ports=80,443", text)
             self.assertIn("'arguments=\"-Pn -sT\"'", text)
 
+    def test_pipeline_show_includes_attached_jobs_and_steps(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("network/portscanner host=192.0.2.10 ports=80,443", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=job_id,
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+                commandlet="network/portscanner",
+                values={"network/portscanner.host": "192.0.2.10"},
+            )
+            runner.db.publish(
+                "port.open",
+                {"host": "192.0.2.10", "port": 80, "protocol": "tcp"},
+                "network/portscanner",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "pipeline 1")
+
+            text = output.getvalue()
+            self.assertIn("pipeline=1", text)
+            self.assertIn("Jobs", text)
+            self.assertIn("Steps", text)
+            self.assertIn("network/portscanner host=192.0.", text)
+            self.assertRegex(text, r"\n1\s+completed/finished\s+network/portscanner\s+")
+
     def test_job_show_accepts_durable_serial_selector(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

@@ -23,7 +23,7 @@ from bywaf.plugin import (
     argument,
     commandlet,
 )
-from bywaf.plugins.runtime.job import cancel_job, kill_job
+from bywaf.plugins.runtime.job import cancel_job, format_job_command, kill_job
 from bywaf.plugins.runtime.view_common import filter_runtime_rows_by_events, view_selector_candidates
 from bywaf.runtime_display import (
     command_context_style_getter,
@@ -167,13 +167,80 @@ def show_pipeline_action(context: CommandContext, parsed: Namespace) -> None:
     runtime = context.runtime_store("pipeline show")
     display_name = runtime.runtime_names().get(("pipeline", str(row["pipeline_id"])))
     alias = runtime.pipeline_aliases().get(str(row["pipeline_id"]))
-    context.output(
+    style_getter = command_context_style_getter(context)
+    sections = [
         format_pipeline(
             row,
             display_name=display_name,
             alias=alias,
-            style_getter=command_context_style_getter(context),
+            style_getter=style_getter,
+        ),
+        format_pipeline_jobs(context, str(row["pipeline_id"])),
+        format_pipeline_steps(context, str(row["pipeline_id"])),
+    ]
+    context.output("\n\n".join(section for section in sections if section))
+
+
+def format_pipeline_jobs(context: CommandContext, pipeline_id: str) -> str:
+    """Render jobs attached to a pipeline for `pipeline <id>` detail output."""
+    runtime = context.runtime_store("pipeline show jobs")
+    rows = runtime.jobs_for_pipeline(pipeline_id)
+    if not rows:
+        return "Jobs: none"
+    names = runtime.runtime_names()
+    artifact_counts = runtime.artifact_counts_by_job()
+    table_rows = [
+        (
+            row["id"],
+            runtime_status_summary(row["status"]),
+            format_runtime_timestamp(row["started_at"]),
+            format_runtime_duration(row["started_at"], row["finished_at"]),
+            artifact_counts.get(str(row["id"]), 0),
+            names.get(("job", str(row["id"])), ""),
+            format_job_command(str(row["command_line"])),
         )
+        for row in rows
+    ]
+    return "Jobs\n" + render_table(
+        ("JOB", "STATUS", "STARTED", "DUR", "ART", "NAME", "COMMAND"),
+        table_rows,
+        cell_subjects=("job", "", "timestamp", "timestamp", "", "", ""),
+        active_column_indexes=(1,),
+        style_getter=command_context_style_getter(context),
+        max_width=terminal_table_width(),
+    )
+
+
+def format_pipeline_steps(context: CommandContext, pipeline_id: str) -> str:
+    """Render steps attached to a pipeline for `pipeline <id>` detail output."""
+    runtime = context.runtime_store("pipeline show steps")
+    rows = [row for row in runtime.runs(active_only=False) if str(row["pipeline_id"]) == pipeline_id]
+    if not rows:
+        return "Steps: none"
+    rows = sorted(rows, key=lambda row: str(row["first_event"] or ""))
+    names = runtime.runtime_names()
+    run_aliases = runtime.run_aliases()
+    artifact_counts = runtime.artifact_counts_by_run()
+    table_rows = [
+        (
+            run_aliases.get(str(row["command_run_id"]), row["command_run_id"]),
+            runtime_status_summary(row["job_statuses"]),
+            row["source"],
+            row["events"],
+            artifact_counts.get(str(row["command_run_id"]), 0),
+            format_runtime_timestamp(row["first_event"]),
+            format_runtime_duration(row["first_event"], row["last_event"]),
+            names.get(("run", str(row["command_run_id"])), ""),
+        )
+        for row in rows
+    ]
+    return "Steps\n" + render_table(
+        ("STEP", "STATUS", "SOURCE", "EVENTS", "ART", "STARTED", "DUR", "NAME"),
+        table_rows,
+        cell_subjects=("step", "", "", "", "", "timestamp", "timestamp", ""),
+        active_column_indexes=(1,),
+        style_getter=command_context_style_getter(context),
+        max_width=terminal_table_width(),
     )
 
 
