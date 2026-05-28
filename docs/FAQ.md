@@ -564,6 +564,7 @@ bywaf> job host=192.168.50.163
 bywaf> pipeline host=192.168.50.163
 bywaf> step host=192.168.50.163
 bywaf> pipeline sort=events
+bywaf> pipeline sort=-events
 bywaf> event step=7
 bywaf> event serial=<durable-serial>
 ```
@@ -576,7 +577,8 @@ change the row order.
 Runtime list commands use the same payload-style filters and show jobs,
 pipelines, or steps that have at least one associated matching event. Runtime
 tables also accept command-specific `sort=` selectors such as
-`pipeline sort=events`; `--sort=...` is not accepted.
+`pipeline sort=events`; add a leading `-` for descending order, for example
+`pipeline sort=-events`. `--sort=...` is not accepted.
 
 ## How do I force IPv4 or IPv6 when a command resolves a DNS name?
 

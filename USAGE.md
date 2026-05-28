@@ -1143,13 +1143,16 @@ bywaf> step host=192.168.50.163
 bywaf> job host=192.168.50.163
 bywaf> pipeline host=192.168.50.163
 bywaf> job sort=started
+bywaf> job sort=-started
 bywaf> pipeline sort=events
 bywaf> step sort=source
 ```
 
 Runtime view commands use selector syntax for sorting, not flags. Supported
-runtime sort keys are command-specific, sorted ascending, and printed above the
-table when requested. `pipeline --sort=events` is rejected; use
+runtime sort keys are command-specific. Sort keys are ascending by default; add
+a leading `-` for descending order, for example `job sort=-started`. View
+commands print the active sort order above the table and include the inverse
+selector to type next. `pipeline --sort=events` is rejected; use
 `pipeline sort=events`.
 
 `job`, `pipeline`, and `step` accept the same payload-style filters as
@@ -1727,6 +1730,7 @@ Use `ports` to inspect scan results without rereading the raw event log:
 ```text
 bywaf> ports
 bywaf> ports sort=host
+bywaf> ports sort=-host
 bywaf> ports sort=port
 bywaf> ports job=latest
 bywaf> ports job=69
@@ -1736,7 +1740,8 @@ bywaf> ports all=true
 
 By default, `ports` shows the latest portscanner job that produced open ports.
 `sort=host` groups each host with its open ports; `sort=port` groups each port
-with the hosts exposing it. Use `all=true` only when you intentionally want
+with the hosts exposing it. Add a leading `-` for descending grouped views, for
+example `ports sort=-port`. Use `all=true` only when you intentionally want
 historical `port.open` events from older scans too.
 
 `host=` accepts one host, a CIDR network, an IP range, or a comma/space-separated

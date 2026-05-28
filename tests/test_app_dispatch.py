@@ -1567,6 +1567,7 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "ports")
             text = output.getvalue()
             self.assertIn(f"latest portscanner job={new_job}", text)
+            self.assertIn("grouped by host ascending (use sort=-host to sort descending)", text)
             self.assertIn("192.0.2.20", text)
             self.assertNotIn("192.0.2.10", text)
 
@@ -1606,8 +1607,11 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "ports all=true sort=event")
+                dispatch_repl_line(runner, "ports all=true sort=-event")
             text = output.getvalue()
             self.assertIn("all port.open events", text)
+            self.assertIn("sorted by event ascending (use sort=-event to sort descending)", text)
+            self.assertIn("sorted by event descending (use sort=event to sort ascending)", text)
             self.assertIn("192.0.2.10", text)
             self.assertIn("192.0.2.20", text)
 
@@ -1944,14 +1948,16 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "job sort=started")
+                dispatch_repl_line(runner, "job sort=-started")
                 dispatch_repl_line(runner, "pipeline sort=events")
                 dispatch_repl_line(runner, "step sort=source")
                 dispatch_repl_line(runner, "pipeline --sort=events")
 
             text = output.getvalue()
-            self.assertIn("sorted by started ascending", text)
-            self.assertIn("sorted by events ascending", text)
-            self.assertIn("sorted by source ascending", text)
+            self.assertIn("sorted by started ascending (use sort=-started to sort descending)", text)
+            self.assertIn("sorted by started descending (use sort=started to sort ascending)", text)
+            self.assertIn("sorted by events ascending (use sort=-events to sort descending)", text)
+            self.assertIn("sorted by source ascending (use sort=-source to sort descending)", text)
             self.assertIn("error: pipeline uses selector syntax; use sort=<key>, not --sort=events", text)
 
     def test_db_new_resets_repl_framework_request_cursor(self):

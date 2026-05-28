@@ -23,6 +23,9 @@ from bywaf.runtime_display import (
     parse_runtime_list_selectors,
     render_table,
     runtime_sort_note,
+    runtime_sort_completion_candidates,
+    runtime_sort_key,
+    runtime_sort_reverse,
     runtime_state_label,
     runtime_status_summary,
     terminal_table_width,
@@ -71,7 +74,7 @@ class Step(CommandletBase):
         if not args:
             return candidates
         if args and args[-1].startswith("sort="):
-            return [f"sort={key}" for key in STEP_SORT_KEYS if f"sort={key}".startswith(args[-1])]
+            return runtime_sort_completion_candidates(args[-1], STEP_SORT_KEYS)
         return [candidate for candidate in candidates if candidate.startswith(prefix)]
 
 
@@ -150,6 +153,7 @@ def print_steps(
 
 def sort_step_rows(rows: list[dict], sort_key: str) -> list[dict]:
     """Return step rows ordered by the requested operator-facing column."""
+    display_key = runtime_sort_key(sort_key)
     sorters = {
         "id": lambda row: str(row["command_run_id"]),
         "serial": lambda row: str(row["command_run_id"]),
@@ -159,7 +163,7 @@ def sort_step_rows(rows: list[dict], sort_key: str) -> list[dict]:
         "events": lambda row: int(row["events"]),
         "first": lambda row: str(row["first_event"] or ""),
     }
-    return sorted(rows, key=sorters[sort_key])
+    return sorted(rows, key=sorters[display_key], reverse=runtime_sort_reverse(sort_key))
 
 
 def show_step(context: CommandContext, step_id: str) -> None:

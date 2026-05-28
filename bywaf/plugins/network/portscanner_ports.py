@@ -18,7 +18,16 @@ from bywaf.event_filters import filter_events_by_payload, parse_payload_filter_t
 from bywaf.events import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
 from bywaf.plugins.runtime.job import require_job
-from bywaf.runtime_display import command_context_style_getter, render_table, runtime_sort_note, terminal_table_width
+from bywaf.runtime_display import (
+    command_context_style_getter,
+    parse_runtime_sort,
+    render_table,
+    runtime_sort_completion_candidates,
+    runtime_sort_key,
+    runtime_sort_note,
+    runtime_sort_reverse,
+    terminal_table_width,
+)
 
 PORT_SORT_KEYS = ("host", "port", "protocol", "service", "reason", "event", "time")
 PORT_FILTER_KEYS = {"host", "port", "protocol", "service", "reason", "state"}
@@ -84,7 +93,7 @@ class Ports(CommandletBase):
             "sort=",
         ]
         if args and args[-1].startswith("sort="):
-            return [f"sort={key}" for key in PORT_SORT_KEYS if f"sort={key}".startswith(args[-1])]
+            return runtime_sort_completion_candidates(args[-1], PORT_SORT_KEYS)
         return [candidate for candidate in candidates if candidate.startswith(prefix)]
 
 
@@ -100,9 +109,7 @@ def parse_ports_selectors(tokens: list[str]) -> Namespace:
         if not separator or not key or not value:
             raise ValueError("ports selectors must be key=value")
         if key == "sort":
-            if value not in PORT_SORT_KEYS:
-                raise ValueError(f"ports sort= must be one of: {', '.join(PORT_SORT_KEYS)}")
-            sort_key = value
+            sort_key = parse_runtime_sort(value, PORT_SORT_KEYS, "ports")
         elif key in PORT_SCOPE_KEYS:
             scope[key] = value
         elif key in PORT_FILTER_KEYS:
@@ -180,9 +187,11 @@ def command_is_portscanner(command_line: str) -> bool:
 
 def sort_port_events(events: list[Event], sort_key: str) -> list[Event]:
     """Sort port rows by the requested operator-facing column."""
-    if sort_key in {"event", "time"}:
-        return sorted(events, key=lambda event: event.id or 0)
-    return sorted(events, key=lambda event: port_sort_value(event, sort_key))
+    display_key = runtime_sort_key(sort_key)
+    reverse = runtime_sort_reverse(sort_key)
+    if display_key in {"event", "time"}:
+        return sorted(events, key=lambda event: event.id or 0, reverse=reverse)
+    return sorted(events, key=lambda event: port_sort_value(event, display_key), reverse=reverse)
 
 
 def port_sort_value(event: Event, sort_key: str) -> tuple[object, ...]:
@@ -210,17 +219,19 @@ def render_ports(context: CommandContext, events: list[Event], selectors: Namesp
     scope = ports_scope_label(context, selectors)
     table = render_ports_table(context, events, selectors.sort)
     heading = f"Ports: {scope} ({len(events)} open port{'s' if len(events) != 1 else ''})"
-    if selectors.sort in {"host", "port"}:
-        return f"{heading}\ngrouped by {selectors.sort} ascending\n{table}"
+    if runtime_sort_key(selectors.sort) in {"host", "port"}:
+        return f"{heading}\n{runtime_sort_note(selectors.sort, label='grouped by')}\n{table}"
     return f"{heading}\n{runtime_sort_note(selectors.sort)}\n{table}"
 
 
 def render_ports_table(context: CommandContext, events: list[Event], sort_key: str) -> str:
     """Render either grouped scan results or raw event rows."""
-    if sort_key == "host":
-        return render_ports_by_host(context, events)
-    if sort_key == "port":
-        return render_ports_by_port(context, events)
+    display_key = runtime_sort_key(sort_key)
+    reverse = runtime_sort_reverse(sort_key)
+    if display_key == "host":
+        return render_ports_by_host(context, events, reverse=reverse)
+    if display_key == "port":
+        return render_ports_by_port(context, events, reverse=reverse)
     sorted_events = sort_port_events(events, sort_key)
     rows = [raw_port_row(event) for event in sorted_events]
     return render_table(
@@ -232,7 +243,7 @@ def render_ports_table(context: CommandContext, events: list[Event], sort_key: s
     )
 
 
-def render_ports_by_host(context: CommandContext, events: list[Event]) -> str:
+def render_ports_by_host(context: CommandContext, events: list[Event], *, reverse: bool = False) -> str:
     """Render one host row with all ports discovered on that host."""
     grouped: dict[str, list[Event]] = {}
     for event in events:
@@ -242,7 +253,7 @@ def render_ports_by_host(context: CommandContext, events: list[Event]) -> str:
             host,
             ", ".join(dict.fromkeys(port_endpoint_text(event) for event in sort_port_events(grouped[host], "port"))),
         )
-        for host in sorted(grouped, key=ip_sort_value)
+        for host in sorted(grouped, key=ip_sort_value, reverse=reverse)
     ]
     return render_table(
         ("HOST", "OPEN PORTS"),
@@ -253,7 +264,7 @@ def render_ports_by_host(context: CommandContext, events: list[Event]) -> str:
     )
 
 
-def render_ports_by_port(context: CommandContext, events: list[Event]) -> str:
+def render_ports_by_port(context: CommandContext, events: list[Event], *, reverse: bool = False) -> str:
     """Render one port row with all hosts exposing that port."""
     grouped: dict[tuple[int, str, str], list[Event]] = {}
     for event in events:
@@ -275,7 +286,7 @@ def render_ports_by_port(context: CommandContext, events: list[Event]) -> str:
         )
         for key, port, protocol, service in (
             (key, key[0], key[1], key[2])
-            for key in sorted(grouped, key=lambda item: (item[0], item[1], item[2]))
+            for key in sorted(grouped, key=lambda item: (item[0], item[1], item[2]), reverse=reverse)
         )
     ]
     return render_table(

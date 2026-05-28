@@ -126,15 +126,38 @@ def parse_runtime_list_selectors(
 
 def parse_runtime_sort(raw: str, allowed_sort_keys: Sequence[str], command: str) -> str:
     """Validate a runtime-table sort key."""
-    if raw in allowed_sort_keys:
+    sort_key = runtime_sort_key(raw)
+    if sort_key in allowed_sort_keys:
         return raw
     choices = ", ".join(allowed_sort_keys)
     raise ValueError(f"{command} sort= must be one of: {choices}")
 
 
-def runtime_sort_note(sort_key: str) -> str:
+def runtime_sort_key(sort_key: str) -> str:
+    """Return the field name portion of an optionally descending sort key."""
+    return sort_key[1:] if sort_key.startswith("-") else sort_key
+
+
+def runtime_sort_reverse(sort_key: str) -> bool:
+    """Return whether a sort key requests descending order."""
+    return sort_key.startswith("-")
+
+
+def runtime_sort_note(sort_key: str, *, label: str = "sorted by") -> str:
     """Return the operator-facing sort note for sorted runtime tables."""
-    return f"sorted by {sort_key} ascending"
+    key = runtime_sort_key(sort_key)
+    if runtime_sort_reverse(sort_key):
+        return f"{label} {key} descending (use sort={key} to sort ascending)"
+    return f"{label} {key} ascending (use sort=-{key} to sort descending)"
+
+
+def runtime_sort_completion_candidates(prefix: str, allowed_sort_keys: Sequence[str]) -> list[str]:
+    """Return ascending and descending `sort=` completion candidates."""
+    candidates = [f"sort={key}" for key in allowed_sort_keys]
+    candidates.extend(f"sort=-{key}" for key in allowed_sort_keys)
+    return [candidate for candidate in candidates if candidate.startswith(prefix)]
+
+
 
 
 def display_runtime_serial(value: object | None) -> str:

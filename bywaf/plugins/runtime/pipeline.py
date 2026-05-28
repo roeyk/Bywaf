@@ -33,6 +33,9 @@ from bywaf.runtime_display import (
     parse_runtime_list_selectors,
     render_table,
     runtime_sort_note,
+    runtime_sort_completion_candidates,
+    runtime_sort_key,
+    runtime_sort_reverse,
     runtime_state_label,
     runtime_status_summary,
     state_marker,
@@ -104,7 +107,7 @@ class Pipeline(CommandletBase):
         if len(args) == 1 and args[0] in {"cancel", "end", "kill"}:
             return pipeline_ids(context)
         if args and args[-1].startswith("sort="):
-            return [f"sort={key}" for key in PIPELINE_SORT_KEYS if f"sort={key}".startswith(args[-1])]
+            return runtime_sort_completion_candidates(args[-1], PIPELINE_SORT_KEYS)
         if len(args) == 1:
             candidates = ["--all", "--page", "sort=", *pipeline_ids(context), *PIPELINE_ACTIONS]
             return [candidate for candidate in candidates if candidate.startswith(prefix)]
@@ -255,6 +258,7 @@ def print_pipelines(
 
 def sort_pipeline_rows(rows: list[dict], sort_key: str) -> list[dict]:
     """Return pipeline rows ordered by the requested operator-facing column."""
+    display_key = runtime_sort_key(sort_key)
     sorters = {
         "id": lambda row: int(row["pipeline_id"]),
         "serial": lambda row: str(row["pipeline_id"]),
@@ -265,7 +269,7 @@ def sort_pipeline_rows(rows: list[dict], sort_key: str) -> list[dict]:
         "events": lambda row: int(row["events"]),
         "first": lambda row: str(row["first_seen"] or ""),
     }
-    return sorted(rows, key=sorters[sort_key])
+    return sorted(rows, key=sorters[display_key], reverse=runtime_sort_reverse(sort_key))
 
 
 def validate_pipeline_mode(action: str, *, soft: bool, hard: bool) -> None:
