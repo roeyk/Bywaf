@@ -276,7 +276,9 @@ def format_job(
     serial = display_runtime_serial(row["serial"])
     serial = styled_subject_text(style_getter, "serial", serial) if style_getter else serial
     command = str(row["command_line"])
+    commandlet = commandlet_from_command_line(command)
     displayed_args = args or list(args_from_command_line(command))
+    displayed_command = f"{commandlet} {format_command_args(displayed_args)}".strip() if displayed_args else command
     lines = [
         f"  job: {prefix}#{job_id}",
         f"  serial: {serial}",
@@ -285,13 +287,11 @@ def format_job(
         f"  launched: {format_runtime_timestamp(row['started_at'])}",
         f"  finished: {format_runtime_timestamp(row['finished_at'])}",
         f"  duration: {format_runtime_duration(row['started_at'], row['finished_at'])}",
-        f"  command: {command}",
-        f"  commandlet: {commandlet_from_command_line(command)}",
+        f"  commandlet: {commandlet}",
+        f"  args: {displayed_command}",
     ]
     if display_name:
         lines.insert(3, f"  name: {display_name}")
-    if displayed_args:
-        lines.append(f"  args: {format_command_args(displayed_args)}")
     block = "Job summary\n" + "\n".join(lines)
     return f"{block}\n\n{detail}" if detail else block
 
