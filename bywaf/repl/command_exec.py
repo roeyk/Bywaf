@@ -23,9 +23,6 @@ if TYPE_CHECKING:
 
 
 SUPPRESSED_COMMANDLET_OUTPUT_TOPICS = {"framework.file.page.requested", "report.rendered"}
-SUPPRESSED_COMPLETION_COMMANDLETS = {"cat", "less", "ls"}
-
-
 def handle_run_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
     """Execute the active commandlet context."""
     del line
@@ -62,35 +59,11 @@ def execute_repl_commandlet(runner: Runner, state: ShellState, command: str) -> 
     # output. Keep those events in storage, but avoid echoing raw payloads in
     # the REPL after the operator-facing renderer has already printed.
     print_events(visible_commandlet_events(events), runner)
-    completion = command_completion_line(command, events)
-    if completion:
-        print(completion)
 
 
 def visible_commandlet_events(events: list[Any]) -> list[Any]:
     """Return commandlet events that should be echoed after execution."""
     return [event for event in events if event.topic not in SUPPRESSED_COMMANDLET_OUTPUT_TOPICS]
-
-
-def command_completion_line(command: str, events: list[Any]) -> str:
-    """Return a concise foreground completion footer for commandlet runs."""
-    if events and events[0].topic == "job.requested":
-        return ""
-    command_name = command_completion_name(command)
-    if command_name in SUPPRESSED_COMPLETION_COMMANDLETS:
-        return ""
-    return f"done: {command_name}"
-
-
-def command_completion_name(command: str) -> str:
-    """Summarize a command or pipeline for the completion footer."""
-    stages = [stage.strip() for stage in command.split("|") if stage.strip()]
-    names: list[str] = []
-    for stage in stages:
-        tokens = stage.split()
-        if tokens:
-            names.append(tokens[0].rstrip("&"))
-    return " | ".join(names) if names else command.strip()
 
 
 def reset_framework_request_cursor(state: ShellState) -> None:

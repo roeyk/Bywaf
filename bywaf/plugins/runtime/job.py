@@ -285,6 +285,7 @@ def format_job(
         f"  launched: {format_runtime_timestamp(row['started_at'])}",
         f"  finished: {format_runtime_timestamp(row['finished_at'])}",
         f"  duration: {format_runtime_duration(row['started_at'], row['finished_at'])}",
+        f"  command: {command}",
         f"  commandlet: {commandlet_from_command_line(command)}",
     ]
     if display_name:

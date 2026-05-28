@@ -28,7 +28,6 @@ from ..completion import Completer, build_prompt_session, install_readline
 from ..framework_requests import process_framework_requests
 from .commands import (
     REPL_COMMAND_HANDLERS,
-    command_completion_line,
     execute_repl_commandlet,
     execute_shell_command,
     visible_commandlet_events,
@@ -297,9 +296,6 @@ def execute_commandlet_and_print(runner: Runner, command: str) -> int:
         from .display import print_events
 
         print_events(visible_commandlet_events(events), runner)
-        completion = command_completion_line(command, events)
-        if completion:
-            print(completion)
     except SystemExit as exc:
         if exc.code in (0, None):
             return 0

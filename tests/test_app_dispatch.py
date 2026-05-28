@@ -410,13 +410,13 @@ class AppDispatchTests(unittest.TestCase):
             events = runner.events.events_matching(topic="shell.exec.completed")
             self.assertEqual(events[-1].payload["argv"], ["echo", "hello world"])
 
-    def test_foreground_commandlet_prints_completion_footer(self):
+    def test_foreground_commandlet_does_not_print_completion_footer(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "job")
-            self.assertIn("done: job", output.getvalue())
+            self.assertNotIn("done:", output.getvalue())
 
     def test_background_commandlet_does_not_print_completion_footer(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -2100,6 +2100,7 @@ class AppDispatchTests(unittest.TestCase):
             text = output.getvalue()
             self.assertIn("commandlet: network/portscanner", text)
             self.assertNotIn(" command=", text)
+            self.assertIn("command: network/portscanner", text)
             self.assertIn("args: host=192.0.2.10 ports=80,443", text)
             self.assertIn("'arguments=\"-Pn -sT\"'", text)
 
