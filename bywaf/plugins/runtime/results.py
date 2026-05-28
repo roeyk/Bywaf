@@ -17,12 +17,18 @@ from collections.abc import Iterable
 
 from bywaf.events import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
-from bywaf.plugins.network.portscanner_ports import render_ports
+from bywaf.plugins.network.portscanner_ports import PORT_SORT_KEYS, render_ports
 from bywaf.plugins.runtime.job import require_job
 from bywaf.repl.display.events import format_event
-from bywaf.runtime_display import command_context_style_getter, render_table, terminal_table_width
+from bywaf.runtime_display import (
+    command_context_style_getter,
+    parse_runtime_sort,
+    render_table,
+    runtime_sort_completion_candidates,
+    terminal_table_width,
+)
 
-RESULT_SCOPE_KEYS = {"all", "job", "pipeline", "step"}
+RESULT_SCOPE_KEYS = {"all", "job", "pipeline", "step", "sort"}
 
 # `results` is an operator-facing product view, not a raw audit log.  These
 # framework/UI topics are still visible through `event`, but they should never
@@ -53,9 +59,10 @@ NOISE_TOPICS = {"runtime.name.assigned"}
 @commandlet(
     name="results",
     description="Show what the latest or selected scan found.",
-    usage="results [job=latest|<id>] [pipeline=<id>] [step=<id>] [all=true]",
+    usage="results [job=latest|<id>] [pipeline=<id>] [step=<id>] [all=true] [sort=<key>]",
     examples=(
         "results",
+        "results sort=port",
         "results pipeline=1",
         "results step=2",
         "results job=latest",
@@ -91,16 +98,18 @@ class Results(CommandletBase):
 
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
         """Complete result scope selectors."""
-        del context, args
-        candidates = ["--page", "all=true", "job=", "job=latest", "pipeline=", "step="]
+        del context
+        if args and args[-1].startswith("sort="):
+            return runtime_sort_completion_candidates(args[-1], PORT_SORT_KEYS)
+        candidates = ["--page", "all=true", "job=", "job=latest", "pipeline=", "step=", "sort="]
         return [candidate for candidate in candidates if candidate.startswith(prefix)]
 
 
 @commandlet(
     name="result",
     description="Alias for results.",
-    usage="result [job=latest|<id>] [pipeline=<id>] [step=<id>] [all=true]",
-    examples=("result", "result pipeline=1", "result step=2"),
+    usage="result [job=latest|<id>] [pipeline=<id>] [step=<id>] [all=true] [sort=<key>]",
+    examples=("result", "result sort=port", "result pipeline=1", "result step=2"),
     capabilities=("framework.console.output", "framework.file.page"),
 )
 class ResultAlias(Results):
@@ -110,6 +119,7 @@ class ResultAlias(Results):
 def parse_results_selectors(tokens: list[str]) -> Namespace:
     """Parse `results` selector tokens into a single runtime scope."""
     scope: dict[str, str] = {}
+    sort_key = "host"
     for token in tokens:
         if token.startswith("--"):
             raise ValueError(f"results uses selector syntax; use key=value, not {token}")
@@ -117,10 +127,13 @@ def parse_results_selectors(tokens: list[str]) -> Namespace:
         if not separator or not key or not value:
             raise ValueError("results selectors must be key=value")
         if key not in RESULT_SCOPE_KEYS:
-            raise ValueError("results selectors must be one of: all, job, pipeline, step")
-        scope[key] = value
+            raise ValueError("results selectors must be one of: all, job, pipeline, step, sort")
+        if key == "sort":
+            sort_key = parse_runtime_sort(value, PORT_SORT_KEYS, "results")
+        else:
+            scope[key] = value
     validate_results_scope(scope)
-    return Namespace(scope=scope)
+    return Namespace(scope=scope, sort=sort_key)
 
 
 def validate_results_scope(scope: dict[str, str]) -> None:
@@ -141,17 +154,18 @@ def select_result_scope(context: CommandContext, selectors: Namespace) -> Namesp
     events = context.event_store("results")
     runtime = context.runtime_store("results")
     if scope.get("all") == "true":
-        return Namespace(label="all results", scope={}, events=non_noise_events(events.events_matching(limit=10000)))
+        return Namespace(label="all results", scope={"all": "true"}, sort=selectors.sort, events=non_noise_events(events.events_matching(limit=10000)))
     if "job" in scope:
         if scope["job"] == "latest":
-            return latest_result_scope(context)
+            return latest_result_scope(context, sort=selectors.sort)
         row = require_job(context, scope["job"])
-        return Namespace(label=f"job={row['id']}", scope={"job": str(row["id"])}, events=non_noise_events(events.events_for_job(row["id"], limit=10000)))
+        return Namespace(label=f"job={row['id']}", scope={"job": str(row["id"])}, sort=selectors.sort, events=non_noise_events(events.events_for_job(row["id"], limit=10000)))
     if "pipeline" in scope:
         pipeline_id = runtime.resolve_pipeline_serial(scope["pipeline"])
         return Namespace(
             label=f"pipeline={scope['pipeline']}",
             scope={"pipeline": scope["pipeline"]},
+            sort=selectors.sort,
             events=non_noise_events(events.events_matching(pipeline_id=pipeline_id, limit=10000)),
         )
     if "step" in scope:
@@ -159,12 +173,13 @@ def select_result_scope(context: CommandContext, selectors: Namespace) -> Namesp
         return Namespace(
             label=f"step={scope['step']}",
             scope={"step": scope["step"]},
+            sort=selectors.sort,
             events=non_noise_events(events.events_matching(command_run_id=run_id, limit=10000)),
         )
-    return latest_result_scope(context)
+    return latest_result_scope(context, sort=selectors.sort)
 
 
-def latest_result_scope(context: CommandContext) -> Namespace:
+def latest_result_scope(context: CommandContext, *, sort: str = "host") -> Namespace:
     """Return the newest step with non-lifecycle inserted events."""
     events = context.event_store("results latest")
     runtime = context.runtime_store("results latest")
@@ -174,8 +189,8 @@ def latest_result_scope(context: CommandContext) -> Namespace:
         rows = non_noise_events(events.events_matching(command_run_id=run_id, limit=10000))
         if rows:
             step_id = run_aliases.get(run_id, run_id)
-            return Namespace(label=f"latest step={step_id}", scope={"step": step_id}, events=rows)
-    return Namespace(label="latest results", scope={}, events=[])
+            return Namespace(label=f"latest step={step_id}", scope={"step": step_id}, sort=sort, events=rows)
+    return Namespace(label="latest results", scope={}, sort=sort, events=[])
 
 
 def render_results(context: CommandContext, scope: Namespace) -> str:
@@ -183,12 +198,26 @@ def render_results(context: CommandContext, scope: Namespace) -> str:
     sections = [f"Results: {scope.label}"]
     port_events = [event for event in scope.events if event.topic == "port.open"]
     if port_events:
-        sections.append(render_ports(context, port_events, Namespace(scope=scope.scope, filters={}, sort="host")))
+        sections.append(render_ports_section(context, port_events, scope))
     other_events = [event for event in scope.events if event.topic != "port.open"]
     if other_events:
         sections.append(render_event_topic_summary(context, other_events))
         sections.append(render_representative_events(context, other_events))
     return "\n\n".join(section for section in sections if section)
+
+
+def render_ports_section(context: CommandContext, events: list[Event], scope: Namespace) -> str:
+    """Render delegated open-port results with the equivalent view command."""
+    command = equivalent_ports_command(scope)
+    table = render_ports(context, events, Namespace(scope=scope.scope, filters={}, sort=scope.sort))
+    return f"Output of: ports\nEquivalent command: {command}\n\n{table}"
+
+
+def equivalent_ports_command(scope: Namespace) -> str:
+    """Return the `ports` command that would render the same result section."""
+    args = [f"{key}={value}" for key, value in scope.scope.items()]
+    args.append(f"sort={scope.sort}")
+    return "ports " + " ".join(args)
 
 
 def render_event_topic_summary(context: CommandContext, events: list[Event]) -> str:

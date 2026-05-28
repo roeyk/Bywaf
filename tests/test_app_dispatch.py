@@ -1748,6 +1748,8 @@ class AppDispatchTests(unittest.TestCase):
 
             text = output.getvalue()
             self.assertIn("Results: latest step=2", text)
+            self.assertIn("Output of: ports", text)
+            self.assertIn("Equivalent command: ports step=2 sort=host", text)
             self.assertIn("Ports: step=2", text)
             self.assertIn("192.0.2.20", text)
             self.assertNotIn("192.0.2.10", text)
@@ -1791,10 +1793,39 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "results pipeline=1")
 
             text = output.getvalue()
+            self.assertIn("Output of: ports", text)
+            self.assertIn("Equivalent command: ports pipeline=1 sort=host", text)
             self.assertIn("Ports: pipeline=1", text)
             self.assertIn("192.0.2.20", text)
             self.assertNotIn("framework.console.alert", text)
             self.assertNotIn("console.alert", text)
+
+    def test_results_passes_sort_to_embedded_ports_view(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.record_job("network/portscanner host=192.0.2.20 port=443", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=1,
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+                commandlet="network/portscanner",
+                values={},
+            )
+            runner.db.publish(
+                "port.open",
+                {"host": "192.0.2.20", "port": 443, "protocol": "tcp"},
+                "portscanner",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "results sort=port")
+
+            text = output.getvalue()
+            self.assertIn("Equivalent command: ports step=1 sort=port", text)
+            self.assertIn("grouped by port ascending", text)
 
     def test_result_alias_shows_generic_inserted_events(self):
         with tempfile.TemporaryDirectory() as tmp:
