@@ -1712,6 +1712,13 @@ class AppDispatchTests(unittest.TestCase):
                 pipeline_id="new-pipeline",
                 command_run_id="new-step",
             )
+            runner.db.publish(
+                "report.rendered",
+                {"rows": 1},
+                "report",
+                pipeline_id="report-pipeline",
+                command_run_id="report-step",
+            )
 
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
@@ -1722,6 +1729,50 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("Ports: step=2", text)
             self.assertIn("192.0.2.20", text)
             self.assertNotIn("192.0.2.10", text)
+            self.assertNotIn("report.rendered", text)
+
+    def test_results_hides_framework_alert_noise(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("network/portscanner host=192.0.2.20 port=443", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=job_id,
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+                commandlet="network/portscanner",
+                values={},
+            )
+            runner.db.publish(
+                "port.open",
+                {"host": "192.0.2.20", "port": 443, "protocol": "tcp"},
+                "portscanner",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
+            runner.db.publish(
+                "framework.console.alert.requested",
+                {"message": "alert: discovered port 443/tcp on host 192.0.2.20"},
+                "portscanner",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
+            runner.db.publish(
+                "console.alert",
+                {"message": "alert: discovered port 443/tcp on host 192.0.2.20"},
+                "portscanner",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "results pipeline=1")
+
+            text = output.getvalue()
+            self.assertIn("Ports: pipeline=1", text)
+            self.assertIn("192.0.2.20", text)
+            self.assertNotIn("framework.console.alert", text)
+            self.assertNotIn("console.alert", text)
 
     def test_result_alias_shows_generic_inserted_events(self):
         with tempfile.TemporaryDirectory() as tmp:

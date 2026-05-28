@@ -23,8 +23,31 @@ from bywaf.repl.display.events import format_event
 from bywaf.runtime_display import command_context_style_getter, render_table, terminal_table_width
 
 RESULT_SCOPE_KEYS = {"all", "job", "pipeline", "step"}
-NOISE_TOPIC_PREFIXES = ("command.run.", "plugin.capability.", "plugin.progress.")
-NOISE_TOPICS = {"framework.console.output.requested", "console.output", "runtime.name.assigned"}
+
+# `results` is an operator-facing product view, not a raw audit log.  These
+# framework/UI topics are still visible through `event`, but they should never
+# decide what "the latest scan result" is.
+NOISE_TOPIC_PREFIXES = (
+    "artifact.",
+    "bundle.",
+    "command.run.",
+    "console.",
+    "db.",
+    "framework.",
+    "job.",
+    "key.",
+    "note.",
+    "plugin.capability.",
+    "plugin.progress.",
+    "project.",
+    "report.",
+    "resource.",
+    "runtime.",
+    "shell.",
+    "trigger.",
+    "watchdog.",
+)
+NOISE_TOPICS = {"runtime.name.assigned"}
 
 
 @commandlet(
