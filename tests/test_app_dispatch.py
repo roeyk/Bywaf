@@ -2272,6 +2272,30 @@ class AppDispatchTests(unittest.TestCase):
             self.assertRegex(text, r"\n1\s+active/running\s+")
             self.assertIn("hostscanner 127.0.0.1", text)
 
+    def test_job_listing_hides_view_command_jobs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.record_job("hostscanner 127.0.0.1", 123, "finished")
+            report_job = runner.db.record_job("report status=all", 123, "finished")
+            runner.db.record_job("report accept all note=confirmed", 123, "finished")
+            runner.db.record_job("artifact list topic=port.open", 123, "finished")
+            runner.db.record_job("artifact attach file=evidence.txt", 123, "finished")
+            runner.db.record_job("runtime/step --all", 123, "finished")
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "job --all")
+                dispatch_repl_line(runner, f"job {report_job}")
+
+            text = output.getvalue()
+            self.assertIn("hostscanner 127.0.0.1", text)
+            self.assertNotIn("report status=all", text.split("Job summary", 1)[0])
+            self.assertNotIn("runtime/step --all", text.split("Job summary", 1)[0])
+            self.assertNotIn("artifact list topic=port.open", text.split("Job summary", 1)[0])
+            self.assertIn("report accept all note=confirmed", text)
+            self.assertIn("artifact attach file=evidence", text)
+            self.assertIn("args: report status=all", text)
+
     def test_jobs_all_marks_active_state(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
