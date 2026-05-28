@@ -101,6 +101,9 @@ def print_steps(
     """Print commandlet step summaries."""
     runtime = context.runtime_store("step")
     rows = runtime.runs(active_only=active_only)
+    current_run_id = str(context.metadata.get("command_run_id") or "")
+    if current_run_id:
+        rows = [row for row in rows if str(row["command_run_id"]) != current_run_id]
     if filters:
         events = context.event_store("step")
         rows = filter_runtime_rows_by_events(events, "step", rows, filters)

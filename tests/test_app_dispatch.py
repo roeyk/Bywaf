@@ -386,8 +386,7 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "step")
             text = output.getvalue()
-            self.assertIn("STEP", text)
-            self.assertIn("STATUS", text)
+            self.assertIn("no steps", text)
 
     def test_exec_without_shell_command_prints_help(self):
         with tempfile.TemporaryDirectory() as tmp:
