@@ -54,6 +54,20 @@ NOISE_TOPIC_PREFIXES = (
     "watchdog.",
 )
 NOISE_TOPICS = {"runtime.name.assigned"}
+RESULT_VIEW_COMMANDS = {
+    "artifact",
+    "bundle",
+    "event",
+    "events",
+    "job",
+    "pipeline",
+    "port",
+    "ports",
+    "report",
+    "result",
+    "results",
+    "step",
+}
 
 
 @commandlet(
@@ -180,9 +194,22 @@ def select_result_scope(context: CommandContext, selectors: Namespace) -> Namesp
 
 
 def latest_result_scope(context: CommandContext, *, sort: str = "host") -> Namespace:
-    """Return the newest step with non-lifecycle inserted events."""
+    """Return the newest operator work scope.
+
+    Default `results` should follow the last scan-like job the operator ran,
+    even when that job is still running or found nothing.  Falling back to an
+    older productive step would make the command answer a different question
+    than "what did the thing I just ran find?"
+    """
     events = context.event_store("results latest")
     runtime = context.runtime_store("results latest")
+    for row in reversed(runtime.jobs(active_only=False)):
+        if context.job_id is not None and str(row["id"]) == str(context.job_id):
+            continue
+        if not is_result_work_job(str(row["command_line"])):
+            continue
+        rows = non_noise_events(events.events_for_job(row["id"], limit=10000))
+        return Namespace(label=f"latest job={row['id']}", scope={"job": str(row["id"])}, sort=sort, events=rows)
     run_aliases = runtime.run_aliases()
     for row in reversed(runtime.runs(active_only=False)):
         run_id = str(row["command_run_id"])
@@ -191,6 +218,13 @@ def latest_result_scope(context: CommandContext, *, sort: str = "host") -> Names
             step_id = run_aliases.get(run_id, run_id)
             return Namespace(label=f"latest step={step_id}", scope={"step": step_id}, sort=sort, events=rows)
     return Namespace(label="latest results", scope={}, sort=sort, events=[])
+
+
+def is_result_work_job(command_line: str) -> bool:
+    """Return whether a job should own the default `results` answer."""
+    command = command_line.strip().split(maxsplit=1)[0] if command_line.strip() else ""
+    command = command.rsplit("/", 1)[-1]
+    return command not in RESULT_VIEW_COMMANDS
 
 
 def render_results(context: CommandContext, scope: Namespace) -> str:

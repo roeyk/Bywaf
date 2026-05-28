@@ -1701,7 +1701,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("192.0.2.10", text)
             self.assertNotIn("192.0.2.30", text)
 
-    def test_results_defaults_to_latest_productive_step(self):
+    def test_results_defaults_to_latest_operator_job(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             old_job = runner.db.record_job("network/portscanner host=192.0.2.10 port=80", 123, "finished")
@@ -1747,10 +1747,10 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "results")
 
             text = output.getvalue()
-            self.assertIn("Results: latest step=2", text)
+            self.assertIn(f"Results: latest job={new_job}", text)
             self.assertIn("Output of: ports", text)
-            self.assertIn("Equivalent command: ports step=2 sort=host", text)
-            self.assertIn("Ports: step=2", text)
+            self.assertIn(f"Equivalent command: ports job={new_job} sort=host", text)
+            self.assertIn(f"Ports: job={new_job}", text)
             self.assertIn("192.0.2.20", text)
             self.assertNotIn("192.0.2.10", text)
             self.assertNotIn("report.rendered", text)
@@ -1824,12 +1824,27 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "results sort=port")
 
             text = output.getvalue()
-            self.assertIn("Equivalent command: ports step=1 sort=port", text)
+            self.assertIn("Equivalent command: ports job=1 sort=port", text)
             self.assertIn("grouped by port ascending", text)
 
     def test_results_mentions_active_work_when_empty(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
+            old_job = runner.db.record_job("network/portscanner host=192.0.2.10 port=80", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=old_job,
+                pipeline_id="old-pipeline",
+                command_run_id="old-step",
+                commandlet="network/portscanner",
+                values={},
+            )
+            runner.db.publish(
+                "port.open",
+                {"host": "192.0.2.10", "port": 80, "protocol": "tcp"},
+                "portscanner",
+                pipeline_id="old-pipeline",
+                command_run_id="old-step",
+            )
             runner.db.record_job("hostscanner host=192.0.2.0/24 & | portscanner", 123, "running")
 
             output = io.StringIO()
@@ -1839,7 +1854,36 @@ class AppDispatchTests(unittest.TestCase):
             text = output.getvalue()
             self.assertIn("no results yet; active work is still running", text)
             self.assertIn("hostscanner host=192.0.2.0/24 & | portscanner", text)
-            self.assertIn("job 1", text)
+            self.assertIn("job 2", text)
+            self.assertNotIn("192.0.2.10", text)
+
+    def test_results_does_not_fall_back_when_latest_work_found_nothing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            old_job = runner.db.record_job("network/portscanner host=192.0.2.10 port=80", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=old_job,
+                pipeline_id="old-pipeline",
+                command_run_id="old-step",
+                commandlet="network/portscanner",
+                values={},
+            )
+            runner.db.publish(
+                "port.open",
+                {"host": "192.0.2.10", "port": 80, "protocol": "tcp"},
+                "portscanner",
+                pipeline_id="old-pipeline",
+                command_run_id="old-step",
+            )
+            runner.db.record_job("network/portscanner host=192.0.2.20 port=443", 123, "finished")
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "results")
+
+            text = output.getvalue()
+            self.assertIn("no results", text)
+            self.assertNotIn("192.0.2.10", text)
 
     def test_result_alias_shows_generic_inserted_events(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1859,7 +1903,7 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "result")
 
             text = output.getvalue()
-            self.assertIn("Results: latest step=1", text)
+            self.assertIn("Results: latest job=1", text)
             self.assertIn("Inserted events", text)
             self.assertIn("host.found", text)
             self.assertIn("192.0.2.10", text)
