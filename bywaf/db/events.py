@@ -161,6 +161,45 @@ class EventStoreEventMixin:
             )
             return [Event.from_row(row) for row in rows]
 
+    def events_after(
+        self,
+        after_id: int,
+        *,
+        topic: str | None = None,
+        pipeline_id: str | None = None,
+        command_run_id: str | None = None,
+        parent_command_run_id: str | None = None,
+        limit: int = 100,
+    ) -> list[Event]:
+        """Return chronological events after an id within optional runtime scope."""
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT *
+                FROM events
+                WHERE id > ?
+                  AND (? IS NULL OR topic = ?)
+                  AND (? IS NULL OR pipeline_id = ?)
+                  AND (? IS NULL OR command_run_id = ?)
+                  AND (? IS NULL OR parent_command_run_id = ?)
+                ORDER BY id ASC
+                LIMIT ?
+                """,
+                (
+                    after_id,
+                    topic,
+                    topic,
+                    pipeline_id,
+                    pipeline_id,
+                    command_run_id,
+                    command_run_id,
+                    parent_command_run_id,
+                    parent_command_run_id,
+                    limit,
+                ),
+            )
+            return [Event.from_row(row) for row in rows]
+
     def event_by_id(self, event_id: int) -> Event | None:
         """Return one event by durable id."""
         with self.connect() as conn:
@@ -217,7 +256,7 @@ class EventStoreEventMixin:
             )
             return [Event.from_row(row) for row in rows]
 
-    def events_for_job(self, job_id: int, *, limit: int = 1000) -> list[Event]:
+    def events_for_job(self, job_id: int, *, after_id: int = 0, limit: int = 1000) -> list[Event]:
         """Return events associated with a job id through scope or payload.
 
         Some events inherit job identity through command-run variable snapshots;
@@ -232,12 +271,15 @@ class EventStoreEventMixin:
                 LEFT JOIN command_run_vars
                   ON command_run_vars.command_run_id = events.command_run_id
                   OR command_run_vars.pipeline_id = events.pipeline_id
-                WHERE command_run_vars.job_id = ?
-                   OR json_extract(events.payload_json, '$.job_id') = ?
+                WHERE events.id > ?
+                  AND (
+                    command_run_vars.job_id = ?
+                    OR json_extract(events.payload_json, '$.job_id') = ?
+                  )
                 ORDER BY events.id ASC
                 LIMIT ?
                 """,
-                (job_id, job_id, limit),
+                (after_id, job_id, job_id, limit),
             )
             return [Event.from_row(row) for row in rows]
 

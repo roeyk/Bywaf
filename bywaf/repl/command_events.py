@@ -11,7 +11,9 @@ Used by:
 from __future__ import annotations
 
 import shlex
+import time
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from ..command.parser import expand_variables_in_text
@@ -24,6 +26,21 @@ if TYPE_CHECKING:
 
 
 EVENT_SELECTOR_KEYS = {"job", "step", "pipeline", "serial", "topic"}
+EVENT_FOLLOW_SCOPE_KEYS = {"job", "step", "pipeline"}
+
+
+@dataclass(frozen=True, slots=True)
+class EventFollowQuery:
+    """Parsed `event follow` query with one runtime scope and payload filters."""
+
+    scope_key: str | None
+    scope_value: str | None
+    topic: str | None
+    filters: dict[str, str]
+    since: str
+    limit: int
+    interval: float
+    once: bool
 
 
 def handle_event_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
@@ -34,6 +51,9 @@ def handle_event_command(runner: Runner, state: ShellState, rest: str | None, li
         return None
     rest = expand_builtin_filter_text(runner, state, rest, "event")
     tokens = shlex.split(rest)
+    if tokens and tokens[0] == "follow":
+        follow_events(runner, parse_event_follow_query(tokens[1:]))
+        return None
     selector, filters, limit, sort_key = parse_event_query(tokens)
     if selector.isdigit():
         print_filtered_event_id(runner, selector, filters)
@@ -68,6 +88,50 @@ def handle_event_command(runner: Runner, state: ShellState, rest: str | None, li
         events = runner.events.events_matching(topic=selector or None, limit=source_limit)
         print_events(select_event_rows(events, filters, sort_key, limit), runner)
     return None
+
+
+def follow_events(runner: Runner, query: EventFollowQuery) -> None:
+    """Stream event-ledger rows until Ctrl-C or a one-shot follow completes."""
+    pipeline_id, command_run_id = resolve_event_follow_scope(runner, query)
+    job_id = resolve_job_selector(runner, str(query.scope_value)) if query.scope_key == "job" else None
+    after_id = 0 if query.since == "beginning" else runner.events.latest_event_id()
+    print("following events; press Ctrl-C to stop")
+    try:
+        while True:
+            if job_id is not None:
+                events = runner.events.events_for_job(job_id, after_id=after_id, limit=max(query.limit * 20, 100))
+                if query.topic is not None:
+                    events = [event for event in events if event.topic == query.topic]
+            else:
+                events = runner.events.events_after(
+                    after_id,
+                    topic=query.topic,
+                    pipeline_id=pipeline_id,
+                    command_run_id=command_run_id,
+                    limit=max(query.limit * 20, 100),
+                )
+            if events:
+                after_id = max(event.id or after_id for event in events)
+                print_events(select_event_rows(events, query.filters, "time", query.limit), runner)
+                if query.once:
+                    return
+            elif query.once:
+                return
+            else:
+                time.sleep(query.interval)
+    except KeyboardInterrupt:
+        print("stopped following events")
+
+
+def resolve_event_follow_scope(runner: Runner, query: EventFollowQuery) -> tuple[str | None, str | None]:
+    """Resolve follow selectors to durable pipeline and step serials."""
+    if query.scope_key == "job":
+        return None, None
+    if query.scope_key == "pipeline":
+        return runner.runtime.resolve_pipeline_serial(str(query.scope_value)), None
+    if query.scope_key == "step":
+        return None, runner.runtime.resolve_run_serial(str(query.scope_value))
+    return None, None
 
 
 def handle_events_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
@@ -116,6 +180,41 @@ def parse_event_query(tokens: Sequence[str]) -> tuple[str, dict[str, str], int, 
     return selector, filters, limit, sort_key
 
 
+def parse_event_follow_query(tokens: Sequence[str]) -> EventFollowQuery:
+    """Parse `event follow` selectors and payload filters."""
+    scope_key: str | None = None
+    scope_value: str | None = None
+    topic: str | None = None
+    filters: dict[str, str] = {}
+    since = "now"
+    limit = 100
+    interval = 0.25
+    once = False
+    for token in tokens:
+        key, separator, value = token.partition("=")
+        if not separator or not key or not value:
+            raise ValueError("event follow selectors must be key=value")
+        if key in EVENT_FOLLOW_SCOPE_KEYS:
+            if scope_key is not None:
+                raise ValueError("event follow accepts only one runtime scope selector")
+            scope_key, scope_value = key, value
+        elif key == "topic":
+            topic = value
+        elif key == "since":
+            if value not in {"now", "beginning"}:
+                raise ValueError("event follow since= must be now or beginning")
+            since = value
+        elif key == "limit":
+            limit = parse_event_limit(value)
+        elif key == "interval":
+            interval = parse_event_interval(value)
+        elif key == "once":
+            once = parse_event_boolean(value, "once")
+        else:
+            filters[key] = value
+    return EventFollowQuery(scope_key, scope_value, topic, filters, since, limit, interval, once)
+
+
 def parse_event_limit(raw: str) -> int:
     """Parse the maximum number of event rows to display."""
     try:
@@ -125,6 +224,27 @@ def parse_event_limit(raw: str) -> int:
     if limit < 1:
         raise ValueError("event limit= must be at least 1")
     return limit
+
+
+def parse_event_interval(raw: str) -> float:
+    """Parse polling interval seconds for `event follow`."""
+    try:
+        interval = float(raw)
+    except ValueError as exc:
+        raise ValueError(f"invalid event follow interval= value: {raw}") from exc
+    if interval <= 0:
+        raise ValueError("event follow interval= must be greater than 0")
+    return interval
+
+
+def parse_event_boolean(raw: str, key: str) -> bool:
+    """Parse true/false selector values for event options."""
+    value = raw.casefold()
+    if value in {"true", "yes", "1", "on"}:
+        return True
+    if value in {"false", "no", "0", "off"}:
+        return False
+    raise ValueError(f"event follow {key}= must be true or false")
 
 
 def event_source_limit(display_limit: int, filters: dict[str, str]) -> int:

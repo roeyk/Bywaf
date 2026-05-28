@@ -299,6 +299,43 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("'n': 3", text)
             self.assertIn("'n': 4", text)
 
+    def test_event_follow_once_reads_step_scope(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish("port.open", {"host": "192.0.2.10", "port": 80}, "portscanner", pipeline_id="p", command_run_id="r")
+            runner.db.publish("port.open", {"host": "192.0.2.20", "port": 443}, "portscanner", pipeline_id="p", command_run_id="other")
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "event follow step=1 topic=port.open since=beginning once=true")
+
+            text = output.getvalue()
+            self.assertIn("following events; press Ctrl-C to stop", text)
+            self.assertIn("192.0.2.10:80", text)
+            self.assertNotIn("192.0.2.20", text)
+
+    def test_event_follow_once_reads_job_scope(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("portscanner", 123, "running")
+            runner.db.record_command_run_vars(
+                job_id=job_id,
+                pipeline_id="p",
+                command_run_id="r",
+                commandlet="portscanner",
+                values={},
+            )
+            runner.db.publish("port.open", {"host": "192.0.2.10", "port": 80}, "portscanner", pipeline_id="p", command_run_id="r")
+            runner.db.publish("port.open", {"host": "192.0.2.20", "port": 443}, "portscanner", pipeline_id="other", command_run_id="other")
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "event follow job=1 topic=port.open since=beginning once=true")
+
+            text = output.getvalue()
+            self.assertIn("192.0.2.10:80", text)
+            self.assertNotIn("192.0.2.20", text)
+
     def test_event_filters_topic_by_payload_host(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -1806,7 +1843,9 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("pipeline=1", text)
             self.assertIn("Jobs", text)
             self.assertIn("Steps", text)
-            self.assertIn("Inspect: job 1; step 1; event step=1", text)
+            self.assertIn("Inspect: job 1; step 1; event step=1; event follow step=1; artifact list step=1", text)
+            self.assertIn("INSERTED", text)
+            self.assertIn("port.open=1", text)
             self.assertIn("network/portscanner host=192.0.", text)
             self.assertRegex(text, r"\n1\s+completed/finished\s+network/portscanner\s+")
 

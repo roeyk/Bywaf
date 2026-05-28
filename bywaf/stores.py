@@ -76,6 +76,19 @@ class EventStoreProtocol(Protocol):
         """Return events filtered by topic and runtime scope."""
         ...
 
+    def events_after(
+        self,
+        after_id: int,
+        *,
+        topic: str | None = None,
+        pipeline_id: str | None = None,
+        command_run_id: str | None = None,
+        parent_command_run_id: str | None = None,
+        limit: int = 100,
+    ) -> list[Event]:
+        """Return chronological events after an id within optional runtime scope."""
+        ...
+
     def events_for_topic(self, topic: str, limit: int = 100) -> list[Event]:
         """Return events for one topic."""
         ...
@@ -96,7 +109,7 @@ class EventStoreProtocol(Protocol):
         """Return known event topics."""
         ...
 
-    def events_for_job(self, job_id: int, *, limit: int = 1000) -> list[Event]:
+    def events_for_job(self, job_id: int, *, after_id: int = 0, limit: int = 1000) -> list[Event]:
         """Return events associated with one local job id."""
         ...
 

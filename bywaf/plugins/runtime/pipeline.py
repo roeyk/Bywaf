@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import shlex
 from argparse import Namespace
+from collections import Counter
 from collections.abc import Callable, Iterable
 
 from bywaf.events import Event
@@ -46,6 +47,8 @@ PIPELINE_ACTIONS = ("attach", "cancel", "end", "kill")
 REMOVED_PIPELINE_ACTIONS = {"list", "show"}
 PIPELINE_SORT_KEYS = ("id", "serial", "state", "job", "status", "steps", "events", "started")
 PipelineActionHandler = Callable[[CommandContext, Namespace], None]
+NOISE_TOPIC_PREFIXES = ("command.run.", "plugin.capability.", "plugin.progress.")
+NOISE_TOPICS = {"framework.console.output.requested", "console.output", "runtime.name.assigned"}
 
 
 @commandlet(
@@ -194,6 +197,8 @@ def format_pipeline_inspection_hints(context: CommandContext, pipeline_id: str) 
         step_id = run_aliases.get(str(row["command_run_id"]), str(row["command_run_id"]))
         commands.append(f"step {step_id}")
         commands.append(f"event step={step_id}")
+        commands.append(f"event follow step={step_id}")
+        commands.append(f"artifact list step={step_id}")
     return "Inspect: " + "; ".join(commands) if commands else ""
 
 
@@ -242,7 +247,7 @@ def format_pipeline_steps(context: CommandContext, pipeline_id: str) -> str:
             run_aliases.get(str(row["command_run_id"]), row["command_run_id"]),
             runtime_status_summary(row["job_statuses"]),
             row["source"],
-            row["events"],
+            format_step_inserted_topics(context, str(row["command_run_id"])),
             artifact_counts.get(str(row["command_run_id"]), 0),
             format_runtime_timestamp(row["first_event"]),
             format_runtime_duration(row["first_event"], row["last_event"]),
@@ -251,13 +256,27 @@ def format_pipeline_steps(context: CommandContext, pipeline_id: str) -> str:
         for row in rows
     ]
     return "Steps\n" + render_table(
-        ("STEP", "STATUS", "SOURCE", "EVENTS", "ART", "STARTED", "DUR", "NAME"),
+        ("STEP", "STATUS", "COMMANDLET", "INSERTED", "ART", "STARTED", "DUR", "NAME"),
         table_rows,
         cell_subjects=("step", "", "", "", "", "timestamp", "timestamp", ""),
         active_column_indexes=(1,),
         style_getter=command_context_style_getter(context),
         max_width=terminal_table_width(),
     )
+
+
+def format_step_inserted_topics(context: CommandContext, command_run_id: str) -> str:
+    """Summarize non-lifecycle event topics inserted by one step."""
+    events = context.event_store("pipeline show inserted").events_matching(command_run_id=command_run_id, limit=100000)
+    counts = Counter(event.topic for event in events if not is_noise_topic(event.topic))
+    if not counts:
+        counts = Counter(event.topic for event in events)
+    return ", ".join(f"{topic}={count}" for topic, count in sorted(counts.items())) or "-"
+
+
+def is_noise_topic(topic: str) -> bool:
+    """Return whether a topic is lifecycle/audit noise for pipeline detail."""
+    return topic in NOISE_TOPICS or topic.startswith(NOISE_TOPIC_PREFIXES)
 
 
 def cancel_pipeline_action(context: CommandContext, parsed: Namespace) -> None:
