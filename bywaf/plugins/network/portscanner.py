@@ -100,8 +100,7 @@ class PortScanner(CommandletBase):
         seen_hosts: set[str] = set()
         yield from scan_events_or_hosts(context, parsed, input_events, seen_hosts)
         should_listen = parsed.listen or (
-            context.background
-            and bool(context.parent_command_run_id)
+            bool(context.parent_command_run_id)
             and not parsed.hosts
         )
         if should_listen:

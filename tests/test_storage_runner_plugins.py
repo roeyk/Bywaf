@@ -1354,6 +1354,35 @@ class StorageRunnerPluginTests(unittest.TestCase):
                     events = list(PortScanner().run(context, ["--listen-timeout", "0.01"], []))
             self.assertEqual(events[0]["host"], "203.0.113.1")
 
+    def test_pipeline_portscanner_auto_listens_to_upstream_scope(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "db.sqlite3"))
+            db.publish(
+                "host.found",
+                {"host": "203.0.113.5"},
+                "hostscanner",
+                pipeline_id="pipe-1",
+                command_run_id="upstream-1",
+            )
+            context = CommandContext(
+                db,
+                source="portscanner",
+                metadata={
+                    "pipeline_id": "pipe-1",
+                    "command_run_id": "port-1",
+                    "parent_command_run_id": "upstream-1",
+                    "input_high_watermark": 0,
+                    "background": False,
+                },
+            )
+            with patch(
+                "bywaf.plugins.network.portscanner.scan_open_ports",
+                return_value=[NmapPort("203.0.113.5", 443, "tcp", "open")],
+            ):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    events = list(PortScanner().run(context, ["--listen-timeout", "0.01"], []))
+            self.assertEqual(events[0]["host"], "203.0.113.5")
+
     def test_pipeline_attach_starts_scoped_background_job(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
