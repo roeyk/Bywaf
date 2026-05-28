@@ -261,7 +261,10 @@ bywaf> hostscanner 127.0.0.1 | host_echo
 ## Completion Specs
 
 Plugins should describe completion behavior instead of relying on hard-coded
-logic in the shell.
+logic in the shell. Bywaf treats completion metadata as part of the commandlet
+contract: normal commandlet completions come from declared `@option` and
+`@argument` metadata, not from emitted topics, consumed topics, or parser-only
+internals.
 
 Use `ArgumentSpec` for positional arguments:
 
@@ -336,7 +339,9 @@ Framework selectors use these same specs:
 
 `--from` replays prior events into a commandlet. `step=`, `pipeline=`, and
 `job=` select the provenance scope; optional `topic=` narrows that replay
-stream and does not stand alone.
+stream and does not stand alone. Replay selectors complete after the operator
+explicitly types `--from`; they are framework syntax, not commandlet-declared
+options.
 
 ## Custom Completion
 

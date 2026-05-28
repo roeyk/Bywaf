@@ -540,10 +540,9 @@ class RegistryCompletionTests(unittest.TestCase):
         completer = Completer(self.registry)
         self.assertEqual(completer.candidates("hostscanner h"), ["host="])
         self.assertIn("port=", completer.candidates("portscanner por"))
-        self.assertIn("--from", completer.candidates("portscanner --"))
         self.assertIn("step=", completer.candidates("portscanner --from "))
         http_options = completer.candidates("http_headers --")
-        self.assertIn("--help", http_options)
+        self.assertNotIn("--help", http_options)
         self.assertIn("port=", completer.candidates("http_headers po"))
         self.assertIn("ssl=", completer.candidates("http_headers ss"))
         self.assertIn("timeout=", completer.candidates("http_headers ti"))
@@ -633,8 +632,6 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertEqual(
             completer.candidates("portscanner --"),
             [
-                "--from",
-                "--help",
                 "--listen",
                 "--silent",
             ],

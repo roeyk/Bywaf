@@ -403,9 +403,11 @@ portscanner <portscanner-...>: discovered port 127.0.0.1:80/tcp
 Commandlets can also declare tab-completion behavior for their arguments and
 options. For example, `ls [path]`, `cat <path>`, and `less <path>` get filename
 completion because those commandlets declare path/file completion in their
-plugin specs. Other completion specs include `topic`, `run`, `pipeline`, `job`,
-and `plugin`, so plugin authors can make hand-typed commands much easier to
-complete correctly.
+plugin specs. Commandlet option completion is contract-driven: normal
+commandlet completions come from declared `@option` and `@argument` metadata,
+not from emitted topics or parser internals. Other completion specs include
+`topic`, `step`, `pipeline`, `job`, and `plugin`, so plugin authors can make
+hand-typed commands much easier to complete correctly.
 Runtime entity completions include prompt-toolkit metadata when available, such
 as serial, status/source, event counts, and the current number of attached
 artifacts.

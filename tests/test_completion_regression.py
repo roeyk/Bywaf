@@ -48,6 +48,13 @@ class CompletionRegressionTests(unittest.TestCase):
                     key_prefix = option.name[: max(1, min(3, len(option.name) - 1))]
                     self.assertIn(f"{option.name}=", self.completer.candidates(f"{name} {key_prefix}"))
 
+    def test_commandlet_completion_does_not_advertise_undeclared_framework_options(self):
+        for name in self.registry.plugins:
+            with self.subTest(commandlet=name):
+                candidates = self.completer.candidates(f"{name} --")
+                self.assertNotIn("--help", candidates)
+                self.assertNotIn("--from", candidates)
+
     def test_declared_choice_options_complete_key_value_values(self):
         for name, plugin in self.registry.plugins.items():
             for option in plugin.spec.options:
@@ -103,7 +110,7 @@ class CompletionRegressionTests(unittest.TestCase):
     def test_common_manual_regression_cases(self):
         cases = (
             ("hostscanner 127.0.0.1 | por", "portscanner"),
-            ("finding_report --", "--help"),
+            ("finding_report exp", "export="),
             ("artifact search file", "filename="),
             ("events ", "--tail"),
             ("por", "portscanner"),
@@ -178,7 +185,7 @@ class CompletionRegressionTests(unittest.TestCase):
 
     def test_double_dash_does_not_duplicate_or_show_named_arguments(self):
         candidates = self.completer.candidates("finding_report --")
-        self.assertIn("--help", candidates)
+        self.assertEqual(candidates, [])
         self.assertNotIn("export=", candidates)
         self.assertNotIn("--", completion_results("finding_report --", candidates))
 

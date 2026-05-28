@@ -67,13 +67,16 @@ class PluginArgumentCompletionMixin:
             matching_positional_candidates = [candidate for candidate in positional_candidates if candidate.startswith(prefix)]
             if matching_positional_candidates:
                 return matching_positional_candidates
+        # Normal commandlet completion is contract-driven: only declared
+        # @option/@argument metadata should create commandlet candidates.
+        # Framework replay selectors are still available after an operator
+        # explicitly types `--from`, but they are not advertised as plugin
+        # options because they do not belong to the commandlet spec.
         binary_flags = [f"--{option.name}" for option in plugin.spec.options if option_is_binary(option.name)]
         valued_options = [f"{option.name}=" for option in plugin.spec.options if not option_is_binary(option.name)]
-        options = ["-h", "--help", *binary_flags]
-        options.append("--from")
         if prefix.startswith(".") or "/" in prefix:
             return complete_path(prefix)
-        return [*valued_options, *options]
+        return [*valued_options, *binary_flags]
 
     def framework_from_selector_candidates(self, prefix: str) -> list[str]:
         """Complete selector values used after `--from`."""
