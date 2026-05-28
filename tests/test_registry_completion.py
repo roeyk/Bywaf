@@ -108,6 +108,8 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn("finding_dedupe", self.registry.names())
         self.assertIn("finding_report", self.registry.names())
         self.assertIn("report", self.registry.names())
+        self.assertIn("results", self.registry.names())
+        self.assertIn("result", self.registry.names())
         self.assertIn("yara_scan", self.registry.names())
         self.assertIn("db", self.registry.names())
         self.assertIn("job", self.registry.names())
@@ -154,6 +156,7 @@ class RegistryCompletionTests(unittest.TestCase):
                 "runtime.job",
                 "runtime.pipeline",
                 "runtime.step",
+                "runtime.results",
                 "runtime.control",
                 "runtime.audit",
                 "runtime.bundle",
@@ -273,6 +276,8 @@ class RegistryCompletionTests(unittest.TestCase):
                 "note",
                 "pause",
                 "pipeline",
+                "result",
+                "results",
                 "resume",
                 "search",
                 "signal",

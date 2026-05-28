@@ -1679,6 +1679,73 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("192.0.2.10", text)
             self.assertNotIn("192.0.2.30", text)
 
+    def test_results_defaults_to_latest_productive_step(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            old_job = runner.db.record_job("network/portscanner host=192.0.2.10 port=80", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=old_job,
+                pipeline_id="old-pipeline",
+                command_run_id="old-step",
+                commandlet="network/portscanner",
+                values={},
+            )
+            runner.db.publish(
+                "port.open",
+                {"host": "192.0.2.10", "port": 80, "protocol": "tcp"},
+                "portscanner",
+                pipeline_id="old-pipeline",
+                command_run_id="old-step",
+            )
+            new_job = runner.db.record_job("network/portscanner host=192.0.2.20 port=443", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=new_job,
+                pipeline_id="new-pipeline",
+                command_run_id="new-step",
+                commandlet="network/portscanner",
+                values={},
+            )
+            runner.db.publish(
+                "port.open",
+                {"host": "192.0.2.20", "port": 443, "protocol": "tcp"},
+                "portscanner",
+                pipeline_id="new-pipeline",
+                command_run_id="new-step",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "results")
+
+            text = output.getvalue()
+            self.assertIn("Results: latest step=2", text)
+            self.assertIn("Ports: step=2", text)
+            self.assertIn("192.0.2.20", text)
+            self.assertNotIn("192.0.2.10", text)
+
+    def test_result_alias_shows_generic_inserted_events(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.record_job("hostscanner 192.0.2.10", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=1,
+                pipeline_id="pipeline",
+                command_run_id="step",
+                commandlet="hostscanner",
+                values={},
+            )
+            runner.db.publish("host.found", {"host": "192.0.2.10"}, "hostscanner", pipeline_id="pipeline", command_run_id="step")
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "result")
+
+            text = output.getvalue()
+            self.assertIn("Results: latest step=1", text)
+            self.assertIn("Inserted events", text)
+            self.assertIn("host.found", text)
+            self.assertIn("192.0.2.10", text)
+
     def test_builtin_filters_expand_variables(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

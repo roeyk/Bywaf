@@ -21,6 +21,7 @@ default_plugins = [
   "runtime.job",
   "runtime.pipeline",
   "runtime.step",
+  "runtime.results",
   "runtime.control",
   "runtime.audit",
   "runtime.bundle",

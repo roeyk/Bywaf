@@ -1,0 +1,19 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "results"
+capabilities = [
+  "framework.console.output",
+  "framework.file.page",
+]
+module = "bywaf.plugins.runtime.results"
+
+[[commandlets]]
+name = "result"
+capabilities = [
+  "framework.console.output",
+  "framework.file.page",
+]
+module = "bywaf.plugins.runtime.results"
