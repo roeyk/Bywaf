@@ -447,7 +447,7 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "step 1")
             text = output.getvalue()
-            self.assertIn("Variables:", text)
+            self.assertIn("Variables", text)
             self.assertIn("test.marker=1", text)
             self.assertIn("host.found 127.0.0.1", text)
 
@@ -481,6 +481,33 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("display/style.host", text)
             self.assertIn("text=STEP  STATUS", text)
             self.assertNotIn("2     completed", text)
+
+    def test_step_show_points_to_job_when_completion_is_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("hostscanner host=192.0.2.0/24", 123, "stale")
+            runner.db.record_command_run_vars(
+                job_id=job_id,
+                pipeline_id="p",
+                command_run_id="r",
+                commandlet="hostscanner",
+                values={"discovery/hostscanner.targets": "192.0.2.0/24"},
+            )
+            runner.db.publish(
+                "command.run.started",
+                {"status": "started"},
+                "framework",
+                pipeline_id="p",
+                command_run_id="r",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "step 1")
+
+            text = output.getvalue()
+            self.assertIn(f"Next: job {job_id}; event step=1", text)
+            self.assertIn(f"No step completion event was recorded; inspect owning job with `job {job_id}`.", text)
 
     def test_events_colors_event_ids_when_enabled(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -2071,9 +2098,9 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, f"job {job_id}")
 
             text = output.getvalue()
-            self.assertIn("commandlet=network/portscanner", text)
+            self.assertIn("commandlet: network/portscanner", text)
             self.assertNotIn(" command=", text)
-            self.assertIn("args=host=192.0.2.10 ports=80,443", text)
+            self.assertIn("args: host=192.0.2.10 ports=80,443", text)
             self.assertIn("'arguments=\"-Pn -sT\"'", text)
 
     def test_pipeline_show_includes_attached_jobs_and_steps(self):
@@ -2100,7 +2127,7 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "pipeline 1")
 
             text = output.getvalue()
-            self.assertIn("pipeline=1", text)
+            self.assertIn("pipeline: 1", text)
             self.assertIn("Jobs", text)
             self.assertIn("Steps", text)
             self.assertIn("Inspect: job 1; step 1; event step=1; event follow step=1; artifact list step=1", text)
@@ -2152,11 +2179,11 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(selector_output):
                 dispatch_repl_line(runner, f"job serial={serial}")
 
-            self.assertIn(f"serial={serial.split('-', 1)[1][:8]}", direct_output.getvalue())
-            self.assertIn("commandlet=hostscanner", direct_output.getvalue())
-            self.assertIn("args=127.0.0.1", direct_output.getvalue())
-            self.assertIn("commandlet=hostscanner", selector_output.getvalue())
-            self.assertIn("args=127.0.0.1", selector_output.getvalue())
+            self.assertIn(f"serial: {serial.split('-', 1)[1][:8]}", direct_output.getvalue())
+            self.assertIn("commandlet: hostscanner", direct_output.getvalue())
+            self.assertIn("args: 127.0.0.1", direct_output.getvalue())
+            self.assertIn("commandlet: hostscanner", selector_output.getvalue())
+            self.assertIn("args: 127.0.0.1", selector_output.getvalue())
 
     def test_job_show_numeric_serial_prefix_falls_back_after_missing_local_id(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -2169,8 +2196,8 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "job 41864964")
 
-            self.assertIn("serial=41864964", output.getvalue())
-            self.assertIn("commandlet=hostscanner", output.getvalue())
+            self.assertIn("serial: 41864964", output.getvalue())
+            self.assertIn("commandlet: hostscanner", output.getvalue())
 
     def test_event_job_selector_accepts_durable_serial(self):
         with tempfile.TemporaryDirectory() as tmp:

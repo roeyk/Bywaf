@@ -386,7 +386,7 @@ def format_pipeline(
     marker_style: str = "short",
     style_getter=None,
 ) -> str:
-    """Format one pipeline summary row."""
+    """Format one pipeline as a readable detail block."""
     statuses = row["job_statuses"] or "unknown"
     prefix = ""
     detail = ""
@@ -394,16 +394,22 @@ def format_pipeline(
         label = runtime_state_label(statuses)
         timestamp = row["first_seen"] if label in {"active", "in progress"} else row["last_seen"]
         prefix, detail = state_marker(label, timestamp, style=marker_style)
-    name_part = f" name={display_name}" if display_name else ""
     pipeline_id = alias or row["pipeline_id"]
     pipeline_id = styled_subject_text(style_getter, "pipeline", pipeline_id) if style_getter else pipeline_id
     serial = display_runtime_serial(row["pipeline_id"])
     serial = styled_subject_text(style_getter, "serial", serial) if style_getter else serial
-    line = (
-        f"{prefix}pipeline={pipeline_id} serial={serial}"
-        f"{name_part} job={row['job_id']} status={statuses} steps={row['runs']} events={row['events']}"
-    )
-    return f"{line}\n{detail}" if detail else line
+    lines = [
+        f"  pipeline: {prefix}{pipeline_id}",
+        f"  serial: {serial}",
+        f"  job: {row['job_id']}",
+        f"  status: {statuses}",
+        f"  steps: {row['runs']}",
+        f"  events: {row['events']}",
+    ]
+    if display_name:
+        lines.insert(2, f"  name: {display_name}")
+    block = "Pipeline summary\n" + "\n".join(lines)
+    return f"{block}\n\n{detail}" if detail else block
 
 
 def require_pipeline(context: CommandContext, pipeline_id: str | None):

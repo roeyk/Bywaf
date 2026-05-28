@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from argparse import Namespace
 from collections.abc import Iterable
+from typing import Any
 
 from bywaf.events import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
@@ -165,34 +166,60 @@ def show_step(context: CommandContext, step_id: str) -> None:
     run_id = runtime.resolve_run_serial(step_id)
     run_aliases = runtime.run_aliases()
     pipeline_aliases = runtime.pipeline_aliases()
+    sections: list[str] = []
     run_row = next((row for row in runtime.runs(active_only=False) if str(row["command_run_id"]) == run_id), None)
     if run_row is not None:
         pipeline_serial = str(run_row["pipeline_id"]) if run_row["pipeline_id"] is not None else ""
-        context.output(
-            " ".join(
-                part
+        sections.append(
+            "Step summary\n"
+            + "\n".join(
+                f"  {part}"
                 for part in (
-                    f"step={run_aliases.get(run_id, run_id)}",
-                    f"serial={run_id}",
-                    f"status={runtime_status_summary(run_row['job_statuses'])}",
-                    f"pipeline={pipeline_aliases.get(pipeline_serial, pipeline_serial)}" if pipeline_serial else "",
-                    f"source={run_row['source']}",
-                    f"events={run_row['events']}",
-                    f"started={format_runtime_timestamp(run_row['first_event'])}",
-                    f"duration={format_runtime_duration(run_row['first_event'], run_row['last_event'])}",
+                    f"step: {run_aliases.get(run_id, run_id)}",
+                    f"serial: {run_id}",
+                    f"status: {runtime_status_summary(run_row['job_statuses'])}",
+                    f"pipeline: {pipeline_aliases.get(pipeline_serial, pipeline_serial)}" if pipeline_serial else "",
+                    f"source: {run_row['source']}",
+                    f"events: {run_row['events']}",
+                    f"started: {format_runtime_timestamp(run_row['first_event'])}",
+                    f"duration: {format_runtime_duration(run_row['first_event'], run_row['last_event'])}",
                 )
                 if part
             )
         )
     rows = runtime.command_run_var_rows(run_id)
+    job_id = step_job_id(rows)
     relevant_rows = [row for row in rows if should_show_step_variable(str(row["name"]))]
     if relevant_rows:
-        context.output("Variables:\n" + "\n".join(f"  {row['name']}={row['value']}" for row in relevant_rows[:25]))
+        sections.append("Variables\n" + "\n".join(f"  {row['name']}={row['value']}" for row in relevant_rows[:25]))
     elif rows:
-        context.output(f"Variables: {len(rows)} captured runtime preferences hidden")
+        sections.append(f"Variables\n  {len(rows)} captured runtime preferences hidden")
     events = context.event_store("step").events_matching(command_run_id=run_id)
     if events:
-        context.output("Events:\n" + "\n".join(format_step_event(event) for event in events))
+        sections.append("Events\n" + "\n".join(f"  {format_step_event(event)}" for event in events))
+    sections.append(step_next_actions(run_aliases.get(run_id, run_id), job_id, events))
+    context.output("\n\n".join(sections))
+
+
+def step_job_id(rows: list[Any]) -> str:
+    """Return the owning job id from run-variable rows when available."""
+    for row in rows:
+        value = row["job_id"]
+        if value is not None:
+            return str(value)
+    return ""
+
+
+def step_next_actions(step_id: str, job_id: str, events: list[Event]) -> str:
+    """Return concise next commands for investigating one step."""
+    commands = [f"event step={step_id}", f"event follow step={step_id}", f"artifact list step={step_id}"]
+    if job_id:
+        commands.insert(0, f"job {job_id}")
+    text = "Next: " + "; ".join(commands)
+    topics = {event.topic for event in events}
+    if job_id and "command.run.completed" not in topics and "command.run.failed" not in topics:
+        text += f"\nNo step completion event was recorded; inspect owning job with `job {job_id}`."
+    return text
 
 
 def should_show_step_variable(name: str) -> bool:

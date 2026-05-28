@@ -265,29 +265,34 @@ def format_job(
     args: list[str] | None = None,
     style_getter=None,
 ) -> str:
-    """Format one job row in the same compact format used by the old `jobs`."""
+    """Format one job as a readable detail block."""
     prefix = ""
     detail = ""
     if show_active:
         label = runtime_state_label(row["status"])
         timestamp = row["started_at"] if label in {"active", "in progress"} else row["finished_at"]
         prefix, detail = state_marker(label, timestamp, style=marker_style)
-    name_part = f" name={display_name}" if display_name else ""
     job_id = styled_subject_text(style_getter, "job", row["id"]) if style_getter else row["id"]
     serial = display_runtime_serial(row["serial"])
     serial = styled_subject_text(style_getter, "serial", serial) if style_getter else serial
     command = str(row["command_line"])
     displayed_args = args or list(args_from_command_line(command))
-    args_part = f" args={format_command_args(displayed_args)}" if displayed_args else ""
-    line = (
-        f"{prefix}#{job_id} serial={serial} pid={row['pid']} status={row['status']}{name_part}"
-        f" launched={format_runtime_timestamp(row['started_at'])}"
-        f" finished={format_runtime_timestamp(row['finished_at'])}"
-        f" duration={format_runtime_duration(row['started_at'], row['finished_at'])}"
-        f" commandlet={commandlet_from_command_line(command)}"
-        f"{args_part}"
-    )
-    return f"{line}\n{detail}" if detail else line
+    lines = [
+        f"  job: {prefix}#{job_id}",
+        f"  serial: {serial}",
+        f"  pid: {row['pid']}",
+        f"  status: {row['status']}",
+        f"  launched: {format_runtime_timestamp(row['started_at'])}",
+        f"  finished: {format_runtime_timestamp(row['finished_at'])}",
+        f"  duration: {format_runtime_duration(row['started_at'], row['finished_at'])}",
+        f"  commandlet: {commandlet_from_command_line(command)}",
+    ]
+    if display_name:
+        lines.insert(3, f"  name: {display_name}")
+    if displayed_args:
+        lines.append(f"  args: {format_command_args(displayed_args)}")
+    block = "Job summary\n" + "\n".join(lines)
+    return f"{block}\n\n{detail}" if detail else block
 
 
 def latest_job_args(context: CommandContext, job_id: int | str) -> list[str]:
