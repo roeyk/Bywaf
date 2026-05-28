@@ -92,6 +92,7 @@ Common subjects include:
 | `timestamp` | Operator-facing timestamps |
 | `serial` | Durable runtime or artifact serials |
 | `job` / `step` / `pipeline` | Runtime provenance identifiers |
+| `command_line` | Commands shown for rerun, inspection, provenance, or follow-up actions |
 | `comment` | Human comments and inline notes |
 | `string` / `value` / `variable` | REPL syntax highlighting subjects |
 | `cve` / `cwe` | Vulnerability identifiers |
@@ -117,6 +118,7 @@ Renderers should use table styles as defaults and semantic subjects as overrides
 "display/style.report.section" = "bold white"
 "display/style.report.label" = "bold color245"
 "display/style.serial" = "color245"
+"display/style.command_line" = "cyan"
 "display/style.job" = "color39"
 "display/style.step" = "color39"
 "display/style.pipeline" = "color39"

@@ -225,7 +225,7 @@ def format_pipeline_jobs(context: CommandContext, pipeline_id: str) -> str:
     return "Jobs\n" + render_table(
         ("JOB", "STATUS", "STARTED", "DUR", "ART", "NAME", "COMMAND"),
         table_rows,
-        cell_subjects=("job", "", "timestamp", "timestamp", "", "", ""),
+        cell_subjects=("job", "", "timestamp", "timestamp", "", "", "command_line"),
         active_column_indexes=(1,),
         style_getter=command_context_style_getter(context),
         max_width=terminal_table_width(),
@@ -470,7 +470,8 @@ def attach_pipeline(context: CommandContext, args: list[str]) -> None:
         ),
         since_cursor=selectors.get("since", "beginning"),
     )
-    context.output(f"attached job={event.payload['job_id']} pipeline={resolved_pipeline_id} command={command_line}")
+    shown_command = styled_subject_text(command_context_style_getter(context), "command_line", command_line)
+    context.output(f"attached job={event.payload['job_id']} pipeline={resolved_pipeline_id} command={shown_command}")
 
 
 def parse_attach_tail(tokens: list[str]) -> tuple[dict[str, str], list[str]]:

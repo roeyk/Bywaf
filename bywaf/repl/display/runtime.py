@@ -50,7 +50,7 @@ def print_jobs(runner: Runner) -> None:
             render_table(
                 ("JOB", "SERIAL", "PID", "STATUS", "ARTIFACTS", "NAME", "STARTED", "DURATION", "COMMANDLET", "ARGS"),
                 rows,
-                cell_subjects=("job", "serial", "", "", "", "", "timestamp", "timestamp", "", ""),
+                cell_subjects=("job", "serial", "", "", "", "", "timestamp", "timestamp", "command_line", "command_line"),
                 style_getter=runner.registry.varstore.get,
             )
         )

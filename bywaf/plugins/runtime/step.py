@@ -237,7 +237,7 @@ def step_label(style_getter, text: str) -> str:
 
 def step_command(style_getter, text: str) -> str:
     """Style an inspect command."""
-    return styled_subject_text(style_getter, "value", text) if style_getter else text
+    return styled_subject_text(style_getter, "command_line", text) if style_getter else text
 
 
 def step_job_id(rows: list[Any]) -> str:

@@ -27,6 +27,7 @@ from bywaf.runtime_display import (
     runtime_sort_completion_candidates,
     terminal_table_width,
 )
+from bywaf.style import styled_subject_text
 
 RESULT_SCOPE_KEYS = {"all", "job", "pipeline", "step", "sort"}
 
@@ -245,6 +246,7 @@ def render_results(context: CommandContext, scope: Namespace) -> str:
 def render_ports_section(context: CommandContext, events: list[Event], scope: Namespace) -> str:
     """Render delegated open-port results with the equivalent view command."""
     command = equivalent_ports_command(scope)
+    command = styled_subject_text(command_context_style_getter(context), "command_line", command)
     table = render_ports(context, events, Namespace(scope=scope.scope, filters={}, sort=scope.sort))
     return f"Output of: ports\nEquivalent command: {command}\n\n{table}"
 

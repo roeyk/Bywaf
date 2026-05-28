@@ -212,7 +212,7 @@ def print_jobs(
     output = render_table(
         ("JOB", "STATUS", "STARTED", "DUR", "ART", "NAME", "COMMAND"),
         table_rows,
-        cell_subjects=("job", "", "timestamp", "timestamp", "", "", ""),
+        cell_subjects=("job", "", "timestamp", "timestamp", "", "", "command_line"),
         row_subjects=row_subjects,
         active_column_indexes=(1,),
         style_getter=command_context_style_getter(context),
@@ -280,6 +280,7 @@ def format_job(
     commandlet = commandlet_from_command_line(command)
     displayed_args = args or list(args_from_command_line(command))
     displayed_command = f"{commandlet} {format_command_args(displayed_args)}".strip() if displayed_args else command
+    displayed_command = styled_subject_text(style_getter, "command_line", displayed_command) if style_getter else displayed_command
     lines = [
         f"  job: {prefix}#{job_id}",
         f"  serial: {serial}",

@@ -25,7 +25,7 @@ from .settings import (
     EVENT_HEADING_VALUE_COLOR,
     EVENT_KEY_COLOR_VAR,
 )
-from .variables import format_var_assignment
+from .variables import format_var_assignment, subject_text
 
 def print_event_info(runner: Runner, event_id_text: str) -> None:
     """Print one event with runtime context and readable payload fields."""
@@ -120,7 +120,7 @@ def print_event_job_context(runner: Runner, payload: dict[str, Any]) -> None:
         print(format_event_kv(runner, "Finished", format_event_timestamp(datetime.fromisoformat(job["finished_at"])), prefix="  "))
     if command:
         print(format_event_kv(runner, "Commandlet", commandlet_from_command_line(command), prefix="  "))
-        print(format_event_kv(runner, "Command", command, prefix="  "))
+        print(format_event_kv(runner, "Command", subject_text(runner, "command_line", command), prefix="  "))
 
 
 def print_event_command_context(runner: Runner, payload: dict[str, Any], command_run_id: str | None) -> None:
@@ -150,9 +150,9 @@ def print_event_command_context(runner: Runner, payload: dict[str, Any], command
     if commandlet:
         print(format_event_kv(runner, "Commandlet", commandlet, prefix="  "))
     if command:
-        print(format_event_kv(runner, "Line", command, prefix="  "))
+        print(format_event_kv(runner, "Line", subject_text(runner, "command_line", command), prefix="  "))
     if args is not None:
-        print(format_event_kv(runner, "Args", " ".join(str(arg) for arg in args), prefix="  "))
+        print(format_event_kv(runner, "Args", subject_text(runner, "command_line", " ".join(str(arg) for arg in args)), prefix="  "))
 
 
 def print_event_causality(runner: Runner, payload: dict[str, Any]) -> None:
