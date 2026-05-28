@@ -160,15 +160,44 @@ def sort_step_rows(rows: list[dict], sort_key: str) -> list[dict]:
 
 
 def show_step(context: CommandContext, step_id: str) -> None:
-    """Print variable snapshot and events for one pipeline step."""
+    """Print a compact inspection view for one pipeline step."""
     runtime = context.runtime_store("step")
     run_id = runtime.resolve_run_serial(step_id)
+    run_aliases = runtime.run_aliases()
+    pipeline_aliases = runtime.pipeline_aliases()
+    run_row = next((row for row in runtime.runs(active_only=False) if str(row["command_run_id"]) == run_id), None)
+    if run_row is not None:
+        pipeline_serial = str(run_row["pipeline_id"]) if run_row["pipeline_id"] is not None else ""
+        context.output(
+            " ".join(
+                part
+                for part in (
+                    f"step={run_aliases.get(run_id, run_id)}",
+                    f"serial={run_id}",
+                    f"status={runtime_status_summary(run_row['job_statuses'])}",
+                    f"pipeline={pipeline_aliases.get(pipeline_serial, pipeline_serial)}" if pipeline_serial else "",
+                    f"source={run_row['source']}",
+                    f"events={run_row['events']}",
+                    f"started={format_runtime_timestamp(run_row['first_event'])}",
+                    f"duration={format_runtime_duration(run_row['first_event'], run_row['last_event'])}",
+                )
+                if part
+            )
+        )
     rows = runtime.command_run_var_rows(run_id)
-    if rows:
-        context.output("Variables:\n" + "\n".join(f"  {row['name']}={row['value']}" for row in rows))
+    relevant_rows = [row for row in rows if should_show_step_variable(str(row["name"]))]
+    if relevant_rows:
+        context.output("Variables:\n" + "\n".join(f"  {row['name']}={row['value']}" for row in relevant_rows[:25]))
+    elif rows:
+        context.output(f"Variables: {len(rows)} captured runtime preferences hidden")
     events = context.event_store("step").events_matching(command_run_id=run_id)
     if events:
-        context.output("\n".join(format_step_event(event) for event in events))
+        context.output("Events:\n" + "\n".join(format_step_event(event) for event in events))
+
+
+def should_show_step_variable(name: str) -> bool:
+    """Return whether a captured runtime variable is useful in step detail."""
+    return not (name.startswith("display.") or name.startswith("display/") or name.startswith("display/style."))
 
 
 def format_step_event(event: Event) -> str:
@@ -180,12 +209,23 @@ def format_step_payload(payload: object) -> str:
     """Render event payload values compactly for step inspection."""
     if not isinstance(payload, dict):
         return str(payload)
+    if "text" in payload:
+        source = payload.get("source", "")
+        return f"source={source} text={summarize_step_text(str(payload.get('text', '')))}".strip()
     if "host" in payload:
         parts = [str(payload.get("host", ""))]
         if payload.get("port") is not None:
             parts[-1] = f"{parts[-1]}:{payload['port']}"
         return " ".join(part for part in parts if part)
     return " ".join(f"{key}={value}" for key, value in payload.items())
+
+
+def summarize_step_text(text: str, *, limit: int = 120) -> str:
+    """Return the first useful line of captured console text."""
+    first_line = next((line.strip() for line in text.splitlines() if line.strip()), "")
+    if len(first_line) <= limit:
+        return first_line
+    return first_line[: limit - 1].rstrip() + "..."
 
 
 def step_ids(context: CompletionContext) -> list[str]:

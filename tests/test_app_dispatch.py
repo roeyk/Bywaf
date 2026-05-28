@@ -451,6 +451,37 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("test.marker=1", text)
             self.assertIn("host.found 127.0.0.1", text)
 
+    def test_step_show_summarizes_captured_console_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.record_command_run_vars(
+                job_id=None,
+                pipeline_id="p",
+                command_run_id="r",
+                commandlet="step",
+                values={"display/style.host": "green", "operator.note": "manual check"},
+            )
+            runner.db.publish(
+                "framework.console.output.requested",
+                {
+                    "source": "step",
+                    "text": "STEP  STATUS\n----  ------\n1     completed\n2     completed",
+                },
+                "step",
+                pipeline_id="p",
+                command_run_id="r",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "step 1")
+
+            text = output.getvalue()
+            self.assertIn("operator.note=manual check", text)
+            self.assertNotIn("display/style.host", text)
+            self.assertIn("text=STEP  STATUS", text)
+            self.assertNotIn("2     completed", text)
+
     def test_events_colors_event_ids_when_enabled(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
