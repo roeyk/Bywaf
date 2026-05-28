@@ -1827,6 +1827,20 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("Equivalent command: ports step=1 sort=port", text)
             self.assertIn("grouped by port ascending", text)
 
+    def test_results_mentions_active_work_when_empty(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.record_job("hostscanner host=192.0.2.0/24 & | portscanner", 123, "running")
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "results")
+
+            text = output.getvalue()
+            self.assertIn("no results yet; active work is still running", text)
+            self.assertIn("hostscanner host=192.0.2.0/24 & | portscanner", text)
+            self.assertIn("job 1", text)
+
     def test_result_alias_shows_generic_inserted_events(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

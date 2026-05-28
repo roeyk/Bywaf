@@ -87,7 +87,7 @@ class Results(CommandletBase):
         context.require_foreground("result views")
         scope = select_result_scope(context, selectors)
         if not scope.events:
-            context.output("no results")
+            context.output(no_results_message(context))
             return ()
         output = render_results(context, scope)
         if parsed.page:
@@ -218,6 +218,39 @@ def equivalent_ports_command(scope: Namespace) -> str:
     args = [f"{key}={value}" for key, value in scope.scope.items()]
     args.append(f"sort={scope.sort}")
     return "ports " + " ".join(args)
+
+
+def no_results_message(context: CommandContext) -> str:
+    """Explain an empty result view and mention active work when relevant."""
+    runtime = context.runtime_store("results active jobs")
+    active_jobs = [
+        row
+        for row in runtime.jobs(active_only=True)
+        if context.job_id is None or str(row["id"]) != str(context.job_id)
+    ]
+    if not active_jobs:
+        return "no results"
+    rows = [
+        (
+            row["id"],
+            row["status"],
+            str(row["command_line"]),
+        )
+        for row in active_jobs[-5:]
+    ]
+    table = render_table(
+        ("JOB", "STATUS", "COMMAND"),
+        rows,
+        cell_subjects=("job", "status", "command"),
+        style_getter=command_context_style_getter(context),
+        max_width=terminal_table_width(),
+    )
+    latest_job = active_jobs[-1]["id"]
+    return (
+        "no results yet; active work is still running\n"
+        f"{table}\n"
+        f"Try again with `results`, or inspect progress with `job {latest_job}`."
+    )
 
 
 def render_event_topic_summary(context: CommandContext, events: list[Event]) -> str:
