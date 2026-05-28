@@ -110,9 +110,29 @@ belong in Python `@commandlet`, `@argument`, and `@option` declarations.
 | --- | --- | --- | --- |
 | `name` | string | yes | Must match the Python `CommandSpec.name` exactly. |
 | `capabilities` | list of strings | no | Must match `CommandSpec.capabilities` exactly. |
+| `database.actions.view` | boolean | no | Whether the commandlet may use audited database read capabilities such as `db.read:*`. Must match `CommandSpec.database_actions`. |
+| `database.actions.write` | boolean | no | Whether the commandlet may use audited database write capabilities such as `db.write:*`. Must match `CommandSpec.database_actions`. |
+| `database.actions.manage` | boolean | no | Whether the commandlet may use high-risk database management capabilities such as `db.raw` or `db.manage:*`. Must match `CommandSpec.database_actions`. |
 | `secret_options` | list of strings | no | Must match Python options declared with `secret=True` exactly. |
 | `provider_variables` | list of strings | no | Immediate-provider variable names this commandlet may read with `context.vars.get_provider(...)`. Must match `CommandSpec.provider_variables` exactly. |
 | `secret_provider_variables` | list of strings | no | Immediate-provider variable names that are secret references. Must match `CommandSpec.secret_provider_variables` exactly. |
+
+Database action flags are coarse guardrails around audited DB capability use.
+For example, a read-only view commandlet can declare:
+
+```toml
+[[commandlets]]
+name = "ports"
+capabilities = ["framework.console.output"]
+database.actions.view = true
+database.actions.write = false
+database.actions.manage = false
+```
+
+`view` permits `db.read:*`; `write` permits `db.read:*` and `db.write:*`;
+`manage` permits all database actions, including raw or management access.
+Lifecycle/audit events emitted by the framework itself are separate from these
+plugin action flags.
 
 When a manifest is present, Bywaf registers only commandlets listed in
 `[[commandlets]]`. Extra commandlets returned by `plugin()` or `plugins()` are

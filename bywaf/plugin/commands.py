@@ -30,6 +30,7 @@ def commandlet(
     consumes: Sequence[str] = (),
     emits: Sequence[str] = (),
     capabilities: Sequence[str] = (),
+    database_actions: Sequence[str] = (),
     provider_variables: Sequence[str] = (),
     secret_provider_variables: Sequence[str] = (),
 ):
@@ -51,6 +52,7 @@ def commandlet(
             consumes=tuple(consumes),
             emits=tuple(emits),
             capabilities=tuple(capabilities),
+            database_actions=tuple(database_actions),
             provider_variables=tuple(provider_variables),
             secret_provider_variables=tuple(secret_provider_variables),
         )

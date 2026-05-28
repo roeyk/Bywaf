@@ -11,6 +11,9 @@ from __future__ import annotations
 
 from .capabilities import (
     capability_declared,
+    database_action_allowed,
+    database_action_for_capability,
+    database_actions_for_capabilities,
     framework_request_capability,
     framework_request_capability_map,
     framework_request_prefix_capabilities,
@@ -102,6 +105,9 @@ __all__ = [
     "check_process_argv_for_secrets",
     "command_run_id",
     "commandlet",
+    "database_action_allowed",
+    "database_action_for_capability",
+    "database_actions_for_capabilities",
     "emit_alert",
     "format_table",
     "framework_request_capability",

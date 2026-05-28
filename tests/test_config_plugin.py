@@ -191,6 +191,22 @@ class ConfigPluginTests(unittest.TestCase):
             self.assertEqual(len(used), 2)
             self.assertEqual([event.payload["request_event_id"] for event in used], [1, 2])
 
+    def test_command_context_enforces_database_action_policy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="ports",
+                metadata={
+                    "command_run_id": "run-1",
+                    "capabilities": ("db.read:port.open", "db.write:port.open"),
+                    "database_actions": ("view",),
+                },
+            )
+            context.audit_capability("db.read:port.open")
+            with self.assertRaisesRegex(PermissionError, "database action policy denies db.write:port.open"):
+                context.audit_capability("db.write:port.open")
+
     def test_command_context_alert_prints_without_database(self):
         context = CommandContext(db=None, source="test", metadata={"command_run_id": "run-1"})
         output = io.StringIO()

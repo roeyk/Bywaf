@@ -33,6 +33,7 @@ class PluginManifest:
     commandlets: frozenset[str]
     triggers: tuple[TriggerSpec, ...] = ()
     commandlet_capabilities: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    commandlet_database_actions: dict[str, tuple[str, ...]] = field(default_factory=dict)
     commandlet_secret_options: dict[str, tuple[str, ...]] = field(default_factory=dict)
     commandlet_provider_variables: dict[str, tuple[str, ...]] = field(default_factory=dict)
     commandlet_secret_provider_variables: dict[str, tuple[str, ...]] = field(default_factory=dict)
@@ -86,6 +87,7 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
         raise ValueError(f"{source} must declare at least one [[commandlets]] entry")
     commandlets: set[str] = set()
     commandlet_capabilities: dict[str, tuple[str, ...]] = {}
+    commandlet_database_actions: dict[str, tuple[str, ...]] = {}
     commandlet_secret_options: dict[str, tuple[str, ...]] = {}
     commandlet_provider_variables: dict[str, tuple[str, ...]] = {}
     commandlet_secret_provider_variables: dict[str, tuple[str, ...]] = {}
@@ -101,6 +103,7 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
         commandlets.add(name)
         context = f"commandlets entry {index}"
         commandlet_capabilities[name] = string_list_field(row, "capabilities", source, context)
+        commandlet_database_actions[name] = database_actions_field(row, source, context)
         commandlet_secret_options[name] = string_list_field(row, "secret_options", source, context)
         commandlet_provider_variables[name] = string_list_field(row, "provider_variables", source, context)
         commandlet_secret_provider_variables[name] = string_list_field(row, "secret_provider_variables", source, context)
@@ -122,6 +125,7 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
         commandlets=frozenset(commandlets),
         triggers=triggers,
         commandlet_capabilities=commandlet_capabilities,
+        commandlet_database_actions=commandlet_database_actions,
         commandlet_secret_options=commandlet_secret_options,
         commandlet_provider_variables=commandlet_provider_variables,
         commandlet_secret_provider_variables=commandlet_secret_provider_variables,
@@ -250,6 +254,17 @@ def enforce_plugin_manifest(
             if stale_caps:
                 details.append(f"stale {', '.join(stale_caps)}")
             raise ValueError(f"{path} capabilities mismatch for {name}: {'; '.join(details)}")
+        manifest_database_actions = set(manifest.commandlet_database_actions.get(name, ()))
+        code_database_actions = set(by_name[name].spec.database_actions)
+        if manifest_database_actions != code_database_actions:
+            missing_actions = sorted(code_database_actions.difference(manifest_database_actions))
+            stale_actions = sorted(manifest_database_actions.difference(code_database_actions))
+            details = []
+            if missing_actions:
+                details.append(f"missing {', '.join(missing_actions)}")
+            if stale_actions:
+                details.append(f"stale {', '.join(stale_actions)}")
+            raise ValueError(f"{path} database_actions mismatch for {name}: {'; '.join(details)}")
         manifest_secret_options = set(manifest.commandlet_secret_options.get(name, ()))
         code_secret_options = {option.name for option in by_name[name].spec.options if option.secret}
         if manifest_secret_options != code_secret_options:
@@ -344,6 +359,49 @@ def string_list_field(data: dict[str, Any], key: str, source: str, context: str)
         if not isinstance(item, str) or not item:
             raise ValueError(f"{source} {context}.{key} entry {index} must be a string")
     return tuple(value)
+
+
+def database_actions_field(data: dict[str, Any], source: str, context: str) -> tuple[str, ...]:
+    """Return commandlet database action metadata from list/string/booleans."""
+    direct = data.get("database_actions")
+    if direct is not None:
+        if isinstance(direct, str):
+            items = [item.strip() for item in direct.split(",") if item.strip()]
+        elif isinstance(direct, list):
+            items = direct
+        else:
+            raise ValueError(f"{source} {context}.database_actions must be a string or list")
+        return normalize_database_actions(items, source, f"{context}.database_actions")
+    database = data.get("database", {})
+    if database in ({}, None):
+        return ()
+    if not isinstance(database, dict):
+        raise ValueError(f"{source} {context}.database must be a table")
+    actions = database.get("actions", {})
+    if not isinstance(actions, dict):
+        raise ValueError(f"{source} {context}.database.actions must be a table")
+    selected: list[str] = []
+    for action in ("view", "write", "manage"):
+        enabled = actions.get(action, False)
+        if not isinstance(enabled, bool):
+            raise ValueError(f"{source} {context}.database.actions.{action} must be true or false")
+        if enabled:
+            selected.append(action)
+    return tuple(selected)
+
+
+def normalize_database_actions(items: list[Any], source: str, context: str) -> tuple[str, ...]:
+    """Validate and order database action names."""
+    allowed = ("view", "write", "manage")
+    selected: set[str] = set()
+    for index, item in enumerate(items, start=1):
+        if not isinstance(item, str):
+            raise ValueError(f"{source} {context} entry {index} must be a string")
+        if item not in allowed:
+            raise ValueError(f"{source} {context} entry {index} must be one of: {', '.join(allowed)}")
+        selected.add(item)
+    return tuple(action for action in allowed if action in selected)
+
 
 def load_package_manifest(package_name: str, entry: str) -> PluginManifest | None:
     """Load a bundled sidecar manifest before importing plugin code."""

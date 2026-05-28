@@ -19,7 +19,12 @@ from typing import Any
 from ..artifacts import artifact_store_for_event_store
 from ..db import EventStore
 from ..events import Event
-from .capabilities import capability_declared, framework_request_capability
+from .capabilities import (
+    capability_declared,
+    database_action_allowed,
+    database_action_for_capability,
+    framework_request_capability,
+)
 from .process import ContextProcess
 from .services import (
     ContextArtifacts,
@@ -246,6 +251,7 @@ class CommandContext:
         """Record audit-only capability usage for this commandlet run."""
         if self._db is None:
             return
+        self.enforce_database_action_policy(capability)
         declared = capability_declared(capability, self.declared_capabilities)
         if request_event_id is None:
             # Avoid spamming identical audit events for repeated ordinary reads
@@ -286,6 +292,23 @@ class CommandContext:
         """Return capabilities declared or implied for this commandlet."""
         value = self.metadata.get("capabilities", ())
         return tuple(str(capability) for capability in value)
+
+    @property
+    def database_actions(self) -> tuple[str, ...]:
+        """Return coarse database actions allowed for this commandlet."""
+        value = self.metadata.get("database_actions", ())
+        return tuple(str(action) for action in value)
+
+    def enforce_database_action_policy(self, capability: str) -> None:
+        """Reject DB capabilities outside this commandlet's action policy."""
+        required = database_action_for_capability(capability)
+        if required is None:
+            return
+        allowed = self.database_actions
+        if not allowed or database_action_allowed(required, allowed):
+            return
+        allowed_text = ", ".join(allowed)
+        raise PermissionError(f"{self.source} database action policy denies {capability}; allowed: {allowed_text}")
 
     def output(self, text: object = "", *, end: str = "\n") -> None:
         """Request normal command output from the framework console."""

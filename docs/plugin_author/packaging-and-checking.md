@@ -205,6 +205,7 @@ runtime patterns disagree. In particular, it checks:
 
 - decorator metadata and runtime parser alignment
 - manifest/decorator capability synchronization
+- manifest/decorator database action policy synchronization
 - secret option declarations
 - trigger declarations
 - normalized finding payload helper usage
@@ -219,10 +220,11 @@ library-backed plugins are still Python code. Treat a passing check as
 
 The checker requires `plugin.py` and `bywaf.plugin.toml`, parses strict manifest
 metadata, imports the plugin factory, and verifies that declared commandlets,
-capabilities, secret options, and trigger specs match the code. It also runs a
-lightweight AST pass over plugin source and reports inferred capabilities,
-missing inferred declarations, unused declarations, and warnings for direct
-network, process, and filesystem APIs that bypass framework mediation.
+capabilities, database action flags, secret options, and trigger specs match the
+code. It also runs a lightweight AST pass over plugin source and reports
+inferred capabilities, missing inferred declarations, unused declarations, and
+warnings for direct network, process, and filesystem APIs that bypass framework
+mediation.
 Inference is advisory by default; `--strict-inference` turns missing inferred
 capabilities into a failed check. When `--manifest-key` is supplied, it also
 verifies the manifest signature.

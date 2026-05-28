@@ -254,6 +254,12 @@ class RegistryCompletionTests(unittest.TestCase):
         assert manifest is not None
         self.assertEqual(manifest.commandlet_secret_options["ssh_probe"], ("password",))
 
+    def test_bundled_sidecar_manifest_declares_database_actions(self):
+        manifest = load_package_manifest("bywaf.plugins", "network.portscanner")
+        self.assertIsNotNone(manifest)
+        assert manifest is not None
+        self.assertEqual(manifest.commandlet_database_actions["ports"], ("view",))
+
     def test_registry_tracks_provider_groups(self):
         self.assertEqual(self.registry.grouped_names()["analysis"], ["finding_dedupe", "finding_report", "report", "yara_scan"])
         self.assertEqual(self.registry.grouped_names()["identity"], ["ldap_probe", "smb_probe"])
@@ -1237,6 +1243,32 @@ class RegistryCompletionTests(unittest.TestCase):
             config.write_text('default_plugins = ["scanners/example"]\n')
 
             with self.assertRaisesRegex(ValueError, "capabilities mismatch"):
+                PluginRegistry.from_config(root, config, forced=True)
+
+    def test_filesystem_manifest_rejects_database_actions_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp, "plugins")
+            plugin_dir = root / "scanners" / "example"
+            plugin_dir.mkdir(parents=True)
+            (plugin_dir / "plugin.py").write_text(
+                "from bywaf.plugin import CommandSpec\n"
+                "class Example:\n"
+                "    spec = CommandSpec('example', 'example plugin', database_actions=('view',))\n"
+                "    def run(self, context, args, input_events):\n"
+                "        return ()\n"
+                "def plugin():\n"
+                "    return Example()\n"
+            )
+            (plugin_dir / "bywaf.plugin.toml").write_text(
+                "[[commandlets]]\n"
+                'name = "example"\n'
+                "capabilities = []\n"
+                "database.actions.view = false\n"
+            )
+            config = Path(tmp, "plugins.toml")
+            config.write_text('default_plugins = ["scanners/example"]\n')
+
+            with self.assertRaisesRegex(ValueError, "database_actions mismatch"):
                 PluginRegistry.from_config(root, config, forced=True)
 
     def test_filesystem_manifest_rejects_secret_option_mismatch(self):

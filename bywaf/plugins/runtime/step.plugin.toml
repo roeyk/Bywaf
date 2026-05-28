@@ -7,4 +7,7 @@ name = "step"
 capabilities = [
   "framework.console.output",
 ]
+database.actions.view = true
+database.actions.write = false
+database.actions.manage = false
 module = "bywaf.plugins.runtime.step"

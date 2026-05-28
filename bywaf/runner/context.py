@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from ..command.parser import CommandInvocation
 from ..db import EventStore, new_serial
 from ..events import Event
-from ..plugin import CommandContext, implied_capabilities
+from ..plugin import CommandContext, database_actions_for_capabilities, implied_capabilities
 from ..registry import PluginRegistry
 from ..varstore import VarStore
 
@@ -172,6 +172,7 @@ def build_context(
     """
     invocation = stage.invocation
     plugin = registry.get(invocation.name)
+    capabilities = implied_capabilities(plugin.spec)
     variable_scope = registry.variable_scope(invocation.name)
     provider_scope = provider_scope_for_commandlet_scope(variable_scope)
     # Snapshot variables before constructing the context so plugin code sees a
@@ -208,6 +209,7 @@ def build_context(
             "runner": runner,
             "job_id": job_id,
             "run_vars": run_vars,
-            "capabilities": implied_capabilities(plugin.spec),
+            "capabilities": capabilities,
+            "database_actions": plugin.spec.database_actions or database_actions_for_capabilities(capabilities),
         },
     )

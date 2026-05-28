@@ -76,6 +76,22 @@ stale metadata early. Runtime policy enforcement remains the real behavior
 boundary: privileged framework APIs can still audit or deny use even if a
 plugin's metadata is absent, incomplete, or stale.
 
+Commandlets also declare coarse database action policy in both Python metadata
+and the manifest:
+
+```toml
+[[commandlets]]
+name = "ports"
+database.actions.view = true
+database.actions.write = false
+database.actions.manage = false
+```
+
+`view` covers audited database reads, `write` covers reads and writes, and
+`manage` covers raw or management-level database access. These flags keep
+read-only view commands from silently growing write access while still allowing
+the framework to record lifecycle and audit events around command execution.
+
 ## Common Capability Names
 
 Common capability names include:

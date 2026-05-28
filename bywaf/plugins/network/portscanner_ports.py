@@ -46,6 +46,7 @@ PORT_SCOPE_KEYS = {"all", "job", "pipeline", "step"}
     ),
     consumes=("port.open",),
     capabilities=("framework.console.output", "framework.file.page"),
+    database_actions=("view",),
 )
 class Ports(CommandletBase):
     """Render a compact table of open-port discoveries."""

@@ -13,6 +13,8 @@ from collections.abc import Iterable
 
 from ..specs import CommandSpec
 
+DATABASE_ACTIONS = ("view", "write", "manage")
+
 
 def framework_request_capability(topic: str) -> str | None:
     """Map a framework request topic to the capability it uses."""
@@ -60,6 +62,42 @@ def capability_declared(capability: str, declarations: Iterable[str]) -> bool:
             # Wildcards are prefix wildcards for capability families such as
             # db.read:*; they are not general glob patterns.
             return True
+    return False
+
+
+def database_actions_for_capabilities(capabilities: Iterable[str]) -> tuple[str, ...]:
+    """Infer coarse database actions from DB-related capability declarations."""
+    actions: set[str] = set()
+    for capability in capabilities:
+        if capability.startswith("db.manage") or capability.startswith("db.raw"):
+            actions.add("manage")
+        elif capability.startswith("db.write:"):
+            actions.add("write")
+        elif capability.startswith("db.read:"):
+            actions.add("view")
+    return tuple(action for action in DATABASE_ACTIONS if action in actions)
+
+
+def database_action_for_capability(capability: str) -> str | None:
+    """Return the coarse database action needed by one capability."""
+    if capability.startswith("db.manage") or capability.startswith("db.raw"):
+        return "manage"
+    if capability.startswith("db.write:"):
+        return "write"
+    if capability.startswith("db.read:"):
+        return "view"
+    return None
+
+
+def database_action_allowed(required: str, allowed: Iterable[str]) -> bool:
+    """Return whether a declared action set allows the required DB operation."""
+    declared = set(allowed)
+    if required == "view":
+        return bool(declared & {"view", "write", "manage"})
+    if required == "write":
+        return bool(declared & {"write", "manage"})
+    if required == "manage":
+        return "manage" in declared
     return False
 
 

@@ -21,4 +21,7 @@ capabilities = [
   "framework.console.output",
   "framework.file.page",
 ]
+database.actions.view = true
+database.actions.write = false
+database.actions.manage = false
 module = "bywaf.plugins.network.portscanner"

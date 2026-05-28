@@ -506,7 +506,7 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "step 1")
 
             text = output.getvalue()
-            self.assertIn(f"Next: job {job_id}; event step=1", text)
+            self.assertIn(f"inspect further with: job {job_id}; event step=1", text)
             self.assertIn(f"No step completion event was recorded; inspect owning job with `job {job_id}`.", text)
 
     def test_events_colors_event_ids_when_enabled(self):

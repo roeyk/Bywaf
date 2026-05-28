@@ -78,6 +78,9 @@ default_commandlet = "example"
 [[commandlets]]
 name = "example"
 capabilities = ["network.connect"]
+database.actions.view = true
+database.actions.write = true
+database.actions.manage = false
 secret_options = ["password"]
 provider_variables = ["proxy"]
 ```
@@ -94,12 +97,14 @@ Implementation traits are independent:
 - `service` means the plugin is expected to run long-lived or continuously.
 
 Each `[[commandlets]]` entry should also list the commandlet capabilities,
-secret options, and any immediate provider variables the commandlet may read.
-Bywaf requires manifest `capabilities`, `secret_options`, `provider_variables`,
-and `secret_provider_variables` to match Python metadata exactly. This is a
+database action policy, secret options, and any immediate provider variables the
+commandlet may read. Bywaf requires manifest `capabilities`,
+`database.actions.*`, `secret_options`, `provider_variables`, and
+`secret_provider_variables` to match Python metadata exactly. This is a
 pre-load consistency check, not the only enforcement layer: runtime policy still
 audits and can deny actual framework API use if a plugin attempts behavior
-outside its declared capabilities or provider-variable permissions.
+outside its declared capabilities, database action policy, or provider-variable
+permissions.
 
 ## Manifest Generation And Inspection
 
