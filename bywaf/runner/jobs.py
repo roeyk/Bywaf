@@ -125,7 +125,7 @@ def run_background_job(
             command_resolver=runner.registry.resolve_commandlet_name,
             command_scope_resolver=runner.registry.variable_scope,
         )
-        if pipeline.background:
+        if should_run_stage_processes(pipeline.commands):
             runner.run_pipeline_processes(pipeline.commands, pipeline_id=pipeline_id, stages=stages)
         else:
             runner.run_pipeline(pipeline.commands, pipeline_id=pipeline_id, stages=stages)
@@ -133,6 +133,18 @@ def run_background_job(
         lifecycle.fail(str(exc))
     else:
         lifecycle.finish()
+
+
+def should_run_stage_processes(commands: tuple[object, ...]) -> bool:
+    """Return whether a background pipeline should split stages into processes.
+
+    A single `&` backgrounds the containing command line but should preserve
+    ordinary pipe semantics: stage N passes visible events directly to stage
+    N+1.  Process-per-stage execution is reserved for the explicit fan-out form
+    where every stage has its own background marker, such as
+    `hostscanner ... & | portscanner &`.
+    """
+    return len(commands) > 1 and all(getattr(command, "background", False) for command in commands)
 
 
 def run_attached_pipeline_job(

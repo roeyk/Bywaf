@@ -25,6 +25,7 @@ from .core import Runner
 from .jobs import JobLifecycle
 from .jobs import run_attached_pipeline_job
 from .jobs import run_background_job
+from .jobs import should_run_stage_processes
 from .plans import format_plan_report
 from .plans import handle_plan_if_needed
 from .plans import maybe_apply_plan_repair
@@ -93,5 +94,6 @@ __all__ = [
     "run_stage_process",
     "secret_arg_metadata",
     "select_input_events",
+    "should_run_stage_processes",
     "split_option_arg",
 ]

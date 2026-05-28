@@ -36,7 +36,7 @@ from bywaf.plugins.runtime.watchdog import Watchdog
 from bywaf.plugins.storage.db import encrypt_active_database
 from bywaf.plugin import CommandContext
 from bywaf.command.parser import parse_invocation, parse_pipeline
-from bywaf.runner import expand_at_file_arg, run_background_job
+from bywaf.runner import expand_at_file_arg, prepare_stage_runs, run_background_job, should_run_stage_processes
 from bywaf.varstore import VarStore
 
 
@@ -59,6 +59,22 @@ class StorageRunnerPluginTests(unittest.TestCase):
         self.assertTrue(pipeline.background)
         self.assertEqual([command.background for command in pipeline.commands], [True, True])
         self.assertEqual(pipeline.commands[0].args, ["192.168.0.1-2"])
+
+    def test_mixed_background_pipeline_preserves_pipe_flow(self):
+        pipeline = parse_pipeline("hostscanner 192.168.0.1-2 & | portscanner")
+        self.assertTrue(pipeline.background)
+        self.assertEqual([command.background for command in pipeline.commands], [True, False])
+        self.assertFalse(should_run_stage_processes(pipeline.commands))
+
+    def test_fully_background_pipeline_splits_stages(self):
+        pipeline = parse_pipeline("hostscanner 192.168.0.1-2 & | portscanner &")
+        self.assertTrue(should_run_stage_processes(pipeline.commands))
+
+    def test_trailing_background_pipeline_preserves_pipe_flow(self):
+        pipeline = parse_pipeline("hostscanner 192.168.0.1-2 | portscanner &")
+        self.assertTrue(pipeline.background)
+        self.assertEqual([command.background for command in pipeline.commands], [False, True])
+        self.assertFalse(should_run_stage_processes(pipeline.commands))
 
     def test_parse_attached_background_markers(self):
         pipeline = parse_pipeline("hostscanner 127.0.0.1& | portscanner&")
@@ -1015,6 +1031,35 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 self.assertEqual(completed[-1].payload["phase"], "port_scan")
                 self.assertEqual(completed[-1].payload["open_ports"], 1)
                 self.assertEqual(len(runner.db.events_for_topic("port.open")), 1)
+
+    def test_background_pipeline_with_single_marker_preserves_stage_output(self):
+        command_line = "hostscanner 127.0.0.1 & | portscanner port=8080"
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "db.sqlite3"))
+            job_id = db.record_job(command_line, None, "queued")
+            pipeline = parse_pipeline(command_line)
+            stages = prepare_stage_runs(pipeline.commands)
+            with (
+                patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]),
+                patch(
+                    "bywaf.plugins.network.portscanner.scan_open_ports",
+                    return_value=[
+                        NmapPort(
+                            host="127.0.0.1",
+                            port=8080,
+                            protocol="tcp",
+                            state="open",
+                            service="http",
+                        )
+                    ],
+                ),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                run_background_job(str(db.path), None, job_id, command_line, "pipeline-test", stages)
+            ports = db.events_for_topic("port.open")
+            self.assertEqual(len(ports), 1)
+            self.assertEqual(ports[0].payload["host"], "127.0.0.1")
+            self.assertEqual(ports[0].payload["port"], 8080)
 
     def test_portscanner_does_not_emit_events_for_closed_scanned_ports(self):
         with tempfile.TemporaryDirectory() as tmp:
