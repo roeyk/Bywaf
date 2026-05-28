@@ -410,6 +410,28 @@ class AppDispatchTests(unittest.TestCase):
             events = runner.events.events_matching(topic="shell.exec.completed")
             self.assertEqual(events[-1].payload["argv"], ["echo", "hello world"])
 
+    def test_foreground_commandlet_prints_completion_footer(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "job")
+            self.assertIn("done: job", output.getvalue())
+
+    def test_background_commandlet_does_not_print_completion_footer(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            event = Event.new(
+                "job.requested",
+                {"job_id": 1, "command": "hostscanner 127.0.0.1 &"},
+                "runner",
+            )
+            with patch.object(runner, "start_background", return_value=event):
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    dispatch_repl_line(runner, "hostscanner 127.0.0.1 &")
+            self.assertNotIn("done:", output.getvalue())
+
     def test_step_inspects_command_run(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

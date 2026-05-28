@@ -18,6 +18,7 @@ from ..command.names import PROJECT_ALIAS_COMMAND, SET_COMMAND, SETG_COMMAND
 from ..runner import Runner
 from .command_events import handle_event_command, handle_events_command
 from .command_exec import (
+    command_completion_line as command_completion_line,
     execute_repl_commandlet as execute_repl_commandlet,
     execute_shell_command as execute_shell_command,
     handle_exec_command,
