@@ -67,6 +67,7 @@ class Bundle:
         "db.read:bundle.created",
         "db.read:bundle.item.added",
         "db.read:bundle.sealed",
+        "db.raw",
         "db.write:bundle.created",
         "db.write:bundle.item.added",
         "db.write:bundle.sealed",
@@ -74,6 +75,7 @@ class Bundle:
         "filesystem.write",
         "framework.console.output",
     ),
+    database_actions=("view", "write", "manage"),
 )
 @argument("action", "bundle action", completion=CompletionSpec("choice", BUNDLE_ACTIONS))
 class BundleCommand(CommandletBase):

@@ -9,6 +9,7 @@ capabilities = [
   "db.read:bundle.created",
   "db.read:bundle.item.added",
   "db.read:bundle.sealed",
+  "db.raw",
   "db.write:bundle.created",
   "db.write:bundle.item.added",
   "db.write:bundle.sealed",
@@ -16,4 +17,7 @@ capabilities = [
   "filesystem.write",
   "framework.console.output",
 ]
+database.actions.view = true
+database.actions.write = true
+database.actions.manage = true
 module = "bywaf.plugins.runtime.bundle"
