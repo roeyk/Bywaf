@@ -11,11 +11,13 @@ Used by:
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+import inspect
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Literal, TypeVar
 
 FieldType = Literal["any", "bool", "dict", "int", "list", "number", "str"]
+T = TypeVar("T")
 
 
 @dataclass(frozen=True, slots=True)
@@ -168,6 +170,56 @@ def validate_event_payload(topic: str, payload: Mapping[str, Any]) -> list[str]:
             allowed = ", ".join(field.allowed)
             errors.append(f"{topic}.{field.name} must be one of: {allowed}")
     return errors
+
+
+def contract_payload(event: Any, topic: str) -> Mapping[str, Any]:
+    """Return a validated shared-contract payload from an event.
+
+    Plugin authors can use this directly or through ``contract_object`` before
+    constructing their own typed domain objects from shared event facts.
+    """
+    event_topic = getattr(event, "topic", None)
+    if event_topic != topic:
+        raise ValueError(f"expected {topic} event, got {event_topic}")
+    payload = getattr(event, "payload", None)
+    if not isinstance(payload, Mapping):
+        raise ValueError(f"{topic} payload must be a mapping")
+    errors = validate_event_payload(topic, payload)
+    if errors:
+        raise ValueError("; ".join(errors))
+    return payload
+
+
+def contract_object(event: Any, topic: str, factory: Callable[..., T]) -> T:
+    """Deserialize a shared-contract event into a plugin-owned object.
+
+    The factory must accept the contract fields as keyword arguments, which
+    makes dataclasses and small typed constructors work naturally.
+    """
+    contract = event_contract(topic)
+    if contract is None:
+        raise ValueError(f"unknown shared event contract: {topic}")
+    payload = contract_payload(event, topic)
+    fields = {field.name: payload[field.name] for field in contract.fields if field.name in payload}
+    accepted = accepted_factory_fields(factory)
+    if accepted is not None:
+        fields = {name: value for name, value in fields.items() if name in accepted}
+    return factory(**fields)
+
+
+def accepted_factory_fields(factory: Callable[..., Any]) -> set[str] | None:
+    """Return keyword names accepted by a factory, or None for arbitrary kwargs."""
+    try:
+        signature = inspect.signature(factory)
+    except (TypeError, ValueError):
+        return None
+    names: set[str] = set()
+    for name, parameter in signature.parameters.items():
+        if parameter.kind is inspect.Parameter.VAR_KEYWORD:
+            return None
+        if parameter.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY):
+            names.add(name)
+    return names
 
 
 def field_value_matches(value: Any, field_type: FieldType) -> bool:

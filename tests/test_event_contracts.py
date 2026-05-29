@@ -9,7 +9,18 @@ Used by:
 
 import unittest
 
-from bywaf.event_contracts import EVENT_CONTRACTS, validate_event_payload
+from dataclasses import dataclass
+
+from bywaf.event_contracts import EVENT_CONTRACTS, contract_object, validate_event_payload
+from bywaf.events import Event
+
+
+@dataclass(frozen=True)
+class OpenPort:
+    host: str
+    port: int
+    protocol: str
+    service: str = ""
 
 
 class EventContractTests(unittest.TestCase):
@@ -49,6 +60,29 @@ class EventContractTests(unittest.TestCase):
 
     def test_plugin_private_topics_are_free_form(self):
         self.assertEqual(validate_event_payload("smb_enum.raw_share_acl", {"any": object()}), [])
+
+    def test_contract_object_deserializes_event_into_plugin_object(self):
+        event = Event.new(
+            "port.open",
+            {
+                "host": "192.0.2.10",
+                "port": 445,
+                "protocol": "tcp",
+                "service": "microsoft-ds",
+                "reason": "syn-ack",
+            },
+            "test",
+        )
+
+        port = contract_object(event, "port.open", OpenPort)
+
+        self.assertEqual(port, OpenPort("192.0.2.10", 445, "tcp", "microsoft-ds"))
+
+    def test_contract_object_rejects_invalid_event_payload(self):
+        event = Event.new("port.open", {"host": "192.0.2.10", "port": "445"}, "test")
+
+        with self.assertRaisesRegex(ValueError, "port.open.port must be int"):
+            contract_object(event, "port.open", OpenPort)
 
 
 if __name__ == "__main__":

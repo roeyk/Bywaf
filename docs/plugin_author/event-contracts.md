@@ -7,6 +7,8 @@ without knowing the original scanner.
 ## Contents
 
 - [When To Use A Contract](#when-to-use-a-contract)
+- [Why Contracts Instead Of Shared Classes](#why-contracts-instead-of-shared-classes)
+- [Deserialize At The Boundary](#deserialize-at-the-boundary)
 - [Declare Consumes And Emits](#declare-consumes-and-emits)
 - [Keep Raw Tool Detail Separate](#keep-raw-tool-detail-separate)
 - [Examples](#examples)
@@ -27,6 +29,68 @@ Use a shared contract when the data should be useful outside your plugin:
 Framework-known contracts live in `bywaf/event_contracts.py` and are summarized
 in [Event Model](../EVENT_MODEL.md#shared-event-contracts). Plugin-private
 topics are still allowed for scanner-specific detail.
+
+## Why Contracts Instead Of Shared Classes
+
+Shared events are the durable interchange format, not the plugin's internal
+domain model. A plugin can consume `port.open`, `http.endpoint`, or
+`smb.share.found` and immediately convert the payload into its own typed object
+for parsing, probing, correlation, or reporting logic.
+
+That is intentional. It keeps the database and pipeline boundary stable while
+letting plugin authors use clean local models inside their code. Downstream
+plugins only depend on the shared contract fields, not on another plugin's
+classes, helper functions, or scanner-specific structures.
+
+## Deserialize At The Boundary
+
+Plugin logic should not have to pass dictionaries around. Use
+`contract_object(...)` when consuming a shared event, then work with your own
+dataclass or domain object internally.
+
+```python
+from dataclasses import dataclass
+
+from bywaf.event_contracts import contract_object
+
+
+@dataclass(frozen=True)
+class OpenPort:
+    host: str
+    port: int
+    protocol: str
+    service: str = ""
+
+
+for event in input_events:
+    if event.topic != "port.open":
+        continue
+    port = contract_object(event, "port.open", OpenPort)
+    probe_service(port.host, port.port, port.protocol, port.service)
+```
+
+The helper validates the event against the shared contract and passes matching
+contract fields into your constructor. Extra contract fields are ignored unless
+your factory accepts `**kwargs`, so your local object only needs the fields your
+plugin actually uses.
+
+When publishing a shared event, serialize back to the contract fields at the
+edge:
+
+```python
+context.events.publish(
+    "port.open",
+    {
+        "host": port.host,
+        "port": port.port,
+        "protocol": port.protocol,
+        "service": port.service,
+    },
+)
+```
+
+That keeps the database representation simple and stable while keeping plugin
+implementation code typed and readable.
 
 ## Declare Consumes And Emits
 
