@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import importlib
 from collections.abc import Iterable
-from pathlib import Path
 from typing import Any, cast
 
 from bywaf.events import Event
@@ -20,17 +19,10 @@ from bywaf.plugin import (
     Commandlet,
     ManifestCommandlet,
     RunConfig,
-    manifest_arguments_from_manifest,
-    spec_from_manifest,
 )
-
-MANIFEST = Path(__file__).with_suffix(".plugin.toml")
 
 
 class DnsLookup(ManifestCommandlet):
-    spec = spec_from_manifest(MANIFEST, "dns_lookup")
-    manifest_arguments = manifest_arguments_from_manifest(MANIFEST, "dns_lookup")
-
     def handle(self, context: CommandContext, cfg: RunConfig, input_events: Iterable[Event]):
         """Resolve one or more names and publish DNS records."""
         del input_events

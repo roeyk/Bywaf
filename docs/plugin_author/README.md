@@ -100,6 +100,10 @@ For new commandlets, prefer manifest-backed configuration:
 - implement `handle(self, context, cfg, input_events)`
 - read effective settings from `cfg`, not by repeatedly calling `context.vars`
 
+For the common one-commandlet-per-file shape, the base class finds the sidecar
+manifest and commandlet row by convention, so plugin code does not need to
+hand-write `CommandSpec`.
+
 `cfg` is a frozen per-run snapshot. It merges command-line overrides, stored
 plugin variables, and manifest defaults before the commandlet starts. Later
 operator changes affect the next invocation, not work already running.

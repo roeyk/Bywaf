@@ -199,6 +199,12 @@ plugin variable while a commandlet is running, the running invocation keeps its
 existing `cfg`; ordinary plugin variables configure future invocations, not live
 control state.
 
+By convention, a `ManifestCommandlet` subclass without an explicit `spec` reads
+the sidecar manifest next to its module, such as `dns_lookup.plugin.toml`, and
+uses the module stem as the commandlet name. Package-style plugins can override
+`manifest_path`; files exposing more than one manifest-backed commandlet can
+override `manifest_name`.
+
 | Key | Type | Required | Meaning |
 | --- | --- | --- | --- |
 | `name` | string | yes | Public option name. Hyphens are converted to underscores on `cfg`, so `record-type` becomes `cfg.record_type`. |

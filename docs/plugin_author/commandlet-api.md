@@ -125,23 +125,12 @@ default = "false"
 ```
 
 ```python
-from pathlib import Path
 from typing import cast
 
-from bywaf.plugin import (
-    ManifestCommandlet,
-    RunConfig,
-    manifest_arguments_from_manifest,
-    spec_from_manifest,
-)
-
-MANIFEST = Path(__file__).with_suffix(".plugin.toml")
+from bywaf.plugin import ManifestCommandlet, RunConfig
 
 
 class TcpBanner(ManifestCommandlet):
-    spec = spec_from_manifest(MANIFEST, "tcp_banner")
-    manifest_arguments = manifest_arguments_from_manifest(MANIFEST, "tcp_banner")
-
     def handle(self, context, cfg, input_events):
         cfg = cast(TcpBannerConfig, cfg)
         for target in cfg.targets:
@@ -154,9 +143,15 @@ class TcpBannerConfig(RunConfig):
     silent: bool
 ```
 
-The base class handles parsing, `key=value` option conversion, defaults, stored
-plugin variables, type casts, and choice validation. `cfg` is the effective
-configuration for this invocation:
+By convention, `ManifestCommandlet` reads the sidecar manifest next to the
+module, such as `tcp_banner.plugin.toml`, and uses the module stem as the
+commandlet row name. For package plugins with `bywaf.plugin.toml`, or for files
+that expose multiple commandlets, set `manifest_path` or `manifest_name` on the
+class.
+
+The base class builds `CommandSpec`, handles parsing, `key=value` option
+conversion, defaults, stored plugin variables, type casts, and choice
+validation. `cfg` is the effective configuration for this invocation:
 
 ```text
 command-line options > stored plugin variables > manifest defaults

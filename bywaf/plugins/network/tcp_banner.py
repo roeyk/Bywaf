@@ -20,7 +20,6 @@ import socket
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass
-from pathlib import Path
 from typing import cast
 
 from bywaf.event_schema_objects import OpenPort, TcpBanner
@@ -30,17 +29,10 @@ from bywaf.plugin import (
     Commandlet,
     ManifestCommandlet,
     RunConfig,
-    manifest_arguments_from_manifest,
-    spec_from_manifest,
 )
-
-MANIFEST = Path(__file__).with_suffix(".plugin.toml")
 
 
 class TcpBannerGrabber(ManifestCommandlet):
-    spec = spec_from_manifest(MANIFEST, "tcp_banner")
-    manifest_arguments = manifest_arguments_from_manifest(MANIFEST, "tcp_banner")
-
     def handle(
         self,
         context: CommandContext,

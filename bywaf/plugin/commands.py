@@ -10,10 +10,11 @@ Used by:
 from __future__ import annotations
 
 import argparse
+import sys
 import tomllib
 from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
-from typing import Any, Protocol, TYPE_CHECKING, cast
+from typing import Any, ClassVar, Protocol, TYPE_CHECKING, cast
 
 from ..events import Event
 from ..rendering import Table, render_console_table
@@ -244,7 +245,42 @@ class ManifestCommandlet(CommandletBase):
     """Base class for commandlets whose public interface comes from TOML."""
 
     spec: CommandSpec
+    manifest_path: ClassVar[str | Path | None] = None
+    manifest_name: ClassVar[str | None] = None
     manifest_arguments: tuple[dict[str, Any], ...] = ()
+
+    def __init_subclass__(cls, **kwargs) -> None:
+        """Populate manifest-backed metadata for subclasses by convention."""
+        super().__init_subclass__(**kwargs)
+        if "spec" in cls.__dict__:
+            return
+        path = cls.resolved_manifest_path()
+        name = cls.resolved_manifest_name(path)
+        cls.spec = spec_from_manifest(path, name)
+        cls.manifest_arguments = manifest_arguments_from_manifest(path, name)
+
+    @classmethod
+    def resolved_manifest_path(cls) -> Path:
+        """Return this subclass's manifest path."""
+        if cls.manifest_path is not None:
+            return Path(cls.manifest_path)
+        module = sys.modules.get(cls.__module__)
+        module_file = getattr(module, "__file__", None)
+        if not module_file:
+            raise ValueError(f"{cls.__name__} must define manifest_path")
+        path = Path(module_file)
+        if path.name == "__init__.py":
+            return path.with_name("bywaf.plugin.toml")
+        return path.with_suffix(".plugin.toml")
+
+    @classmethod
+    def resolved_manifest_name(cls, path: Path) -> str:
+        """Return this subclass's manifest commandlet name."""
+        if cls.manifest_name is not None:
+            return cls.manifest_name
+        if path.name == "bywaf.plugin.toml":
+            return path.parent.name
+        return path.stem.removesuffix(".plugin")
 
     def run(
         self,
