@@ -237,6 +237,7 @@ def render_results(context: CommandContext, scope: Namespace) -> str:
     host_events = [event for event in scope.events if event.topic == "host.found"]
     name_events = [event for event in scope.events if event.topic == "name.resolved"]
     port_events = [event for event in scope.events if event.topic == "port.open"]
+    banner_events = [event for event in scope.events if event.topic == "tcp.banner"]
     endpoint_events = [event for event in scope.events if event.topic == "http.endpoint"]
     if host_events:
         sections.append(render_hosts_section(context, host_events))
@@ -244,9 +245,11 @@ def render_results(context: CommandContext, scope: Namespace) -> str:
         sections.append(render_name_resolution_section(context, name_events))
     if port_events:
         sections.append(render_ports_section(context, port_events, scope))
+    if banner_events:
+        sections.append(render_tcp_banners_section(context, banner_events))
     if endpoint_events:
         sections.append(render_http_endpoints_section(context, endpoint_events))
-    summarized_topics = {"host.found", "name.resolved", "port.open", "http.endpoint"}
+    summarized_topics = {"host.found", "name.resolved", "port.open", "tcp.banner", "http.endpoint"}
     other_events = [event for event in scope.events if event.topic not in summarized_topics]
     if other_events:
         sections.append(render_event_topic_summary(context, other_events))
@@ -346,6 +349,26 @@ def render_http_endpoints_section(context: CommandContext, events: list[Event]) 
         max_width=terminal_table_width(),
     )
     return f"HTTP endpoints ({len(events)})\n{table}"
+
+
+def render_tcp_banners_section(context: CommandContext, events: list[Event]) -> str:
+    """Render TCP banner probe results as a compact result table."""
+    rows = [
+        (
+            event.payload.get("host", ""),
+            event.payload.get("port", ""),
+            event.payload.get("banner", "") or event.payload.get("error", ""),
+        )
+        for event in sorted(events, key=lambda event: (str(event.payload.get("host") or ""), int(event.payload.get("port") or 0), event.id or 0))
+    ]
+    table = render_table(
+        ("HOST", "PORT", "BANNER / ERROR"),
+        rows,
+        cell_subjects=("host", "port", ""),
+        style_getter=command_context_style_getter(context),
+        max_width=terminal_table_width(),
+    )
+    return f"TCP banners ({len(events)})\n{table}"
 
 
 def no_results_message(context: CommandContext) -> str:

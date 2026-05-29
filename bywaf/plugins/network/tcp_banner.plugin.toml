@@ -1,0 +1,17 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "tcp_banner"
+consumes = [
+  "port.open",
+]
+emits = [
+  "tcp.banner",
+]
+capabilities = [
+  "framework.console.alert",
+  "network.connect",
+]
+module = "bywaf.plugins.network.tcp_banner"

@@ -4,7 +4,7 @@ process_wrapped = true
 service = false
 
 [[commandlets]]
-name = "eyewitness"
+name = "screenshotter"
 consumes = [
   "http.endpoint",
 ]
@@ -25,4 +25,4 @@ capabilities = [
   "network.connect",
   "process.run",
 ]
-module = "bywaf.plugins.http.eyewitness"
+module = "bywaf.plugins.http.screenshotter"

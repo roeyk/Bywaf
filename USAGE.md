@@ -1771,6 +1771,18 @@ bywaf> ssh_probe username=test password=test 127.0.0.1
 bywaf> snmp_get community=public oid=1.3.6.1.2.1.1.1.0 127.0.0.1
 ```
 
+`tcp_banner` connects to TCP services and emits `tcp.banner` events:
+
+```text
+bywaf> tcp_banner 127.0.0.1:22
+bywaf> portscanner port=22,80 host=127.0.0.1 | tcp_banner
+bywaf> tcp_banner mode=http-head 127.0.0.1:8080
+```
+
+Use `mode=banner` for services that speak first, such as SSH. Use
+`mode=http-head` when you want Bywaf to send a minimal HTTP request before
+reading the response.
+
 ## recon
 
 `dns_lookup` uses dnspython and emits `dns.record` or `dns.error`:
@@ -1860,11 +1872,13 @@ want it to ignore plain `http.endpoint` events.
 `.bywaf/eyewitness/<run-id>` by default, or under `--output-dir` when supplied.
 Screenshot files are also attached to the encrypted artifact store when the
 active database is encrypted, or the plaintext artifact store otherwise.
+`screenshotter` is the same wrapper under a more task-oriented command name.
 
 ```text
 bywaf> eyewitness https://example.com/
 bywaf> http_probe https://example.com/ | eyewitness
 bywaf> eyewitness --output-dir=client-shots https://example.com/
+bywaf> http_probe https://example.com/ | screenshotter
 ```
 
 For authorized session-aware testing, it can use cookies:

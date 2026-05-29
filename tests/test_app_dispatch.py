@@ -1895,6 +1895,34 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("HTTP endpoints", text)
             self.assertIn("https://example.test/", text)
 
+    def test_results_renders_tcp_banner_summaries(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.record_job("network/tcp_banner 192.0.2.20:22", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=1,
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+                commandlet="network/tcp_banner",
+                values={},
+            )
+            runner.db.publish(
+                "tcp.banner",
+                {"host": "192.0.2.20", "port": 22, "protocol": "tcp", "banner": "SSH-2.0-OpenSSH"},
+                "tcp_banner",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "results")
+
+            text = output.getvalue()
+            self.assertIn("Shared schemas: tcp.banner", text)
+            self.assertIn("TCP banners", text)
+            self.assertIn("SSH-2.0-OpenSSH", text)
+
     def test_results_passes_sort_to_embedded_ports_view(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

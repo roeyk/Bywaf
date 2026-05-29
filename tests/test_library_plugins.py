@@ -13,11 +13,16 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+from bywaf.artifacts import artifact_store_for_event_store
 from bywaf.db import EventStore
+from bywaf.events import Event
 from bywaf.plugin import CommandContext
 from bywaf.plugins.analysis.yara_scan import YaraScan
 from bywaf.plugins.identity.smb_probe import SmbProbe, safe_call, safe_shares
+from bywaf.plugins.http.eyewitness import publish_screenshot, publish_screenshotted_hosts
+from bywaf.plugins.http.screenshotter import Screenshotter
 from bywaf.plugins.network.ssh_probe import SshProbe, ssh_targets
+from bywaf.plugins.network.tcp_banner import TcpBannerGrabber, banner_targets, probe_bytes, target_from_text
 from bywaf.plugins.recon.dns_lookup import DnsLookup, optional_module
 from bywaf.plugins.recon.shodan_lookup import ShodanLookup
 
@@ -88,6 +93,41 @@ class LibraryPluginTests(unittest.TestCase):
                 list(SshProbe().run(context, ["host"], []))
             self.assertEqual(db.events_for_topic("ssh.service")[0].payload["auth"], "failed")
 
+    def test_tcp_banner_targets_use_port_open_events(self):
+        targets = banner_targets(
+            [],
+            None,
+            [
+                Event.new("port.open", {"host": "192.0.2.10", "port": 22, "protocol": "tcp"}, "test"),
+                Event.new("port.open", {"host": "192.0.2.10", "port": 53, "protocol": "udp"}, "test"),
+            ],
+        )
+        self.assertEqual(targets[0].host, "192.0.2.10")
+        self.assertEqual(targets[0].port, 22)
+
+    def test_tcp_banner_parses_explicit_targets(self):
+        self.assertEqual(target_from_text("192.0.2.10:2222", None).port, 2222)
+        self.assertEqual(target_from_text("192.0.2.10", 22).port, 22)
+        with self.assertRaisesRegex(ValueError, "require port="):
+            target_from_text("192.0.2.10", None)
+
+    def test_tcp_banner_http_head_probe_bytes(self):
+        self.assertIn(b"HEAD / HTTP/1.0", probe_bytes("http-head", "example.test"))
+
+    def test_tcp_banner_grabber_emits_schema_payload(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(db=db, source="tcp_banner", metadata={"capabilities": TcpBannerGrabber().spec.capabilities})
+            with patch(
+                "bywaf.plugins.network.tcp_banner.grab_tcp_banner",
+                return_value={"banner": "SSH-2.0-Test", "elapsed_ms": 1},
+            ):
+                events = list(TcpBannerGrabber().run(context, ["192.0.2.10:22"], []))
+            self.assertEqual(events[0]["host"], "192.0.2.10")
+            self.assertEqual(events[0]["port"], 22)
+            self.assertEqual(events[0]["protocol"], "tcp")
+            self.assertEqual(events[0]["banner"], "SSH-2.0-Test")
+
     def test_smb_helpers_tolerate_metadata_errors(self):
         bad = Mock()
         bad.getServerName.side_effect = RuntimeError("nope")
@@ -110,6 +150,26 @@ class LibraryPluginTests(unittest.TestCase):
             payload = db.events_for_topic("smb.server")[0].payload
             self.assertEqual(payload["server_name"], "SERVER")
             self.assertEqual(payload["shares"], ["IPC$"])
+
+    def test_screenshotter_uses_eyewitness_artifact_events(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(db=db, source="screenshotter", metadata={"capabilities": Screenshotter().spec.capabilities})
+            output_dir = Path(tmp, "eyewitness")
+            output_dir.mkdir()
+            screenshot = output_dir / "site.png"
+            screenshot.write_bytes(b"\x89PNG\r\n\x1a\n")
+
+            payload = publish_screenshot(context, screenshot, output_dir, [{"url": "http://127.0.0.1/"}], silent=True)
+            publish_screenshotted_hosts(context, [payload])
+
+            artifacts = artifact_store_for_event_store(db).list(command_run_id=context.command_run_id)
+            self.assertEqual(len(artifacts), 1)
+            screenshot_event = db.events_for_topic("web.screenshotted_host")[0]
+            self.assertEqual(screenshot_event.payload["urls"], ["http://127.0.0.1/"])
+            self.assertEqual(screenshot_event.payload["host"], "")
+            self.assertEqual(screenshot_event.payload["screenshots"][0]["artifact_id"], artifacts[0].artifact_id)
+            self.assertEqual(db.events_for_topic("eyewitness.screenshot")[0].source, "screenshotter")
 
     def test_yara_scan_publishes_matches(self):
         fake_rules = Mock()

@@ -46,7 +46,7 @@ class HttpProbeTests(unittest.TestCase):
         self.assertEqual(target.url, "http://example.test:8080/")
 
     def test_probe_targets_from_port_events(self):
-        event = Event.new("port.open", {"host": "127.0.0.1", "port": 443}, "test")
+        event = Event.new("port.open", {"host": "127.0.0.1", "port": 443, "protocol": "tcp"}, "test")
         targets = probe_targets([], [event], "auto", "/")
         self.assertEqual(targets[0].url, "https://127.0.0.1/")
 
@@ -63,6 +63,7 @@ class HttpProbeTests(unittest.TestCase):
         ):
             events = list(HttpProbe().run(context, ["127.0.0.1"], []))
         self.assertEqual(events[0]["status"], 200)
+        self.assertEqual(events[0]["method"], "HEAD")
         self.assertIn("http_probe <run-1>: discovered HTTP endpoint", output.getvalue())
 
     def test_http_probe_silent_suppresses_alert(self):

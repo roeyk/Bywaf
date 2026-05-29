@@ -72,6 +72,33 @@ class HttpEndpoint(EventSchemaObject):
 
 
 @dataclass(frozen=True)
+class ScreenshottedHost(EventSchemaObject):
+    """One host or endpoint with one or more screenshot artifact references."""
+
+    __topic__ = "web.screenshotted_host"
+
+    host: str
+    urls: list[str]
+    screenshots: list[dict[str, Any]]
+    tool: str | None = None
+
+
+@dataclass(frozen=True)
+class TcpBanner(EventSchemaObject):
+    """A TCP service banner or first response."""
+
+    __topic__ = "tcp.banner"
+
+    host: str
+    port: int
+    protocol: str = "tcp"
+    banner: str | None = None
+    error: str | None = None
+    elapsed_ms: int | None = None
+    scanner: str | None = None
+
+
+@dataclass(frozen=True)
 class SmbShareFound(EventSchemaObject):
     """An SMB share observed on a host."""
 
@@ -111,5 +138,7 @@ __all__ = [
     "HttpEndpoint",
     "NameResolved",
     "OpenPort",
+    "ScreenshottedHost",
     "SmbShareFound",
+    "TcpBanner",
 ]

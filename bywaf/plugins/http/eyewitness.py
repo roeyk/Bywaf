@@ -7,7 +7,8 @@ Consumes:
 - `http.endpoint` events or explicit URL arguments.
 
 Emits:
-- `eyewitness.screenshot` and `web.screenshot` for captured screenshots.
+- `eyewitness.screenshot` for raw screenshot files.
+- `web.screenshotted_host` for normalized host-to-screenshot artifact groups.
 
 Used by:
 - PluginRegistry discovery: loads this module as a commandlet provider.
@@ -22,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from bywaf.config import Settings
+from bywaf.event_schema_objects import ScreenshottedHost
 from bywaf.events import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
 from bywaf.plugins.http.nikto import dedupe_targets, target_from_endpoint_event, target_payload_from_text
@@ -46,11 +48,11 @@ SCREENSHOT_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
         "http_probe https://example.test/ | eyewitness",
     ),
     consumes=("http.endpoint",),
-    emits=("eyewitness.screenshot", "web.screenshot"),
+    emits=("eyewitness.screenshot", "web.screenshotted_host"),
     capabilities=(
         "artifact.write",
         "db.write:eyewitness.screenshot",
-        "db.write:web.screenshot",
+        "db.write:web.screenshotted_host",
         "db.write:tool.error",
         "db.write:system.error",
         "filesystem.read",
@@ -137,8 +139,11 @@ def run_eyewitness(context: CommandContext, parsed: Any, targets: list[dict[str,
         )
 
     screenshots = screenshot_files(output_dir)
-    for screenshot in screenshots:
+    screenshot_payloads = [
         publish_screenshot(context, screenshot, output_dir, targets, silent=bool(parsed.silent))
+        for screenshot in screenshots
+    ]
+    publish_screenshotted_hosts(context, screenshot_payloads)
     if not screenshots:
         context.events.publish(
             "tool.error",
@@ -204,12 +209,13 @@ def publish_screenshot(
     targets: list[dict[str, Any]],
     *,
     silent: bool,
-) -> None:
+) -> dict[str, Any]:
     """Attach and publish one screenshot artifact event."""
     context.audit_capability("filesystem.read")
     # The screenshot file remains discoverable even if artifact storage is not
     # available; successful attachment enriches the event with artifact metadata.
     payload: dict[str, Any] = {
+        **screenshot_target_payload(screenshot, targets),
         "tool": "eyewitness",
         "file": str(screenshot),
         "relative_path": str(screenshot.relative_to(output_dir)),
@@ -242,8 +248,40 @@ def publish_screenshot(
         )
 
     context.events.publish("eyewitness.screenshot", payload)
-    context.events.publish("web.screenshot", payload)
     context.alert(f"captured screenshot {screenshot.name}", level="artifact", silent=silent)
+    return payload
+
+
+def screenshot_target_payload(screenshot: Path, targets: list[dict[str, Any]]) -> dict[str, str]:
+    """Return normalized target fields for a screenshot payload."""
+    target = targets[0] if targets else {}
+    return {
+        "url": str(target.get("url") or screenshot),
+        "host": str(target.get("host") or ""),
+    }
+
+
+def publish_screenshotted_hosts(context: CommandContext, screenshots: list[dict[str, Any]]) -> None:
+    """Publish normalized per-host screenshot artifact groups."""
+    grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for screenshot in screenshots:
+        host = str(screenshot.get("host") or "")
+        url = str(screenshot.get("url") or "")
+        grouped.setdefault((host, url), []).append(screenshot_reference(screenshot))
+    for (host, url), refs in grouped.items():
+        payload = ScreenshottedHost(
+            host=host,
+            urls=[url] if url else [],
+            screenshots=refs,
+            tool="eyewitness",
+        ).to_payload()
+        context.events.publish(ScreenshottedHost.__topic__, payload)
+
+
+def screenshot_reference(payload: dict[str, Any]) -> dict[str, str]:
+    """Return the compact artifact/file reference stored on ScreenshottedHost."""
+    keys = ("artifact_id", "artifact_name", "artifact_sha256", "file", "relative_path", "url")
+    return {key: str(payload[key]) for key in keys if payload.get(key)}
 
 
 def publish_tool_problem(context: CommandContext, topic: str, tool: str, message: str, exc: BaseException) -> None:

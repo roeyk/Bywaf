@@ -30,7 +30,7 @@ artifact provenance already stored in the project.
 
 | Layer | Example topics | Meaning | Normal consumer |
 | --- | --- | --- | --- |
-| Fact | `port.open`, `http.endpoint`, `nikto.finding`, `web.screenshot` | Something a tool observed or produced | Follow-up commandlets, dedupe, report builders |
+| Fact | `port.open`, `http.endpoint`, `nikto.finding`, `web.screenshotted_host` | Something a tool observed or produced | Follow-up commandlets, dedupe, report builders |
 | Candidate | `finding.candidate`, `finding.new`, `finding.merge_candidate` | A normalized finding-shaped record that deserves review or correlation | `finding_dedupe`, `report`, `finding_report`, future triage commands |
 | Confirmed finding | planned `finding.confirmed` | A finding accepted by a rule, commandlet, or operator as confirmed risk | Reports and exports |
 | Review state | `finding.reviewed` | Operator or framework review marker for a finding id | `report` and future triage flows |

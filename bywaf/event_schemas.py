@@ -138,6 +138,29 @@ EVENT_SCHEMAS: dict[str, EventSchema] = {
             FieldSchema("error", "str", False, "Probe error if endpoint metadata is partial."),
         ),
     ),
+    "web.screenshotted_host": EventSchema(
+        topic="web.screenshotted_host",
+        summary="One host or endpoint has one or more screenshot artifacts.",
+        fields=(
+            FieldSchema("host", "str", True, "Endpoint host represented by the screenshots."),
+            FieldSchema("urls", "list", True, "Endpoint URLs represented by the screenshots."),
+            FieldSchema("screenshots", "list", True, "Screenshot artifact/file references."),
+            FieldSchema("tool", "str", False, "Screenshot tool name."),
+        ),
+    ),
+    "tcp.banner": EventSchema(
+        topic="tcp.banner",
+        summary="A TCP service banner or first response was captured.",
+        fields=(
+            FieldSchema("host", "str", True, "Host or address where the service responded."),
+            FieldSchema("port", "int", True, "Numeric TCP port."),
+            FieldSchema("protocol", "str", True, "Transport protocol.", ("tcp",)),
+            FieldSchema("banner", "str", False, "Captured text response, truncated by the scanner."),
+            FieldSchema("error", "str", False, "Connection or read error when no banner was captured."),
+            FieldSchema("elapsed_ms", "int", False, "Elapsed probe time in milliseconds."),
+            FieldSchema("scanner", "str", False, "Tool or backend that produced the observation."),
+        ),
+    ),
     "smb.share.found": EventSchema(
         topic="smb.share.found",
         summary="An SMB share was observed on a host.",

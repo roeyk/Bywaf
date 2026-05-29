@@ -23,6 +23,8 @@ Use a shared schema when the data should be useful outside your plugin:
 - `name.resolved`: one hostname resolved to one concrete address
 - `port.open`: a host exposes a network port
 - `http.endpoint`: an HTTP or HTTPS endpoint is reachable
+- `web.screenshotted_host`: one host or endpoint has screenshot artifacts
+- `tcp.banner`: a TCP service banner or first response was captured
 - `smb.share.found`: an SMB share exists on a host
 - `finding.candidate`: a normalized security finding that should enter review
 - `artifact.attached`: artifact metadata attached to provenance
@@ -81,6 +83,8 @@ Framework-provided schema object classes currently live in `bywaf.event_schema_o
 - `NameResolved`
 - `OpenPort`
 - `HttpEndpoint`
+- `ScreenshottedHost`
+- `TcpBanner`
 - `SmbShareFound`
 - `ArtifactAttached`
 

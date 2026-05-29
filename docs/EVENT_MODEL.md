@@ -85,6 +85,8 @@ shared topics are:
 | `name.resolved` | `name`, `host` | A name resolved to a concrete address. |
 | `port.open` | `host`, `port`, `protocol` | A network port was observed open. |
 | `http.endpoint` | `url`, `host`, `port`, `scheme` | A reachable HTTP or HTTPS endpoint. |
+| `web.screenshotted_host` | `host`, `urls`, `screenshots` | One host or endpoint has screenshot artifacts. |
+| `tcp.banner` | `host`, `port`, `protocol` | A TCP service banner or first response was captured. |
 | `smb.share.found` | `host`, `share` | An SMB share was observed on a host. |
 | `finding.candidate` | `title`, `class` | A normalized finding-shaped observation. |
 | `artifact.attached` | `artifact_id`, `name`, `content_type`, `sha256`, `size` | Artifact metadata attached to provenance. |
@@ -99,7 +101,7 @@ objects. A plugin may convert a `port.open` or `http.endpoint` payload into its
 own typed object as soon as it consumes the event. That keeps plugin internals
 cohesive while keeping cross-plugin coupling at the event-schema boundary.
 Framework-provided event schema objects live in `bywaf.event_schema_objects`, such as
-`OpenPort`, `HostFound`, and `HttpEndpoint`. Use those for normal shared
+`OpenPort`, `HostFound`, `HttpEndpoint`, and `TcpBanner`. Use those for normal shared
 schema object handling; use `bywaf.event_schemas.EventSchemaObject` directly only for
 plugin-private or experimental topics.
 

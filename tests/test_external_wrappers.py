@@ -69,7 +69,9 @@ class EyeWitnessTests(unittest.TestCase):
 
             screenshot = db.events_for_topic("eyewitness.screenshot")[0].payload
             self.assertEqual(screenshot["relative_path"], "screens/example.png")
-            self.assertTrue(db.events_for_topic("web.screenshot"))
+            web_screenshot = db.events_for_topic("web.screenshotted_host")[0].payload
+            self.assertEqual(web_screenshot["urls"], ["https://example.test/"])
+            self.assertEqual(web_screenshot["screenshots"][0]["file"], str(output_dir / "screens" / "example.png"))
             self.assertTrue(db.events_for_topic("framework.process.run.requested"))
 
 

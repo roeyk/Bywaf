@@ -14,6 +14,7 @@ The core idea is simple:
 
 ```text
 hostscanner 192.168.1.0/24 | portscanner | http_probe | webfin | nikto
+hostscanner 192.168.1.0/24 | portscanner | tcp_banner
 ```
 
 Each pipeline step emits normalized events into the project database. Later
@@ -75,7 +76,7 @@ bywaf --help
 ```
 
 Optional external tools used by bundled wrapper commandlets include `nmap`,
-`nikto`, `eyewitness`, and `kismet`.
+`nikto`, `eyewitness`/`screenshotter`, and `kismet`.
 
 ## Quick Start
 

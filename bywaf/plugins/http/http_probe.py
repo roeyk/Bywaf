@@ -26,6 +26,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 
 from bywaf.events import Event
+from bywaf.event_schema_objects import HttpEndpoint, OpenPort
 from bywaf.plugins.http.cookies import load_cookie_jar
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
 
@@ -96,13 +97,17 @@ class HttpProbe(CommandletBase):
         for target in probe_targets(targets, input_events, parsed.scheme, parsed.path):
             context.audit_capability("network.connect")
             result = probe_url(opener, target.url, parsed.method, parsed.timeout, parsed.user_agent)
-            payload = {
-                "url": target.url,
-                "host": target.host,
-                "port": target.port,
-                "scheme": target.scheme,
-                **result,
-            }
+            endpoint = HttpEndpoint(
+                target.url,
+                target.host,
+                target.port,
+                target.scheme,
+                status=result.get("status"),
+                method=parsed.method,
+                server=result.get("server", ""),
+                error=result.get("error", ""),
+            )
+            payload = {**endpoint.to_payload(), **result}
             context.alert(
                 f"discovered HTTP endpoint {target.url} status={payload.get('status')}",
                 silent=parsed.silent,
@@ -163,8 +168,9 @@ def probe_targets(
 
 def target_from_port_event(event: Event, scheme: str, path: str) -> ProbeTarget:
     """Convert one `port.open` event into an HTTP probe target."""
-    host = str(event.payload["host"])
-    port = int(event.payload["port"])
+    open_port = OpenPort.from_event(event)
+    host = open_port.host
+    port = open_port.port
     selected_scheme = choose_scheme(port, scheme)
     return ProbeTarget(build_url(selected_scheme, host, port, path), host, port, selected_scheme)
 
