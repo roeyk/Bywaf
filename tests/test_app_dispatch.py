@@ -2108,6 +2108,8 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, f"job {job_id}")
 
             text = output.getvalue()
+            self.assertIn(f"job: {job_id}", text)
+            self.assertNotIn(f"job: #{job_id}", text)
             self.assertIn("command line: network/portscanner host=192.0.2.10 ports=80,443", text)
             self.assertNotIn(" command=", text)
             self.assertNotIn("command:", text)

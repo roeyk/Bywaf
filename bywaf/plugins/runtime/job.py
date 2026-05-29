@@ -282,7 +282,7 @@ def format_job(
     displayed_command = f"{commandlet} {format_command_args(displayed_args)}".strip() if displayed_args else command
     displayed_command = styled_subject_text(style_getter, "command_line", displayed_command) if style_getter else displayed_command
     lines = [
-        f"  job: {prefix}#{job_id}",
+        f"  job: {prefix}{job_id}",
         f"  serial: {serial}",
         f"  pid: {row['pid']}",
         f"  status: {row['status']}",
