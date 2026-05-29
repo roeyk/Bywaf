@@ -67,40 +67,52 @@ def is_view_commandlet(commandlet: str, *, args: Sequence[str] = ()) -> bool:
     return name in VIEW_COMMANDLETS or short_name in VIEW_COMMANDLETS
 
 
-def command_run_args_by_id(db: EventStoreProtocol, run_ids: Iterable[str]) -> dict[str, list[str]]:
-    """Return latest recorded commandlet args keyed by command-run id."""
+def command_run_metadata_by_id(db: EventStoreProtocol, run_ids: Iterable[str]) -> dict[str, dict[str, object]]:
+    """Return latest recorded commandlet metadata keyed by command-run id."""
     wanted = {str(run_id) for run_id in run_ids if run_id}
     if not wanted:
         return {}
-    by_run: dict[str, list[str]] = {}
+    by_run: dict[str, dict[str, object]] = {}
     for event in db.events_matching(topic="command.run.arguments", limit=100000):
         if not event.command_run_id or event.command_run_id not in wanted:
             continue
         args = event.payload.get("args")
-        if isinstance(args, list):
-            by_run[event.command_run_id] = [str(arg) for arg in args]
+        database_actions = event.payload.get("database_actions")
+        by_run[event.command_run_id] = {
+            "args": [str(arg) for arg in args] if isinstance(args, list) else [],
+            "database_actions": [str(action) for action in database_actions] if isinstance(database_actions, list) else [],
+        }
     return by_run
 
 
 def filter_view_run_rows(db: EventStoreProtocol, rows: list[dict]) -> list[dict]:
     """Return command-run rows that represent project-modifying work."""
-    args_by_run = command_run_args_by_id(db, (str(row["command_run_id"]) for row in rows))
-    return [
-        row
-        for row in rows
-        if not is_view_commandlet(str(row["source"]), args=args_by_run.get(str(row["command_run_id"]), ()))
-    ]
+    metadata_by_run = command_run_metadata_by_id(db, (str(row["command_run_id"]) for row in rows))
+    return [row for row in rows if not is_view_run_row(row, metadata_by_run.get(str(row["command_run_id"]), {}))]
 
 
 def view_run_ids(db: EventStoreProtocol, rows: Iterable[dict]) -> set[str]:
     """Return command-run ids for rows that are operator views."""
     row_list = list(rows)
-    args_by_run = command_run_args_by_id(db, (str(row["command_run_id"]) for row in row_list))
+    metadata_by_run = command_run_metadata_by_id(db, (str(row["command_run_id"]) for row in row_list))
     return {
         str(row["command_run_id"])
         for row in row_list
-        if is_view_commandlet(str(row["source"]), args=args_by_run.get(str(row["command_run_id"]), ()))
+        if is_view_run_row(row, metadata_by_run.get(str(row["command_run_id"]), {}))
     }
+
+
+def is_view_run_row(row: dict, metadata: dict[str, object]) -> bool:
+    """Return whether a runtime row represents a read-only view operation."""
+    actions = metadata.get("database_actions")
+    if isinstance(actions, list) and actions:
+        action_set = {str(action) for action in actions}
+        if action_set == {"view"}:
+            return True
+        if action_set.intersection({"write", "manage"}):
+            return False
+    args = metadata.get("args")
+    return is_view_commandlet(str(row["source"]), args=[str(arg) for arg in args] if isinstance(args, list) else ())
 
 
 def filter_runtime_rows_by_events(db: EventStoreProtocol, kind: str, rows: list[dict], filters: dict[str, str]) -> list[dict]:

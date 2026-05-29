@@ -1942,6 +1942,17 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("no results", text)
             self.assertNotIn("192.0.2.10", text)
 
+    def test_command_run_arguments_records_explicit_database_actions(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "results")
+
+            events = runner.db.events_matching(topic="command.run.arguments", limit=10)
+            self.assertTrue(events)
+            self.assertEqual(events[-1].payload["database_actions"], ["view"])
+
     def test_result_alias_shows_generic_inserted_events(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -2248,7 +2259,13 @@ class AppDispatchTests(unittest.TestCase):
             )
             runner.db.publish(
                 "command.run.arguments",
-                {"commandlet": "step", "args": ["--all"], "job_id": view_job, "pipeline_id": "pipeline-view"},
+                {
+                    "commandlet": "step",
+                    "args": ["--all"],
+                    "database_actions": ["view"],
+                    "job_id": view_job,
+                    "pipeline_id": "pipeline-view",
+                },
                 "framework",
                 pipeline_id="pipeline-view",
                 command_run_id="run-view",
@@ -2283,7 +2300,13 @@ class AppDispatchTests(unittest.TestCase):
             )
             runner.db.publish(
                 "command.run.arguments",
-                {"commandlet": "step", "args": ["--all"], "job_id": view_job, "pipeline_id": "pipeline-view"},
+                {
+                    "commandlet": "step",
+                    "args": ["--all"],
+                    "database_actions": ["view"],
+                    "job_id": view_job,
+                    "pipeline_id": "pipeline-view",
+                },
                 "framework",
                 pipeline_id="pipeline-view",
                 command_run_id="run-view",

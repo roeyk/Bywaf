@@ -256,6 +256,7 @@ def publish_command_run_arguments(context: CommandContext, plugin, args: list[st
             "commandlet": context.source,
             "args": redacted_args,
             "secret_args": secret_args,
+            "database_actions": list(plugin.spec.database_actions),
             "job_id": context.job_id,
             "pipeline_id": context.pipeline_id,
             "command_run_id": context.command_run_id,
