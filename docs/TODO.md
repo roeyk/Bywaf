@@ -20,6 +20,19 @@ Planning dates are release planning markers, not compatibility commitments.
 
 ## Target: Next Testing Release
 
+### Item: Shared Event Contracts
+
+- Define framework-owned payload contracts for common topics that downstream
+  views, reports, plugins, and future frontends should understand.
+- Keep plugin-private topics free-form for tool-native detail while mapping
+  portable facts into shared topics such as `host.found`, `port.open`,
+  `http.endpoint`, `smb.share.found`, `finding.candidate`, and
+  `artifact.attached`.
+- Use one fact per event where practical, for example `smb.share.found` for one
+  share instead of a large plural scan-result blob.
+- Start with documentation and CI validation helpers. Defer runtime rejection
+  or strict schema enforcement until real plugins have exercised the contracts.
+
 ### Item: Source Code Documentation Pass
 
 - Add phase-oriented comments and expanded public docstrings to dense runtime

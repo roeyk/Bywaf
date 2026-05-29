@@ -8,6 +8,7 @@ terminal output between tools.
 
 - [Event Rows](#event-rows)
 - [Topics](#topics)
+- [Shared Event Contracts](#shared-event-contracts)
 - [Publishing](#publishing)
 - [Consuming](#consuming)
 - [Replay and Attachment](#replay-and-attachment)
@@ -56,6 +57,42 @@ policy.evaluated
 
 Topic names should be specific enough to be useful in subscriptions and reports
 but stable enough that plugin authors can depend on them.
+
+## Shared Event Contracts
+
+Bywaf treats common topics as shared contracts. The database still stores
+append-only JSON events, but a shared topic promises a stable payload shape that
+views, reports, follow-up plugins, and future frontends can depend on.
+
+This is the normalized layer above tool-native output:
+
+```text
+raw/private event       = tool-specific observation or detail
+shared/framework event  = normalized fact other tools can use
+finding.candidate       = reportable security interpretation
+```
+
+For example, an SMB plugin can preserve scanner-specific ACL detail in a
+private topic such as `smb_enum.raw_share_acl`, emit normalized share facts as
+`smb.share.found`, and emit `finding.candidate` only for risky shares.
+
+Framework-known contracts currently live in `bywaf.event_contracts`. The first
+shared topics are:
+
+| Topic | Required fields | Purpose |
+| --- | --- | --- |
+| `host.found` | `host` | A host was observed alive or reachable. |
+| `name.resolved` | `name`, `host` | A name resolved to a concrete address. |
+| `port.open` | `host`, `port`, `protocol` | A network port was observed open. |
+| `http.endpoint` | `url`, `host`, `port`, `scheme` | A reachable HTTP or HTTPS endpoint. |
+| `smb.share.found` | `host`, `share` | An SMB share was observed on a host. |
+| `finding.candidate` | `title`, `class` | A normalized finding-shaped observation. |
+| `artifact.attached` | `artifact_id`, `name`, `content_type`, `sha256`, `size` | Artifact metadata attached to provenance. |
+
+Plugin-private topics remain free-form. A plugin only needs to align with a
+framework contract when other plugins or framework views should understand that
+data. If data is private evidence, use a plugin-specific topic or artifact. If
+data is security-reportable, also map it into `finding.candidate`.
 
 ## Publishing
 

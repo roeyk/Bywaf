@@ -32,8 +32,8 @@ offensive frameworks, do not look for Veil-style modules, Metasploit-style
   events, topics, commandlets, plugins, capabilities, local IDs, and serials.
 - [Runtime Model](RUNTIME_MODEL.md): runtime entities, lifecycle,
   foreground/background execution, control signals, and variable snapshots.
-- [Event Model](EVENT_MODEL.md): event rows, topics, replay, framework
-  requests, artifacts, notes, and provenance.
+- [Event Model](EVENT_MODEL.md): event rows, shared topic contracts, replay,
+  framework requests, artifacts, notes, and provenance.
 - [Finding And Report Model](FINDING_MODEL.md): facts, finding candidates,
   normalized finding payloads, deduplication, and the `report` inbox.
 - [Reporting](REPORTING.md): operator workflow for `report`, grouping,
