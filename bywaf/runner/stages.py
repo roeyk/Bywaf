@@ -12,8 +12,10 @@ Used by:
 from __future__ import annotations
 
 import shlex
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import cast
 
 from ..command.parser import CommandInvocation
 from ..db import EventStore
@@ -273,7 +275,11 @@ def publish_command_run_arguments(context: CommandContext, plugin, args: list[st
 def effective_database_actions(plugin, args: list[str]) -> tuple[str, ...]:
     """Return the effective DB action class for this commandlet invocation."""
     classifier = getattr(plugin, "database_actions_for_args", None)
-    actions = classifier(args) if callable(classifier) else plugin.spec.database_actions
+    actions: Iterable[str] = (
+        cast(Iterable[str], classifier(args))
+        if callable(classifier)
+        else plugin.spec.database_actions
+    )
     seen: set[str] = set()
     normalized: list[str] = []
     for action in actions:
