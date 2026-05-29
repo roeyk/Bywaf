@@ -36,10 +36,12 @@ from bywaf.completion import (
 from bywaf.db import EventStore
 from bywaf.registry import (
     PluginRegistry,
+    PluginManifestTrust,
     PluginTrustError,
     PluginTrustPolicy,
     canonical_manifest_bytes,
     load_package_manifest,
+    load_filesystem_plugin_package,
     load_plugin,
     parse_package_plugin_config,
     parse_plugin_config,
@@ -1402,6 +1404,8 @@ class RegistryCompletionTests(unittest.TestCase):
                 "example",
                 "example plugin",
                 options=(OptionSpec("password", "password", secret=True),),
+                consumes=("host.found",),
+                emits=("port.open",),
                 capabilities=("framework.secret.resolve",),
             )
 
@@ -1412,6 +1416,29 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn('name = "example"', text)
         self.assertIn('  "framework.secret.resolve",', text)
         self.assertIn('secret_options = ["password"]', text)
+        self.assertIn('consumes = ["host.found"]', text)
+        self.assertIn('emits = ["port.open"]', text)
+
+    def test_filesystem_manifest_rejects_emits_mismatch_when_declared(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = Path(tmp)
+            plugin_dir.joinpath("plugin.py").write_text(
+                "from bywaf.plugin import CommandSpec\n"
+                "class Example:\n"
+                "    spec = CommandSpec('example', 'example plugin', emits=('host.found',))\n"
+                "    def run(self, context, args, input_events):\n"
+                "        yield {'ok': True}\n"
+                "def plugin():\n"
+                "    return Example()\n"
+            )
+            plugin_dir.joinpath("bywaf.plugin.toml").write_text(
+                "[[commandlets]]\n"
+                'name = "example"\n'
+                'emits = ["port.open"]\n'
+            )
+
+            with self.assertRaisesRegex(ValueError, "emits mismatch"):
+                load_filesystem_plugin_package(plugin_dir, manifest_trust=PluginManifestTrust(catalog_verified=True))
 
     def test_plugin_manifest_tool_generates_trigger_specs(self):
         class Example:

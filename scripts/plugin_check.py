@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from bywaf.event_contracts import event_contract  # noqa: E402
 from bywaf.plugin.capabilities import capability_declared  # noqa: E402
 from bywaf.registry import PluginManifestTrust, verify_plugin_manifest_signature_data, load_filesystem_plugin_package  # noqa: E402
 from bywaf.toml_support import load_data_file  # noqa: E402
@@ -41,8 +42,11 @@ def check_plugin(
         "commandlets": [],
         "triggers": [],
         "declared_capabilities": [],
+        "declared_emits": [],
         "inferred_capabilities": [],
+        "inferred_emits": [],
         "missing_capabilities": [],
+        "missing_shared_emits": [],
         "unused_capabilities": [],
         "evidence": [],
         "warnings": [],
@@ -80,7 +84,7 @@ def check_plugin(
             return report
         report["manifest_signature"] = "verified"
     try:
-        plugins, triggers, _manifest = load_filesystem_plugin_package(
+        plugins, triggers, manifest = load_filesystem_plugin_package(
             plugin_dir,
             manifest_trust=PluginManifestTrust(public_key_path=manifest_key, catalog_verified=manifest_key is None),
         )
@@ -91,7 +95,10 @@ def check_plugin(
     report["triggers"] = [trigger.name for trigger in triggers]
     declared_capabilities = sorted({capability for plugin in plugins for capability in plugin.spec.capabilities})
     report["declared_capabilities"] = declared_capabilities
+    declared_emits = sorted({topic for topics in manifest.commandlet_emits.values() for topic in topics})
+    report["declared_emits"] = declared_emits
     inferred_capabilities = tuple(str(item) for item in report["inferred_capabilities"])
+    inferred_emits = tuple(str(item) for item in report["inferred_emits"])
     missing_capabilities = sorted(
         capability
         for capability in inferred_capabilities
@@ -112,8 +119,16 @@ def check_plugin(
     )
     report["missing_capabilities"] = missing_capabilities
     report["unused_capabilities"] = unused_capabilities
+    missing_shared_emits = sorted(
+        topic
+        for topic in inferred_emits
+        if event_contract(topic) is not None and topic not in declared_emits
+    )
+    report["missing_shared_emits"] = missing_shared_emits
     if strict_inference and missing_capabilities:
         report["errors"].append("missing inferred capabilities: " + ", ".join(missing_capabilities))
+    if missing_shared_emits:
+        report["errors"].append("missing shared event emits declarations: " + ", ".join(missing_shared_emits))
     report["ok"] = not report["errors"]
     return report
 
@@ -125,8 +140,10 @@ def render_text(report: dict[str, Any]) -> str:
     triggers = report.get("triggers") or []
     errors = report.get("errors") or []
     missing_capabilities = report.get("missing_capabilities") or []
+    missing_shared_emits = report.get("missing_shared_emits") or []
     unused_capabilities = report.get("unused_capabilities") or []
     inferred_capabilities = report.get("inferred_capabilities") or []
+    inferred_emits = report.get("inferred_emits") or []
     warnings = report.get("warnings") or []
     diagnostics = report.get("diagnostics") or []
     if commandlets:
@@ -135,8 +152,12 @@ def render_text(report: dict[str, Any]) -> str:
         lines.append("triggers: " + ", ".join(str(item) for item in triggers))
     if inferred_capabilities:
         lines.append("inferred capabilities: " + ", ".join(str(item) for item in inferred_capabilities))
+    if inferred_emits:
+        lines.append("inferred emits: " + ", ".join(str(item) for item in inferred_emits))
     if missing_capabilities:
         lines.append("missing inferred capabilities: " + ", ".join(str(item) for item in missing_capabilities))
+    if missing_shared_emits:
+        lines.append("missing shared event emits declarations: " + ", ".join(str(item) for item in missing_shared_emits))
     if unused_capabilities:
         lines.append("unused declared capabilities: " + ", ".join(str(item) for item in unused_capabilities))
     for warning in warnings:
@@ -162,8 +183,9 @@ def render_llm_feedback(report: dict[str, Any]) -> str:
     errors = report.get("errors") or []
     warnings = report.get("warnings") or []
     missing_capabilities = report.get("missing_capabilities") or []
+    missing_shared_emits = report.get("missing_shared_emits") or []
     unused_capabilities = report.get("unused_capabilities") or []
-    if not diagnostics and not errors and not warnings and not missing_capabilities and not unused_capabilities:
+    if not diagnostics and not errors and not warnings and not missing_capabilities and not missing_shared_emits and not unused_capabilities:
         lines.append("No checker feedback.")
         return "\n".join(lines)
     lines.append("")
@@ -201,6 +223,15 @@ def render_llm_feedback(report: dict[str, Any]) -> str:
             ]
         )
         item_number += 1
+    for topic in missing_shared_emits:
+        lines.extend(
+            [
+                f"{item_number}. Missing shared event declaration: {topic}",
+                "   Problem: source analysis saw this shared Bywaf event topic being published, but the manifest does not declare it.",
+                "   Fix: add the topic to the matching bywaf.plugin.toml [[commandlets]] emits list.",
+            ]
+        )
+        item_number += 1
     for capability in unused_capabilities:
         lines.extend(
             [
@@ -213,6 +244,8 @@ def render_llm_feedback(report: dict[str, Any]) -> str:
         item_number += 1
     for error in errors:
         if any(str(error).startswith(f"{diagnostic['code']}:") for diagnostic in diagnostics):
+            continue
+        if str(error).startswith("missing shared event emits declarations:"):
             continue
         lines.extend(
             [

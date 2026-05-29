@@ -71,6 +71,10 @@ def commandlet_manifest_lines(
     secret_options = [option.name for option in spec.options if option.secret]
     if secret_options:
         lines.append(f"secret_options = {toml_string_list(secret_options)}")
+    if spec.consumes:
+        lines.append(f"consumes = {toml_string_list(list(spec.consumes))}")
+    if spec.emits:
+        lines.append(f"emits = {toml_string_list(list(spec.emits))}")
     if spec.provider_variables:
         lines.append(f"provider_variables = {toml_string_list(list(spec.provider_variables))}")
     if spec.secret_provider_variables:

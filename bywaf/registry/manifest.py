@@ -34,6 +34,8 @@ class PluginManifest:
     triggers: tuple[TriggerSpec, ...] = ()
     commandlet_capabilities: dict[str, tuple[str, ...]] = field(default_factory=dict)
     commandlet_database_actions: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    commandlet_consumes: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    commandlet_emits: dict[str, tuple[str, ...]] = field(default_factory=dict)
     commandlet_secret_options: dict[str, tuple[str, ...]] = field(default_factory=dict)
     commandlet_provider_variables: dict[str, tuple[str, ...]] = field(default_factory=dict)
     commandlet_secret_provider_variables: dict[str, tuple[str, ...]] = field(default_factory=dict)
@@ -88,6 +90,8 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
     commandlets: set[str] = set()
     commandlet_capabilities: dict[str, tuple[str, ...]] = {}
     commandlet_database_actions: dict[str, tuple[str, ...]] = {}
+    commandlet_consumes: dict[str, tuple[str, ...]] = {}
+    commandlet_emits: dict[str, tuple[str, ...]] = {}
     commandlet_secret_options: dict[str, tuple[str, ...]] = {}
     commandlet_provider_variables: dict[str, tuple[str, ...]] = {}
     commandlet_secret_provider_variables: dict[str, tuple[str, ...]] = {}
@@ -104,6 +108,8 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
         context = f"commandlets entry {index}"
         commandlet_capabilities[name] = string_list_field(row, "capabilities", source, context)
         commandlet_database_actions[name] = database_actions_field(row, source, context)
+        commandlet_consumes[name] = string_list_field(row, "consumes", source, context)
+        commandlet_emits[name] = string_list_field(row, "emits", source, context)
         commandlet_secret_options[name] = string_list_field(row, "secret_options", source, context)
         commandlet_provider_variables[name] = string_list_field(row, "provider_variables", source, context)
         commandlet_secret_provider_variables[name] = string_list_field(row, "secret_provider_variables", source, context)
@@ -126,6 +132,8 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
         triggers=triggers,
         commandlet_capabilities=commandlet_capabilities,
         commandlet_database_actions=commandlet_database_actions,
+        commandlet_consumes=commandlet_consumes,
+        commandlet_emits=commandlet_emits,
         commandlet_secret_options=commandlet_secret_options,
         commandlet_provider_variables=commandlet_provider_variables,
         commandlet_secret_provider_variables=commandlet_secret_provider_variables,
@@ -265,6 +273,14 @@ def enforce_plugin_manifest(
             if stale_actions:
                 details.append(f"stale {', '.join(stale_actions)}")
             raise ValueError(f"{path} database_actions mismatch for {name}: {'; '.join(details)}")
+        manifest_consumes = set(manifest.commandlet_consumes.get(name, ()))
+        code_consumes = set(by_name[name].spec.consumes)
+        if manifest_consumes and manifest_consumes != code_consumes:
+            raise ValueError(f"{path} consumes mismatch for {name}")
+        manifest_emits = set(manifest.commandlet_emits.get(name, ()))
+        code_emits = set(by_name[name].spec.emits)
+        if manifest_emits and manifest_emits != code_emits:
+            raise ValueError(f"{path} emits mismatch for {name}")
         manifest_secret_options = set(manifest.commandlet_secret_options.get(name, ()))
         code_secret_options = {option.name for option in by_name[name].spec.options if option.secret}
         if manifest_secret_options != code_secret_options:

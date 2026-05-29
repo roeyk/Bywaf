@@ -14,6 +14,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from bywaf.event_contracts import event_contract, validate_event_payload
+
 
 @dataclass(frozen=True, slots=True)
 class CapabilityEvidence:
@@ -36,6 +38,7 @@ class SourceAnalysis:
     """Capability inference result for one plugin source tree."""
 
     inferred_capabilities: tuple[str, ...]
+    inferred_emits: tuple[str, ...]
     evidence: tuple[CapabilityEvidence, ...]
     warnings: tuple[CapabilityEvidence, ...]
     diagnostics: tuple["SourceDiagnostic", ...] = ()
@@ -44,6 +47,7 @@ class SourceAnalysis:
         """Return a JSON-serializable analysis result."""
         return {
             "inferred_capabilities": list(self.inferred_capabilities),
+            "inferred_emits": list(self.inferred_emits),
             "evidence": [item.to_dict() for item in self.evidence],
             "warnings": [item.to_dict() for item in self.warnings],
             "diagnostics": [item.to_dict() for item in self.diagnostics],
@@ -76,6 +80,7 @@ def analyze_plugin_source(plugin_dir: Path) -> SourceAnalysis:
     evidence: list[CapabilityEvidence] = []
     warnings: list[CapabilityEvidence] = []
     diagnostics: list[SourceDiagnostic] = []
+    inferred_emits: set[str] = set()
     for path in sorted(plugin_dir.rglob("*.py")):
         if "__pycache__" in path.parts:
             continue
@@ -86,8 +91,15 @@ def analyze_plugin_source(plugin_dir: Path) -> SourceAnalysis:
         evidence.extend(visitor.evidence)
         warnings.extend(visitor.warnings)
         diagnostics.extend(visitor.diagnostics)
+        inferred_emits.update(visitor.inferred_emits)
     capabilities = sorted({item.capability for item in evidence})
-    return SourceAnalysis(tuple(capabilities), tuple(evidence), tuple(warnings), tuple(diagnostics))
+    return SourceAnalysis(
+        tuple(capabilities),
+        tuple(sorted(inferred_emits)),
+        tuple(evidence),
+        tuple(warnings),
+        tuple(diagnostics),
+    )
 
 
 class CapabilityVisitor(ast.NodeVisitor):
@@ -105,6 +117,7 @@ class CapabilityVisitor(ast.NodeVisitor):
         self.evidence: list[CapabilityEvidence] = []
         self.warnings: list[CapabilityEvidence] = []
         self.diagnostics: list[SourceDiagnostic] = []
+        self.inferred_emits: set[str] = set()
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802 - ast API
         """Detect decorators accidentally attached to plugin() factories."""
@@ -167,7 +180,7 @@ class CapabilityVisitor(ast.NodeVisitor):
             if capability is not None:
                 self.add_evidence(capability, "framework_call", node, f"context.audit_capability({capability})")
         if path == "context.events.publish":
-            self.add_event_topic_evidence(node, "db.write")
+            self.inspect_event_publish(node)
         if path in {"context.events.fetch", "context.events.follow"}:
             self.add_event_topics_evidence(node, "db.read")
         if path == "context.events.query":
@@ -301,12 +314,40 @@ class CapabilityVisitor(ast.NodeVisitor):
             "inside run()/parse_args().",
         )
 
-    def add_event_topic_evidence(self, node: ast.Call, prefix: str) -> None:
-        """Add exact or wildcard event capability evidence for publish calls."""
+    def inspect_event_publish(self, node: ast.Call) -> None:
+        """Add event capability evidence and validate literal shared payloads."""
         topic = literal_string_argument(node, "topic", 0)
+        if topic is not None:
+            self.inferred_emits.add(topic)
+            self.inspect_shared_event_payload(node, topic)
         # If the topic is dynamic, infer a wildcard capability.  The checker is
         # advisory; manifest enforcement remains the authoritative gate.
-        self.add_evidence(f"{prefix}:{topic}" if topic else f"{prefix}:*", "framework_call", node, self.call_path(node.func) or "")
+        self.add_evidence(
+            f"db.write:{topic}" if topic else "db.write:*",
+            "framework_call",
+            node,
+            self.call_path(node.func) or "",
+        )
+
+    def inspect_shared_event_payload(self, node: ast.Call, topic: str) -> None:
+        """Validate shared-topic payloads when the payload is a literal dict."""
+        if event_contract(topic) is None:
+            return
+        payload_node = event_payload_argument(node)
+        if payload_node is None or not isinstance(payload_node, ast.Dict):
+            return
+        payload = literal_dict_payload(payload_node)
+        if payload is None:
+            return
+        for error in validate_event_payload(topic, payload):
+            self.add_diagnostic(
+                "error",
+                "invalid-shared-event-payload",
+                payload_node,
+                error,
+                "Shared event topics must match bywaf.event_contracts. Add required fields or keep "
+                "tool-specific raw detail on a plugin-private topic.",
+            )
 
     def add_event_topics_evidence(self, node: ast.Call, prefix: str) -> None:
         """Add event capability evidence for calls that accept topic sequences."""
@@ -478,6 +519,29 @@ def literal_string_sequence(node: ast.AST) -> tuple[str, ...]:
             values.append(item.value)
         return tuple(values)
     return ()
+
+
+def event_payload_argument(node: ast.Call) -> ast.AST | None:
+    """Return the payload argument from context.events.publish(...)."""
+    for item in node.keywords:
+        if item.arg == "payload":
+            return item.value
+    if len(node.args) > 1:
+        return node.args[1]
+    return None
+
+
+def literal_dict_payload(node: ast.Dict) -> dict[str, Any] | None:
+    """Return a shallow literal dict payload, or None when dynamic."""
+    payload: dict[str, Any] = {}
+    for key_node, value_node in zip(node.keys, node.values, strict=True):
+        if not isinstance(key_node, ast.Constant) or not isinstance(key_node.value, str):
+            return None
+        try:
+            payload[key_node.value] = ast.literal_eval(value_node)
+        except (ValueError, TypeError):
+            return None
+    return payload
 
 
 def call_basename(path: str) -> str:

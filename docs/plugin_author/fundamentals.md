@@ -97,14 +97,16 @@ Implementation traits are independent:
 - `service` means the plugin is expected to run long-lived or continuously.
 
 Each `[[commandlets]]` entry should also list the commandlet capabilities,
-database action policy, secret options, and any immediate provider variables the
-commandlet may read. Bywaf requires manifest `capabilities`,
-`database.actions.*`, `secret_options`, `provider_variables`, and
-`secret_provider_variables` to match Python metadata exactly. This is a
-pre-load consistency check, not the only enforcement layer: runtime policy still
-audits and can deny actual framework API use if a plugin attempts behavior
-outside its declared capabilities, database action policy, or provider-variable
-permissions.
+database action policy, `consumes` and `emits` topics, secret options, and any
+immediate provider variables the commandlet may read. Bywaf requires manifest
+`capabilities`, `database.actions.*`, `secret_options`, `provider_variables`,
+and `secret_provider_variables` to match Python metadata exactly. When
+`consumes` or `emits` are present in the manifest, they must match
+`CommandSpec`; plugin-check also requires shared framework event topics that
+the source publishes to be declared in `emits`. This is a pre-load consistency
+check, not the only enforcement layer: runtime policy still audits and can deny
+actual framework API use if a plugin attempts behavior outside its declared
+capabilities, database action policy, or provider-variable permissions.
 
 ## Manifest Generation And Inspection
 
@@ -131,7 +133,7 @@ Keep these boundaries clear:
 | --- | --- |
 | What commandlets and triggers does the manifest generator emit? | Runtime inspection of loaded plugin specs. |
 | What likely capabilities did the source code use? | Optional AST hints from `--infer-capabilities`. |
-| What commandlets, capabilities, secret options, and triggers may load? | `bywaf.plugin.toml` or bundled `*.plugin.toml`. |
+| What commandlets, capabilities, topic declarations, secret options, and triggers may load? | `bywaf.plugin.toml` or bundled `*.plugin.toml`. |
 | How does a commandlet parse runtime args? | Python `run()` method using `self.parser()`. |
 | Does the manifest sandbox plugin code? | No. It records trust metadata and consistency expectations. |
 

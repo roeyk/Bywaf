@@ -206,6 +206,9 @@ runtime patterns disagree. In particular, it checks:
 - decorator metadata and runtime parser alignment
 - manifest/decorator capability synchronization
 - manifest/decorator database action policy synchronization
+- manifest/decorator `consumes` and `emits` metadata when declared
+- shared event topic declarations for framework-owned contracts
+- literal shared event payloads when static analysis can read them
 - secret option declarations
 - trigger declarations
 - normalized finding payload helper usage
@@ -220,11 +223,11 @@ library-backed plugins are still Python code. Treat a passing check as
 
 The checker requires `plugin.py` and `bywaf.plugin.toml`, parses strict manifest
 metadata, imports the plugin factory, and verifies that declared commandlets,
-capabilities, database action flags, secret options, and trigger specs match the
-code. It also runs a lightweight AST pass over plugin source and reports
-inferred capabilities, missing inferred declarations, unused declarations, and
-warnings for direct network, process, and filesystem APIs that bypass framework
-mediation.
+capabilities, database action flags, shared event declarations, secret options,
+and trigger specs match the code. It also runs a lightweight AST pass over
+plugin source and reports inferred capabilities, missing inferred declarations,
+unused declarations, and warnings for direct network, process, and filesystem
+APIs that bypass framework mediation.
 Inference is advisory by default; `--strict-inference` turns missing inferred
 capabilities into a failed check. When `--manifest-key` is supplied, it also
 verifies the manifest signature.
@@ -254,8 +257,9 @@ python3 -m bywaf.tools.plugin_manifest path/to/plugin-dir/plugin.py
 python3 -m bywaf.tools.plugin_manifest path/to/plugin-dir/plugin.py --infer-capabilities
 ```
 
-The generator emits commandlet rows, declared capabilities, secret options, and
-provider-owned trigger specs. With `--infer-capabilities`, AST-inferred
+The generator emits commandlet rows, declared capabilities, `consumes` and
+`emits` topics, secret options, and provider-owned trigger specs. With
+`--infer-capabilities`, AST-inferred
 capabilities are merged into the manifest only when the plugin exposes exactly
 one commandlet; multi-commandlet plugins still need the author to assign
 inferred capabilities to the right commandlet manually.

@@ -37,6 +37,9 @@ Planning dates are release planning markers, not compatibility commitments.
   move these contracts into TOML/YAML schema files so plugin packages, external
   tools, documentation generators, and future GUIs can inspect contracts without
   importing Bywaf Python code.
+- Plugin manifests should expose `consumes` and `emits` topics, and
+  `plugin_check` should validate shared-topic declarations and payload shapes
+  when static analysis can inspect them.
 - Design intent: normalized shared facts should make `results`, `shares`,
   `ports`, `report`, bundles, GUI views, and follow-up plugins consume a stable
   vocabulary while raw scanner-specific detail remains available through

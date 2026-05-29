@@ -225,6 +225,39 @@ class PluginCheckTests(unittest.TestCase):
             diagnostics = [item["code"] for item in report["diagnostics"]]
             self.assertNotIn("invalid-candidate-payload-keyword", diagnostics)
 
+    def test_check_plugin_requires_manifest_emits_for_shared_published_topic(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(
+                Path(tmp),
+                capabilities=("db.write:host.found",),
+                emits=("host.found",),
+                manifest_emits=(),
+                run_body='        context.events.publish("host.found", {"host": "127.0.0.1"})\n',
+            )
+
+            report = check_plugin(plugin_dir)
+
+            self.assertFalse(report["ok"])
+            self.assertEqual(report["missing_shared_emits"], ["host.found"])
+            feedback = render_llm_feedback(report)
+            self.assertIn("Missing shared event declaration: host.found", feedback)
+
+    def test_check_plugin_validates_literal_shared_event_payload(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(
+                Path(tmp),
+                capabilities=("db.write:port.open",),
+                emits=("port.open",),
+                manifest_emits=("port.open",),
+                run_body='        context.events.publish("port.open", {"host": "127.0.0.1", "port": 80})\n',
+            )
+
+            report = check_plugin(plugin_dir)
+
+            self.assertFalse(report["ok"])
+            self.assertEqual(report["diagnostics"][0]["code"], "invalid-shared-event-payload")
+            self.assertIn("port.open.protocol is required", report["diagnostics"][0]["message"])
+
     def test_check_plugin_reports_boolean_option_without_default(self):
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(
@@ -304,6 +337,8 @@ def write_plugin_fixture(
     *,
     capabilities: tuple[str, ...],
     manifest_capabilities: tuple[str, ...] | None = None,
+    emits: tuple[str, ...] = (),
+    manifest_emits: tuple[str, ...] | None = None,
     imports: str = "",
     decorators: str = "",
     parser_import: str = "from bywaf.plugin import CommandSpec\n",
@@ -312,12 +347,13 @@ def write_plugin_fixture(
     plugin_dir = root / "example"
     plugin_dir.mkdir()
     capability_text = repr(capabilities)
+    emits_text = repr(emits)
     plugin_dir.joinpath("plugin.py").write_text(
         imports +
         parser_import +
         decorators +
         "class Example:\n"
-        f"    spec = CommandSpec('example', 'example plugin', capabilities={capability_text})\n"
+        f"    spec = CommandSpec('example', 'example plugin', emits={emits_text}, capabilities={capability_text})\n"
         "    def run(self, context, args, input_events):\n"
         f"{run_body}"
         "def plugin():\n"
@@ -325,12 +361,15 @@ def write_plugin_fixture(
     )
     declared = capabilities if manifest_capabilities is None else manifest_capabilities
     manifest_capability_lines = "".join(f'  "{item}",\n' for item in declared)
+    declared_emits = emits if manifest_emits is None else manifest_emits
+    manifest_emits_text = "emits = [" + ", ".join(f'"{item}"' for item in declared_emits) + "]\n" if declared_emits else ""
     plugin_dir.joinpath("bywaf.plugin.toml").write_text(
         "[[commandlets]]\n"
         'name = "example"\n'
         "capabilities = [\n"
         f"{manifest_capability_lines}"
         "]\n"
+        f"{manifest_emits_text}"
     )
     return plugin_dir
 
