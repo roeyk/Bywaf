@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, fields, is_dataclass
 from typing import Any, ClassVar, Literal, Self, TypeVar
 
 FieldType = Literal["any", "bool", "dict", "int", "list", "number", "str"]
@@ -54,7 +54,15 @@ class ContractObject:
     @classmethod
     def from_event(cls, event: Any) -> Self:
         """Deserialize a shared-contract event into this object type."""
-        return contract_object(event, cls.contract_topic(), cls)
+        topic = cls.contract_topic()
+        if event_contract(topic) is not None:
+            return contract_object(event, topic, cls)
+        payload = contract_payload(event, topic)
+        values = {name: value for name, value in payload.items()}
+        accepted = accepted_factory_fields(cls)
+        if accepted is not None:
+            values = {name: value for name, value in values.items() if name in accepted}
+        return cls(**values)
 
     @classmethod
     def contract_topic(cls) -> str:
@@ -69,15 +77,16 @@ class ContractObject:
         topic = self.contract_topic()
         contract = event_contract(topic)
         if contract is None:
-            raise ValueError(f"unknown shared event contract: {topic}")
-        payload = {
-            field.name: getattr(self, field.name)
-            for field in contract.fields
-            if hasattr(self, field.name) and getattr(self, field.name) is not None
-        }
-        errors = validate_event_payload(topic, payload)
-        if errors:
-            raise ValueError("; ".join(errors))
+            payload = object_payload_fields(self)
+        else:
+            payload = {
+                field.name: getattr(self, field.name)
+                for field in contract.fields
+                if hasattr(self, field.name) and getattr(self, field.name) is not None
+            }
+            errors = validate_event_payload(topic, payload)
+            if errors:
+                raise ValueError("; ".join(errors))
         return payload
 
 
@@ -219,6 +228,8 @@ def contract_payload(event: Any, topic: str) -> Mapping[str, Any]:
     payload = getattr(event, "payload", None)
     if not isinstance(payload, Mapping):
         raise ValueError(f"{topic} payload must be a mapping")
+    if event_contract(topic) is None:
+        return payload
     errors = validate_event_payload(topic, payload)
     if errors:
         raise ValueError("; ".join(errors))
@@ -255,6 +266,21 @@ def accepted_factory_fields(factory: Callable[..., Any]) -> set[str] | None:
         if parameter.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY):
             names.add(name)
     return names
+
+
+def object_payload_fields(obj: object) -> dict[str, Any]:
+    """Return public dataclass/object fields suitable for plugin-owned payloads."""
+    if is_dataclass(obj):
+        return {
+            field.name: getattr(obj, field.name)
+            for field in fields(obj)
+            if not field.name.startswith("_") and getattr(obj, field.name) is not None
+        }
+    return {
+        name: value
+        for name, value in vars(obj).items()
+        if not name.startswith("_") and value is not None
+    }
 
 
 def field_value_matches(value: Any, field_type: FieldType) -> bool:

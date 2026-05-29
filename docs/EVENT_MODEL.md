@@ -98,9 +98,10 @@ Shared event payloads are interchange records, not mandatory in-process domain
 objects. A plugin may convert a `port.open` or `http.endpoint` payload into its
 own typed object as soon as it consumes the event. That keeps plugin internals
 cohesive while keeping cross-plugin coupling at the event-contract boundary.
-Use `bywaf.event_contracts.ContractObject` for that boundary conversion when a
-plugin wants a validated payload deserialized into a local dataclass or domain
-object, then serialized back to contract fields when publishing.
+Framework-provided contract objects live in `bywaf.contracts`, such as
+`OpenPort`, `HostFound`, and `HttpEndpoint`. Use those for normal shared
+contract handling; use `bywaf.event_contracts.ContractObject` directly only for
+plugin-private or experimental topics.
 
 ## Publishing
 

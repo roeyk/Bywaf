@@ -7,8 +7,9 @@ without knowing the original scanner.
 ## Contents
 
 - [When To Use A Contract](#when-to-use-a-contract)
-- [Why Contracts Instead Of Shared Classes](#why-contracts-instead-of-shared-classes)
+- [Why Contracts Instead Of Plugin Classes](#why-contracts-instead-of-plugin-classes)
 - [Deserialize At The Boundary](#deserialize-at-the-boundary)
+- [Plugin-Owned Contracts](#plugin-owned-contracts)
 - [Declare Consumes And Emits](#declare-consumes-and-emits)
 - [Keep Raw Tool Detail Separate](#keep-raw-tool-detail-separate)
 - [Examples](#examples)
@@ -30,12 +31,12 @@ Framework-known contracts live in `bywaf/event_contracts.py` and are summarized
 in [Event Model](../EVENT_MODEL.md#shared-event-contracts). Plugin-private
 topics are still allowed for scanner-specific detail.
 
-## Why Contracts Instead Of Shared Classes
+## Why Contracts Instead Of Plugin Classes
 
 Shared events are the durable interchange format, not the plugin's internal
-domain model. A plugin can consume `port.open`, `http.endpoint`, or
-`smb.share.found` and immediately convert the payload into its own typed object
-for parsing, probing, correlation, or reporting logic.
+domain model. For framework-known contracts, import the framework-provided
+object class from `bywaf.contracts`. For plugin-private or experimental
+contracts, define a local `ContractObject` subclass.
 
 That is intentional. It keeps the database and pipeline boundary stable while
 letting plugin authors use clean local models inside their code. Downstream
@@ -44,24 +45,12 @@ classes, helper functions, or scanner-specific structures.
 
 ## Deserialize At The Boundary
 
-Plugin logic should not have to pass dictionaries around. Define a local object
-that inherits from `ContractObject`, then use `from_event(...)` when consuming a
+Plugin logic should not have to pass dictionaries around. For a framework-known
+contract, import its object class and use `from_event(...)` when consuming a
 shared event and `to_payload()` when publishing one.
 
 ```python
-from dataclasses import dataclass
-
-from bywaf.event_contracts import ContractObject
-
-
-@dataclass(frozen=True)
-class OpenPort(ContractObject):
-    __topic__ = "port.open"
-
-    host: str
-    port: int
-    protocol: str
-    service: str = ""
+from bywaf.contracts import OpenPort
 
 
 for event in input_events:
@@ -85,6 +74,67 @@ context.events.publish(OpenPort.__topic__, port.to_payload())
 
 That keeps the database representation simple and stable while keeping plugin
 implementation code typed and readable.
+
+Framework-provided contract classes currently live in `bywaf.contracts`:
+
+- `HostFound`
+- `NameResolved`
+- `OpenPort`
+- `HttpEndpoint`
+- `SmbShareFound`
+- `ArtifactAttached`
+
+Use `ContractObject` directly only when a plugin owns a private topic or is
+prototyping a candidate contract before it becomes part of the framework
+vocabulary.
+
+## Plugin-Owned Contracts
+
+If a plugin introduces a fact that the framework does not know yet, the plugin
+can still offer object-oriented interoperability to other plugins by exporting
+its own contract object class.
+
+```python
+# smb_enum/contracts.py
+from dataclasses import dataclass
+
+from bywaf.event_contracts import ContractObject
+
+
+@dataclass(frozen=True)
+class SmbSession(ContractObject):
+    __topic__ = "smb.session.observed"
+
+    host: str
+    username: str
+    domain: str = ""
+```
+
+The producing plugin publishes the serialized boundary form:
+
+```python
+session = SmbSession(host="dc01.example.test", username="alice", domain="EXAMPLE")
+context.events.publish(SmbSession.__topic__, session.to_payload())
+```
+
+A consuming plugin imports the plugin-owned class and immediately returns to
+typed code:
+
+```python
+from smb_enum.contracts import SmbSession
+
+
+for event in input_events:
+    if event.topic == SmbSession.__topic__:
+        session = SmbSession.from_event(event)
+        inspect_session(session.host, session.username, session.domain)
+```
+
+Declare the topic in `consumes` and `emits` as usual. Framework tooling can see
+the event flow from the manifest, while plugins that opt into the producer's
+Python package can use the exported object class. If the topic becomes broadly
+useful, promote it into a framework-known contract and move the canonical class
+into `bywaf.contracts`.
 
 ## Declare Consumes And Emits
 

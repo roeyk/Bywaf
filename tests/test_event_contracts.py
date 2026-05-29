@@ -11,18 +11,18 @@ import unittest
 
 from dataclasses import dataclass
 
+from bywaf.contracts import ArtifactAttached, HostFound, HttpEndpoint, NameResolved, OpenPort, SmbShareFound
 from bywaf.event_contracts import EVENT_CONTRACTS, ContractObject, contract_object, validate_event_payload
 from bywaf.events import Event
 
 
 @dataclass(frozen=True)
-class OpenPort(ContractObject):
-    __topic__ = "port.open"
+class PluginPrivateSession(ContractObject):
+    __topic__ = "smb.session.observed"
 
     host: str
-    port: int
-    protocol: str
-    service: str = ""
+    username: str
+    domain: str = ""
 
 
 class EventContractTests(unittest.TestCase):
@@ -63,6 +63,17 @@ class EventContractTests(unittest.TestCase):
     def test_plugin_private_topics_are_free_form(self):
         self.assertEqual(validate_event_payload("smb_enum.raw_share_acl", {"any": object()}), [])
 
+    def test_plugin_private_contract_objects_round_trip_without_framework_registry(self):
+        session = PluginPrivateSession("dc01.example.test", "alice", "EXAMPLE")
+        payload = session.to_payload()
+        event = Event.new(PluginPrivateSession.__topic__, payload, "smb_enum")
+
+        self.assertEqual(
+            payload,
+            {"host": "dc01.example.test", "username": "alice", "domain": "EXAMPLE"},
+        )
+        self.assertEqual(PluginPrivateSession.from_event(event), session)
+
     def test_contract_object_deserializes_event_into_plugin_object(self):
         event = Event.new(
             "port.open",
@@ -78,7 +89,10 @@ class EventContractTests(unittest.TestCase):
 
         port = contract_object(event, "port.open", OpenPort)
 
-        self.assertEqual(port, OpenPort("192.0.2.10", 445, "tcp", "microsoft-ds"))
+        self.assertEqual(
+            port,
+            OpenPort("192.0.2.10", 445, "tcp", service="microsoft-ds", reason="syn-ack"),
+        )
 
     def test_contract_object_rejects_invalid_event_payload(self):
         event = Event.new("port.open", {"host": "192.0.2.10", "port": "445"}, "test")
@@ -101,10 +115,16 @@ class EventContractTests(unittest.TestCase):
 
         port = OpenPort.from_event(event)
 
-        self.assertEqual(port, OpenPort("192.0.2.10", 445, "tcp", "microsoft-ds"))
+        self.assertEqual(port, OpenPort("192.0.2.10", 445, "tcp", service="microsoft-ds", scanner="nmap"))
         self.assertEqual(
             port.to_payload(),
-            {"host": "192.0.2.10", "port": 445, "protocol": "tcp", "service": "microsoft-ds"},
+            {
+                "host": "192.0.2.10",
+                "port": 445,
+                "protocol": "tcp",
+                "service": "microsoft-ds",
+                "scanner": "nmap",
+            },
         )
 
     def test_contract_object_base_rejects_invalid_serialized_payloads(self):
@@ -112,6 +132,24 @@ class EventContractTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "port.open.protocol must be one of"):
             port.to_payload()
+
+    def test_framework_contract_objects_round_trip_common_shared_payloads(self):
+        cases = [
+            (HostFound("192.0.2.10", status="up", scanner="nmap"), "host.found"),
+            (NameResolved("example.test", "192.0.2.10", resolver="system"), "name.resolved"),
+            (HttpEndpoint("https://example.test/", "example.test", 443, "https", status=200), "http.endpoint"),
+            (SmbShareFound("dc01.example.test", "SYSVOL", access="read", authenticated=True), "smb.share.found"),
+            (
+                ArtifactAttached("artifact-1", "scan.json", "application/json", "a" * 64, 10),
+                "artifact.attached",
+            ),
+        ]
+
+        for obj, topic in cases:
+            with self.subTest(topic=topic):
+                payload = obj.to_payload()
+                self.assertEqual(validate_event_payload(topic, payload), [])
+                self.assertEqual(obj.__class__.from_event(Event.new(topic, payload, "test")), obj)
 
 
 if __name__ == "__main__":
