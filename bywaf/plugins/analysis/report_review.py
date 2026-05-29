@@ -40,6 +40,7 @@ def review_report_groups(context: CommandContext, parsed, events) -> None:
     if not selected:
         raise ValueError("report selection matched no findings")
     decision = REVIEW_DECISIONS[str(parsed.action)]
+    context.audit_capability("finding.review")
     for group in selected:
         context.events.publish(
             "finding.reviewed",

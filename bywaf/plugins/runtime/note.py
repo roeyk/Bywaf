@@ -37,6 +37,7 @@ from bywaf.utils import complete_path
         "note add step=1 text=follow-up note",
     ),
     capabilities=("filesystem.read", "filesystem.write", "framework.console.output"),
+    database_actions=("view", "write"),
 )
 @argument(
     "selector",
@@ -46,6 +47,10 @@ from bywaf.utils import complete_path
 @argument("value", "optional text= note or file= path", required=False, completion="path")
 class Note(CommandletBase):
     """Display timestamped notes recorded by framework-level `note=` selectors."""
+
+    def database_actions_for_args(self, args: list[str]) -> tuple[str, ...]:
+        """Classify note creation separately from note display/export."""
+        return ("write",) if args and args[0] == "add" else ("view",)
 
     def run(
         self,

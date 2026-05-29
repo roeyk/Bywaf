@@ -64,9 +64,11 @@ REPORT_STATUS_CHOICES = ("all", "accepted", "deferred", "rejected", "unreviewed"
         "db.read:artifact.attached",
         "db.write:report.rendered",
         "db.write:finding.reviewed",
+        "finding.review",
         "framework.console.output",
         "framework.file.page",
     ),
+    database_actions=("view", "write"),
 )
 @option("job", "job id or comma-separated job ids", completion="job")
 @option("pipeline", "pipeline id or comma-separated pipeline ids", completion="pipeline")
@@ -76,6 +78,12 @@ REPORT_STATUS_CHOICES = ("all", "accepted", "deferred", "rejected", "unreviewed"
 @option("status", "finding review status filter", "unreviewed", REPORT_STATUS_CHOICES)
 class Report(CommandletBase):
     """Render grouped finding inboxes and scoped finding reports."""
+
+    def database_actions_for_args(self, args: list[str]) -> tuple[str, ...]:
+        """Classify report moderation separately from read-only report views."""
+        normalized = normalize_report_args(args)
+        action = next((arg for arg in normalized if not arg.startswith("-")), "")
+        return ("write",) if action in REPORT_REVIEW_ACTIONS else ("view",)
 
     def run(
         self,

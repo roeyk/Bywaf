@@ -9,4 +9,7 @@ capabilities = [
   "framework.file.page",
   "framework.job.control",
 ]
+database.actions.view = true
+database.actions.write = true
+database.actions.manage = false
 module = "bywaf.plugins.runtime.job"

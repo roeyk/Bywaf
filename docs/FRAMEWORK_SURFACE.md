@@ -31,6 +31,7 @@ base installation commandlets that declare or use each capability.
 | `artifact.write` | `artifact`, `eyewitness`, `finding_dedupe`, `finding_report`, `nikto`, `wifi_scan` |
 | `db.manage` | `db` |
 | `db.raw` | `audit`, `db` |
+| `finding.review` | `report` |
 | `db.read:*` | `watchdog` |
 | `db.read:artifact.attached` | `artifact` |
 | `db.read:bundle.created` | `bundle` |

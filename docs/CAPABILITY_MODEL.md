@@ -91,6 +91,9 @@ database.actions.manage = false
 `manage` covers raw or management-level database access. These flags keep
 read-only view commands from silently growing write access while still allowing
 the framework to record lifecycle and audit events around command execution.
+Mixed commandlets can also classify the effective database action for each
+invocation. For example, `report status=all` records a view action, while
+`report accept all` records a write action.
 
 ## Common Capability Names
 
@@ -100,6 +103,7 @@ Common capability names include:
 db.read:<topic>
 db.write:<topic>
 db.raw
+finding.review
 framework.console.output
 framework.console.alert
 framework.file.page

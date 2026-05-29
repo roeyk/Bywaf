@@ -81,6 +81,11 @@ class Bundle:
 class BundleCommand(CommandletBase):
     """Manage auditable evidence bundles."""
 
+    def database_actions_for_args(self, args: list[str]) -> tuple[str, ...]:
+        """Classify bundle inspection separately from bundle mutation."""
+        action = args[0] if args else ""
+        return ("view",) if action in {"list", "show", "verify"} else ("write",)
+
     def run(
         self,
         context: CommandContext,

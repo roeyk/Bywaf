@@ -147,6 +147,16 @@ class CommandletBase:
 
     spec: CommandSpec
 
+    def database_actions_for_args(self, args: list[str]) -> tuple[str, ...]:
+        """Return the DB action class this invocation intends to perform.
+
+        Commandlets with mixed view/write/manage actions can override this to
+        classify one argv before execution. The static spec remains the broad
+        capability allowance used by policy checks.
+        """
+        del args
+        return tuple(self.spec.database_actions)
+
     def parser(self) -> argparse.ArgumentParser:
         """Return an argparse parser named after this commandlet."""
         return argparse.ArgumentParser(prog=self.spec.name)

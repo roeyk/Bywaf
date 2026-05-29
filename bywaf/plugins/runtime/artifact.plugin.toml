@@ -12,6 +12,9 @@ capabilities = [
   "filesystem.write",
   "framework.console.output",
 ]
+database.actions.view = true
+database.actions.write = true
+database.actions.manage = false
 module = "bywaf.plugins.runtime.artifact"
 
 [[commandlets]]
@@ -20,4 +23,7 @@ capabilities = [
   "artifact.read",
   "framework.console.output",
 ]
+database.actions.view = true
+database.actions.write = false
+database.actions.manage = false
 module = "bywaf.plugins.runtime.artifact"

@@ -61,10 +61,16 @@ KEY_ACTIONS = ("export", "generate", "import", "list", "remove", "show", "test")
         "filesystem.write",
         "framework.console.output",
     ),
+    database_actions=("view", "write"),
 )
 @argument("action", "key operation", completion=CompletionSpec("choice", KEY_ACTIONS))
 class Key(CommandletBase):
     """Generate, import, inspect, and test signing/verification keys."""
+
+    def database_actions_for_args(self, args: list[str]) -> tuple[str, ...]:
+        """Classify key inspection separately from key mutations/tests."""
+        action = args[0] if args else ""
+        return ("view",) if action in {"export", "list", "show"} else ("write",)
 
     def run(
         self,

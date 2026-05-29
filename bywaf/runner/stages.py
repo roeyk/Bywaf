@@ -19,6 +19,7 @@ from ..command.parser import CommandInvocation
 from ..db import EventStore
 from ..events import Event
 from ..plugin import CommandContext
+from ..plugin.capabilities import DATABASE_ACTIONS
 from ..registry import PluginRegistry
 from ..secret.store import REDACTED_VALUE, fingerprint_secret, load_or_create_fingerprint_key
 from .at_files import expand_at_file_args
@@ -256,7 +257,7 @@ def publish_command_run_arguments(context: CommandContext, plugin, args: list[st
             "commandlet": context.source,
             "args": redacted_args,
             "secret_args": secret_args,
-            "database_actions": list(plugin.spec.database_actions),
+            "database_actions": list(effective_database_actions(plugin, args)),
             "job_id": context.job_id,
             "pipeline_id": context.pipeline_id,
             "command_run_id": context.command_run_id,
@@ -267,6 +268,22 @@ def publish_command_run_arguments(context: CommandContext, plugin, args: list[st
         command_run_id=context.command_run_id,
         parent_command_run_id=context.parent_command_run_id,
     )
+
+
+def effective_database_actions(plugin, args: list[str]) -> tuple[str, ...]:
+    """Return the effective DB action class for this commandlet invocation."""
+    classifier = getattr(plugin, "database_actions_for_args", None)
+    actions = classifier(args) if callable(classifier) else plugin.spec.database_actions
+    seen: set[str] = set()
+    normalized: list[str] = []
+    for action in actions:
+        value = str(action)
+        if value not in DATABASE_ACTIONS:
+            raise ValueError(f"{plugin.spec.name} returned unknown database action: {value}")
+        if value not in seen:
+            normalized.append(value)
+            seen.add(value)
+    return tuple(action for action in DATABASE_ACTIONS if action in seen) if normalized else tuple()
 
 
 def redact_commandlet_args(context: CommandContext, plugin, args: list[str]) -> tuple[list[str], list[dict[str, str]]]:

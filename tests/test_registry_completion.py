@@ -259,6 +259,15 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIsNotNone(manifest)
         assert manifest is not None
         self.assertEqual(manifest.commandlet_database_actions["ports"], ("view",))
+        runtime_manifest = load_package_manifest("bywaf.plugins", "runtime.artifact")
+        self.assertIsNotNone(runtime_manifest)
+        assert runtime_manifest is not None
+        self.assertEqual(runtime_manifest.commandlet_database_actions["artifact"], ("view", "write"))
+        self.assertEqual(runtime_manifest.commandlet_database_actions["search"], ("view",))
+        report_manifest = load_package_manifest("bywaf.plugins", "analysis.report")
+        self.assertIsNotNone(report_manifest)
+        assert report_manifest is not None
+        self.assertEqual(report_manifest.commandlet_database_actions["report"], ("view", "write"))
 
     def test_registry_tracks_provider_groups(self):
         self.assertEqual(self.registry.grouped_names()["analysis"], ["finding_dedupe", "finding_report", "report", "yara_scan"])
@@ -316,7 +325,7 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertNotIn("repl", completer.candidates("re"))
         self.assertEqual(
             completer.candidates("hostscanner 127.0.0.1& | por"),
-            ["ports", "portscanner"],
+            ["portscanner"],
         )
 
     def test_prompt_has_no_argument_completion(self):

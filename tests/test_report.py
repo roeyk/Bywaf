@@ -741,6 +741,8 @@ class ReportTests(unittest.TestCase):
                 [(event.payload["finding_id"], event.payload["decision"]) for event in reviews],
                 [("finding-1", "accepted"), ("finding-2", "accepted"), ("finding-4", "accepted")],
             )
+            capabilities = runner.db.events_for_topic("plugin.capability.used")
+            self.assertTrue(any(event.payload.get("capability") == "finding.review" for event in capabilities))
 
     def test_report_accept_all_marks_visible_unreviewed_findings(self):
         with tempfile.TemporaryDirectory() as tmp:

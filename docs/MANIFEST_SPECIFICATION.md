@@ -134,6 +134,12 @@ database.actions.manage = false
 Lifecycle/audit events emitted by the framework itself are separate from these
 plugin action flags.
 
+Commandlets that mix read-only and mutating actions may declare the broad
+allowed set here and narrow the effective action in Python for a specific argv.
+Bywaf records that effective action in `command.run.arguments`, so runtime
+listings and audit review can distinguish `report status=all` from
+`report accept all` without relying on command-name heuristics.
+
 When a manifest is present, Bywaf registers only commandlets listed in
 `[[commandlets]]`. Extra commandlets returned by `plugin()` or `plugins()` are
 ignored. Commandlets declared in the manifest but missing from Python code cause

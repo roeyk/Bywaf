@@ -144,8 +144,8 @@ those paths split into separate report rows.
 
 ## Review State
 
-Review commands write `finding.reviewed` events. They do not mutate the
-original finding payload.
+Review commands use the `finding.review` capability and write
+`finding.reviewed` events. They do not mutate the original finding payload.
 
 ```text
 bywaf> report accept all pipeline=1

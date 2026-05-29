@@ -50,11 +50,20 @@ JobActionHandler = Callable[[CommandContext, Namespace], None]
     usage="job [--all] [field=value ...] | job <id> | job <cancel|end|kill> [options] <id>",
     examples=("job", "job --all", "job 1", "job cancel 1", "job end 1", "job kill --hard 1"),
     capabilities=("framework.console.output", "framework.file.page", "framework.job.control"),
+    database_actions=("view", "write"),
 )
 @argument("action", "job operation", required=False, completion=CompletionSpec("choice", JOB_ACTIONS))
 @argument("id", "job id", required=False, completion="job")
 class Job(CommandletBase):
     """List, inspect, softly cancel, and end background jobs."""
+
+    def database_actions_for_args(self, args: list[str]) -> tuple[str, ...]:
+        """Classify job list/show separately from job-control operations."""
+        try:
+            operation = parse_job_operation([arg for arg in args if arg not in {"--all", "--page"}])
+        except ValueError:
+            return ("view",)
+        return ("write",) if operation.action in JOB_ACTIONS else ("view",)
 
     def run(
         self,

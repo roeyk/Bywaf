@@ -71,11 +71,17 @@ from .artifact_selectors import parse_artifact_selectors, parse_search_selectors
         "filesystem.write",
         "framework.console.output",
     ),
+    database_actions=("view", "write"),
 )
 @argument("action", "artifact action", completion=CompletionSpec("choice", ARTIFACT_ACTIONS))
 @argument("selector", "serial=, artifact=, step=, pipeline=, job=, file=, dir=, name=, or note=", required=False)
 class ArtifactCommand(CommandletBase):
     """Manage artifacts linked to Bywaf runtime entities."""
+
+    def database_actions_for_args(self, args: list[str]) -> tuple[str, ...]:
+        """Classify artifact inspection separately from artifact mutation."""
+        action = args[0] if args else ""
+        return ("view",) if action in {"list", "search", "verify"} else ("write",)
 
     def run(
         self,
@@ -226,6 +232,7 @@ def search_artifact_command(context: CommandContext, tokens: list[str]) -> None:
         "artifact.read",
         "framework.console.output",
     ),
+    database_actions=("view",),
 )
 @argument("query", "name=, filename=, note=, or content= query text", required=False)
 @argument("regexp", "--regexp treats query values as Python regular expressions", required=False, completion=CompletionSpec("choice", SEARCH_FLAGS))

@@ -1953,6 +1953,37 @@ class AppDispatchTests(unittest.TestCase):
             self.assertTrue(events)
             self.assertEqual(events[-1].payload["database_actions"], ["view"])
 
+    def test_mixed_commandlets_classify_effective_database_actions(self):
+        from bywaf.plugins.analysis.report import Report
+        from bywaf.plugins.runtime.artifact import ArtifactCommand, SearchCommand
+        from bywaf.plugins.runtime.bundle import BundleCommand
+        from bywaf.plugins.runtime.job import Job
+        from bywaf.plugins.runtime.key import Key
+        from bywaf.plugins.runtime.note import Note
+        from bywaf.plugins.runtime.pipeline import Pipeline
+        from bywaf.runner.stages import effective_database_actions
+
+        cases = [
+            (Report(), ["status=all"], ("view",)),
+            (Report(), ["accept", "all"], ("write",)),
+            (ArtifactCommand(), ["list"], ("view",)),
+            (ArtifactCommand(), ["attach", "file=x"], ("write",)),
+            (SearchCommand(), ["name=x"], ("view",)),
+            (BundleCommand(), ["verify", "name=x"], ("view",)),
+            (BundleCommand(), ["seal", "name=x"], ("write",)),
+            (Job(), [], ("view",)),
+            (Job(), ["kill", "1"], ("write",)),
+            (Key(), ["show", "name=x"], ("view",)),
+            (Key(), ["generate", "name=x"], ("write",)),
+            (Note(), ["step=1"], ("view",)),
+            (Note(), ["add", "step=1", "text=x"], ("write",)),
+            (Pipeline(), ["1"], ("view",)),
+            (Pipeline(), ["attach", "1", "ports"], ("write",)),
+        ]
+        for plugin, args, expected in cases:
+            with self.subTest(commandlet=plugin.spec.name, args=args):
+                self.assertEqual(effective_database_actions(plugin, args), expected)
+
     def test_result_alias_shows_generic_inserted_events(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

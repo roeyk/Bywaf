@@ -65,11 +65,17 @@ NOISE_TOPICS = {"framework.console.output.requested", "console.output", "runtime
         "pipeline attach 1 portscanner step=1 since=beginning",
     ),
     capabilities=("framework.console.output", "framework.file.page", "framework.pipeline.control", "framework.job.control"),
+    database_actions=("view", "write"),
 )
 @argument("action", "pipeline operation", required=False, completion=CompletionSpec("choice", PIPELINE_ACTIONS))
 @argument("id", "pipeline id", required=False, completion="pipeline")
 class Pipeline(CommandletBase):
     """List, inspect, softly cancel, and end pipelines."""
+
+    def database_actions_for_args(self, args: list[str]) -> tuple[str, ...]:
+        """Classify pipeline list/show separately from control and attach."""
+        action = next((arg for arg in args if not arg.startswith("--")), "")
+        return ("write",) if action in PIPELINE_ACTIONS else ("view",)
 
     def run(
         self,

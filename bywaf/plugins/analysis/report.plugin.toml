@@ -12,7 +12,11 @@ capabilities = [
   "db.read:artifact.attached",
   "db.write:report.rendered",
   "db.write:finding.reviewed",
+  "finding.review",
   "framework.console.output",
   "framework.file.page",
 ]
+database.actions.view = true
+database.actions.write = true
+database.actions.manage = false
 module = "bywaf.plugins.analysis.report"

@@ -77,14 +77,16 @@ class CoreCompleter(
     def candidates(self, line: str) -> list[str]:
         """Return raw completion candidates for a full input line."""
         try:
-            tokens = shlex.split(line)
+            parsed_tokens = shlex.split(line)
         except ValueError:
-            tokens = line.split()
+            parsed_tokens = line.split()
         # Completion is stage-local.  For `a | b par<Tab>`, only tokens after
         # the last pipe should influence command/argument completion.
-        tokens = tokens_after_last_pipe(tokens)
+        tokens = tokens_after_last_pipe(parsed_tokens)
         prefix = "" if line.endswith(" ") else (tokens[-1] if tokens else "")
-        base = self.base_candidates(tokens, prefix, line.endswith(" "))
+        base = self.pipeline_stage_candidates(parsed_tokens, tokens, prefix, line.endswith(" "))
+        if base is None:
+            base = self.base_candidates(tokens, prefix, line.endswith(" "))
         if prefix == "--":
             return sorted(candidate for candidate in set(base) if candidate.startswith("--"))
         return [
@@ -92,6 +94,30 @@ class CoreCompleter(
             for candidate in sorted(set(base))
             if candidate.startswith(prefix) and candidate != prefix
         ]
+
+    def pipeline_stage_candidates(
+        self,
+        all_tokens: list[str],
+        stage_tokens: list[str],
+        prefix: str,
+        ended_with_space: bool,
+    ) -> list[str] | None:
+        """Prefer commandlets that consume the previous pipeline stage output."""
+        del prefix
+        if "|" not in all_tokens or (stage_tokens and (len(stage_tokens) > 1 or ended_with_space)):
+            return None
+        previous = previous_pipeline_command(all_tokens)
+        if not previous or not self.registry.has_commandlet(previous):
+            return None
+        emitted = set(self.registry.get(previous).spec.emits)
+        if not emitted:
+            return None
+        consumers = [
+            name
+            for name in self.registry.names()
+            if emitted.intersection(self.registry.get(name).spec.consumes)
+        ]
+        return consumers or None
 
     def base_candidates(self, tokens: list[str], prefix: str, ended_with_space: bool) -> list[str]:
         """Return unfiltered candidates for the current token context."""
@@ -135,3 +161,17 @@ class CoreCompleter(
         }
         handler = dispatch.get(command)
         return handler(prefix) if handler is not None else root_candidates
+
+
+def previous_pipeline_command(tokens: list[str]) -> str | None:
+    """Return the commandlet token immediately before the last pipe."""
+    try:
+        pipe_index = len(tokens) - 1 - tokens[::-1].index("|")
+    except ValueError:
+        return None
+    start = 0
+    for index in range(pipe_index - 1, -1, -1):
+        if tokens[index] == "|":
+            start = index + 1
+            break
+    return tokens[start] if start < pipe_index else None
