@@ -44,18 +44,20 @@ classes, helper functions, or scanner-specific structures.
 
 ## Deserialize At The Boundary
 
-Plugin logic should not have to pass dictionaries around. Use
-`contract_object(...)` when consuming a shared event, then work with your own
-dataclass or domain object internally.
+Plugin logic should not have to pass dictionaries around. Define a local object
+that inherits from `ContractObject`, then use `from_event(...)` when consuming a
+shared event and `to_payload()` when publishing one.
 
 ```python
 from dataclasses import dataclass
 
-from bywaf.event_contracts import contract_object
+from bywaf.event_contracts import ContractObject
 
 
 @dataclass(frozen=True)
-class OpenPort:
+class OpenPort(ContractObject):
+    __topic__ = "port.open"
+
     host: str
     port: int
     protocol: str
@@ -65,28 +67,20 @@ class OpenPort:
 for event in input_events:
     if event.topic != "port.open":
         continue
-    port = contract_object(event, "port.open", OpenPort)
+    port = OpenPort.from_event(event)
     probe_service(port.host, port.port, port.protocol, port.service)
 ```
 
-The helper validates the event against the shared contract and passes matching
-contract fields into your constructor. Extra contract fields are ignored unless
-your factory accepts `**kwargs`, so your local object only needs the fields your
-plugin actually uses.
+The base class validates the event against the shared contract and passes
+matching contract fields into your constructor. Extra contract fields are ignored
+unless your constructor accepts `**kwargs`, so your local object only needs the
+fields your plugin actually uses.
 
-When publishing a shared event, serialize back to the contract fields at the
-edge:
+When publishing a shared event, serialize the object back to the contract fields
+at the edge:
 
 ```python
-context.events.publish(
-    "port.open",
-    {
-        "host": port.host,
-        "port": port.port,
-        "protocol": port.protocol,
-        "service": port.service,
-    },
-)
+context.events.publish(OpenPort.__topic__, port.to_payload())
 ```
 
 That keeps the database representation simple and stable while keeping plugin

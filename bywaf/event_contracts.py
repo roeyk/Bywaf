@@ -14,7 +14,7 @@ from __future__ import annotations
 import inspect
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Any, Literal, TypeVar
+from typing import Any, ClassVar, Literal, Self, TypeVar
 
 FieldType = Literal["any", "bool", "dict", "int", "list", "number", "str"]
 T = TypeVar("T")
@@ -44,6 +44,41 @@ class EventContract:
     def required_fields(self) -> tuple[str, ...]:
         """Return required payload field names."""
         return tuple(field.name for field in self.fields if field.required)
+
+
+class ContractObject:
+    """Base class for plugin-owned objects backed by a shared event contract."""
+
+    __topic__: ClassVar[str]
+
+    @classmethod
+    def from_event(cls, event: Any) -> Self:
+        """Deserialize a shared-contract event into this object type."""
+        return contract_object(event, cls.contract_topic(), cls)
+
+    @classmethod
+    def contract_topic(cls) -> str:
+        """Return the shared event topic this object represents."""
+        topic = getattr(cls, "__topic__", "")
+        if not topic:
+            raise ValueError(f"{cls.__name__} must define __topic__")
+        return topic
+
+    def to_payload(self) -> dict[str, Any]:
+        """Serialize this object to its shared event contract payload."""
+        topic = self.contract_topic()
+        contract = event_contract(topic)
+        if contract is None:
+            raise ValueError(f"unknown shared event contract: {topic}")
+        payload = {
+            field.name: getattr(self, field.name)
+            for field in contract.fields
+            if hasattr(self, field.name) and getattr(self, field.name) is not None
+        }
+        errors = validate_event_payload(topic, payload)
+        if errors:
+            raise ValueError("; ".join(errors))
+        return payload
 
 
 EVENT_CONTRACTS: dict[str, EventContract] = {

@@ -11,12 +11,14 @@ import unittest
 
 from dataclasses import dataclass
 
-from bywaf.event_contracts import EVENT_CONTRACTS, contract_object, validate_event_payload
+from bywaf.event_contracts import EVENT_CONTRACTS, ContractObject, contract_object, validate_event_payload
 from bywaf.events import Event
 
 
 @dataclass(frozen=True)
-class OpenPort:
+class OpenPort(ContractObject):
+    __topic__ = "port.open"
+
     host: str
     port: int
     protocol: str
@@ -83,6 +85,33 @@ class EventContractTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "port.open.port must be int"):
             contract_object(event, "port.open", OpenPort)
+
+    def test_contract_object_base_deserializes_and_serializes_payloads(self):
+        event = Event.new(
+            "port.open",
+            {
+                "host": "192.0.2.10",
+                "port": 445,
+                "protocol": "tcp",
+                "service": "microsoft-ds",
+                "scanner": "nmap",
+            },
+            "test",
+        )
+
+        port = OpenPort.from_event(event)
+
+        self.assertEqual(port, OpenPort("192.0.2.10", 445, "tcp", "microsoft-ds"))
+        self.assertEqual(
+            port.to_payload(),
+            {"host": "192.0.2.10", "port": 445, "protocol": "tcp", "service": "microsoft-ds"},
+        )
+
+    def test_contract_object_base_rejects_invalid_serialized_payloads(self):
+        port = OpenPort("192.0.2.10", 445, "icmp")
+
+        with self.assertRaisesRegex(ValueError, "port.open.protocol must be one of"):
+            port.to_payload()
 
 
 if __name__ == "__main__":
