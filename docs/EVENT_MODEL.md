@@ -8,7 +8,7 @@ terminal output between tools.
 
 - [Event Rows](#event-rows)
 - [Topics](#topics)
-- [Shared Event Contracts](#shared-event-contracts)
+- [Shared Event Schemas](#shared-event-schemas)
 - [Publishing](#publishing)
 - [Consuming](#consuming)
 - [Replay and Attachment](#replay-and-attachment)
@@ -58,9 +58,9 @@ policy.evaluated
 Topic names should be specific enough to be useful in subscriptions and reports
 but stable enough that plugin authors can depend on them.
 
-## Shared Event Contracts
+## Shared Event Schemas
 
-Bywaf treats common topics as shared contracts. The database still stores
+Bywaf treats common topics as shared schemas. The database still stores
 append-only JSON events, but a shared topic promises a stable payload shape that
 views, reports, follow-up plugins, and future frontends can depend on.
 
@@ -76,7 +76,7 @@ For example, an SMB plugin can preserve scanner-specific ACL detail in a
 private topic such as `smb_enum.raw_share_acl`, emit normalized share facts as
 `smb.share.found`, and emit `finding.candidate` only for risky shares.
 
-Framework-known contracts currently live in `bywaf.event_contracts`. The first
+Framework-known schemas currently live in `bywaf.event_schemas`. The first
 shared topics are:
 
 | Topic | Required fields | Purpose |
@@ -90,17 +90,17 @@ shared topics are:
 | `artifact.attached` | `artifact_id`, `name`, `content_type`, `sha256`, `size` | Artifact metadata attached to provenance. |
 
 Plugin-private topics remain free-form. A plugin only needs to align with a
-framework contract when other plugins or framework views should understand that
+framework schema when other plugins or framework views should understand that
 data. If data is private evidence, use a plugin-specific topic or artifact. If
 data is security-reportable, also map it into `finding.candidate`.
 
 Shared event payloads are interchange records, not mandatory in-process domain
 objects. A plugin may convert a `port.open` or `http.endpoint` payload into its
 own typed object as soon as it consumes the event. That keeps plugin internals
-cohesive while keeping cross-plugin coupling at the event-contract boundary.
-Framework-provided contract objects live in `bywaf.contracts`, such as
+cohesive while keeping cross-plugin coupling at the event-schema boundary.
+Framework-provided event schema objects live in `bywaf.event_schema_objects`, such as
 `OpenPort`, `HostFound`, and `HttpEndpoint`. Use those for normal shared
-contract handling; use `bywaf.event_contracts.ContractObject` directly only for
+schema object handling; use `bywaf.event_schemas.EventSchemaObject` directly only for
 plugin-private or experimental topics.
 
 ## Publishing
@@ -174,7 +174,7 @@ framework.request.denied
 with the request event ID and denial reason in the payload.
 
 This makes plugin behavior auditable and keeps terminal, GUI, and future web
-frontends aligned around one event contract.
+frontends aligned around one event schema.
 
 ## Runtime Control Events
 

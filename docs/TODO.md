@@ -20,9 +20,9 @@ Planning dates are release planning markers, not compatibility commitments.
 
 ## Target: Next Testing Release
 
-### Item: Shared Event Contracts
+### Item: Shared Event Schemas
 
-- Define framework-owned payload contracts for common topics that downstream
+- Define framework-owned payload schemas for common topics that downstream
   views, reports, plugins, and future frontends should understand.
 - Keep plugin-private topics free-form for tool-native detail while mapping
   portable facts into shared topics such as `host.found`, `port.open`,
@@ -31,11 +31,11 @@ Planning dates are release planning markers, not compatibility commitments.
 - Use one fact per event where practical, for example `smb.share.found` for one
   share instead of a large plural scan-result blob.
 - Start with documentation and CI validation helpers. Defer runtime rejection
-  or strict schema enforcement until real plugins have exercised the contracts.
-- Current canonical definition lives in `bywaf/event_contracts.py` for fast
+  or strict schema enforcement until real plugins have exercised the schemas.
+- Current canonical definition lives in `bywaf/event_schemas.py` for fast
   iteration and direct unit testing. Keep open the future option to mirror or
-  move these contracts into TOML/YAML schema files so plugin packages, external
-  tools, documentation generators, and future GUIs can inspect contracts without
+  move these schemas into TOML/YAML schema files so plugin packages, external
+  tools, documentation generators, and future GUIs can inspect schemas without
   importing Bywaf Python code.
 - Plugin manifests should expose `consumes` and `emits` topics, and
   `plugin_check` should validate shared-topic declarations and payload shapes
@@ -130,7 +130,7 @@ Planning dates are release planning markers, not compatibility commitments.
   keys plus `$VAR` references through `display/style.variable`.
 - Add a proper operator preference/theme file under `~/.bywaf` so display
   colors can live outside project variables and travel across projects.
-- Document the plugin contract so authors know how to expose semantically typed
+- Document the plugin schema so authors know how to expose semantically typed
   data without coupling plugin output to one frontend.
 
 ### Item: View Command Sort Selectors

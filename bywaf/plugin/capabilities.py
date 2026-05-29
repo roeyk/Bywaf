@@ -104,7 +104,7 @@ def database_action_allowed(required: str, allowed: Iterable[str]) -> bool:
 def implied_capabilities(spec: CommandSpec) -> tuple[str, ...]:
     """Return capabilities implied by commandlet metadata."""
     capabilities = set(spec.capabilities)
-    # consumes/emits are event contracts, so derive the corresponding DB
+    # consumes/emits are event schemas, so derive the corresponding DB
     # read/write permissions for checker and audit consistency.
     capabilities.update(f"db.read:{topic}" for topic in spec.consumes)
     capabilities.update(f"db.write:{topic}" for topic in spec.emits)

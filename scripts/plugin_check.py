@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from bywaf.event_contracts import event_contract  # noqa: E402
+from bywaf.event_schemas import event_schema  # noqa: E402
 from bywaf.plugin.capabilities import capability_declared  # noqa: E402
 from bywaf.registry import PluginManifestTrust, verify_plugin_manifest_signature_data, load_filesystem_plugin_package  # noqa: E402
 from bywaf.toml_support import load_data_file  # noqa: E402
@@ -122,7 +122,7 @@ def check_plugin(
     missing_shared_emits = sorted(
         topic
         for topic in inferred_emits
-        if event_contract(topic) is not None and topic not in declared_emits
+        if event_schema(topic) is not None and topic not in declared_emits
     )
     report["missing_shared_emits"] = missing_shared_emits
     if strict_inference and missing_capabilities:

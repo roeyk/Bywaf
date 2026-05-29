@@ -1,23 +1,23 @@
-# Shared Event Contracts
+# Shared Event Schemas
 
-Shared event contracts are Bywaf's normalized result vocabulary. They let one
+Shared event schemas are Bywaf's normalized result vocabulary. They let one
 plugin publish a fact and another plugin, view, report, or bundle consume it
 without knowing the original scanner.
 
 ## Contents
 
-- [When To Use A Contract](#when-to-use-a-contract)
-- [Why Contracts Instead Of Plugin Classes](#why-contracts-instead-of-plugin-classes)
+- [When To Use A Schema](#when-to-use-a-schema)
+- [Why Schemas Instead Of Plugin Classes](#why-schemas-instead-of-plugin-classes)
 - [Deserialize At The Boundary](#deserialize-at-the-boundary)
-- [Plugin-Owned Contracts](#plugin-owned-contracts)
+- [Plugin-Owned Schemas](#plugin-owned-schemas)
 - [Declare Consumes And Emits](#declare-consumes-and-emits)
 - [Keep Raw Tool Detail Separate](#keep-raw-tool-detail-separate)
 - [Examples](#examples)
 - [Checking](#checking)
 
-## When To Use A Contract
+## When To Use A Schema
 
-Use a shared contract when the data should be useful outside your plugin:
+Use a shared schema when the data should be useful outside your plugin:
 
 - `host.found`: a host is alive or reachable
 - `name.resolved`: one hostname resolved to one concrete address
@@ -27,30 +27,30 @@ Use a shared contract when the data should be useful outside your plugin:
 - `finding.candidate`: a normalized security finding that should enter review
 - `artifact.attached`: artifact metadata attached to provenance
 
-Framework-known contracts live in `bywaf/event_contracts.py` and are summarized
-in [Event Model](../EVENT_MODEL.md#shared-event-contracts). Plugin-private
+Framework-known schemas live in `bywaf/event_schemas.py` and are summarized
+in [Event Model](../EVENT_MODEL.md#shared-event-schemas). Plugin-private
 topics are still allowed for scanner-specific detail.
 
-## Why Contracts Instead Of Plugin Classes
+## Why Schemas Instead Of Plugin Classes
 
 Shared events are the durable interchange format, not the plugin's internal
-domain model. For framework-known contracts, import the framework-provided
-object class from `bywaf.contracts`. For plugin-private or experimental
-contracts, define a local `ContractObject` subclass.
+domain model. For framework-known schemas, import the framework-provided
+object class from `bywaf.event_schema_objects`. For plugin-private or experimental
+schemas, define a local `EventSchemaObject` subclass.
 
 That is intentional. It keeps the database and pipeline boundary stable while
 letting plugin authors use clean local models inside their code. Downstream
-plugins only depend on the shared contract fields, not on another plugin's
+plugins only depend on the shared schema fields, not on another plugin's
 classes, helper functions, or scanner-specific structures.
 
 ## Deserialize At The Boundary
 
 Plugin logic should not have to pass dictionaries around. For a framework-known
-contract, import its object class and use `from_event(...)` when consuming a
+schema, import its object class and use `from_event(...)` when consuming a
 shared event and `to_payload()` when publishing one.
 
 ```python
-from bywaf.contracts import OpenPort
+from bywaf.event_schema_objects import OpenPort
 
 
 for event in input_events:
@@ -60,12 +60,12 @@ for event in input_events:
     probe_service(port.host, port.port, port.protocol, port.service)
 ```
 
-The base class validates the event against the shared contract and passes
-matching contract fields into your constructor. Extra contract fields are ignored
+The base class validates the event against the shared schema and passes
+matching schema fields into your constructor. Extra schema fields are ignored
 unless your constructor accepts `**kwargs`, so your local object only needs the
 fields your plugin actually uses.
 
-When publishing a shared event, serialize the object back to the contract fields
+When publishing a shared event, serialize the object back to the schema fields
 at the edge:
 
 ```python
@@ -75,7 +75,7 @@ context.events.publish(OpenPort.__topic__, port.to_payload())
 That keeps the database representation simple and stable while keeping plugin
 implementation code typed and readable.
 
-Framework-provided contract classes currently live in `bywaf.contracts`:
+Framework-provided schema object classes currently live in `bywaf.event_schema_objects`:
 
 - `HostFound`
 - `NameResolved`
@@ -84,25 +84,25 @@ Framework-provided contract classes currently live in `bywaf.contracts`:
 - `SmbShareFound`
 - `ArtifactAttached`
 
-Use `ContractObject` directly only when a plugin owns a private topic or is
-prototyping a candidate contract before it becomes part of the framework
+Use `EventSchemaObject` directly only when a plugin owns a private topic or is
+prototyping a candidate schema before it becomes part of the framework
 vocabulary.
 
-## Plugin-Owned Contracts
+## Plugin-Owned Schemas
 
 If a plugin introduces a fact that the framework does not know yet, the plugin
 can still offer object-oriented interoperability to other plugins by exporting
-its own contract object class.
+its own schema object class.
 
 ```python
-# smb_enum/contracts.py
+# smb_enum/event_schema_objects.py
 from dataclasses import dataclass
 
-from bywaf.event_contracts import ContractObject
+from bywaf.event_schemas import EventSchemaObject
 
 
 @dataclass(frozen=True)
-class SmbSession(ContractObject):
+class SmbSession(EventSchemaObject):
     __topic__ = "smb.session.observed"
 
     host: str
@@ -121,7 +121,7 @@ A consuming plugin imports the plugin-owned class and immediately returns to
 typed code:
 
 ```python
-from smb_enum.contracts import SmbSession
+from smb_enum.event_schema_objects import SmbSession
 
 
 for event in input_events:
@@ -133,8 +133,8 @@ for event in input_events:
 Declare the topic in `consumes` and `emits` as usual. Framework tooling can see
 the event flow from the manifest, while plugins that opt into the producer's
 Python package can use the exported object class. If the topic becomes broadly
-useful, promote it into a framework-known contract and move the canonical class
-into `bywaf.contracts`.
+useful, promote it into a framework-known schema and move the canonical class
+into `bywaf.event_schema_objects`.
 
 ## Declare Consumes And Emits
 
@@ -168,8 +168,8 @@ inspect a plugin without importing its code.
 
 ## Keep Raw Tool Detail Separate
 
-Shared contracts should be stable and portable. If a scanner produces extra
-details that do not fit a shared contract, keep that detail in a plugin-private
+Shared schemas should be stable and portable. If a scanner produces extra
+details that do not fit a shared schema, keep that detail in a plugin-private
 topic or artifact, then publish the normalized fact separately.
 
 ```text

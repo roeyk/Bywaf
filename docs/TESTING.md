@@ -62,7 +62,7 @@ Start at the narrowest layer that can catch the bug:
   Bywaf imports.
 - Finding mapping: test that `findings.py` emits normalized payloads, subjects,
   target scopes, identifiers, and group keys.
-- Plugin contract: run `scripts/plugin_check.py` or
+- Plugin schema: run `scripts/plugin_check.py` or
   `python -m bywaf.tools.plugin_check` against plugin directories and skeletons.
 - Commandlet integration: load through `PluginRegistry` and execute with the
   runner or app dispatch path.
@@ -205,7 +205,7 @@ When discussing completed work, classify each notable item by practical
 importance before it goes into the changelog:
 
 - `high`: changes that materially affect operator workflow, data model,
-  compatibility, security posture, or plugin author contracts.
+  compatibility, security posture, or plugin author schemas.
 - `medium`: visible behavior, documentation structure, packaging, or developer
   workflow changes that users should notice but that do not redefine a core
   contract.
@@ -225,5 +225,5 @@ Before committing non-trivial changes:
 3. Run `plugin_check` when plugin skeletons, plugin manifests, finding helpers,
    or commandlet decorators change.
 4. Run architecture metrics when splitting files or reducing coupling.
-5. Update docs when command syntax, user workflow, plugin contracts, or release
+5. Update docs when command syntax, user workflow, plugin schemas, or release
    packaging changes.

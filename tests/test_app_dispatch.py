@@ -1810,7 +1810,7 @@ class AppDispatchTests(unittest.TestCase):
 
             text = output.getvalue()
             self.assertIn(f"Results: latest job={new_job}", text)
-            self.assertIn("Shared contracts: port.open", text)
+            self.assertIn("Shared schemas: port.open", text)
             self.assertIn("Output of: ports", text)
             self.assertIn(f"Equivalent command: ports job={new_job} sort=host", text)
             self.assertIn(f"Ports: job={new_job}", text)
@@ -1863,7 +1863,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("framework.console.alert", text)
             self.assertNotIn("console.alert", text)
 
-    def test_results_renders_shared_contract_summaries(self):
+    def test_results_renders_shared_schema_summaries(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.record_job("http_probe", 123, "finished")
@@ -1889,7 +1889,7 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "results")
 
             text = output.getvalue()
-            self.assertIn("Shared contracts: host.found, http.endpoint, name.resolved", text)
+            self.assertIn("Shared schemas: host.found, http.endpoint, name.resolved", text)
             self.assertIn("Hosts discovered", text)
             self.assertIn("Name resolutions", text)
             self.assertIn("HTTP endpoints", text)
@@ -2041,7 +2041,7 @@ class AppDispatchTests(unittest.TestCase):
 
             text = output.getvalue()
             self.assertIn("Results: latest job=1", text)
-            self.assertIn("Shared contracts: host.found", text)
+            self.assertIn("Shared schemas: host.found", text)
             self.assertIn("Hosts discovered", text)
             self.assertIn("host.found", text)
             self.assertIn("192.0.2.10", text)

@@ -67,7 +67,7 @@ class PluginArgumentCompletionMixin:
             matching_positional_candidates = [candidate for candidate in positional_candidates if candidate.startswith(prefix)]
             if matching_positional_candidates:
                 return matching_positional_candidates
-        # Normal commandlet completion is contract-driven: only declared
+        # Normal commandlet completion is schema-driven: only declared
         # @option/@argument metadata should create commandlet candidates.
         # Framework replay selectors are still available after an operator
         # explicitly types `--from`, but they are not advertised as plugin

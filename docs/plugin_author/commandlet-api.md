@@ -219,7 +219,7 @@ spec = CommandSpec(
 )
 ```
 
-For common topics, treat the topic as a shared payload contract. Tool-native or
+For common topics, treat the topic as a shared payload schema. Tool-native or
 scanner-specific detail can stay in plugin-private topics or artifacts, while
 portable facts should use framework-known topics such as `host.found`,
 `port.open`, `http.endpoint`, `smb.share.found`, `finding.candidate`, or
@@ -233,9 +233,9 @@ smb.share.found        normalized fact other views/plugins can consume
 finding.candidate      reportable security interpretation
 ```
 
-Shared contracts are documented in
-[`EVENT_MODEL.md`](../EVENT_MODEL.md#shared-event-contracts) and represented in
-`bywaf.event_contracts`. Plugin-private topics remain free-form unless the
+Shared schemas are documented in
+[`EVENT_MODEL.md`](../EVENT_MODEL.md#shared-event-schemas) and represented in
+`bywaf.event_schemas`. Plugin-private topics remain free-form unless the
 plugin provides its own schema or documentation.
 
 The event is stored with:

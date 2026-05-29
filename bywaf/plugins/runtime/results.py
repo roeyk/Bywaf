@@ -15,7 +15,7 @@ from argparse import Namespace
 from collections import Counter
 from collections.abc import Iterable
 
-from bywaf.event_contracts import event_contract
+from bywaf.event_schemas import event_schema
 from bywaf.events import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
 from bywaf.plugins.network.portscanner_ports import PORT_SORT_KEYS, render_ports
@@ -255,17 +255,17 @@ def render_results(context: CommandContext, scope: Namespace) -> str:
 
 
 def render_results_header(scope: Namespace) -> str:
-    """Render the result scope and the shared contracts represented in it."""
+    """Render the result scope and the shared schemas represented in it."""
     lines = [f"Results: {scope.label}"]
-    topics = contract_backed_topics(scope.events)
+    topics = schema_backed_topics(scope.events)
     if topics:
-        lines.append("Shared contracts: " + ", ".join(topics))
+        lines.append("Shared schemas: " + ", ".join(topics))
     return "\n".join(lines)
 
 
-def contract_backed_topics(events: list[Event]) -> tuple[str, ...]:
-    """Return shared event-contract topics present in this result set."""
-    return tuple(sorted({event.topic for event in events if event_contract(event.topic) is not None}))
+def schema_backed_topics(events: list[Event]) -> tuple[str, ...]:
+    """Return shared event-schema topics present in this result set."""
+    return tuple(sorted({event.topic for event in events if event_schema(event.topic) is not None}))
 
 
 def render_hosts_section(context: CommandContext, events: list[Event]) -> str:

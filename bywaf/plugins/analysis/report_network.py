@@ -1,6 +1,6 @@
 """Network overview rendering for reports.
 
-Builds host-centric report sections from shared event-contract facts in the
+Builds host-centric report sections from shared event-schema facts in the
 selected report scope.
 
 Used by:

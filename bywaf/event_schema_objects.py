@@ -1,11 +1,11 @@
-"""Typed objects for framework-known shared event contracts.
+"""Typed objects for framework-known shared event schemas.
 
 Provides small dataclasses that plugin authors can import instead of defining
 their own wrappers around common shared event payloads.
 
 Used by:
 - plugin authors: deserialize shared events into typed objects.
-- tests and docs: demonstrate object-first contract handling.
+- tests and docs: demonstrate object-first schema object handling.
 """
 
 from __future__ import annotations
@@ -13,11 +13,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from .event_contracts import ContractObject
+from .event_schemas import EventSchemaObject
 
 
 @dataclass(frozen=True)
-class HostFound(ContractObject):
+class HostFound(EventSchemaObject):
     """A host observed alive or otherwise reachable."""
 
     __topic__ = "host.found"
@@ -30,7 +30,7 @@ class HostFound(ContractObject):
 
 
 @dataclass(frozen=True)
-class NameResolved(ContractObject):
+class NameResolved(EventSchemaObject):
     """One hostname-to-address resolution fact."""
 
     __topic__ = "name.resolved"
@@ -41,7 +41,7 @@ class NameResolved(ContractObject):
 
 
 @dataclass(frozen=True)
-class OpenPort(ContractObject):
+class OpenPort(EventSchemaObject):
     """A network port observed open on a host."""
 
     __topic__ = "port.open"
@@ -56,7 +56,7 @@ class OpenPort(ContractObject):
 
 
 @dataclass(frozen=True)
-class HttpEndpoint(ContractObject):
+class HttpEndpoint(EventSchemaObject):
     """A reachable HTTP or HTTPS endpoint."""
 
     __topic__ = "http.endpoint"
@@ -72,7 +72,7 @@ class HttpEndpoint(ContractObject):
 
 
 @dataclass(frozen=True)
-class SmbShareFound(ContractObject):
+class SmbShareFound(EventSchemaObject):
     """An SMB share observed on a host."""
 
     __topic__ = "smb.share.found"
@@ -88,7 +88,7 @@ class SmbShareFound(ContractObject):
 
 
 @dataclass(frozen=True)
-class ArtifactAttached(ContractObject):
+class ArtifactAttached(EventSchemaObject):
     """Artifact metadata attached to runtime provenance."""
 
     __topic__ = "artifact.attached"

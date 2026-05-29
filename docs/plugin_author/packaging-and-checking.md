@@ -72,7 +72,7 @@ The sidecar manifest is intentionally more than packaging metadata:
 
 - **Enforceable contract:** commandlets cannot use capabilities, secret
   options, provider variables, or trigger rules they did not declare. The
-  framework and checker can compare the Python plugin contract against the
+  framework and checker can compare the Python plugin schema against the
   manifest and reject drift.
 - **Static catalog metadata:** Bywaf can inspect plugin names, commandlets,
   roles, traits, capabilities, and trigger declarations without importing
@@ -199,7 +199,7 @@ python3 scripts/plugin_check.py path/to/plugin-dir --manifest-key manifest-signi
 python3 scripts/plugin_check.py path/to/plugin-dir --json
 ```
 
-`plugin_check` is a contract verifier, not just a style linter. Its strict
+`plugin_check` is a schema verifier, not just a style linter. Its strict
 checks intentionally fail plugins whose Python metadata, manifest, and common
 runtime patterns disagree. In particular, it checks:
 
@@ -207,7 +207,7 @@ runtime patterns disagree. In particular, it checks:
 - manifest/decorator capability synchronization
 - manifest/decorator database action policy synchronization
 - manifest/decorator `consumes` and `emits` metadata when declared
-- shared event topic declarations for framework-owned contracts
+- shared event topic declarations for framework-owned schemas
 - literal shared event payloads when static analysis can read them
 - secret option declarations
 - trigger declarations
@@ -219,7 +219,7 @@ runtime patterns disagree. In particular, it checks:
 
 The checker does not make plugin code sandboxed or inherently safe. Native and
 library-backed plugins are still Python code. Treat a passing check as
-"contract checked and ready for review," not as a security proof.
+"schema checked and ready for review," not as a security proof.
 
 The checker requires `plugin.py` and `bywaf.plugin.toml`, parses strict manifest
 metadata, imports the plugin factory, and verifies that declared commandlets,

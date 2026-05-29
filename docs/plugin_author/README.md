@@ -65,7 +65,7 @@ The current plugin API centers on:
 
 Compatibility note: if an external answer suggests `BaseCommandlet`, an `info`
 dict, a `modules/` directory API, or a `run(self, target, args)` method, it is
-not following the current Bywaf plugin contract.
+not following the current Bywaf plugin schema.
 
 ## Choose A Starting Point
 
@@ -99,7 +99,7 @@ those dictionaries into SQLite under the first topic listed in `spec.emits`.
 | `CommandSpec` fields | [Commandlet API Reference](commandlet-api.md#commandspec-fields) |
 | Parsing runtime args | [Commandlet API Reference](commandlet-api.md#parsing-arguments) |
 | Publishing or consuming events | [Commandlet API Reference](commandlet-api.md#publishing-events) |
-| Shared event payload contracts | [Shared Event Contracts](event-contracts.md) |
+| Shared event payload schemas | [Shared Event Schemas](event-schemas.md) |
 | Runtime context APIs | [Commandlet API Reference](commandlet-api.md#runtime-context) |
 | Output subjects and theme styling | [Output Subjects And Theme Styles](output-subjects-and-styles.md) |
 | Vulnerability plugin file split | [Vulnerability Plugin Guide](vulnerability-plugins.md#vulnerability-detection-plugin-layout) |

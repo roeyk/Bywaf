@@ -1,6 +1,6 @@
-"""Tests for shared event payload contracts.
+"""Tests for shared event payload schemas.
 
-Provides coverage for the lightweight shared-topic contract registry used by
+Provides coverage for the lightweight shared-topic schema registry used by
 plugin authors, views, and future validation hooks.
 
 Used by:
@@ -11,13 +11,13 @@ import unittest
 
 from dataclasses import dataclass
 
-from bywaf.contracts import ArtifactAttached, HostFound, HttpEndpoint, NameResolved, OpenPort, SmbShareFound
-from bywaf.event_contracts import EVENT_CONTRACTS, ContractObject, contract_object, validate_event_payload
+from bywaf.event_schema_objects import ArtifactAttached, HostFound, HttpEndpoint, NameResolved, OpenPort, SmbShareFound
+from bywaf.event_schemas import EVENT_SCHEMAS, EventSchemaObject, schema_object, validate_event_payload
 from bywaf.events import Event
 
 
 @dataclass(frozen=True)
-class PluginPrivateSession(ContractObject):
+class PluginPrivateSession(EventSchemaObject):
     __topic__ = "smb.session.observed"
 
     host: str
@@ -25,13 +25,13 @@ class PluginPrivateSession(ContractObject):
     domain: str = ""
 
 
-class EventContractTests(unittest.TestCase):
-    def test_shared_contracts_define_required_fields(self):
-        self.assertIn("host.found", EVENT_CONTRACTS)
-        self.assertEqual(EVENT_CONTRACTS["host.found"].required_fields, ("host",))
-        self.assertEqual(EVENT_CONTRACTS["port.open"].required_fields, ("host", "port", "protocol"))
-        self.assertEqual(EVENT_CONTRACTS["http.endpoint"].required_fields, ("url", "host", "port", "scheme"))
-        self.assertEqual(EVENT_CONTRACTS["smb.share.found"].required_fields, ("host", "share"))
+class EventSchemaTests(unittest.TestCase):
+    def test_shared_schemas_define_required_fields(self):
+        self.assertIn("host.found", EVENT_SCHEMAS)
+        self.assertEqual(EVENT_SCHEMAS["host.found"].required_fields, ("host",))
+        self.assertEqual(EVENT_SCHEMAS["port.open"].required_fields, ("host", "port", "protocol"))
+        self.assertEqual(EVENT_SCHEMAS["http.endpoint"].required_fields, ("url", "host", "port", "scheme"))
+        self.assertEqual(EVENT_SCHEMAS["smb.share.found"].required_fields, ("host", "share"))
 
     def test_valid_shared_payloads_pass(self):
         cases = [
@@ -63,7 +63,7 @@ class EventContractTests(unittest.TestCase):
     def test_plugin_private_topics_are_free_form(self):
         self.assertEqual(validate_event_payload("smb_enum.raw_share_acl", {"any": object()}), [])
 
-    def test_plugin_private_contract_objects_round_trip_without_framework_registry(self):
+    def test_plugin_private_schema_objects_round_trip_without_framework_registry(self):
         session = PluginPrivateSession("dc01.example.test", "alice", "EXAMPLE")
         payload = session.to_payload()
         event = Event.new(PluginPrivateSession.__topic__, payload, "smb_enum")
@@ -74,7 +74,7 @@ class EventContractTests(unittest.TestCase):
         )
         self.assertEqual(PluginPrivateSession.from_event(event), session)
 
-    def test_contract_object_deserializes_event_into_plugin_object(self):
+    def test_schema_object_deserializes_event_into_plugin_object(self):
         event = Event.new(
             "port.open",
             {
@@ -87,20 +87,20 @@ class EventContractTests(unittest.TestCase):
             "test",
         )
 
-        port = contract_object(event, "port.open", OpenPort)
+        port = schema_object(event, "port.open", OpenPort)
 
         self.assertEqual(
             port,
             OpenPort("192.0.2.10", 445, "tcp", service="microsoft-ds", reason="syn-ack"),
         )
 
-    def test_contract_object_rejects_invalid_event_payload(self):
+    def test_schema_object_rejects_invalid_event_payload(self):
         event = Event.new("port.open", {"host": "192.0.2.10", "port": "445"}, "test")
 
         with self.assertRaisesRegex(ValueError, "port.open.port must be int"):
-            contract_object(event, "port.open", OpenPort)
+            schema_object(event, "port.open", OpenPort)
 
-    def test_contract_object_base_deserializes_and_serializes_payloads(self):
+    def test_schema_object_base_deserializes_and_serializes_payloads(self):
         event = Event.new(
             "port.open",
             {
@@ -127,13 +127,13 @@ class EventContractTests(unittest.TestCase):
             },
         )
 
-    def test_contract_object_base_rejects_invalid_serialized_payloads(self):
+    def test_schema_object_base_rejects_invalid_serialized_payloads(self):
         port = OpenPort("192.0.2.10", 445, "icmp")
 
         with self.assertRaisesRegex(ValueError, "port.open.protocol must be one of"):
             port.to_payload()
 
-    def test_framework_contract_objects_round_trip_common_shared_payloads(self):
+    def test_framework_schema_objects_round_trip_common_shared_payloads(self):
         cases = [
             (HostFound("192.0.2.10", status="up", scanner="nmap"), "host.found"),
             (NameResolved("example.test", "192.0.2.10", resolver="system"), "name.resolved"),

@@ -14,7 +14,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from bywaf.event_contracts import event_contract, validate_event_payload
+from bywaf.event_schemas import event_schema, validate_event_payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -351,7 +351,7 @@ class CapabilityVisitor(ast.NodeVisitor):
 
     def inspect_shared_event_payload(self, node: ast.Call, topic: str) -> None:
         """Validate shared-topic payloads when the payload is a literal dict."""
-        if event_contract(topic) is None:
+        if event_schema(topic) is None:
             return
         payload_node = event_payload_argument(node)
         if isinstance(payload_node, ast.Name):
@@ -367,7 +367,7 @@ class CapabilityVisitor(ast.NodeVisitor):
                 "invalid-shared-event-payload",
                 payload_node,
                 error,
-                "Shared event topics must match bywaf.event_contracts. Add required fields or keep "
+                "Shared event topics must match bywaf.event_schemas. Add required fields or keep "
                 "tool-specific raw detail on a plugin-private topic.",
             )
 
