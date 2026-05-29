@@ -204,8 +204,13 @@ class AppDispatchTests(unittest.TestCase):
             ),
             (
                 "name.resolved",
-                {"name": "example.test", "addresses": ["203.0.113.10", "203.0.113.11"]},
-                "name.resolved example.test -> 203.0.113.10, 203.0.113.11",
+                {"name": "example.test", "host": "203.0.113.10"},
+                "name.resolved example.test -> 203.0.113.10",
+            ),
+            (
+                "name.resolved",
+                {"name": "legacy.test", "addresses": ["203.0.113.10", "203.0.113.11"]},
+                "name.resolved legacy.test -> 203.0.113.10, 203.0.113.11",
             ),
             (
                 "console.output",
@@ -1805,6 +1810,7 @@ class AppDispatchTests(unittest.TestCase):
 
             text = output.getvalue()
             self.assertIn(f"Results: latest job={new_job}", text)
+            self.assertIn("Shared contracts: port.open", text)
             self.assertIn("Output of: ports", text)
             self.assertIn(f"Equivalent command: ports job={new_job} sort=host", text)
             self.assertIn(f"Ports: job={new_job}", text)
@@ -2003,6 +2009,7 @@ class AppDispatchTests(unittest.TestCase):
 
             text = output.getvalue()
             self.assertIn("Results: latest job=1", text)
+            self.assertIn("Shared contracts: host.found", text)
             self.assertIn("Inserted events", text)
             self.assertIn("host.found", text)
             self.assertIn("192.0.2.10", text)

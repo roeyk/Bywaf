@@ -15,6 +15,7 @@ from argparse import Namespace
 from collections import Counter
 from collections.abc import Iterable
 
+from bywaf.event_contracts import event_contract
 from bywaf.events import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
 from bywaf.plugins.network.portscanner_ports import PORT_SORT_KEYS, render_ports
@@ -232,7 +233,7 @@ def is_result_work_job(command_line: str) -> bool:
 
 def render_results(context: CommandContext, scope: Namespace) -> str:
     """Render result-like events with specialized views where possible."""
-    sections = [f"Results: {scope.label}"]
+    sections = [render_results_header(scope)]
     port_events = [event for event in scope.events if event.topic == "port.open"]
     if port_events:
         sections.append(render_ports_section(context, port_events, scope))
@@ -241,6 +242,20 @@ def render_results(context: CommandContext, scope: Namespace) -> str:
         sections.append(render_event_topic_summary(context, other_events))
         sections.append(render_representative_events(context, other_events))
     return "\n\n".join(section for section in sections if section)
+
+
+def render_results_header(scope: Namespace) -> str:
+    """Render the result scope and the shared contracts represented in it."""
+    lines = [f"Results: {scope.label}"]
+    topics = contract_backed_topics(scope.events)
+    if topics:
+        lines.append("Shared contracts: " + ", ".join(topics))
+    return "\n".join(lines)
+
+
+def contract_backed_topics(events: list[Event]) -> tuple[str, ...]:
+    """Return shared event-contract topics present in this result set."""
+    return tuple(sorted({event.topic for event in events if event_contract(event.topic) is not None}))
 
 
 def render_ports_section(context: CommandContext, events: list[Event], scope: Namespace) -> str:

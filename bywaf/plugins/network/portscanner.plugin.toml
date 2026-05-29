@@ -5,6 +5,13 @@ service = false
 
 [[commandlets]]
 name = "portscanner"
+consumes = [
+  "host.found",
+]
+emits = [
+  "port.open",
+  "finding.candidate",
+]
 capabilities = [
   "db.write:finding.candidate",
   "db.write:name.resolved",
@@ -17,6 +24,9 @@ module = "bywaf.plugins.network.portscanner"
 
 [[commandlets]]
 name = "ports"
+consumes = [
+  "port.open",
+]
 capabilities = [
   "framework.console.output",
   "framework.file.page",

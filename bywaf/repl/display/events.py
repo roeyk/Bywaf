@@ -83,6 +83,9 @@ def format_name_resolved_event(event, runner: Runner | None = None) -> str:
     """Render DNS resolution provenance for scan targets."""
     payload = event.payload
     name = subject_text(runner, "host.name", payload.get("name", ""))
+    if "host" in payload:
+        address_text = subject_text(runner, "host", payload.get("host", ""))
+        return f"{event.id}: name.resolved {name} -> {address_text}".strip()
     addresses = payload.get("addresses", ())
     if isinstance(addresses, list | tuple):
         address_text = ", ".join(subject_text(runner, "host", address) for address in addresses)

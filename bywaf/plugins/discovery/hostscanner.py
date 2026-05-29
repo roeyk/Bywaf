@@ -230,15 +230,12 @@ def publish_name_resolution_events(context: CommandContext, names_by_host: dict[
     """Record DNS resolution provenance for scan targets."""
     if context._db is None:
         return
-    addresses_by_name: dict[str, list[str]] = {}
     for address, name in names_by_host.items():
-        addresses_by_name.setdefault(name, []).append(address)
-    for name, addresses in addresses_by_name.items():
         context.events.publish(
             "name.resolved",
             {
                 "name": name,
-                "addresses": addresses,
+                "host": address,
                 "resolver": "system",
                 "job_id": context.job_id,
             },

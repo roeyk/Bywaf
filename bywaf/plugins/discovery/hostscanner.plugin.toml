@@ -5,6 +5,10 @@ service = false
 
 [[commandlets]]
 name = "hostscanner"
+emits = [
+  "host.found",
+  "name.resolved",
+]
 capabilities = [
   "framework.console.alert",
   "network.connect",

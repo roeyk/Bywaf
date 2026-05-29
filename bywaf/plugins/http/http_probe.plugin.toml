@@ -4,6 +4,12 @@ service = false
 
 [[commandlets]]
 name = "http_probe"
+consumes = [
+  "port.open",
+]
+emits = [
+  "http.endpoint",
+]
 capabilities = [
   "filesystem.read",
   "framework.console.alert",
