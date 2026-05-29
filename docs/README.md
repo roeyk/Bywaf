@@ -34,6 +34,8 @@ offensive frameworks, do not look for Veil-style modules, Metasploit-style
   foreground/background execution, control signals, and variable snapshots.
 - [Event Model](EVENT_MODEL.md): event rows, shared topic contracts, replay,
   framework requests, artifacts, notes, and provenance.
+- [Shared Event Contracts](plugin_author/event-contracts.md): normalized
+  plugin result topics such as `host.found`, `port.open`, and `http.endpoint`.
 - [Finding And Report Model](FINDING_MODEL.md): facts, finding candidates,
   normalized finding payloads, deduplication, and the `report` inbox.
 - [Reporting](REPORTING.md): operator workflow for `report`, grouping,

@@ -25,7 +25,7 @@ from bywaf.plugin import (
 from bywaf.plugins._args import key_value_to_long_options
 from bywaf.plugins.analysis.finding_report import REPORT_FINDING_TOPICS
 
-from .report_events import select_report_scope_events
+from .report_events import select_report_context_events, select_report_scope_events
 from .report_render import render_finding_report
 from .report_review import REVIEW_DECISIONS, review_report_groups
 
@@ -112,10 +112,11 @@ class Report(CommandletBase):
 
         input_findings = [event for event in input_events if event.topic in REPORT_FINDING_TOPICS]
         events = input_findings or select_report_scope_events(context, parsed)
+        context_events = [] if input_findings else select_report_context_events(context, parsed)
         if parsed.action in REPORT_REVIEW_ACTIONS:
             review_report_groups(context, parsed, events)
             return ()
-        render_finding_report(context, events, parsed)
+        render_finding_report(context, events, parsed, context_events=context_events)
         return ()
 
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:

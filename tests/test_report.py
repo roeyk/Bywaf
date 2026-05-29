@@ -116,6 +116,90 @@ class ReportTests(unittest.TestCase):
             self.assertEqual(rendered.payload["events"], [candidate.id])
             self.assertEqual(rendered.payload["groups"], ["candidate-1"])
 
+    def test_report_shows_network_overview_for_selected_scope(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "host.found",
+                {"host": "192.0.2.10", "name": "web.test", "status": "up"},
+                "hostscanner",
+                pipeline_id="pipeline-a",
+                command_run_id="host-step",
+            )
+            runner.db.publish(
+                "port.open",
+                {"host": "192.0.2.10", "port": 443, "protocol": "tcp", "service": "https"},
+                "portscanner",
+                pipeline_id="pipeline-a",
+                command_run_id="port-step",
+            )
+            runner.db.publish(
+                "http.endpoint",
+                {"url": "https://web.test/", "host": "192.0.2.10", "port": 443, "scheme": "https"},
+                "http_probe",
+                pipeline_id="pipeline-a",
+                command_run_id="http-step",
+            )
+            runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "finding-1",
+                    "title": "Missing HSTS",
+                    "class": "web.header.missing_hsts",
+                    "target": {"host": "192.0.2.10"},
+                    "severity": "medium",
+                },
+                "http_headers",
+                pipeline_id="pipeline-a",
+                command_run_id="finding-step",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report pipeline=pipeline-a")
+                process_framework_requests(runner, ShellState())
+
+            text = output.getvalue()
+            self.assertIn("Network overview", text)
+            self.assertIn("192.0.2.10", text)
+            self.assertIn("443/tcp https", text)
+            self.assertIn("https://web.test/", text)
+            self.assertIn("Missing HSTS", text)
+
+    def test_report_defaults_to_latest_network_scope_without_findings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "old-finding",
+                    "title": "Old finding",
+                    "class": "old.example",
+                    "target": {"host": "192.0.2.1"},
+                },
+                "scanner",
+                pipeline_id="old-pipeline",
+                command_run_id="old-step",
+            )
+            runner.db.publish(
+                "port.open",
+                {"host": "192.0.2.20", "port": 22, "protocol": "tcp", "service": "ssh"},
+                "portscanner",
+                pipeline_id="new-pipeline",
+                command_run_id="new-step",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report")
+                process_framework_requests(runner, ShellState())
+
+            text = output.getvalue()
+            self.assertIn("Network overview", text)
+            self.assertIn("192.0.2.20", text)
+            self.assertIn("no unreviewed findings", text)
+            self.assertNotIn("Old finding", text)
+
     def test_report_compacts_multiline_evidence_in_table_rows(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))

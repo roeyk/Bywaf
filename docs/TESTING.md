@@ -40,7 +40,8 @@ Run Ruff on changed Python paths:
 ruff check bywaf tests scripts
 ```
 
-Use architecture metrics before and after larger refactors:
+CI runs architecture metrics on every push and pull request. Use the same
+metrics locally before and after larger refactors:
 
 ```bash
 python scripts/architecture_metrics.py --top 12

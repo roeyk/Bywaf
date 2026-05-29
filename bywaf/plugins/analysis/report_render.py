@@ -20,6 +20,7 @@ from bywaf.runtime_display import shrink_table_widths, terminal_table_width, tru
 
 from .report_details import render_group_details
 from .report_model import FindingGroup, effective_finding_payload, events_for_groups, group_finding_events
+from .report_network import render_network_overview
 from .report_review import (
     ReviewDecision,
     filter_groups_by_status,
@@ -31,7 +32,13 @@ from .report_review import (
 from .report_style import finding_text, report_text, table_text
 
 
-def render_finding_report(context: CommandContext, events: list[Event], parsed: Namespace) -> None:
+def render_finding_report(
+    context: CommandContext,
+    events: list[Event],
+    parsed: Namespace,
+    *,
+    context_events: list[Event] | None = None,
+) -> None:
     """Render report results and emit a report-rendered audit event."""
     # Rendering starts from raw events every time. Reports do not own findings;
     # they are scoped views over the event log plus review-state events.
@@ -52,6 +59,9 @@ def render_finding_report(context: CommandContext, events: list[Event], parsed: 
             review_summary_line(review_counts(groups, decisions), severity_class_counts(groups)),
         ),
     ]
+    network_overview = render_network_overview(context, context_events or [], events_for_groups(displayed_groups))
+    if network_overview:
+        output_lines.append(network_overview)
     if not displayed_groups:
         output_lines.append(empty_status_message(parsed.status))
         emit_report_output(context, output_lines, parsed)

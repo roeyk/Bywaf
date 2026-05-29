@@ -1863,6 +1863,38 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("framework.console.alert", text)
             self.assertNotIn("console.alert", text)
 
+    def test_results_renders_shared_contract_summaries(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.record_job("http_probe", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=1,
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+                commandlet="http_probe",
+                values={},
+            )
+            runner.db.publish("host.found", {"host": "192.0.2.20", "status": "up"}, "hostscanner", pipeline_id="scan-pipeline", command_run_id="scan-step")
+            runner.db.publish("name.resolved", {"name": "example.test", "host": "192.0.2.20"}, "hostscanner", pipeline_id="scan-pipeline", command_run_id="scan-step")
+            runner.db.publish(
+                "http.endpoint",
+                {"url": "https://example.test/", "host": "example.test", "port": 443, "scheme": "https", "status": 200, "server": "nginx"},
+                "http_probe",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "results")
+
+            text = output.getvalue()
+            self.assertIn("Shared contracts: host.found, http.endpoint, name.resolved", text)
+            self.assertIn("Hosts discovered", text)
+            self.assertIn("Name resolutions", text)
+            self.assertIn("HTTP endpoints", text)
+            self.assertIn("https://example.test/", text)
+
     def test_results_passes_sort_to_embedded_ports_view(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -2010,7 +2042,7 @@ class AppDispatchTests(unittest.TestCase):
             text = output.getvalue()
             self.assertIn("Results: latest job=1", text)
             self.assertIn("Shared contracts: host.found", text)
-            self.assertIn("Inserted events", text)
+            self.assertIn("Hosts discovered", text)
             self.assertIn("host.found", text)
             self.assertIn("192.0.2.10", text)
 
@@ -2439,6 +2471,34 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("report accept all note=confirmed", text)
             self.assertIn("artifact attach file=evidence", text)
             self.assertIn("command line: report status=all", text)
+
+    def test_job_listing_uses_recorded_database_actions_for_view_filtering(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            view_job = runner.db.record_job("custom_view", 123, "finished")
+            runner.db.publish(
+                "command.run.arguments",
+                {"args": [], "database_actions": ["view"], "job_id": view_job},
+                "framework",
+                pipeline_id="pipeline-view",
+                command_run_id="run-view",
+            )
+            work_job = runner.db.record_job("custom_write", 123, "finished")
+            runner.db.publish(
+                "command.run.arguments",
+                {"args": [], "database_actions": ["write"], "job_id": work_job},
+                "framework",
+                pipeline_id="pipeline-work",
+                command_run_id="run-work",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "job --all")
+
+            text = output.getvalue()
+            self.assertNotIn("custom_view", text)
+            self.assertIn("custom_write", text)
 
     def test_jobs_all_marks_active_state(self):
         with tempfile.TemporaryDirectory() as tmp:

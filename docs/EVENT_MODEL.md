@@ -108,8 +108,10 @@ context.events.publish("host.found", {"host": "127.0.0.1"})
 The mediated API audits capability use such as `db.write:host.found`.
 
 Some commandlets publish supporting provenance topics directly. For example,
-`hostscanner` emits `name.resolved` when a DNS name is resolved into concrete
-addresses, then emits `host.found` only for live hosts discovered by nmap.
+`hostscanner` emits one `name.resolved` event per concrete address when a DNS
+name resolves, then emits `host.found` only for live hosts discovered by nmap.
+For example, one name with six A records becomes six `name.resolved` facts with
+the same `name` and different `host` values.
 
 ## Consuming
 

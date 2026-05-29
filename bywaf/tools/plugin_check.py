@@ -118,6 +118,26 @@ class CapabilityVisitor(ast.NodeVisitor):
         self.warnings: list[CapabilityEvidence] = []
         self.diagnostics: list[SourceDiagnostic] = []
         self.inferred_emits: set[str] = set()
+        self.literal_dict_assignments: dict[str, ast.Dict] = {}
+
+    def visit_Assign(self, node: ast.Assign) -> None:  # noqa: N802 - ast API
+        """Track simple literal payload assignments for later publish checks."""
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                if isinstance(node.value, ast.Dict):
+                    self.literal_dict_assignments[target.id] = node.value
+                else:
+                    self.literal_dict_assignments.pop(target.id, None)
+        self.generic_visit(node)
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:  # noqa: N802 - ast API
+        """Track annotated literal payload assignments for later publish checks."""
+        if isinstance(node.target, ast.Name):
+            if isinstance(node.value, ast.Dict):
+                self.literal_dict_assignments[node.target.id] = node.value
+            else:
+                self.literal_dict_assignments.pop(node.target.id, None)
+        self.generic_visit(node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802 - ast API
         """Detect decorators accidentally attached to plugin() factories."""
@@ -334,6 +354,8 @@ class CapabilityVisitor(ast.NodeVisitor):
         if event_contract(topic) is None:
             return
         payload_node = event_payload_argument(node)
+        if isinstance(payload_node, ast.Name):
+            payload_node = self.literal_dict_assignments.get(payload_node.id)
         if payload_node is None or not isinstance(payload_node, ast.Dict):
             return
         payload = literal_dict_payload(payload_node)

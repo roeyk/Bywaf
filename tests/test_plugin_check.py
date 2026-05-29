@@ -258,6 +258,25 @@ class PluginCheckTests(unittest.TestCase):
             self.assertEqual(report["diagnostics"][0]["code"], "invalid-shared-event-payload")
             self.assertIn("port.open.protocol is required", report["diagnostics"][0]["message"])
 
+    def test_check_plugin_validates_assigned_literal_shared_event_payload(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(
+                Path(tmp),
+                capabilities=("db.write:port.open",),
+                emits=("port.open",),
+                manifest_emits=("port.open",),
+                run_body=(
+                    '        payload = {"host": "127.0.0.1", "port": 80}\n'
+                    '        context.events.publish("port.open", payload)\n'
+                ),
+            )
+
+            report = check_plugin(plugin_dir)
+
+            self.assertFalse(report["ok"])
+            self.assertEqual(report["diagnostics"][0]["code"], "invalid-shared-event-payload")
+            self.assertIn("port.open.protocol is required", report["diagnostics"][0]["message"])
+
     def test_check_plugin_reports_boolean_option_without_default(self):
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(

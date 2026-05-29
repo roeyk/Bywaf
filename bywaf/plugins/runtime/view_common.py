@@ -91,6 +91,50 @@ def filter_view_run_rows(db: EventStoreProtocol, rows: list[dict]) -> list[dict]
     return [row for row in rows if not is_view_run_row(row, metadata_by_run.get(str(row["command_run_id"]), {}))]
 
 
+def filter_view_job_rows(db: EventStoreProtocol, rows: list[dict]) -> list[dict]:
+    """Return job rows that represent project-modifying work."""
+    metadata_by_job = command_run_metadata_by_job_id(db, (int(row["id"]) for row in rows))
+    return [row for row in rows if not is_view_job_row(row, metadata_by_job.get(int(row["id"]), []))]
+
+
+def command_run_metadata_by_job_id(db: EventStoreProtocol, job_ids: Iterable[int]) -> dict[int, list[dict[str, object]]]:
+    """Return recorded commandlet metadata grouped by job id."""
+    wanted = {int(job_id) for job_id in job_ids}
+    if not wanted:
+        return {}
+    by_job: dict[int, list[dict[str, object]]] = {}
+    for event in db.events_matching(topic="command.run.arguments", limit=100000):
+        job_id = event.payload.get("job_id")
+        if not isinstance(job_id, int) or job_id not in wanted:
+            continue
+        args = event.payload.get("args")
+        database_actions = event.payload.get("database_actions")
+        by_job.setdefault(job_id, []).append(
+            {
+                "args": [str(arg) for arg in args] if isinstance(args, list) else [],
+                "database_actions": [str(action) for action in database_actions] if isinstance(database_actions, list) else [],
+            }
+        )
+    return by_job
+
+
+def is_view_job_row(row: dict, metadata_items: list[dict[str, object]]) -> bool:
+    """Return whether a job only ran read-only view commandlets."""
+    if metadata_items:
+        action_sets = [metadata_database_actions(item) for item in metadata_items]
+        if any(actions.intersection({"write", "manage"}) for actions in action_sets):
+            return False
+        if action_sets and all(actions == {"view"} for actions in action_sets):
+            return True
+    return is_view_command_line(str(row["command_line"]))
+
+
+def metadata_database_actions(item: dict[str, object]) -> set[str]:
+    """Return normalized database actions from one metadata item."""
+    actions = item.get("database_actions", [])
+    return {str(action) for action in actions} if isinstance(actions, list) else set()
+
+
 def view_run_ids(db: EventStoreProtocol, rows: Iterable[dict]) -> set[str]:
     """Return command-run ids for rows that are operator views."""
     row_list = list(rows)

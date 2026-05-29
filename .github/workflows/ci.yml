@@ -50,6 +50,9 @@ jobs:
       - name: Pyright
         run: pyright
 
+      - name: Architecture metrics
+        run: python scripts/architecture_metrics.py --top 12
+
       - name: Bandit
         run: bandit -r bywaf -ll
 

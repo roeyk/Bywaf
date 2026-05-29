@@ -234,10 +234,20 @@ def is_result_work_job(command_line: str) -> bool:
 def render_results(context: CommandContext, scope: Namespace) -> str:
     """Render result-like events with specialized views where possible."""
     sections = [render_results_header(scope)]
+    host_events = [event for event in scope.events if event.topic == "host.found"]
+    name_events = [event for event in scope.events if event.topic == "name.resolved"]
     port_events = [event for event in scope.events if event.topic == "port.open"]
+    endpoint_events = [event for event in scope.events if event.topic == "http.endpoint"]
+    if host_events:
+        sections.append(render_hosts_section(context, host_events))
+    if name_events:
+        sections.append(render_name_resolution_section(context, name_events))
     if port_events:
         sections.append(render_ports_section(context, port_events, scope))
-    other_events = [event for event in scope.events if event.topic != "port.open"]
+    if endpoint_events:
+        sections.append(render_http_endpoints_section(context, endpoint_events))
+    summarized_topics = {"host.found", "name.resolved", "port.open", "http.endpoint"}
+    other_events = [event for event in scope.events if event.topic not in summarized_topics]
     if other_events:
         sections.append(render_event_topic_summary(context, other_events))
         sections.append(render_representative_events(context, other_events))
@@ -258,6 +268,50 @@ def contract_backed_topics(events: list[Event]) -> tuple[str, ...]:
     return tuple(sorted({event.topic for event in events if event_contract(event.topic) is not None}))
 
 
+def render_hosts_section(context: CommandContext, events: list[Event]) -> str:
+    """Render discovered hosts as a compact result table."""
+    rows = [
+        (
+            event.payload.get("host", ""),
+            event.payload.get("name", ""),
+            event.payload.get("status", ""),
+            event.payload.get("scanner", ""),
+        )
+        for event in sorted(events, key=lambda event: (str(event.payload.get("host") or ""), event.id or 0))
+    ]
+    table = render_table(
+        ("HOST", "NAME", "STATUS", "SCANNER"),
+        rows,
+        cell_subjects=("host", "host.name", "status", ""),
+        style_getter=command_context_style_getter(context),
+        max_width=terminal_table_width(),
+    )
+    return f"Hosts discovered ({len(events)})\n{table}"
+
+
+def render_name_resolution_section(context: CommandContext, events: list[Event]) -> str:
+    """Render name-to-address mappings as one row per original name."""
+    grouped: dict[str, list[str]] = {}
+    for event in events:
+        name = str(event.payload.get("name") or "")
+        host = event.payload.get("host")
+        if host is None:
+            continue
+        grouped.setdefault(name, []).append(str(host))
+    rows = [
+        (name, ", ".join(dict.fromkeys(sorted(hosts))))
+        for name, hosts in sorted(grouped.items())
+    ]
+    table = render_table(
+        ("NAME", "RESOLVED HOSTS"),
+        rows,
+        cell_subjects=("host.name", "host"),
+        style_getter=command_context_style_getter(context),
+        max_width=terminal_table_width(),
+    )
+    return f"Name resolutions ({len(events)})\n{table}"
+
+
 def render_ports_section(context: CommandContext, events: list[Event], scope: Namespace) -> str:
     """Render delegated open-port results with the equivalent view command."""
     command = equivalent_ports_command(scope)
@@ -271,6 +325,27 @@ def equivalent_ports_command(scope: Namespace) -> str:
     args = [f"{key}={value}" for key, value in scope.scope.items()]
     args.append(f"sort={scope.sort}")
     return "ports " + " ".join(args)
+
+
+def render_http_endpoints_section(context: CommandContext, events: list[Event]) -> str:
+    """Render reachable HTTP endpoints as a compact result table."""
+    rows = [
+        (
+            event.payload.get("url", ""),
+            event.payload.get("status", ""),
+            event.payload.get("server", ""),
+            event.payload.get("error", ""),
+        )
+        for event in sorted(events, key=lambda event: (str(event.payload.get("url") or ""), event.id or 0))
+    ]
+    table = render_table(
+        ("URL", "STATUS", "SERVER", "ERROR"),
+        rows,
+        cell_subjects=("url", "status", "", ""),
+        style_getter=command_context_style_getter(context),
+        max_width=terminal_table_width(),
+    )
+    return f"HTTP endpoints ({len(events)})\n{table}"
 
 
 def no_results_message(context: CommandContext) -> str:

@@ -17,9 +17,11 @@ from bywaf.plugins.runtime.audit import resolve_pipeline_selector, resolve_run_s
 
 from .report_model import sort_unique_events
 
+REPORT_CONTEXT_TOPICS = ("host.found", "name.resolved", "port.open", "http.endpoint")
+
 
 def select_report_scope_events(context: CommandContext, parsed: Namespace) -> list[Event]:
-    """Return finding events selected by explicit scope or latest completed pipeline."""
+    """Return finding events selected by explicit scope or latest report pipeline."""
     limit = int(parsed.limit)
     if parsed.job:
         return events_for_jobs(context, split_selector_values(parsed.job), limit=limit)
@@ -27,14 +29,40 @@ def select_report_scope_events(context: CommandContext, parsed: Namespace) -> li
         return events_for_pipelines(context, split_selector_values(parsed.pipeline), limit=limit)
     if parsed.step:
         return events_for_steps(context, split_selector_values(parsed.step), limit=limit)
-    pipeline_id = latest_completed_pipeline(context)
+    pipeline_id = latest_report_pipeline(context)
     if pipeline_id is not None:
         return events_for_pipelines(context, [pipeline_id], limit=limit)
     return events_for_topics(context, REPORT_FINDING_TOPICS, limit=limit)
 
 
+def select_report_context_events(context: CommandContext, parsed: Namespace) -> list[Event]:
+    """Return shared network facts for the selected report scope."""
+    limit = int(parsed.limit)
+    if parsed.job:
+        return context_events_for_jobs(context, split_selector_values(parsed.job), limit=limit)
+    if parsed.pipeline:
+        return context_events_for_pipelines(context, split_selector_values(parsed.pipeline), limit=limit)
+    if parsed.step:
+        return context_events_for_steps(context, split_selector_values(parsed.step), limit=limit)
+    pipeline_id = latest_report_pipeline(context)
+    if pipeline_id is not None:
+        return context_events_for_pipelines(context, [pipeline_id], limit=limit)
+    return events_for_topics(context, REPORT_CONTEXT_TOPICS, limit=limit)
+
+
 def events_for_jobs(context: CommandContext, job_ids: list[str], *, limit: int) -> list[Event]:
     """Return finding events associated with one or more jobs."""
+    return events_for_jobs_by_topics(context, job_ids, REPORT_FINDING_TOPICS, limit=limit)
+
+
+def events_for_jobs_by_topics(
+    context: CommandContext,
+    job_ids: list[str],
+    topics: tuple[str, ...],
+    *,
+    limit: int,
+) -> list[Event]:
+    """Return selected topic events associated with one or more jobs."""
     events: list[Event] = []
     event_store = context.event_store("report job selector")
     runtime = context.runtime_store("report job selector")
@@ -48,19 +76,20 @@ def events_for_jobs(context: CommandContext, job_ids: list[str], *, limit: int) 
             numeric_id = int(resolved)
         job_events = event_store.events_for_job(numeric_id, limit=limit)
         for event in job_events:
-            if event.topic in REPORT_FINDING_TOPICS:
+            if event.topic in topics:
                 events.append(event)
         pipelines = {event.pipeline_id for event in job_events if event.pipeline_id}
         runs = {event.command_run_id for event in job_events if event.command_run_id}
         for pipeline_id in pipelines:
-            events.extend(
-                events_for_topics(context, REPORT_FINDING_TOPICS, pipeline=pipeline_id, limit=limit)
-            )
+            events.extend(events_for_topics(context, topics, pipeline=pipeline_id, limit=limit))
         for run_id in runs:
-            events.extend(
-                events_for_topics(context, REPORT_FINDING_TOPICS, step=run_id, limit=limit)
-            )
+            events.extend(events_for_topics(context, topics, step=run_id, limit=limit))
     return sort_unique_events(events)
+
+
+def context_events_for_jobs(context: CommandContext, job_ids: list[str], *, limit: int) -> list[Event]:
+    """Return shared network facts associated with one or more jobs."""
+    return events_for_jobs_by_topics(context, job_ids, REPORT_CONTEXT_TOPICS, limit=limit)
 
 
 def events_for_pipelines(
@@ -70,22 +99,57 @@ def events_for_pipelines(
     limit: int,
 ) -> list[Event]:
     """Return finding events associated with one or more pipelines."""
+    return events_for_pipelines_by_topics(context, pipeline_ids, REPORT_FINDING_TOPICS, limit=limit)
+
+
+def events_for_pipelines_by_topics(
+    context: CommandContext,
+    pipeline_ids: list[str],
+    topics: tuple[str, ...],
+    *,
+    limit: int,
+) -> list[Event]:
+    """Return selected topic events associated with one or more pipelines."""
     events: list[Event] = []
     for pipeline_id in pipeline_ids:
         resolved = resolve_pipeline_selector(context, pipeline_id)
-        events.extend(
-            events_for_topics(context, REPORT_FINDING_TOPICS, pipeline=resolved, limit=limit)
-        )
+        events.extend(events_for_topics(context, topics, pipeline=resolved, limit=limit))
     return sort_unique_events(events)
+
+
+def context_events_for_pipelines(
+    context: CommandContext,
+    pipeline_ids: list[str],
+    *,
+    limit: int,
+) -> list[Event]:
+    """Return shared network facts associated with one or more pipelines."""
+    return events_for_pipelines_by_topics(context, pipeline_ids, REPORT_CONTEXT_TOPICS, limit=limit)
 
 
 def events_for_steps(context: CommandContext, step_ids: list[str], *, limit: int) -> list[Event]:
     """Return finding events associated with one or more pipeline steps."""
+    return events_for_steps_by_topics(context, step_ids, REPORT_FINDING_TOPICS, limit=limit)
+
+
+def events_for_steps_by_topics(
+    context: CommandContext,
+    step_ids: list[str],
+    topics: tuple[str, ...],
+    *,
+    limit: int,
+) -> list[Event]:
+    """Return selected topic events associated with one or more pipeline steps."""
     events: list[Event] = []
     for step_id in step_ids:
         resolved = resolve_run_selector(context, step_id)
-        events.extend(events_for_topics(context, REPORT_FINDING_TOPICS, step=resolved, limit=limit))
+        events.extend(events_for_topics(context, topics, step=resolved, limit=limit))
     return sort_unique_events(events)
+
+
+def context_events_for_steps(context: CommandContext, step_ids: list[str], *, limit: int) -> list[Event]:
+    """Return shared network facts associated with one or more pipeline steps."""
+    return events_for_steps_by_topics(context, step_ids, REPORT_CONTEXT_TOPICS, limit=limit)
 
 
 def events_for_topics(
@@ -101,6 +165,16 @@ def events_for_topics(
     for topic in topics:
         events.extend(context.events.query(topic=topic, step=step, pipeline=pipeline, limit=limit))
     return sort_unique_events(events)
+
+
+def latest_report_pipeline(context: CommandContext) -> str | None:
+    """Return the most recent pipeline that produced reportable or network facts."""
+    events = events_for_topics(context, (*REPORT_FINDING_TOPICS, *REPORT_CONTEXT_TOPICS), limit=1000)
+    events = [event for event in events if event.pipeline_id]
+    if not events:
+        return None
+    newest = max(events, key=lambda event: event.id or 0)
+    return newest.pipeline_id
 
 
 def latest_completed_pipeline(context: CommandContext) -> str | None:

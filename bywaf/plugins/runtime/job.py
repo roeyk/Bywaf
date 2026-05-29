@@ -16,7 +16,7 @@ from collections.abc import Callable, Iterable
 
 from bywaf.events import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
-from bywaf.plugins.runtime.view_common import filter_runtime_rows_by_events, is_view_command_line, view_selector_candidates
+from bywaf.plugins.runtime.view_common import filter_runtime_rows_by_events, filter_view_job_rows, view_selector_candidates
 from bywaf.runtime_display import (
     args_from_command_line,
     command_context_style_getter,
@@ -189,7 +189,7 @@ def print_jobs(
     """Print known jobs with newest first."""
     runtime = context.runtime_store("job list")
     rows = runtime.jobs(active_only=active_only)
-    rows = [row for row in rows if not is_view_command_line(str(row["command_line"]))]
+    rows = filter_view_job_rows(context.event_store("job list"), rows)
     if filters:
         events = context.event_store("job list")
         rows = filter_runtime_rows_by_events(events, "job", rows, filters)
