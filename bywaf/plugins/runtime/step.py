@@ -16,7 +16,7 @@ from typing import Any
 
 from bywaf.events import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
-from bywaf.plugins.runtime.view_common import filter_runtime_rows_by_events, view_selector_candidates
+from bywaf.plugins.runtime.view_common import filter_runtime_rows_by_events, filter_view_run_rows, view_selector_candidates
 from bywaf.runtime_display import (
     command_context_style_getter,
     format_runtime_duration,
@@ -104,6 +104,7 @@ def print_steps(
     current_run_id = str(context.metadata.get("command_run_id") or "")
     if current_run_id:
         rows = [row for row in rows if str(row["command_run_id"]) != current_run_id]
+    rows = filter_view_run_rows(context.event_store("step list"), rows)
     if filters:
         events = context.event_store("step")
         rows = filter_runtime_rows_by_events(events, "step", rows, filters)

@@ -9,7 +9,7 @@ Used by:
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 
 from bywaf.runtime_display import (
     args_from_command_line,
@@ -65,6 +65,42 @@ def is_view_commandlet(commandlet: str, *, args: Sequence[str] = ()) -> bool:
     if short_name in VIEW_ACTIONS:
         return bool(args) and args[0] in VIEW_ACTIONS[short_name]
     return name in VIEW_COMMANDLETS or short_name in VIEW_COMMANDLETS
+
+
+def command_run_args_by_id(db: EventStoreProtocol, run_ids: Iterable[str]) -> dict[str, list[str]]:
+    """Return latest recorded commandlet args keyed by command-run id."""
+    wanted = {str(run_id) for run_id in run_ids if run_id}
+    if not wanted:
+        return {}
+    by_run: dict[str, list[str]] = {}
+    for event in db.events_matching(topic="command.run.arguments", limit=100000):
+        if not event.command_run_id or event.command_run_id not in wanted:
+            continue
+        args = event.payload.get("args")
+        if isinstance(args, list):
+            by_run[event.command_run_id] = [str(arg) for arg in args]
+    return by_run
+
+
+def filter_view_run_rows(db: EventStoreProtocol, rows: list[dict]) -> list[dict]:
+    """Return command-run rows that represent project-modifying work."""
+    args_by_run = command_run_args_by_id(db, (str(row["command_run_id"]) for row in rows))
+    return [
+        row
+        for row in rows
+        if not is_view_commandlet(str(row["source"]), args=args_by_run.get(str(row["command_run_id"]), ()))
+    ]
+
+
+def view_run_ids(db: EventStoreProtocol, rows: Iterable[dict]) -> set[str]:
+    """Return command-run ids for rows that are operator views."""
+    row_list = list(rows)
+    args_by_run = command_run_args_by_id(db, (str(row["command_run_id"]) for row in row_list))
+    return {
+        str(row["command_run_id"])
+        for row in row_list
+        if is_view_commandlet(str(row["source"]), args=args_by_run.get(str(row["command_run_id"]), ()))
+    }
 
 
 def filter_runtime_rows_by_events(db: EventStoreProtocol, kind: str, rows: list[dict], filters: dict[str, str]) -> list[dict]:

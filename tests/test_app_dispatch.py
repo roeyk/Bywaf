@@ -2235,6 +2235,88 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "step --all")
             self.assertRegex(output.getvalue(), r"\n1\s+completed/finished\s+1\s+hostscanner\s+1\s+0\s+")
 
+    def test_step_listing_hides_view_command_steps(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            view_job = runner.db.record_job("step --all", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=view_job,
+                pipeline_id="pipeline-view",
+                command_run_id="run-view",
+                commandlet="runtime/step",
+                values={},
+            )
+            runner.db.publish(
+                "command.run.arguments",
+                {"commandlet": "step", "args": ["--all"], "job_id": view_job, "pipeline_id": "pipeline-view"},
+                "framework",
+                pipeline_id="pipeline-view",
+                command_run_id="run-view",
+            )
+            work_job = runner.db.record_job("hostscanner 127.0.0.1", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=work_job,
+                pipeline_id="pipeline-work",
+                command_run_id="run-work",
+                commandlet="hostscanner",
+                values={},
+            )
+            runner.db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", pipeline_id="pipeline-work", command_run_id="run-work")
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "step")
+            text = output.getvalue()
+            self.assertIn("hostscanner", text)
+            self.assertNotIn("runtime/step", text)
+
+    def test_pipeline_listing_hides_view_only_pipelines(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            view_job = runner.db.record_job("step --all", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=view_job,
+                pipeline_id="pipeline-view",
+                command_run_id="run-view",
+                commandlet="runtime/step",
+                values={},
+            )
+            runner.db.publish(
+                "command.run.arguments",
+                {"commandlet": "step", "args": ["--all"], "job_id": view_job, "pipeline_id": "pipeline-view"},
+                "framework",
+                pipeline_id="pipeline-view",
+                command_run_id="run-view",
+            )
+            runner.db.publish(
+                "runtime.name.assigned",
+                {"target_type": "pipeline", "target_id": "pipeline-view", "name": "view-only"},
+                "framework",
+                pipeline_id="pipeline-view",
+            )
+            work_job = runner.db.record_job("hostscanner 127.0.0.1", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=work_job,
+                pipeline_id="pipeline-work",
+                command_run_id="run-work",
+                commandlet="hostscanner",
+                values={},
+            )
+            runner.db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", pipeline_id="pipeline-work", command_run_id="run-work")
+            runner.db.publish(
+                "runtime.name.assigned",
+                {"target_type": "pipeline", "target_id": "pipeline-work", "name": "productive"},
+                "framework",
+                pipeline_id="pipeline-work",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "pipeline")
+            text = output.getvalue()
+            self.assertIn("productive", text)
+            self.assertNotIn("view-only", text)
+
     def test_make_runner_marks_dead_runtime_jobs_stale_on_startup(self):
         with tempfile.TemporaryDirectory() as tmp:
             db_path = Path(tmp, "db.sqlite3")

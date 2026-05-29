@@ -25,7 +25,7 @@ from bywaf.plugin import (
     commandlet,
 )
 from bywaf.plugins.runtime.job import cancel_job, format_job_command, kill_job
-from bywaf.plugins.runtime.view_common import filter_runtime_rows_by_events, view_selector_candidates
+from bywaf.plugins.runtime.view_common import filter_runtime_rows_by_events, view_run_ids, view_selector_candidates
 from bywaf.runtime_display import (
     command_context_style_getter,
     display_runtime_serial,
@@ -304,6 +304,7 @@ def print_pipelines(
     """Print active pipelines by default, or all pipelines when requested."""
     runtime = context.runtime_store("pipeline list")
     rows = runtime.pipelines(active_only=active_only)
+    rows = filter_view_only_pipelines(context, rows)
     if filters:
         events = context.event_store("pipeline list")
         rows = filter_runtime_rows_by_events(events, "pipeline", rows, filters)
@@ -349,6 +350,26 @@ def print_pipelines(
         context.page_text(output)
     else:
         context.output(output)
+
+
+def filter_view_only_pipelines(context: CommandContext, rows: list[dict]) -> list[dict]:
+    """Return pipelines with at least one project-modifying step."""
+    if not rows:
+        return rows
+    pipeline_ids = {str(row["pipeline_id"]) for row in rows}
+    runs = [row for row in context.runtime_store("pipeline list runs").runs(active_only=False) if str(row["pipeline_id"]) in pipeline_ids]
+    view_runs = view_run_ids(context.event_store("pipeline list runs"), runs)
+    pipelines_with_runs = {str(row["pipeline_id"]) for row in runs}
+    modifying_pipeline_ids = {
+        str(row["pipeline_id"])
+        for row in runs
+        if str(row["command_run_id"]) not in view_runs
+    }
+    return [
+        row
+        for row in rows
+        if str(row["pipeline_id"]) in modifying_pipeline_ids or str(row["pipeline_id"]) not in pipelines_with_runs
+    ]
 
 
 def sort_pipeline_rows(rows: list[dict], sort_key: str) -> list[dict]:
