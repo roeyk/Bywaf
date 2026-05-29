@@ -32,6 +32,15 @@ Planning dates are release planning markers, not compatibility commitments.
   share instead of a large plural scan-result blob.
 - Start with documentation and CI validation helpers. Defer runtime rejection
   or strict schema enforcement until real plugins have exercised the contracts.
+- Current canonical definition lives in `bywaf/event_contracts.py` for fast
+  iteration and direct unit testing. Keep open the future option to mirror or
+  move these contracts into TOML/YAML schema files so plugin packages, external
+  tools, documentation generators, and future GUIs can inspect contracts without
+  importing Bywaf Python code.
+- Design intent: normalized shared facts should make `results`, `shares`,
+  `ports`, `report`, bundles, GUI views, and follow-up plugins consume a stable
+  vocabulary while raw scanner-specific detail remains available through
+  plugin-private events or artifacts.
 
 ### Item: Source Code Documentation Pass
 
