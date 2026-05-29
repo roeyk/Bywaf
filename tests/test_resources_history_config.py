@@ -431,6 +431,22 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
                 dispatch_repl_line(runner, f"plugin load={plugin_dir} --force --use", state)
             self.assertEqual(state.active_context, "example")
 
+    def test_plugin_load_prints_declared_variable_stubs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            plugin_dir = write_external_plugin_with_vars(Path(tmp))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, f"plugin load={plugin_dir} path=lab/example --force", state)
+            text = output.getvalue()
+            self.assertIn("plugin variables:", text)
+            self.assertIn("first=", text)
+            self.assertIn("second=", text)
+            self.assertIn("token=", text)
+            self.assertIn("lab.proxy=", text)
+            self.assertNotIn("hidden=", text)
+
     def test_plugin_load_use_lists_multiple_commandlets_without_guessing(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -992,6 +1008,36 @@ def write_simple_external_plugin(root: Path, name: str) -> Path:
         f'name = "{name}"\n'
         "capabilities = []\n"
     )
+    return plugin_dir
+
+
+def write_external_plugin_with_vars(root: Path) -> Path:
+    plugin_dir = root / "vars"
+    plugin_dir.mkdir()
+    (plugin_dir / "plugin.py").write_text(
+        "from bywaf.plugin import CommandSpec\n"
+        "from bywaf.specs import OptionSpec\n"
+        "class Example:\n"
+        "    spec = CommandSpec(\n"
+        "        'example',\n"
+        "        'example plugin',\n"
+        "        options=(OptionSpec('first', 'first'), OptionSpec('second', 'second'), OptionSpec('token', 'token', secret=True)),\n"
+        "        provider_variables=('proxy',),\n"
+        "    )\n"
+        "    def run(self, context, args, input_events):\n"
+        "        del context, args, input_events\n"
+        "        return ()\n"
+        "def plugin():\n"
+        "    return Example()\n"
+    )
+    (plugin_dir / "bywaf.plugin.toml").write_text(
+        "[[commandlets]]\n"
+        'name = "example"\n'
+        'secret_options = ["token"]\n'
+        'provider_variables = ["proxy"]\n'
+        "capabilities = []\n"
+    )
+    (plugin_dir / "defaults.toml").write_text("[defaults]\nhidden = true\n")
     return plugin_dir
 
 

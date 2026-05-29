@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from ..plugin import Commandlet
-from ..specs import TriggerSpec
+from ..specs import ArgumentSpec, CompletionSpec, OptionSpec, TriggerSpec
 from ..toml_support import load_data_file
 from .loading import load_module_path, load_plugins, load_trigger_specs
 from .trust import (
@@ -36,6 +36,8 @@ class PluginManifest:
     commandlet_database_actions: dict[str, tuple[str, ...]] = field(default_factory=dict)
     commandlet_consumes: dict[str, tuple[str, ...]] = field(default_factory=dict)
     commandlet_emits: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    commandlet_options: dict[str, tuple[OptionSpec, ...]] = field(default_factory=dict)
+    commandlet_arguments: dict[str, tuple[ArgumentSpec, ...]] = field(default_factory=dict)
     commandlet_secret_options: dict[str, tuple[str, ...]] = field(default_factory=dict)
     commandlet_provider_variables: dict[str, tuple[str, ...]] = field(default_factory=dict)
     commandlet_secret_provider_variables: dict[str, tuple[str, ...]] = field(default_factory=dict)
@@ -92,6 +94,8 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
     commandlet_database_actions: dict[str, tuple[str, ...]] = {}
     commandlet_consumes: dict[str, tuple[str, ...]] = {}
     commandlet_emits: dict[str, tuple[str, ...]] = {}
+    commandlet_options: dict[str, tuple[OptionSpec, ...]] = {}
+    commandlet_arguments: dict[str, tuple[ArgumentSpec, ...]] = {}
     commandlet_secret_options: dict[str, tuple[str, ...]] = {}
     commandlet_provider_variables: dict[str, tuple[str, ...]] = {}
     commandlet_secret_provider_variables: dict[str, tuple[str, ...]] = {}
@@ -110,6 +114,8 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
         commandlet_database_actions[name] = database_actions_field(row, source, context)
         commandlet_consumes[name] = string_list_field(row, "consumes", source, context)
         commandlet_emits[name] = string_list_field(row, "emits", source, context)
+        commandlet_options[name] = option_rows_field(row, source, context)
+        commandlet_arguments[name] = argument_rows_field(row, source, context)
         commandlet_secret_options[name] = string_list_field(row, "secret_options", source, context)
         commandlet_provider_variables[name] = string_list_field(row, "provider_variables", source, context)
         commandlet_secret_provider_variables[name] = string_list_field(row, "secret_provider_variables", source, context)
@@ -134,6 +140,8 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
         commandlet_database_actions=commandlet_database_actions,
         commandlet_consumes=commandlet_consumes,
         commandlet_emits=commandlet_emits,
+        commandlet_options=commandlet_options,
+        commandlet_arguments=commandlet_arguments,
         commandlet_secret_options=commandlet_secret_options,
         commandlet_provider_variables=commandlet_provider_variables,
         commandlet_secret_provider_variables=commandlet_secret_provider_variables,
@@ -205,6 +213,59 @@ def parse_trigger_rows(value: Any, source: str) -> tuple[TriggerSpec, ...]:
     return tuple(triggers)
 
 
+def option_rows_field(data: dict[str, Any], source: str, context: str) -> tuple[OptionSpec, ...]:
+    """Parse optional commandlet option metadata rows."""
+    value = data.get("options", ())
+    if value in (None, ()):
+        return ()
+    if not isinstance(value, list):
+        raise ValueError(f"{source} {context}.options must be a list")
+    return tuple(option_row_field(row, source, f"{context}.options entry {index}") for index, row in enumerate(value, start=1))
+
+
+def option_row_field(row: Any, source: str, context: str) -> OptionSpec:
+    """Parse one manifest commandlet option row."""
+    if not isinstance(row, dict):
+        raise ValueError(f"{source} {context} must be a table")
+    value_type = optional_string_field(row, "type", source, context, default="str") or "str"
+    if value_type not in {"str", "int", "optional-int", "float", "bool"}:
+        raise ValueError(f"{source} {context}.type must be one of: str, int, optional-int, float, bool")
+    completion = optional_string_field(row, "completion", source, context)
+    return OptionSpec(
+        name=string_field(row, "name", source, context),
+        description=optional_string_field(row, "description", source, context, default="") or "",
+        default=manifest_default_to_string(row.get("default")),
+        choices=string_list_field(row, "choices", source, context),
+        completion=CompletionSpec(completion or "none"),
+        secret=bool_field(row, "secret", source, context),
+        value_type=value_type,
+    )
+
+
+def argument_rows_field(data: dict[str, Any], source: str, context: str) -> tuple[ArgumentSpec, ...]:
+    """Parse optional commandlet argument metadata rows."""
+    value = data.get("arguments", ())
+    if value in (None, ()):
+        return ()
+    if not isinstance(value, list):
+        raise ValueError(f"{source} {context}.arguments must be a list")
+    return tuple(argument_row_field(row, source, f"{context}.arguments entry {index}") for index, row in enumerate(value, start=1))
+
+
+def argument_row_field(row: Any, source: str, context: str) -> ArgumentSpec:
+    """Parse one manifest commandlet argument row."""
+    if not isinstance(row, dict):
+        raise ValueError(f"{source} {context} must be a table")
+    nargs = optional_string_field(row, "nargs", source, context, default="") or ""
+    completion = optional_string_field(row, "completion", source, context)
+    return ArgumentSpec(
+        name=string_field(row, "name", source, context),
+        description=optional_string_field(row, "description", source, context, default="") or "",
+        required=nargs not in {"?", "*"},
+        completion=CompletionSpec(completion or "none"),
+    )
+
+
 def string_field(data: dict[str, Any], key: str, source: str, context: str) -> str:
     """Return a required string field."""
     value = data.get(key)
@@ -228,6 +289,15 @@ def optional_string_field(
     if not isinstance(value, str):
         raise ValueError(f"{source} {context}.{key} must be a string")
     return value
+
+
+def manifest_default_to_string(value: Any) -> str | None:
+    """Normalize manifest defaults into CommandSpec string metadata."""
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
 
 
 def enforce_plugin_manifest(
@@ -281,7 +351,18 @@ def enforce_plugin_manifest(
         code_emits = set(by_name[name].spec.emits)
         if manifest_emits and manifest_emits != code_emits:
             raise ValueError(f"{path} emits mismatch for {name}")
-        manifest_secret_options = set(manifest.commandlet_secret_options.get(name, ()))
+        manifest_options = manifest.commandlet_options.get(name, ())
+        if manifest_options and manifest_options != by_name[name].spec.options:
+            raise ValueError(f"{path} options mismatch for {name}")
+        manifest_arguments = manifest.commandlet_arguments.get(name, ())
+        if manifest_arguments and manifest_arguments != by_name[name].spec.arguments:
+            raise ValueError(f"{path} arguments mismatch for {name}")
+        declared_secret_options = {
+            option.name
+            for option in manifest.commandlet_options.get(name, ())
+            if option.secret
+        }
+        manifest_secret_options = set(manifest.commandlet_secret_options.get(name, ())).union(declared_secret_options)
         code_secret_options = {option.name for option in by_name[name].spec.options if option.secret}
         if manifest_secret_options != code_secret_options:
             missing_options = sorted(code_secret_options.difference(manifest_secret_options))

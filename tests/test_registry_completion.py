@@ -348,6 +348,15 @@ class RegistryCompletionTests(unittest.TestCase):
 
     def test_use_completes_contexts(self):
         completer = Completer(self.registry)
+        top_level = completer.candidates("use ")
+        self.assertIn("analysis/", top_level)
+        self.assertIn("network/", top_level)
+        self.assertNotIn("analysis/report", top_level)
+        self.assertNotIn("analysis/report/report", top_level)
+        self.assertEqual(
+            completer.candidates("use analysis/"),
+            ["analysis/finding_dedupe", "analysis/finding_report", "analysis/report", "analysis/yara_scan"],
+        )
         self.assertEqual(completer.candidates("use glo"), ["global"])
         self.assertEqual(completer.candidates("use host"), ["hostscanner"])
 

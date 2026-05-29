@@ -47,6 +47,7 @@ class OptionSpec:
     choices: tuple[str, ...] = ()
     completion: CompletionSpec = field(default_factory=CompletionSpec)
     secret: bool = False
+    value_type: str = "str"
 
 
 @dataclass(frozen=True, slots=True)

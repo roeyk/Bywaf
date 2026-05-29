@@ -28,15 +28,27 @@ def load_module_defaults(module: ModuleType, plugin: Commandlet, varstore: VarSt
         # Module DEFAULTS are convenience defaults, not authoritative manifest
         # metadata. They initialize unset commandlet variables for operators.
         varstore.update_prefixed(scope or plugin.spec.name, defaults)
+    load_spec_defaults(plugin, varstore, scope=scope)
 
 
 def load_defaults_file(plugin_dir: Path, plugin: Commandlet, varstore: VarStore, *, scope: str | None = None) -> None:
     """Load filesystem plugin defaults from TOML, with JSON compatibility."""
     path = first_existing(plugin_dir / "defaults.toml", plugin_dir / "defaults.json")
-    if path is None:
-        return
-    values = load_data_file(path)
-    varstore.update_prefixed(scope or plugin.spec.name, values.get("defaults", values))
+    if path is not None:
+        values = load_data_file(path)
+        varstore.update_prefixed(scope or plugin.spec.name, values.get("defaults", values))
+    load_spec_defaults(plugin, varstore, scope=scope)
+
+
+def load_spec_defaults(plugin: Commandlet, varstore: VarStore, *, scope: str | None = None) -> None:
+    """Load declared option defaults from CommandSpec metadata."""
+    defaults = {
+        option.name: option.default
+        for option in plugin.spec.options
+        if option.default is not None
+    }
+    if defaults:
+        varstore.update_prefixed(scope or plugin.spec.name, defaults)
 
 
 def parse_plugin_config(path: Path) -> list[str]:

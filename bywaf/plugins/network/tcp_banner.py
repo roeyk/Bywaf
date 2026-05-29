@@ -20,60 +20,39 @@ import socket
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass
+from pathlib import Path
+from typing import cast
 
 from bywaf.event_schema_objects import OpenPort, TcpBanner
 from bywaf.events import Event
-from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
-from bywaf.plugins._args import key_value_to_long_options
-
-DEFAULTS = {
-    "mode": "banner",
-    "port": "",
-    "read-bytes": "256",
-    "silent": "false",
-    "timeout": "3",
-}
-OPTION_KEYS = {"mode", "port", "read-bytes", "silent", "timeout"}
-
-
-@commandlet(
-    name="tcp_banner",
-    description="Grab TCP service banners from explicit hosts or port.open input.",
-    usage="tcp_banner [port=N] [mode=banner|http-head] [host[:port] ...]",
-    examples=(
-        "tcp_banner 127.0.0.1:22",
-        "portscanner host=127.0.0.1 port=22,80 | tcp_banner",
-        "tcp_banner mode=http-head 127.0.0.1:8080",
-    ),
-    consumes=("port.open",),
-    emits=("tcp.banner",),
-    capabilities=("framework.console.alert", "network.connect"),
+from bywaf.plugin import (
+    CommandContext,
+    Commandlet,
+    ManifestCommandlet,
+    RunConfig,
+    manifest_arguments_from_manifest,
+    spec_from_manifest,
 )
-@option("mode", "probe mode", "banner", ("banner", "http-head"))
-@option("port", "explicit port for host arguments")
-@option("read-bytes", "maximum bytes to read", "256")
-@option("silent", "suppress banner alerts", "false")
-@option("timeout", "connection and read timeout seconds", "3")
-class TcpBannerGrabber(CommandletBase):
-    def run(
+
+MANIFEST = Path(__file__).with_suffix(".plugin.toml")
+
+
+class TcpBannerGrabber(ManifestCommandlet):
+    spec = spec_from_manifest(MANIFEST, "tcp_banner")
+    manifest_arguments = manifest_arguments_from_manifest(MANIFEST, "tcp_banner")
+
+    def handle(
         self,
         context: CommandContext,
-        args: list[str],
+        cfg: RunConfig,
         input_events: Iterable[Event],
     ):
         """Grab banners for explicit targets or upstream `port.open` events."""
-        parser = self.parser()
-        parser.add_argument("targets", nargs="*")
-        parser.add_argument("--mode", choices=("banner", "http-head"), default=self.var_default(context, "mode", "banner"))
-        parser.add_argument("--port", type=int, default=self.var_default(context, "port", None, cast=optional_int))
-        parser.add_argument("--read-bytes", type=int, default=self.var_default(context, "read-bytes", 256, cast=int))
-        parser.add_argument("-s", "--silent", action="store_true", default=self.var_default(context, "silent", False, cast=parse_bool))
-        parser.add_argument("--timeout", type=float, default=self.var_default(context, "timeout", 3, cast=float))
-        parsed = parser.parse_args(key_value_to_long_options(args, OPTION_KEYS))
-        for target in banner_targets(parsed.targets, parsed.port, input_events):
+        cfg = cast(TcpBannerConfig, cfg)
+        for target in banner_targets(cfg.targets, cfg.port, input_events):
             context.raise_if_cancelled()
             context.audit_capability("network.connect")
-            result = grab_tcp_banner(target.host, target.port, parsed.timeout, parsed.read_bytes, parsed.mode)
+            result = grab_tcp_banner(target.host, target.port, cfg.timeout, cfg.read_bytes, cfg.mode)
             banner_text = str(result.get("banner") or "")
             error_text = str(result.get("error") or "")
             elapsed_value = result.get("elapsed_ms")
@@ -88,7 +67,7 @@ class TcpBannerGrabber(CommandletBase):
             payload = banner.to_payload()
             context.alert(
                 banner_alert_text(target.host, target.port, payload),
-                silent=parsed.silent,
+                silent=cfg.silent,
             )
             yield payload
 
@@ -99,6 +78,17 @@ class BannerTarget:
 
     host: str
     port: int
+
+
+class TcpBannerConfig(RunConfig):
+    """Typed effective config for tcp_banner."""
+
+    targets: list[str]
+    mode: str
+    port: int | None
+    read_bytes: int
+    silent: bool
+    timeout: float
 
 
 def banner_targets(targets: list[str], port: int | None, input_events: Iterable[Event]) -> list[BannerTarget]:
@@ -162,20 +152,6 @@ def banner_alert_text(host: str, port: int, payload: dict[str, object]) -> str:
 def elapsed_ms(start: float) -> int:
     """Return elapsed milliseconds from a monotonic start time."""
     return int((time.monotonic() - start) * 1000)
-
-
-def optional_int(value: str | int | None) -> int | None:
-    """Parse optional integer commandlet variable values."""
-    if value in (None, ""):
-        return None
-    return int(value)
-
-
-def parse_bool(value: str | bool) -> bool:
-    """Parse bool-like commandlet variable values."""
-    if isinstance(value, bool):
-        return value
-    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def plugin() -> Commandlet:

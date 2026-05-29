@@ -154,13 +154,34 @@ class CoreCompleter(
             "run": lambda _prefix: [],
             "topics": lambda _prefix: self.topic_completion_candidates(),
             "triggers": lambda _prefix: [],
-            "use": lambda _prefix: ["global", *self.registry.names(), *self.registry.commandlet_aliases()],
+            "use": self.use_context_candidates,
             "script": self.script_candidates,
             SET_COMMAND: lambda current_prefix: self.vars_candidates(current_prefix, rest),
             SETG_COMMAND: lambda current_prefix: self.setg_candidates(current_prefix, rest),
         }
         handler = dispatch.get(command)
         return handler(prefix) if handler is not None else root_candidates
+
+    def use_context_candidates(self, prefix: str) -> list[str]:
+        """Complete `use` as a provider-path browser before commandlets."""
+        provider_paths = sorted(
+            {
+                *self.registry.provider_commandlets.keys(),
+                *self.registry.provider_defaults.keys(),
+            }
+        )
+        candidates: set[str] = set()
+        if "global".startswith(prefix):
+            candidates.add("global")
+        if "/" not in prefix:
+            candidates.update(top_level_provider_candidates(provider_paths, prefix))
+            # Keep explicit flat commandlet lookup discoverable once the user
+            # starts typing it, without crowding the initial `use <tab>` menu.
+            if prefix:
+                candidates.update(name for name in self.registry.names() if name.startswith(prefix))
+            return sorted(candidates)
+        candidates.update(nested_provider_candidates(provider_paths, prefix))
+        return sorted(candidates)
 
 
 def previous_pipeline_command(tokens: list[str]) -> str | None:
@@ -175,3 +196,31 @@ def previous_pipeline_command(tokens: list[str]) -> str | None:
             start = index + 1
             break
     return tokens[start] if start < pipe_index else None
+
+
+def top_level_provider_candidates(provider_paths: list[str], prefix: str) -> set[str]:
+    """Return first path segments for provider-focused completion."""
+    return {
+        f"{path.split('/', 1)[0]}/"
+        for path in provider_paths
+        if path.startswith(prefix)
+    }
+
+
+def nested_provider_candidates(provider_paths: list[str], prefix: str) -> set[str]:
+    """Return the next provider path segment below `prefix`."""
+    parent, partial = prefix.rsplit("/", 1)
+    base = f"{parent}/"
+    candidates: set[str] = set()
+    for path in provider_paths:
+        if not path.startswith(base):
+            continue
+        remainder = path.removeprefix(base)
+        segment, separator, _tail = remainder.partition("/")
+        if not segment.startswith(partial):
+            continue
+        candidate = f"{base}{segment}"
+        if separator:
+            candidate += "/"
+        candidates.add(candidate)
+    return candidates

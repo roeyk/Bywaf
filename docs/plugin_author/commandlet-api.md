@@ -5,6 +5,7 @@ Reference for commandlet specs, parsing, output, event flow, completion, runtime
 ## Contents
 
 - [CommandSpec Fields](#commandspec-fields)
+- [Manifest-Backed Configuration](#manifest-backed-configuration)
 - [Plans](#plans)
 - [Parsing Arguments](#parsing-arguments)
 - [Rendering Tables](#rendering-tables)
@@ -90,6 +91,89 @@ class Hello(CommandletBase):
 Decorator order is intentional: Python applies decorators from bottom to top, so
 `@argument` and `@option` collect metadata before `@commandlet` builds the final
 `CommandSpec`.
+
+## Manifest-Backed Configuration
+
+For new commandlets, prefer `ManifestCommandlet` when the command-line interface
+is ordinary options plus positional arguments. The manifest declares the public
+interface once, and the base class builds both `CommandSpec` metadata and an
+immutable effective config object for each run.
+
+```toml
+[[commandlets]]
+name = "tcp_banner"
+description = "Grab TCP service banners."
+consumes = ["port.open"]
+emits = ["tcp.banner"]
+capabilities = ["network.connect"]
+
+[[commandlets.arguments]]
+name = "targets"
+nargs = "*"
+
+[[commandlets.options]]
+name = "timeout"
+description = "connection timeout seconds"
+type = "float"
+default = "3"
+
+[[commandlets.options]]
+name = "silent"
+description = "suppress alerts"
+type = "bool"
+default = "false"
+```
+
+```python
+from pathlib import Path
+from typing import cast
+
+from bywaf.plugin import (
+    ManifestCommandlet,
+    RunConfig,
+    manifest_arguments_from_manifest,
+    spec_from_manifest,
+)
+
+MANIFEST = Path(__file__).with_suffix(".plugin.toml")
+
+
+class TcpBanner(ManifestCommandlet):
+    spec = spec_from_manifest(MANIFEST, "tcp_banner")
+    manifest_arguments = manifest_arguments_from_manifest(MANIFEST, "tcp_banner")
+
+    def handle(self, context, cfg, input_events):
+        cfg = cast(TcpBannerConfig, cfg)
+        for target in cfg.targets:
+            probe(target, timeout=cfg.timeout, silent=cfg.silent)
+
+
+class TcpBannerConfig(RunConfig):
+    targets: list[str]
+    timeout: float
+    silent: bool
+```
+
+The base class handles parsing, `key=value` option conversion, defaults, stored
+plugin variables, type casts, and choice validation. `cfg` is the effective
+configuration for this invocation:
+
+```text
+command-line options > stored plugin variables > manifest defaults
+```
+
+`cfg` is frozen. If the operator changes a plugin variable while a job is
+running, the running invocation keeps its original `cfg`; the new variable value
+applies to the next invocation. This is deliberate because it keeps provenance
+reproducible.
+
+Do not use ordinary plugin variables as live control state for long-running
+plugins. Use explicit runtime control/events instead, so live changes are
+auditable.
+
+Supported manifest option `type` values are `str`, `int`, `optional-int`,
+`float`, and `bool`. Use `choices = [...]` for bounded string values and
+`secret = true` for credentials or tokens.
 
 Options that carry credentials should be declared with `secret=True`:
 

@@ -10,7 +10,9 @@ Used by:
 from __future__ import annotations
 
 import argparse
+import tomllib
 from collections.abc import Iterable, Mapping, Sequence
+from pathlib import Path
 from typing import Any, Protocol, TYPE_CHECKING, cast
 
 from ..events import Event
@@ -209,6 +211,218 @@ class CommandletBase:
         if required:
             raise ValueError(f"{self.spec.name} requires {name} argument or {context.vars.scope}.{name} variable")
         return []
+
+
+class RunConfig:
+    """Immutable per-run config produced from manifest, vars, and CLI args."""
+
+    def __init__(self, values: Mapping[str, Any]) -> None:
+        object.__setattr__(self, "_values", dict(values))
+        for key, value in values.items():
+            object.__setattr__(self, key, value)
+        object.__setattr__(self, "_frozen", True)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Keep effective run config immutable after construction."""
+        if getattr(self, "_frozen", False):
+            raise AttributeError("run config is immutable")
+        object.__setattr__(self, name, value)
+
+    def __getattr__(self, name: str) -> Any:
+        """Return dynamic config fields for generic commandlets."""
+        try:
+            return self._values[name]
+        except KeyError as exc:
+            raise AttributeError(name) from exc
+
+    def as_dict(self) -> dict[str, Any]:
+        """Return a shallow copy for tests and debugging."""
+        return dict(self._values)
+
+
+class ManifestCommandlet(CommandletBase):
+    """Base class for commandlets whose public interface comes from TOML."""
+
+    spec: CommandSpec
+    manifest_arguments: tuple[dict[str, Any], ...] = ()
+
+    def run(
+        self,
+        context: CommandContext,
+        args: list[str],
+        input_events: Iterable[Event],
+    ) -> Iterable[dict[str, Any]]:
+        """Parse manifest-backed config and delegate to subclass behavior."""
+        parsed = self.parse_manifest_args(context, args)
+        cfg = RunConfig({dest: getattr(parsed, dest) for dest in vars(parsed)})
+        return self.handle(context, cfg, input_events)
+
+    def handle(
+        self,
+        context: CommandContext,
+        cfg: RunConfig,
+        input_events: Iterable[Event],
+    ) -> Iterable[dict[str, Any]]:
+        """Execute commandlet behavior with resolved config."""
+        raise NotImplementedError
+
+    def parse_manifest_args(self, context: CommandContext, args: list[str]) -> argparse.Namespace:
+        """Parse CLI args after applying manifest defaults and stored vars."""
+        parser = self.parser()
+        option_names = {option.name for option in self.spec.options}
+        for argument in self.manifest_arguments:
+            kwargs: dict[str, Any] = {}
+            if argument.get("nargs") is not None:
+                kwargs["nargs"] = str(argument["nargs"])
+            parser.add_argument(str(argument["name"]), **kwargs)
+        for option_spec in self.spec.options:
+            default = self.var_default(
+                context,
+                option_spec.name,
+                manifest_option_default(option_spec),
+                cast=manifest_option_cast(option_spec),
+            )
+            parser_kwargs: dict[str, Any] = {
+                "dest": option_dest(option_spec.name),
+                "default": default,
+            }
+            if option_spec.choices:
+                parser_kwargs["choices"] = option_spec.choices
+            if option_spec.value_type == "bool":
+                parser_kwargs.update({"nargs": "?", "const": True, "type": parse_manifest_bool})
+            else:
+                parser_kwargs["type"] = manifest_option_cast(option_spec)
+            parser.add_argument(f"--{option_spec.name}", **parser_kwargs)
+        return parser.parse_args(key_value_args_to_options(args, option_names))
+
+
+def spec_from_manifest(path: str | Path, commandlet_name: str) -> CommandSpec:
+    """Build a CommandSpec from one commandlet row in a TOML manifest."""
+    data = tomllib.loads(Path(path).read_text(encoding="utf-8"))
+    row = manifest_commandlet_row(data, commandlet_name)
+    database = row.get("database", {})
+    database_actions = database.get("actions", {}) if isinstance(database, dict) else {}
+    return CommandSpec(
+        name=commandlet_name,
+        description=str(row.get("description") or ""),
+        usage=str(row.get("usage") or ""),
+        examples=tuple(str(item) for item in row.get("examples", ()) if isinstance(item, str)),
+        options=tuple(option_spec_from_manifest(item) for item in row.get("options", ()) if isinstance(item, dict)),
+        arguments=tuple(argument_spec_from_manifest(item) for item in row.get("arguments", ()) if isinstance(item, dict)),
+        consumes=tuple(str(item) for item in row.get("consumes", ()) if isinstance(item, str)),
+        emits=tuple(str(item) for item in row.get("emits", ()) if isinstance(item, str)),
+        capabilities=tuple(str(item) for item in row.get("capabilities", ()) if isinstance(item, str)),
+        database_actions=tuple(
+            action for action in ("view", "write", "manage") if bool(database_actions.get(action))
+        ) if isinstance(database_actions, dict) else (),
+        provider_variables=tuple(str(item) for item in row.get("provider_variables", ()) if isinstance(item, str)),
+        secret_provider_variables=tuple(str(item) for item in row.get("secret_provider_variables", ()) if isinstance(item, str)),
+    )
+
+
+def manifest_arguments_from_manifest(path: str | Path, commandlet_name: str) -> tuple[dict[str, Any], ...]:
+    """Return raw manifest argument rows for argparse-only fields like nargs."""
+    data = tomllib.loads(Path(path).read_text(encoding="utf-8"))
+    row = manifest_commandlet_row(data, commandlet_name)
+    return tuple(item for item in row.get("arguments", ()) if isinstance(item, dict))
+
+
+def manifest_commandlet_row(data: Mapping[str, Any], commandlet_name: str) -> Mapping[str, Any]:
+    """Return one commandlet manifest table by name."""
+    rows = data.get("commandlets", ())
+    if not isinstance(rows, list):
+        raise ValueError("manifest commandlets must be a sequence")
+    for row in rows:
+        if isinstance(row, Mapping) and row.get("name") == commandlet_name:
+            return row
+    raise ValueError(f"manifest does not declare commandlet: {commandlet_name}")
+
+
+def option_spec_from_manifest(row: Mapping[str, Any]) -> OptionSpec:
+    """Build an OptionSpec from a manifest option table."""
+    name = str(row["name"])
+    completion = row.get("completion")
+    return OptionSpec(
+        name=name,
+        description=str(row.get("description") or ""),
+        default=manifest_default_to_string(row.get("default")),
+        choices=tuple(str(item) for item in row.get("choices", ()) if isinstance(item, str)),
+        completion=CompletionSpec(str(completion)) if isinstance(completion, str) else CompletionSpec(),
+        secret=bool(row.get("secret", False)),
+        value_type=str(row.get("type") or "str"),
+    )
+
+
+def argument_spec_from_manifest(row: Mapping[str, Any]) -> ArgumentSpec:
+    """Build an ArgumentSpec from a manifest argument table."""
+    completion = row.get("completion")
+    return ArgumentSpec(
+        name=str(row["name"]),
+        description=str(row.get("description") or ""),
+        required=str(row.get("nargs") or "") not in {"?", "*"},
+        completion=CompletionSpec(str(completion)) if isinstance(completion, str) else CompletionSpec(),
+    )
+
+
+def manifest_default_to_string(value: Any) -> str | None:
+    """Normalize manifest defaults into CommandSpec string metadata."""
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
+
+
+def manifest_option_default(option_spec: OptionSpec) -> Any:
+    """Return a typed manifest default for argparse."""
+    if option_spec.default is None:
+        return None
+    return manifest_option_cast(option_spec)(option_spec.default)
+
+
+def manifest_option_cast(option_spec: OptionSpec):
+    """Return a parser/cfg cast function for a manifest option type."""
+    value_type = option_spec.value_type
+    if value_type == "int":
+        return int
+    if value_type == "optional-int":
+        return optional_manifest_int
+    if value_type == "float":
+        return float
+    if value_type == "bool":
+        return parse_manifest_bool
+    return str
+
+
+def optional_manifest_int(value: str | int | None) -> int | None:
+    """Parse optional integer manifest values."""
+    if value in (None, ""):
+        return None
+    return int(value)
+
+
+def parse_manifest_bool(value: str | bool) -> bool:
+    """Parse bool-like manifest/CLI values."""
+    if isinstance(value, bool):
+        return value
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def key_value_args_to_options(args: Sequence[str], option_names: set[str]) -> list[str]:
+    """Convert `key=value` option args into argparse `--key=value` args."""
+    converted: list[str] = []
+    for arg in args:
+        key, separator, value = arg.partition("=")
+        if separator and key in option_names:
+            converted.append(f"--{key}={value}")
+        else:
+            converted.append(arg)
+    return converted
+
+
+def option_dest(name: str) -> str:
+    """Return a Python attribute-safe option destination."""
+    return name.replace("-", "_")
 
 
 def split_var_values(value: str) -> list[str]:

@@ -60,8 +60,24 @@ def handle_setg_command(runner: Runner, state: ShellState, rest: str | None, lin
 
 def print_vars(runner: Runner, state: ShellState) -> None:
     """Print session variables in stable key order."""
-    del state
+    active_prefix = f"{state.active_context}." if state.active_context else ""
+    active_items: list[tuple[str, str]] = []
+    other_items: list[tuple[str, str]] = []
     for key, value in runner.registry.varstore.items():
+        if active_prefix and key.startswith(active_prefix):
+            active_items.append((key, value))
+        else:
+            other_items.append((key, value))
+    print_var_list("Variables", other_items, runner)
+    if active_prefix:
+        print()
+        print_var_list(f"In-focus variables ({state.active_context})", active_items, runner)
+
+
+def print_var_list(heading: str, items: list[tuple[str, str]], runner: Runner) -> None:
+    """Print one alphabetized variable section."""
+    print(f"{heading}:")
+    for key, value in sorted(items):
         print(format_var_assignment(runner, key, value))
 
 

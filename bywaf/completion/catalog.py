@@ -46,6 +46,8 @@ class CatalogCompletionMixin:
             default_names = filesystem_default_names(plugin_dir)
             for commandlet in manifest.commandlets:
                 scope = f"{provider_path}/{commandlet}"
+                for option in manifest.commandlet_options.get(commandlet, ()):
+                    names.add(f"{scope}.{option.name}")
                 for option in manifest.commandlet_secret_options.get(commandlet, ()):
                     names.add(f"{scope}.{option}")
                 for option in manifest.commandlet_provider_variables.get(commandlet, ()):

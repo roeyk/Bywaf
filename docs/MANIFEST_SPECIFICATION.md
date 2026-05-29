@@ -3,11 +3,13 @@
 This document defines the sidecar TOML manifest format used by Bywaf plugin
 packages.
 
-The manifest is not the plugin API. Plugin authors still write commandlets in
-Python with `CommandletBase`, `@commandlet`, `@argument`, `@option`, and
-`run(context, args, input_events)`. The manifest records the plugin traits,
-commandlets, capabilities, secret options, and trigger rules that Bywaf should
-trust before or while loading plugin code.
+The manifest is not a sandbox or a replacement for plugin code. Plugin authors
+still write commandlets in Python. For ordinary command-line shapes, new
+plugins should prefer `ManifestCommandlet`: declare the public arguments and
+options in TOML, then implement `handle(context, cfg, input_events)` in Python.
+The manifest records the plugin traits, commandlets, capabilities, options,
+arguments, provider variables, and trigger rules that Bywaf should trust before
+or while loading plugin code.
 
 The manifest exists so plugin contracts can be enforced and inspected before
 arbitrary Python code is imported. It lets Bywaf reject undeclared capabilities,
@@ -21,6 +23,8 @@ build static catalog views, accept pre-load catalog variables, and give
 - [Schema](#schema)
 - [Plugin Table](#plugin-table)
 - [Commandlet Entries](#commandlet-entries)
+- [Commandlet Options](#commandlet-options)
+- [Commandlet Arguments](#commandlet-arguments)
 - [Trigger Entries](#trigger-entries)
 - [Generation](#generation)
 - [Validation](#validation)
@@ -62,13 +66,40 @@ default_commandlet = "example"
 
 [[commandlets]]
 name = "example"
+description = "Probe an example service."
+usage = "example [options] <target>"
+examples = [
+  "example target=192.0.2.10 timeout=2",
+]
 capabilities = [
   "network.connect",
   "framework.console.alert",
 ]
+consumes = ["host.found"]
+emits = ["example.found"]
 secret_options = ["password"]
 provider_variables = ["proxy"]
 secret_provider_variables = []
+database.actions.view = true
+database.actions.write = true
+database.actions.manage = false
+
+[[commandlets.arguments]]
+name = "targets"
+description = "explicit hosts or URLs"
+nargs = "*"
+
+[[commandlets.options]]
+name = "timeout"
+description = "connection timeout seconds"
+default = "5"
+type = "float"
+
+[[commandlets.options]]
+name = "password"
+description = "password reference"
+secret = true
+type = "str"
 
 [[triggers]]
 name = "example-trigger"
@@ -102,18 +133,22 @@ The `[plugin]` table describes plugin-level traits.
 # Commandlet Entries
 
 Each `[[commandlets]]` entry declares one commandlet exposed by the plugin.
-Only the keys below are used by Bywaf for commandlet manifest validation.
-Descriptions, examples, `emits`, `consumes`, and runtime argument metadata
-belong in Python `@commandlet`, `@argument`, and `@option` declarations.
+Bywaf uses these fields for commandlet manifest validation, static catalog
+views, pre-load variable completion, and manifest-backed commandlet config.
 
 | Key | Type | Required | Meaning |
 | --- | --- | --- | --- |
 | `name` | string | yes | Must match the Python `CommandSpec.name` exactly. |
+| `description` | string | no | Operator-facing commandlet summary. `ManifestCommandlet` uses this to build `CommandSpec`. |
+| `usage` | string | no | Usage string for help/catalog output. |
+| `examples` | list of strings | no | Example invocations for help/catalog output. |
+| `consumes` | list of strings | no | Event topics this commandlet may consume. |
+| `emits` | list of strings | no | Event topics this commandlet may emit. |
 | `capabilities` | list of strings | no | Must match `CommandSpec.capabilities` exactly. |
 | `database.actions.view` | boolean | no | Whether the commandlet may use audited database read capabilities such as `db.read:*`. Must match `CommandSpec.database_actions`. |
 | `database.actions.write` | boolean | no | Whether the commandlet may use audited database write capabilities such as `db.write:*`. Must match `CommandSpec.database_actions`. |
 | `database.actions.manage` | boolean | no | Whether the commandlet may use high-risk database management capabilities such as `db.raw` or `db.manage:*`. Must match `CommandSpec.database_actions`. |
-| `secret_options` | list of strings | no | Must match Python options declared with `secret=True` exactly. |
+| `secret_options` | list of strings | no | Must match Python options declared with `secret=True` exactly. For manifest-backed commandlets, this is normally inferred from `[[commandlets.options]] secret = true`, but the field remains accepted for explicit manifests and older commandlets. |
 | `provider_variables` | list of strings | no | Immediate-provider variable names this commandlet may read with `context.vars.get_provider(...)`. Must match `CommandSpec.provider_variables` exactly. |
 | `secret_provider_variables` | list of strings | no | Immediate-provider variable names that are secret references. Must match `CommandSpec.secret_provider_variables` exactly. |
 
@@ -144,6 +179,88 @@ When a manifest is present, Bywaf registers only commandlets listed in
 `[[commandlets]]`. Extra commandlets returned by `plugin()` or `plugins()` are
 ignored. Commandlets declared in the manifest but missing from Python code cause
 plugin loading to fail.
+
+# Commandlet Options
+
+`[[commandlets.options]]` entries belong to the nearest preceding
+`[[commandlets]]` entry. They describe public named options such as
+`timeout=5`, `--timeout=5`, or boolean flags such as `silent=true`.
+
+For `ManifestCommandlet`, options are also the source of the per-run immutable
+`cfg` object passed to `handle(context, cfg, input_events)`. Values resolve in
+this order:
+
+```text
+command-line option > stored plugin variable > manifest default
+```
+
+The `cfg` object is a snapshot for one invocation. If the operator changes a
+plugin variable while a commandlet is running, the running invocation keeps its
+existing `cfg`; ordinary plugin variables configure future invocations, not live
+control state.
+
+| Key | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `name` | string | yes | Public option name. Hyphens are converted to underscores on `cfg`, so `record-type` becomes `cfg.record_type`. |
+| `description` | string | no | Help text for completion and docs. |
+| `default` | string, integer, float, boolean, or null | no | Default value. Values are normalized to strings in `CommandSpec`; `ManifestCommandlet` casts them back using `type`. |
+| `choices` | list of strings | no | Allowed values. |
+| `completion` | string | no | Completion kind such as `path`, `file`, `dir`, `event-topic`, or `none`. |
+| `secret` | boolean | no | Marks the option as secret metadata and adds it to the effective secret option list. |
+| `type` | string | no | One of `str`, `int`, `optional-int`, `float`, or `bool`. Defaults to `str`. |
+
+Example:
+
+```toml
+[[commandlets.options]]
+name = "record-type"
+description = "DNS record type"
+default = "A"
+choices = ["A", "AAAA", "CNAME", "MX", "TXT"]
+type = "str"
+
+[[commandlets.options]]
+name = "timeout"
+description = "resolver timeout seconds"
+default = "5"
+type = "float"
+
+[[commandlets.options]]
+name = "silent"
+description = "suppress console alerts"
+default = false
+type = "bool"
+```
+
+Boolean options accept explicit values (`silent=true`, `--silent=false`) and
+also behave as flags when written as `--silent`.
+
+# Commandlet Arguments
+
+`[[commandlets.arguments]]` entries belong to the nearest preceding
+`[[commandlets]]` entry. They describe positional arguments. `ManifestCommandlet`
+parses them into `cfg` with the same naming rule as options: hyphens become
+underscores.
+
+| Key | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `name` | string | yes | Argument name. |
+| `description` | string | no | Help text for completion and docs. |
+| `nargs` | string or integer | no | Standard argparse-style arity, such as `?`, `*`, `+`, or an integer count. |
+| `completion` | string | no | Completion kind such as `path`, `file`, `dir`, `host`, or `none`. |
+
+Example:
+
+```toml
+[[commandlets.arguments]]
+name = "targets"
+description = "explicit host, host:port, or URL targets"
+nargs = "*"
+completion = "host"
+```
+
+Use positional arguments for natural command syntax, and use options for values
+that the operator may want to persist with `set` or override by name.
 
 # Trigger Entries
 
@@ -199,7 +316,12 @@ The loader enforces these consistency checks:
 
 - every manifest commandlet exists in Python code;
 - manifest `capabilities` match Python `CommandSpec.capabilities`;
+- manifest `[[commandlets.options]]` match Python `CommandSpec.options` when
+  option rows are present;
+- manifest `[[commandlets.arguments]]` match Python `CommandSpec.arguments`
+  when argument rows are present;
 - manifest `secret_options` match Python secret option metadata;
+- manifest `database.actions.*` flags match Python `CommandSpec.database_actions`;
 - manifest triggers match Python trigger specs;
 - trigger `action_mode` is `foreground`, `background`, or `service`;
 - duplicate trigger names in one manifest are rejected.
@@ -210,15 +332,14 @@ runtime policy.
 
 # What The Manifest Is Not
 
-The manifest is not a replacement for the Python plugin API.
+The manifest is not a replacement for the Python plugin API. It can define the
+ordinary command-line interface for `ManifestCommandlet`, but the commandlet
+still owns behavior, validation beyond simple type/choice checks, event
+publishing, artifacts, and follow-up logic in Python.
 
-It does not define runtime argument parsing. Plugin authors still parse
-execution arguments inside `run()` with `self.parser()` and standard argparse
-calls.
-
-It does not currently define a full pre-import help/completion catalog. Bywaf
-can read manifest metadata before plugin import in some trust paths, but the
-manifest is primarily a sidecar trust and consistency document.
+It does not currently define a complete pre-import execution catalog. Bywaf can
+read manifest metadata before plugin import for listing, completion, declared
+variables, and checks, but execution still imports trusted plugin code.
 
 It is not a sandbox. Native and library-backed plugins are still Python code.
 Signatures and manifest checks establish provenance and detect drift; they do

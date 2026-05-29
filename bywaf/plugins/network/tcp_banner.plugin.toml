@@ -4,6 +4,13 @@ service = false
 
 [[commandlets]]
 name = "tcp_banner"
+description = "Grab TCP service banners from explicit hosts or port.open input."
+usage = "tcp_banner [port=N] [mode=banner|http-head] [host[:port] ...]"
+examples = [
+  "tcp_banner 127.0.0.1:22",
+  "portscanner host=127.0.0.1 port=22,80 | tcp_banner",
+  "tcp_banner mode=http-head 127.0.0.1:8080",
+]
 consumes = [
   "port.open",
 ]
@@ -15,3 +22,39 @@ capabilities = [
   "network.connect",
 ]
 module = "bywaf.plugins.network.tcp_banner"
+
+[[commandlets.arguments]]
+name = "targets"
+description = "explicit host[:port] targets"
+nargs = "*"
+
+[[commandlets.options]]
+name = "mode"
+description = "probe mode"
+type = "str"
+default = "banner"
+choices = ["banner", "http-head"]
+
+[[commandlets.options]]
+name = "port"
+description = "explicit port for host arguments"
+type = "optional-int"
+default = ""
+
+[[commandlets.options]]
+name = "read-bytes"
+description = "maximum bytes to read"
+type = "int"
+default = "256"
+
+[[commandlets.options]]
+name = "silent"
+description = "suppress banner alerts"
+type = "bool"
+default = "false"
+
+[[commandlets.options]]
+name = "timeout"
+description = "connection and read timeout seconds"
+type = "float"
+default = "3"

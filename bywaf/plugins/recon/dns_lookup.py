@@ -11,63 +11,65 @@ from __future__ import annotations
 
 import importlib
 from collections.abc import Iterable
-from typing import Any
+from pathlib import Path
+from typing import Any, cast
 
 from bywaf.events import Event
-from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
-from bywaf.plugins._args import key_value_to_long_options
-
-DEFAULTS = {"record-type": "A", "resolver": "", "timeout": "5"}
-OPTION_KEYS = {"record-type", "resolver", "timeout"}
-
-
-@commandlet(
-    name="dns_lookup",
-    description="Resolve DNS records with dnspython.",
-    usage="dns_lookup [record-type=TYPE] [resolver=IP] <name ...>",
-    examples=("dns_lookup example.com", "dns_lookup record-type=MX example.com"),
-    emits=("dns.record", "dns.error"),
-    capabilities=("db.write:dns.record", "db.write:dns.error", "network.connect"),
+from bywaf.plugin import (
+    CommandContext,
+    Commandlet,
+    ManifestCommandlet,
+    RunConfig,
+    manifest_arguments_from_manifest,
+    spec_from_manifest,
 )
-@option("record-type", "DNS record type", "A")
-@option("resolver", "resolver IP address")
-@option("timeout", "DNS timeout seconds", "5")
-class DnsLookup(CommandletBase):
-    def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
+
+MANIFEST = Path(__file__).with_suffix(".plugin.toml")
+
+
+class DnsLookup(ManifestCommandlet):
+    spec = spec_from_manifest(MANIFEST, "dns_lookup")
+    manifest_arguments = manifest_arguments_from_manifest(MANIFEST, "dns_lookup")
+
+    def handle(self, context: CommandContext, cfg: RunConfig, input_events: Iterable[Event]):
         """Resolve one or more names and publish DNS records."""
         del input_events
-        parser = self.parser()
-        parser.add_argument("names", nargs="+")
-        parser.add_argument("--record-type", default=self.var_default(context, "record-type", "A"))
-        parser.add_argument("--resolver", default=self.var_default(context, "resolver", ""))
-        parser.add_argument("--timeout", type=float, default=self.var_default(context, "timeout", 5, cast=float))
-        parsed = parser.parse_args(key_value_to_long_options(args, OPTION_KEYS))
+        cfg = cast(DnsLookupConfig, cfg)
         resolver_mod = optional_module(context, "dns.resolver", "dnspython")
         if resolver_mod is None:
             return ()
         resolver = resolver_mod.Resolver()
-        resolver.lifetime = parsed.timeout
-        resolver.timeout = parsed.timeout
-        if parsed.resolver:
+        resolver.lifetime = cfg.timeout
+        resolver.timeout = cfg.timeout
+        if cfg.resolver:
             # A user-specified resolver applies only to this invocation; it is
             # not written back to global resolver configuration.
-            resolver.nameservers = [parsed.resolver]
-        for name in parsed.names:
+            resolver.nameservers = [cfg.resolver]
+        for name in cfg.names:
             context.audit_capability("network.connect")
             try:
-                answer = resolver.resolve(name, parsed.record_type)
+                answer = resolver.resolve(name, cfg.record_type)
             except Exception as exc:
                 context.events.publish(
                     "dns.error",
-                    {"name": name, "record_type": parsed.record_type, "error": str(exc)},
+                    {"name": name, "record_type": cfg.record_type, "error": str(exc)},
                 )
                 continue
             for record in answer:
                 context.events.publish(
                     "dns.record",
-                    {"name": name, "record_type": parsed.record_type, "value": record.to_text()},
+                    {"name": name, "record_type": cfg.record_type, "value": record.to_text()},
                 )
         return ()
+
+
+class DnsLookupConfig(RunConfig):
+    """Typed effective config for dns_lookup."""
+
+    names: list[str]
+    record_type: str
+    resolver: str
+    timeout: float
 
 
 def optional_module(context: CommandContext, module_name: str, package_name: str) -> Any | None:

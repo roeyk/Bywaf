@@ -1183,6 +1183,29 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(runner.registry.varstore.get("discovery/hostscanner.targets"), "127.0.0.1")
             self.assertEqual(runner.registry.varstore.get("target"), "global")
 
+    def test_set_lists_active_context_vars_separately(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "set zeta=last", state)
+                dispatch_repl_line(runner, "set aardvark=first", state)
+                dispatch_repl_line(runner, "use hostscanner", state)
+                dispatch_repl_line(runner, "set beta=2", state)
+                dispatch_repl_line(runner, "set alpha=1", state)
+                dispatch_repl_line(runner, "set", state)
+            text = output.getvalue()
+            variables_index = text.index("Variables:")
+            active_index = text.index("In-focus variables (discovery/hostscanner):")
+            self.assertLess(variables_index, active_index)
+            self.assertLess(text.index("aardvark=first"), text.index("zeta=last"))
+            self.assertLess(
+                text.index("discovery/hostscanner.alpha=1"),
+                text.index("discovery/hostscanner.beta=2"),
+            )
+            self.assertGreater(text.index("discovery/hostscanner.alpha=1"), active_index)
+
     def test_vars_name_prints_one_variable_value(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

@@ -16,7 +16,8 @@ from unittest.mock import Mock, patch
 from bywaf.artifacts import artifact_store_for_event_store
 from bywaf.db import EventStore
 from bywaf.events import Event
-from bywaf.plugin import CommandContext
+from bywaf.plugin import CommandContext, RunConfig
+from bywaf.varstore import VarStore
 from bywaf.plugins.analysis.yara_scan import YaraScan
 from bywaf.plugins.identity.smb_probe import SmbProbe, safe_call, safe_shares
 from bywaf.plugins.http.eyewitness import publish_screenshot, publish_screenshotted_hosts
@@ -127,6 +128,29 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertEqual(events[0]["port"], 22)
             self.assertEqual(events[0]["protocol"], "tcp")
             self.assertEqual(events[0]["banner"], "SSH-2.0-Test")
+
+    def test_manifest_config_uses_cli_vars_and_defaults(self):
+        store = VarStore()
+        store.set("tcp_banner.timeout", "1.5")
+        context = CommandContext(db=None, source="tcp_banner", _varstore=store)
+        parsed = TcpBannerGrabber().parse_manifest_args(context, ["port=22", "silent=true", "192.0.2.10"])
+        cfg = RunConfig({name: getattr(parsed, name) for name in vars(parsed)})
+        self.assertEqual(cfg.targets, ["192.0.2.10"])
+        self.assertEqual(cfg.port, 22)
+        self.assertTrue(cfg.silent)
+        self.assertEqual(cfg.timeout, 1.5)
+        self.assertEqual(cfg.read_bytes, 256)
+
+    def test_manifest_config_is_per_run_immutable_snapshot(self):
+        store = VarStore()
+        store.set("tcp_banner.timeout", "1")
+        context = CommandContext(db=None, source="tcp_banner", _varstore=store)
+        parsed = TcpBannerGrabber().parse_manifest_args(context, [])
+        cfg = RunConfig({name: getattr(parsed, name) for name in vars(parsed)})
+        store.set("tcp_banner.timeout", "9")
+        self.assertEqual(cfg.timeout, 1.0)
+        with self.assertRaisesRegex(AttributeError, "immutable"):
+            cfg.timeout = 2.0
 
     def test_smb_helpers_tolerate_metadata_errors(self):
         bad = Mock()

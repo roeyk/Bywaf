@@ -5,9 +5,42 @@ service = false
 
 [[commandlets]]
 name = "dns_lookup"
+description = "Resolve DNS records with dnspython."
+usage = "dns_lookup [record-type=TYPE] [resolver=IP] <name ...>"
+examples = [
+  "dns_lookup example.com",
+  "dns_lookup record-type=MX example.com",
+]
+emits = [
+  "dns.record",
+  "dns.error",
+]
 capabilities = [
   "db.write:dns.record",
   "db.write:dns.error",
   "network.connect",
 ]
 module = "bywaf.plugins.recon.dns_lookup"
+
+[[commandlets.arguments]]
+name = "names"
+description = "DNS names to resolve"
+nargs = "+"
+
+[[commandlets.options]]
+name = "record-type"
+description = "DNS record type"
+type = "str"
+default = "A"
+
+[[commandlets.options]]
+name = "resolver"
+description = "resolver IP address"
+type = "str"
+default = ""
+
+[[commandlets.options]]
+name = "timeout"
+description = "DNS timeout seconds"
+type = "float"
+default = "5"

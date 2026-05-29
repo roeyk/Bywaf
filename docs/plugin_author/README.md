@@ -9,6 +9,7 @@ into focused pages so each page has one job and can be read independently.
 - [Current API At A Glance](#current-api-at-a-glance)
 - [Choose A Starting Point](#choose-a-starting-point)
 - [Plugin Shape](#plugin-shape)
+- [Configuration Rule](#configuration-rule)
 - [Find It At A Glance](#find-it-at-a-glance)
 
 ## What To Do First
@@ -55,6 +56,7 @@ bywaf.plugin.toml  sidecar manifest contract for capabilities and traits
 
 The current plugin API centers on:
 
+- `ManifestCommandlet` for manifest-declared options and per-run `cfg`
 - `@commandlet`, `@argument`, and `@option` metadata
 - `CommandletBase`
 - `CommandContext`
@@ -89,11 +91,29 @@ Bywaf plugins provide commandlets. A commandlet is a small class with:
 Commandlets can publish events by yielding dictionaries. The runner inserts
 those dictionaries into SQLite under the first topic listed in `spec.emits`.
 
+## Configuration Rule
+
+For new commandlets, prefer manifest-backed configuration:
+
+- declare public options and variables in `bywaf.plugin.toml`
+- subclass `ManifestCommandlet`
+- implement `handle(self, context, cfg, input_events)`
+- read effective settings from `cfg`, not by repeatedly calling `context.vars`
+
+`cfg` is a frozen per-run snapshot. It merges command-line overrides, stored
+plugin variables, and manifest defaults before the commandlet starts. Later
+operator changes affect the next invocation, not work already running.
+
+Long-running commandlets should not treat ordinary plugin variables as live
+control state. Use explicit runtime control/events for live changes so the
+operator action is visible and auditable.
+
 ## Find It At A Glance
 
 | Need | Go to |
 | --- | --- |
 | Current decorator API | [Plugin Fundamentals](fundamentals.md#current-api-not-generic-plugin-patterns) |
+| Manifest-backed `cfg` | [Commandlet API Reference](commandlet-api.md#manifest-backed-configuration) |
 | `@argument` vs `@option` | [Plugin Fundamentals](fundamentals.md#defining-inputs-arguments-vs-options) |
 | Full tiny plugin example | [Plugin Fundamentals](fundamentals.md#complete-external-plugin-example) |
 | `CommandSpec` fields | [Commandlet API Reference](commandlet-api.md#commandspec-fields) |
