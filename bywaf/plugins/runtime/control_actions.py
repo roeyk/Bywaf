@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.plugins.runtime.job import cancel_job, kill_job, require_job
 from bywaf.plugins.runtime.pipeline import cancel_pipeline, kill_pipeline
@@ -28,49 +27,10 @@ from .control_operations import (
     stop_pipeline,
     stop_run,
 )
+from .control_signals import publish_runtime_signal
 
 ControlHandler = Callable[[CommandContext, str, bool, bool], None]
 SignalHandler = Callable[[CommandContext, str, bool], None]
-
-
-def publish_runtime_signal(
-    context: CommandContext,
-    target_type: str,
-    target_id: str,
-    action: str,
-    args: dict[str, str],
-    *,
-    mode: str,
-) -> Event:
-    """Publish the canonical audited runtime signal event."""
-    events = context.event_store("signal")
-    # Signals are durable coordination records first. Some actions are also
-    # applied immediately by the framework, but commandlets can independently
-    # observe these events for cooperative live control.
-    if target_type in {"job", "run"}:
-        context.audit_capability("framework.job.control")
-    if target_type in {"pipeline", "run"}:
-        context.audit_capability("framework.pipeline.control")
-    payload = {
-        "target_type": target_type,
-        "target_id": target_id,
-        "action": action,
-        "args": args,
-        "mode": mode,
-    }
-    if target_type == "job":
-        payload["job_id"] = target_id
-    if target_type == "pipeline":
-        payload["pipeline_id"] = target_id
-    if target_type == "run":
-        payload["command_run_id"] = target_id
-    return events.publish(
-        "runtime.signal.requested",
-        payload,
-        "framework",
-        pipeline_id=target_id if target_type == "pipeline" else None,
-        command_run_id=target_id if target_type == "run" else None,
-    )
 
 
 def dispatch_framework_signal(context: CommandContext, parsed: dict[str, object]) -> None:
