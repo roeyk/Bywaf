@@ -244,7 +244,7 @@ def internal_imports(
 ) -> Iterable[str]:
     """Yield normalized imports that point inside the measured package."""
     known = modules | packages
-    for node in ast.walk(tree):
+    for node in runtime_import_nodes(tree):
         match node:
             case ast.Import(names=names):
                 for alias in names:
@@ -266,6 +266,47 @@ def internal_imports(
                 if normalized is not None and not normalized_children:
                     yield normalized
                 yield from normalized_children
+
+
+def runtime_import_nodes(tree: ast.AST) -> Iterable[ast.Import | ast.ImportFrom]:
+    """Yield import statements that execute at runtime.
+
+    Type-only imports still matter to a type checker, but they do not create a
+    runtime dependency edge. The architecture graph is intentionally focused on
+    runtime coupling and import cycles.
+    """
+
+    class Visitor(ast.NodeVisitor):
+        def __init__(self) -> None:
+            self.imports: list[ast.Import | ast.ImportFrom] = []
+
+        def visit_Import(self, node: ast.Import) -> None:  # noqa: N802
+            self.imports.append(node)
+
+        def visit_ImportFrom(self, node: ast.ImportFrom) -> None:  # noqa: N802
+            self.imports.append(node)
+
+        def visit_If(self, node: ast.If) -> None:  # noqa: N802
+            if is_type_checking_guard(node.test):
+                for child in node.orelse:
+                    self.visit(child)
+                return
+            self.generic_visit(node)
+
+    visitor = Visitor()
+    visitor.visit(tree)
+    return tuple(visitor.imports)
+
+
+def is_type_checking_guard(node: ast.AST) -> bool:
+    """Return whether an `if` test is a TYPE_CHECKING guard."""
+    match node:
+        case ast.Name(id="TYPE_CHECKING"):
+            return True
+        case ast.Attribute(value=ast.Name(id="typing"), attr="TYPE_CHECKING"):
+            return True
+        case _:
+            return False
 
 
 def normalize_absolute_import(imported: str, package: str, known: set[str]) -> str | None:

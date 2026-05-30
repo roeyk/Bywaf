@@ -37,6 +37,32 @@ def test_architecture_metrics_counts_internal_imports_and_cycles(tmp_path: Path)
     assert any({"pkg.a", "pkg.b", "pkg.c"} == set(cycle) for cycle in metrics.cycles)
 
 
+def test_architecture_metrics_ignores_type_checking_imports(tmp_path: Path) -> None:
+    root = tmp_path / "pkg"
+    write(root / "__init__.py", "")
+    write(
+        root / "a.py",
+        "from typing import TYPE_CHECKING\n\n"
+        "if TYPE_CHECKING:\n"
+        "    from . import b\n\n"
+        "VALUE = 1\n",
+    )
+    write(
+        root / "b.py",
+        "import typing\n\n"
+        "if typing.TYPE_CHECKING:\n"
+        "    import pkg.a\n\n"
+        "VALUE = 2\n",
+    )
+
+    metrics = collect_architecture_metrics(root, package="pkg")
+    by_name = {module.name: module for module in metrics.modules}
+
+    assert by_name["pkg.a"].imports == ()
+    assert by_name["pkg.b"].imports == ()
+    assert metrics.cycles == ()
+
+
 def test_architecture_metrics_text_report_names_pressure_points(tmp_path: Path) -> None:
     root = tmp_path / "pkg"
     write(root / "__init__.py", "")
