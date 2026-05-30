@@ -99,6 +99,21 @@ class TcpBanner(EventSchemaObject):
 
 
 @dataclass(frozen=True)
+class NetworkRouteHop(EventSchemaObject):
+    """One hop observed while tracing a route to a target."""
+
+    __topic__ = "network.route.hop"
+
+    target: str
+    hop: int
+    host: str | None = None
+    ip: str | None = None
+    rtt_ms: float | None = None
+    status: str | None = None
+    scanner: str | None = None
+
+
+@dataclass(frozen=True)
 class SmbShareFound(EventSchemaObject):
     """An SMB share observed on a host."""
 
@@ -137,6 +152,7 @@ __all__ = [
     "HostFound",
     "HttpEndpoint",
     "NameResolved",
+    "NetworkRouteHop",
     "OpenPort",
     "ScreenshottedHost",
     "SmbShareFound",

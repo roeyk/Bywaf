@@ -11,7 +11,7 @@ import unittest
 
 from dataclasses import dataclass
 
-from bywaf.event_schema_objects import ArtifactAttached, HostFound, HttpEndpoint, NameResolved, OpenPort, ScreenshottedHost, SmbShareFound, TcpBanner
+from bywaf.event_schema_objects import ArtifactAttached, HostFound, HttpEndpoint, NameResolved, NetworkRouteHop, OpenPort, ScreenshottedHost, SmbShareFound, TcpBanner
 from bywaf.event_schemas import EVENT_SCHEMAS, EventSchemaObject, schema_object, validate_event_payload
 from bywaf.events import Event
 
@@ -33,6 +33,7 @@ class EventSchemaTests(unittest.TestCase):
         self.assertEqual(EVENT_SCHEMAS["http.endpoint"].required_fields, ("url", "host", "port", "scheme"))
         self.assertEqual(EVENT_SCHEMAS["web.screenshotted_host"].required_fields, ("host", "urls", "screenshots"))
         self.assertEqual(EVENT_SCHEMAS["tcp.banner"].required_fields, ("host", "port", "protocol"))
+        self.assertEqual(EVENT_SCHEMAS["network.route.hop"].required_fields, ("target", "hop"))
         self.assertEqual(EVENT_SCHEMAS["smb.share.found"].required_fields, ("host", "share"))
 
     def test_valid_shared_payloads_pass(self):
@@ -42,6 +43,7 @@ class EventSchemaTests(unittest.TestCase):
             ("http.endpoint", {"url": "https://example.test/", "host": "example.test", "port": 443, "scheme": "https", "status": 200}),
             ("web.screenshotted_host", {"host": "example.test", "urls": ["https://example.test/"], "screenshots": [{"artifact_id": "artifact-1"}]}),
             ("tcp.banner", {"host": "192.0.2.10", "port": 22, "protocol": "tcp", "banner": "SSH-2.0-OpenSSH"}),
+            ("network.route.hop", {"target": "example.test", "hop": 1, "host": "192.0.2.1", "rtt_ms": 1.5, "status": "responded"}),
             ("smb.share.found", {"host": "dc01.example.test", "share": "SYSVOL", "access": "read", "authenticated": True}),
             ("finding.candidate", {"title": "Example finding", "class": "example.finding"}),
             ("artifact.attached", {"artifact_id": "artifact-1", "name": "scan.json", "content_type": "application/json", "sha256": "a" * 64, "size": 10}),
@@ -66,6 +68,10 @@ class EventSchemaTests(unittest.TestCase):
         self.assertEqual(
             validate_event_payload("tcp.banner", {"host": "192.0.2.10", "port": 22, "protocol": "udp"}),
             ["tcp.banner.protocol must be one of: tcp"],
+        )
+        self.assertEqual(
+            validate_event_payload("network.route.hop", {"target": "example.test", "hop": "1"}),
+            ["network.route.hop.hop must be int"],
         )
 
     def test_plugin_private_topics_are_free_form(self):
@@ -134,6 +140,12 @@ class EventSchemaTests(unittest.TestCase):
                 "scanner": "nmap",
             },
         )
+
+    def test_route_hop_schema_object_round_trips(self):
+        hop = NetworkRouteHop("example.test", 2, host="router", ip="192.0.2.1", rtt_ms=1.25, status="responded")
+        event = Event.new("network.route.hop", hop.to_payload(), "traceroute")
+
+        self.assertEqual(NetworkRouteHop.from_event(event), hop)
 
     def test_schema_object_base_rejects_invalid_serialized_payloads(self):
         port = OpenPort("192.0.2.10", 445, "icmp")

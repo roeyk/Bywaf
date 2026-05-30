@@ -1,0 +1,56 @@
+[plugin]
+process_wrapped = true
+service = false
+
+[[commandlets]]
+name = "traceroute"
+description = "Trace network route hops for explicit targets or host.found input."
+usage = "traceroute [binary=traceroute] [max-hops=30] [timeout=5] <target ...>"
+examples = [
+  "traceroute 192.0.2.10",
+  "hostscanner 192.168.50.0/24 | traceroute",
+  "traceroute binary=tracepath 192.0.2.10",
+]
+consumes = [
+  "host.found",
+]
+emits = [
+  "network.route.hop",
+]
+capabilities = [
+  "db.write:tool.error",
+  "framework.console.alert",
+  "framework.process.run",
+  "process.run",
+]
+module = "bywaf.plugins.network.traceroute"
+
+[[commandlets.arguments]]
+name = "targets"
+description = "hosts or addresses to trace"
+nargs = "*"
+
+[[commandlets.options]]
+name = "binary"
+description = "traceroute executable"
+type = "str"
+default = "traceroute"
+completion = "path"
+
+[[commandlets.options]]
+name = "max-hops"
+description = "maximum hops"
+type = "int"
+default = "30"
+
+[[commandlets.options]]
+name = "silent"
+description = "suppress per-target alerts"
+type = "bool"
+default = "false"
+
+[[commandlets.options]]
+name = "timeout"
+description = "per-hop wait time in seconds"
+type = "float"
+default = "5"

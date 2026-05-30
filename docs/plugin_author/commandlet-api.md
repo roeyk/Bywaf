@@ -301,8 +301,8 @@ spec = CommandSpec(
 For common topics, treat the topic as a shared payload schema. Tool-native or
 scanner-specific detail can stay in plugin-private topics or artifacts, while
 portable facts should use framework-known topics such as `host.found`,
-`port.open`, `http.endpoint`, `smb.share.found`, `finding.candidate`, or
-`artifact.attached`.
+`port.open`, `http.endpoint`, `network.route.hop`, `smb.share.found`,
+`finding.candidate`, or `artifact.attached`.
 
 Example layering:
 

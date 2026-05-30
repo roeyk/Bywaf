@@ -238,6 +238,7 @@ def render_results(context: CommandContext, scope: Namespace) -> str:
     name_events = [event for event in scope.events if event.topic == "name.resolved"]
     port_events = [event for event in scope.events if event.topic == "port.open"]
     banner_events = [event for event in scope.events if event.topic == "tcp.banner"]
+    route_events = [event for event in scope.events if event.topic == "network.route.hop"]
     endpoint_events = [event for event in scope.events if event.topic == "http.endpoint"]
     if host_events:
         sections.append(render_hosts_section(context, host_events))
@@ -247,9 +248,11 @@ def render_results(context: CommandContext, scope: Namespace) -> str:
         sections.append(render_ports_section(context, port_events, scope))
     if banner_events:
         sections.append(render_tcp_banners_section(context, banner_events))
+    if route_events:
+        sections.append(render_route_hops_section(context, route_events))
     if endpoint_events:
         sections.append(render_http_endpoints_section(context, endpoint_events))
-    summarized_topics = {"host.found", "name.resolved", "port.open", "tcp.banner", "http.endpoint"}
+    summarized_topics = {"host.found", "name.resolved", "port.open", "tcp.banner", "network.route.hop", "http.endpoint"}
     other_events = [event for event in scope.events if event.topic not in summarized_topics]
     if other_events:
         sections.append(render_event_topic_summary(context, other_events))
@@ -369,6 +372,44 @@ def render_tcp_banners_section(context: CommandContext, events: list[Event]) -> 
         max_width=terminal_table_width(),
     )
     return f"TCP banners ({len(events)})\n{table}"
+
+
+def render_route_hops_section(context: CommandContext, events: list[Event]) -> str:
+    """Render route traces as a compact result table."""
+    rows = [
+        (
+            event.payload.get("target", ""),
+            event.payload.get("hop", ""),
+            event.payload.get("host", "") or event.payload.get("status", ""),
+            event.payload.get("ip", ""),
+            format_rtt(event.payload.get("rtt_ms")),
+        )
+        for event in sorted(
+            events,
+            key=lambda event: (
+                str(event.payload.get("target") or ""),
+                int(event.payload.get("hop") or 0),
+                event.id or 0,
+            ),
+        )
+    ]
+    table = render_table(
+        ("TARGET", "HOP", "HOST / STATUS", "IP", "RTT"),
+        rows,
+        cell_subjects=("host", "step", "host", "host", "value"),
+        style_getter=command_context_style_getter(context),
+        max_width=terminal_table_width(),
+    )
+    return f"Route hops ({len(events)})\n{table}"
+
+
+def format_rtt(value: object) -> str:
+    """Format one route hop round-trip time."""
+    if value in (None, ""):
+        return ""
+    if isinstance(value, (int, float)):
+        return f"{value:g} ms"
+    return str(value)
 
 
 def no_results_message(context: CommandContext) -> str:

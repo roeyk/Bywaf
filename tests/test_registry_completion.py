@@ -99,6 +99,7 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn("smb_probe", self.registry.names())
         self.assertIn("snmp_get", self.registry.names())
         self.assertIn("ssh_probe", self.registry.names())
+        self.assertIn("traceroute", self.registry.names())
         self.assertIn("eyewitness", self.registry.names())
         self.assertIn("http_headers", self.registry.names())
         self.assertIn("http_probe", self.registry.names())
@@ -148,6 +149,7 @@ class RegistryCompletionTests(unittest.TestCase):
                 "network.snmp_get",
                 "network.ssh_probe",
                 "network.tcp_banner",
+                "network.traceroute",
                 "recon.dns_lookup",
                 "recon.shodan_lookup",
                 "http.http_headers",
@@ -277,7 +279,7 @@ class RegistryCompletionTests(unittest.TestCase):
     def test_registry_tracks_provider_groups(self):
         self.assertEqual(self.registry.grouped_names()["analysis"], ["finding_dedupe", "finding_report", "report", "yara_scan"])
         self.assertEqual(self.registry.grouped_names()["identity"], ["ldap_probe", "smb_probe"])
-        self.assertEqual(self.registry.grouped_names()["network"], ["ports", "portscanner", "snmp_get", "ssh_probe", "tcp_banner"])
+        self.assertEqual(self.registry.grouped_names()["network"], ["ports", "portscanner", "snmp_get", "ssh_probe", "tcp_banner", "traceroute"])
         self.assertIn("os", self.registry.provider_names())
         self.assertEqual(self.registry.grouped_names()["os"], ["cat", "less", "ls"])
         self.assertEqual(self.registry.grouped_names()["recon"], ["dns_lookup", "shodan_lookup"])

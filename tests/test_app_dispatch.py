@@ -1946,6 +1946,35 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("TCP banners", text)
             self.assertIn("SSH-2.0-OpenSSH", text)
 
+    def test_results_renders_route_hop_summaries(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.record_job("network/traceroute 192.0.2.20", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=1,
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+                commandlet="network/traceroute",
+                values={},
+            )
+            runner.db.publish(
+                "network.route.hop",
+                {"target": "192.0.2.20", "hop": 1, "host": "router", "ip": "192.0.2.1", "rtt_ms": 1.25, "status": "responded"},
+                "traceroute",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "results")
+
+            text = output.getvalue()
+            self.assertIn("Shared schemas: network.route.hop", text)
+            self.assertIn("Route hops", text)
+            self.assertIn("192.0.2.1", text)
+            self.assertIn("1.25 ms", text)
+
     def test_results_passes_sort_to_embedded_ports_view(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

@@ -161,6 +161,19 @@ EVENT_SCHEMAS: dict[str, EventSchema] = {
             FieldSchema("scanner", "str", False, "Tool or backend that produced the observation."),
         ),
     ),
+    "network.route.hop": EventSchema(
+        topic="network.route.hop",
+        summary="One hop observed while tracing a route to a target.",
+        fields=(
+            FieldSchema("target", "str", True, "Original trace target."),
+            FieldSchema("hop", "int", True, "One-based hop number."),
+            FieldSchema("host", "str", False, "Hop hostname or address text, when known."),
+            FieldSchema("ip", "str", False, "Concrete hop IP address, when known."),
+            FieldSchema("rtt_ms", "number", False, "First observed round-trip time in milliseconds."),
+            FieldSchema("status", "str", False, "Hop observation status.", ("responded", "timeout")),
+            FieldSchema("scanner", "str", False, "Tool or backend that produced the observation."),
+        ),
+    ),
     "smb.share.found": EventSchema(
         topic="smb.share.found",
         summary="An SMB share was observed on a host.",

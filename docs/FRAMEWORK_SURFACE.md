@@ -67,6 +67,7 @@ base installation commandlets that declare or use each capability.
 | `db.write:kismet.network` | `wifi_scan` |
 | `db.write:ldap.server` | `ldap_probe` |
 | `db.write:network.error` | `nikto` |
+| `db.write:network.route.hop` | `traceroute` |
 | `db.write:nikto.finding` | `nikto` |
 | `db.write:report.rendered` | `report` |
 | `db.write:name.resolved` | `hostscanner` |
@@ -76,7 +77,7 @@ base installation commandlets that declare or use each capability.
 | `db.write:snmp.value` | `snmp_get` |
 | `db.write:ssh.service` | `ssh_probe` |
 | `db.write:system.error` | `eyewitness`, `nikto`, `screenshotter`, `wifi_scan` |
-| `db.write:tool.error` | `eyewitness`, `ldap_probe`, `nikto`, `screenshotter`, `shodan_lookup`, `smb_probe`, `snmp_get`, `ssh_probe`, `wifi_scan`, `yara_scan` |
+| `db.write:tool.error` | `eyewitness`, `ldap_probe`, `nikto`, `screenshotter`, `shodan_lookup`, `smb_probe`, `snmp_get`, `ssh_probe`, `traceroute`, `wifi_scan`, `yara_scan` |
 | `db.write:tool.exception` | `nikto` |
 | `db.write:vulnerability.found` | `nikto` |
 | `db.write:vulnerability.potential` | `nikto` |
@@ -89,17 +90,17 @@ base installation commandlets that declare or use each capability.
 | `db.write:yara.match` | `yara_scan` |
 | `filesystem.read` | `artifact`, `cat`, `db`, `eyewitness`, `finding_dedupe`, `finding_report`, `http_probe`, `key`, `less`, `ls`, `nikto`, `note`, `screenshotter`, `wifi_scan`, `yara_scan` |
 | `filesystem.write` | `artifact`, `audit`, `bundle`, `db`, `eyewitness`, `finding_dedupe`, `finding_report`, `key`, `nikto`, `note`, `screenshotter`, `wifi_scan` |
-| `framework.console.alert` | `eyewitness`, `git_expose_check`, `hostscanner`, `http_probe`, `nikto`, `portscanner`, `screenshotter`, `tcp_banner`, `watchdog`, `webfin`, `wifi_scan` |
+| `framework.console.alert` | `eyewitness`, `git_expose_check`, `hostscanner`, `http_probe`, `nikto`, `portscanner`, `screenshotter`, `tcp_banner`, `traceroute`, `watchdog`, `webfin`, `wifi_scan` |
 | `framework.console.output` | `artifact`, `audit`, `bundle`, `cancel`, `cat`, `db`, `end`, `finding_dedupe`, `job`, `key`, `kill`, `ls`, `name`, `note`, `pause`, `pipeline`, `report`, `resume`, `search`, `signal`, `stop` |
 | `framework.file.page` | `less` |
 | `framework.job.control` | `cancel`, `end`, `job`, `kill`, `pause`, `pipeline`, `resume`, `signal`, `stop` |
 | `framework.pipeline.control` | `cancel`, `end`, `kill`, `pause`, `pipeline`, `resume`, `signal`, `stop` |
-| `framework.process.run` | `eyewitness`, `nikto`, `screenshotter`, `wifi_scan` |
+| `framework.process.run` | `eyewitness`, `nikto`, `screenshotter`, `traceroute`, `wifi_scan` |
 | `framework.render.table` | `finding_report` |
 | `framework.secret.resolve` | `ldap_probe`, `shodan_lookup`, `smb_probe`, `ssh_probe` |
 | `network.connect` | `dns_lookup`, `eyewitness`, `git_expose_check`, `hostscanner`, `http_headers`, `http_probe`, `ldap_probe`, `nikto`, `portscanner`, `screenshotter`, `shodan_lookup`, `smb_probe`, `snmp_get`, `ssh_probe`, `tcp_banner`, `webfin` |
 | `network.listen` | `wifi_scan` |
-| `process.run` | `eyewitness`, `nikto`, `screenshotter`, `wifi_scan` |
+| `process.run` | `eyewitness`, `nikto`, `screenshotter`, `traceroute`, `wifi_scan` |
 
 ## Trigger Rules
 
@@ -140,6 +141,7 @@ the association and `Consumes` is the normal consumer side.
 | `smb_probe` | none | `smb.server` |
 | `snmp_get` | none | `snmp.value` |
 | `ssh_probe` | `port.open` | `ssh.service` |
+| `traceroute` | `host.found` | `network.route.hop` |
 | `watchdog` | none | `watchdog.timeout`, `watchdog.stalled`, `watchdog.error_rate` |
 | `webfin` | `http.endpoint` | `web.fingerprint` |
 | `wifi_scan` | none | `wifi.network`, `kismet.network` |

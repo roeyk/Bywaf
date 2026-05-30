@@ -24,6 +24,7 @@ from bywaf.plugins.http.eyewitness import publish_screenshot, publish_screenshot
 from bywaf.plugins.http.screenshotter import Screenshotter
 from bywaf.plugins.network.ssh_probe import SshProbe, ssh_targets
 from bywaf.plugins.network.tcp_banner import banner_targets, probe_bytes, target_from_text, tcp_banner
+from bywaf.plugins.network.traceroute import parse_traceroute_output, trace_targets, traceroute
 from bywaf.plugins.recon.dns_lookup import dns_lookup, optional_module
 from bywaf.plugins.recon.shodan_lookup import ShodanLookup
 
@@ -128,6 +129,44 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertEqual(events[0]["port"], 22)
             self.assertEqual(events[0]["protocol"], "tcp")
             self.assertEqual(events[0]["banner"], "SSH-2.0-Test")
+
+    def test_traceroute_uses_host_found_input_events(self):
+        targets = trace_targets(
+            [],
+            [
+                Event.new("host.found", {"host": "192.0.2.10", "status": "up"}, "hostscanner"),
+                Event.new("host.found", {"host": "192.0.2.10", "status": "up"}, "hostscanner"),
+            ],
+        )
+        self.assertEqual(targets, ["192.0.2.10"])
+
+    def test_traceroute_parser_handles_replies_and_timeouts(self):
+        output = "\n".join(
+            [
+                "traceroute to example.test (192.0.2.20), 30 hops max",
+                " 1  router.local (192.0.2.1)  1.123 ms  1.001 ms",
+                " 2  * * *",
+                " 3:  192.0.2.20  10.5ms",
+            ]
+        )
+        hops = parse_traceroute_output("example.test", output)
+        self.assertEqual(hops[0].hop, 1)
+        self.assertEqual(hops[0].host, "router.local")
+        self.assertEqual(hops[0].ip, "192.0.2.1")
+        self.assertEqual(hops[0].rtt_ms, 1.123)
+        self.assertEqual(hops[1].status, "timeout")
+        self.assertEqual(hops[2].ip, "192.0.2.20")
+
+    def test_traceroute_emits_route_hop_payloads(self):
+        completed = SimpleNamespace(ok=True, stdout=" 1  router (192.0.2.1)  1.0 ms\n", stderr="", returncode=0)
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(db=db, source="traceroute", metadata={"capabilities": traceroute.spec.capabilities})
+            with patch("bywaf.plugins.network.traceroute.run_traceroute", return_value=completed):
+                events = list(traceroute.run(context, ["192.0.2.10"], []))
+            self.assertEqual(events[0]["target"], "192.0.2.10")
+            self.assertEqual(events[0]["hop"], 1)
+            self.assertEqual(events[0]["ip"], "192.0.2.1")
 
     def test_manifest_config_uses_cli_vars_and_defaults(self):
         store = VarStore()

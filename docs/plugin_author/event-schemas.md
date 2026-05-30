@@ -25,6 +25,7 @@ Use a shared schema when the data should be useful outside your plugin:
 - `http.endpoint`: an HTTP or HTTPS endpoint is reachable
 - `web.screenshotted_host`: one host or endpoint has screenshot artifacts
 - `tcp.banner`: a TCP service banner or first response was captured
+- `network.route.hop`: one hop observed while tracing a route
 - `smb.share.found`: an SMB share exists on a host
 - `finding.candidate`: a normalized security finding that should enter review
 - `artifact.attached`: artifact metadata attached to provenance
@@ -85,6 +86,7 @@ Framework-provided schema object classes currently live in `bywaf.event_schema_o
 - `HttpEndpoint`
 - `ScreenshottedHost`
 - `TcpBanner`
+- `NetworkRouteHop`
 - `SmbShareFound`
 - `ArtifactAttached`
 
@@ -195,6 +197,24 @@ for address in addresses:
         "name.resolved",
         {"name": "www.example.test", "host": address, "resolver": "system"},
     )
+```
+
+Route tracing should publish one `network.route.hop` fact per target and hop:
+
+```python
+from bywaf.event_schema_objects import NetworkRouteHop
+
+
+hop = NetworkRouteHop(
+    target="example.test",
+    hop=1,
+    host="router.local",
+    ip="192.0.2.1",
+    rtt_ms=1.2,
+    status="responded",
+    scanner="traceroute",
+)
+context.events.publish(NetworkRouteHop.__topic__, hop.to_payload())
 ```
 
 An SMB enumeration plugin can consume discovered hosts and publish shares:

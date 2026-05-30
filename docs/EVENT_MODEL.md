@@ -87,6 +87,7 @@ shared topics are:
 | `http.endpoint` | `url`, `host`, `port`, `scheme` | A reachable HTTP or HTTPS endpoint. |
 | `web.screenshotted_host` | `host`, `urls`, `screenshots` | One host or endpoint has screenshot artifacts. |
 | `tcp.banner` | `host`, `port`, `protocol` | A TCP service banner or first response was captured. |
+| `network.route.hop` | `target`, `hop` | One hop observed while tracing a route. |
 | `smb.share.found` | `host`, `share` | An SMB share was observed on a host. |
 | `finding.candidate` | `title`, `class` | A normalized finding-shaped observation. |
 | `artifact.attached` | `artifact_id`, `name`, `content_type`, `sha256`, `size` | Artifact metadata attached to provenance. |

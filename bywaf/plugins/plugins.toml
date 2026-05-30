@@ -10,6 +10,7 @@ default_plugins = [
   "network.snmp_get",
   "network.ssh_probe",
   "network.tcp_banner",
+  "network.traceroute",
   "recon.dns_lookup",
   "recon.shodan_lookup",
   "http.http_headers",
