@@ -27,32 +27,8 @@ from .crypto import (
 )
 from .models import SUPPORTED_ALGORITHM, KeyPaths, KeyRecord
 from .permissions import write_private_file, write_private_permissions, write_public_file
+from .state import signing_state_for_record
 from .storage import ensure_key_dirs, key_by_name, key_filename, load_key_records, upsert_key, validate_key_name
-
-
-def signing_state_for_record(record: KeyRecord, passphrase: str | None = None) -> str:
-    """Return computed signing state for a key record.
-
-    This is intentionally derived from the key files, not trusted metadata.
-    Encrypted private keys are reported as `locked` until a passphrase is
-    supplied; a valid passphrase makes the key `available` for this operation.
-    """
-    if record.private_path is None:
-        return "verify-only"
-    if not record.private_path.exists():
-        return "invalid"
-    try:
-        load_public_key_from_private(record.private_path, passphrase)
-    except TypeError:
-        return "locked"
-    except ValueError as exc:
-        message = str(exc).lower()
-        if passphrase is None and ("password" in message or "encrypted" in message):
-            return "locked"
-        return "invalid"
-    except Exception:
-        return "invalid"
-    return "available"
 
 
 def generate_key(name: str, passphrase: str, *, scope: str = "user", paths: KeyPaths | None = None) -> KeyRecord:

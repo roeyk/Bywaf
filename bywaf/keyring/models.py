@@ -51,6 +51,6 @@ class KeyRecord:
     @property
     def signing_state(self) -> str:
         """Return computed signing state without trusting metadata."""
-        from .operations import signing_state_for_record
+        from .state import signing_state_for_record
 
         return signing_state_for_record(self)
