@@ -337,7 +337,7 @@ class ManifestCommandlet(CommandletBase):
 
     def parse_manifest_args(self, context: CommandContext, args: list[str]) -> argparse.Namespace:
         """Parse CLI args after applying manifest defaults and stored vars."""
-        parser = self.parser()
+        parser = ManifestArgumentParser(self.spec.name, self.spec.options)
         option_names = {option.name for option in self.spec.options}
         for argument in self.manifest_arguments:
             kwargs: dict[str, Any] = {}
@@ -358,11 +358,29 @@ class ManifestCommandlet(CommandletBase):
             if option_spec.choices:
                 parser_kwargs["choices"] = option_spec.choices
             if option_spec.value_type == "bool":
-                parser_kwargs.update({"nargs": "?", "const": True, "type": parse_manifest_bool})
+                parser_kwargs.update({"nargs": "?", "const": True, "type": parse_manifest_bool, "metavar": "true|false"})
             else:
                 parser_kwargs["type"] = manifest_option_cast(option_spec)
             parser.add_argument(f"--{option_spec.name}", **parser_kwargs)
         return parser.parse_args(key_value_args_to_options(args, option_names))
+
+
+class ManifestArgumentParser(argparse.ArgumentParser):
+    """ArgumentParser that displays Bywaf `key=value` manifest options."""
+
+    def __init__(self, prog: str, manifest_options: Sequence[OptionSpec]) -> None:
+        super().__init__(prog=prog)
+        self._bywaf_manifest_options = tuple(manifest_options)
+
+    def format_help(self) -> str:
+        """Render non-bool manifest options as `name=VALUE` in help text."""
+        text = super().format_help()
+        for option in self._bywaf_manifest_options:
+            if option.value_type == "bool":
+                continue
+            metavar = option_dest(option.name).upper()
+            text = text.replace(f"--{option.name} {metavar}", f"{option.name}={metavar}")
+        return text
 
 
 class FunctionCommandlet(ManifestCommandlet):

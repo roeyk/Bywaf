@@ -185,7 +185,8 @@ plugin loading to fail.
 
 `[[commandlets.options]]` entries belong to the nearest preceding
 `[[commandlets]]` entry. They describe public named options such as
-`timeout=5`, `--timeout=5`, or boolean flags such as `silent=true`.
+`timeout=5` or `binary=traceroute`. Boolean options may be written as
+`silent=true` or as binary flags such as `--silent`.
 
 For manifest-backed functions and `ManifestCommandlet`, options are also the
 source of the per-run immutable `cfg` object passed to plugin behavior. Values

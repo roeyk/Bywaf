@@ -1561,6 +1561,21 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("cmds", output.getvalue())
             self.assertIn("script", output.getvalue())
 
+    def test_manifest_commandlet_help_uses_key_value_options(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "help traceroute")
+            text = output.getvalue()
+            self.assertIn("binary=BINARY", text)
+            self.assertIn("maxhops=MAXHOPS", text)
+            self.assertIn("timeout=TIMEOUT", text)
+            self.assertIn("--silent", text)
+            self.assertNotIn("--binary", text)
+            self.assertNotIn("--maxhops", text)
+            self.assertNotIn("--timeout", text)
+
     def test_dispatch_help_colors_commands_when_enabled(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

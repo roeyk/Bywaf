@@ -5,7 +5,7 @@ service = false
 [[commandlets]]
 name = "traceroute"
 description = "Trace network route hops for explicit targets or host.found input."
-usage = "traceroute [binary=traceroute] [max-hops=30] [timeout=5] <target ...>"
+usage = "traceroute [binary=traceroute] [maxhops=30] [timeout=5] <target ...>"
 examples = [
   "traceroute 192.0.2.10",
   "hostscanner 192.168.50.0/24 | traceroute",
@@ -38,7 +38,7 @@ default = "traceroute"
 completion = "path"
 
 [[commandlets.options]]
-name = "max-hops"
+name = "maxhops"
 description = "maximum hops"
 type = "int"
 default = "30"

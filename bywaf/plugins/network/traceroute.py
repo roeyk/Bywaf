@@ -50,7 +50,7 @@ class TracerouteConfig(RunConfig):
     """Typed effective config for traceroute."""
 
     binary: str
-    max_hops: int
+    maxhops: int
     silent: bool
     targets: list[str]
     timeout: float
@@ -82,7 +82,7 @@ def run_traceroute(context: CommandContext, cfg: TracerouteConfig, target: str) 
     """Run traceroute through the framework process API and publish tool errors."""
     command = trace_command(cfg, target)
     try:
-        result = context.process.run(command.argv, timeout=max(cfg.timeout * cfg.max_hops, cfg.timeout + 1))
+        result = context.process.run(command.argv, timeout=max(cfg.timeout * cfg.maxhops, cfg.timeout + 1))
     except OSError as exc:
         publish_trace_error(context, cfg.binary, target, str(exc))
         return None
@@ -121,8 +121,8 @@ def trace_command(cfg: TracerouteConfig, target: str) -> TraceCommand:
     """Return the external traceroute argv for one target."""
     binary = cfg.binary or "traceroute"
     if binary.endswith("tracepath"):
-        return TraceCommand((binary, "-m", str(cfg.max_hops), target), target)
-    return TraceCommand((binary, "-m", str(cfg.max_hops), "-w", str(cfg.timeout), target), target)
+        return TraceCommand((binary, "-m", str(cfg.maxhops), target), target)
+    return TraceCommand((binary, "-m", str(cfg.maxhops), "-w", str(cfg.timeout), target), target)
 
 
 def parse_traceroute_output(target: str, output: str) -> list[NetworkRouteHop]:
