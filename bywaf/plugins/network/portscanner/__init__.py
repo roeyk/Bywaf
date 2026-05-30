@@ -49,14 +49,17 @@ DEFAULTS = {
         "portscanner port=22,80,443 host=127.0.0.1",
         "hostscanner 192.168.0.1-255& | portscanner&",
     ),
-    consumes=("host.found",),
+    consumes=("host.found", "network.route.hop"),
     emits=("port.open", "finding.candidate"),
     capabilities=(
         "db.write:finding.candidate",
         "db.write:name.resolved",
+        "db.read:command.run.completed",
+        "db.read:command.run.failed",
         "framework.console.alert",
         "framework.console.output",
         "network.connect",
+        "variable.read",
         "plugin.progress",
     ),
 )

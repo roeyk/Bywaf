@@ -7,17 +7,21 @@ service = false
 name = "portscanner"
 consumes = [
   "host.found",
+  "network.route.hop",
 ]
 emits = [
   "port.open",
   "finding.candidate",
 ]
 capabilities = [
+  "db.read:command.run.completed",
+  "db.read:command.run.failed",
   "db.write:finding.candidate",
   "db.write:name.resolved",
   "framework.console.alert",
   "framework.console.output",
   "network.connect",
+  "variable.read",
   "plugin.progress",
 ]
 module = "bywaf.plugins.network.portscanner"

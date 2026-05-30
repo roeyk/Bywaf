@@ -10,7 +10,11 @@ emits = [
   "name.resolved",
 ]
 capabilities = [
+  "artifact.write",
+  "filesystem.read",
   "framework.console.alert",
+  "framework.console.output",
   "network.connect",
+  "variable.read",
 ]
 module = "bywaf.plugins.discovery.hostscanner"

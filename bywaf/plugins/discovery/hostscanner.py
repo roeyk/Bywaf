@@ -60,7 +60,14 @@ class ExpandedTargets:
         "hostscanner 192.168.0.1& | portscanner&",
     ),
     emits=("host.found", "name.resolved"),
-    capabilities=("framework.console.alert", "network.connect"),
+    capabilities=(
+        "artifact.write",
+        "filesystem.read",
+        "framework.console.alert",
+        "framework.console.output",
+        "network.connect",
+        "variable.read",
+    ),
 )
 @option("arguments", "nmap host discovery arguments", "-sn")
 @option("except", "hosts or ranges to exclude", "")
