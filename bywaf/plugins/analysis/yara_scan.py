@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from pathlib import Path
 
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
 from bywaf.plugins._args import key_value_to_long_options
 from bywaf.plugins.recon.dns_lookup import optional_module

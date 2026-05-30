@@ -18,7 +18,7 @@ from typing import Any
 
 from ..artifacts import artifact_store_for_event_store
 from ..db import EventStore
-from ..events import Event
+from ..event import Event
 from .capabilities import (
     capability_declared,
     database_action_allowed,

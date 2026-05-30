@@ -20,7 +20,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
 from bywaf.plugins.http.http_probe import build_opener, probe_url, target_from_text
 

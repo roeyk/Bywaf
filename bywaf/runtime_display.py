@@ -15,7 +15,7 @@ import shutil
 from collections.abc import Callable, Mapping, Sequence
 from .command.parser import parse_pipeline
 from .db.support import SERIAL_DISPLAY_LENGTH, serial_body
-from .event_filters import parse_payload_filter_tokens
+from .event.filters import parse_payload_filter_tokens
 from .style import styled_subject_text, subject_style
 from .time_format import format_compact_runtime_timestamp, format_duration_between
 

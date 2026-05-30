@@ -18,7 +18,7 @@ from pathlib import Path
 
 from bywaf.config import Settings
 from bywaf.db import EventStore, database_appears_encrypted, export_encrypted_database, export_plaintext_database
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
 from bywaf.utils import complete_path
 

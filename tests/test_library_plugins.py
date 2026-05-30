@@ -16,7 +16,7 @@ from unittest.mock import Mock, patch
 
 from bywaf.artifacts import artifact_store_for_event_store
 from bywaf.db import EventStore
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugin import CommandContext, RunConfig
 from bywaf.varstore import VarStore
 from bywaf.plugins.analysis.yara_scan import YaraScan

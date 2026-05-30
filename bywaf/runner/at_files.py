@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from ..events import Event
+from ..event import Event
 from ..plugin import CommandContext
 
 

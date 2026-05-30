@@ -20,7 +20,7 @@ from bywaf.db import (
     new_serial,
     sqlcipher_available,
 )
-from bywaf.events import Event
+from bywaf.event import Event
 
 
 class EventDbTests(unittest.TestCase):

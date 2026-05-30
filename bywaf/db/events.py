@@ -17,8 +17,8 @@ from typing import Any, cast
 
 from .backends import DatabaseConnection
 from .support import artifact_count_queries, resolve_serial_match
-from ..events import Event
-from ..event_filters import event_matches_payload_filters
+from ..event import Event
+from ..event.filters import event_matches_payload_filters
 from ..subscriptions import Subscription
 
 

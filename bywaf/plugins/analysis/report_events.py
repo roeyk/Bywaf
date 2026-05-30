@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from argparse import Namespace
 
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.plugins.analysis.finding_report import REPORT_FINDING_TOPICS
 from bywaf.plugins.runtime.audit import resolve_pipeline_selector, resolve_run_selector

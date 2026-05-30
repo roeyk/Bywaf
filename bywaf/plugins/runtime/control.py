@@ -13,7 +13,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import cast
 
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
 
 from .control_actions import CONTROL_HANDLERS, dispatch_framework_signal, publish_runtime_signal

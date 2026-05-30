@@ -15,7 +15,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from bywaf.db import EventStore
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.plugins.http.eyewitness import EyeWitness, eyewitness_argv, eyewitness_output_dir
 from bywaf.plugins.wireless.wifi_scan import WifiScan, extract_networks, kismet_argv, wifi_output_dir

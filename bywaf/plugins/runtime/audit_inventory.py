@@ -8,7 +8,7 @@ Used by:
 
 from __future__ import annotations
 
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.plugin.capabilities import implied_capabilities
 from bywaf.registry import PluginRegistry

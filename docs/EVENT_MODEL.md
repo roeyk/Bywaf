@@ -76,7 +76,7 @@ For example, an SMB plugin can preserve scanner-specific ACL detail in a
 private topic such as `smb_enum.raw_share_acl`, emit normalized share facts as
 `smb.share.found`, and emit `finding.candidate` only for risky shares.
 
-Framework-known schemas currently live in `bywaf.event_schemas`. The first
+Framework-known schemas currently live in `bywaf.event.schemas`. The first
 shared topics are:
 
 | Topic | Required fields | Purpose |
@@ -101,9 +101,9 @@ Shared event payloads are interchange records, not mandatory in-process domain
 objects. A plugin may convert a `port.open` or `http.endpoint` payload into its
 own typed object as soon as it consumes the event. That keeps plugin internals
 cohesive while keeping cross-plugin coupling at the event-schema boundary.
-Framework-provided event schema objects live in `bywaf.event_schema_objects`, such as
+Framework-provided event schema objects live in `bywaf.event.schema_objects`, such as
 `OpenPort`, `HostFound`, `HttpEndpoint`, and `TcpBanner`. Use those for normal shared
-schema object handling; use `bywaf.event_schemas.EventSchemaObject` directly only for
+schema object handling; use `bywaf.event.schemas.EventSchemaObject` directly only for
 plugin-private or experimental topics.
 
 ## Publishing

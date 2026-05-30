@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from .artifacts import Artifact, ArtifactVerification
-from .events import Event
+from .event import Event
 from .subscriptions import Subscription
 
 

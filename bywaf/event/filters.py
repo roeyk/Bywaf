@@ -14,7 +14,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from .events import Event
+from .model import Event
 
 EVENT_SORT_ALIASES = {"transport": "protocol", "status": "state"}
 

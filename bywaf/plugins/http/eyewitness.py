@@ -23,8 +23,8 @@ from pathlib import Path
 from typing import Any
 
 from bywaf.config import Settings
-from bywaf.event_schema_objects import ScreenshottedHost
-from bywaf.events import Event
+from bywaf.event.schema_objects import ScreenshottedHost
+from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
 from bywaf.plugins.http.nikto import dedupe_targets, target_from_endpoint_event, target_payload_from_text
 

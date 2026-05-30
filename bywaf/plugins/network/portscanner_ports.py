@@ -14,8 +14,8 @@ import ipaddress
 from argparse import Namespace
 from collections.abc import Iterable
 
-from bywaf.event_filters import filter_events_by_payload, parse_payload_filter_tokens
-from bywaf.events import Event
+from bywaf.event.filters import filter_events_by_payload, parse_payload_filter_tokens
+from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
 from bywaf.plugins.runtime.job import require_job
 from bywaf.runtime_display import (

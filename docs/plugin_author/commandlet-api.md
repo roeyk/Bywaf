@@ -314,7 +314,7 @@ finding.candidate      reportable security interpretation
 
 Shared schemas are documented in
 [`EVENT_MODEL.md`](../EVENT_MODEL.md#shared-event-schemas) and represented in
-`bywaf.event_schemas`. Plugin-private topics remain free-form unless the
+`bywaf.event.schemas`. Plugin-private topics remain free-form unless the
 plugin provides its own schema or documentation.
 
 The event is stored with:
@@ -1106,7 +1106,7 @@ import argparse
 from collections.abc import Iterable
 from pathlib import Path
 
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugin import (
     ArgumentSpec,
     CommandContext,

@@ -16,7 +16,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, Callable, ClassVar, Protocol, TYPE_CHECKING, TypeVar, cast, overload
 
-from ..events import Event
+from ..event import Event
 from ..rendering import Table, render_console_table
 from ..specs import ArgumentSpec, CommandSpec, CompletionSpec, OptionSpec
 

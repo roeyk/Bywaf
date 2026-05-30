@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 import time
 from typing import Any
 
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, TriggerSpec, commandlet, option
 from bywaf.plugins._args import key_value_to_long_options
 

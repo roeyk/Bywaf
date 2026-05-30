@@ -11,7 +11,7 @@ from __future__ import annotations
 import os
 import signal
 
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.plugins.runtime.job import cancel_job, kill_job
 

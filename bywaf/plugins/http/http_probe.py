@@ -25,8 +25,8 @@ import urllib.request
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from bywaf.events import Event
-from bywaf.event_schema_objects import HttpEndpoint, OpenPort
+from bywaf.event import Event
+from bywaf.event.schema_objects import HttpEndpoint, OpenPort
 from bywaf.plugins.http.cookies import load_cookie_jar
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
 

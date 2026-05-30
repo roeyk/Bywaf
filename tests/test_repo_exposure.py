@@ -16,7 +16,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from bywaf.db import EventStore
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.plugins.http.repo_exposure import (
     DetectionStatus,

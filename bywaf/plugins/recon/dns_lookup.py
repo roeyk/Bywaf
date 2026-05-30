@@ -13,7 +13,7 @@ import importlib
 from collections.abc import Iterable
 from typing import Any, cast
 
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugin import (
     CommandContext,
     Commandlet,

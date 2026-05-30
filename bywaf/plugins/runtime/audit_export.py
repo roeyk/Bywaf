@@ -18,7 +18,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from bywaf.db import export_encrypted_database
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugin import CommandContext
 
 from .audit_selectors import selected_events

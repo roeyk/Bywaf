@@ -15,7 +15,7 @@ from argparse import Namespace
 from collections.abc import Iterable
 from pathlib import Path
 
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugin import (
     CommandContext,
     Commandlet,

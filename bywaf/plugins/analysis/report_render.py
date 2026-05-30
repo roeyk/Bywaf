@@ -11,7 +11,7 @@ from __future__ import annotations
 from argparse import Namespace
 from collections.abc import Mapping
 
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.finding import SEVERITY_CLASS_ORDER, severity_class
 from bywaf.plugin import CommandContext
 from bywaf.plugins.analysis.finding_report import finding_rows

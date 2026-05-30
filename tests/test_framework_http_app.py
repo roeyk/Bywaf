@@ -24,7 +24,7 @@ from bywaf.app import (
     process_framework_requests,
     render_prompt,
 )
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.plugins.http.http_headers import HttpHeaders
 

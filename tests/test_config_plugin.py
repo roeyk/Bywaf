@@ -16,7 +16,7 @@ import unittest
 
 from bywaf.config import Settings, default_settings
 from bywaf.db import EventStore
-from bywaf.event_schema_objects import OpenPort
+from bywaf.event.schema_objects import OpenPort
 from bywaf.plugin import (
     CommandContext,
     CommandletBase,

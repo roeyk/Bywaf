@@ -11,9 +11,9 @@ import unittest
 
 from dataclasses import dataclass
 
-from bywaf.event_schema_objects import ArtifactAttached, HostFound, HttpEndpoint, HttpPathObserved, NameResolved, NetworkRouteHop, OpenPort, ScreenshottedHost, ServiceDetected, SmbShareFound, TcpBanner, TlsCertificate, WebWafDetected
-from bywaf.event_schemas import EVENT_SCHEMAS, EventSchemaObject, schema_object, schema_objects, validate_event_payload
-from bywaf.events import Event
+from bywaf.event.schema_objects import ArtifactAttached, HostFound, HttpEndpoint, HttpPathObserved, NameResolved, NetworkRouteHop, OpenPort, ScreenshottedHost, ServiceDetected, SmbShareFound, TcpBanner, TlsCertificate, WebWafDetected
+from bywaf.event.schemas import EVENT_SCHEMAS, EventSchemaObject, schema_object, schema_objects, validate_event_payload
+from bywaf.event import Event
 
 
 @dataclass(frozen=True)

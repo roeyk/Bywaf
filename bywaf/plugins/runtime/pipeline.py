@@ -14,7 +14,7 @@ from argparse import Namespace
 from collections import Counter
 from collections.abc import Callable, Iterable
 
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugin import (
     CommandContext,
     Commandlet,

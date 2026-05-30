@@ -30,7 +30,7 @@ Use a shared schema when the data should be useful outside your plugin:
 - `finding.candidate`: a normalized security finding that should enter review
 - `artifact.attached`: artifact metadata attached to provenance
 
-Framework-known schemas live in `bywaf/event_schemas.py` and are summarized
+Framework-known schemas live in `bywaf/event/schemas.py` and are summarized
 in [Event Model](../EVENT_MODEL.md#shared-event-schemas). Plugin-private
 topics are still allowed for scanner-specific detail.
 
@@ -38,7 +38,7 @@ topics are still allowed for scanner-specific detail.
 
 Shared events are the durable interchange format, not the plugin's internal
 domain model. For framework-known schemas, import the framework-provided
-object class from `bywaf.event_schema_objects`. For plugin-private or experimental
+object class from `bywaf.event.schema_objects`. For plugin-private or experimental
 schemas, define a local `EventSchemaObject` subclass.
 
 That is intentional. It keeps the database and pipeline boundary stable while
@@ -53,7 +53,7 @@ schema, import its object class and use `from_event(...)` when consuming a
 shared event and `to_payload()` when publishing one.
 
 ```python
-from bywaf.event_schema_objects import OpenPort
+from bywaf.event.schema_objects import OpenPort
 
 
 for event in input_events:
@@ -93,7 +93,7 @@ context.events.publish_object(port)
 That keeps the database representation simple and stable while keeping plugin
 implementation code typed and readable.
 
-Framework-provided schema object classes currently live in `bywaf.event_schema_objects`:
+Framework-provided schema object classes currently live in `bywaf.event.schema_objects`:
 
 - `HostFound`
 - `NameResolved`
@@ -119,7 +119,7 @@ its own schema object class.
 # smb_enum/event_schema_objects.py
 from dataclasses import dataclass
 
-from bywaf.event_schemas import EventSchemaObject
+from bywaf.event.schemas import EventSchemaObject
 
 
 @dataclass(frozen=True)
@@ -153,7 +153,7 @@ Declare the topic in `consumes` and `emits` as usual. Framework tooling can see
 the event flow from the manifest, while plugins that opt into the producer's
 Python package can use the exported object class. If the topic becomes broadly
 useful, promote it into a framework-known schema and move the canonical class
-into `bywaf.event_schema_objects`.
+into `bywaf.event.schema_objects`.
 
 ## Declare Consumes And Emits
 
@@ -205,7 +205,7 @@ the normalized facts while the raw detail remains available for evidence.
 One hostname with multiple addresses should be multiple `name.resolved` facts:
 
 ```python
-from bywaf.event_schema_objects import NameResolved
+from bywaf.event.schema_objects import NameResolved
 
 
 for address in addresses:
@@ -215,7 +215,7 @@ for address in addresses:
 Route tracing should publish one `network.route.hop` fact per target and hop:
 
 ```python
-from bywaf.event_schema_objects import NetworkRouteHop
+from bywaf.event.schema_objects import NetworkRouteHop
 
 
 hop = NetworkRouteHop(
@@ -233,7 +233,7 @@ context.events.publish_object(hop)
 An SMB enumeration plugin can consume discovered hosts and publish shares:
 
 ```python
-from bywaf.event_schema_objects import HostFound, SmbShareFound
+from bywaf.event.schema_objects import HostFound, SmbShareFound
 
 
 for event in input_events:

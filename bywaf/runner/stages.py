@@ -19,7 +19,7 @@ from typing import cast
 
 from ..command.parser import CommandInvocation
 from ..db import EventStore
-from ..events import Event
+from ..event import Event
 from ..plugin import CommandContext
 from ..plugin.capabilities import DATABASE_ACTIONS
 from ..registry import PluginRegistry

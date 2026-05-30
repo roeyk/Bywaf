@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import datetime, time
 
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugin import CommandContext
 
 from .audit_common import AUDIT_LIST_SELECTORS, AUDIT_LIST_TARGETS, AUDIT_SELECTORS

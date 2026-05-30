@@ -19,7 +19,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugin import CommandContext, CommandletBase
 from bywaf.plugins._args import key_value_to_long_options
 from bywaf.plugins.http.http_probe import build_opener, target_from_text

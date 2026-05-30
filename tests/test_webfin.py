@@ -12,7 +12,7 @@ import io
 import unittest
 from unittest.mock import patch
 
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.plugins.http.webfin import (
     WebFingerprint,

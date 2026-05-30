@@ -13,7 +13,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from ..db import EventStore
-from ..events import Event
+from ..event import Event
 from ..plugin import CommandContext
 
 

@@ -14,7 +14,7 @@ from argparse import Namespace
 from collections.abc import Iterable
 from typing import Any
 
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
 from bywaf.plugins.runtime.view_common import filter_runtime_rows_by_events, filter_view_run_rows, view_selector_candidates
 from bywaf.runtime_display import (

@@ -17,7 +17,7 @@ from typing import Any
 
 from .config import Settings
 from .db import EventStore, database_appears_encrypted
-from .events import Event
+from .event import Event
 from .registry import PluginRegistry
 from .runner import Runner
 from .stores import EventStoreProtocol, MaintenanceStoreProtocol, RuntimeStoreProtocol

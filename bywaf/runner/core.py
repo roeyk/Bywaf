@@ -28,7 +28,7 @@ from .runtime_events import pipeline_exists
 from .runtime_events import publish_runtime_name
 from .stages import execute_stage, run_stage_process
 from ..db import EventStore, Subscription
-from ..events import Event
+from ..event import Event
 from ..registry import PluginRegistry
 from ..stores import EventStoreProtocol, MaintenanceStoreProtocol, RuntimeStoreProtocol
 

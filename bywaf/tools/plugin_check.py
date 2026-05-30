@@ -14,7 +14,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from bywaf.event_schemas import event_schema, validate_event_payload
+from bywaf.event.schemas import event_schema, validate_event_payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -367,7 +367,7 @@ class CapabilityVisitor(ast.NodeVisitor):
                 "invalid-shared-event-payload",
                 payload_node,
                 error,
-                "Shared event topics must match bywaf.event_schemas. Add required fields or keep "
+                "Shared event topics must match bywaf.event.schemas. Add required fields or keep "
                 "tool-specific raw detail on a plugin-private topic.",
             )
 

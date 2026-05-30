@@ -15,7 +15,7 @@ import shlex
 import signal
 import time
 
-from .events import Event
+from .event import Event
 from .runner import Runner
 from .specs import TriggerSpec
 

@@ -17,8 +17,8 @@ from typing import TYPE_CHECKING, Any
 
 from ..artifacts import Artifact, artifact_store_for_event_store
 from ..db import EventStore, Subscription
-from ..event_schemas import EventSchemaObject, schema_objects
-from ..events import Event
+from ..event.schemas import EventSchemaObject, schema_objects
+from ..event import Event
 from ..rendering import Table, render_console_table
 from ..varstore import VarStore
 

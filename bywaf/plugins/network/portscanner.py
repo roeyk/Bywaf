@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugins.addressing import filter_addresses_for_ip_family, is_ip_scan_target, target_matches_ip_family
 from bywaf.plugins.discovery.hostscanner import publish_name_resolution_events, resolve_target
 from bywaf.plugins.network.nmap_backend import scan_open_ports

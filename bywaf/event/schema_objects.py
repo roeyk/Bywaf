@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from .event_schemas import EventSchemaObject
+from .schemas import EventSchemaObject
 
 
 @dataclass(frozen=True)

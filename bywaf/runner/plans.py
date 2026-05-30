@@ -13,7 +13,7 @@ from __future__ import annotations
 import getpass
 
 from ..command.parser import CommandInvocation
-from ..events import Event
+from ..event import Event
 from ..plugin import CommandContext
 from ..specs import PlanRepair, PlanReport
 

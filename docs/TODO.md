@@ -32,17 +32,15 @@ Planning dates are release planning markers, not compatibility commitments.
   share instead of a large plural scan-result blob.
 - Start with documentation and CI validation helpers. Defer runtime rejection
   or strict schema enforcement until real plugins have exercised the schemas.
-- Current canonical definition lives in `bywaf/event_schemas.py` for fast
+- Current canonical definition lives in `bywaf/event/schemas.py` for fast
   iteration and direct unit testing. Keep open the future option to mirror or
   move these schemas into TOML/YAML schema files so plugin packages, external
   tools, documentation generators, and future GUIs can inspect schemas without
   importing Bywaf Python code.
-- Refactor the flat `events.py`, `event_schemas.py`,
-  `event_schema_objects.py`, and `event_filters.py` modules into a dedicated
-  `bywaf.event` package once the current plugin work settles. Keep the core
-  package lean: framework-owned schemas should cover shared vocabulary, while
-  plugin-specific schemas, output subjects, styles, and domain capabilities
-  should be registerable from plugin packages under stable provider namespaces.
+- Keep the `bywaf.event` package as the event subsystem boundary. Framework
+  owned schemas should cover shared vocabulary, while plugin-specific schemas,
+  output subjects, styles, and domain capabilities should be registerable from
+  plugin packages under stable provider namespaces.
 - Cross-plugin data flow should remain normalized through Bywaf APIs, not
   implicit plugin-to-plugin calls. Direct Python imports from another plugin's
   helper package are acceptable only as an explicit optional dependency for

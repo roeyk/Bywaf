@@ -37,7 +37,7 @@ from bywaf.app import (
 )
 from bywaf.cli_trust import plugin_trust_policy_from_args
 from bywaf.db import EventStore
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugins.network.nmap_backend import NmapPort
 from bywaf.projects import ProjectPaths
 from bywaf.specs import TriggerSpec

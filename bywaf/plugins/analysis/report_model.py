@@ -13,7 +13,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.finding.grouping import finding_group_key as derive_finding_group_key
 
 

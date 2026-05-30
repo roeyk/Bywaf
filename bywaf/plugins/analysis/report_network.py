@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.plugins.network.portscanner_ports import ip_sort_value, port_endpoint_text, sort_port_events
 from bywaf.runtime_display import command_context_style_getter, render_table, terminal_table_width

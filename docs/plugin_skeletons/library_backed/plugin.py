@@ -7,7 +7,7 @@ clear and user-facing.
 
 from collections.abc import Iterable
 
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, argument, commandlet
 
 

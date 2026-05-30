@@ -19,8 +19,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import cast
 
-from bywaf.event_schema_objects import HostFound, NetworkRouteHop
-from bywaf.events import Event
+from bywaf.event.schema_objects import HostFound, NetworkRouteHop
+from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, RunConfig, commandlet
 from bywaf.plugin.process import ProcessResult
 from bywaf.runtime_display import command_context_style_getter, render_table, terminal_table_width

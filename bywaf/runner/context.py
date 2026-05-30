@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 from ..command.parser import CommandInvocation
 from ..db import EventStore, new_serial
-from ..events import Event
+from ..event import Event
 from ..plugin import CommandContext, database_actions_for_capabilities, implied_capabilities
 from ..registry import PluginRegistry
 from ..varstore import VarStore

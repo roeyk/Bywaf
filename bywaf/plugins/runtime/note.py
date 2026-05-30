@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from pathlib import Path
 
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.time_format import format_operator_timestamp
 from bywaf.plugin import (
     CommandContext,

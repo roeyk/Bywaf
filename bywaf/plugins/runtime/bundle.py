@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from bywaf.artifacts import Artifact, artifact_store_for_event_store
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.keyring import sign_bytes, verify_bytes
 from bywaf.plugin import (
     CommandContext,

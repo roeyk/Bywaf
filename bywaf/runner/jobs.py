@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 
 from ..command.parser import parse_pipeline
 from ..db import EventStore
-from ..events import Event
+from ..event import Event
 from ..registry import PluginRegistry
 
 if TYPE_CHECKING:

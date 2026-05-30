@@ -22,8 +22,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import cast
 
-from bywaf.event_schema_objects import OpenPort, TcpBanner
-from bywaf.events import Event
+from bywaf.event.schema_objects import OpenPort, TcpBanner
+from bywaf.event import Event
 from bywaf.plugin import (
     CommandContext,
     Commandlet,

@@ -13,7 +13,7 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
-from ..events import Event
+from ..event import Event
 from ..registry import parse_plugin_manifest
 from ..runner import Runner, new_run_id
 

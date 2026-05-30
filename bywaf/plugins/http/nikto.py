@@ -26,7 +26,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
 from bywaf.plugins.http.http_probe import target_from_text
 

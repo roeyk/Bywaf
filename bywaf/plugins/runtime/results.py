@@ -16,8 +16,8 @@ from collections import Counter
 from collections.abc import Iterable
 import time
 
-from bywaf.event_schemas import event_schema
-from bywaf.events import Event
+from bywaf.event.schemas import event_schema
+from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
 from bywaf.plugins.network.portscanner_ports import PORT_SORT_KEYS, render_ports
 from bywaf.plugins.runtime.job import require_job

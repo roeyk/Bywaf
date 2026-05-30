@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from bywaf.events import Event
+from bywaf.event import Event
 from bywaf.plugin import (
     CommandContext,
     Commandlet,
