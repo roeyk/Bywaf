@@ -4,7 +4,7 @@ Contains presentation-neutral formatting for artifact events, listing rows, and
 safe export filenames.
 
 Used by:
-- runtime.artifact_actions: publish artifact audit events and output rows.
+- runtime.artifact.actions: publish artifact audit events and output rows.
 - runtime.bundle: embed artifact metadata in bundles."""
 
 from __future__ import annotations

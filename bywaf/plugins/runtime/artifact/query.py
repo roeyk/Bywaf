@@ -4,7 +4,7 @@ Contains read-only artifact queries, topic filtering, content searches, and
 time-window filtering.
 
 Used by:
-- runtime.artifact_actions: list, export, verify, and mutate selected artifacts.
+- runtime.artifact.actions: list, export, verify, and mutate selected artifacts.
 - runtime.artifact: implement the standalone `search` commandlet.
 - runtime.bundle: filter artifacts for bundle creation."""
 
@@ -18,8 +18,8 @@ from bywaf.artifacts import Artifact
 from bywaf.plugin import CommandContext
 from bywaf.plugins.runtime.audit import parse_compact_time
 
-from .artifact_common import SEARCH_FIELDS
-from .artifact_selectors import resolve_artifact_scope, single_value
+from .common import SEARCH_FIELDS
+from .selectors import resolve_artifact_scope, single_value
 
 
 def select_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> list[Artifact]:

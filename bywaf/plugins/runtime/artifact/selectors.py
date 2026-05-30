@@ -4,8 +4,8 @@ Translates user-facing selectors such as `job=1`, `pipeline=2`, `step=3`, and
 durable `serial=` values into the provenance columns stored on artifacts.
 
 Used by:
-- runtime.artifact_actions: resolve mutation/list/export scopes.
-- runtime.artifact_query: select and search artifacts by provenance."""
+- runtime.artifact.actions: resolve mutation/list/export scopes.
+- runtime.artifact.query: select and search artifacts by provenance."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 from bywaf.plugin import CommandContext
 
-from .artifact_common import SEARCH_FLAGS
+from .common import SEARCH_FLAGS
 
 
 def parse_artifact_selectors(tokens: list[str], *, allow_page: bool = False) -> dict[str, list[str]]:

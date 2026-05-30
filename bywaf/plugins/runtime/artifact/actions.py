@@ -14,9 +14,9 @@ from pathlib import Path
 from bywaf.artifacts import Artifact
 from bywaf.plugin import CommandContext
 
-from .artifact_query import search_artifacts, select_artifacts
-from .artifact_render import artifact_event_payload, format_artifact_row, safe_artifact_filename
-from .artifact_selectors import require_values, resolve_artifact_scope, single_value
+from .query import search_artifacts, select_artifacts
+from .render import artifact_event_payload, format_artifact_row, safe_artifact_filename
+from .selectors import require_values, resolve_artifact_scope, single_value
 
 
 def attach_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> None:

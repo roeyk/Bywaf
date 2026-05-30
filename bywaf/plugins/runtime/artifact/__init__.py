@@ -25,7 +25,7 @@ from bywaf.plugin import (
 )
 from bywaf.utils import complete_path
 
-from .artifact_actions import (
+from .actions import (
     attach_artifacts,
     export_artifacts,
     import_artifacts,
@@ -35,15 +35,15 @@ from .artifact_actions import (
     search_artifact_command as run_artifact_search,
     verify_artifacts,
 )
-from .artifact_common import ARTIFACT_ACTIONS, SEARCH_FIELDS, SEARCH_FLAGS, ArtifactActionHandler
-from .artifact_completion import artifact_ids, artifact_topics, job_ids, pipeline_ids, run_ids, serial_ids
-from .artifact_query import (
+from .common import ARTIFACT_ACTIONS, SEARCH_FIELDS, SEARCH_FLAGS, ArtifactActionHandler
+from .completion import artifact_ids, artifact_topics, job_ids, pipeline_ids, run_ids, serial_ids
+from .query import (
     filter_artifact_time_window as filter_artifact_time_window,
     search_artifacts,
     select_artifacts as select_artifacts,
 )
-from .artifact_render import artifact_event_payload as artifact_event_payload, format_artifact_row
-from .artifact_selectors import parse_artifact_selectors, parse_search_selectors, pop_page_flag
+from .render import artifact_event_payload as artifact_event_payload, format_artifact_row
+from .selectors import parse_artifact_selectors, parse_search_selectors, pop_page_flag
 
 
 @commandlet(

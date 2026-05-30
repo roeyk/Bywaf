@@ -5,7 +5,7 @@ parser, and search implementation cannot drift independently.
 
 Used by:
 - runtime.artifact: declare commandlet completion metadata.
-- runtime.artifact_selectors and runtime.artifact_query: validate selectors."""
+- runtime.artifact.selectors and runtime.artifact.query: validate selectors."""
 
 from __future__ import annotations
 
