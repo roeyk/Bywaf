@@ -7,6 +7,18 @@ roles = ["command-provider"]
 
 [[commandlets]]
 name = "example_minimal"
+description = "Minimal example commandlet."
+usage = "example_minimal <target>"
+examples = [
+  "example_minimal example.test",
+]
+emits = [
+  "example.observed",
+]
 capabilities = [
   "framework.console.output",
 ]
+
+[[commandlets.arguments]]
+name = "target"
+description = "Target value to process"

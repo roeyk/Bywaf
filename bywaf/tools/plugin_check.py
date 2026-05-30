@@ -229,8 +229,8 @@ class CapabilityVisitor(ast.NodeVisitor):
                     "decorator-on-plugin-factory",
                     decorator,
                     f"@{call_basename(path)} decorates plugin()",
-                    "@commandlet, @argument, and @option must decorate the CommandletBase class in plugin.py. "
-                    "Keep plugin() as an undecorated factory that only returns the commandlet instance.",
+                    "@commandlet can decorate a manifest-backed function or a CommandletBase class, but not "
+                    "plugin(). Keep plugin() as an undecorated factory that only returns the commandlet object.",
                 )
 
     def inspect_authoring_call(self, node: ast.Call, path: str) -> None:

@@ -325,8 +325,9 @@ class PluginCheckTests(unittest.TestCase):
                 if token in text:
                     failures.append(f"{path}: legacy token {token!r}")
             if path.name == "plugin.py":
-                if "@commandlet" in text and "class " not in text.split("@commandlet", 1)[1].split("def plugin", 1)[0]:
-                    failures.append(f"{path}: @commandlet must decorate a CommandletBase class")
+                plugin_factory = text.split("def plugin", 1)[1] if "def plugin" in text else ""
+                if "@commandlet" in plugin_factory:
+                    failures.append(f"{path}: @commandlet must not decorate plugin()")
 
         self.assertEqual([], failures)
 

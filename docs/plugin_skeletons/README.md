@@ -12,10 +12,13 @@ over inventing a new plugin layout from scratch.
 
 LLM Guardrails:
 
-- Decorate the `CommandletBase` class with `@commandlet`, `@argument`, and
-  `@option`; do not decorate the `plugin()` factory.
-- In these skeletons, keep the decorated commandlet class in `plugin.py`.
-  `command.py` should provide orchestration functions, not registration.
+- For small commandlets, prefer a manifest-backed `@commandlet` function that
+  receives `(context, cfg, input_events)`.
+- For advanced commandlets, decorate the `CommandletBase` class with
+  `@commandlet`, `@argument`, and `@option`. Do not decorate the `plugin()`
+  factory in either style.
+- In these skeletons, keep the registration object in `plugin.py`. `command.py`
+  should provide orchestration functions, not registration.
 - Publish normalized findings with `finding.candidate` or `finding.confirmed`
   payloads built through `bywaf.finding.candidate_payload(...)`; do not invent
   unrelated finding keys.
@@ -31,10 +34,12 @@ LLM Guardrails:
 - Finding classes use lowercase dotted Bywaf names such as
   `web.header.missing_hsts`; external ids such as CVE, CWE, OWASP, GHSA, and
   vendor advisories go in `identifiers`.
-- Boolean-style `@option` metadata must include an explicit string default and
-  choices, such as `@option("confirm", "perform confirmation", "false",
-  ("true", "false"))`. Put `action="store_true"` or other argparse mechanics in
-  runtime parsing, not in the decorator.
+- Boolean-style manifest options should use `type = "bool"` and an explicit
+  default such as `default = "false"`. Boolean-style class `@option` metadata
+  must include an explicit string default and choices, such as
+  `@option("confirm", "perform confirmation", "false", ("true", "false"))`.
+  Put `action="store_true"` or other argparse mechanics in runtime parsing, not
+  in metadata.
 - Yielded event payloads must be JSON-serializable. Do not yield dataclass
   instances, connection objects, exceptions, or other Python objects directly.
 - Only publish `finding.confirmed` when `--confirm` was requested or when the

@@ -413,7 +413,8 @@ def manifest_path_for_function(func: Callable[..., Any]) -> Path:
     if not module_file:
         raise ValueError(f"{func.__name__} must be defined in a module with a manifest")
     path = Path(module_file)
-    if path.name == "__init__.py":
+    package_manifest = path.with_name("bywaf.plugin.toml")
+    if path.name == "__init__.py" or package_manifest.exists():
         return path.with_name("bywaf.plugin.toml")
     return path.with_suffix(".plugin.toml")
 

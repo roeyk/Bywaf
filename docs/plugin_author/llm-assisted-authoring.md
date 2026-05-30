@@ -75,11 +75,16 @@ Rules:
 - Start from the documented skeleton; do not invent a new layout.
 - Include plugin.py, bywaf.plugin.toml, and any split files required by the
   skeleton.
-- Put @commandlet, @argument, and @option on the CommandletBase class in
-  plugin.py, not on plugin().
-- Keep decorator metadata and runtime argparse parsing separate.
-- For boolean-style options, use explicit string metadata defaults and choices,
-  such as @option("confirm", "perform confirmation", "false", ("true", "false")).
+- For small commandlets, prefer a manifest-backed @commandlet function in
+  plugin.py that receives (context, cfg, input_events), not decorators on
+  plugin().
+- For advanced class-based commandlets, put @commandlet, @argument, and @option
+  on the CommandletBase class in plugin.py, not on plugin().
+- Keep manifest/decorator metadata and runtime behavior separate.
+- For boolean-style manifest options, use type = "bool" and an explicit default
+  such as default = "false". For class @option metadata, use explicit string
+  defaults and choices such as @option("confirm", "perform confirmation",
+  "false", ("true", "false")).
 - Use bywaf.finding.candidate_payload(...) for normalized findings.
 - Do not use a nonexistent confirmed_payload helper.
 - Yield only JSON-serializable dictionaries.
