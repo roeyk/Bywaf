@@ -11,6 +11,7 @@ Used by:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 from .event_schemas import EventSchemaObject
@@ -99,6 +100,74 @@ class TcpBanner(EventSchemaObject):
 
 
 @dataclass(frozen=True)
+class ServiceDetected(EventSchemaObject):
+    """A normalized service classification for a host/port."""
+
+    __topic__ = "service.detected"
+
+    host: str
+    port: int
+    protocol: str
+    service: str
+    product: str | None = None
+    version: str | None = None
+    source: str | None = None
+    confidence: str | None = None
+    evidence: str | None = None
+
+
+@dataclass(frozen=True)
+class TlsCertificate(EventSchemaObject):
+    """TLS certificate metadata observed from a network service."""
+
+    __topic__ = "tls.certificate"
+
+    host: str
+    port: int
+    subject: str | None = None
+    issuer: str | None = None
+    not_before: str | None = None
+    not_after: str | None = None
+    san: list[str] | None = None
+    protocol: str | None = None
+    cipher: str | None = None
+    scanner: str | None = None
+
+
+@dataclass(frozen=True)
+class HttpPathObserved(EventSchemaObject):
+    """One HTTP path response observed during path probing."""
+
+    __topic__ = "http.path"
+
+    url: str
+    host: str
+    port: int
+    path: str
+    status: int | None = None
+    title: str | None = None
+    content_type: str | None = None
+    length: int | None = None
+    interesting: bool | None = None
+    scanner: str | None = None
+
+
+@dataclass(frozen=True)
+class WebWafDetected(EventSchemaObject):
+    """A WAF or edge protection product fingerprint."""
+
+    __topic__ = "web.waf.detected"
+
+    url: str
+    host: str
+    vendor: str
+    product: str | None = None
+    evidence: str | None = None
+    confidence: str | None = None
+    scanner: str | None = None
+
+
+@dataclass(frozen=True)
 class NetworkRouteHop(EventSchemaObject):
     """One hop observed while tracing a route to a target."""
 
@@ -147,14 +216,29 @@ class ArtifactAttached(EventSchemaObject):
     note: str | None = None
 
 
+def parse_tls_not_after(value: str | None) -> datetime | None:
+    """Parse common certificate notAfter text into UTC datetime."""
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, "%b %d %H:%M:%S %Y %Z").replace(tzinfo=UTC)
+    except ValueError:
+        return None
+
+
 __all__ = [
     "ArtifactAttached",
     "HostFound",
     "HttpEndpoint",
+    "HttpPathObserved",
     "NameResolved",
     "NetworkRouteHop",
     "OpenPort",
+    "parse_tls_not_after",
     "ScreenshottedHost",
+    "ServiceDetected",
     "SmbShareFound",
     "TcpBanner",
+    "TlsCertificate",
+    "WebWafDetected",
 ]

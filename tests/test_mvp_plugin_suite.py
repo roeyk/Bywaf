@@ -47,6 +47,17 @@ class MvpPluginSuiteTests(unittest.TestCase):
                     "title": "Index of /" if method == "GET" else "",
                 }
 
+            def fake_probe_path(url, timeout, user_agent):
+                del timeout, user_agent
+                if url.endswith("/.git/config"):
+                    return {
+                        "status": 200,
+                        "content_type": "text/plain",
+                        "length": 35,
+                        "sample": "[core] repositoryformatversion = 0",
+                    }
+                return {"status": 404, "content_type": "text/plain", "length": 0, "sample": ""}
+
             def fake_run_process(argv, *, cwd=None, env=None, timeout=None):
                 del cwd, env, timeout
                 output_path = Path(argv[argv.index("-output") + 1])
@@ -77,13 +88,27 @@ class MvpPluginSuiteTests(unittest.TestCase):
                     return_value=[NmapPort("192.0.2.20", 80, "tcp", "open", "http", "syn-ack")],
                 ),
                 patch("bywaf.plugins.http.http_probe.probe_url", side_effect=fake_probe_url),
+                patch("bywaf.plugins.http.http_paths.probe_path", side_effect=fake_probe_path),
+                patch(
+                    "bywaf.plugins.http.tls_probe.fetch_certificate",
+                    return_value={"subject": "commonName=example.test", "issuer": "commonName=CA", "san": ["example.test"]},
+                ),
+                patch("bywaf.plugins.http.waf_detect.fetch_headers", return_value={"status": 200, "headers": {"CF-Ray": "abc"}}),
                 patch("bywaf.plugin.process.run_process_argv", side_effect=fake_run_process),
                 contextlib.redirect_stdout(output),
             ):
-                runner.execute(
-                    "hostscanner 192.0.2.20 | portscanner port=80 | "
-                    "http_probe --method GET | webfin | nikto --source webfin"
-                )
+                endpoint_events = runner.execute("hostscanner 192.0.2.20 | portscanner port=80 | http_probe --method GET")
+                process_framework_requests(runner, ShellState())
+                pipeline_id = endpoint_events[0].pipeline_id
+                runner.execute(f"service_probe --from pipeline={pipeline_id} topic=http.endpoint")
+                process_framework_requests(runner, ShellState())
+                runner.execute(f"http_paths --from pipeline={pipeline_id} topic=http.endpoint paths=/.git/config")
+                process_framework_requests(runner, ShellState())
+                runner.execute(f"waf_detect --from pipeline={pipeline_id} topic=http.endpoint")
+                process_framework_requests(runner, ShellState())
+                runner.execute(f"webfin --from pipeline={pipeline_id} topic=http.endpoint | nikto --source webfin")
+                process_framework_requests(runner, ShellState())
+                runner.execute("tls_probe example.test:443 | service_probe")
                 process_framework_requests(runner, ShellState())
                 runner.execute("finding_dedupe")
                 process_framework_requests(runner, ShellState())
@@ -95,6 +120,10 @@ class MvpPluginSuiteTests(unittest.TestCase):
                 "host.found",
                 "port.open",
                 "http.endpoint",
+                "service.detected",
+                "http.path",
+                "web.waf.detected",
+                "tls.certificate",
                 "web.fingerprint",
                 "nikto.finding",
                 "vulnerability.potential",
@@ -105,8 +134,9 @@ class MvpPluginSuiteTests(unittest.TestCase):
                 with self.subTest(topic=topic):
                     self.assertIn(topic, topics)
 
-            finding = runner.db.events_for_topic("finding.new")[0].payload
-            self.assertEqual(finding["title"], "Missing X-Frame-Options header")
+            finding_titles = [event.payload["title"] for event in runner.db.events_for_topic("finding.new")]
+            self.assertIn("Missing X-Frame-Options header", finding_titles)
+            self.assertIn("Exposed Git repository configuration", finding_titles)
             self.assertIn("Missing X-Frame-Options header", output.getvalue())
 
 

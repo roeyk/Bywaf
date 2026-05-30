@@ -17,7 +17,16 @@ from bywaf.plugins.runtime.audit import resolve_pipeline_selector, resolve_run_s
 
 from .report_model import sort_unique_events
 
-REPORT_CONTEXT_TOPICS = ("host.found", "name.resolved", "port.open", "http.endpoint")
+REPORT_CONTEXT_TOPICS = (
+    "host.found",
+    "name.resolved",
+    "port.open",
+    "service.detected",
+    "http.endpoint",
+    "http.path",
+    "tls.certificate",
+    "web.waf.detected",
+)
 
 
 def select_report_scope_events(context: CommandContext, parsed: Namespace) -> list[Event]:

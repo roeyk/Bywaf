@@ -11,7 +11,7 @@ import unittest
 
 from dataclasses import dataclass
 
-from bywaf.event_schema_objects import ArtifactAttached, HostFound, HttpEndpoint, NameResolved, NetworkRouteHop, OpenPort, ScreenshottedHost, SmbShareFound, TcpBanner
+from bywaf.event_schema_objects import ArtifactAttached, HostFound, HttpEndpoint, HttpPathObserved, NameResolved, NetworkRouteHop, OpenPort, ScreenshottedHost, ServiceDetected, SmbShareFound, TcpBanner, TlsCertificate, WebWafDetected
 from bywaf.event_schemas import EVENT_SCHEMAS, EventSchemaObject, schema_object, schema_objects, validate_event_payload
 from bywaf.events import Event
 
@@ -33,6 +33,10 @@ class EventSchemaTests(unittest.TestCase):
         self.assertEqual(EVENT_SCHEMAS["http.endpoint"].required_fields, ("url", "host", "port", "scheme"))
         self.assertEqual(EVENT_SCHEMAS["web.screenshotted_host"].required_fields, ("host", "urls", "screenshots"))
         self.assertEqual(EVENT_SCHEMAS["tcp.banner"].required_fields, ("host", "port", "protocol"))
+        self.assertEqual(EVENT_SCHEMAS["service.detected"].required_fields, ("host", "port", "protocol", "service"))
+        self.assertEqual(EVENT_SCHEMAS["tls.certificate"].required_fields, ("host", "port"))
+        self.assertEqual(EVENT_SCHEMAS["http.path"].required_fields, ("url", "host", "port", "path"))
+        self.assertEqual(EVENT_SCHEMAS["web.waf.detected"].required_fields, ("url", "host", "vendor"))
         self.assertEqual(EVENT_SCHEMAS["network.route.hop"].required_fields, ("target", "hop"))
         self.assertEqual(EVENT_SCHEMAS["smb.share.found"].required_fields, ("host", "share"))
 
@@ -43,6 +47,10 @@ class EventSchemaTests(unittest.TestCase):
             ("http.endpoint", {"url": "https://example.test/", "host": "example.test", "port": 443, "scheme": "https", "status": 200}),
             ("web.screenshotted_host", {"host": "example.test", "urls": ["https://example.test/"], "screenshots": [{"artifact_id": "artifact-1"}]}),
             ("tcp.banner", {"host": "192.0.2.10", "port": 22, "protocol": "tcp", "banner": "SSH-2.0-OpenSSH"}),
+            ("service.detected", {"host": "192.0.2.10", "port": 22, "protocol": "tcp", "service": "ssh", "confidence": "high"}),
+            ("tls.certificate", {"host": "example.test", "port": 443, "subject": "commonName=example.test", "san": ["example.test"]}),
+            ("http.path", {"url": "https://example.test/.git/config", "host": "example.test", "port": 443, "path": "/.git/config", "interesting": True}),
+            ("web.waf.detected", {"url": "https://example.test/", "host": "example.test", "vendor": "Cloudflare", "confidence": "medium"}),
             ("network.route.hop", {"target": "example.test", "hop": 1, "host": "192.0.2.1", "rtt_ms": 1.5, "status": "responded"}),
             ("smb.share.found", {"host": "dc01.example.test", "share": "SYSVOL", "access": "read", "authenticated": True}),
             ("finding.candidate", {"title": "Example finding", "class": "example.finding"}),
@@ -68,6 +76,10 @@ class EventSchemaTests(unittest.TestCase):
         self.assertEqual(
             validate_event_payload("tcp.banner", {"host": "192.0.2.10", "port": 22, "protocol": "udp"}),
             ["tcp.banner.protocol must be one of: tcp"],
+        )
+        self.assertEqual(
+            validate_event_payload("service.detected", {"host": "192.0.2.10", "port": 443, "protocol": "icmp", "service": "https"}),
+            ["service.detected.protocol must be one of: tcp, udp"],
         )
         self.assertEqual(
             validate_event_payload("network.route.hop", {"target": "example.test", "hop": "1"}),
@@ -172,6 +184,10 @@ class EventSchemaTests(unittest.TestCase):
             (HttpEndpoint("https://example.test/", "example.test", 443, "https", status=200), "http.endpoint"),
             (ScreenshottedHost("example.test", ["https://example.test/"], [{"artifact_id": "artifact-1"}]), "web.screenshotted_host"),
             (TcpBanner("192.0.2.10", 22, banner="SSH-2.0-OpenSSH"), "tcp.banner"),
+            (ServiceDetected("192.0.2.10", 22, "tcp", "ssh", confidence="high"), "service.detected"),
+            (TlsCertificate("example.test", 443, subject="commonName=example.test", san=["example.test"]), "tls.certificate"),
+            (HttpPathObserved("https://example.test/.git/config", "example.test", 443, "/.git/config", status=200, interesting=True), "http.path"),
+            (WebWafDetected("https://example.test/", "example.test", "Cloudflare", confidence="medium"), "web.waf.detected"),
             (SmbShareFound("dc01.example.test", "SYSVOL", access="read", authenticated=True), "smb.share.found"),
             (
                 ArtifactAttached("artifact-1", "scan.json", "application/json", "a" * 64, 10),

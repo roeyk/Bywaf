@@ -1,0 +1,58 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "http_paths"
+description = "Probe common web paths and promote risky exposures."
+usage = "http_paths [paths=/robots.txt,/.git/config] [url ...]"
+examples = [
+  "http_paths http://127.0.0.1:8080",
+  "http_probe http://127.0.0.1:8080 | http_paths paths=/.git/config,/server-status",
+]
+consumes = [
+  "http.endpoint",
+]
+emits = [
+  "http.path",
+  "finding.candidate",
+]
+capabilities = [
+  "db.write:http.path",
+  "db.write:finding.candidate",
+  "framework.console.alert",
+  "network.connect",
+]
+module = "bywaf.plugins.http.http_paths"
+database.actions.view = false
+database.actions.write = true
+database.actions.manage = false
+
+[[commandlets.arguments]]
+name = "targets"
+description = "explicit base URLs or hosts"
+nargs = "*"
+
+[[commandlets.options]]
+name = "paths"
+description = "comma or whitespace separated paths"
+type = "str"
+default = "/robots.txt,/.git/config,/server-status,/admin/"
+
+[[commandlets.options]]
+name = "silent"
+description = "suppress path alerts"
+type = "bool"
+default = "false"
+
+[[commandlets.options]]
+name = "timeout"
+description = "HTTP timeout seconds"
+type = "float"
+default = "5"
+
+[[commandlets.options]]
+name = "user-agent"
+description = "HTTP User-Agent"
+type = "str"
+default = "Bywaf/0.12"

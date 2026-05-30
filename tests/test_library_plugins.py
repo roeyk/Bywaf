@@ -24,8 +24,13 @@ from bywaf.plugins.identity.smb_probe import SmbProbe, safe_call, safe_shares
 from bywaf.plugins.http.eyewitness import publish_screenshot, publish_screenshotted_hosts
 from bywaf.plugins.http.screenshotter import Screenshotter
 from bywaf.plugins.network.ssh_probe import SshProbe, ssh_targets
+from bywaf.plugins.network.service_probe import service_probe
 from bywaf.plugins.network.tcp_banner import banner_targets, probe_bytes, target_from_text, tcp_banner
 from bywaf.plugins.network.traceroute import parse_traceroute_output, trace_targets, traceroute
+from bywaf.plugins.http.http_paths import http_paths
+from bywaf.plugins.http.tls_probe import tls_probe
+from bywaf.plugins.http.waf_detect import waf_detect
+from bywaf.plugins.recon.dns_enum import dns_enum
 from bywaf.plugins.recon.dns_lookup import dns_lookup, optional_module
 from bywaf.plugins.recon.shodan_lookup import ShodanLookup
 
@@ -62,6 +67,15 @@ class LibraryPluginTests(unittest.TestCase):
             record = db.events_for_topic("dns.record")[0].payload
             self.assertEqual(record["name"], "example.test")
             self.assertEqual(record["value"], "127.0.0.1")
+
+    def test_dns_enum_publishes_name_and_host_facts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(db=db, source="dns_enum", metadata={"capabilities": dns_enum.spec.capabilities})
+            with patch("bywaf.plugins.recon.dns_enum.resolve_name", return_value=["192.0.2.10"]):
+                list(dns_enum.run(context, ["example.test"], []))
+            self.assertEqual(db.events_for_topic("name.resolved")[0].payload["host"], "192.0.2.10")
+            self.assertEqual(db.events_for_topic("host.found")[0].payload["name"], "example.test")
 
     def test_shodan_lookup_host_mode_publishes_host(self):
         fake_api = Mock()
@@ -130,6 +144,53 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertEqual(events[0]["port"], 22)
             self.assertEqual(events[0]["protocol"], "tcp")
             self.assertEqual(events[0]["banner"], "SSH-2.0-Test")
+
+    def test_service_probe_classifies_port_and_banner_events(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(db=db, source="service_probe", metadata={"capabilities": service_probe.spec.capabilities})
+            events = [
+                Event.new("port.open", {"host": "192.0.2.10", "port": 443, "protocol": "tcp"}, "portscanner"),
+                Event.new("tcp.banner", {"host": "192.0.2.10", "port": 22, "protocol": "tcp", "banner": "SSH-2.0-Test"}, "tcp_banner"),
+            ]
+            list(service_probe.run(context, [], events))
+            services = [event.payload["service"] for event in db.events_for_topic("service.detected")]
+            self.assertEqual(services, ["https", "ssh"])
+
+    def test_tls_probe_publishes_certificate_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(db=db, source="tls_probe", metadata={"capabilities": tls_probe.spec.capabilities})
+            with patch(
+                "bywaf.plugins.http.tls_probe.fetch_certificate",
+                return_value={"subject": "commonName=example.test", "issuer": "commonName=CA", "san": ["example.test"]},
+            ):
+                list(tls_probe.run(context, ["example.test:443"], []))
+            cert = db.events_for_topic("tls.certificate")[0].payload
+            self.assertEqual(cert["host"], "example.test")
+            self.assertEqual(cert["subject"], "commonName=example.test")
+
+    def test_http_paths_publishes_path_and_finding_candidate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(db=db, source="http_paths", metadata={"capabilities": http_paths.spec.capabilities})
+            with patch(
+                "bywaf.plugins.http.http_paths.probe_path",
+                return_value={"status": 200, "content_type": "text/plain", "length": 42, "sample": "[core] repositoryformatversion = 0"},
+            ):
+                list(http_paths.run(context, ["paths=/.git/config", "http://127.0.0.1:8080"], []))
+            path = db.events_for_topic("http.path")[0].payload
+            self.assertTrue(path["interesting"])
+            self.assertEqual(db.events_for_topic("finding.candidate")[0].payload["class"], "web.repo.git_config_exposed")
+
+    def test_waf_detect_publishes_cloudflare_signal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(db=db, source="waf_detect", metadata={"capabilities": waf_detect.spec.capabilities})
+            with patch("bywaf.plugins.http.waf_detect.fetch_headers", return_value={"status": 200, "headers": {"CF-Ray": "abc"}}):
+                list(waf_detect.run(context, ["https://example.test/"], []))
+            waf = db.events_for_topic("web.waf.detected")[0].payload
+            self.assertEqual(waf["vendor"], "Cloudflare")
 
     def test_traceroute_uses_host_found_input_events(self):
         targets = trace_targets(

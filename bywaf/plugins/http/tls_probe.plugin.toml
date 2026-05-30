@@ -1,0 +1,54 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "tls_probe"
+description = "Capture TLS certificate metadata from HTTPS/TLS endpoints."
+usage = "tls_probe [port=N] [timeout=SECONDS] [host[:port] ...]"
+examples = [
+  "tls_probe example.test:443",
+  "portscanner host=example.test port=443 | tls_probe",
+  "http_probe https://example.test/ | tls_probe",
+]
+consumes = [
+  "port.open",
+  "http.endpoint",
+]
+emits = [
+  "tls.certificate",
+  "tls.probe.error",
+]
+capabilities = [
+  "db.write:tls.certificate",
+  "db.write:tls.probe.error",
+  "framework.console.alert",
+  "network.connect",
+]
+module = "bywaf.plugins.http.tls_probe"
+database.actions.view = false
+database.actions.write = true
+database.actions.manage = false
+
+[[commandlets.arguments]]
+name = "targets"
+description = "explicit host[:port] or https:// URL targets"
+nargs = "*"
+
+[[commandlets.options]]
+name = "port"
+description = "default TLS port for bare hosts"
+type = "optional-int"
+default = ""
+
+[[commandlets.options]]
+name = "silent"
+description = "suppress TLS alerts"
+type = "bool"
+default = "false"
+
+[[commandlets.options]]
+name = "timeout"
+description = "connection timeout seconds"
+type = "float"
+default = "5"

@@ -1,0 +1,35 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "service_probe"
+description = "Classify upstream service observations into service.detected facts."
+usage = "service_probe [silent=true|false]"
+examples = [
+  "portscanner host=127.0.0.1 port=22,80 | service_probe",
+  "portscanner host=127.0.0.1 port=80 | tcp_banner mode=http-head | service_probe",
+]
+consumes = [
+  "port.open",
+  "tcp.banner",
+  "http.endpoint",
+  "tls.certificate",
+]
+emits = [
+  "service.detected",
+]
+capabilities = [
+  "db.write:service.detected",
+  "framework.console.alert",
+]
+module = "bywaf.plugins.network.service_probe"
+database.actions.view = false
+database.actions.write = true
+database.actions.manage = false
+
+[[commandlets.options]]
+name = "silent"
+description = "suppress service alerts"
+type = "bool"
+default = "false"

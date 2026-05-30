@@ -1968,6 +1968,57 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("TCP banners", text)
             self.assertIn("SSH-2.0-OpenSSH", text)
 
+    def test_results_renders_web_assessment_summaries(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.record_job("http_probe https://example.test | tls_probe | waf_detect", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=1,
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+                commandlet="waf_detect",
+                values={},
+            )
+            runner.db.publish(
+                "service.detected",
+                {"host": "example.test", "port": 443, "protocol": "tcp", "service": "https", "confidence": "high"},
+                "service_probe",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
+            runner.db.publish(
+                "tls.certificate",
+                {"host": "example.test", "port": 443, "subject": "commonName=example.test", "issuer": "commonName=CA"},
+                "tls_probe",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
+            runner.db.publish(
+                "http.path",
+                {"url": "https://example.test/.git/config", "host": "example.test", "port": 443, "path": "/.git/config", "status": 200, "interesting": True},
+                "http_paths",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
+            runner.db.publish(
+                "web.waf.detected",
+                {"url": "https://example.test/", "host": "example.test", "vendor": "Cloudflare", "confidence": "medium"},
+                "waf_detect",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "results")
+
+            text = output.getvalue()
+            self.assertIn("Services detected", text)
+            self.assertIn("TLS certificates", text)
+            self.assertIn("HTTP paths", text)
+            self.assertIn("WAF signals", text)
+            self.assertIn("Cloudflare", text)
+
     def test_results_renders_route_hop_summaries(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

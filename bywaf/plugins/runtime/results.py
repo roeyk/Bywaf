@@ -301,8 +301,12 @@ def render_results(context: CommandContext, scope: Namespace) -> str:
     name_events = [event for event in scope.events if event.topic == "name.resolved"]
     port_events = [event for event in scope.events if event.topic == "port.open"]
     banner_events = [event for event in scope.events if event.topic == "tcp.banner"]
+    service_events = [event for event in scope.events if event.topic == "service.detected"]
+    tls_events = [event for event in scope.events if event.topic == "tls.certificate"]
     route_events = [event for event in scope.events if event.topic == "network.route.hop"]
     endpoint_events = [event for event in scope.events if event.topic == "http.endpoint"]
+    path_events = [event for event in scope.events if event.topic == "http.path"]
+    waf_events = [event for event in scope.events if event.topic == "web.waf.detected"]
     screenshot_events = [event for event in scope.events if event.topic == "web.screenshotted_host"]
     smb_share_events = [event for event in scope.events if event.topic == "smb.share.found"]
     artifact_events = [event for event in scope.events if event.topic == "artifact.attached"]
@@ -314,10 +318,18 @@ def render_results(context: CommandContext, scope: Namespace) -> str:
         sections.append(render_ports_section(context, port_events, scope))
     if banner_events:
         sections.append(render_tcp_banners_section(context, banner_events))
+    if service_events:
+        sections.append(render_services_section(context, service_events))
+    if tls_events:
+        sections.append(render_tls_certificates_section(context, tls_events))
     if route_events:
         sections.append(render_route_hops_section(context, route_events))
     if endpoint_events:
         sections.append(render_http_endpoints_section(context, endpoint_events))
+    if path_events:
+        sections.append(render_http_paths_section(context, path_events))
+    if waf_events:
+        sections.append(render_waf_section(context, waf_events))
     if screenshot_events:
         sections.append(render_screenshots_section(context, screenshot_events))
     if smb_share_events:
@@ -329,9 +341,13 @@ def render_results(context: CommandContext, scope: Namespace) -> str:
         "host.found",
         "name.resolved",
         "port.open",
+        "service.detected",
         "tcp.banner",
+        "tls.certificate",
         "network.route.hop",
         "http.endpoint",
+        "http.path",
+        "web.waf.detected",
         "smb.share.found",
         "web.screenshotted_host",
     }
@@ -458,6 +474,50 @@ def render_tcp_banners_section(context: CommandContext, events: list[Event]) -> 
     return f"TCP banners ({len(events)})\n{table}"
 
 
+def render_services_section(context: CommandContext, events: list[Event]) -> str:
+    """Render normalized service classifications."""
+    rows = [
+        (
+            event.payload.get("host", ""),
+            event.payload.get("port", ""),
+            event.payload.get("protocol", ""),
+            event.payload.get("service", ""),
+            event.payload.get("product", "") or event.payload.get("evidence", ""),
+        )
+        for event in sorted(events, key=lambda event: (str(event.payload.get("host") or ""), int(event.payload.get("port") or 0), event.id or 0))
+    ]
+    table = render_table(
+        ("HOST", "PORT", "PROTO", "SERVICE", "EVIDENCE"),
+        rows,
+        cell_subjects=("host", "port", "protocol", "value", ""),
+        style_getter=command_context_style_getter(context),
+        max_width=terminal_table_width(),
+    )
+    return f"Services detected ({len(events)})\n{table}"
+
+
+def render_tls_certificates_section(context: CommandContext, events: list[Event]) -> str:
+    """Render TLS certificate metadata."""
+    rows = [
+        (
+            event.payload.get("host", ""),
+            event.payload.get("port", ""),
+            event.payload.get("subject", ""),
+            event.payload.get("issuer", ""),
+            event.payload.get("not_after", ""),
+        )
+        for event in sorted(events, key=lambda event: (str(event.payload.get("host") or ""), int(event.payload.get("port") or 0), event.id or 0))
+    ]
+    table = render_table(
+        ("HOST", "PORT", "SUBJECT", "ISSUER", "VALID UNTIL"),
+        rows,
+        cell_subjects=("host", "port", "", "", "value"),
+        style_getter=command_context_style_getter(context),
+        max_width=terminal_table_width(),
+    )
+    return f"TLS certificates ({len(events)})\n{table}"
+
+
 def render_screenshots_section(context: CommandContext, events: list[Event]) -> str:
     """Render screenshot artifact references as a compact result table."""
     rows = [
@@ -575,6 +635,49 @@ def render_route_hops_section(context: CommandContext, events: list[Event]) -> s
         max_width=terminal_table_width(),
     )
     return f"Route hops ({len(events)})\n{table}"
+
+
+def render_http_paths_section(context: CommandContext, events: list[Event]) -> str:
+    """Render HTTP path observations."""
+    rows = [
+        (
+            event.payload.get("url", ""),
+            event.payload.get("status", ""),
+            event.payload.get("title", ""),
+            "yes" if event.payload.get("interesting") else "",
+        )
+        for event in sorted(events, key=lambda event: (str(event.payload.get("url") or ""), event.id or 0))
+    ]
+    table = render_table(
+        ("URL", "STATUS", "TITLE", "INTERESTING"),
+        rows,
+        cell_subjects=("url", "status", "", "status"),
+        style_getter=command_context_style_getter(context),
+        max_width=terminal_table_width(),
+    )
+    return f"HTTP paths ({len(events)})\n{table}"
+
+
+def render_waf_section(context: CommandContext, events: list[Event]) -> str:
+    """Render WAF or edge protection fingerprints."""
+    rows = [
+        (
+            event.payload.get("url", ""),
+            event.payload.get("vendor", ""),
+            event.payload.get("product", ""),
+            event.payload.get("confidence", ""),
+            event.payload.get("evidence", ""),
+        )
+        for event in sorted(events, key=lambda event: (str(event.payload.get("url") or ""), event.id or 0))
+    ]
+    table = render_table(
+        ("URL", "VENDOR", "PRODUCT", "CONF", "EVIDENCE"),
+        rows,
+        cell_subjects=("url", "value", "value", "status", ""),
+        style_getter=command_context_style_getter(context),
+        max_width=terminal_table_width(),
+    )
+    return f"WAF signals ({len(events)})\n{table}"
 
 
 def format_rtt(value: object) -> str:

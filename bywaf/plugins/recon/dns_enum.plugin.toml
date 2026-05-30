@@ -1,0 +1,52 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "dns_enum"
+description = "Resolve names or common subdomains into host facts."
+usage = "dns_enum [domain=example.test words=www,api] [name ...]"
+examples = [
+  "dns_enum example.test www.example.test",
+  "dns_enum domain=example.test words=www,api,mail",
+  "dns_enum domain=example.test words=www,api | portscanner port=80,443",
+]
+emits = [
+  "name.resolved",
+  "host.found",
+  "dns.error",
+]
+capabilities = [
+  "db.write:name.resolved",
+  "db.write:host.found",
+  "db.write:dns.error",
+  "framework.console.alert",
+  "network.connect",
+]
+module = "bywaf.plugins.recon.dns_enum"
+database.actions.view = false
+database.actions.write = true
+database.actions.manage = false
+
+[[commandlets.arguments]]
+name = "names"
+description = "DNS names to resolve"
+nargs = "*"
+
+[[commandlets.options]]
+name = "domain"
+description = "base domain for words="
+type = "str"
+default = ""
+
+[[commandlets.options]]
+name = "words"
+description = "comma or whitespace separated subdomain words"
+type = "str"
+default = ""
+
+[[commandlets.options]]
+name = "silent"
+description = "suppress resolver alerts"
+type = "bool"
+default = "false"

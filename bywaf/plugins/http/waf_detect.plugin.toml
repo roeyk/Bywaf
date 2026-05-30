@@ -1,0 +1,50 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "waf_detect"
+description = "Detect common WAF/CDN products from HTTP response headers."
+usage = "waf_detect [url ...]"
+examples = [
+  "waf_detect https://example.test/",
+  "http_probe https://example.test/ | waf_detect",
+]
+consumes = [
+  "http.endpoint",
+]
+emits = [
+  "web.waf.detected",
+]
+capabilities = [
+  "db.write:web.waf.detected",
+  "framework.console.alert",
+  "network.connect",
+]
+module = "bywaf.plugins.http.waf_detect"
+database.actions.view = false
+database.actions.write = true
+database.actions.manage = false
+
+[[commandlets.arguments]]
+name = "targets"
+description = "explicit URLs or hosts"
+nargs = "*"
+
+[[commandlets.options]]
+name = "silent"
+description = "suppress WAF alerts"
+type = "bool"
+default = "false"
+
+[[commandlets.options]]
+name = "timeout"
+description = "HTTP timeout seconds"
+type = "float"
+default = "5"
+
+[[commandlets.options]]
+name = "user-agent"
+description = "HTTP User-Agent"
+type = "str"
+default = "Bywaf/0.12"

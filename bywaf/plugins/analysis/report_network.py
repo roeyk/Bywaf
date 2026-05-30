@@ -26,7 +26,9 @@ class HostOverview:
     host: str
     names: set[str] = field(default_factory=set)
     ports: list[Event] = field(default_factory=list)
+    services: set[str] = field(default_factory=set)
     endpoints: list[str] = field(default_factory=list)
+    web: set[str] = field(default_factory=set)
     findings: set[str] = field(default_factory=set)
 
 
@@ -40,15 +42,16 @@ def render_network_overview(context: CommandContext, context_events: list[Event]
             host.host,
             ", ".join(sorted(host.names)),
             ", ".join(dict.fromkeys(port_endpoint_text(event) for event in sort_port_events(host.ports, "port"))),
-            ", ".join(dict.fromkeys(host.endpoints)),
+            ", ".join(sorted(host.services)),
+            ", ".join(dict.fromkeys([*host.endpoints, *sorted(host.web)])),
             ", ".join(sorted(host.findings)),
         )
         for host in sorted(hosts.values(), key=lambda item: ip_sort_value(item.host))
     ]
     table = render_table(
-        ("HOST", "NAMES", "OPEN PORTS", "HTTP", "FINDINGS"),
+        ("HOST", "NAMES", "OPEN PORTS", "SERVICES", "WEB", "FINDINGS"),
         rows,
-        cell_subjects=("host", "host.name", "port", "url", "finding.title"),
+        cell_subjects=("host", "host.name", "port", "value", "url", "finding.title"),
         style_getter=command_context_style_getter(context),
         max_width=terminal_table_width(),
     )
@@ -72,8 +75,16 @@ def add_context_event(hosts: dict[str, HostOverview], event: Event) -> None:
         add_named_host(hosts, payload.get("host"), payload.get("name"))
     elif event.topic == "port.open":
         add_port_event(hosts, event)
+    elif event.topic == "service.detected":
+        add_service_event(hosts, event)
     elif event.topic == "http.endpoint":
         add_http_endpoint(hosts, payload.get("host"), payload.get("url"))
+    elif event.topic == "http.path":
+        add_http_path(hosts, payload.get("host"), payload.get("url"), payload.get("interesting"))
+    elif event.topic == "tls.certificate":
+        add_web_note(hosts, payload.get("host"), "tls")
+    elif event.topic == "web.waf.detected":
+        add_web_note(hosts, payload.get("host"), f"waf:{payload.get('vendor', '')}".strip(":"))
 
 
 def add_named_host(hosts: dict[str, HostOverview], host_value: object, name_value: object) -> None:
@@ -95,6 +106,31 @@ def add_http_endpoint(hosts: dict[str, HostOverview], host_value: object, url_va
     host = ensure_host(hosts, host_value)
     if host:
         host.endpoints.append(str(url_value or ""))
+
+
+def add_service_event(hosts: dict[str, HostOverview], event: Event) -> None:
+    """Add a normalized service classification to a host bucket."""
+    host = ensure_host(hosts, event.payload.get("host"))
+    service = str(event.payload.get("service") or "").strip()
+    port = event.payload.get("port")
+    if host and service:
+        host.services.add(f"{service}:{port}" if port else service)
+
+
+def add_http_path(hosts: dict[str, HostOverview], host_value: object, url_value: object, interesting: object) -> None:
+    """Add interesting path observations to the web notes bucket."""
+    if not interesting:
+        return
+    host = ensure_host(hosts, host_value)
+    if host:
+        host.web.add(str(url_value or "interesting path"))
+
+
+def add_web_note(hosts: dict[str, HostOverview], host_value: object, note: str) -> None:
+    """Add one short web/service note to a host bucket."""
+    host = ensure_host(hosts, host_value)
+    if host and note:
+        host.web.add(note)
 
 
 def add_finding_event(hosts: dict[str, HostOverview], event: Event) -> None:
