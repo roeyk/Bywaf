@@ -18,6 +18,7 @@ Used by:
 from __future__ import annotations
 
 from collections.abc import Iterable
+
 from bywaf.events import Event
 from bywaf.plugins.addressing import filter_addresses_for_ip_family, is_ip_scan_target, target_matches_ip_family
 from bywaf.plugins.discovery.hostscanner import publish_name_resolution_events, resolve_target
@@ -117,7 +118,9 @@ def scan_events_or_hosts(
     # Direct CLI hosts are operator intent and win over pipeline input.  If no
     # hosts were provided, this commandlet acts as a normal downstream consumer
     # of `host.found` events.
-    hosts = parsed.hosts or [event.payload["host"] for event in input_events if "host" in event.payload]
+    hosts = parsed.hosts or [event.payload["host"] for event in input_events if event.topic == "host.found" and "host" in event.payload]
+    if not hosts and context.parent_command_run_id:
+        context.output("portscanner: no host.found input from upstream; use hostscanner ... | portscanner or pass host=<target>")
     if parsed.hosts:
         hosts = resolve_explicit_hosts(context, hosts, parsed.arguments)
     hosts = [host for host in hosts if host not in parsed.excluded_hosts]

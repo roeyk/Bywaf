@@ -1032,6 +1032,24 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 self.assertEqual(completed[-1].payload["open_ports"], 1)
                 self.assertEqual(len(runner.db.events_for_topic("port.open")), 1)
 
+    def test_portscanner_explains_unsupported_upstream_input(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            output = io.StringIO()
+            with (
+                patch(
+                    "bywaf.plugins.network.traceroute.run_traceroute",
+                    return_value=type("TraceResult", (), {"stdout": " 1  router (192.0.2.1)  1.0 ms\n", "ok": True})(),
+                ),
+                patch("bywaf.plugins.network.portscanner.scan_open_ports") as scan,
+                contextlib.redirect_stdout(output),
+            ):
+                events = runner.execute("traceroute 192.0.2.10 | portscanner port=80")
+                process_framework_requests(runner, ShellState())
+            scan.assert_not_called()
+            self.assertIn("no host.found input from upstream", output.getvalue())
+            self.assertEqual([event.topic for event in events if event.topic == "network.route.hop"], ["network.route.hop"])
+
     def test_background_pipeline_with_single_marker_preserves_stage_output(self):
         command_line = "hostscanner 127.0.0.1 & | portscanner port=8080"
         with tempfile.TemporaryDirectory() as tmp:
