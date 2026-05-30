@@ -69,7 +69,9 @@ def catalog_plugin_entry(
         package_dir = plugins_root.joinpath(*parts)
         if package_dir.is_dir():
             module_path = package_dir / "__init__.py"
-            manifest_path = package_dir / "bywaf.plugin.toml"
+            package_manifest = package_dir / "bywaf.plugin.toml"
+            sidecar_manifest = plugins_root.joinpath(*parts[:-1], f"{parts[-1]}.plugin.toml")
+            manifest_path = package_manifest if package_manifest.exists() else sidecar_manifest
         else:
             module_path = package_dir.with_suffix(".py")
             manifest_path = plugins_root.joinpath(*parts[:-1], f"{parts[-1]}.plugin.toml")

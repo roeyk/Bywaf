@@ -5,7 +5,7 @@ table: affected resources, evidence snippets, sources, artifacts, provenance,
 and latest update time.
 
 Used by:
-- analysis.report_render: append detailed context under report rows."""
+- analysis.report.render: append detailed context under report rows."""
 
 from __future__ import annotations
 
@@ -16,8 +16,8 @@ from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.plugins.analysis.finding_report import compact_table_text
 
-from .report_model import FindingGroup, effective_finding_payload, sort_unique_events
-from .report_style import finding_text, report_text, subject_text
+from .model import FindingGroup, effective_finding_payload, sort_unique_events
+from .style import finding_text, report_text, subject_text
 
 
 def render_group_details(context: CommandContext, groups: list[FindingGroup]) -> str:

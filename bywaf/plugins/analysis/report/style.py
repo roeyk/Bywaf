@@ -4,8 +4,8 @@ Maps report, table, finding, and generic output subjects to configured terminal
 styles without coupling report code to concrete colors.
 
 Used by:
-- analysis.report_render: style headings and table cells.
-- analysis.report_details: style detail labels and provenance values."""
+- analysis.report.render: style headings and table cells.
+- analysis.report.details: style detail labels and provenance values."""
 
 from __future__ import annotations
 

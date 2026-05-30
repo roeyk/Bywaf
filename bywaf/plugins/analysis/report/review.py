@@ -4,7 +4,7 @@ Handles append-only review markers and status filtering for grouped findings.
 
 Used by:
 - analysis.report: implement report accept/defer/reject actions.
-- analysis.report_render: count and filter reviewed groups."""
+- analysis.report.render: count and filter reviewed groups."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 from bywaf.plugin import CommandContext
 
-from .report_model import FindingGroup, effective_finding_payload, group_finding_events
+from .model import FindingGroup, effective_finding_payload, group_finding_events
 
 REVIEW_DECISIONS = {"accept": "accepted", "defer": "deferred", "reject": "rejected"}
 

@@ -18,10 +18,10 @@ from bywaf.plugins.analysis.finding_report import finding_rows
 from bywaf.rendering import Column, Table, align_text, table_values
 from bywaf.runtime_display import shrink_table_widths, terminal_table_width, truncate_cell
 
-from .report_details import render_group_details
-from .report_model import FindingGroup, effective_finding_payload, events_for_groups, group_finding_events
-from .report_network import host_overviews, render_network_overview
-from .report_review import (
+from .details import render_group_details
+from .model import FindingGroup, effective_finding_payload, events_for_groups, group_finding_events
+from .network import host_overviews, render_network_overview
+from .review import (
     ReviewDecision,
     filter_groups_by_status,
     latest_review_decisions,
@@ -29,7 +29,7 @@ from .report_review import (
     review_status,
     selected_groups,
 )
-from .report_style import finding_text, report_text, table_text
+from .style import finding_text, report_text, table_text
 
 
 def render_finding_report(

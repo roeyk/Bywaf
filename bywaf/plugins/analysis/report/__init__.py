@@ -25,9 +25,9 @@ from bywaf.plugin import (
 from bywaf.plugins._args import key_value_to_long_options
 from bywaf.plugins.analysis.finding_report import REPORT_FINDING_TOPICS
 
-from .report_events import select_report_context_events, select_report_scope_events
-from .report_render import render_finding_report, render_network_report
-from .report_review import REVIEW_DECISIONS, review_report_groups
+from .events import select_report_context_events, select_report_scope_events
+from .render import render_finding_report, render_network_report
+from .review import REVIEW_DECISIONS, review_report_groups
 
 REPORT_ACTIONS = ("accept", "defer", "reject", "detail", "network")
 REPORT_REVIEW_ACTIONS = tuple(REVIEW_DECISIONS)

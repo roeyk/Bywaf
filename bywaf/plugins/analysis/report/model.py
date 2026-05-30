@@ -5,7 +5,7 @@ rendering and review actions.
 
 Used by:
 - analysis.report: render and review grouped finding reports.
-- analysis.report_review and analysis.report_render: share one grouping model."""
+- analysis.report.review and analysis.report.render: share one grouping model."""
 
 from __future__ import annotations
 

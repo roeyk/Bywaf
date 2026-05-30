@@ -15,7 +15,7 @@ from bywaf.plugin import CommandContext
 from bywaf.plugins.analysis.finding_report import REPORT_FINDING_TOPICS
 from bywaf.plugins.runtime.audit import resolve_pipeline_selector, resolve_run_selector
 
-from .report_model import sort_unique_events
+from .model import sort_unique_events
 
 REPORT_CONTEXT_TOPICS = (
     "host.found",
