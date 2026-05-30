@@ -7,6 +7,8 @@ Consumes:
 - `host.found` events from discovery.
 
 Emits:
+- `host.found` for the traced target, so downstream commandlets can continue
+  working on the intended host.
 - `network.route.hop` events, one per hop and target.
 """
 
@@ -43,6 +45,7 @@ def traceroute(context: CommandContext, cfg: RunConfig, input_events: Iterable[E
             continue
         hops = parse_traceroute_output(target, result.stdout)
         context.output(render_trace_hops(context, target, hops))
+        context.events.publish("host.found", HostFound(target, status="reachable", scanner="traceroute").to_payload())
         context.alert(f"traceroute found {len(hops)} hops for {target}", silent=cfg.silent)
         for hop in hops:
             yield hop.to_payload()

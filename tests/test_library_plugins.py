@@ -167,6 +167,7 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertEqual(events[0]["target"], "192.0.2.10")
             self.assertEqual(events[0]["hop"], 1)
             self.assertEqual(events[0]["ip"], "192.0.2.1")
+            self.assertEqual(db.events_for_topic("host.found")[0].payload["host"], "192.0.2.10")
 
     def test_manifest_config_uses_cli_vars_and_defaults(self):
         store = VarStore()

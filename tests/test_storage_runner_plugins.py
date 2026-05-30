@@ -1032,7 +1032,7 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 self.assertEqual(completed[-1].payload["open_ports"], 1)
                 self.assertEqual(len(runner.db.events_for_topic("port.open")), 1)
 
-    def test_portscanner_explains_unsupported_upstream_input(self):
+    def test_traceroute_pipeline_scans_original_target_not_route_hops(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()
@@ -1041,14 +1041,17 @@ class StorageRunnerPluginTests(unittest.TestCase):
                     "bywaf.plugins.network.traceroute.run_traceroute",
                     return_value=type("TraceResult", (), {"stdout": " 1  router (192.0.2.1)  1.0 ms\n", "ok": True})(),
                 ),
-                patch("bywaf.plugins.network.portscanner.scan_open_ports") as scan,
+                patch(
+                    "bywaf.plugins.network.portscanner.scan_open_ports",
+                    return_value=[NmapPort("192.0.2.10", 80, "tcp", "open", "http")],
+                ) as scan,
                 contextlib.redirect_stdout(output),
             ):
                 events = runner.execute("traceroute 192.0.2.10 | portscanner port=80")
                 process_framework_requests(runner, ShellState())
-            scan.assert_not_called()
-            self.assertIn("no host.found input from upstream", output.getvalue())
+            self.assertEqual(scan.call_args.args[0], ["192.0.2.10"])
             self.assertEqual([event.topic for event in events if event.topic == "network.route.hop"], ["network.route.hop"])
+            self.assertEqual([event.topic for event in events if event.topic == "port.open"], ["port.open"])
 
     def test_traceroute_prints_route_table(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -16,6 +16,7 @@ consumes = [
 ]
 emits = [
   "network.route.hop",
+  "host.found",
 ]
 capabilities = [
   "db.write:tool.error",

@@ -141,7 +141,7 @@ the association and `Consumes` is the normal consumer side.
 | `smb_probe` | none | `smb.server` |
 | `snmp_get` | none | `snmp.value` |
 | `ssh_probe` | `port.open` | `ssh.service` |
-| `traceroute` | `host.found` | `network.route.hop` |
+| `traceroute` | `host.found` | `host.found`, `network.route.hop` |
 | `watchdog` | none | `watchdog.timeout`, `watchdog.stalled`, `watchdog.error_rate` |
 | `webfin` | `http.endpoint` | `web.fingerprint` |
 | `wifi_scan` | none | `wifi.network`, `kismet.network` |
