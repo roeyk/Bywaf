@@ -7,6 +7,7 @@ Used by:
 - pytest and CI: detect regressions in this subsystem.
 - maintainers: document expected behavior through executable examples."""
 
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -168,6 +169,43 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertEqual(events[0]["hop"], 1)
             self.assertEqual(events[0]["ip"], "192.0.2.1")
             self.assertEqual(db.events_for_topic("host.found")[0].payload["host"], "192.0.2.10")
+
+    def test_traceroute_falls_back_to_tracepath_when_default_binary_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(db=db, source="traceroute", metadata={"capabilities": traceroute.spec.capabilities})
+            with patch(
+                "bywaf.plugin.process.run_process_argv",
+                side_effect=[
+                    FileNotFoundError(2, "No such file or directory", "traceroute"),
+                    subprocess.CompletedProcess(
+                        ["tracepath", "-m", "30", "192.0.2.10"],
+                        0,
+                        " 1:  192.0.2.1  1.0ms\n",
+                        "",
+                    ),
+                ],
+            ) as run_process:
+                events = list(traceroute.run(context, ["192.0.2.10"], []))
+            self.assertEqual(run_process.call_count, 2)
+            self.assertEqual(run_process.call_args_list[1].args[0][0], "tracepath")
+            self.assertEqual(events[0]["ip"], "192.0.2.1")
+            self.assertEqual(db.events_for_topic("tool.error"), [])
+
+    def test_traceroute_reports_explicit_missing_binary_without_fallback(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(db=db, source="traceroute", metadata={"capabilities": traceroute.spec.capabilities})
+            with patch(
+                "bywaf.plugin.process.run_process_argv",
+                side_effect=FileNotFoundError(2, "No such file or directory", "/missing/tool"),
+            ) as run_process:
+                events = list(traceroute.run(context, ["binary=/missing/tool", "192.0.2.10"], []))
+            self.assertEqual(run_process.call_count, 1)
+            self.assertEqual(events, [])
+            error = db.events_for_topic("tool.error")[0].payload
+            self.assertEqual(error["tool"], "/missing/tool")
+            self.assertIn("missing external executable", error["message"])
 
     def test_manifest_config_uses_cli_vars_and_defaults(self):
         store = VarStore()

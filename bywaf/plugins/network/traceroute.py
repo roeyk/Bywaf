@@ -85,20 +85,43 @@ def trace_targets(targets: list[str], input_events: Iterable[Event]) -> list[str
 
 def run_traceroute(context: CommandContext, cfg: TracerouteConfig, target: str) -> ProcessResult | None:
     """Run traceroute through the framework process API and publish tool errors."""
-    command = trace_command(cfg, target)
+    result = run_trace_command(context, cfg, trace_command(cfg, target), target)
+    if result is None and default_trace_binary(cfg.binary):
+        result = run_trace_command(context, cfg, TraceCommand(("tracepath", "-m", str(cfg.maxhops), target), target), target)
+    if result is None:
+        tool = "traceroute or tracepath" if default_trace_binary(cfg.binary) else cfg.binary
+        publish_trace_error(context, tool, target, f"missing external executable: install {tool}, or set binary=<path>")
+        return None
+    if not result.ok and not result.stdout:
+        tool = result.argv[0] if result.argv else cfg.binary
+        publish_trace_error(context, tool, target, result.stderr.strip() or f"{tool} exited with {result.returncode}")
+    return result
+
+
+def run_trace_command(context: CommandContext, cfg: TracerouteConfig, command: TraceCommand, target: str) -> ProcessResult | None:
+    """Run one trace command and return None when the executable is missing."""
     try:
-        result = context.process.run(command.argv, timeout=max(cfg.timeout * cfg.maxhops, cfg.timeout + 1))
+        return context.process.run(command.argv, timeout=max(cfg.timeout * cfg.maxhops, cfg.timeout + 1))
     except OSError as exc:
-        publish_trace_error(context, cfg.binary, target, str(exc))
+        if missing_executable_error(exc):
+            return None
+        publish_trace_error(context, command.argv[0], target, str(exc))
         return None
     except Exception as exc:
         if exc.__class__.__name__ != "TimeoutExpired":
             raise
-        publish_trace_error(context, cfg.binary, target, str(exc))
+        publish_trace_error(context, command.argv[0], target, str(exc))
         return None
-    if not result.ok and not result.stdout:
-        publish_trace_error(context, cfg.binary, target, result.stderr.strip() or f"{cfg.binary} exited with {result.returncode}")
-    return result
+
+
+def default_trace_binary(binary: str) -> bool:
+    """Return whether the operator left the trace tool at its default."""
+    return binary in {"", "traceroute"}
+
+
+def missing_executable_error(exc: OSError) -> bool:
+    """Return whether an OSError indicates a missing external executable."""
+    return getattr(exc, "errno", None) == 2
 
 
 def publish_trace_error(context: CommandContext, tool: str, target: str, message: str) -> None:
