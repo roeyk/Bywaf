@@ -4,7 +4,7 @@ Updates job/pipeline/step runtime state, sends hard OS process signals when
 requested, and prints queued control actions.
 
 Used by:
-- runtime.control_actions: apply resolved control and signal requests."""
+- runtime.control.actions: apply resolved control and signal requests."""
 
 from __future__ import annotations
 
@@ -15,12 +15,12 @@ from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.plugins.runtime.job import cancel_job, kill_job
 
-from .control_selectors import display_target_kind
+from .selectors import display_target_kind
 
 
 def pause_job(context: CommandContext, row, *, hard: bool, publish_signal: bool = True) -> None:
     """Record or apply a pause request for one job."""
-    from .control_signals import publish_runtime_signal
+    from .signals import publish_runtime_signal
 
     events = context.event_store("job pause")
     runtime = context.runtime_store("job pause")
@@ -40,7 +40,7 @@ def pause_job(context: CommandContext, row, *, hard: bool, publish_signal: bool 
 
 def resume_job(context: CommandContext, row, *, hard: bool, listonly: bool, publish_signal: bool = True) -> None:
     """Record or apply a resume request for one job."""
-    from .control_signals import publish_runtime_signal
+    from .signals import publish_runtime_signal
 
     events = context.event_store("job resume")
     runtime = context.runtime_store("job resume")
@@ -63,7 +63,7 @@ def resume_job(context: CommandContext, row, *, hard: bool, listonly: bool, publ
 
 def stop_job(context: CommandContext, row, *, hard: bool, publish_signal: bool = True) -> None:
     """Soft-cancel or hard-kill one job."""
-    from .control_signals import publish_runtime_signal
+    from .signals import publish_runtime_signal
 
     if publish_signal:
         publish_runtime_signal(context, "job", str(row["id"]), "stop", {}, mode="hard" if hard else "soft")
@@ -80,7 +80,7 @@ def stop_job(context: CommandContext, row, *, hard: bool, publish_signal: bool =
 
 def pause_pipeline(context: CommandContext, pipeline_id: str, *, hard: bool, publish_signal: bool = True) -> None:
     """Pause all jobs associated with a pipeline."""
-    from .control_signals import publish_runtime_signal
+    from .signals import publish_runtime_signal
 
     resolved_pipeline_id = require_pipeline_id(context, pipeline_id)
     if publish_signal:
@@ -91,7 +91,7 @@ def pause_pipeline(context: CommandContext, pipeline_id: str, *, hard: bool, pub
 
 def resume_pipeline(context: CommandContext, pipeline_id: str, *, hard: bool, listonly: bool, publish_signal: bool = True) -> None:
     """Resume all jobs associated with a pipeline."""
-    from .control_signals import publish_runtime_signal
+    from .signals import publish_runtime_signal
 
     resolved_pipeline_id = require_pipeline_id(context, pipeline_id)
     if publish_signal and not listonly:
@@ -102,7 +102,7 @@ def resume_pipeline(context: CommandContext, pipeline_id: str, *, hard: bool, li
 
 def stop_pipeline(context: CommandContext, pipeline_id: str, *, hard: bool, publish_signal: bool = True) -> None:
     """Stop all jobs associated with a pipeline."""
-    from .control_signals import publish_runtime_signal
+    from .signals import publish_runtime_signal
 
     resolved_pipeline_id = require_pipeline_id(context, pipeline_id)
     if publish_signal:
@@ -129,7 +129,7 @@ def kill_run(context: CommandContext, command_run_id: str) -> None:
 
 def pause_run(context: CommandContext, command_run_id: str, *, hard: bool, publish_signal: bool = True) -> None:
     """Pause jobs associated with one pipeline step."""
-    from .control_signals import publish_runtime_signal
+    from .signals import publish_runtime_signal
 
     if publish_signal:
         publish_runtime_signal(context, "run", command_run_id, "pause", {}, mode="hard" if hard else "soft")
@@ -145,7 +145,7 @@ def pause_run(context: CommandContext, command_run_id: str, *, hard: bool, publi
 
 def resume_run(context: CommandContext, command_run_id: str, *, hard: bool, listonly: bool, publish_signal: bool = True) -> None:
     """Resume or inspect queued actions for one pipeline step."""
-    from .control_signals import publish_runtime_signal
+    from .signals import publish_runtime_signal
 
     if listonly:
         print_queued_actions(context, "run", command_run_id)
@@ -164,7 +164,7 @@ def resume_run(context: CommandContext, command_run_id: str, *, hard: bool, list
 
 def stop_run(context: CommandContext, command_run_id: str, *, hard: bool, publish_signal: bool = True) -> None:
     """Stop jobs associated with one pipeline step."""
-    from .control_signals import publish_runtime_signal
+    from .signals import publish_runtime_signal
 
     if publish_signal:
         publish_runtime_signal(context, "run", command_run_id, "stop", {}, mode="hard" if hard else "soft")

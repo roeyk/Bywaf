@@ -5,7 +5,7 @@ requests without coupling action dispatch to low-level control operations.
 
 Used by:
 - runtime.control: publish ad hoc framework signals.
-- runtime.control_actions and control_operations: record requested control work.
+- runtime.control.actions and control.operations: record requested control work.
 """
 
 from __future__ import annotations

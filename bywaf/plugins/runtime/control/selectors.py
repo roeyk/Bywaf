@@ -5,7 +5,7 @@ canonical runtime ids used by control action handlers.
 
 Used by:
 - runtime.control: normalize commandlet targets.
-- runtime.control_actions: display queue targets and resolve job ids."""
+- runtime.control.actions: display queue targets and resolve job ids."""
 
 from __future__ import annotations
 

@@ -14,7 +14,7 @@ from bywaf.plugin import CommandContext
 from bywaf.plugins.runtime.job import cancel_job, kill_job, require_job
 from bywaf.plugins.runtime.pipeline import cancel_pipeline, kill_pipeline
 
-from .control_operations import (
+from .operations import (
     cancel_run,
     kill_run,
     pause_job,
@@ -27,7 +27,7 @@ from .control_operations import (
     stop_pipeline,
     stop_run,
 )
-from .control_signals import publish_runtime_signal
+from .signals import publish_runtime_signal
 
 ControlHandler = Callable[[CommandContext, str, bool, bool], None]
 SignalHandler = Callable[[CommandContext, str, bool], None]

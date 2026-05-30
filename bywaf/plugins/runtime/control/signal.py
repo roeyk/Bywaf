@@ -7,7 +7,7 @@ Used by:
 
 from __future__ import annotations
 
-from .control_selectors import parse_target
+from .selectors import parse_target
 
 
 def parse_signal_args(args: list[str]) -> dict[str, object]:

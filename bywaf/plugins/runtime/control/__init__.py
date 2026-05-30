@@ -16,10 +16,10 @@ from typing import cast
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
 
-from .control_actions import CONTROL_HANDLERS, dispatch_framework_signal
-from .control_selectors import control_completion, display_target_kind, parse_target, resolve_control_target
-from .control_signal import parse_signal_args
-from .control_signals import publish_runtime_signal
+from .actions import CONTROL_HANDLERS, dispatch_framework_signal
+from .selectors import control_completion, display_target_kind, parse_target, resolve_control_target
+from .signal import parse_signal_args
+from .signals import publish_runtime_signal
 
 
 class Control(CommandletBase):
