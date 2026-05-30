@@ -48,6 +48,8 @@ offensive frameworks, do not look for Veil-style modules, Metasploit-style
   installation, optional plugin dependencies, and release package builds.
 - [Capability Model](CAPABILITY_MODEL.md): capability auditing, trust
   boundaries, policy direction, and plugin integration types.
+- [Security Audit](SECURITY_AUDIT.md): adversarial review scope, current
+  controls, release gate checks, and known sandbox limits.
 - [Plugin Manifest Specification](MANIFEST_SPECIFICATION.md): exact sidecar
   TOML schema, manifest generation, validation behavior, and boundaries.
 - [Framework Surface](FRAMEWORK_SURFACE.md): enumerated base resources,

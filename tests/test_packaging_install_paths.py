@@ -15,10 +15,13 @@ import io
 import importlib.resources
 import importlib.util
 import json
+import re
 import tempfile
+import tomllib
 import unittest
 from unittest.mock import patch
 
+import bywaf
 from bywaf.app import main, make_runner
 from bywaf.db import EventStore
 from bywaf.registry import plugin_manifest_signature_block
@@ -136,6 +139,17 @@ def sign_plugin_manifest(manifest_path: Path, private_path: Path) -> None:
 
 
 class PackagingInstallPathTests(unittest.TestCase):
+    def test_release_package_versions_are_aligned(self):
+        version = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+        rpm_spec = Path("packaging/rpm/bywaf.spec").read_text(encoding="utf-8")
+        debian_changelog = Path("debian/changelog").read_text(encoding="utf-8")
+        readme = Path("README.md").read_text(encoding="utf-8")
+
+        self.assertEqual(bywaf.__version__, version)
+        self.assertRegex(rpm_spec, rf"%global bywaf_version %{{!\?bywaf_version:{re.escape(version)}}}")
+        self.assertTrue(debian_changelog.startswith(f"bywaf ({version}-1) "))
+        self.assertIn(f"dist/bywaf-{version}-py3-none-any.whl", readme)
+
     def test_packaged_key_namespace_contains_public_key_policy_docs(self):
         key_docs = importlib.resources.files("bywaf.keys").joinpath("README.md")
         key_placeholder = importlib.resources.files("bywaf.keys").joinpath(

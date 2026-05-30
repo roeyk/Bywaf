@@ -141,6 +141,10 @@ Smoke-test release packages where practical:
 tests/scripts/smoke_rpm_package.sh
 ```
 
+Version alignment is covered by `tests/test_packaging_install_paths.py`: the
+Python package version, `bywaf.__version__`, Debian changelog, RPM spec, and
+README wheel example must agree before release packaging.
+
 The install guide lists OS dependency blocks and optional plugin dependencies:
 [Install Guide](../INSTALL.md).
 

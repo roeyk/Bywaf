@@ -356,6 +356,35 @@ class ConfigPluginTests(unittest.TestCase):
         self.assertEqual(request.payload["secrets"][0]["env"], "TOOL_PASSWORD")
         self.assertEqual(request.payload["secrets"][0]["name"], "test.password")
 
+    def test_command_context_process_run_redacts_secret_output_events(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            secrets = InMemorySecretStore()
+            secret_ref = secrets.put("test.password", "supersecret", key=b"k" * 32)
+            context = CommandContext(
+                db=db,
+                source="test",
+                _secrets=secrets,
+                metadata={
+                    "command_run_id": "run-1",
+                    "capabilities": ("framework.secret.resolve", "process.run"),
+                },
+            )
+            password = context.secrets.resolve(secret_ref.ref)
+            result = context.process.run(
+                [
+                    sys.executable,
+                    "-c",
+                    "import sys; print(sys.argv[1]); print(sys.argv[1], file=sys.stderr)",
+                    password or "",
+                ]
+            )
+            event = db.events_for_topic("process.run")[0]
+        self.assertIn("supersecret", result.stdout)
+        self.assertNotIn("supersecret", str(event.payload))
+        self.assertEqual(event.payload["stdout"], "[REDACTED]\n")
+        self.assertEqual(event.payload["stderr"], "[REDACTED]\n")
+
     def test_commandlet_secret_args_are_redacted_with_secret_identity(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
@@ -431,6 +460,37 @@ class ConfigPluginTests(unittest.TestCase):
         self.assertEqual(stdout[0].payload["text"], "out\n")
         self.assertEqual(stderr[0].payload["text"], "err\n")
         self.assertEqual(exited[0].payload["returncode"], 0)
+
+    def test_command_context_process_stream_redacts_secret_output_events(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            secrets = InMemorySecretStore()
+            secret_ref = secrets.put("test.password", "supersecret", key=b"k" * 32)
+            context = CommandContext(
+                db=db,
+                source="test",
+                _secrets=secrets,
+                metadata={
+                    "command_run_id": "run-1",
+                    "capabilities": ("framework.secret.resolve", "process.run"),
+                },
+            )
+            password = context.secrets.resolve(secret_ref.ref)
+            chunks = list(
+                context.process.stream(
+                    [
+                        sys.executable,
+                        "-u",
+                        "-c",
+                        "import sys; print(sys.argv[1])",
+                        password or "",
+                    ]
+                )
+            )
+            stdout = db.events_for_topic("process.stdout")
+        self.assertEqual(chunks[0].text, "supersecret\n")
+        self.assertEqual(stdout[0].payload["text"], "[REDACTED]\n")
+        self.assertNotIn("supersecret", str(stdout[0].payload))
 
     def test_normalize_argv_rejects_shell_string(self):
         with self.assertRaisesRegex(TypeError, "sequence of strings"):

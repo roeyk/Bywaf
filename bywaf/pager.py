@@ -9,6 +9,7 @@ Used by:
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
@@ -25,7 +26,7 @@ def page_file(path: Path) -> None:
     pager = shutil.which("less")
     if pager and sys.stdin.isatty() and sys.stdout.isatty():
         try:
-            subprocess.run([pager, "-R", str(path)], check=False)
+            subprocess.run([pager, "-R", "--", str(path)], check=False, env=secure_pager_env())
         except KeyboardInterrupt:
             pass
         return
@@ -54,3 +55,10 @@ def page_text(text: str, *, suffix: str = ".txt") -> None:
         page_file(path)
     finally:
         path.unlink(missing_ok=True)
+
+
+def secure_pager_env() -> dict[str, str]:
+    """Return an environment that disables less shell escapes and file opens."""
+    env = dict(os.environ)
+    env["LESSSECURE"] = "1"
+    return env

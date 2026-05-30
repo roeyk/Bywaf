@@ -825,7 +825,9 @@ class AppDispatchTests(unittest.TestCase):
             argv = run.call_args.args[0]
             self.assertEqual(argv[0], "/usr/bin/less")
             self.assertEqual(argv[1], "-R")
-            self.assertFalse(Path(argv[2]).exists())
+            self.assertEqual(argv[2], "--")
+            self.assertFalse(Path(argv[3]).exists())
+            self.assertEqual(run.call_args.kwargs["env"]["LESSSECURE"], "1")
 
     def test_dispatch_cmds_page_ignores_pager_keyboard_interrupt(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1505,7 +1507,10 @@ class AppDispatchTests(unittest.TestCase):
                 patch("bywaf.pager.subprocess.run") as run,
             ):
                 dispatch_repl_line(runner, f"less {path}")
-            run.assert_called_once_with(["/usr/bin/less", "-R", str(path)], check=False)
+            run.assert_called_once()
+            self.assertEqual(run.call_args.args[0], ["/usr/bin/less", "-R", "--", str(path)])
+            self.assertFalse(run.call_args.kwargs["check"])
+            self.assertEqual(run.call_args.kwargs["env"]["LESSSECURE"], "1")
 
     def test_list_action_page_uses_system_pager_for_generated_output(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1524,7 +1529,9 @@ class AppDispatchTests(unittest.TestCase):
             argv = run.call_args.args[0]
             self.assertEqual(argv[0], "/usr/bin/less")
             self.assertEqual(argv[1], "-R")
-            self.assertFalse(Path(argv[2]).exists())
+            self.assertEqual(argv[2], "--")
+            self.assertFalse(Path(argv[3]).exists())
+            self.assertEqual(run.call_args.kwargs["env"]["LESSSECURE"], "1")
 
     def test_page_prints_inline_when_generated_output_fits_terminal(self):
         with tempfile.TemporaryDirectory() as tmp:

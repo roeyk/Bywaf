@@ -24,9 +24,15 @@ impact label and sorted from highest to lowest operator/developer impact:
 
 ### Changed
 
+- [high] Added a security audit document and hardened framework-mediated
+  process and pager audit paths so known secret values are redacted from
+  durable process output events and interactive paging uses secure `less`
+  invocation.
 - [high] Made `report` default to a compact finding inbox and added
   `report <#>` / `report detail <#>` drill-down for evidence, artifacts,
   provenance, and latest-update details.
+- [medium] Added release-package version alignment coverage across Python,
+  Debian, RPM, and README package examples.
 - [medium] Updated manual validation scripts to use local/authorized targets by
   default and documented target/port range syntax for script variables.
 - [low] Documented display syntax-highlighting internals in the framework

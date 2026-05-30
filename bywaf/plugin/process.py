@@ -276,8 +276,8 @@ class ContextProcess:
             {
                 "argv": list(result.argv),
                 "returncode": result.returncode,
-                "stdout": result.stdout,
-                "stderr": result.stderr,
+                "stdout": redact_known_secret_values(self.context, result.stdout),
+                "stderr": redact_known_secret_values(self.context, result.stderr),
                 "ok": result.ok,
                 "request_event_id": result.request_event_id,
                 "job_id": self.context.job_id,
@@ -314,7 +314,7 @@ class ContextProcess:
             {
                 "argv": list(chunk.argv),
                 "stream": chunk.stream,
-                "text": chunk.text,
+                "text": redact_known_secret_values(self.context, chunk.text),
                 "request_event_id": chunk.request_event_id,
                 "job_id": self.context.job_id,
             },
