@@ -55,7 +55,7 @@ NOISE_TOPIC_PREFIXES = (
     "trigger.",
     "watchdog.",
 )
-NOISE_TOPICS = {"runtime.name.assigned"}
+NOISE_TOPICS = {"process.run", "runtime.name.assigned"}
 RESULT_VIEW_COMMANDS = {
     "artifact",
     "bundle",

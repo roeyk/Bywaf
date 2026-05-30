@@ -1979,6 +1979,13 @@ class AppDispatchTests(unittest.TestCase):
                 pipeline_id="scan-pipeline",
                 command_run_id="scan-step",
             )
+            runner.db.publish(
+                "process.run",
+                {"argv": ["traceroute", "192.0.2.20"], "returncode": 0, "stdout": "raw tool output"},
+                "traceroute",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
 
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
@@ -1989,6 +1996,8 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("Route hops", text)
             self.assertIn("192.0.2.1", text)
             self.assertIn("1.25 ms", text)
+            self.assertNotIn("process.run", text)
+            self.assertNotIn("Representative events", text)
 
     def test_results_passes_sort_to_embedded_ports_view(self):
         with tempfile.TemporaryDirectory() as tmp:
