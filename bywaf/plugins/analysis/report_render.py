@@ -20,7 +20,7 @@ from bywaf.runtime_display import shrink_table_widths, terminal_table_width, tru
 
 from .report_details import render_group_details
 from .report_model import FindingGroup, effective_finding_payload, events_for_groups, group_finding_events
-from .report_network import render_network_overview
+from .report_network import host_overviews, render_network_overview
 from .report_review import (
     ReviewDecision,
     filter_groups_by_status,
@@ -98,6 +98,35 @@ def render_finding_report(
     )
 
 
+def render_network_report(
+    context: CommandContext,
+    context_events: list[Event],
+    finding_events: list[Event],
+    parsed: Namespace,
+) -> None:
+    """Render a network-first report view for one selected scope."""
+    output_lines = [
+        report_text(context, "heading", network_report_heading(parsed, context_events, finding_events)),
+    ]
+    network_overview = render_network_overview(context, context_events, finding_events)
+    if network_overview:
+        output_lines.append(network_overview)
+    else:
+        output_lines.append("no network observations")
+    emit_report_output(context, output_lines, parsed)
+    context.events.publish(
+        "report.rendered",
+        report_rendered_payload(
+            parsed,
+            [*context_events, *finding_events],
+            groups=[],
+            rows=len(host_overviews(context_events, finding_events)),
+            counts={},
+            action="network",
+        ),
+    )
+
+
 def emit_report_output(context: CommandContext, lines: list[str], parsed: Namespace) -> None:
     """Page or print one complete rendered report."""
     rendered = "\n".join(line for line in lines if line)
@@ -149,6 +178,25 @@ def report_heading(parsed: Namespace, events: list[Event], groups: list[FindingG
     )
 
 
+def network_report_heading(parsed: Namespace, context_events: list[Event], finding_events: list[Event]) -> str:
+    """Return a compact heading for the network report view."""
+    if parsed.job:
+        scope = f"job={parsed.job}"
+    elif parsed.pipeline:
+        scope = f"pipeline={parsed.pipeline}"
+    elif parsed.step:
+        scope = f"step={parsed.step}"
+    else:
+        scope = "latest completed pipeline"
+    event_count = len(context_events) + len(finding_events)
+    host_count = len(host_overviews(context_events, finding_events))
+    return (
+        f"Report network: {scope} "
+        f"({host_count} host{'s' if host_count != 1 else ''}, "
+        f"{event_count} event{'s' if event_count != 1 else ''})"
+    )
+
+
 def report_rendered_payload(
     parsed: Namespace,
     events: list[Event],
@@ -156,10 +204,11 @@ def report_rendered_payload(
     groups: list[FindingGroup] | None = None,
     rows: int,
     counts: Mapping[str, int] | None = None,
+    action: str | None = None,
 ) -> dict[str, object]:
     """Return a structured payload describing one rendered report."""
     return {
-        "action": "show" if any((parsed.job, parsed.pipeline, parsed.step)) else "inbox",
+        "action": action or ("show" if any((parsed.job, parsed.pipeline, parsed.step)) else "inbox"),
         "job": parsed.job,
         "pipeline": parsed.pipeline,
         "step": parsed.step,

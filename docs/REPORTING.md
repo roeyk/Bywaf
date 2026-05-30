@@ -11,6 +11,7 @@ payloads, raw facts, artifacts, notes, or audit history.
 
 - [What Becomes Reportable](#what-becomes-reportable)
 - [Default View](#default-view)
+- [Network View](#network-view)
 - [Finding Detail](#finding-detail)
 - [Scoped Views](#scoped-views)
 - [Grouping Behavior](#grouping-behavior)
@@ -59,6 +60,22 @@ Use `report <#>` or `report detail <#>` for evidence, artifacts, and provenance.
 By default, `report` shows unreviewed findings. Use `status=all`,
 `status=accepted`, `status=deferred`, or `status=rejected` to inspect other
 review states.
+
+## Network View
+
+Use `report network` when you want the current host-centric picture instead of
+the finding inbox:
+
+```text
+bywaf> report network
+bywaf> report network pipeline=1
+```
+
+This view summarizes shared facts such as `host.found`, `name.resolved`,
+`port.open`, `http.endpoint`, and finding titles by host. It is the report-side
+counterpart to task-specific views such as `ports`: use `ports` for a compact
+portscanner result, and use `report network` when you want those observations
+placed into the broader assessment picture.
 
 ## Finding Detail
 
