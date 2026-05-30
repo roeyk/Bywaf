@@ -14,6 +14,7 @@ from __future__ import annotations
 from argparse import Namespace
 from collections import Counter
 from collections.abc import Iterable
+import time
 
 from bywaf.event_schemas import event_schema
 from bywaf.events import Event
@@ -30,7 +31,7 @@ from bywaf.runtime_display import (
 )
 from bywaf.style import styled_subject_text
 
-RESULT_SCOPE_KEYS = {"all", "job", "pipeline", "step", "sort"}
+RESULT_SCOPE_KEYS = {"all", "interval", "job", "once", "pipeline", "step", "sort"}
 
 # `results` is an operator-facing product view, not a raw audit log.  These
 # framework/UI topics are still visible through `event`, but they should never
@@ -75,9 +76,10 @@ RESULT_VIEW_COMMANDS = {
 @commandlet(
     name="results",
     description="Show what the latest or selected scan found.",
-    usage="results [job=latest|<id>] [pipeline=<id>] [step=<id>] [all=true] [sort=<key>]",
+    usage="results [--follow] [job=latest|<id>] [pipeline=<id>] [step=<id>] [all=true] [sort=<key>]",
     examples=(
         "results",
+        "results --follow",
         "results sort=port",
         "results pipeline=1",
         "results step=2",
@@ -98,10 +100,14 @@ class Results(CommandletBase):
         """Select a result scope and render useful inserted records."""
         del input_events
         parser = self.parser()
+        parser.add_argument("--follow", action="store_true")
         parser.add_argument("--page", action="store_true")
         parsed, tokens = parser.parse_known_args(args)
         selectors = parse_results_selectors(tokens)
         context.require_foreground("result views")
+        if parsed.follow:
+            follow_results(context, selectors)
+            return ()
         scope = select_result_scope(context, selectors)
         if not scope.events:
             context.output(no_results_message(context))
@@ -118,15 +124,15 @@ class Results(CommandletBase):
         del context
         if args and args[-1].startswith("sort="):
             return runtime_sort_completion_candidates(args[-1], PORT_SORT_KEYS)
-        candidates = ["--page", "all=true", "job=", "job=latest", "pipeline=", "step=", "sort="]
+        candidates = ["--follow", "--page", "all=true", "interval=", "job=", "job=latest", "once=", "pipeline=", "step=", "sort="]
         return [candidate for candidate in candidates if candidate.startswith(prefix)]
 
 
 @commandlet(
     name="result",
     description="Alias for results.",
-    usage="result [job=latest|<id>] [pipeline=<id>] [step=<id>] [all=true] [sort=<key>]",
-    examples=("result", "result sort=port", "result pipeline=1", "result step=2"),
+    usage="result [--follow] [job=latest|<id>] [pipeline=<id>] [step=<id>] [all=true] [sort=<key>]",
+    examples=("result", "result --follow", "result sort=port", "result pipeline=1", "result step=2"),
     capabilities=("framework.console.output", "framework.file.page"),
     database_actions=("view",),
 )
@@ -138,6 +144,8 @@ def parse_results_selectors(tokens: list[str]) -> Namespace:
     """Parse `results` selector tokens into a single runtime scope."""
     scope: dict[str, str] = {}
     sort_key = "host"
+    interval = 1.0
+    once = False
     for token in tokens:
         if token.startswith("--"):
             raise ValueError(f"results uses selector syntax; use key=value, not {token}")
@@ -146,12 +154,37 @@ def parse_results_selectors(tokens: list[str]) -> Namespace:
             raise ValueError("results selectors must be key=value")
         if key not in RESULT_SCOPE_KEYS:
             raise ValueError("results selectors must be one of: all, job, pipeline, step, sort")
-        if key == "sort":
+        if key == "interval":
+            interval = parse_results_interval(value)
+        elif key == "once":
+            once = parse_results_boolean(value, "once")
+        elif key == "sort":
             sort_key = parse_runtime_sort(value, PORT_SORT_KEYS, "results")
         else:
             scope[key] = value
     validate_results_scope(scope)
-    return Namespace(scope=scope, sort=sort_key)
+    return Namespace(scope=scope, sort=sort_key, interval=interval, once=once)
+
+
+def parse_results_interval(raw: str) -> float:
+    """Parse follow polling interval seconds."""
+    try:
+        interval = float(raw)
+    except ValueError as exc:
+        raise ValueError(f"invalid results interval= value: {raw}") from exc
+    if interval <= 0:
+        raise ValueError("results interval= must be greater than 0")
+    return interval
+
+
+def parse_results_boolean(raw: str, key: str) -> bool:
+    """Parse true/false selector values."""
+    value = raw.casefold()
+    if value in {"true", "yes", "1", "on"}:
+        return True
+    if value in {"false", "no", "0", "off"}:
+        return False
+    raise ValueError(f"results {key}= must be true or false")
 
 
 def validate_results_scope(scope: dict[str, str]) -> None:
@@ -229,6 +262,36 @@ def is_result_work_job(command_line: str) -> bool:
     command = command_line.strip().split(maxsplit=1)[0] if command_line.strip() else ""
     command = command.rsplit("/", 1)[-1]
     return command not in RESULT_VIEW_COMMANDS
+
+
+def follow_results(context: CommandContext, selectors: Namespace) -> None:
+    """Poll and render the selected result scope until Ctrl-C."""
+    last_signature: tuple[int | None, int] | None = None
+    print("following results; press Ctrl-C to stop")
+    try:
+        while True:
+            scope = select_result_scope(context, selectors)
+            signature = result_scope_signature(scope.events)
+            if signature != last_signature:
+                if scope.events:
+                    print(render_results(context, scope), flush=True)
+                else:
+                    print(no_results_message(context), flush=True)
+                last_signature = signature
+                if selectors.once:
+                    return
+            elif selectors.once:
+                return
+            time.sleep(selectors.interval)
+    except KeyboardInterrupt:
+        print("stopped following results")
+
+
+def result_scope_signature(events: list[Event]) -> tuple[int | None, int]:
+    """Return a cheap change detector for a rendered result scope."""
+    if not events:
+        return (None, 0)
+    return (max(event.id or 0 for event in events), len(events))
 
 
 def render_results(context: CommandContext, scope: Namespace) -> str:
@@ -349,7 +412,9 @@ def equivalent_ports_command(scope: Namespace) -> str:
     """Return the `ports` command that would render the same result section."""
     args = [f"{key}={value}" for key, value in scope.scope.items()]
     args.append(f"sort={scope.sort}")
-    return "ports " + " ".join(args)
+    if args:
+        return "ports " + " ".join(args)
+    return "ports"
 
 
 def render_http_endpoints_section(context: CommandContext, events: list[Event]) -> str:
