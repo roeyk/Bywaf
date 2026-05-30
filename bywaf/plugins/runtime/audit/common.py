@@ -5,7 +5,7 @@ audit commandlet and its helper modules.
 
 Used by:
 - runtime.audit: declare command metadata.
-- runtime.audit_selectors and runtime.audit_export: validate selectors."""
+- runtime.audit.selectors and runtime.audit.export: validate selectors."""
 
 from __future__ import annotations
 

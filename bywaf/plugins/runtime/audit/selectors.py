@@ -5,7 +5,7 @@ Resolves `topic=`, `job=`, `pipeline=`, `step=`, `serial=`, `since=`, and
 
 Used by:
 - runtime.audit: implement `audit show`.
-- runtime.audit_export: select records for export."""
+- runtime.audit.export: select records for export."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from datetime import datetime, time
 from bywaf.event import Event
 from bywaf.plugin import CommandContext
 
-from .audit_common import AUDIT_LIST_SELECTORS, AUDIT_LIST_TARGETS, AUDIT_SELECTORS
+from .common import AUDIT_LIST_SELECTORS, AUDIT_LIST_TARGETS, AUDIT_SELECTORS
 
 
 def parse_selectors(tokens: list[str]) -> dict[str, str]:

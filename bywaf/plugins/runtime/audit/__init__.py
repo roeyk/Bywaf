@@ -28,11 +28,11 @@ from bywaf.plugin import (
 )
 from bywaf.utils import complete_path
 
-from . import audit_export as audit_export_module
-from .audit_common import AUDIT_ACTIONS, AUDIT_FORMATS, AUDIT_LIST_TARGETS, AuditActionHandler
-from .audit_export import event_record, export_events
-from .audit_inventory import capability_inventory_rows, format_capability_inventory
-from .audit_selectors import (
+from . import export as audit_export_module
+from .common import AUDIT_ACTIONS, AUDIT_FORMATS, AUDIT_LIST_TARGETS, AuditActionHandler
+from .export import event_record, export_events
+from .inventory import capability_inventory_rows, format_capability_inventory
+from .selectors import (
     parse_compact_time as parse_compact_time,
     parse_list_selectors,
     parse_selectors,

@@ -21,7 +21,7 @@ from bywaf.db import export_encrypted_database
 from bywaf.event import Event
 from bywaf.plugin import CommandContext
 
-from .audit_selectors import selected_events
+from .selectors import selected_events
 
 
 def export_events(
