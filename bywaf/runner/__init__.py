@@ -13,6 +13,8 @@ from .at_files import expand_at_file_args
 from .at_files import parse_at_file_token
 from .at_files import publish_at_file_expansion
 from .core import add_runner_arguments
+from .core import run_attached_pipeline_job
+from .core import run_background_job
 from .context import StageRun
 from .context import build_context
 from .context import effective_run_vars
@@ -23,8 +25,6 @@ from .context import prepare_stage_runs
 from .context import select_input_events
 from .core import Runner
 from .jobs import JobLifecycle
-from .jobs import run_attached_pipeline_job
-from .jobs import run_background_job
 from .jobs import should_run_stage_processes
 from .plans import format_plan_report
 from .plans import handle_plan_if_needed

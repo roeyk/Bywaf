@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import multiprocessing as mp
 import os
+from pathlib import Path
 
 from ..command.parser import CommandInvocation, Pipeline, parse_pipeline
 from .context import StageRun
@@ -22,7 +23,7 @@ from .context import ensure_run_var_snapshot
 from .context import is_management_pipeline
 from .context import new_run_id
 from .context import prepare_stage_runs
-from .jobs import JobLifecycle, run_attached_pipeline_job, run_background_job
+from .jobs import JobLifecycle, should_run_stage_processes
 from .runtime_events import attach_cursor_event_id
 from .runtime_events import pipeline_exists
 from .runtime_events import publish_runtime_name
@@ -359,6 +360,79 @@ class Runner:
     def subscribe_once(self, topics: tuple[str, ...], after_id: int = 0) -> list[Event]:
         """Small convenience wrapper used by tests and simple callers."""
         return self.db.fetch(Subscription(topics=topics, after_id=after_id))
+
+
+def run_background_job(
+    db_path: str,
+    db_passphrase: str | None,
+    job_id: int,
+    command_line: str,
+    pipeline_id: str,
+    stages: tuple[StageRun, ...],
+) -> None:
+    """Child-process entry point for a background pipeline.
+
+    The child reopens the database and rediscovers bundled plugins instead of
+    inheriting live connection/plugin objects from the parent process.
+    """
+    try:
+        db = EventStore(Path(db_path), passphrase=db_passphrase)
+        pid = mp.current_process().pid
+        lifecycle = JobLifecycle(db, job_id, command_line)
+        if not lifecycle.claim(pid):
+            return
+    except Exception:
+        # The parent may have exited or removed a temporary database before the
+        # child starts. There is nowhere reliable to record that failure, so the
+        # child exits quietly instead of printing a multiprocessing traceback.
+        return
+    try:
+        lifecycle.start(pid)
+        # The child process rebuilds parser/registry state from the command
+        # line. Stage snapshots carry variable values captured by the parent.
+        runner = Runner(db, PluginRegistry.discover(), job_id=job_id)
+        pipeline = parse_pipeline(
+            command_line,
+            command_resolver=runner.registry.resolve_commandlet_name,
+            command_scope_resolver=runner.registry.variable_scope,
+        )
+        if should_run_stage_processes(pipeline.commands):
+            runner.run_pipeline_processes(pipeline.commands, pipeline_id=pipeline_id, stages=stages)
+        else:
+            runner.run_pipeline(pipeline.commands, pipeline_id=pipeline_id, stages=stages)
+    except Exception as exc:
+        lifecycle.fail(str(exc))
+    else:
+        lifecycle.finish()
+
+
+def run_attached_pipeline_job(
+    db_path: str,
+    db_passphrase: str | None,
+    job_id: int,
+    command_line: str,
+    pipeline_id: str,
+    stage: StageRun,
+) -> None:
+    """Child-process entry point for a commandlet attached to a live pipeline."""
+    try:
+        db = EventStore(Path(db_path), passphrase=db_passphrase)
+        pid = mp.current_process().pid
+        lifecycle = JobLifecycle(db, job_id, command_line)
+        if not lifecycle.claim(pid):
+            return
+    except Exception:
+        return
+    try:
+        lifecycle.start(pid)
+        # Attached stages inherit the parent pipeline id but execute in their
+        # own job process so long-running fan-out work can be tracked.
+        runner = Runner(db, PluginRegistry.discover(), job_id=job_id)
+        runner.run_pipeline((stage.invocation,), pipeline_id=pipeline_id, stages=(stage,))
+    except Exception as exc:
+        lifecycle.fail(str(exc))
+    else:
+        lifecycle.finish()
 
 
 
