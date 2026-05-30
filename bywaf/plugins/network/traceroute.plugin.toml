@@ -20,6 +20,7 @@ emits = [
 capabilities = [
   "db.write:tool.error",
   "framework.console.alert",
+  "framework.console.output",
   "framework.process.run",
   "process.run",
 ]

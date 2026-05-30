@@ -21,6 +21,7 @@ from bywaf.event_schema_objects import HostFound, NetworkRouteHop
 from bywaf.events import Event
 from bywaf.plugin import CommandContext, Commandlet, RunConfig, commandlet
 from bywaf.plugin.process import ProcessResult
+from bywaf.runtime_display import command_context_style_getter, render_table, terminal_table_width
 
 HOP_RE = re.compile(r"^\s*(?P<hop>\d+)(?:\?:|:)?\s+(?P<body>.+?)\s*$")
 HOST_IP_RE = re.compile(r"^(?P<host>\S+)\s+\((?P<ip>[^)]+)\)")
@@ -41,6 +42,7 @@ def traceroute(context: CommandContext, cfg: RunConfig, input_events: Iterable[E
         if result is None:
             continue
         hops = parse_traceroute_output(target, result.stdout)
+        context.output(render_trace_hops(context, target, hops))
         context.alert(f"traceroute found {len(hops)} hops for {target}", silent=cfg.silent)
         for hop in hops:
             yield hop.to_payload()
@@ -92,20 +94,13 @@ def run_traceroute(context: CommandContext, cfg: TracerouteConfig, target: str) 
         publish_trace_error(context, cfg.binary, target, str(exc))
         return None
     if not result.ok and not result.stdout:
-        context.events.publish(
-            "tool.error",
-            {
-                "tool": cfg.binary,
-                "severity": "error",
-                "message": result.stderr.strip() or f"{cfg.binary} exited with {result.returncode}",
-                "target": target,
-            },
-        )
+        publish_trace_error(context, cfg.binary, target, result.stderr.strip() or f"{cfg.binary} exited with {result.returncode}")
     return result
 
 
 def publish_trace_error(context: CommandContext, tool: str, target: str, message: str) -> None:
     """Publish a traceroute tool error."""
+    context.output(f"traceroute: {target}: {message}")
     context.events.publish(
         "tool.error",
         {
@@ -115,6 +110,36 @@ def publish_trace_error(context: CommandContext, tool: str, target: str, message
             "target": target,
         },
     )
+
+
+def render_trace_hops(context: CommandContext, target: str, hops: list[NetworkRouteHop]) -> str:
+    """Render route hops for direct operator feedback."""
+    if not hops:
+        return f"Traceroute: {target}\nno route hops parsed"
+    rows = [
+        (
+            hop.hop,
+            hop.host or hop.status or "",
+            hop.ip or "",
+            format_rtt(hop.rtt_ms),
+        )
+        for hop in hops
+    ]
+    table = render_table(
+        ("HOP", "HOST / STATUS", "IP", "RTT"),
+        rows,
+        cell_subjects=("step", "host", "host", "value"),
+        style_getter=command_context_style_getter(context),
+        max_width=terminal_table_width(),
+    )
+    return f"Traceroute: {target} ({len(hops)} hop{'s' if len(hops) != 1 else ''})\n{table}"
+
+
+def format_rtt(value: float | None) -> str:
+    """Format one traceroute round-trip time."""
+    if value is None:
+        return ""
+    return f"{value:g} ms"
 
 
 def trace_command(cfg: TracerouteConfig, target: str) -> TraceCommand:

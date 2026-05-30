@@ -1050,6 +1050,24 @@ class StorageRunnerPluginTests(unittest.TestCase):
             self.assertIn("no host.found input from upstream", output.getvalue())
             self.assertEqual([event.topic for event in events if event.topic == "network.route.hop"], ["network.route.hop"])
 
+    def test_traceroute_prints_route_table(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            output = io.StringIO()
+            with (
+                patch(
+                    "bywaf.plugins.network.traceroute.run_traceroute",
+                    return_value=type("TraceResult", (), {"stdout": " 1  router (192.0.2.1)  1.0 ms\n", "ok": True})(),
+                ),
+                contextlib.redirect_stdout(output),
+            ):
+                events = runner.execute("traceroute 192.0.2.10")
+                process_framework_requests(runner, ShellState())
+            text = output.getvalue()
+            self.assertIn("Traceroute: 192.0.2.10", text)
+            self.assertIn("192.0.2.1", text)
+            self.assertEqual([event.topic for event in events if event.topic == "network.route.hop"], ["network.route.hop"])
+
     def test_background_pipeline_with_single_marker_preserves_stage_output(self):
         command_line = "hostscanner 127.0.0.1 & | portscanner port=8080"
         with tempfile.TemporaryDirectory() as tmp:

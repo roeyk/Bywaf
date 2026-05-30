@@ -91,7 +91,7 @@ base installation commandlets that declare or use each capability.
 | `filesystem.read` | `artifact`, `cat`, `db`, `eyewitness`, `finding_dedupe`, `finding_report`, `http_probe`, `key`, `less`, `ls`, `nikto`, `note`, `screenshotter`, `wifi_scan`, `yara_scan` |
 | `filesystem.write` | `artifact`, `audit`, `bundle`, `db`, `eyewitness`, `finding_dedupe`, `finding_report`, `key`, `nikto`, `note`, `screenshotter`, `wifi_scan` |
 | `framework.console.alert` | `eyewitness`, `git_expose_check`, `hostscanner`, `http_probe`, `nikto`, `portscanner`, `screenshotter`, `tcp_banner`, `traceroute`, `watchdog`, `webfin`, `wifi_scan` |
-| `framework.console.output` | `artifact`, `audit`, `bundle`, `cancel`, `cat`, `db`, `end`, `finding_dedupe`, `job`, `key`, `kill`, `ls`, `name`, `note`, `pause`, `pipeline`, `report`, `resume`, `search`, `signal`, `stop` |
+| `framework.console.output` | `artifact`, `audit`, `bundle`, `cancel`, `cat`, `db`, `end`, `finding_dedupe`, `job`, `key`, `kill`, `ls`, `name`, `note`, `pause`, `pipeline`, `report`, `resume`, `search`, `signal`, `stop`, `traceroute` |
 | `framework.file.page` | `less` |
 | `framework.job.control` | `cancel`, `end`, `job`, `kill`, `pause`, `pipeline`, `resume`, `signal`, `stop` |
 | `framework.pipeline.control` | `cancel`, `end`, `kill`, `pause`, `pipeline`, `resume`, `signal`, `stop` |
