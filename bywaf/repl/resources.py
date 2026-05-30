@@ -12,6 +12,7 @@ Used by:
 
 from __future__ import annotations
 
+import importlib
 from collections.abc import Callable
 
 from ..runner import Runner
@@ -38,9 +39,6 @@ from .resource_specs import parse_load_spec
 from .resource_specs import parse_resource_assignment
 from .resource_specs import parse_save_spec
 from .resource_specs import resolve_resource_path
-from .scripts import run_script
-from .scripts import script_commands
-from .scripts import strip_inline_comment
 from .state import ResourceState
 from .state import default_resource_state
 from .state import hydrate_persistent_secrets
@@ -137,3 +135,10 @@ def load_plugin_resource(
 LOAD_RESOURCE_HANDLERS: dict[str, LoadResourceHandler] = {
     "plugin": load_plugin_resource,
 }
+
+
+def __getattr__(name: str):
+    """Lazily preserve older script-helper imports from this facade."""
+    if name in {"run_script", "script_commands", "strip_inline_comment"}:
+        return getattr(importlib.import_module(".scripts", __package__), name)
+    raise AttributeError(name)

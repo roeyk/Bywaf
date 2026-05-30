@@ -57,11 +57,9 @@ from .repl.resources import (
     parse_save_spec,
     prompt_database_passphrase,
     resolve_resource_path,
-    run_script,
     save_history,
-    script_commands,
-    strip_inline_comment,
 )
+from .repl.scripts import run_script, script_commands, strip_inline_comment
 from .runner import Runner, add_runner_arguments
 
 # Compatibility export list for code that imports helpers from `bywaf.app`.

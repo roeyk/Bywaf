@@ -30,7 +30,7 @@ from .command_vars import handle_setg_command, handle_use_command, handle_vars_c
 from .display import print_commandlets, print_help, print_info, print_plugins, print_topics, print_triggers
 
 if TYPE_CHECKING:
-    from .shell import ShellState
+    from .state import ShellState
 
 
 ReplCommandHandler = Callable[[Runner, Any, str | None, str], str | None]

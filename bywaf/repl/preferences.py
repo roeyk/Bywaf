@@ -18,7 +18,7 @@ from ..toml_support import load_data_text, toml_key, toml_value
 from .themes import apply_theme_name
 
 if TYPE_CHECKING:
-    from .shell import ShellState
+    from .state import ShellState
 
 
 DEFAULT_PREFERENCES = Path("~/.bywaf/preferences.toml")

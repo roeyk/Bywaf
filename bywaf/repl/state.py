@@ -1,22 +1,54 @@
-"""Shared state protocol for REPL resource helpers.
+"""Shared state for REPL shell and resource helpers.
 
-Provides ResourceState and default resource-state construction without making
-resource modules import the shell implementation at module import time.
+Provides ShellState, ResourceState, prompt rendering, and default shell-state
+construction without making resource modules import shell orchestration.
 
 Used by:
+- repl.shell: maintain interactive state and prompt text.
 - REPL resource, project, persistence, and script helpers: type shared state.
-- script execution: create default shell state for non-interactive use.
 """
 
 from __future__ import annotations
 
+import os
+import platform
+import socket
+from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Protocol
 
 from ..db import EventStore
+from ..projects import ProjectPaths
 from ..registry import PluginRegistry
-from ..runner import Runner
+from ..time_format import OPERATOR_TIMESTAMP_FORMAT
+from .resource_specs import DEFAULT_HISTORY
+
+if TYPE_CHECKING:
+    from ..runner import Runner
+
+
+DEFAULT_HISTORY_TIMESTAMP_FORMAT = OPERATOR_TIMESTAMP_FORMAT
+HISTORY_TIMESTAMP_FORMAT_VAR = "history.timestamp-format"
+
+
+@dataclass(slots=True)
+class ShellState:
+    """Mutable REPL-only state that should not live in the database."""
+
+    prompt_pattern: str = "$Y$M$D $h:$m:$s $Z%F> "
+    history_path: Path = field(default_factory=lambda: DEFAULT_HISTORY)
+    session_history: list[str] = field(default_factory=list)
+    handled_request_ids: set[int] = field(default_factory=set)
+    framework_request_after_id: int = 0
+    active_context: str | None = None
+    completer: Any | None = None
+    secret_values: dict[str, str] = field(default_factory=dict)
+
+    def prompt(self) -> str:
+        return render_prompt(self.prompt_pattern, active_context=self.active_context)
 
 
 class ResourceState(Protocol):
@@ -28,12 +60,60 @@ class ResourceState(Protocol):
 
 
 def default_resource_state(runner: Runner) -> ResourceState:
-    """Create default resource state without importing repl at module load time."""
-    # Import lazily to avoid a circular import: shell imports resources, and
-    # resources need a fallback state for non-interactive script execution.
-    from .shell import new_shell_state
-
+    """Create default resource state for non-interactive resource helpers."""
     return new_shell_state(runner)
+
+
+def new_shell_state(runner: Runner) -> ShellState:
+    """Create shell state that ignores historical framework requests."""
+    project = runner.project if isinstance(runner.project, ProjectPaths) else None
+    history_path = project.history if project is not None else DEFAULT_HISTORY
+    return ShellState(
+        framework_request_after_id=runner.events.latest_event_id(),
+        history_path=history_path,
+    )
+
+
+def render_prompt(pattern: str, *, active_context: str | None = None) -> str:
+    """Render prompt placeholders using local process and host metadata."""
+    user = os.getenv("USER", "")
+    host_full = socket.gethostname()
+    now = datetime.now().astimezone()
+    provider, commandlet = prompt_scope_parts(active_context)
+    focus = f" {active_context}" if active_context else ""
+    replacements = {
+        "%u": user,
+        "%h": host_full.split(".", 1)[0],
+        "%H": host_full,
+        "%m": platform.machine(),
+        "%T": now.strftime("%H:%M:%S"),
+        "%p": provider,
+        "%c": commandlet,
+        "%P": active_context or "",
+        "%F": focus,
+        "$u": user,
+        "$Y": now.strftime("%Y"),
+        "$M": now.strftime("%m"),
+        "$D": now.strftime("%d"),
+        "$h": now.strftime("%H"),
+        "$m": now.strftime("%M"),
+        "$s": now.strftime("%S"),
+        "$Z": now.strftime("%Z"),
+    }
+    prompt = pattern
+    for key, value in replacements.items():
+        prompt = prompt.replace(key, value)
+    return prompt
+
+
+def prompt_scope_parts(active_context: str | None) -> tuple[str, str]:
+    """Return provider and commandlet prompt fields for the current focus."""
+    if not active_context:
+        return "", ""
+    provider, separator, commandlet = active_context.rpartition("/")
+    if not separator:
+        return active_context, ""
+    return provider, commandlet
 
 
 def hydrate_persistent_secrets(db: EventStore, registry: PluginRegistry) -> None:

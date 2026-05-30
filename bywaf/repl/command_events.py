@@ -22,7 +22,7 @@ from ..runner import Runner
 from .display import display_expansion_preview, print_event_info, print_events, print_job, print_run_variables
 
 if TYPE_CHECKING:
-    from .shell import ShellState
+    from .state import ShellState
 
 
 EVENT_SELECTOR_KEYS = {"job", "step", "pipeline", "serial", "topic"}

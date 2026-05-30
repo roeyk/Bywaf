@@ -7,65 +7,34 @@ behavior, display formatting, and load/save resources live in sibling modules.
 Used by:
 - bywaf.repl.__init__: re-exports the public REPL API for compatibility.
 - bywaf.app: starts repl() and calls run_remainder() for CLI execution.
-- bywaf.repl.resources: calls dispatch helpers when running script files."""
+- bywaf.repl.dispatch: owns built-in command routing."""
 
 
 from __future__ import annotations
 
 import os
-import platform
-import shlex
-import socket
 import sys
 import termios
 import tty
 from collections.abc import Callable
-from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
 from ..completion import Completer, build_prompt_session, install_readline
 from ..framework_requests import process_framework_requests
-from .commands import (
-    REPL_COMMAND_HANDLERS,
-    execute_repl_commandlet,
-    execute_shell_command,
-    visible_commandlet_events,
-)
+from .commands import execute_shell_command, visible_commandlet_events
+from .dispatch import dispatch_repl_line
 from .display import (
     friendly_error,
 )
+from .parsing import command_from_remainder, line_has_continuation, remove_line_continuation, split_command_sequence
 from .preferences import apply_preferences, ensure_preferences_file, load_preferences, resolve_preferences_path
 from ..plugins.network.nmap_backend import NmapScanError, NmapUnavailableError
-from ..projects import ProjectPaths
-from ..registry import PluginTrustError
-from .resources import DEFAULT_HISTORY
-from .scripts import strip_inline_comment
 from ..runner import Runner
 from ..secret.store import load_or_create_fingerprint_key, redact_command_text
-from ..time_format import OPERATOR_TIMESTAMP_FORMAT
+from .resource_specs import DEFAULT_HISTORY
+from .state import DEFAULT_HISTORY_TIMESTAMP_FORMAT, HISTORY_TIMESTAMP_FORMAT_VAR, ShellState, new_shell_state, render_prompt
 from ..triggers import disable_session_triggers, start_default_services, stop_session_services
-
-
-DEFAULT_HISTORY_TIMESTAMP_FORMAT = OPERATOR_TIMESTAMP_FORMAT
-HISTORY_TIMESTAMP_FORMAT_VAR = "history.timestamp-format"
-
-
-@dataclass(slots=True)
-class ShellState:
-    """Mutable REPL-only state that should not live in the database."""
-
-    prompt_pattern: str = "$Y$M$D $h:$m:$s $Z%F> "
-    history_path: Path = field(default_factory=lambda: DEFAULT_HISTORY)
-    session_history: list[str] = field(default_factory=list)
-    handled_request_ids: set[int] = field(default_factory=set)
-    framework_request_after_id: int = 0
-    active_context: str | None = None
-    completer: Completer | None = None
-    secret_values: dict[str, str] = field(default_factory=dict)
-
-    def prompt(self) -> str:
-        return render_prompt(self.prompt_pattern, active_context=self.active_context)
 
 
 def shutdown_runner(runner: Runner) -> None:
@@ -217,61 +186,6 @@ def read_logical_input(state: ShellState, reader: Callable[[str], str] | None = 
         return "\n".join(lines)
 
 
-def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = None) -> str | None:
-    """Dispatch one REPL line and keep errors user-facing.
-
-    Built-ins are handled here; commandlets fall through to the generic runner
-    so plugin commands such as `ls` are not hard-coded into the shell.
-    """
-    state = state or ShellState(framework_request_after_id=runner.events.latest_event_id())
-    line = strip_inline_comment(line)
-    if not line.strip():
-        return None
-    commands = split_command_sequence(line)
-    if len(commands) > 1:
-        # Semicolon sequencing is handled at the REPL layer, not by the
-        # commandlet parser, so each command gets normal built-in dispatch.
-        for command in commands:
-            if dispatch_repl_line(runner, command, state) == "exit":
-                return "exit"
-        return None
-    try:
-        parts = line.split(maxsplit=1)
-        if not parts:
-            return None
-        name = parts[0]
-        rest = parts[1] if len(parts) > 1 else None
-        handler = REPL_COMMAND_HANDLERS.get(name)
-        if handler is not None:
-            return handler(runner, state, rest, line)
-        if runner.registry.has_commandlet(name):
-            execute_repl_commandlet(runner, state, line)
-            return None
-        print(f"error: unknown command or commandlet: {name}")
-    except SystemExit as exc:
-        if exc.code not in (0, None):
-            print(f"error: command failed with exit code {exc.code}")
-    except (NmapUnavailableError, NmapScanError) as exc:
-        print(f"error: {exc}")
-    except PluginTrustError as exc:
-        print(str(exc))
-    except (KeyError, ValueError) as exc:
-        print(f"error: {friendly_error(exc)}")
-    except Exception as exc:
-        print(f"error: {exc}")
-    return None
-
-
-def new_shell_state(runner: Runner) -> ShellState:
-    """Create shell state that ignores historical framework requests."""
-    project = runner.project if isinstance(runner.project, ProjectPaths) else None
-    history_path = project.history if project is not None else DEFAULT_HISTORY
-    return ShellState(
-        framework_request_after_id=runner.events.latest_event_id(),
-        history_path=history_path,
-    )
-
-
 def apply_startup_preferences(runner: Runner, state: ShellState) -> None:
     """Ensure and apply user-local preferences at REPL startup."""
     path = resolve_preferences_path()
@@ -310,19 +224,6 @@ def execute_commandlet_and_print(runner: Runner, command: str) -> int:
     return 0
 
 
-def command_from_remainder(tokens: list[str]) -> str:
-    """Build a command string from argparse REMAINDER tokens.
-
-    A single token is already a shell-preserved command string, which matters
-    for quoted pipelines such as `bywaf exec 'a | b'`.
-    """
-    if not tokens:
-        raise ValueError("exec requires a command")
-    if len(tokens) == 1:
-        return tokens[0]
-    return " ".join(shlex.quote(token) for token in tokens)
-
-
 def run_remainder(runner: Runner, tokens: list[str]) -> int:
     """Validate and run the token remainder from `bywaf exec ...`."""
     try:
@@ -346,59 +247,6 @@ def run_commandlet_remainder(runner: Runner, tokens: list[str]) -> int:
         if status != 0:
             return status
     return status
-
-
-def split_command_sequence(line: str) -> list[str]:
-    """Split pasted command sequences while preserving quoted separators."""
-    commands: list[str] = []
-    quote: str | None = None
-    escaped = False
-    current: list[str] = []
-    for char in line:
-        if escaped:
-            current.append(char)
-            escaped = False
-            continue
-        if char == "\\":
-            current.append(char)
-            escaped = True
-            continue
-        if quote is not None:
-            current.append(char)
-            if char == quote:
-                quote = None
-            continue
-        if char in {"'", '"'}:
-            current.append(char)
-            quote = char
-            continue
-        if char in {";", "\n"}:
-            # Only unquoted semicolons and newlines delimit REPL commands.
-            # This makes multi-line paste behave like a tiny script without
-            # making commandlet parsers handle unrelated trailing commands.
-            command = "".join(current).strip()
-            if command:
-                commands.append(command)
-            current = []
-            continue
-        current.append(char)
-    command = "".join(current).strip()
-    if command:
-        commands.append(command)
-    return commands
-
-
-def line_has_continuation(line: str) -> bool:
-    """Return whether a physical line ends with an unescaped continuation slash."""
-    stripped = line.rstrip()
-    backslashes = len(stripped) - len(stripped.rstrip("\\"))
-    return backslashes % 2 == 1
-
-
-def remove_line_continuation(line: str) -> str:
-    """Remove one trailing continuation slash from a physical line."""
-    stripped = line.rstrip()
-    return stripped[:-1]
 
 
 def record_command_history(
@@ -429,45 +277,3 @@ def redact_history_command(command: str) -> str:
         return command
     result = redact_command_text(command, key=load_or_create_fingerprint_key())
     return result.command
-
-
-def render_prompt(pattern: str, *, active_context: str | None = None) -> str:
-    """Render prompt placeholders using local process and host metadata."""
-    user = os.getenv("USER", "")
-    host_full = socket.gethostname()
-    now = datetime.now().astimezone()
-    provider, commandlet = prompt_scope_parts(active_context)
-    focus = f" {active_context}" if active_context else ""
-    replacements = {
-        "%u": user,
-        "%h": host_full.split(".", 1)[0],
-        "%H": host_full,
-        "%m": platform.machine(),
-        "%T": now.strftime("%H:%M:%S"),
-        "%p": provider,
-        "%c": commandlet,
-        "%P": active_context or "",
-        "%F": focus,
-        "$u": user,
-        "$Y": now.strftime("%Y"),
-        "$M": now.strftime("%m"),
-        "$D": now.strftime("%d"),
-        "$h": now.strftime("%H"),
-        "$m": now.strftime("%M"),
-        "$s": now.strftime("%S"),
-        "$Z": now.strftime("%Z"),
-    }
-    prompt = pattern
-    for key, value in replacements.items():
-        prompt = prompt.replace(key, value)
-    return prompt
-
-
-def prompt_scope_parts(active_context: str | None) -> tuple[str, str]:
-    """Return provider and commandlet prompt fields for the current focus."""
-    if not active_context:
-        return "", ""
-    provider, separator, commandlet = active_context.rpartition("/")
-    if not separator:
-        return active_context, ""
-    return provider, commandlet

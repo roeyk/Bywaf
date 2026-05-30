@@ -35,12 +35,12 @@ from .resources import (
     dispatch_project_command,
     print_project_info,
     resolve_resource_path,
-    run_script,
 )
+from .scripts import run_script
 from .themes import apply_theme_file, apply_theme_name, theme_names
 
 if TYPE_CHECKING:
-    from .shell import ShellState
+    from .state import ShellState
 
 
 def handle_history_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:

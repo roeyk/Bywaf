@@ -21,7 +21,7 @@ from ..secret.store import load_or_create_fingerprint_key
 from .display import format_var_assignment
 
 if TYPE_CHECKING:
-    from .shell import ShellState
+    from .state import ShellState
 
 
 def handle_use_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:

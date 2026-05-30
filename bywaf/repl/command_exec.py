@@ -19,7 +19,7 @@ from ..runner import Runner
 from .display import print_events, print_help
 
 if TYPE_CHECKING:
-    from .shell import ShellState
+    from .state import ShellState
 
 
 SUPPRESSED_COMMANDLET_OUTPUT_TOPICS = {"framework.file.page.requested", "report.rendered"}
