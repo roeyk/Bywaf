@@ -173,6 +173,7 @@ def build_context(
     invocation = stage.invocation
     plugin = registry.get(invocation.name)
     capabilities = implied_capabilities(plugin.spec)
+    origin = registry.commandlet_origin(invocation.name)
     variable_scope = registry.variable_scope(invocation.name)
     provider_scope = provider_scope_for_commandlet_scope(variable_scope)
     # Snapshot variables before constructing the context so plugin code sees a
@@ -211,5 +212,7 @@ def build_context(
             "run_vars": run_vars,
             "capabilities": capabilities,
             "database_actions": plugin.spec.database_actions or database_actions_for_capabilities(capabilities),
+            "capability_mode": "enforce" if origin == "filesystem" else "audit",
+            "plugin_origin": origin,
         },
     )

@@ -526,6 +526,49 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             self.assertEqual(len(events), 1)
             self.assertEqual(events[0].source, "example")
 
+    def test_external_plugin_enforces_declared_capabilities_by_default(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            plugin_dir = write_console_external_plugin(Path(tmp), declare_output=False)
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, f"plugin load={plugin_dir} --force", state)
+                dispatch_repl_line(runner, "external_console", state)
+
+            self.assertIn("capability policy denies undeclared capability", output.getvalue())
+            missing = runner.db.events_for_topic("plugin.capability.missing")
+            self.assertEqual(missing[0].payload["capability"], "framework.console.output")
+            self.assertEqual(runner.db.events_for_topic("framework.console.output.requested"), [])
+
+    def test_external_plugin_declared_capability_runs_under_default_enforcement(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            plugin_dir = write_console_external_plugin(Path(tmp), declare_output=True)
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, f"plugin load={plugin_dir} --force", state)
+                dispatch_repl_line(runner, "external_console", state)
+
+            self.assertIn("hello from external", output.getvalue())
+            self.assertEqual(runner.db.events_for_topic("plugin.capability.missing"), [])
+
+    def test_operator_can_downgrade_external_plugin_capability_enforcement(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.registry.varstore.set("global.capabilities.mode", "audit")
+            state = ShellState()
+            plugin_dir = write_console_external_plugin(Path(tmp), declare_output=False)
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, f"plugin load={plugin_dir} --force", state)
+                dispatch_repl_line(runner, "external_console", state)
+
+            self.assertIn("hello from external", output.getvalue())
+            missing = runner.db.events_for_topic("plugin.capability.missing")
+            self.assertEqual(missing[0].payload["capability"], "framework.console.output")
+
     def test_fully_qualified_commandlet_ignores_active_use_context(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -1007,6 +1050,30 @@ def write_simple_external_plugin(root: Path, name: str) -> Path:
         "[[commandlets]]\n"
         f'name = "{name}"\n'
         "capabilities = []\n"
+    )
+    return plugin_dir
+
+
+def write_console_external_plugin(root: Path, *, declare_output: bool) -> Path:
+    plugin_dir = root / "external_console"
+    plugin_dir.mkdir()
+    (plugin_dir / "plugin.py").write_text(
+        "from bywaf.plugin import CommandSpec\n"
+        f"CAPABILITIES = {('framework.console.output',) if declare_output else ()!r}\n"
+        "class Example:\n"
+        "    spec = CommandSpec('external_console', 'external console plugin', capabilities=CAPABILITIES)\n"
+        "    def run(self, context, args, input_events):\n"
+        "        del args, input_events\n"
+        "        context.output('hello from external')\n"
+        "        return ()\n"
+        "def plugin():\n"
+        "    return Example()\n"
+    )
+    capabilities = '["framework.console.output"]' if declare_output else "[]"
+    (plugin_dir / "bywaf.plugin.toml").write_text(
+        "[[commandlets]]\n"
+        'name = "external_console"\n'
+        f"capabilities = {capabilities}\n"
     )
     return plugin_dir
 

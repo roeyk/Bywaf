@@ -37,6 +37,17 @@ Planning dates are release planning markers, not compatibility commitments.
   move these schemas into TOML/YAML schema files so plugin packages, external
   tools, documentation generators, and future GUIs can inspect schemas without
   importing Bywaf Python code.
+- Refactor the flat `events.py`, `event_schemas.py`,
+  `event_schema_objects.py`, and `event_filters.py` modules into a dedicated
+  `bywaf.event` package once the current plugin work settles. Keep the core
+  package lean: framework-owned schemas should cover shared vocabulary, while
+  plugin-specific schemas, output subjects, styles, and domain capabilities
+  should be registerable from plugin packages under stable provider namespaces.
+- Cross-plugin data flow should remain normalized through Bywaf APIs, not
+  implicit plugin-to-plugin calls. Direct Python imports from another plugin's
+  helper package are acceptable only as an explicit optional dependency for
+  typed convenience; the event/artifact/schema registry remains the integration
+  boundary.
 - Plugin manifests should expose `consumes` and `emits` topics, and
   `plugin_check` should validate shared-topic declarations and payload shapes
   when static analysis can inspect them.

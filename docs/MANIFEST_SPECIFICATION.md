@@ -165,6 +165,12 @@ database.actions.write = false
 database.actions.manage = false
 ```
 
+Filesystem plugins default to runtime capability enforcement. A filesystem
+plugin that calls `context.output(...)`, runs a process, writes an artifact, or
+publishes an event must declare the matching capability or implied event
+schema. Bundled commandlets default to audit mode, but use the same validation
+machinery.
+
 `view` permits `db.read:*`; `write` permits `db.read:*` and `db.write:*`;
 `manage` permits all database actions, including raw or management access.
 Lifecycle/audit events emitted by the framework itself are separate from these

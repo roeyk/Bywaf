@@ -60,6 +60,7 @@ class PluginRegistry:
     secrets: InMemorySecretStore = field(default_factory=InMemorySecretStore)
     triggers: list[TriggerSpec] = field(default_factory=list)
     trigger_providers: dict[int, str] = field(default_factory=dict)
+    commandlet_origins: dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def discover(
@@ -138,7 +139,7 @@ class PluginRegistry:
             manifest_trust=manifest_trust,
         )
         for plugin in plugins:
-            self.register_commandlet(provider_path, plugin)
+            self.register_commandlet(provider_path, plugin, origin="filesystem")
             load_defaults_file(plugin_dir, plugin, self.varstore, scope=self.variable_scope(plugin.spec.name))
         self.register_provider_default(provider_path, manifest.default_commandlet)
         self.add_triggers(entry, triggers)
@@ -163,16 +164,17 @@ class PluginRegistry:
         elif triggers:
             raise ValueError(f"{package_name}.{entry} exposes undeclared triggers without a plugin manifest")
         for plugin in plugins:
-            self.register_commandlet(provider_path, plugin)
+            self.register_commandlet(provider_path, plugin, origin="bundled")
             load_module_defaults(module, plugin, self.varstore, scope=self.variable_scope(plugin.spec.name))
         if manifest is not None:
             self.register_provider_default(provider_path, manifest.default_commandlet)
         self.add_triggers(entry, triggers)
         return plugins[0]
 
-    def register_commandlet(self, entry: str, plugin: Commandlet) -> None:
+    def register_commandlet(self, entry: str, plugin: Commandlet, *, origin: str = "bundled") -> None:
         """Register one commandlet and its provider-qualified aliases."""
         self.plugins[plugin.spec.name] = plugin
+        self.commandlet_origins[plugin.spec.name] = origin
         catalog_path = normalize_catalog_path(entry)
         self.providers.setdefault(provider_name(catalog_path), []).append(plugin.spec.name)
         self.provider_commandlets.setdefault(catalog_path, []).append(plugin.spec.name)
@@ -243,6 +245,11 @@ class PluginRegistry:
             return self.plugins[canonical_name]
         except KeyError as exc:
             raise KeyError(f"unknown commandlet: {name}") from exc
+
+    def commandlet_origin(self, name: str) -> str:
+        """Return where one commandlet was loaded from."""
+        canonical_name = self.resolve_commandlet_name(name)
+        return self.commandlet_origins.get(canonical_name, "bundled")
 
     def names(self) -> list[str]:
         """Return commandlet names for command completion."""

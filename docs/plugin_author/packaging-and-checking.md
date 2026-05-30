@@ -66,6 +66,14 @@ The manifest is required so Bywaf has commandlet names, capabilities, secret
 options, trigger rules, and plugin traits available as package metadata instead
 of treating imports as discovery.
 
+Filesystem plugins run with capability enforcement by default. During normal
+use, undeclared calls to mediated APIs such as `context.output(...)`,
+`context.process.run(...)`, `context.artifacts.write(...)`, or
+`context.events.publish(...)` are denied after Bywaf records the missing
+capability evidence. During local manifest development, an operator can
+temporarily set `global.capabilities.mode=audit` to discover missing
+declarations without blocking execution.
+
 ## Why Manifests Matter
 
 The sidecar manifest is intentionally more than packaging metadata:

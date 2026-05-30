@@ -315,8 +315,10 @@ class CommandContext:
 
     @property
     def capability_mode(self) -> str:
-        """Return the global capability enforcement mode."""
-        mode = (self.vars.get_global("capabilities.mode", "audit") or "audit").strip().lower()
+        """Return the capability enforcement mode for this commandlet."""
+        configured = self.vars.get_global("capabilities.mode")
+        fallback = str(self.metadata.get("capability_mode") or "audit")
+        mode = (configured or fallback).strip().lower()
         return mode if mode in {"off", "audit", "warn", "enforce"} else "audit"
 
     def enforce_database_action_policy(self, capability: str) -> None:

@@ -266,14 +266,16 @@ capabilities.mode=warn
 capabilities.mode=enforce
 ```
 
-Current Bywaf behavior is audit-first by default, with opt-in enforcement for
-mediated framework APIs.
+Current Bywaf behavior is audit-first for bundled commandlets and
+secure-by-default for filesystem plugins: external filesystem plugins run with
+capability enforcement unless the operator explicitly sets
+`global.capabilities.mode`.
 
 Set `global.capabilities.mode` to choose behavior:
 
 - `off`: suppress capability audit events. Use only for narrow debugging.
 - `audit`: record `plugin.capability.used` and `plugin.capability.missing`
-  without blocking execution. This is the default.
+  without blocking execution. This is the bundled-plugin default.
 - `warn`: currently equivalent to `audit`; reserved for a later
   operator-visible warning mode.
 - `enforce`: deny undeclared mediated framework capabilities after recording
@@ -286,11 +288,12 @@ are enforced separately for mediated DB capabilities: an invocation whose
 effective `database.actions.*` permits only `view` cannot use
 `db.write:<topic>` through the normal context APIs.
 
-Bundled and third-party plugins currently use the same mediated enforcement
-logic. The distinction is operational rather than technical: bundled plugins
-are reviewed with the framework, while third-party plugins should be run with
-`global.capabilities.mode=enforce` once their manifests are clean. Stronger
-third-party isolation still requires a separate process or sandbox boundary.
+Bundled and third-party plugins use the same mediated enforcement logic, but
+they do not use the same default. Bundled plugins are reviewed with the
+framework and default to audit mode. Filesystem plugins are external code and
+default to enforcement so missing declarations fail closed during normal
+operator use. Set `global.capabilities.mode=audit` only when deliberately
+developing or debugging a plugin manifest.
 
 ## Limits
 

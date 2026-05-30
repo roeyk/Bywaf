@@ -298,6 +298,31 @@ class ConfigPluginTests(unittest.TestCase):
         self.assertEqual(missing[0].payload["capability"], "framework.console.output")
         self.assertEqual(requests, [])
 
+    def test_capability_mode_uses_context_default_when_unset(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(db=db, source="test", metadata={"capability_mode": "enforce"})
+
+            with self.assertRaisesRegex(PermissionError, "undeclared capability"):
+                context.output("hello")
+
+            missing = db.events_for_topic("plugin.capability.missing")
+        self.assertEqual(missing[0].payload["capability"], "framework.console.output")
+
+    def test_global_capability_mode_overrides_context_default(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            store = VarStore()
+            store.set("global.capabilities.mode", "audit")
+            context = CommandContext(db=db, source="test", _varstore=store, metadata={"capability_mode": "enforce"})
+
+            context.output("hello")
+
+            missing = db.events_for_topic("plugin.capability.missing")
+            requests = db.events_for_topic("framework.console.output.requested")
+        self.assertEqual(missing[0].payload["capability"], "framework.console.output")
+        self.assertEqual(len(requests), 1)
+
     def test_capability_off_mode_suppresses_capability_audit(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))

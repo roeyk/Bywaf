@@ -1071,6 +1071,7 @@ class RegistryCompletionTests(unittest.TestCase):
             )
 
             self.assertIn("example", registry.names())
+            self.assertEqual(registry.commandlet_origin("example"), "filesystem")
 
     def test_loads_legacy_filesystem_plugin_json_defaults(self):
         with tempfile.TemporaryDirectory() as tmp:
