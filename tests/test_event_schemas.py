@@ -12,7 +12,7 @@ import unittest
 from dataclasses import dataclass
 
 from bywaf.event_schema_objects import ArtifactAttached, HostFound, HttpEndpoint, NameResolved, NetworkRouteHop, OpenPort, ScreenshottedHost, SmbShareFound, TcpBanner
-from bywaf.event_schemas import EVENT_SCHEMAS, EventSchemaObject, schema_object, validate_event_payload
+from bywaf.event_schemas import EVENT_SCHEMAS, EventSchemaObject, schema_object, schema_objects, validate_event_payload
 from bywaf.events import Event
 
 
@@ -146,6 +146,18 @@ class EventSchemaTests(unittest.TestCase):
         event = Event.new("network.route.hop", hop.to_payload(), "traceroute")
 
         self.assertEqual(NetworkRouteHop.from_event(event), hop)
+
+    def test_schema_objects_deserializes_matching_events_only(self):
+        events = [
+            Event.new("port.open", OpenPort("192.0.2.10", 22, "tcp").to_payload(), "test"),
+            Event.new("host.found", HostFound("192.0.2.10").to_payload(), "test"),
+            Event.new("port.open", OpenPort("192.0.2.20", 443, "tcp").to_payload(), "test"),
+        ]
+
+        ports = schema_objects(events, OpenPort)
+
+        self.assertEqual(ports, (OpenPort("192.0.2.10", 22, "tcp"), OpenPort("192.0.2.20", 443, "tcp")))
+        self.assertEqual(OpenPort.from_events(events), ports)
 
     def test_schema_object_base_rejects_invalid_serialized_payloads(self):
         port = OpenPort("192.0.2.10", 445, "icmp")

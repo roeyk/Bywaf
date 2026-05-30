@@ -240,6 +240,9 @@ def render_results(context: CommandContext, scope: Namespace) -> str:
     banner_events = [event for event in scope.events if event.topic == "tcp.banner"]
     route_events = [event for event in scope.events if event.topic == "network.route.hop"]
     endpoint_events = [event for event in scope.events if event.topic == "http.endpoint"]
+    screenshot_events = [event for event in scope.events if event.topic == "web.screenshotted_host"]
+    smb_share_events = [event for event in scope.events if event.topic == "smb.share.found"]
+    artifact_events = [event for event in scope.events if event.topic == "artifact.attached"]
     if host_events:
         sections.append(render_hosts_section(context, host_events))
     if name_events:
@@ -252,7 +255,23 @@ def render_results(context: CommandContext, scope: Namespace) -> str:
         sections.append(render_route_hops_section(context, route_events))
     if endpoint_events:
         sections.append(render_http_endpoints_section(context, endpoint_events))
-    summarized_topics = {"host.found", "name.resolved", "port.open", "tcp.banner", "network.route.hop", "http.endpoint"}
+    if screenshot_events:
+        sections.append(render_screenshots_section(context, screenshot_events))
+    if smb_share_events:
+        sections.append(render_smb_shares_section(context, smb_share_events))
+    if artifact_events:
+        sections.append(render_artifacts_section(context, artifact_events))
+    summarized_topics = {
+        "artifact.attached",
+        "host.found",
+        "name.resolved",
+        "port.open",
+        "tcp.banner",
+        "network.route.hop",
+        "http.endpoint",
+        "smb.share.found",
+        "web.screenshotted_host",
+    }
     other_events = [event for event in scope.events if event.topic not in summarized_topics]
     if other_events:
         sections.append(render_event_topic_summary(context, other_events))
@@ -374,6 +393,96 @@ def render_tcp_banners_section(context: CommandContext, events: list[Event]) -> 
     return f"TCP banners ({len(events)})\n{table}"
 
 
+def render_screenshots_section(context: CommandContext, events: list[Event]) -> str:
+    """Render screenshot artifact references as a compact result table."""
+    rows = [
+        (
+            event.payload.get("host", ""),
+            ", ".join(str(url) for url in event.payload.get("urls", [])[:2]),
+            len(event.payload.get("screenshots", [])),
+            screenshot_artifact_refs(event),
+            event.payload.get("tool", ""),
+        )
+        for event in sorted(events, key=lambda event: (str(event.payload.get("host") or ""), event.id or 0))
+    ]
+    table = render_table(
+        ("HOST", "URLS", "SHOTS", "ARTIFACTS", "TOOL"),
+        rows,
+        cell_subjects=("host", "url", "", "artifact", ""),
+        style_getter=command_context_style_getter(context),
+        max_width=terminal_table_width(),
+    )
+    return f"Screenshots ({len(events)})\n{table}"
+
+
+def screenshot_artifact_refs(event: Event) -> str:
+    """Return compact artifact references for one screenshot event."""
+    refs: list[str] = []
+    screenshots = event.payload.get("screenshots", [])
+    if not isinstance(screenshots, list):
+        return ""
+    for screenshot in screenshots:
+        if not isinstance(screenshot, dict):
+            continue
+        ref = screenshot.get("artifact_id") or screenshot.get("artifact") or screenshot.get("path")
+        if ref:
+            refs.append(str(ref))
+    return ", ".join(refs)
+
+
+def render_smb_shares_section(context: CommandContext, events: list[Event]) -> str:
+    """Render SMB shares as a compact result table."""
+    rows = [
+        (
+            event.payload.get("host", ""),
+            event.payload.get("share", ""),
+            event.payload.get("access", ""),
+            format_bool(event.payload.get("authenticated")),
+            event.payload.get("remark", ""),
+        )
+        for event in sorted(events, key=lambda event: (str(event.payload.get("host") or ""), str(event.payload.get("share") or ""), event.id or 0))
+    ]
+    table = render_table(
+        ("HOST", "SHARE", "ACCESS", "AUTH", "REMARK"),
+        rows,
+        cell_subjects=("host", "value", "status", "", ""),
+        style_getter=command_context_style_getter(context),
+        max_width=terminal_table_width(),
+    )
+    return f"SMB shares ({len(events)})\n{table}"
+
+
+def format_bool(value: object) -> str:
+    """Format optional bools for result tables."""
+    if value is True:
+        return "yes"
+    if value is False:
+        return "no"
+    return ""
+
+
+def render_artifacts_section(context: CommandContext, events: list[Event]) -> str:
+    """Render attached artifacts as a compact result table."""
+    rows = [
+        (
+            event.payload.get("artifact_id", ""),
+            event.payload.get("name", ""),
+            event.payload.get("content_type", ""),
+            event.payload.get("size", ""),
+            event.payload.get("note", ""),
+        )
+        for event in sorted(events, key=lambda event: (str(event.payload.get("name") or ""), event.id or 0))
+    ]
+    table = render_table(
+        ("ARTIFACT", "NAME", "TYPE", "SIZE", "NOTE"),
+        rows,
+        cell_subjects=("artifact", "value", "", "", ""),
+        style_getter=command_context_style_getter(context),
+        max_width=terminal_table_width(),
+    )
+    return f"Artifacts ({len(events)})\n{table}"
+
+
 def render_route_hops_section(context: CommandContext, events: list[Event]) -> str:
     """Render route traces as a compact result table."""
     rows = [
@@ -471,6 +580,8 @@ def non_noise_events(events: list[Event]) -> list[Event]:
 
 def is_noise_topic(topic: str) -> bool:
     """Return whether a topic is lifecycle/audit noise for result display."""
+    if event_schema(topic) is not None:
+        return False
     return topic in NOISE_TOPICS or topic.startswith(NOISE_TOPIC_PREFIXES)
 
 

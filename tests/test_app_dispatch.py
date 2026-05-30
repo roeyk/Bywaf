@@ -1999,6 +1999,64 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("process.run", text)
             self.assertNotIn("Representative events", text)
 
+    def test_results_renders_screenshots_smb_shares_and_artifacts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.record_job("web/screenshotter 192.0.2.20", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=1,
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+                commandlet="web/screenshotter",
+                values={},
+            )
+            runner.db.publish(
+                "web.screenshotted_host",
+                {
+                    "host": "192.0.2.20",
+                    "urls": ["http://192.0.2.20/"],
+                    "screenshots": [{"artifact_id": "artifact-1"}],
+                    "tool": "screenshotter",
+                },
+                "screenshotter",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
+            runner.db.publish(
+                "smb.share.found",
+                {"host": "192.0.2.20", "share": "SYSVOL", "access": "read", "authenticated": True},
+                "smb_probe",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
+            runner.db.publish(
+                "artifact.attached",
+                {
+                    "artifact_id": "artifact-1",
+                    "name": "192.0.2.20.png",
+                    "content_type": "image/png",
+                    "sha256": "a" * 64,
+                    "size": 1200,
+                },
+                "screenshotter",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "results")
+
+            text = output.getvalue()
+            self.assertIn("Shared schemas: artifact.attached, smb.share.found, web.screenshotted_host", text)
+            self.assertIn("Screenshots", text)
+            self.assertIn("artifact-1", text)
+            self.assertIn("SMB shares", text)
+            self.assertIn("SYSVOL", text)
+            self.assertIn("Artifacts", text)
+            self.assertIn("192.0.2.20.png", text)
+            self.assertNotIn("Representative events", text)
+
     def test_results_passes_sort_to_embedded_ports_view(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

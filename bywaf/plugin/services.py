@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 
 from ..artifacts import Artifact, artifact_store_for_event_store
 from ..db import EventStore, Subscription
+from ..event_schemas import EventSchemaObject, schema_objects
 from ..events import Event
 from ..rendering import Table, render_console_table
 from ..varstore import VarStore
@@ -188,6 +189,14 @@ class ContextEvents:
             command_run_id=self.context.command_run_id,
             parent_command_run_id=self.context.parent_command_run_id,
         )
+
+    def publish_object(self, obj: EventSchemaObject) -> Event:
+        """Publish one shared or plugin-owned schema object."""
+        return self.publish(obj.schema_topic(), obj.to_payload())
+
+    def objects(self, events: Iterable[Event], factory):
+        """Deserialize matching events into schema objects."""
+        return schema_objects(events, factory)
 
     def fetch(
         self,

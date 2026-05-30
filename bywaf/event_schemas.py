@@ -12,7 +12,7 @@ Used by:
 from __future__ import annotations
 
 import inspect
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, fields, is_dataclass
 from typing import Any, ClassVar, Literal, Self, TypeVar
 
@@ -63,6 +63,12 @@ class EventSchemaObject:
         if accepted is not None:
             values = {name: value for name, value in values.items() if name in accepted}
         return cls(**values)
+
+    @classmethod
+    def from_events(cls, events: Iterable[Any]) -> tuple[Self, ...]:
+        """Deserialize matching events into schema objects."""
+        topic = cls.schema_topic()
+        return tuple(cls.from_event(event) for event in events if getattr(event, "topic", None) == topic)
 
     @classmethod
     def schema_topic(cls) -> str:
@@ -287,6 +293,16 @@ def schema_object(event: Any, topic: str, factory: Callable[..., T]) -> T:
     if accepted is not None:
         fields = {name: value for name, value in fields.items() if name in accepted}
     return factory(**fields)
+
+
+def schema_objects(events: Iterable[Any], factory: Callable[..., T]) -> tuple[T, ...]:
+    """Deserialize matching events into schema objects using a topic-aware factory."""
+    topic = getattr(factory, "__topic__", "")
+    if not topic and hasattr(factory, "schema_topic"):
+        topic = str(factory.schema_topic())  # type: ignore[attr-defined]
+    if not topic:
+        raise ValueError("schema object factory must define __topic__ or schema_topic()")
+    return tuple(schema_object(event, topic, factory) for event in events if getattr(event, "topic", None) == topic)
 
 
 def accepted_factory_fields(factory: Callable[..., Any]) -> set[str] | None:

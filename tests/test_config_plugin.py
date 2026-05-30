@@ -16,6 +16,7 @@ import unittest
 
 from bywaf.config import Settings, default_settings
 from bywaf.db import EventStore
+from bywaf.event_schema_objects import OpenPort
 from bywaf.plugin import (
     CommandContext,
     CommandletBase,
@@ -256,6 +257,23 @@ class ConfigPluginTests(unittest.TestCase):
         self.assertEqual(requests[0].payload["argv"], [sys.executable, "-c", "print('hello')"])
         self.assertEqual(results[0].payload["returncode"], 0)
         self.assertEqual(results[0].payload["request_event_id"], requests[0].id)
+
+    def test_command_context_events_publish_and_read_schema_objects(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="test",
+                metadata={
+                    "command_run_id": "run-1",
+                    "capabilities": ("db.write:port.open",),
+                },
+            )
+            context.events.publish_object(OpenPort("192.0.2.10", 443, "tcp", service="https"))
+            events = db.events_for_topic("port.open")
+
+        self.assertEqual(events[0].payload["host"], "192.0.2.10")
+        self.assertEqual(context.events.objects(events, OpenPort), (OpenPort("192.0.2.10", 443, "tcp", service="https"),))
 
     def test_command_context_process_run_audits_missing_capability(self):
         with tempfile.TemporaryDirectory() as tmp:

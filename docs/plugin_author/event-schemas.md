@@ -63,6 +63,14 @@ for event in input_events:
     probe_service(port.host, port.port, port.protocol, port.service)
 ```
 
+For a batch of input events, use the class helper to pull out only matching
+schema objects:
+
+```python
+for port in OpenPort.from_events(input_events):
+    probe_service(port.host, port.port, port.protocol, port.service)
+```
+
 The base class validates the event against the shared schema and passes
 matching schema fields into your constructor. Extra schema fields are ignored
 unless your constructor accepts `**kwargs`, so your local object only needs the
@@ -73,6 +81,13 @@ at the edge:
 
 ```python
 context.events.publish(OpenPort.__topic__, port.to_payload())
+```
+
+The command context also exposes a shorthand that keeps the topic and payload
+serialization together:
+
+```python
+context.events.publish_object(port)
 ```
 
 That keeps the database representation simple and stable while keeping plugin
@@ -120,7 +135,7 @@ The producing plugin publishes the serialized boundary form:
 
 ```python
 session = SmbSession(host="dc01.example.test", username="alice", domain="EXAMPLE")
-context.events.publish(SmbSession.__topic__, session.to_payload())
+context.events.publish_object(session)
 ```
 
 A consuming plugin imports the plugin-owned class and immediately returns to
@@ -130,10 +145,8 @@ typed code:
 from smb_enum.event_schema_objects import SmbSession
 
 
-for event in input_events:
-    if event.topic == SmbSession.__topic__:
-        session = SmbSession.from_event(event)
-        inspect_session(session.host, session.username, session.domain)
+for session in SmbSession.from_events(input_events):
+    inspect_session(session.host, session.username, session.domain)
 ```
 
 Declare the topic in `consumes` and `emits` as usual. Framework tooling can see
@@ -192,11 +205,11 @@ the normalized facts while the raw detail remains available for evidence.
 One hostname with multiple addresses should be multiple `name.resolved` facts:
 
 ```python
+from bywaf.event_schema_objects import NameResolved
+
+
 for address in addresses:
-    context.events.publish(
-        "name.resolved",
-        {"name": "www.example.test", "host": address, "resolver": "system"},
-    )
+    context.events.publish_object(NameResolved("www.example.test", address, resolver="system"))
 ```
 
 Route tracing should publish one `network.route.hop` fact per target and hop:
@@ -214,27 +227,29 @@ hop = NetworkRouteHop(
     status="responded",
     scanner="traceroute",
 )
-context.events.publish(NetworkRouteHop.__topic__, hop.to_payload())
+context.events.publish_object(hop)
 ```
 
 An SMB enumeration plugin can consume discovered hosts and publish shares:
 
 ```python
+from bywaf.event_schema_objects import HostFound, SmbShareFound
+
+
 for event in input_events:
     if event.topic != "host.found":
         continue
-    host = event.payload["host"]
+    host = HostFound.from_event(event).host
     for share in enumerate_shares(host):
-        context.events.publish(
-            "smb.share.found",
-            {
-                "host": host,
-                "share": share.name,
-                "port": 445,
-                "protocol": "smb",
-                "access": share.access,
-                "authenticated": share.authenticated,
-            },
+        context.events.publish_object(
+            SmbShareFound(
+                host,
+                share.name,
+                port=445,
+                protocol="smb",
+                access=share.access,
+                authenticated=share.authenticated,
+            )
         )
 ```
 
