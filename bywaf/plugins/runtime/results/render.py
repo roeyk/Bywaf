@@ -12,7 +12,7 @@ from collections import Counter
 from bywaf.event import Event
 from bywaf.event.schemas import event_schema
 from bywaf.plugin import CommandContext
-from bywaf.plugins.network.portscanner_ports import render_ports
+from bywaf.plugins.network.portscanner.ports import render_ports
 from bywaf.repl.display.events import format_event
 from bywaf.runtime_display import command_context_style_getter, render_table, terminal_table_width
 from bywaf.style import styled_subject_text

@@ -74,7 +74,7 @@ def candidate_payload(
 
 def telnet_open_candidate(port_payload: dict[str, Any]) -> dict[str, Any] | None:
     """Return a finding candidate for an exposed Telnet service."""
-    from ..plugins.network.portscanner_findings import telnet_open_candidate as plugin_candidate
+    from ..plugins.network.portscanner.findings import telnet_open_candidate as plugin_candidate
 
     return plugin_candidate(port_payload)
 

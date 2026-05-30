@@ -25,8 +25,8 @@ from bywaf.plugins.discovery.hostscanner import publish_name_resolution_events, 
 from bywaf.plugins.network.nmap_backend import scan_open_ports
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option, split_var_values
 from bywaf.plugins._args import key_value_to_long_options
-from bywaf.plugins.network.portscanner_ports import Ports
-from bywaf.plugins.network.portscanner_findings import telnet_open_candidate
+from bywaf.plugins.network.portscanner.ports import Ports
+from bywaf.plugins.network.portscanner.findings import telnet_open_candidate
 
 DEFAULTS = {
     "arguments": "-sT",

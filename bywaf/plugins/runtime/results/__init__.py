@@ -18,9 +18,9 @@ import time
 from bywaf.event.schemas import event_schema
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
-from bywaf.plugins.network.portscanner_ports import PORT_SORT_KEYS
+from bywaf.plugins.network.portscanner.ports import PORT_SORT_KEYS
 from bywaf.plugins.runtime.job import require_job
-from bywaf.plugins.runtime.results_render import no_results_message, render_results
+from bywaf.plugins.runtime.results.render import no_results_message, render_results
 from bywaf.runtime_display import (
     parse_runtime_sort,
     runtime_sort_completion_candidates,
