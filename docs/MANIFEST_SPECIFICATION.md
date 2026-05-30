@@ -5,8 +5,9 @@ packages.
 
 The manifest is not a sandbox or a replacement for plugin code. Plugin authors
 still write commandlets in Python. For ordinary command-line shapes, new
-plugins should prefer `ManifestCommandlet`: declare the public arguments and
-options in TOML, then implement `handle(context, cfg, input_events)` in Python.
+plugins should prefer a bare `@commandlet` function: declare the public
+arguments and options in TOML, then implement
+`my_commandlet(context, cfg, input_events)` in Python.
 The manifest records the plugin traits, commandlets, capabilities, options,
 arguments, provider variables, and trigger rules that Bywaf should trust before
 or while loading plugin code.
@@ -186,9 +187,9 @@ plugin loading to fail.
 `[[commandlets]]` entry. They describe public named options such as
 `timeout=5`, `--timeout=5`, or boolean flags such as `silent=true`.
 
-For `ManifestCommandlet`, options are also the source of the per-run immutable
-`cfg` object passed to `handle(context, cfg, input_events)`. Values resolve in
-this order:
+For manifest-backed functions and `ManifestCommandlet`, options are also the
+source of the per-run immutable `cfg` object passed to plugin behavior. Values
+resolve in this order:
 
 ```text
 command-line option > stored plugin variable > manifest default
@@ -199,17 +200,17 @@ plugin variable while a commandlet is running, the running invocation keeps its
 existing `cfg`; ordinary plugin variables configure future invocations, not live
 control state.
 
-By convention, a `ManifestCommandlet` subclass without an explicit `spec` reads
-the sidecar manifest next to its module, such as `dns_lookup.plugin.toml`, and
-uses the module stem as the commandlet name. Package-style plugins can override
-`manifest_path`; files exposing more than one manifest-backed commandlet can
-override `manifest_name`.
+By convention, bare `@commandlet` reads the sidecar manifest next to its module,
+such as `dns_lookup.plugin.toml`, and uses the module stem as the commandlet
+name. Package-style plugins with `bywaf.plugin.toml` use the function name as
+the commandlet name. Class-based `ManifestCommandlet` remains available for
+advanced commandlets that need override hooks.
 
 | Key | Type | Required | Meaning |
 | --- | --- | --- | --- |
 | `name` | string | yes | Public option name. Hyphens are converted to underscores on `cfg`, so `record-type` becomes `cfg.record_type`. |
 | `description` | string | no | Help text for completion and docs. |
-| `default` | string, integer, float, boolean, or null | no | Default value. Values are normalized to strings in `CommandSpec`; `ManifestCommandlet` casts them back using `type`. |
+| `default` | string, integer, float, boolean, or null | no | Default value. Values are normalized to strings in `CommandSpec`; the manifest-backed adapter casts them back using `type`. |
 | `choices` | list of strings | no | Allowed values. |
 | `completion` | string | no | Completion kind such as `path`, `file`, `dir`, `event-topic`, or `none`. |
 | `secret` | boolean | no | Marks the option as secret metadata and adds it to the effective secret option list. |
@@ -244,9 +245,9 @@ also behave as flags when written as `--silent`.
 # Commandlet Arguments
 
 `[[commandlets.arguments]]` entries belong to the nearest preceding
-`[[commandlets]]` entry. They describe positional arguments. `ManifestCommandlet`
-parses them into `cfg` with the same naming rule as options: hyphens become
-underscores.
+`[[commandlets]]` entry. They describe positional arguments. The
+manifest-backed adapter parses them into `cfg` with the same naming rule as
+options: hyphens become underscores.
 
 | Key | Type | Required | Meaning |
 | --- | --- | --- | --- |
@@ -339,9 +340,9 @@ runtime policy.
 # What The Manifest Is Not
 
 The manifest is not a replacement for the Python plugin API. It can define the
-ordinary command-line interface for `ManifestCommandlet`, but the commandlet
-still owns behavior, validation beyond simple type/choice checks, event
-publishing, artifacts, and follow-up logic in Python.
+ordinary command-line interface for manifest-backed functions and classes, but
+the commandlet still owns behavior, validation beyond simple type/choice
+checks, event publishing, artifacts, and follow-up logic in Python.
 
 It does not currently define a complete pre-import execution catalog. Bywaf can
 read manifest metadata before plugin import for listing, completion, declared

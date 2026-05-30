@@ -14,7 +14,7 @@ import sys
 import tomllib
 from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
-from typing import Any, ClassVar, Protocol, TYPE_CHECKING, cast
+from typing import Any, Callable, ClassVar, Protocol, TYPE_CHECKING, TypeVar, cast, overload
 
 from ..events import Event
 from ..rendering import Table, render_console_table
@@ -23,8 +23,16 @@ from ..specs import ArgumentSpec, CommandSpec, CompletionSpec, OptionSpec
 if TYPE_CHECKING:
     from .context import CommandContext
 
+_T = TypeVar("_T")
 
+
+@overload
+def commandlet(target: Callable[..., Any], /) -> "FunctionCommandlet": ...
+
+
+@overload
 def commandlet(
+    target: None = None,
     *,
     name: str,
     description: str,
@@ -36,13 +44,35 @@ def commandlet(
     database_actions: Sequence[str] = (),
     provider_variables: Sequence[str] = (),
     secret_provider_variables: Sequence[str] = (),
-):
-    """Decorate a commandlet class with a `CommandSpec`.
+) -> Callable[[_T], _T]: ...
 
-    Use this with `@argument` and `@option` to keep plugin metadata readable
-    without hand-writing a full `CommandSpec` block.
+
+def commandlet(
+    target: Callable[..., Any] | None = None,
+    *,
+    name: str | None = None,
+    description: str = "",
+    usage: str = "",
+    examples: Sequence[str] = (),
+    consumes: Sequence[str] = (),
+    emits: Sequence[str] = (),
+    capabilities: Sequence[str] = (),
+    database_actions: Sequence[str] = (),
+    provider_variables: Sequence[str] = (),
+    secret_provider_variables: Sequence[str] = (),
+) -> Any:
+    """Decorate a commandlet class or manifest-backed function.
+
+    Bare `@commandlet` adapts a function into a manifest-backed commandlet.
+    `@commandlet(...)` remains the lower-level class metadata decorator used
+    with `@argument` and `@option`.
     """
+    if target is not None:
+        return FunctionCommandlet(target)
+
     def decorate(cls):
+        if name is None:
+            raise ValueError("class commandlet decorators require name=")
         # @option/@argument decorators run before @commandlet and stash metadata
         # on the class. Build the final immutable spec here.
         cls.spec = CommandSpec(
@@ -245,6 +275,7 @@ class ManifestCommandlet(CommandletBase):
     """Base class for commandlets whose public interface comes from TOML."""
 
     spec: CommandSpec
+    manifest_auto: ClassVar[bool] = True
     manifest_path: ClassVar[str | Path | None] = None
     manifest_name: ClassVar[str | None] = None
     manifest_arguments: tuple[dict[str, Any], ...] = ()
@@ -252,6 +283,8 @@ class ManifestCommandlet(CommandletBase):
     def __init_subclass__(cls, **kwargs) -> None:
         """Populate manifest-backed metadata for subclasses by convention."""
         super().__init_subclass__(**kwargs)
+        if cls.__dict__.get("manifest_auto") is False:
+            return
         if "spec" in cls.__dict__:
             return
         path = cls.resolved_manifest_path()
@@ -330,6 +363,48 @@ class ManifestCommandlet(CommandletBase):
                 parser_kwargs["type"] = manifest_option_cast(option_spec)
             parser.add_argument(f"--{option_spec.name}", **parser_kwargs)
         return parser.parse_args(key_value_args_to_options(args, option_names))
+
+
+class FunctionCommandlet(ManifestCommandlet):
+    """Internal adapter for function-style manifest commandlets."""
+
+    manifest_auto = False
+
+    def __init__(self, func: Callable[..., Iterable[dict[str, Any]] | None]) -> None:
+        self.func = func
+        manifest_path = manifest_path_for_function(func)
+        manifest_name = manifest_name_for_function(func, manifest_path)
+        self.spec = spec_from_manifest(manifest_path, manifest_name)
+        self.manifest_arguments = manifest_arguments_from_manifest(manifest_path, manifest_name)
+
+    def handle(
+        self,
+        context: CommandContext,
+        cfg: RunConfig,
+        input_events: Iterable[Event],
+    ) -> Iterable[dict[str, Any]]:
+        """Invoke the wrapped plugin function."""
+        result = self.func(context, cfg, input_events)
+        return result if result is not None else ()
+
+
+def manifest_path_for_function(func: Callable[..., Any]) -> Path:
+    """Return the conventional sidecar manifest path for a plugin function."""
+    module = sys.modules.get(func.__module__)
+    module_file = getattr(module, "__file__", None)
+    if not module_file:
+        raise ValueError(f"{func.__name__} must be defined in a module with a manifest")
+    path = Path(module_file)
+    if path.name == "__init__.py":
+        return path.with_name("bywaf.plugin.toml")
+    return path.with_suffix(".plugin.toml")
+
+
+def manifest_name_for_function(func: Callable[..., Any], path: Path) -> str:
+    """Return the conventional manifest commandlet name for a plugin function."""
+    if path.name == "bywaf.plugin.toml":
+        return func.__name__
+    return path.stem.removesuffix(".plugin")
 
 
 def spec_from_manifest(path: str | Path, commandlet_name: str) -> CommandSpec:

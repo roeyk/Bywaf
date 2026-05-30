@@ -23,8 +23,8 @@ from bywaf.plugins.identity.smb_probe import SmbProbe, safe_call, safe_shares
 from bywaf.plugins.http.eyewitness import publish_screenshot, publish_screenshotted_hosts
 from bywaf.plugins.http.screenshotter import Screenshotter
 from bywaf.plugins.network.ssh_probe import SshProbe, ssh_targets
-from bywaf.plugins.network.tcp_banner import TcpBannerGrabber, banner_targets, probe_bytes, target_from_text
-from bywaf.plugins.recon.dns_lookup import DnsLookup, optional_module
+from bywaf.plugins.network.tcp_banner import banner_targets, probe_bytes, target_from_text, tcp_banner
+from bywaf.plugins.recon.dns_lookup import dns_lookup, optional_module
 from bywaf.plugins.recon.shodan_lookup import ShodanLookup
 
 
@@ -54,9 +54,9 @@ class LibraryPluginTests(unittest.TestCase):
         fake_dns = SimpleNamespace(Resolver=FakeResolver)
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
-            context = CommandContext(db=db, source="dns_lookup", metadata={"capabilities": DnsLookup().spec.capabilities})
+            context = CommandContext(db=db, source="dns_lookup", metadata={"capabilities": dns_lookup.spec.capabilities})
             with patch("bywaf.plugins.recon.dns_lookup.optional_module", return_value=fake_dns):
-                list(DnsLookup().run(context, ["record-type=A", "example.test"], []))
+                list(dns_lookup.run(context, ["record-type=A", "example.test"], []))
             record = db.events_for_topic("dns.record")[0].payload
             self.assertEqual(record["name"], "example.test")
             self.assertEqual(record["value"], "127.0.0.1")
@@ -118,12 +118,12 @@ class LibraryPluginTests(unittest.TestCase):
     def test_tcp_banner_grabber_emits_schema_payload(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
-            context = CommandContext(db=db, source="tcp_banner", metadata={"capabilities": TcpBannerGrabber().spec.capabilities})
+            context = CommandContext(db=db, source="tcp_banner", metadata={"capabilities": tcp_banner.spec.capabilities})
             with patch(
                 "bywaf.plugins.network.tcp_banner.grab_tcp_banner",
                 return_value={"banner": "SSH-2.0-Test", "elapsed_ms": 1},
             ):
-                events = list(TcpBannerGrabber().run(context, ["192.0.2.10:22"], []))
+                events = list(tcp_banner.run(context, ["192.0.2.10:22"], []))
             self.assertEqual(events[0]["host"], "192.0.2.10")
             self.assertEqual(events[0]["port"], 22)
             self.assertEqual(events[0]["protocol"], "tcp")
@@ -133,7 +133,7 @@ class LibraryPluginTests(unittest.TestCase):
         store = VarStore()
         store.set("tcp_banner.timeout", "1.5")
         context = CommandContext(db=None, source="tcp_banner", _varstore=store)
-        parsed = TcpBannerGrabber().parse_manifest_args(context, ["port=22", "silent=true", "192.0.2.10"])
+        parsed = tcp_banner.parse_manifest_args(context, ["port=22", "silent=true", "192.0.2.10"])
         cfg = RunConfig({name: getattr(parsed, name) for name in vars(parsed)})
         self.assertEqual(cfg.targets, ["192.0.2.10"])
         self.assertEqual(cfg.port, 22)
@@ -145,7 +145,7 @@ class LibraryPluginTests(unittest.TestCase):
         store = VarStore()
         store.set("tcp_banner.timeout", "1")
         context = CommandContext(db=None, source="tcp_banner", _varstore=store)
-        parsed = TcpBannerGrabber().parse_manifest_args(context, [])
+        parsed = tcp_banner.parse_manifest_args(context, [])
         cfg = RunConfig({name: getattr(parsed, name) for name in vars(parsed)})
         store.set("tcp_banner.timeout", "9")
         self.assertEqual(cfg.timeout, 1.0)

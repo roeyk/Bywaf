@@ -46,7 +46,7 @@ Bywaf plugins provide commandlets. They do not use Veil-style modules,
 Metasploit-style `info` dictionaries, or `run/exploit` entrypoints.
 
 ```text
-plugin.py          decorated CommandletBase class plus plugin() factory
+plugin.py          small @commandlet function plus plugin() factory
 command.py         runtime parsing, event iteration, context interaction
 detect.py          pure detection/protocol logic, testable without Bywaf
 findings.py        normalized finding payloads via bywaf.finding helpers
@@ -56,14 +56,16 @@ bywaf.plugin.toml  sidecar manifest contract for capabilities and traits
 
 The current plugin API centers on:
 
-- `ManifestCommandlet` for manifest-declared options and per-run `cfg`
-- `@commandlet`, `@argument`, and `@option` metadata
-- `CommandletBase`
+- bare `@commandlet` for manifest-backed functions
+- `cfg` for manifest-declared options and per-run settings
 - `CommandContext`
-- `run(self, context, args, input_events)`
+- `def my_commandlet(context, cfg, input_events)`
 - yielded JSON-serializable dictionaries for normal event output
 - `def plugin() -> Commandlet`
 - `bywaf.plugin.toml`
+
+`ManifestCommandlet`, `CommandletBase`, `@argument`, and `@option` remain
+available for advanced commandlets that need class hooks or unusual parsing.
 
 Compatibility note: if an external answer suggests `BaseCommandlet`, an `info`
 dict, a `modules/` directory API, or a `run(self, target, args)` method, it is
@@ -82,11 +84,12 @@ not following the current Bywaf plugin schema.
 
 ## Plugin Shape
 
-Bywaf plugins provide commandlets. A commandlet is a small class with:
+Bywaf plugins provide commandlets. A simple manifest-backed commandlet is a
+small function with:
 
-- a `CommandSpec`, usually declared with `@commandlet`, `@argument`, and `@option`
-- a `run()` method, which performs the work
-- a `plugin()` factory function, which returns the commandlet instance
+- a sidecar manifest row that declares options, topics, and capabilities
+- a bare `@commandlet` decorator
+- a `plugin()` factory function, which returns the decorated function object
 
 Commandlets can publish events by yielding dictionaries. The runner inserts
 those dictionaries into SQLite under the first topic listed in `spec.emits`.
@@ -96,13 +99,12 @@ those dictionaries into SQLite under the first topic listed in `spec.emits`.
 For new commandlets, prefer manifest-backed configuration:
 
 - declare public options and variables in `bywaf.plugin.toml`
-- subclass `ManifestCommandlet`
-- implement `handle(self, context, cfg, input_events)`
+- decorate a small function with `@commandlet`
 - read effective settings from `cfg`, not by repeatedly calling `context.vars`
 
-For the common one-commandlet-per-file shape, the base class finds the sidecar
+For the common one-commandlet-per-file shape, the decorator finds the sidecar
 manifest and commandlet row by convention, so plugin code does not need to
-hand-write `CommandSpec`.
+hand-write `CommandSpec` or a commandlet class.
 
 `cfg` is a frozen per-run snapshot. It merges command-line overrides, stored
 plugin variables, and manifest defaults before the commandlet starts. Later

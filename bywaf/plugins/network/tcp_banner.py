@@ -27,41 +27,36 @@ from bywaf.events import Event
 from bywaf.plugin import (
     CommandContext,
     Commandlet,
-    ManifestCommandlet,
     RunConfig,
+    commandlet,
 )
 
 
-class TcpBannerGrabber(ManifestCommandlet):
-    def handle(
-        self,
-        context: CommandContext,
-        cfg: RunConfig,
-        input_events: Iterable[Event],
-    ):
-        """Grab banners for explicit targets or upstream `port.open` events."""
-        cfg = cast(TcpBannerConfig, cfg)
-        for target in banner_targets(cfg.targets, cfg.port, input_events):
-            context.raise_if_cancelled()
-            context.audit_capability("network.connect")
-            result = grab_tcp_banner(target.host, target.port, cfg.timeout, cfg.read_bytes, cfg.mode)
-            banner_text = str(result.get("banner") or "")
-            error_text = str(result.get("error") or "")
-            elapsed_value = result.get("elapsed_ms")
-            banner = TcpBanner(
-                target.host,
-                target.port,
-                banner=banner_text,
-                error=error_text,
-                elapsed_ms=elapsed_value if isinstance(elapsed_value, int) else None,
-                scanner="tcp_banner",
-            )
-            payload = banner.to_payload()
-            context.alert(
-                banner_alert_text(target.host, target.port, payload),
-                silent=cfg.silent,
-            )
-            yield payload
+@commandlet
+def tcp_banner(context: CommandContext, cfg: RunConfig, input_events: Iterable[Event]):
+    """Grab banners for explicit targets or upstream `port.open` events."""
+    cfg = cast(TcpBannerConfig, cfg)
+    for target in banner_targets(cfg.targets, cfg.port, input_events):
+        context.raise_if_cancelled()
+        context.audit_capability("network.connect")
+        result = grab_tcp_banner(target.host, target.port, cfg.timeout, cfg.read_bytes, cfg.mode)
+        banner_text = str(result.get("banner") or "")
+        error_text = str(result.get("error") or "")
+        elapsed_value = result.get("elapsed_ms")
+        banner = TcpBanner(
+            target.host,
+            target.port,
+            banner=banner_text,
+            error=error_text,
+            elapsed_ms=elapsed_value if isinstance(elapsed_value, int) else None,
+            scanner="tcp_banner",
+        )
+        payload = banner.to_payload()
+        context.alert(
+            banner_alert_text(target.host, target.port, payload),
+            silent=cfg.silent,
+        )
+        yield payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -148,4 +143,4 @@ def elapsed_ms(start: float) -> int:
 
 def plugin() -> Commandlet:
     """Factory used by PluginRegistry."""
-    return TcpBannerGrabber()
+    return tcp_banner

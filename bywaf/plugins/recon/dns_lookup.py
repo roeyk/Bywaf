@@ -17,42 +17,42 @@ from bywaf.events import Event
 from bywaf.plugin import (
     CommandContext,
     Commandlet,
-    ManifestCommandlet,
     RunConfig,
+    commandlet,
 )
 
 
-class DnsLookup(ManifestCommandlet):
-    def handle(self, context: CommandContext, cfg: RunConfig, input_events: Iterable[Event]):
-        """Resolve one or more names and publish DNS records."""
-        del input_events
-        cfg = cast(DnsLookupConfig, cfg)
-        resolver_mod = optional_module(context, "dns.resolver", "dnspython")
-        if resolver_mod is None:
-            return ()
-        resolver = resolver_mod.Resolver()
-        resolver.lifetime = cfg.timeout
-        resolver.timeout = cfg.timeout
-        if cfg.resolver:
-            # A user-specified resolver applies only to this invocation; it is
-            # not written back to global resolver configuration.
-            resolver.nameservers = [cfg.resolver]
-        for name in cfg.names:
-            context.audit_capability("network.connect")
-            try:
-                answer = resolver.resolve(name, cfg.record_type)
-            except Exception as exc:
-                context.events.publish(
-                    "dns.error",
-                    {"name": name, "record_type": cfg.record_type, "error": str(exc)},
-                )
-                continue
-            for record in answer:
-                context.events.publish(
-                    "dns.record",
-                    {"name": name, "record_type": cfg.record_type, "value": record.to_text()},
-                )
+@commandlet
+def dns_lookup(context: CommandContext, cfg: RunConfig, input_events: Iterable[Event]):
+    """Resolve one or more names and publish DNS records."""
+    del input_events
+    cfg = cast(DnsLookupConfig, cfg)
+    resolver_mod = optional_module(context, "dns.resolver", "dnspython")
+    if resolver_mod is None:
         return ()
+    resolver = resolver_mod.Resolver()
+    resolver.lifetime = cfg.timeout
+    resolver.timeout = cfg.timeout
+    if cfg.resolver:
+        # A user-specified resolver applies only to this invocation; it is
+        # not written back to global resolver configuration.
+        resolver.nameservers = [cfg.resolver]
+    for name in cfg.names:
+        context.audit_capability("network.connect")
+        try:
+            answer = resolver.resolve(name, cfg.record_type)
+        except Exception as exc:
+            context.events.publish(
+                "dns.error",
+                {"name": name, "record_type": cfg.record_type, "error": str(exc)},
+            )
+            continue
+        for record in answer:
+            context.events.publish(
+                "dns.record",
+                {"name": name, "record_type": cfg.record_type, "value": record.to_text()},
+            )
+    return ()
 
 
 class DnsLookupConfig(RunConfig):
@@ -84,4 +84,4 @@ def optional_module(context: CommandContext, module_name: str, package_name: str
 
 def plugin() -> Commandlet:
     """Factory used by PluginRegistry."""
-    return DnsLookup()
+    return dns_lookup

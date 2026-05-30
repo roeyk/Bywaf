@@ -94,10 +94,10 @@ Decorator order is intentional: Python applies decorators from bottom to top, so
 
 ## Manifest-Backed Configuration
 
-For new commandlets, prefer `ManifestCommandlet` when the command-line interface
-is ordinary options plus positional arguments. The manifest declares the public
-interface once, and the base class builds both `CommandSpec` metadata and an
-immutable effective config object for each run.
+For new commandlets, prefer a manifest-backed function when the command-line
+interface is ordinary options plus positional arguments. The manifest declares
+the public interface once, and `@commandlet` adapts the function into the
+internal commandlet object that Bywaf expects.
 
 ```toml
 [[commandlets]]
@@ -127,14 +127,14 @@ default = "false"
 ```python
 from typing import cast
 
-from bywaf.plugin import ManifestCommandlet, RunConfig
+from bywaf.plugin import RunConfig, commandlet
 
 
-class TcpBanner(ManifestCommandlet):
-    def handle(self, context, cfg, input_events):
-        cfg = cast(TcpBannerConfig, cfg)
-        for target in cfg.targets:
-            probe(target, timeout=cfg.timeout, silent=cfg.silent)
+@commandlet
+def tcp_banner(context, cfg, input_events):
+    cfg = cast(TcpBannerConfig, cfg)
+    for target in cfg.targets:
+        probe(target, timeout=cfg.timeout, silent=cfg.silent)
 
 
 class TcpBannerConfig(RunConfig):
@@ -143,13 +143,13 @@ class TcpBannerConfig(RunConfig):
     silent: bool
 ```
 
-By convention, `ManifestCommandlet` reads the sidecar manifest next to the
-module, such as `tcp_banner.plugin.toml`, and uses the module stem as the
-commandlet row name. For package plugins with `bywaf.plugin.toml`, or for files
-that expose multiple commandlets, set `manifest_path` or `manifest_name` on the
-class.
+By convention, bare `@commandlet` reads the sidecar manifest next to the module,
+such as `tcp_banner.plugin.toml`, and uses the module stem as the commandlet
+row name. For package plugins with `bywaf.plugin.toml`, it uses the function
+name as the commandlet row name. Class-based `ManifestCommandlet` remains
+available for unusual commandlets that need override hooks.
 
-The base class builds `CommandSpec`, handles parsing, `key=value` option
+The adapter builds `CommandSpec`, handles parsing, `key=value` option
 conversion, defaults, stored plugin variables, type casts, and choice
 validation. `cfg` is the effective configuration for this invocation:
 
