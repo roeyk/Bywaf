@@ -234,6 +234,16 @@ class CommandContext:
         """
         if self._db is None:
             return None
+        capability = framework_request_capability(topic)
+        if (
+            capability is not None
+            and self.capability_mode == "enforce"
+            and not capability_declared(capability, self.declared_capabilities)
+        ):
+            # Deny before recording a framework request that a later handler
+            # might otherwise execute. The capability evidence is still
+            # recorded without a request_event_id.
+            self.audit_capability(capability)
         event = self._db.publish(
             topic,
             payload,
@@ -242,7 +252,6 @@ class CommandContext:
             command_run_id=self.command_run_id,
             parent_command_run_id=self.parent_command_run_id,
         )
-        capability = framework_request_capability(topic)
         if capability is not None:
             self.audit_capability(capability, request_event_id=event.id)
         return event
@@ -250,6 +259,9 @@ class CommandContext:
     def audit_capability(self, capability: str, *, request_event_id: int | None = None) -> None:
         """Record audit-only capability usage for this commandlet run."""
         if self._db is None:
+            return
+        mode = self.capability_mode
+        if mode == "off":
             return
         self.enforce_database_action_policy(capability)
         declared = capability_declared(capability, self.declared_capabilities)
@@ -286,6 +298,8 @@ class CommandContext:
                 command_run_id=self.command_run_id,
                 parent_command_run_id=self.parent_command_run_id,
             )
+            if mode == "enforce":
+                raise PermissionError(f"{self.source} capability policy denies undeclared capability: {capability}")
 
     @property
     def declared_capabilities(self) -> tuple[str, ...]:
@@ -298,6 +312,12 @@ class CommandContext:
         """Return coarse database actions allowed for this commandlet."""
         value = self.metadata.get("database_actions", ())
         return tuple(str(action) for action in value)
+
+    @property
+    def capability_mode(self) -> str:
+        """Return the global capability enforcement mode."""
+        mode = (self.vars.get_global("capabilities.mode", "audit") or "audit").strip().lower()
+        return mode if mode in {"off", "audit", "warn", "enforce"} else "audit"
 
     def enforce_database_action_policy(self, capability: str) -> None:
         """Reject DB capabilities outside this commandlet's action policy."""

@@ -7,27 +7,38 @@ visible before one module quietly becomes the whole control plane.
 Run the current report from a source checkout:
 
 ```bash
-python scripts/architecture_metrics.py
+python3 scripts/architecture_metrics.py
 ```
 
 Include local git churn when you want to find files that are both complicated
 and frequently edited:
 
 ```bash
-python scripts/architecture_metrics.py --churn
+python3 scripts/architecture_metrics.py --churn
 ```
 
 For machine-readable output:
 
 ```bash
-python scripts/architecture_metrics.py --json
+python3 scripts/architecture_metrics.py --json
 ```
 
 To see which docs probably need review after changing one page:
 
 ```bash
-python scripts/architecture_metrics.py --doc-impact docs/REPORTING.md
+python3 scripts/architecture_metrics.py --doc-impact docs/REPORTING.md
 ```
+
+CI runs the metrics report on every push and pull request. For larger local
+changes, run it before and after the slice and compare the pressure points
+rather than only checking for a clean test run. The most useful deltas are:
+
+- a large module moving down the "Largest modules" or "Highest complexity"
+  lists after a split;
+- a hub module losing fan-out because orchestration moved into narrower helpers;
+- duplicate selector/filter logic disappearing into shared modules;
+- no new import cycles;
+- no new high-security-surface module without focused tests.
 
 ## What We Measure Now
 

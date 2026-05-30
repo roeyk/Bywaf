@@ -266,9 +266,31 @@ capabilities.mode=warn
 capabilities.mode=enforce
 ```
 
-Current Bywaf behavior is audit-first. Future enforcement can deny undeclared
-framework requests, restrict raw database access, or isolate untrusted plugins
-in separate processes.
+Current Bywaf behavior is audit-first by default, with opt-in enforcement for
+mediated framework APIs.
+
+Set `global.capabilities.mode` to choose behavior:
+
+- `off`: suppress capability audit events. Use only for narrow debugging.
+- `audit`: record `plugin.capability.used` and `plugin.capability.missing`
+  without blocking execution. This is the default.
+- `warn`: currently equivalent to `audit`; reserved for a later
+  operator-visible warning mode.
+- `enforce`: deny undeclared mediated framework capabilities after recording
+  the missing-capability evidence.
+
+Enforcement applies where Bywaf mediates behavior: `context.events`,
+`context.process`, `context.output`, `context.artifacts`, `context.signals`,
+framework render/page requests, and other context APIs. Database action flags
+are enforced separately for mediated DB capabilities: an invocation whose
+effective `database.actions.*` permits only `view` cannot use
+`db.write:<topic>` through the normal context APIs.
+
+Bundled and third-party plugins currently use the same mediated enforcement
+logic. The distinction is operational rather than technical: bundled plugins
+are reviewed with the framework, while third-party plugins should be run with
+`global.capabilities.mode=enforce` once their manifests are clean. Stronger
+third-party isolation still requires a separate process or sandbox boundary.
 
 ## Limits
 
