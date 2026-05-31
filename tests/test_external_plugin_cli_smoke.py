@@ -140,7 +140,7 @@ def write_external_plugin(root: Path, entry: str, commandlet: str, source: str) 
     plugin_dir.joinpath("plugin.py").write_text(
         "from bywaf.plugin import CommandSpec\n\n"
         f"class {class_name}:\n"
-        f"    spec = CommandSpec({commandlet!r}, 'smoke plugin')\n"
+        f"    spec = CommandSpec({commandlet!r}, 'smoke plugin', emits=({commandlet!r},))\n"
         "    def run(self, context, args, input_events):\n"
         f"        yield {{'source': {source!r}}}\n\n"
         "def plugin():\n"
@@ -151,6 +151,9 @@ def write_external_plugin(root: Path, entry: str, commandlet: str, source: str) 
         "native = true\n\n"
         "[[commandlets]]\n"
         f'name = "{commandlet}"\n'
+        "emits = [\n"
+        f'  "{commandlet}",\n'
+        "]\n"
         "capabilities = []\n"
     )
     return plugin_dir

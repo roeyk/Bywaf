@@ -19,6 +19,7 @@ capabilities = [
   "db.write:finding.merge_candidate",
   "filesystem.read",
   "filesystem.write",
+  "framework.console.alert",
   "framework.console.output",
 ]
 module = "bywaf.plugins.analysis.finding_dedupe"

@@ -184,6 +184,7 @@ class CanonicalFinding:
         "db.write:finding.merge_candidate",
         "filesystem.read",
         "filesystem.write",
+        "framework.console.alert",
         "framework.console.output",
     ),
 )
