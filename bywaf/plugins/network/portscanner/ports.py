@@ -37,9 +37,11 @@ PORT_SCOPE_KEYS = {"all", "job", "pipeline", "step"}
 @commandlet(
     name="ports",
     description="Show open ports from the latest or selected port scan.",
-    usage="ports [job=latest|<id>] [pipeline=<id>] [step=<id>] [host=<selector>] [port=<selector>] [sort=<key>] [all=true]",
+    usage="ports [--last|--new] [job=latest|<id>] [pipeline=<id>] [step=<id>] [host=<selector>] [port=<selector>] [sort=<key>] [all=true]",
     examples=(
         "ports",
+        "ports --last",
+        "ports --new",
         "ports job=latest",
         "ports job=69 sort=host",
         "ports host=192.168.50.0/24,!192.168.50.1-128 port=80,443",
@@ -60,9 +62,11 @@ class Ports(CommandletBase):
         """Parse selectors, select port events, and print a result table."""
         del input_events
         parser = self.parser()
+        parser.add_argument("--last", action="store_true")
+        parser.add_argument("--new", action="store_true")
         parser.add_argument("--page", action="store_true")
         parsed, tokens = parser.parse_known_args(args)
-        selectors = parse_ports_selectors(tokens)
+        selectors = parse_ports_selectors(tokens, last=parsed.last, new=parsed.new)
         context.require_foreground("port result views")
         events = select_port_events(context, selectors)
         events = filter_events_by_payload(events, selectors.filters)
@@ -81,6 +85,8 @@ class Ports(CommandletBase):
         del context
         candidates = [
             "--page",
+            "--last",
+            "--new",
             "all=true",
             "job=",
             "job=latest",
@@ -98,7 +104,7 @@ class Ports(CommandletBase):
         return [candidate for candidate in candidates if candidate.startswith(prefix)]
 
 
-def parse_ports_selectors(tokens: list[str]) -> Namespace:
+def parse_ports_selectors(tokens: list[str], *, last: bool = False, new: bool = False) -> Namespace:
     """Parse `ports` selector tokens into scope, filters, and sort order."""
     scope: dict[str, str] = {}
     filters: list[str] = []
@@ -120,7 +126,11 @@ def parse_ports_selectors(tokens: list[str]) -> Namespace:
                 "ports selectors must be one of: all, job, pipeline, step, host, port, protocol, service, reason, state, sort"
             )
     validate_ports_scope(scope)
-    return Namespace(scope=scope, filters=parse_payload_filter_tokens(filters), sort=sort_key)
+    if last and new:
+        raise ValueError("ports accepts only one of --last or --new")
+    if (last or new) and scope.get("all") == "true":
+        raise ValueError("ports all=true cannot be combined with --last or --new")
+    return Namespace(scope=scope, filters=parse_payload_filter_tokens(filters), sort=sort_key, last=last, new=new)
 
 
 def validate_ports_scope(scope: dict[str, str]) -> None:
@@ -145,6 +155,20 @@ def select_port_events(context: CommandContext, selectors: Namespace) -> list[Ev
     scope = selectors.scope
     events = context.event_store("ports")
     runtime = context.runtime_store("ports")
+    if getattr(selectors, "new", False):
+        scoped = select_port_scope_events(context, selectors)
+        return new_port_events(context, scoped)
+    if getattr(selectors, "last", False):
+        latest = latest_portscanner_scope(context)
+        return latest.events if latest is not None else []
+    return select_port_scope_events(context, selectors)
+
+
+def select_port_scope_events(context: CommandContext, selectors: Namespace) -> list[Event]:
+    """Select raw port events from an explicit scope or latest scan."""
+    scope = selectors.scope
+    events = context.event_store("ports")
+    runtime = context.runtime_store("ports")
     if scope.get("all") == "true":
         return events.events_matching(topic="port.open", limit=10000)
     if "job" in scope:
@@ -161,6 +185,33 @@ def select_port_events(context: CommandContext, selectors: Namespace) -> list[Ev
         return events.events_matching(topic="port.open", command_run_id=run_id, limit=10000)
     latest = latest_portscanner_scope(context)
     return latest.events if latest is not None else []
+
+
+def new_port_events(context: CommandContext, scoped: list[Event]) -> list[Event]:
+    """Return selected port facts not seen before the selected scope."""
+    if not scoped:
+        return []
+    first_id = min((event.id or 0) for event in scoped)
+    store = context.event_store("ports new")
+    previous = {
+        port_event_key(event)
+        for event in store.events_matching(topic="port.open", limit=10000)
+        if (event.id or 0) < first_id
+    }
+    seen: set[tuple[str, int, str]] = set()
+    result: list[Event] = []
+    for event in sorted(scoped, key=lambda row: row.id or 0):
+        key = port_event_key(event)
+        if key not in previous and key not in seen:
+            result.append(event)
+            seen.add(key)
+    return result
+
+
+def port_event_key(event: Event) -> tuple[str, int, str]:
+    """Return the stable open-port fact identity."""
+    payload = event.payload
+    return (str(payload.get("host") or ""), int(payload.get("port") or 0), str(payload.get("protocol") or "tcp"))
 
 
 def latest_portscanner_scope(context: CommandContext) -> Namespace | None:
@@ -327,19 +378,27 @@ def hosts_for_events(events: list[Event]) -> set[str]:
 def ports_scope_label(context: CommandContext, selectors: Namespace) -> str:
     """Return a short human-readable scope description."""
     scope = selectors.scope
+    if getattr(selectors, "new", False):
+        prefix = "new in "
+    elif getattr(selectors, "last", False):
+        prefix = "latest "
+    else:
+        prefix = ""
     if scope.get("all") == "true":
         return "all port.open events"
-    if scope.get("job") == "latest" or not scope:
+    if scope.get("job") == "latest" or (not scope and not getattr(selectors, "new", False)):
         latest = latest_portscanner_scope(context)
         if latest is not None and latest.job_id:
             return f"latest portscanner job={latest.job_id}"
         return "latest portscanner scan"
+    if getattr(selectors, "new", False) and not scope:
+        return "new since prior port inventory"
     if "job" in scope:
-        return f"job={scope['job']}"
+        return f"{prefix}job={scope['job']}"
     if "pipeline" in scope:
-        return f"pipeline={scope['pipeline']}"
+        return f"{prefix}pipeline={scope['pipeline']}"
     if "step" in scope:
-        return f"step={scope['step']}"
+        return f"{prefix}step={scope['step']}"
     return "selected port.open events"
 
 

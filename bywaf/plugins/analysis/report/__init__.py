@@ -25,7 +25,7 @@ from bywaf.plugin import (
 from bywaf.plugins._args import key_value_to_long_options
 from bywaf.plugins.analysis.finding_report import REPORT_FINDING_TOPICS
 
-from .events import select_report_context_events, select_report_scope_events
+from .events import select_report_context_events, select_report_new_context_events, select_report_new_scope_events, select_report_scope_events
 from .render import render_finding_report, render_network_report
 from .review import REVIEW_DECISIONS, review_report_groups
 
@@ -40,12 +40,13 @@ REPORT_SORT_CHOICES = ("finding", "host")
     name="report",
     description="Show grouped finding reports for recent, step, job, or pipeline scopes.",
     usage=(
-        "report [--last|network|<index-range>|detail <index-range>|accept|defer|reject <index-range|all>] "
+        "report [--last|--new|network|<index-range>|detail <index-range>|accept|defer|reject <index-range|all>] "
         "[pipeline=<ids>] [job=<ids>] [step=<ids>] [status=<filter>]"
     ),
     examples=(
         "report",
         "report --last",
+        "report --new",
         "report network",
         "report 1",
         "report detail 1-3",
@@ -113,6 +114,7 @@ class Report(CommandletBase):
         parser.add_argument("action", nargs="?")
         parser.add_argument("selection", nargs="?")
         parser.add_argument("--last", action="store_true", help="show the latest scan/reportable pipeline")
+        parser.add_argument("--new", action="store_true", help="show facts newly introduced by the latest relevant scans")
         parser.add_argument("--job", default="", help="job id or comma-separated job ids")
         parser.add_argument(
             "--pipeline",
@@ -127,10 +129,16 @@ class Report(CommandletBase):
         parser.add_argument("--status", choices=REPORT_STATUS_CHOICES, default="unreviewed")
         parsed = parser.parse_args(normalize_report_args(args))
         normalize_report_action(parsed)
+        if parsed.last and parsed.new:
+            raise ValueError("report accepts only one of --last or --new")
 
         input_findings = [event for event in input_events if event.topic in REPORT_FINDING_TOPICS]
-        events = input_findings or select_report_scope_events(context, parsed)
-        context_events = [] if input_findings else select_report_context_events(context, parsed)
+        if parsed.new and not input_findings:
+            events = select_report_new_scope_events(context, parsed)
+            context_events = select_report_new_context_events(context, parsed)
+        else:
+            events = input_findings or select_report_scope_events(context, parsed)
+            context_events = [] if input_findings else select_report_context_events(context, parsed)
         if parsed.action in REPORT_REVIEW_ACTIONS:
             review_report_groups(context, parsed, events)
             return ()
@@ -146,6 +154,7 @@ class Report(CommandletBase):
         candidates = (
             *REPORT_ACTIONS,
             "--last",
+            "--new",
             "all",
             "detail",
             "pipeline=",

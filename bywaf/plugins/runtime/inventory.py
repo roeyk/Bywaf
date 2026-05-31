@@ -15,13 +15,12 @@ from typing import Any
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
-from bywaf.plugins.runtime.job import require_job
+from bywaf.plugins.runtime.inventory_scope import inventory_scope_label, parse_inventory_selectors, select_inventory_events
 from bywaf.runtime_display import command_context_style_getter, render_table, terminal_table_width
 
 HOST_TOPICS = ("host.found", "name.resolved", "port.open", "http.endpoint", "service.detected", "finding.candidate")
 SERVICE_TOPICS = ("port.open", "service.detected", "http.endpoint", "tcp.banner", "tls.certificate")
 WEB_TOPICS = ("http.endpoint", "http.path", "web.waf.detected", "web.screenshotted_host", "finding.candidate")
-SCOPE_KEYS = {"all", "job", "pipeline", "step"}
 
 
 @dataclass(slots=True)
@@ -67,30 +66,33 @@ class InventoryCommand(CommandletBase):
     """Shared parser and selector behavior for inventory commandlets."""
 
     topics: tuple[str, ...] = ()
+    identity = staticmethod(lambda event: set())
 
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
         """Complete common inventory selectors."""
         del context, args
-        candidates = ["--page", "all=true", "job=", "job=latest", "pipeline=", "step="]
+        candidates = ["--last", "--new", "--page", "all=true", "job=", "job=latest", "pipeline=", "step="]
         return [candidate for candidate in candidates if candidate.startswith(prefix)]
 
     def selected_events(self, context: CommandContext, args: list[str]) -> tuple[Namespace, list[Event], bool]:
         """Parse scope selectors and return matching events."""
         parser = self.parser()
+        parser.add_argument("--last", action="store_true")
+        parser.add_argument("--new", action="store_true")
         parser.add_argument("--page", action="store_true")
-        parser.add_argument("selectors", nargs="*")
+        parser.add_argument("selectors", nargs="*", metavar="key=value")
         parsed = parser.parse_args(args)
-        selectors = parse_inventory_selectors(parsed.selectors)
+        selectors = parse_inventory_selectors(parsed.selectors, last=parsed.last, new=parsed.new)
         context.require_foreground(f"{self.spec.name} inventory views")
-        events = select_inventory_events(context, self.topics, selectors)
+        events = select_inventory_events(context, self.topics, selectors, self.identity)
         return selectors, events, bool(parsed.page)
 
 
 @commandlet(
     name="hosts",
     description="Show host inventory from accumulated scan results.",
-    usage="hosts [job=<id>|pipeline=<id>|step=<id>|all=true] [--page]",
-    examples=("hosts", "hosts pipeline=12", "hosts step=portscanner-...", "hosts --page"),
+    usage="hosts [--last|--new] [job=<id>|pipeline=<id>|step=<id>|all=true] [--page]",
+    examples=("hosts", "hosts --last", "hosts --new", "hosts pipeline=12", "hosts step=portscanner-...", "hosts --page"),
     consumes=HOST_TOPICS,
     capabilities=("framework.console.output", "framework.file.page"),
     database_actions=("view",),
@@ -99,6 +101,7 @@ class Hosts(InventoryCommand):
     """Render a compact host inventory."""
 
     topics = HOST_TOPICS
+    identity = staticmethod(lambda event: host_event_keys(event))
 
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Render host inventory rows."""
@@ -115,8 +118,8 @@ class Hosts(InventoryCommand):
 @commandlet(
     name="services",
     description="Show service inventory by host and port.",
-    usage="services [job=<id>|pipeline=<id>|step=<id>|all=true] [--page]",
-    examples=("services", "services pipeline=12", "services step=portscanner-...", "services --page"),
+    usage="services [--last|--new] [job=<id>|pipeline=<id>|step=<id>|all=true] [--page]",
+    examples=("services", "services --last", "services --new", "services pipeline=12", "services step=portscanner-...", "services --page"),
     consumes=SERVICE_TOPICS,
     capabilities=("framework.console.output", "framework.file.page"),
     database_actions=("view",),
@@ -125,6 +128,7 @@ class Services(InventoryCommand):
     """Render a compact service inventory."""
 
     topics = SERVICE_TOPICS
+    identity = staticmethod(lambda event: service_event_keys(event))
 
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Render service inventory rows."""
@@ -141,8 +145,8 @@ class Services(InventoryCommand):
 @commandlet(
     name="web",
     description="Show web endpoint inventory from accumulated scan results.",
-    usage="web [job=<id>|pipeline=<id>|step=<id>|all=true] [--page]",
-    examples=("web", "web pipeline=12", "web step=http-probe-...", "web --page"),
+    usage="web [--last|--new] [job=<id>|pipeline=<id>|step=<id>|all=true] [--page]",
+    examples=("web", "web --last", "web --new", "web pipeline=12", "web step=http-probe-...", "web --page"),
     consumes=WEB_TOPICS,
     capabilities=("framework.console.output", "framework.file.page"),
     database_actions=("view",),
@@ -151,6 +155,7 @@ class Web(InventoryCommand):
     """Render a compact web endpoint inventory."""
 
     topics = WEB_TOPICS
+    identity = staticmethod(lambda event: web_event_keys(event))
 
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Render web inventory rows."""
@@ -162,73 +167,6 @@ class Web(InventoryCommand):
         else:
             context.output(output)
         return ()
-
-
-def parse_inventory_selectors(tokens: list[str]) -> Namespace:
-    """Parse shared inventory scope selectors."""
-    scope: dict[str, str] = {}
-    for token in tokens:
-        if token.startswith("--"):
-            raise ValueError(f"inventory views use selector syntax; use key=value, not {token}")
-        key, separator, value = token.partition("=")
-        if not separator or not key or not value:
-            raise ValueError("inventory selectors must be key=value")
-        if key not in SCOPE_KEYS:
-            raise ValueError("inventory selectors must be one of: all, job, pipeline, step")
-        scope[key] = value
-    all_value = scope.get("all", "true")
-    if all_value not in {"true", "false"}:
-        raise ValueError("inventory all= must be true or false")
-    explicit = [key for key in ("job", "pipeline", "step") if key in scope]
-    if len(explicit) > 1:
-        raise ValueError("inventory accepts only one runtime scope: job=, pipeline=, or step=")
-    if explicit and "all" in scope:
-        raise ValueError("inventory all= cannot be combined with job=, pipeline=, or step=")
-    return Namespace(scope=scope)
-
-
-def select_inventory_events(context: CommandContext, topics: tuple[str, ...], selectors: Namespace) -> list[Event]:
-    """Return matching inventory events for the selected scope."""
-    events = context.event_store("inventory")
-    runtime = context.runtime_store("inventory")
-    scope = selectors.scope
-    if "job" in scope:
-        if scope["job"] == "latest":
-            row = latest_non_view_job(runtime)
-        else:
-            row = require_job(context, scope["job"])
-        return [event for event in events.events_for_job(row["id"], limit=10000) if event.topic in topics]
-    if "pipeline" in scope:
-        pipeline_id = runtime.resolve_pipeline_serial(scope["pipeline"])
-        return [event for event in events.events_matching(pipeline_id=pipeline_id, limit=10000) if event.topic in topics]
-    if "step" in scope:
-        run_id = runtime.resolve_run_serial(scope["step"])
-        return [event for event in events.events_matching(command_run_id=run_id, limit=10000) if event.topic in topics]
-    rows: list[Event] = []
-    for topic in topics:
-        rows.extend(events.events_matching(topic=topic, limit=10000))
-    return sorted(rows, key=lambda event: event.id or 0)
-
-
-def latest_non_view_job(runtime: Any) -> dict[str, Any]:
-    """Return the newest non-view job row."""
-    for row in reversed(runtime.jobs(limit=1000)):
-        command = str(row.get("command_line") or "").split(maxsplit=1)[0].rsplit("/", 1)[-1]
-        if command not in {"event", "events", "hosts", "job", "pipeline", "ports", "report", "result", "results", "services", "step", "web"}:
-            return row
-    raise ValueError("no non-view jobs found")
-
-
-def inventory_scope_label(selectors: Namespace) -> str:
-    """Return a short operator-facing scope label."""
-    scope = selectors.scope
-    if "job" in scope:
-        return f"job={scope['job']}"
-    if "pipeline" in scope:
-        return f"pipeline={scope['pipeline']}"
-    if "step" in scope:
-        return f"step={scope['step']}"
-    return "project inventory"
 
 
 def render_hosts_inventory(context: CommandContext, events: list[Event], scope: str) -> str:
@@ -492,6 +430,44 @@ def finding_target_values(payload: dict[str, Any]) -> set[str]:
             else:
                 add_value(values, item)
     return values
+
+
+def host_event_keys(event: Event) -> set[tuple[str, str]]:
+    """Return stable host inventory identity keys for one event."""
+    payload = event.payload
+    values: set[str] = set()
+    if event.topic in {"host.found", "name.resolved", "port.open", "http.endpoint", "service.detected"}:
+        add_value(values, payload.get("host"))
+    if event.topic == "finding.candidate":
+        values.update(finding_hosts(payload))
+    return {("host", value) for value in values}
+
+
+def service_event_keys(event: Event) -> set[tuple[str, str, int, str]]:
+    """Return stable service inventory identity keys for one event."""
+    payload = event.payload
+    if event.topic not in SERVICE_TOPICS:
+        return set()
+    host = str(payload.get("host") or "")
+    if not host:
+        return set()
+    port = int(payload.get("port") or default_port(payload))
+    protocol = str(payload.get("protocol") or "tcp")
+    return {("service", host, port, protocol)}
+
+
+def web_event_keys(event: Event) -> set[tuple[str, str]]:
+    """Return stable web inventory identity keys for one event."""
+    payload = event.payload
+    values: set[str] = set()
+    if event.topic in {"http.endpoint", "http.path", "web.waf.detected"}:
+        add_value(values, payload.get("url"))
+    elif event.topic == "web.screenshotted_host":
+        for url in payload.get("urls", []):
+            add_value(values, url)
+    elif event.topic == "finding.candidate":
+        values.update(finding_urls(payload))
+    return {("web", value) for value in values}
 
 
 def host_sort_value(value: str) -> tuple[int, bytes | str]:

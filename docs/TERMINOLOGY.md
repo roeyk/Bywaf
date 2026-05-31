@@ -222,6 +222,10 @@ Inventory commands are distinct from runtime/store views such as `job`,
 `pipeline`, `step`, `event`, and `artifact`, which inspect execution and storage
 bookkeeping.
 
+Inventory commands use `--last` for the latest relevant producer scope and
+`--new` for facts from the selected or latest producer scope that were not
+present in prior project inventory.
+
 ## Plugin
 
 A plugin is a provider of commandlets and related defaults, completion behavior,

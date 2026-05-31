@@ -490,6 +490,8 @@ knowledge instead of showing runtime bookkeeping.
 bywaf> hosts
 bywaf> services
 bywaf> web
+bywaf> hosts --last
+bywaf> services --new
 bywaf> hosts pipeline=12
 bywaf> services step=portscanner-...
 bywaf> web job=latest
@@ -500,6 +502,10 @@ bywaf> web job=latest
 project inventory and accept `job=`, `pipeline=`, and `step=` when you want a
 narrower slice. Runtime/store views such as `job`, `pipeline`, `step`, `event`,
 and `artifact` remain separate from inventory commands.
+
+Use `--last` on inventory commands to show the latest relevant producer scope.
+Use `--new` to show facts from the selected or latest producer scope that were
+not present in prior project inventory.
 
 # Signing Keys
 
@@ -1969,6 +1975,8 @@ use `page=true` when you explicitly want a pager.
 
 ```text
 bywaf> report
+bywaf> report --last
+bywaf> report --new
 bywaf> report 1
 bywaf> report detail 1-3
 bywaf> report page=true

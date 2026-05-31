@@ -158,6 +158,56 @@ class ReportTests(unittest.TestCase):
             self.assertIn("192.0.2.20", text)
             self.assertNotIn("Old finding", text)
 
+    def test_report_new_renders_composite_inventory_delta(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "host.found",
+                {"host": "192.0.2.10", "status": "up"},
+                "hostscanner",
+                pipeline_id="old-host-pipeline",
+                command_run_id="old-host-step",
+            )
+            runner.db.publish(
+                "host.found",
+                {"host": "192.0.2.10", "status": "up"},
+                "hostscanner",
+                pipeline_id="new-host-pipeline",
+                command_run_id="new-host-step",
+            )
+            runner.db.publish(
+                "host.found",
+                {"host": "192.0.2.20", "status": "up"},
+                "hostscanner",
+                pipeline_id="new-host-pipeline",
+                command_run_id="new-host-step",
+            )
+            runner.db.publish(
+                "finding.candidate",
+                {"finding_id": "old", "title": "Old finding", "target": {"host": "192.0.2.10"}},
+                "scanner",
+                pipeline_id="old-finding-pipeline",
+                command_run_id="old-finding-step",
+            )
+            runner.db.publish(
+                "finding.candidate",
+                {"finding_id": "new", "title": "New finding", "target": {"host": "192.0.2.20"}},
+                "scanner",
+                pipeline_id="new-finding-pipeline",
+                command_run_id="new-finding-step",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report --new status=all")
+                process_framework_requests(runner, ShellState())
+
+            text = output.getvalue()
+            self.assertIn("Report new: since prior inventory", text)
+            self.assertIn("192.0.2.20", text)
+            self.assertIn("New finding", text)
+            self.assertNotIn("Old finding", text)
+
     def test_report_repl_does_not_echo_rendered_audit_event(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))

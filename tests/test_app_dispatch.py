@@ -2099,6 +2099,65 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("Cloudflare", text)
             self.assertIn("Missing HSTS", text)
 
+    def test_inventory_new_filters_to_latest_new_facts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish(
+                "host.found",
+                {"host": "192.0.2.10", "status": "up"},
+                "hostscanner",
+                pipeline_id="old-pipeline",
+                command_run_id="old-host-step",
+            )
+            runner.db.publish(
+                "host.found",
+                {"host": "192.0.2.10", "status": "up"},
+                "hostscanner",
+                pipeline_id="new-pipeline",
+                command_run_id="new-host-step",
+            )
+            runner.db.publish(
+                "host.found",
+                {"host": "192.0.2.20", "status": "up"},
+                "hostscanner",
+                pipeline_id="new-pipeline",
+                command_run_id="new-host-step",
+            )
+            runner.db.publish(
+                "port.open",
+                {"host": "192.0.2.10", "port": 22, "protocol": "tcp", "service": "ssh"},
+                "portscanner",
+                pipeline_id="old-port-pipeline",
+                command_run_id="old-port-step",
+            )
+            runner.db.publish(
+                "port.open",
+                {"host": "192.0.2.10", "port": 22, "protocol": "tcp", "service": "ssh"},
+                "portscanner",
+                pipeline_id="new-port-pipeline",
+                command_run_id="new-port-step",
+            )
+            runner.db.publish(
+                "port.open",
+                {"host": "192.0.2.20", "port": 443, "protocol": "tcp", "service": "https"},
+                "portscanner",
+                pipeline_id="new-port-pipeline",
+                command_run_id="new-port-step",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "hosts --new step=new-host-step")
+                dispatch_repl_line(runner, "ports --new")
+
+            text = output.getvalue()
+            self.assertIn("Hosts: new in step=new-host-step", text)
+            self.assertIn("192.0.2.20", text)
+            self.assertNotIn("192.0.2.10  ", text)
+            self.assertIn("Ports: new since prior port inventory", text)
+            self.assertIn("443/tcp https", text)
+            self.assertNotIn("22/tcp ssh", text)
+
     def test_results_renders_route_hop_summaries(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

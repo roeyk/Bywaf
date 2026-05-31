@@ -174,6 +174,9 @@ def report_heading(parsed: Namespace, events: list[Event], groups: list[FindingG
     elif getattr(parsed, "last", False):
         action = "scope"
         scope = "latest scan"
+    elif getattr(parsed, "new", False):
+        action = "new"
+        scope = "since prior inventory"
     else:
         action = "inbox"
         scope = "latest scan"
@@ -196,6 +199,8 @@ def network_report_heading(parsed: Namespace, context_events: list[Event], findi
         scope = f"step={parsed.step}"
     elif getattr(parsed, "last", False):
         scope = "latest scan"
+    elif getattr(parsed, "new", False):
+        scope = "new since prior inventory"
     else:
         scope = "latest scan"
     event_count = len(context_events) + len(finding_events)
@@ -218,7 +223,7 @@ def report_rendered_payload(
 ) -> dict[str, object]:
     """Return a structured payload describing one rendered report."""
     return {
-        "action": action or ("show" if any((parsed.job, parsed.pipeline, parsed.step)) else "inbox"),
+        "action": action or ("show" if any((parsed.job, parsed.pipeline, parsed.step)) else "new" if getattr(parsed, "new", False) else "inbox"),
         "job": parsed.job,
         "pipeline": parsed.pipeline,
         "step": parsed.step,
