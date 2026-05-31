@@ -5,7 +5,7 @@ resolution and secret-reference storage.
 
 Used by:
 - bywaf.repl.commands: registers variable/context handlers.
-- bywaf.repl.command_plugins: switches context after plugin loading.
+- bywaf.repl.command.plugins: switches context after plugin loading.
 """
 
 from __future__ import annotations
@@ -14,14 +14,14 @@ import getpass
 import shlex
 from typing import TYPE_CHECKING
 
-from ..command.names import SET_COMMAND, SETG_COMMAND
-from ..runner import Runner
-from ..secret.input import SECRET_BLOCK_VALUE
-from ..secret.store import load_or_create_fingerprint_key
-from .display import format_var_assignment
+from ...command.names import SET_COMMAND, SETG_COMMAND
+from ...runner import Runner
+from ...secret.input import SECRET_BLOCK_VALUE
+from ...secret.store import load_or_create_fingerprint_key
+from ..display import format_var_assignment
 
 if TYPE_CHECKING:
-    from .state import ShellState
+    from ..state import ShellState
 
 
 def handle_use_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:

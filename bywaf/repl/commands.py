@@ -16,17 +16,17 @@ from typing import TYPE_CHECKING, Any
 
 from ..command.names import PROJECT_ALIAS_COMMAND, SET_COMMAND, SETG_COMMAND
 from ..runner import Runner
-from .command_events import handle_event_command, handle_events_command
-from .command_exec import (
+from .command.events import handle_event_command, handle_events_command
+from .command.exec import (
     execute_repl_commandlet as execute_repl_commandlet,
     execute_shell_command as execute_shell_command,
     handle_exec_command,
     handle_run_command,
     visible_commandlet_events as visible_commandlet_events,
 )
-from .command_plugins import handle_pload_command, handle_plugin_command
-from .command_resources import handle_config_command, handle_history_command, handle_pref_command, handle_project_command, handle_script_command
-from .command_vars import handle_setg_command, handle_use_command, handle_vars_command
+from .command.plugins import handle_pload_command, handle_plugin_command
+from .command.resources import handle_config_command, handle_history_command, handle_pref_command, handle_project_command, handle_script_command
+from .command.vars import handle_setg_command, handle_use_command, handle_vars_command
 from .display import print_commandlets, print_help, print_info, print_plugins, print_topics, print_triggers
 
 if TYPE_CHECKING:

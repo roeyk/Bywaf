@@ -14,13 +14,13 @@ import shutil
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from ..runner import Runner
-from ..varstore import provider_scope_for
-from .command_vars import set_active_context
-from .resources import load_plugin_resource, parse_resource_assignment
+from ...runner import Runner
+from ...varstore import provider_scope_for
+from ..resources import load_plugin_resource, parse_resource_assignment
+from .vars import set_active_context
 
 if TYPE_CHECKING:
-    from .state import ShellState
+    from ..state import ShellState
 
 
 def handle_plugin_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:

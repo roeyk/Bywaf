@@ -14,12 +14,12 @@ import shlex
 import subprocess
 from typing import TYPE_CHECKING, Any
 
-from ..framework_requests import process_framework_requests
-from ..runner import Runner
-from .display import print_events, print_help
+from ...framework_requests import process_framework_requests
+from ...runner import Runner
+from ..display import print_events, print_help
 
 if TYPE_CHECKING:
-    from .state import ShellState
+    from ..state import ShellState
 
 
 SUPPRESSED_COMMANDLET_OUTPUT_TOPICS = {"framework.file.page.requested", "report.rendered"}

@@ -407,7 +407,7 @@ class AppDispatchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             completed = subprocess.CompletedProcess(["echo", "hello world"], 0)
-            with patch("bywaf.repl.command_exec.subprocess.run", return_value=completed) as run:
+            with patch("bywaf.repl.command.exec.subprocess.run", return_value=completed) as run:
                 dispatch_repl_line(runner, "exec echo 'hello world'")
 
             run.assert_called_once_with(["echo", "hello world"], check=False)
@@ -1274,7 +1274,7 @@ class AppDispatchTests(unittest.TestCase):
             state = ShellState()
             output = io.StringIO()
             with (
-                patch("bywaf.repl.command_vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
+                patch("bywaf.repl.command.vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
                 contextlib.redirect_stdout(output),
             ):
                 dispatch_repl_line(runner, "set --secret session.ticket=supersecret", state)
@@ -1294,7 +1294,7 @@ class AppDispatchTests(unittest.TestCase):
             state = ShellState()
             output = io.StringIO()
             with (
-                patch("bywaf.repl.command_vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
+                patch("bywaf.repl.command.vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
                 contextlib.redirect_stdout(output),
             ):
                 dispatch_repl_line(runner, "set session.ticket --secret=supersecret", state)
@@ -1314,8 +1314,8 @@ class AppDispatchTests(unittest.TestCase):
             state = ShellState()
             output = io.StringIO()
             with (
-                patch("bywaf.repl.command_vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
-                patch("bywaf.repl.command_vars.getpass.getpass", return_value="prompted-secret") as getpass,
+                patch("bywaf.repl.command.vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
+                patch("bywaf.repl.command.vars.getpass.getpass", return_value="prompted-secret") as getpass,
                 contextlib.redirect_stdout(output),
             ):
                 dispatch_repl_line(runner, "set --secret pw=", state)
@@ -1336,8 +1336,8 @@ class AppDispatchTests(unittest.TestCase):
             state = ShellState(secret_values={"pw": "block-secret"})
             output = io.StringIO()
             with (
-                patch("bywaf.repl.command_vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
-                patch("bywaf.repl.command_vars.getpass.getpass") as getpass,
+                patch("bywaf.repl.command.vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
+                patch("bywaf.repl.command.vars.getpass.getpass") as getpass,
                 contextlib.redirect_stdout(output),
             ):
                 dispatch_repl_line(runner, "set --secret pw=[REDACTED]", state)
@@ -1358,8 +1358,8 @@ class AppDispatchTests(unittest.TestCase):
             state = ShellState()
             output = io.StringIO()
             with (
-                patch("bywaf.repl.command_vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
-                patch("bywaf.repl.command_vars.getpass.getpass", return_value="prompted-secret") as getpass,
+                patch("bywaf.repl.command.vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
+                patch("bywaf.repl.command.vars.getpass.getpass", return_value="prompted-secret") as getpass,
                 contextlib.redirect_stdout(output),
             ):
                 dispatch_repl_line(runner, "set session.ticket --secret=", state)
@@ -1422,7 +1422,7 @@ class AppDispatchTests(unittest.TestCase):
             runner.registry.varstore.set("display.vars.color", "always")
             output = io.StringIO()
             with (
-                patch("bywaf.repl.command_vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
+                patch("bywaf.repl.command.vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
                 contextlib.redirect_stdout(output),
             ):
                 dispatch_repl_line(runner, "set --secret session.ticket=supersecret", state)
@@ -1434,7 +1434,7 @@ class AppDispatchTests(unittest.TestCase):
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
             with (
-                patch("bywaf.repl.command_vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
+                patch("bywaf.repl.command.vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
                 contextlib.redirect_stdout(io.StringIO()),
             ):
                 dispatch_repl_line(runner, "use ssh_probe", state)
@@ -1449,7 +1449,7 @@ class AppDispatchTests(unittest.TestCase):
             db_path = Path(tmp, "db.sqlite3")
             first = make_runner(db_path)
             with (
-                patch("bywaf.repl.command_vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
+                patch("bywaf.repl.command.vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
                 contextlib.redirect_stdout(io.StringIO()),
             ):
                 dispatch_repl_line(first, "set --secret ssh_probe.password=supersecret", ShellState())
@@ -2331,7 +2331,7 @@ class AppDispatchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
-            with patch("bywaf.repl.command_vars.load_or_create_fingerprint_key", return_value=b"k" * 32):
+            with patch("bywaf.repl.command.vars.load_or_create_fingerprint_key", return_value=b"k" * 32):
                 dispatch_repl_line(runner, "set --secret TOKEN=supersecret", state)
             dispatch_repl_line(runner, "set display.expansion=changed", state)
             output = io.StringIO()

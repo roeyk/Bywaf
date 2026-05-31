@@ -14,10 +14,10 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ..runner import Runner
-from .display import print_history
-from .persistence import load_config, load_history, save_config, save_history
-from .preferences import (
+from ...runner import Runner
+from ..display import print_history
+from ..persistence import load_config, load_history, save_config, save_history
+from ..preferences import (
     THEME_KEY,
     apply_preferences,
     format_preference_assignment,
@@ -28,7 +28,7 @@ from .preferences import (
     set_preference,
     unset_preference,
 )
-from .resources import (
+from ..resources import (
     DEFAULT_CONFIG,
     DEFAULT_HISTORY,
     DEFAULT_SCRIPT_DIR,
@@ -36,11 +36,11 @@ from .resources import (
     print_project_info,
     resolve_resource_path,
 )
-from .scripts import run_script
-from .themes import apply_theme_file, apply_theme_name, theme_names
+from ..scripts import run_script
+from ..themes import apply_theme_file, apply_theme_name, theme_names
 
 if TYPE_CHECKING:
-    from .state import ShellState
+    from ..state import ShellState
 
 
 def handle_history_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:

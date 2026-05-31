@@ -344,7 +344,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             script.write_text("set loaded.relative=yes\n")
             old_cwd = Path.cwd()
             with (
-                patch("bywaf.repl.command_resources.DEFAULT_SCRIPT_DIR", Path(tmp, ".bywaf/scripts")),
+                patch("bywaf.repl.command.resources.DEFAULT_SCRIPT_DIR", Path(tmp, ".bywaf/scripts")),
                 contextlib.redirect_stdout(io.StringIO()),
             ):
                 try:
@@ -702,7 +702,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             default_config = Path(tmp, "default.toml")
             dispatch_repl_line(runner, "set test.value=default")
             with (
-                patch("bywaf.repl.command_resources.DEFAULT_CONFIG", default_config),
+                patch("bywaf.repl.command.resources.DEFAULT_CONFIG", default_config),
                 contextlib.redirect_stdout(io.StringIO()),
             ):
                 dispatch_repl_line(runner, "config save file=")
@@ -714,7 +714,7 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             default_config = Path(tmp, "default.toml")
             default_config.write_text("[variables]\n\"test.value\" = \"default\"\n", encoding="utf-8")
             with (
-                patch("bywaf.repl.command_resources.DEFAULT_CONFIG", default_config),
+                patch("bywaf.repl.command.resources.DEFAULT_CONFIG", default_config),
                 contextlib.redirect_stdout(io.StringIO()),
             ):
                 dispatch_repl_line(runner, "config load file=")
@@ -891,7 +891,7 @@ bold = true
             default_history = Path(tmp, "history.bywaf")
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with (
-                patch("bywaf.repl.command_resources.DEFAULT_HISTORY", default_history),
+                patch("bywaf.repl.command.resources.DEFAULT_HISTORY", default_history),
                 contextlib.redirect_stdout(io.StringIO()),
             ):
                 dispatch_repl_line(runner, "history save file=", state)
@@ -904,7 +904,7 @@ bold = true
             state = ShellState()
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with (
-                patch("bywaf.repl.command_resources.DEFAULT_HISTORY", default_history),
+                patch("bywaf.repl.command.resources.DEFAULT_HISTORY", default_history),
                 contextlib.redirect_stdout(io.StringIO()),
             ):
                 dispatch_repl_line(runner, "history load file=", state)
