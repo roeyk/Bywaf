@@ -1,6 +1,6 @@
 """Operator inventory views over shared event schemas.
 
-Provides high-level `hosts`, `services`, `web`, and `wafs` commandlets so
+Provides high-level inventory commandlets so
 operators can ask direct questions about the accumulated project knowledge
 instead of remembering which scanner emitted which event topic.
 """
@@ -13,12 +13,24 @@ from collections.abc import Iterable
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
 from bywaf.plugins.runtime.inventory_render import (
+    banner_event_keys,
+    cert_event_keys,
     host_event_keys,
+    path_event_keys,
     render_hosts_inventory,
+    render_banners_inventory,
+    render_certs_inventory,
+    render_paths_inventory,
+    render_routes_inventory,
+    render_screenshots_inventory,
     render_services_inventory,
+    render_shares_inventory,
     render_wafs_inventory,
     render_web_inventory,
+    route_event_keys,
+    screenshot_event_keys,
     service_event_keys,
+    share_event_keys,
     waf_event_keys,
     web_event_keys,
 )
@@ -28,6 +40,12 @@ HOST_TOPICS = ("host.found", "name.resolved", "port.open", "http.endpoint", "ser
 SERVICE_TOPICS = ("port.open", "service.detected", "http.endpoint", "tcp.banner", "tls.certificate")
 WEB_TOPICS = ("http.endpoint", "http.path", "web.waf.detected", "web.screenshotted_host", "finding.candidate")
 WAF_TOPICS = ("web.waf.detected",)
+SHARE_TOPICS = ("smb.share.found",)
+ROUTE_TOPICS = ("network.route.hop",)
+CERT_TOPICS = ("tls.certificate",)
+BANNER_TOPICS = ("tcp.banner",)
+PATH_TOPICS = ("http.path",)
+SCREENSHOT_TOPICS = ("web.screenshotted_host",)
 
 
 class InventoryCommand(CommandletBase):
@@ -165,6 +183,168 @@ class Wafs(InventoryCommand):
         return ()
 
 
+@commandlet(
+    name="shares",
+    description="Show discovered network shares.",
+    usage="shares [--last|--new] [job=<id>|pipeline=<id>|step=<id>|all=true] [--page]",
+    examples=("shares", "shares --last", "shares --new", "shares pipeline=12", "shares step=smb-shares-...", "shares --page"),
+    consumes=SHARE_TOPICS,
+    capabilities=("framework.console.output", "framework.file.page"),
+    database_actions=("view",),
+)
+class Shares(InventoryCommand):
+    """Render compact network share inventory."""
+
+    topics = SHARE_TOPICS
+    identity = staticmethod(lambda event: share_event_keys(event))
+
+    def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
+        """Render share inventory rows."""
+        del input_events
+        selectors, events, page = self.selected_events(context, args)
+        output = render_shares_inventory(context, events, inventory_scope_label(selectors))
+        if page:
+            context.page_text(output)
+        else:
+            context.output(output)
+        return ()
+
+
+@commandlet(
+    name="routes",
+    description="Show route hops discovered by traceroute-style scans.",
+    usage="routes [--last|--new] [job=<id>|pipeline=<id>|step=<id>|all=true] [--page]",
+    examples=("routes", "routes --last", "routes --new", "routes pipeline=12", "routes step=traceroute-...", "routes --page"),
+    consumes=ROUTE_TOPICS,
+    capabilities=("framework.console.output", "framework.file.page"),
+    database_actions=("view",),
+)
+class Routes(InventoryCommand):
+    """Render compact route-hop inventory."""
+
+    topics = ROUTE_TOPICS
+    identity = staticmethod(lambda event: route_event_keys(event))
+
+    def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
+        """Render route inventory rows."""
+        del input_events
+        selectors, events, page = self.selected_events(context, args)
+        output = render_routes_inventory(context, events, inventory_scope_label(selectors))
+        if page:
+            context.page_text(output)
+        else:
+            context.output(output)
+        return ()
+
+
+@commandlet(
+    name="certs",
+    description="Show TLS certificate inventory.",
+    usage="certs [--last|--new] [job=<id>|pipeline=<id>|step=<id>|all=true] [--page]",
+    examples=("certs", "certs --last", "certs --new", "certs pipeline=12", "certs step=tls-probe-...", "certs --page"),
+    consumes=CERT_TOPICS,
+    capabilities=("framework.console.output", "framework.file.page"),
+    database_actions=("view",),
+)
+class Certs(InventoryCommand):
+    """Render compact TLS certificate inventory."""
+
+    topics = CERT_TOPICS
+    identity = staticmethod(lambda event: cert_event_keys(event))
+
+    def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
+        """Render certificate inventory rows."""
+        del input_events
+        selectors, events, page = self.selected_events(context, args)
+        output = render_certs_inventory(context, events, inventory_scope_label(selectors))
+        if page:
+            context.page_text(output)
+        else:
+            context.output(output)
+        return ()
+
+
+@commandlet(
+    name="banners",
+    description="Show captured TCP banners.",
+    usage="banners [--last|--new] [job=<id>|pipeline=<id>|step=<id>|all=true] [--page]",
+    examples=("banners", "banners --last", "banners --new", "banners pipeline=12", "banners step=tcp-banner-...", "banners --page"),
+    consumes=BANNER_TOPICS,
+    capabilities=("framework.console.output", "framework.file.page"),
+    database_actions=("view",),
+)
+class Banners(InventoryCommand):
+    """Render compact TCP banner inventory."""
+
+    topics = BANNER_TOPICS
+    identity = staticmethod(lambda event: banner_event_keys(event))
+
+    def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
+        """Render banner inventory rows."""
+        del input_events
+        selectors, events, page = self.selected_events(context, args)
+        output = render_banners_inventory(context, events, inventory_scope_label(selectors))
+        if page:
+            context.page_text(output)
+        else:
+            context.output(output)
+        return ()
+
+
+@commandlet(
+    name="paths",
+    description="Show discovered HTTP paths.",
+    usage="paths [--last|--new] [job=<id>|pipeline=<id>|step=<id>|all=true] [--page]",
+    examples=("paths", "paths --last", "paths --new", "paths pipeline=12", "paths step=webfin-...", "paths --page"),
+    consumes=PATH_TOPICS,
+    capabilities=("framework.console.output", "framework.file.page"),
+    database_actions=("view",),
+)
+class Paths(InventoryCommand):
+    """Render compact HTTP path inventory."""
+
+    topics = PATH_TOPICS
+    identity = staticmethod(lambda event: path_event_keys(event))
+
+    def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
+        """Render path inventory rows."""
+        del input_events
+        selectors, events, page = self.selected_events(context, args)
+        output = render_paths_inventory(context, events, inventory_scope_label(selectors))
+        if page:
+            context.page_text(output)
+        else:
+            context.output(output)
+        return ()
+
+
+@commandlet(
+    name="screenshots",
+    description="Show screenshot artifacts by host.",
+    usage="screenshots [--last|--new] [job=<id>|pipeline=<id>|step=<id>|all=true] [--page]",
+    examples=("screenshots", "screenshots --last", "screenshots --new", "screenshots pipeline=12", "screenshots step=screenshotter-...", "screenshots --page"),
+    consumes=SCREENSHOT_TOPICS,
+    capabilities=("framework.console.output", "framework.file.page"),
+    database_actions=("view",),
+)
+class Screenshots(InventoryCommand):
+    """Render compact screenshot artifact inventory."""
+
+    topics = SCREENSHOT_TOPICS
+    identity = staticmethod(lambda event: screenshot_event_keys(event))
+
+    def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
+        """Render screenshot inventory rows."""
+        del input_events
+        selectors, events, page = self.selected_events(context, args)
+        output = render_screenshots_inventory(context, events, inventory_scope_label(selectors))
+        if page:
+            context.page_text(output)
+        else:
+            context.output(output)
+        return ()
+
+
 def plugins() -> tuple[Commandlet, ...]:
     """Return inventory commandlets."""
-    return (Hosts(), Services(), Web(), Wafs())
+    return (Hosts(), Services(), Web(), Wafs(), Shares(), Routes(), Certs(), Banners(), Paths(), Screenshots())

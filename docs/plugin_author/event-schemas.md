@@ -121,6 +121,7 @@ requiring other plugins to import this plugin's Python classes.
 ```toml
 [[event_schemas]]
 topic = "smb.session.observed"
+version = "1"
 summary = "An authenticated SMB session was observed."
 
 [[event_schemas.fields]]
@@ -138,6 +139,10 @@ required = true
 name = "domain"
 type = "str"
 ```
+
+The `version` value is the producer/consumer interoperability marker. Start at
+`"1"` and bump it when a field's meaning, required status, or allowed values
+change in a way that an older consumer might misread.
 
 The producing plugin can still keep an object-oriented local model:
 

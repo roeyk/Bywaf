@@ -124,6 +124,7 @@ def event_schema_manifest_lines(schema: EventSchema) -> list[str]:
     lines = [
         "[[event_schemas]]",
         f'topic = "{escape_toml_string(schema.topic)}"',
+        f'version = "{escape_toml_string(schema.version)}"',
         f'summary = "{escape_toml_string(schema.summary)}"',
     ]
     if schema.notes:

@@ -35,7 +35,8 @@ offensive frameworks, do not look for Veil-style modules, Metasploit-style
 - [Event Model](EVENT_MODEL.md): event rows, shared topic schemas, replay,
   framework requests, artifacts, notes, and provenance.
 - [Shared Event Schemas](plugin_author/event-schemas.md): normalized
-  plugin result topics such as `host.found`, `port.open`, and `http.endpoint`.
+  plugin result topics such as `host.found`, `port.open`, and `http.endpoint`;
+  inspect the active schema catalog in the REPL with `schemas`.
 - [Finding And Report Model](FINDING_MODEL.md): facts, finding candidates,
   normalized finding payloads, deduplication, and the `report` inbox.
 - [Reporting](REPORTING.md): operator workflow for `report`, grouping,

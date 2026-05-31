@@ -246,6 +246,7 @@ def parse_event_schema_rows(value: Any, source: str) -> tuple[EventSchema, ...]:
                 summary=summary,
                 fields=fields,
                 notes=string_list_field(row, "notes", source, context),
+                version=optional_string_field(row, "version", source, context, default="1") or "1",
             )
         )
     return tuple(schemas)

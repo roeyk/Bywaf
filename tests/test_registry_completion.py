@@ -175,6 +175,7 @@ class RegistryCompletionTests(unittest.TestCase):
                 "runtime.step",
                 "runtime.results",
                 "runtime.inventory",
+                "runtime.schemas",
                 "runtime.control",
                 "runtime.audit",
                 "runtime.bundle",
@@ -307,8 +308,10 @@ class RegistryCompletionTests(unittest.TestCase):
             [
                 "artifact",
                 "audit",
+                "banners",
                 "bundle",
                 "cancel",
+                "certs",
                 "end",
                 "hosts",
                 "job",
@@ -316,13 +319,18 @@ class RegistryCompletionTests(unittest.TestCase):
                 "kill",
                 "name",
                 "note",
+                "paths",
                 "pause",
                 "pipeline",
                 "result",
                 "results",
                 "resume",
+                "routes",
+                "schemas",
+                "screenshots",
                 "search",
                 "services",
+                "shares",
                 "signal",
                 "step",
                 "stop",
@@ -613,7 +621,7 @@ class RegistryCompletionTests(unittest.TestCase):
 
     def test_inventory_and_report_completion_exposes_last_new_selectors(self):
         completer = Completer(self.registry)
-        for command in ("hosts", "services", "web", "ports"):
+        for command in ("hosts", "services", "web", "wafs", "shares", "routes", "certs", "banners", "paths", "screenshots", "ports"):
             with self.subTest(command=command):
                 candidates = completer.candidates(f"{command} --")
                 self.assertIn("--last", candidates)
@@ -1541,12 +1549,14 @@ class RegistryCompletionTests(unittest.TestCase):
                         FieldSchema("host", "str", True, "Session host."),
                         FieldSchema("access", "str", False, allowed=("read", "write")),
                     ),
+                    version="2",
                 ),
             ),
         )
 
         self.assertIn("[[event_schemas]]", text)
         self.assertIn('topic = "example.session.observed"', text)
+        self.assertIn('version = "2"', text)
         self.assertIn("[[event_schemas.fields]]", text)
         self.assertIn('allowed = ["read", "write"]', text)
 
@@ -1557,6 +1567,7 @@ class RegistryCompletionTests(unittest.TestCase):
                 "event_schemas": [
                     {
                         "topic": "example.session.observed",
+                        "version": "2",
                         "summary": "Example session fact.",
                         "fields": [
                             {"name": "host", "type": "str", "required": True},
@@ -1569,6 +1580,7 @@ class RegistryCompletionTests(unittest.TestCase):
         )
 
         self.assertEqual(manifest.event_schemas[0].topic, "example.session.observed")
+        self.assertEqual(manifest.event_schemas[0].version, "2")
         self.assertEqual(manifest.event_schemas[0].required_fields, ("host",))
 
     def test_plugin_manifest_rejects_framework_owned_event_schema(self):

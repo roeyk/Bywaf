@@ -1,0 +1,14 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "schemas"
+capabilities = [
+  "framework.console.output",
+  "framework.file.page",
+]
+database.actions.view = true
+database.actions.write = false
+database.actions.manage = false
+module = "bywaf.plugins.runtime.schemas"

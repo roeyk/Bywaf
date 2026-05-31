@@ -1634,6 +1634,20 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("Cloudflare", text)
             self.assertIn("https://example.test/", text)
 
+    def test_schemas_view_lists_versions_and_usage(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "schemas topic=web.")
+
+            text = output.getvalue()
+            self.assertIn("Schemas: all registered schemas topic=web.", text)
+            self.assertIn("web.waf.detect", text)
+            self.assertIn("VER", text)
+            self.assertIn("wafs", text)
+
     def test_wafs_new_shows_latest_new_waf_signal(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -2153,6 +2167,34 @@ class AppDispatchTests(unittest.TestCase):
                 command_run_id="scan-step",
             )
             runner.db.publish(
+                "smb.share.found",
+                {"host": "192.0.2.20", "share": "Public", "access": "read", "authenticated": False, "remark": "guest"},
+                "smb_shares",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
+            runner.db.publish(
+                "network.route.hop",
+                {"target": "192.0.2.20", "hop": 1, "host": "gateway", "ip": "192.0.2.1", "rtt_ms": 1.2},
+                "traceroute",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
+            runner.db.publish(
+                "tls.certificate",
+                {"host": "192.0.2.20", "port": 443, "subject": "CN=example.test", "issuer": "CN=Test CA", "not_after": "2027-01-01"},
+                "tls_probe",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
+            runner.db.publish(
+                "tcp.banner",
+                {"host": "192.0.2.20", "port": 22, "banner": "SSH-2.0-OpenSSH_9.6"},
+                "tcp_banner",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
+            runner.db.publish(
                 "finding.candidate",
                 {"title": "Missing HSTS", "class": "web.header.missing_hsts", "target_scope": {"kind": "web_origin", "value": "https://example.test/"}},
                 "http_headers",
@@ -2165,6 +2207,12 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "hosts")
                 dispatch_repl_line(runner, "services")
                 dispatch_repl_line(runner, "web")
+                dispatch_repl_line(runner, "shares")
+                dispatch_repl_line(runner, "routes")
+                dispatch_repl_line(runner, "certs")
+                dispatch_repl_line(runner, "banners")
+                dispatch_repl_line(runner, "paths")
+                dispatch_repl_line(runner, "screenshots")
 
             text = output.getvalue()
             self.assertIn("Hosts: project inventory", text)
@@ -2176,6 +2224,18 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("https://example.test/", text)
             self.assertIn("Cloudflare", text)
             self.assertIn("Missing HSTS", text)
+            self.assertIn("Shares: project inventory", text)
+            self.assertIn("Public", text)
+            self.assertIn("Routes: project inventory", text)
+            self.assertIn("gateway", text)
+            self.assertIn("Certificates: project inventory", text)
+            self.assertIn("CN=example.test", text)
+            self.assertIn("Banners: project inventory", text)
+            self.assertIn("SSH-2.0-OpenSSH_9.6", text)
+            self.assertIn("Paths: project inventory", text)
+            self.assertIn("/.git/config", text)
+            self.assertIn("Screenshots: project inventory", text)
+            self.assertIn("artifact-1", text)
 
     def test_inventory_new_filters_to_latest_new_facts(self):
         with tempfile.TemporaryDirectory() as tmp:

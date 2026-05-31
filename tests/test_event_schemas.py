@@ -101,10 +101,12 @@ class EventSchemaTests(unittest.TestCase):
                     FieldSchema("username", "str", True),
                     FieldSchema("access", "str", False, allowed=("read", "write")),
                 ),
+                version="2",
             )
         )
 
         self.assertIsNotNone(event_schema(topic))
+        self.assertEqual(event_schema(topic).version, "2")
         self.assertEqual(validate_event_payload(topic, {"host": "dc01", "username": "alice"}), [])
         self.assertEqual(
             validate_event_payload(topic, {"host": "dc01", "username": "alice", "access": "admin"}),

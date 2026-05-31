@@ -125,6 +125,22 @@ bywaf> report
 bywaf> report pipeline=1
 ```
 
+View normalized inventory without remembering the producer tool:
+
+```text
+bywaf> hosts --last
+bywaf> services --new
+bywaf> web
+bywaf> wafs
+bywaf> shares
+bywaf> routes
+bywaf> certs
+bywaf> banners
+bywaf> paths
+bywaf> screenshots
+bywaf> schemas topic=web.
+```
+
 ## Core Concepts
 
 - **Commandlet**: a small command provided by a plugin or the framework.

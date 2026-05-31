@@ -70,3 +70,87 @@ database.actions.view = true
 database.actions.write = false
 database.actions.manage = false
 module = "bywaf.plugins.runtime.inventory"
+
+[[commandlets]]
+name = "shares"
+capabilities = [
+  "framework.console.output",
+  "framework.file.page",
+]
+consumes = [
+  "smb.share.found",
+]
+database.actions.view = true
+database.actions.write = false
+database.actions.manage = false
+module = "bywaf.plugins.runtime.inventory"
+
+[[commandlets]]
+name = "routes"
+capabilities = [
+  "framework.console.output",
+  "framework.file.page",
+]
+consumes = [
+  "network.route.hop",
+]
+database.actions.view = true
+database.actions.write = false
+database.actions.manage = false
+module = "bywaf.plugins.runtime.inventory"
+
+[[commandlets]]
+name = "certs"
+capabilities = [
+  "framework.console.output",
+  "framework.file.page",
+]
+consumes = [
+  "tls.certificate",
+]
+database.actions.view = true
+database.actions.write = false
+database.actions.manage = false
+module = "bywaf.plugins.runtime.inventory"
+
+[[commandlets]]
+name = "banners"
+capabilities = [
+  "framework.console.output",
+  "framework.file.page",
+]
+consumes = [
+  "tcp.banner",
+]
+database.actions.view = true
+database.actions.write = false
+database.actions.manage = false
+module = "bywaf.plugins.runtime.inventory"
+
+[[commandlets]]
+name = "paths"
+capabilities = [
+  "framework.console.output",
+  "framework.file.page",
+]
+consumes = [
+  "http.path",
+]
+database.actions.view = true
+database.actions.write = false
+database.actions.manage = false
+module = "bywaf.plugins.runtime.inventory"
+
+[[commandlets]]
+name = "screenshots"
+capabilities = [
+  "framework.console.output",
+  "framework.file.page",
+]
+consumes = [
+  "web.screenshotted_host",
+]
+database.actions.view = true
+database.actions.write = false
+database.actions.manage = false
+module = "bywaf.plugins.runtime.inventory"

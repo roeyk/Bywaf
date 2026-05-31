@@ -40,6 +40,7 @@ class EventSchema:
     summary: str
     fields: tuple[FieldSchema, ...]
     notes: tuple[str, ...] = ()
+    version: str = "1"
 
     @property
     def required_fields(self) -> tuple[str, ...]:

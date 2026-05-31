@@ -176,6 +176,7 @@ def catalog_event_schema_entries(manifest_data: dict[str, Any], manifest_path: P
         rows.append(
             {
                 "topic": required_string(schema, "topic", manifest_path, context),
+                "version": optional_string(schema, "version", manifest_path, context, default="1"),
                 "summary": optional_string(schema, "summary", manifest_path, context, default=""),
                 "notes": list(string_list_value(schema, "notes", manifest_path, context)),
                 "fields": catalog_event_schema_field_entries(field_rows, manifest_path, context),

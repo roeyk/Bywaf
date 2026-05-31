@@ -106,6 +106,7 @@ type = "str"
 
 [[event_schemas]]
 topic = "example.found"
+version = "1"
 summary = "Example plugin-owned normalized result."
 
 [[event_schemas.fields]]
@@ -303,6 +304,7 @@ remain undeclared and free-form.
 | Key | Type | Required | Meaning |
 | --- | --- | --- | --- |
 | `topic` | string | yes | Event topic owned by this plugin. It must not override a framework-owned schema such as `host.found` or `port.open`. |
+| `version` | string | no | Schema version understood by producers and consumers. Defaults to `"1"`. |
 | `summary` | string | no | Human-readable description of the fact represented by this topic. |
 | `notes` | list of strings | no | Additional guidance for plugin authors or views. |
 

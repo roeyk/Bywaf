@@ -79,6 +79,7 @@ class PluginCatalogTests(unittest.TestCase):
                 'name = "example"\n\n'
                 "[[event_schemas]]\n"
                 'topic = "example.session.observed"\n'
+                'version = "2"\n'
                 'summary = "Example session fact."\n\n'
                 "[[event_schemas.fields]]\n"
                 'name = "host"\n'
@@ -91,6 +92,7 @@ class PluginCatalogTests(unittest.TestCase):
             catalog = build_catalog(root, plugin_root=plugin_root, plugin_config=config, source="test")
 
             self.assertEqual(catalog["plugins"][0]["event_schemas"][0]["topic"], "example.session.observed")
+            self.assertEqual(catalog["plugins"][0]["event_schemas"][0]["version"], "2")
             self.assertEqual(catalog["plugins"][0]["event_schemas"][0]["fields"][0]["name"], "host")
 
     def test_catalog_treats_single_segment_filesystem_entry_as_plugin_directory(self):
