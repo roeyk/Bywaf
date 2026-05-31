@@ -52,7 +52,7 @@ def render_results(context: CommandContext, scope: Namespace) -> str:
         ("web.waf.detected", render_waf_section),
         ("web.screenshotted_host", render_screenshots_section),
         ("smb.share.found", render_smb_shares_section),
-        ("artifact.attached", render_artifacts_section),
+        ("artifact.attached", lambda ctx, events: render_artifacts_section(ctx, events, scope)),
     )
     summarized_topics = {topic for topic, _ in section_renderers}
     for topic, renderer in section_renderers:

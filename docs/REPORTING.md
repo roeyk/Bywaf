@@ -101,9 +101,14 @@ Details
   Evidence: /.git/config returned Git configuration content
   Sources: git_expose_check:repo.git_config.checked
   Artifacts: #3 proof.txt text/plain size=12 artifact-proof
+  Inspect artifacts with: artifact list step=...
   Provenance: events=42; pipeline=...; step=...
   Latest update: 2026-05-27T12:00:00+00:00
 ```
+
+Report detail intentionally references artifact rows instead of embedding file
+bodies. Use the printed `artifact list ...` command to inspect, verify, or
+export the evidence.
 
 ## Scoped Views
 

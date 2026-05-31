@@ -8,6 +8,7 @@ from collections import Counter
 from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.plugins.network.portscanner.ports import render_ports
+from bywaf.plugins.runtime.artifact.summary import format_artifact_reference
 from bywaf.runtime_display import command_context_style_getter, render_table, terminal_table_width
 from bywaf.style import styled_subject_text
 
@@ -295,11 +296,11 @@ def format_bool(value: object) -> str:
     return ""
 
 
-def render_artifacts_section(context: CommandContext, events: list[Event]) -> str:
+def render_artifacts_section(context: CommandContext, events: list[Event], scope: Namespace | None = None) -> str:
     """Render attached artifacts as a compact result table."""
     rows = [
         (
-            event.payload.get("artifact_id", ""),
+            format_artifact_reference(context, event),
             event.payload.get("name", ""),
             event.payload.get("content_type", ""),
             event.payload.get("size", ""),
@@ -314,7 +315,17 @@ def render_artifacts_section(context: CommandContext, events: list[Event]) -> st
         style_getter=command_context_style_getter(context),
         max_width=terminal_table_width(),
     )
+    command = equivalent_artifact_command(scope) if scope is not None else ""
+    if command:
+        command = styled_subject_text(command_context_style_getter(context), "command_line", command)
+        return f"Artifacts ({len(events)})\nInspect artifacts with: {command}\n{table}"
     return f"Artifacts ({len(events)})\n{table}"
+
+
+def equivalent_artifact_command(scope: Namespace) -> str:
+    """Return the artifact-list command for the current results scope."""
+    selectors = [f"{key}={value}" for key, value in scope.scope.items() if key != "all"]
+    return "artifact list " + " ".join(selectors) if selectors else "artifact list"
 
 
 def render_route_hops_section(context: CommandContext, events: list[Event]) -> str:

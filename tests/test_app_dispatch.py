@@ -2551,6 +2551,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("SMB shares", text)
             self.assertIn("SYSVOL", text)
             self.assertIn("Artifacts", text)
+            self.assertIn("Inspect artifacts with: artifact list job=1", text)
             self.assertIn("192.0.2.20.png", text)
             self.assertNotIn("Representative events", text)
 
@@ -2920,6 +2921,45 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("port.open=1", text)
             self.assertIn("network/portscanner host=192.0.", text)
             self.assertRegex(text, r"\n1\s+completed/finished\s+network/portscanner\s+")
+
+    def test_runtime_detail_views_show_artifact_summaries(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            job_id = runner.db.record_job("network/portscanner host=192.0.2.10 ports=80,443", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=job_id,
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+                commandlet="network/portscanner",
+                values={"network/portscanner.host": "192.0.2.10"},
+            )
+            runner.db.publish(
+                "artifact.attached",
+                {
+                    "artifact_id": "artifact-proof",
+                    "artifact_row_id": 7,
+                    "name": "scan-output.txt",
+                    "content_type": "text/plain",
+                    "size": 42,
+                    "job_id": job_id,
+                },
+                "framework",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "job 1")
+                dispatch_repl_line(runner, "pipeline 1")
+                dispatch_repl_line(runner, "step 1")
+
+            text = output.getvalue()
+            self.assertEqual(text.count("Artifacts"), 3)
+            self.assertIn("#7 scan-output.txt text/plain size=42 artifact-proof", text)
+            self.assertIn("inspect artifacts with: artifact list job=1", text)
+            self.assertIn("inspect artifacts with: artifact list pipeline=1", text)
+            self.assertIn("inspect artifacts with: artifact list step=1", text)
 
     def test_runtime_views_default_to_chronological_order(self):
         with tempfile.TemporaryDirectory() as tmp:

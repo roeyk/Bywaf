@@ -25,6 +25,7 @@ from bywaf.plugin import (
     commandlet,
 )
 from bywaf.plugins.runtime.job import cancel_job, format_job_command, kill_job
+from bywaf.plugins.runtime.artifact.summary import artifact_events_for_pipeline, render_artifact_summary
 from bywaf.plugins.runtime.view_common import (
     apply_runtime_new_cursor,
     filter_runtime_rows_by_events,
@@ -200,10 +201,20 @@ def show_pipeline_action(context: CommandContext, parsed: Namespace) -> None:
             style_getter=style_getter,
         ),
         format_pipeline_inspection_hints(context, str(row["pipeline_id"])),
+        format_pipeline_artifacts(context, str(row["pipeline_id"]), alias or str(row["pipeline_id"])),
         format_pipeline_jobs(context, str(row["pipeline_id"])),
         format_pipeline_steps(context, str(row["pipeline_id"])),
     ]
     context.output("\n\n".join(section for section in sections if section))
+
+
+def format_pipeline_artifacts(context: CommandContext, pipeline_id: str, shown_pipeline_id: str) -> str:
+    """Render artifacts attached anywhere in one pipeline."""
+    return render_artifact_summary(
+        context,
+        artifact_events_for_pipeline(context, pipeline_id),
+        inspect_command=f"artifact list pipeline={shown_pipeline_id}",
+    )
 
 
 def format_pipeline_inspection_hints(context: CommandContext, pipeline_id: str) -> str:

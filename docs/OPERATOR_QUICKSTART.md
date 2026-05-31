@@ -110,6 +110,10 @@ bywaf> results pipeline=7
 bywaf> event step=12
 ```
 
+If a scope has evidence files, `results`, `job <id>`, `pipeline <id>`, and
+`step <id>` show compact artifact references and the matching `artifact list
+...` command.
+
 ## Review Findings
 
 `report` is the finding inbox and scoped finding viewer:
@@ -144,6 +148,7 @@ Artifacts are tracked separately but linked back to runtime provenance:
 
 ```text
 bywaf> artifact list
+bywaf> artifact list step=12
 bywaf> artifact verify
 ```
 

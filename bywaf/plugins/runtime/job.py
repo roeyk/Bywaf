@@ -16,6 +16,7 @@ from collections.abc import Callable, Iterable
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
+from bywaf.plugins.runtime.artifact.summary import artifact_events_for_job, render_artifact_summary
 from bywaf.plugins.runtime.view_common import (
     apply_runtime_new_cursor,
     filter_runtime_rows_by_events,
@@ -165,14 +166,20 @@ def show_job_action(context: CommandContext, parsed: Namespace) -> None:
     """Run `job show`."""
     row = require_job(context, parsed.id)
     display_name = context.runtime_store("job show").runtime_names().get(("job", str(row["id"])))
-    context.output(
+    sections = [
         format_job(
             row,
             display_name=display_name,
             args=latest_job_args(context, row["id"]),
             style_getter=command_context_style_getter(context),
-        )
-    )
+        ),
+        render_artifact_summary(
+            context,
+            artifact_events_for_job(context, row["id"]),
+            inspect_command=f"artifact list job={row['id']}",
+        ),
+    ]
+    context.output("\n\n".join(section for section in sections if section))
 
 
 def cancel_job_action(context: CommandContext, parsed: Namespace) -> None:

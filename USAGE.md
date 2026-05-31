@@ -505,6 +505,9 @@ They default to the accumulated project inventory and accept `job=`,
 `pipeline=`, and `step=` when you want a narrower slice. Runtime/store views
 such as `job`, `pipeline`, `step`, `event`, and `artifact` remain separate from
 inventory commands.
+When a selected result scope produced artifacts, `results` shows an `Artifacts`
+section and the equivalent `artifact list ...` command for retrieving the
+evidence bodies.
 
 `web` includes HTTP endpoint, path, screenshot, WAF, finding, and web
 fingerprint facts, so `webfin` technology tags appear directly in the web
@@ -820,6 +823,17 @@ For `artifact attach`, `serial=` may refer to a step, pipeline, or job serial.
 Artifact serials identify existing artifact rows for listing, searching,
 exporting, and verifying; use `artifact=` when attaching an existing artifact
 to step, pipeline, or job provenance.
+Runtime detail views also surface attached artifacts directly:
+
+```text
+bywaf> job 7
+bywaf> pipeline 12
+bywaf> step 34
+```
+
+Each detail view prints compact artifact references plus the matching
+`artifact list job=...`, `artifact list pipeline=...`, or `artifact list
+step=...` command.
 
 # At-File Arguments
 
@@ -1988,8 +2002,10 @@ rejected, and unreviewed counts; the default view renders the groups that still
 need attention during field work. After the
 compact summary table, use `report <#>` or `report detail <#>` to show affected
 resources, evidence snippets, sources, related artifacts, event/pipeline/step
-provenance, and the latest update timestamp. Reports print inline by default;
-use `page=true` when you explicitly want a pager.
+provenance, and the latest update timestamp. Artifact references in report
+detail include the matching `artifact list ...` command so the report stays
+compact while still pointing at the stored evidence body. Reports print inline
+by default; use `page=true` when you explicitly want a pager.
 
 ```text
 bywaf> report

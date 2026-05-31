@@ -208,7 +208,7 @@ class ArtifactStore:
                 """,
                 (
                     artifact_id,
-                    name or source_path.name,
+                    name or (Path(source_path).name if source_path else artifact_id),
                     content_type,
                     digest,
                     len(data),

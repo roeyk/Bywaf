@@ -24,6 +24,7 @@ from bywaf.plugins.runtime.view_common import (
     split_since_selector,
     view_selector_candidates,
 )
+from bywaf.plugins.runtime.artifact.summary import artifact_events_for_step, render_artifact_summary
 from bywaf.runtime_display import (
     command_context_style_getter,
     format_runtime_duration,
@@ -243,6 +244,15 @@ def show_step(context: CommandContext, step_id: str) -> None:
             step_heading(style_getter, "Variables")
             + "\n"
             + f"  {styled_subject_text(style_getter, 'comment', f'{len(rows)} captured runtime preferences hidden')}"
+        )
+    artifacts = artifact_events_for_step(context, run_id)
+    if artifacts:
+        sections.append(
+            render_artifact_summary(
+                context,
+                artifacts,
+                inspect_command=f"artifact list step={run_aliases.get(run_id, run_id)}",
+            )
         )
     events = context.event_store("step").events_matching(command_run_id=run_id)
     if events:

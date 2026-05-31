@@ -772,6 +772,7 @@ class ReportTests(unittest.TestCase):
             self.assertIn("Evidence: page1 proof with newline; admin proof", text)
             self.assertIn("Sources: web_cve_check:http.response; web_cve_check:finding.candidate", text)
             self.assertIn("Artifacts: #3 proof.txt text/plain size=12 artifact-proof", text)
+            self.assertIn("Inspect artifacts with: artifact list step=run-a", text)
             self.assertIn(f"Provenance: events={first.id},{second.id}; pipeline=pipeline-a; step=run-a,run-b", text)
             self.assertIn("Latest update:", text)
 

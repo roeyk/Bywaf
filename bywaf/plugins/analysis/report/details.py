@@ -15,6 +15,7 @@ from typing import Any
 from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.plugins.analysis.finding_report import compact_table_text
+from bywaf.plugins.runtime.artifact.summary import format_artifact_reference
 
 from .model import FindingGroup, effective_finding_payload, sort_unique_events
 from .style import finding_text, report_text, subject_text
@@ -32,7 +33,10 @@ def render_group_details(context: CommandContext, groups: list[FindingGroup]) ->
         append_detail_line(context, lines, "Affected", affected_values(payloads))
         append_detail_line(context, lines, "Evidence", evidence_values(payloads), limit=3)
         append_detail_line(context, lines, "Sources", source_values(group))
-        append_detail_line(context, lines, "Artifacts", artifact_values(context, group))
+        artifacts = artifact_values(context, group)
+        append_detail_line(context, lines, "Artifacts", artifacts)
+        if artifacts:
+            append_detail_line(context, lines, "Inspect artifacts with", artifact_commands(context, group))
         append_detail_line(context, lines, "Provenance", provenance_values(context, group))
         latest = max(group.events, key=lambda event: event.created_at).created_at.isoformat()
         append_detail_line(context, lines, "Latest update", [latest])
@@ -152,28 +156,17 @@ def artifact_values(context: CommandContext, group: FindingGroup) -> list[str]:
     if not steps:
         for pipeline in pipelines:
             events.extend(context.events.query(topic="artifact.attached", pipeline=pipeline, limit=1000))
-    return unique_compact_values(format_artifact_event(context, event) for event in sort_unique_events(events))
+    return unique_compact_values(format_artifact_reference(context, event) for event in sort_unique_events(events))
 
 
-def format_artifact_event(context: CommandContext, event: Event) -> str:
-    """Return compact display text for one artifact attachment event."""
-    payload = event.payload
-    row_id = str(payload.get("artifact_row_id") or "")
-    artifact_id = str(payload.get("artifact_id") or "")
-    name = str(payload.get("name") or artifact_id or "artifact")
-    content_type = str(payload.get("content_type") or "")
-    size = str(payload.get("size") or "")
-    prefix = subject_text(context, "artifact", f"#{row_id}") if row_id else subject_text(context, "artifact", artifact_id)
-    name_text = subject_text(context, "path", name)
-    serial_text = subject_text(context, "serial", artifact_id)
-    parts = [prefix, name_text]
-    if content_type:
-        parts.append(content_type)
-    if size:
-        parts.append(f"size={size}")
-    if artifact_id:
-        parts.append(serial_text)
-    return " ".join(part for part in parts if part)
+def artifact_commands(context: CommandContext, group: FindingGroup) -> list[str]:
+    """Return artifact-list commands for a finding's runtime scope."""
+    steps = unique_compact_values(event.command_run_id or "" for event in group.events)
+    pipelines = unique_compact_values(event.pipeline_id or "" for event in group.events)
+    commands = [f"artifact list step={step}" for step in steps]
+    if not commands:
+        commands = [f"artifact list pipeline={pipeline}" for pipeline in pipelines]
+    return [subject_text(context, "command_line", command) for command in commands]
 
 
 def provenance_values(context: CommandContext, group: FindingGroup) -> list[str]:
