@@ -326,6 +326,7 @@ class RegistryCompletionTests(unittest.TestCase):
                 "signal",
                 "step",
                 "stop",
+                "wafs",
                 "watchdog",
                 "web",
             ],

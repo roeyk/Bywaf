@@ -1589,6 +1589,7 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "help hosts")
+                dispatch_repl_line(runner, "help wafs")
                 dispatch_repl_line(runner, "help ports")
             text = output.getvalue()
             self.assertIn("--last", text)
@@ -1597,6 +1598,68 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("pipeline=<id>", text)
             self.assertIn("step=<id>", text)
             self.assertIn("all=true", text)
+
+    def test_wafs_inventory_renders_waf_signals(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.record_job("waf_detect https://example.test/", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=1,
+                pipeline_id="waf-pipeline",
+                command_run_id="waf-step",
+                commandlet="waf_detect",
+                values={},
+            )
+            runner.db.publish(
+                "web.waf.detected",
+                {
+                    "url": "https://example.test/",
+                    "host": "example.test",
+                    "vendor": "Cloudflare",
+                    "product": "Cloudflare WAF",
+                    "confidence": "high",
+                    "evidence": "server header",
+                },
+                "waf_detect",
+                pipeline_id="waf-pipeline",
+                command_run_id="waf-step",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "wafs")
+
+            text = output.getvalue()
+            self.assertIn("WAFs: project inventory", text)
+            self.assertIn("Cloudflare", text)
+            self.assertIn("https://example.test/", text)
+
+    def test_wafs_new_shows_latest_new_waf_signal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish(
+                "web.waf.detected",
+                {"url": "https://old.example.test/", "host": "old.example.test", "vendor": "Akamai"},
+                "waf_detect",
+                pipeline_id="old-pipeline",
+                command_run_id="old-step",
+            )
+            runner.db.publish(
+                "web.waf.detected",
+                {"url": "https://new.example.test/", "host": "new.example.test", "vendor": "Cloudflare"},
+                "waf_detect",
+                pipeline_id="new-pipeline",
+                command_run_id="new-step",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "wafs --new")
+
+            text = output.getvalue()
+            self.assertIn("WAFs: new since prior inventory", text)
+            self.assertIn("https://new.example.test/", text)
+            self.assertNotIn("https://old.example.test/", text)
 
     def test_dispatch_help_colors_commands_when_enabled(self):
         with tempfile.TemporaryDirectory() as tmp:

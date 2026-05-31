@@ -206,8 +206,8 @@ A plugin may provide one commandlet or multiple commandlets.
 An inventory command is an operator-facing commandlet that summarizes the
 project's accumulated target knowledge from normalized events. Inventory
 commands answer questions such as "which hosts are known?", "which services are
-open?", and "which web endpoints exist?" without requiring the operator to know
-which scanner produced the underlying events.
+open?", "which web endpoints exist?", and "which WAFs were detected?" without
+requiring the operator to know which scanner produced the underlying events.
 
 Current examples include:
 
@@ -215,6 +215,7 @@ Current examples include:
 hosts
 services
 web
+wafs
 ports
 ```
 

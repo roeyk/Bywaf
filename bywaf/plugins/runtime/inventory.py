@@ -1,8 +1,8 @@
 """Operator inventory views over shared event schemas.
 
-Provides high-level `hosts`, `services`, and `web` commandlets so operators can
-ask direct questions about the accumulated project knowledge instead of
-remembering which scanner emitted which event topic.
+Provides high-level `hosts`, `services`, `web`, and `wafs` commandlets so
+operators can ask direct questions about the accumulated project knowledge
+instead of remembering which scanner emitted which event topic.
 """
 
 from __future__ import annotations
@@ -16,8 +16,10 @@ from bywaf.plugins.runtime.inventory_render import (
     host_event_keys,
     render_hosts_inventory,
     render_services_inventory,
+    render_wafs_inventory,
     render_web_inventory,
     service_event_keys,
+    waf_event_keys,
     web_event_keys,
 )
 from bywaf.plugins.runtime.inventory_scope import inventory_scope_label, parse_inventory_selectors, select_inventory_events
@@ -25,6 +27,7 @@ from bywaf.plugins.runtime.inventory_scope import inventory_scope_label, parse_i
 HOST_TOPICS = ("host.found", "name.resolved", "port.open", "http.endpoint", "service.detected", "finding.candidate")
 SERVICE_TOPICS = ("port.open", "service.detected", "http.endpoint", "tcp.banner", "tls.certificate")
 WEB_TOPICS = ("http.endpoint", "http.path", "web.waf.detected", "web.screenshotted_host", "finding.candidate")
+WAF_TOPICS = ("web.waf.detected",)
 
 
 class InventoryCommand(CommandletBase):
@@ -135,6 +138,33 @@ class Web(InventoryCommand):
         return ()
 
 
+@commandlet(
+    name="wafs",
+    description="Show WAF and edge-protection fingerprints.",
+    usage="wafs [--last|--new] [job=<id>|pipeline=<id>|step=<id>|all=true] [--page]",
+    examples=("wafs", "wafs --last", "wafs --new", "wafs pipeline=12", "wafs step=waf-detect-...", "wafs --page"),
+    consumes=WAF_TOPICS,
+    capabilities=("framework.console.output", "framework.file.page"),
+    database_actions=("view",),
+)
+class Wafs(InventoryCommand):
+    """Render compact WAF fingerprint inventory."""
+
+    topics = WAF_TOPICS
+    identity = staticmethod(lambda event: waf_event_keys(event))
+
+    def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
+        """Render WAF inventory rows."""
+        del input_events
+        selectors, events, page = self.selected_events(context, args)
+        output = render_wafs_inventory(context, events, inventory_scope_label(selectors))
+        if page:
+            context.page_text(output)
+        else:
+            context.output(output)
+        return ()
+
+
 def plugins() -> tuple[Commandlet, ...]:
     """Return inventory commandlets."""
-    return (Hosts(), Services(), Web())
+    return (Hosts(), Services(), Web(), Wafs())

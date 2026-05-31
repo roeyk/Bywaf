@@ -483,25 +483,28 @@ available, otherwise the external `qpdf` command.
 
 Inventory commands are schema-backed project views that answer operator
 questions like "which hosts do we know about?", "which services are exposed?",
-and "which web endpoints have we seen?" They summarize accumulated target
-knowledge instead of showing runtime bookkeeping.
+which web endpoints have we seen?", and "which WAFs were detected?" They
+summarize accumulated target knowledge instead of showing runtime bookkeeping.
 
 ```text
 bywaf> hosts
 bywaf> services
 bywaf> web
+bywaf> wafs
 bywaf> hosts --last
 bywaf> services --new
 bywaf> hosts pipeline=12
 bywaf> services step=portscanner-...
 bywaf> web job=latest
+bywaf> wafs --last
 ```
 
-`results` answers "what did that scan insert?" while `hosts`, `services`, and
-`web` answer "what does the project know now?" They default to the accumulated
-project inventory and accept `job=`, `pipeline=`, and `step=` when you want a
-narrower slice. Runtime/store views such as `job`, `pipeline`, `step`, `event`,
-and `artifact` remain separate from inventory commands.
+`results` answers "what did that scan insert?" while inventory commands such as
+`hosts`, `services`, `web`, and `wafs` answer "what does the project know now?"
+They default to the accumulated project inventory and accept `job=`,
+`pipeline=`, and `step=` when you want a narrower slice. Runtime/store views
+such as `job`, `pipeline`, `step`, `event`, and `artifact` remain separate from
+inventory commands.
 
 Use `--last` on inventory commands to show the latest relevant producer scope.
 Use `--new` to show facts from the selected or latest producer scope that were

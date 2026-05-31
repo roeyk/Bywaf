@@ -56,3 +56,17 @@ database.actions.view = true
 database.actions.write = false
 database.actions.manage = false
 module = "bywaf.plugins.runtime.inventory"
+
+[[commandlets]]
+name = "wafs"
+capabilities = [
+  "framework.console.output",
+  "framework.file.page",
+]
+consumes = [
+  "web.waf.detected",
+]
+database.actions.view = true
+database.actions.write = false
+database.actions.manage = false
+module = "bywaf.plugins.runtime.inventory"

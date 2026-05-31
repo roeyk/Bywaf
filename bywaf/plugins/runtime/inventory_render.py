@@ -52,6 +52,18 @@ class WebInventory:
     findings: set[str] = field(default_factory=set)
 
 
+@dataclass(slots=True)
+class WafInventory:
+    """Aggregated operator-facing facts for one WAF signal."""
+
+    url: str
+    host: str = ""
+    vendor: str = ""
+    product: str = ""
+    confidence: str = ""
+    evidence: set[str] = field(default_factory=set)
+
+
 def render_hosts_inventory(context: CommandContext, events: list[Event], scope: str) -> str:
     """Render host inventory from schema-backed event facts."""
     inventory = build_host_inventory(events)
@@ -220,6 +232,49 @@ def build_web_inventory(events: list[Event]) -> dict[str, WebInventory]:
     return web
 
 
+def render_wafs_inventory(context: CommandContext, events: list[Event], scope: str) -> str:
+    """Render WAF inventory from edge-protection fingerprint facts."""
+    inventory = build_waf_inventory(events)
+    if not inventory:
+        return "WAFs: no WAF inventory"
+    rows = [
+        (
+            waf.url,
+            waf.host,
+            waf.vendor,
+            waf.product,
+            waf.confidence,
+            join_values(waf.evidence, limit=2),
+        )
+        for waf in sorted(inventory.values(), key=lambda item: (item.vendor.casefold(), item.url))
+    ]
+    table = render_table(
+        ("URL", "HOST", "VENDOR", "PRODUCT", "CONF", "EVIDENCE"),
+        rows,
+        cell_subjects=("url", "host", "value", "value", "status", ""),
+        style_getter=command_context_style_getter(context),
+        max_width=terminal_table_width(),
+    )
+    return f"WAFs: {scope} ({len(rows)} signals)\n{table}"
+
+
+def build_waf_inventory(events: list[Event]) -> dict[tuple[str, str], WafInventory]:
+    """Aggregate WAF fingerprint facts."""
+    wafs: dict[tuple[str, str], WafInventory] = {}
+    for event in events:
+        if event.topic != "web.waf.detected":
+            continue
+        payload = event.payload
+        url = str(payload.get("url") or "unknown")
+        vendor = str(payload.get("vendor") or "unknown")
+        row = wafs.setdefault((url, vendor), WafInventory(url=url, vendor=vendor))
+        row.host = str(payload.get("host") or row.host)
+        row.product = str(payload.get("product") or row.product)
+        row.confidence = str(payload.get("confidence") or row.confidence)
+        add_value(row.evidence, payload.get("evidence"))
+    return wafs
+
+
 def host_record(hosts: dict[str, HostInventory], value: object) -> HostInventory:
     """Return a host inventory row, creating it if needed."""
     host = str(value or "")
@@ -351,6 +406,17 @@ def web_event_keys(event: Event) -> set[tuple[str, str]]:
     elif event.topic == "finding.candidate":
         values.update(finding_urls(payload))
     return {("web", value) for value in values}
+
+
+def waf_event_keys(event: Event) -> set[tuple[str, str, str]]:
+    """Return stable WAF inventory identity keys for one event."""
+    if event.topic != "web.waf.detected":
+        return set()
+    url = str(event.payload.get("url") or "")
+    vendor = str(event.payload.get("vendor") or "")
+    if not url or not vendor:
+        return set()
+    return {("waf", url, vendor)}
 
 
 def host_sort_value(value: str) -> tuple[int, bytes | str]:
