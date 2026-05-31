@@ -12,7 +12,7 @@ offensive frameworks, do not look for Veil-style modules, Metasploit-style
 ## Quick Paths
 
 - **New user:** [README](../README.md) -> [Install Guide](../INSTALL.md) ->
-  [Usage Guide](../USAGE.md) ->
+  [Operator Quickstart](OPERATOR_QUICKSTART.md) -> [Usage Guide](../USAGE.md) ->
   [FAQ](FAQ.md)
 - **Operator:** [Terminology](TERMINOLOGY.md) -> [Runtime Model](RUNTIME_MODEL.md) ->
   [Event Model](EVENT_MODEL.md) -> [Reporting](REPORTING.md) ->
@@ -32,6 +32,9 @@ offensive frameworks, do not look for Veil-style modules, Metasploit-style
   events, topics, commandlets, plugins, capabilities, local IDs, and serials.
 - [Runtime Model](RUNTIME_MODEL.md): runtime entities, lifecycle,
   foreground/background execution, control signals, and variable snapshots.
+- [Operator Quickstart](OPERATOR_QUICKSTART.md): first ten minutes with Bywaf,
+  including a safe pipeline, inventory views, report review, audit, artifacts,
+  and live control.
 - [Event Model](EVENT_MODEL.md): event rows, shared topic schemas, replay,
   framework requests, artifacts, notes, and provenance.
 - [Shared Event Schemas](plugin_author/event-schemas.md): normalized
@@ -51,6 +54,9 @@ offensive frameworks, do not look for Veil-style modules, Metasploit-style
   boundaries, policy direction, and plugin integration types.
 - [Security Audit](SECURITY_AUDIT.md): adversarial review scope, current
   controls, release gate checks, and known sandbox limits.
+- [Safe Defaults Checklist](SAFE_DEFAULTS_CHECKLIST.md): release and plugin
+  expansion checklist for policy, capabilities, secrets, wrappers, artifacts,
+  and live control.
 - [Plugin Manifest Specification](MANIFEST_SPECIFICATION.md): exact sidecar
   TOML schema, manifest generation, validation behavior, and boundaries.
 - [Framework Surface](FRAMEWORK_SURFACE.md): enumerated base resources,
@@ -80,6 +86,8 @@ offensive frameworks, do not look for Veil-style modules, Metasploit-style
   packaging, AI-assisted development, checker usage, and catalog signing.
 - [Plugin Testing And Guidelines](plugin_author/testing-and-guidelines.md): plugin
   tests and practical implementation guidance.
+- [Wrapper Robustness](plugin_author/wrapper-robustness.md): fixture, evidence,
+  parser, and support expectations for external-tool wrappers.
 - [Plugin Skeletons](plugin_skeletons/README.md): copyable plugin layouts for
   minimal native, vulnerability, library-backed vulnerability,
   process-wrapped vulnerability, and service trigger-provider plugins.

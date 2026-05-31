@@ -133,4 +133,5 @@ operator action is visible and auditable.
 | Loading, packaging, and checker | [Plugin Packaging And Checking](packaging-and-checking.md) |
 | LLM-assisted plugin loop | [LLM-Assisted Plugin Authoring](llm-assisted-authoring.md) |
 | Testing expectations | [Plugin Testing And Guidelines](testing-and-guidelines.md) |
+| External-tool wrapper expectations | [Wrapper Robustness](wrapper-robustness.md) |
 | Copyable skeletons | [Plugin Skeletons](../plugin_skeletons/README.md) |

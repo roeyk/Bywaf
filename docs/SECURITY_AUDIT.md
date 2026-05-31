@@ -3,6 +3,8 @@
 This page records the current adversarial review scope for Bywaf's pre-release
 runtime. It is not a guarantee that Bywaf is sandboxed. It is a map of the
 surfaces that need review before releases and the controls that currently exist.
+For a concise release and plugin-expansion checklist, see
+[Safe Defaults Checklist](SAFE_DEFAULTS_CHECKLIST.md).
 
 ## Contents
 
