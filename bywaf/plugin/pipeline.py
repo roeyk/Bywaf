@@ -31,19 +31,19 @@ class ContextPipeline:
     """Mediated pipeline control API for commandlets."""
 
     def __init__(self, context: CommandContext) -> None:
-        self.context = context
+        self._context = context
 
     def stop(self, reason: str = "pipeline stopped by plugin") -> None:
         """Request that the current pipeline stop after this commandlet."""
         normalized = reason.strip() or "pipeline stopped by plugin"
         payload = {
             "reason": normalized,
-            "source": self.context.source,
-            "command_run_id": self.context.command_run_id,
-            "pipeline_id": self.context.pipeline_id,
-            "job_id": self.context.job_id,
+            "source": self._context.source,
+            "command_run_id": self._context.command_run_id,
+            "pipeline_id": self._context.pipeline_id,
+            "job_id": self._context.job_id,
         }
-        self.context.request("framework.pipeline.stop.requested", payload)
-        if self.context._db is not None and self.context.pipeline_id:
-            self.context._db.request_cancellation("pipeline", self.context.pipeline_id, reason=normalized)
+        self._context.request("framework.pipeline.stop.requested", payload)
+        if self._context._db is not None and self._context.pipeline_id:
+            self._context._db.request_cancellation("pipeline", self._context.pipeline_id, reason=normalized)
         raise PipelineStop(normalized)

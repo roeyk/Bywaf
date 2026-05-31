@@ -75,6 +75,26 @@ class DownstreamMarkerPlugin:
         yield {"ran": True}
 
 
+class InspectPipelineApiPlugin:
+    spec = CommandSpec(
+        "inspect_pipeline_api",
+        "inspect the plugin-facing pipeline API",
+        emits=("pipeline.api.inspected",),
+    )
+
+    def run(self, context, args, input_events):
+        del args, input_events
+        public_names = sorted(name for name in dir(context.pipeline) if not name.startswith("_"))
+        yield {
+            "public": public_names,
+            "has_context": hasattr(context.pipeline, "context"),
+            "has_downstream": hasattr(context.pipeline, "downstream"),
+            "has_next_commandlet": hasattr(context.pipeline, "next_commandlet"),
+            "has_position": hasattr(context.pipeline, "position"),
+            "has_stage_count": hasattr(context.pipeline, "stage_count"),
+            "has_stages": hasattr(context.pipeline, "stages"),
+        }
+
 
 class StorageRunnerPluginTests(unittest.TestCase):
     def test_parse_invocation_uses_first_token_as_name(self):
@@ -109,6 +129,21 @@ class StorageRunnerPluginTests(unittest.TestCase):
             self.assertTrue(runner.db.events_for_topic("plugin.capability.missing"))
             self.assertEqual(runner.db.events_for_topic("framework.pipeline.stop.requested"), [])
             self.assertEqual(runner.db.events_for_topic("downstream.marker"), [])
+
+    def test_plugin_pipeline_context_does_not_expose_topology(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.registry.register_commandlet("test", InspectPipelineApiPlugin(), origin="bundled")
+
+            events = runner.execute("inspect_pipeline_api")
+
+            self.assertEqual(events[0].payload["public"], ["stop"])
+            self.assertFalse(events[0].payload["has_context"])
+            self.assertFalse(events[0].payload["has_downstream"])
+            self.assertFalse(events[0].payload["has_next_commandlet"])
+            self.assertFalse(events[0].payload["has_position"])
+            self.assertFalse(events[0].payload["has_stage_count"])
+            self.assertFalse(events[0].payload["has_stages"])
 
     def test_parse_pipeline(self):
         pipeline = parse_pipeline("hostscanner 127.0.0.1 | portscanner port=80 &")

@@ -234,6 +234,7 @@ Normal plugins should use mediated APIs:
 - `context.page_file()` for paging files;
 - `context.process.run()` and `context.process.stream()` for external tools;
 - `context.artifacts` for storing attached evidence;
+- `context.pipeline.stop()` for deliberate downstream pipeline stops;
 - `context.signals` for soft runtime control.
 
 Privileged framework commandlets may use `context.db` directly. Direct database
@@ -300,6 +301,14 @@ developing or debugging a plugin manifest.
 Capabilities alone do not make arbitrary in-process Python code safe. A hostile
 plugin can still try to import modules, open files, or use sockets directly
 unless stronger isolation is added.
+
+Plugins are intentionally data-aware, not topology-aware. A commandlet can read
+its own execution IDs, consume upstream events, publish normalized results, and
+request `context.pipeline.stop()` when continuing would be wrong. It should not
+receive the full parsed pipeline, downstream commandlet list, or its ordinal
+position in the operator's expression. That boundary limits how much strategic
+information a plugin gets about the broader workflow and keeps cross-stage
+coordination mediated through events and framework requests.
 
 The practical security direction is:
 

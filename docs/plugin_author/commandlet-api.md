@@ -538,6 +538,12 @@ for commandlets that may stop pipelines. The framework records
 marks the current step completed with stop metadata, and skips later foreground
 stages without treating the stop as an unhandled crash.
 
+`context.pipeline.stop(...)` is an intent API, not a topology API. Commandlets
+can know their own step IDs and whether they received upstream input, but they
+should not inspect the full pipeline plan, next commandlet, downstream stages,
+or their position in the operator's expression. That keeps plugins data-aware
+without making them topology-aware.
+
 For beginner plugins, the core loop is usually:
 
 ```python
