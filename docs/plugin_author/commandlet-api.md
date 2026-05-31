@@ -474,10 +474,17 @@ class PickTarget:
 
 The completion hook receives:
 
-- `context.db`: the active event database, if available
+- `context.event_store()`: event/audit queries for completion-time suggestions
+- `context.runtime_store()`: job, pipeline, and step metadata for suggestions
+- `context.artifact_store()`: artifact metadata when an artifact DB is active
 - `context.varstore`: session variables for completion-time suggestions
 - `args`: tokens already typed after the commandlet name
 - `prefix`: the current token being completed
+
+`CompletionContext` is intentionally lighter than runtime `CommandContext`.
+Completion hooks should prefer the narrow store helpers above. `context.db` is
+kept for older code, but new completion hooks should not depend on raw database
+access.
 
 Return a list or any iterable of candidate strings.
 

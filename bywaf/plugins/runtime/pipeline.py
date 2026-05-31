@@ -546,16 +546,20 @@ def attach_candidates(context: CompletionContext, args: list[str], prefix: str) 
 
 def pipeline_ids(context: CompletionContext) -> list[str]:
     """Return pipeline IDs for completion."""
-    if context.db is None:
+    try:
+        runtime = context.runtime_store("pipeline completion")
+    except ValueError:
         return []
-    return sorted(context.db.pipeline_aliases().values(), key=int)
+    return sorted(runtime.pipeline_aliases().values(), key=int)
 
 
 def run_ids(context: CompletionContext) -> list[str]:
     """Return pipeline-step IDs for completion."""
-    if context.db is None:
+    try:
+        runtime = context.runtime_store("pipeline completion")
+    except ValueError:
         return []
-    return sorted(context.db.run_aliases().values(), key=int)
+    return sorted(runtime.run_aliases().values(), key=int)
 
 
 def plugin() -> Commandlet:

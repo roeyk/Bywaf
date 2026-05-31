@@ -359,9 +359,11 @@ def kill_job(context: CommandContext, row) -> None:
 
 def job_ids(context: CompletionContext) -> list[str]:
     """Return job IDs for completion."""
-    if context.db is None:
+    try:
+        runtime = context.runtime_store("job completion")
+    except ValueError:
         return []
-    return [str(row["id"]) for row in context.db.jobs()]
+    return [str(row["id"]) for row in runtime.jobs()]
 
 
 def cancel_job(context: CommandContext, row) -> None:

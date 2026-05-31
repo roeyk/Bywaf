@@ -66,12 +66,16 @@ class Name(CommandletBase):
 
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
         """Complete runtime selectors."""
+        try:
+            runtime = context.runtime_store("name completion")
+        except ValueError:
+            return []
         if prefix.startswith("step="):
-            return [f"step={value}" for value in sorted(context.db.run_aliases().values(), key=int)] if context.db else []
+            return [f"step={value}" for value in sorted(runtime.run_aliases().values(), key=int)]
         if prefix.startswith("pipeline="):
-            return [f"pipeline={value}" for value in sorted(context.db.pipeline_aliases().values(), key=int)] if context.db else []
+            return [f"pipeline={value}" for value in sorted(runtime.pipeline_aliases().values(), key=int)]
         if prefix.startswith("job="):
-            return [f"job={row['id']}" for row in context.db.jobs()] if context.db else []
+            return [f"job={row['id']}" for row in runtime.jobs()]
         if not args:
             return ["step=", "pipeline=", "job="]
         return []

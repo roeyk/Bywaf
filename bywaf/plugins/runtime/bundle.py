@@ -155,10 +155,14 @@ def completion_values(context: CompletionContext, kind: str, prefix: str) -> lis
     completer = context.metadata.get("completer")
     if completer is not None:
         return [value for value in completer.complete_by_spec(CompletionSpec(kind), prefix) if value.startswith(prefix)]
-    if kind == "bundle" and context.db is not None:
+    if kind == "bundle":
+        try:
+            events = context.event_store("bundle completion")
+        except ValueError:
+            return []
         return [
             str(event.payload["name"])
-            for event in context.db.events_matching(topic="bundle.created", limit=100000)
+            for event in events.events_matching(topic="bundle.created", limit=100000)
             if str(event.payload.get("name", "")).startswith(prefix)
         ]
     return []

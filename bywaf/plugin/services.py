@@ -165,6 +165,24 @@ class CompletionContext:
     varstore: VarStore = field(default_factory=VarStore)
     metadata: dict[str, Any] = field(default_factory=dict)
 
+    def event_store(self, label: str | None = None) -> EventStore:
+        """Return the event/audit store for completion helpers."""
+        if self.db is None:
+            raise ValueError(f"{label or 'completion'} requires an active event store")
+        return self.db
+
+    def runtime_store(self, label: str | None = None) -> EventStore:
+        """Return runtime metadata storage for completion helpers."""
+        if self.db is None:
+            raise ValueError(f"{label or 'completion'} requires active runtime storage")
+        return self.db
+
+    def artifact_store(self, label: str | None = None):
+        """Return artifact storage for completion helpers."""
+        if self.db is None:
+            raise ValueError(f"{label or 'completion'} requires active artifact storage")
+        return artifact_store_for_event_store(self.db)
+
 
 @dataclass(frozen=True, slots=True)
 class ContextEvents:

@@ -190,23 +190,29 @@ def format_note_event(event: Event) -> str:
 
 def run_ids(context: CompletionContext) -> list[str]:
     """Return pipeline-step IDs for completion."""
-    if context.db is None:
+    try:
+        runtime = context.runtime_store("note completion")
+    except ValueError:
         return []
-    return sorted(context.db.run_aliases().values(), key=int)
+    return sorted(runtime.run_aliases().values(), key=int)
 
 
 def pipeline_ids(context: CompletionContext) -> list[str]:
     """Return pipeline IDs for completion."""
-    if context.db is None:
+    try:
+        runtime = context.runtime_store("note completion")
+    except ValueError:
         return []
-    return sorted(context.db.pipeline_aliases().values(), key=int)
+    return sorted(runtime.pipeline_aliases().values(), key=int)
 
 
 def job_ids(context: CompletionContext) -> list[str]:
     """Return job IDs for completion."""
-    if context.db is None:
+    try:
+        runtime = context.runtime_store("note completion")
+    except ValueError:
         return []
-    return [str(row["id"]) for row in context.db.jobs()]
+    return [str(row["id"]) for row in runtime.jobs()]
 
 
 def resolve_note_selectors(context: CommandContext, selectors: dict[str, str]) -> dict[str, str]:

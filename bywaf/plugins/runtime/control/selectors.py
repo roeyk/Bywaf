@@ -115,17 +115,21 @@ def control_completion(context: CompletionContext, prefix: str, *, allow_pipelin
 
 def run_ids(context: CompletionContext) -> list[str]:
     """Return pipeline-step IDs for completion."""
-    if context.db is None:
+    try:
+        runtime = context.runtime_store("control completion")
+    except ValueError:
         return []
-    return [str(row["command_run_id"]) for row in context.db.runs()]
+    return [str(row["command_run_id"]) for row in runtime.runs()]
 
 
 def runtime_serial_ids(context: CompletionContext) -> list[str]:
     """Return durable runtime serials for signal completion."""
-    if context.db is None:
+    try:
+        events = context.event_store("control completion")
+    except ValueError:
         return []
     values = []
-    for serial in context.db.serials():
+    for serial in events.serials():
         if serial.startswith(("artifact-", "plugin-", "script-")):
             continue
         values.append(serial)

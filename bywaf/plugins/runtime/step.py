@@ -302,9 +302,11 @@ def summarize_step_text(text: str, *, limit: int = 120) -> str:
 
 def step_ids(context: CompletionContext) -> list[str]:
     """Return known local step IDs for completion."""
-    if context.db is None:
+    try:
+        runtime = context.runtime_store("step completion")
+    except ValueError:
         return []
-    return list(context.db.run_aliases().values())
+    return list(runtime.run_aliases().values())
 
 
 def plugin() -> Commandlet:
