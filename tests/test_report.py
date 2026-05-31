@@ -138,6 +138,73 @@ class ReportTests(unittest.TestCase):
 
             self.assertIn("Finding status: confirmed", output.getvalue())
 
+    def test_report_confirm_marks_selected_finding_confirmed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "finding-1",
+                    "title": "Manually validated issue",
+                    "target": {"host": "web-1.test"},
+                    "severity": "high",
+                },
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report confirm 1 pipeline=pipeline-a note=validated manually")
+                process_framework_requests(runner, ShellState())
+
+            self.assertIn("confirmed 1 finding", output.getvalue())
+            review = runner.db.events_for_topic("finding.reviewed")[0]
+            self.assertEqual(review.payload["finding_id"], "finding-1")
+            self.assertEqual(review.payload["decision"], "confirmed")
+            self.assertEqual(review.payload["note"], "validated manually")
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report pipeline=pipeline-a status=confirmed")
+                process_framework_requests(runner, ShellState())
+
+            text = output.getvalue()
+            self.assertIn("Confirmed findings:", text)
+            self.assertIn("Manually validated issue", text)
+
+    def test_finding_confirm_and_unconfirm_use_report_rows(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "finding-1",
+                    "title": "Operator tracked issue",
+                    "target": {"host": "web-1.test"},
+                    "severity": "high",
+                },
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("finding confirm 1 pipeline=pipeline-a")
+                process_framework_requests(runner, ShellState())
+                runner.execute("finding unconfirm 1 pipeline=pipeline-a")
+                process_framework_requests(runner, ShellState())
+
+            self.assertIn("confirmed 1 finding", output.getvalue())
+            self.assertIn("unconfirmed 1 finding", output.getvalue())
+            reviews = runner.db.events_for_topic("finding.reviewed")
+            self.assertEqual(
+                [(event.payload["finding_id"], event.payload["decision"], event.payload["source"]) for event in reviews],
+                [("finding-1", "confirmed", "finding"), ("finding-1", "unreviewed", "finding")],
+            )
+
     def test_report_finding_rows_always_show_review_status(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
@@ -449,7 +516,7 @@ class ReportTests(unittest.TestCase):
             text = output.getvalue()
             self.assertIn("Network overview", text)
             self.assertIn("192.0.2.20", text)
-            self.assertIn("no unreviewed findings", text)
+            self.assertIn("no open findings", text)
             self.assertNotIn("Old finding", text)
 
     def test_report_compacts_multiline_evidence_in_table_rows(self):
@@ -790,8 +857,9 @@ class ReportTests(unittest.TestCase):
                 process_framework_requests(runner, ShellState())
 
             text = output.getvalue()
-            self.assertIn("Findings: 1 total, 1 accepted, 0 deferred, 0 rejected, 0 unreviewed", text)
-            self.assertIn("no unreviewed findings", text)
+            self.assertIn("Findings: 1 total", text)
+            self.assertIn("Review: 1 accepted, 0 confirmed, 0 deferred, 0 rejected, 0 unreviewed", text)
+            self.assertIn("no open findings", text)
             rendered = runner.db.events_for_topic("report.rendered")[0]
             self.assertEqual(rendered.payload["groups"], [])
             self.assertEqual(rendered.payload["rows"], 0)
@@ -970,7 +1038,7 @@ class ReportTests(unittest.TestCase):
                 runner.execute("report")
                 process_framework_requests(runner, ShellState())
 
-            self.assertIn("no unreviewed findings", output.getvalue())
+            self.assertIn("no open findings", output.getvalue())
 
     def test_report_summarizes_review_state_and_shows_unreviewed_by_default(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1005,15 +1073,16 @@ class ReportTests(unittest.TestCase):
                 process_framework_requests(runner, ShellState())
 
             text = output.getvalue()
-            self.assertIn("Findings: 3 total, 1 accepted, 1 deferred, 0 rejected, 1 unreviewed", text)
-            self.assertIn("Unreviewed findings:", text)
+            self.assertIn("Findings: 3 total", text)
+            self.assertIn("Review: 1 accepted, 0 confirmed, 1 deferred, 0 rejected, 1 unreviewed", text)
+            self.assertIn("Open findings:", text)
             self.assertIn("Open finding", text)
             self.assertNotIn("Accepted finding", text)
             self.assertNotIn("Deferred finding", text)
             rendered = runner.db.events_for_topic("report.rendered")[0]
             self.assertEqual(
                 rendered.payload["counts"],
-                {"total": 3, "accepted": 1, "deferred": 1, "rejected": 0, "unreviewed": 1},
+                {"total": 3, "accepted": 1, "confirmed": 0, "deferred": 1, "rejected": 0, "unreviewed": 1},
             )
             self.assertEqual(rendered.payload["groups"], ["finding-3"])
 
@@ -1155,7 +1224,8 @@ class ReportTests(unittest.TestCase):
                 process_framework_requests(runner, ShellState())
 
             text = output.getvalue()
-            self.assertIn("Findings: 1 total, 0 accepted, 0 deferred, 1 rejected, 0 unreviewed", text)
+            self.assertIn("Findings: 1 total", text)
+            self.assertIn("Review: 0 accepted, 0 confirmed, 0 deferred, 1 rejected, 0 unreviewed", text)
             self.assertIn("Rejected findings:", text)
             self.assertIn("Flipped finding", text)
 

@@ -1979,12 +1979,13 @@ bywaf> finding_report export=findings.md
 bywaf> finding_report export=findings.xlsx
 ```
 
-`report` is the operator-facing finding inbox. It renders grouped unreviewed
-findings from the latest pipeline that produced finding events, or from an
-explicit pipeline, job, or step scope. Use it when you want to quickly see what
-finished work produced without manually querying raw events. The heading always
-shows total, accepted, deferred, rejected, and unreviewed counts; the default
-view renders only the unreviewed groups that still need triage. After the
+`report` is the operator-facing finding inbox. It renders grouped open findings
+from the latest pipeline that produced finding events, or from an explicit
+pipeline, job, or step scope. Open means unreviewed plus confirmed. Use it when
+you want to quickly see what finished work produced without manually querying
+raw events. The heading always shows total, accepted, confirmed, deferred,
+rejected, and unreviewed counts; the default view renders the groups that still
+need attention during field work. After the
 compact summary table, use `report <#>` or `report detail <#>` to show affected
 resources, evidence snippets, sources, related artifacts, event/pipeline/step
 provenance, and the latest update timestamp. Reports print inline by default;
@@ -2001,7 +2002,10 @@ bywaf> report pipeline=1,2,3
 bywaf> report job=7
 bywaf> report step=12
 bywaf> report status=all
+bywaf> report status=confirmed
 bywaf> report accept all pipeline=1
+bywaf> report confirm 1 pipeline=1 note=validated manually
+bywaf> finding confirm 1 pipeline=1
 bywaf> report accept 1-3,7-9 pipeline=1
 bywaf> report defer 4 pipeline=1 note=needs manual validation
 bywaf> report reject 2 pipeline=1 note=false positive after retest

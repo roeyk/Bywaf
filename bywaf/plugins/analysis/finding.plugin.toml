@@ -1,0 +1,21 @@
+[plugin]
+version = "0.12.2"
+native = true
+service = false
+
+[[commandlets]]
+name = "finding"
+capabilities = [
+  "db.read:finding.new",
+  "db.read:finding.candidate",
+  "db.read:finding.confirmed",
+  "db.read:finding.merge_candidate",
+  "db.read:finding.reviewed",
+  "db.write:finding.reviewed",
+  "finding.review",
+  "framework.console.output",
+]
+database.actions.view = false
+database.actions.write = true
+database.actions.manage = false
+module = "bywaf.plugins.analysis.finding"

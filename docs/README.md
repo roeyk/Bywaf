@@ -43,7 +43,7 @@ offensive frameworks, do not look for Veil-style modules, Metasploit-style
 - [Finding And Report Model](FINDING_MODEL.md): facts, finding candidates,
   normalized finding payloads, deduplication, and the `report` inbox.
 - [Reporting](REPORTING.md): operator workflow for `report`, grouping,
-  scoped views, and accepted/deferred/rejected review state.
+  scoped views, and accepted/confirmed/deferred/rejected review state.
 - [Persistence Model](PERSISTENCE_MODEL.md): event, runtime, artifact,
   maintenance, and variable store contracts.
 - [Save/Export Model](SAVE_EXPORT_MODEL.md): when commands use `save`,

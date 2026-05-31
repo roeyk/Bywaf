@@ -2705,6 +2705,7 @@ class AppDispatchTests(unittest.TestCase):
         cases = [
             (Report(), ["status=all"], ("view",)),
             (Report(), ["accept", "all"], ("write",)),
+            (Report(), ["pipeline=1", "confirm", "1"], ("write",)),
             (ArtifactCommand(), ["list"], ("view",)),
             (ArtifactCommand(), ["attach", "file=x"], ("write",)),
             (SearchCommand(), ["name=x"], ("view",)),

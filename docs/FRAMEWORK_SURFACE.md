@@ -31,17 +31,17 @@ base installation commandlets that declare or use each capability.
 | `artifact.write` | `artifact`, `eyewitness`, `finding_dedupe`, `finding_report`, `nikto`, `screenshotter`, `wifi_scan` |
 | `db.manage` | `db` |
 | `db.raw` | `audit`, `db` |
-| `finding.review` | `report` |
+| `finding.review` | `finding`, `report` |
 | `db.read:*` | `watchdog` |
 | `db.read:artifact.attached` | `artifact` |
 | `db.read:bundle.created` | `bundle` |
 | `db.read:bundle.item.added` | `bundle` |
 | `db.read:bundle.sealed` | `bundle` |
-| `db.read:finding.candidate` | `finding_dedupe`, `finding_report`, `report` |
-| `db.read:finding.confirmed` | `finding_dedupe`, `finding_report`, `report` |
-| `db.read:finding.merge_candidate` | `finding_report`, `report` |
-| `db.read:finding.new` | `finding_report`, `report` |
-| `db.read:finding.reviewed` | `report` |
+| `db.read:finding.candidate` | `finding`, `finding_dedupe`, `finding_report`, `report` |
+| `db.read:finding.confirmed` | `finding`, `finding_dedupe`, `finding_report`, `report` |
+| `db.read:finding.merge_candidate` | `finding`, `finding_report`, `report` |
+| `db.read:finding.new` | `finding`, `finding_report`, `report` |
+| `db.read:finding.reviewed` | `finding`, `report` |
 | `db.read:nikto.finding` | `finding_dedupe`, `finding_report` |
 | `db.read:vulnerability.confirmed` | `finding_dedupe`, `finding_report` |
 | `db.read:vulnerability.false_positive` | `finding_dedupe`, `finding_report` |
@@ -59,7 +59,7 @@ base installation commandlets that declare or use each capability.
 | `db.write:finding.duplicate` | `finding_dedupe` |
 | `db.write:finding.merge_candidate` | `finding_dedupe` |
 | `db.write:finding.new` | `finding_dedupe` |
-| `db.write:finding.reviewed` | `report` |
+| `db.write:finding.reviewed` | `finding`, `report` |
 | `db.write:finding.updated` | `finding_dedupe` |
 | `db.write:http.headers` | `http_headers` |
 | `db.write:key.generated` | `key` |
@@ -127,6 +127,7 @@ the association and `Consumes` is the normal consumer side.
 | `dns_lookup` | none | `dns.record`, `dns.error` |
 | `eyewitness` | `http.endpoint` | `eyewitness.screenshot`, `web.screenshotted_host` |
 | `screenshotter` | `http.endpoint` | `eyewitness.screenshot`, `web.screenshotted_host` |
+| `finding` | `finding.candidate`, `finding.confirmed`, `finding.new`, `finding.merge_candidate` | `finding.reviewed` |
 | `finding_dedupe` | `finding.candidate`, `finding.confirmed`, `nikto.finding`, `vulnerability.found`, `vulnerability.potential`, `vulnerability.confirmed`, `vulnerability.speculative`, `vulnerability.false_positive` | `finding.new`, `finding.duplicate`, `finding.updated`, `finding.merge_candidate` |
 | `finding_report` | `finding.candidate`, `finding.confirmed`, `finding.new`, `finding.merge_candidate`, `nikto.finding`, `vulnerability.found`, `vulnerability.potential`, `vulnerability.confirmed`, `vulnerability.speculative`, `vulnerability.false_positive` | `framework.render.table.requested`, `artifact.attached` |
 | `git_expose_check` | `http.endpoint` | `repo.git_config.checked`, `finding.candidate` |
@@ -168,7 +169,7 @@ checks, resource commands, and runtime-control commandlets.
 | Plugin progress | `plugin.progress` | Long-running commandlets | Provides structured progress updates for the shell, logs, and future frontends |
 | Policy | `policy.evaluated` | Policy and plan approval flow | Records whether a requested action was allowed, denied, or required approval |
 | Process audit | `process.started`, `process.exited`, `process.secret.argv` | Framework-mediated process execution | Tracks external tools, exit status, and secret-safe argument handling |
-| Report lifecycle | `report.rendered`, `finding.reviewed` | `report` commandlet | Records which finding events were rendered and which grouped findings an operator accepted, deferred, or rejected |
+| Report lifecycle | `report.rendered`, `finding.reviewed` | `report` and `finding` commandlets | Records which finding events were rendered and which grouped findings an operator accepted, confirmed, deferred, or rejected |
 | Resource commands | `resource.plugin.loaded`, `resource.script.command` | `load` and script execution | Records plugin loads and script commands executed through the shell |
 | Runtime naming | `runtime.name.assigned` | `name` commandlet and runtime metadata | Associates human-friendly names with runtime objects |
 | Runtime signals | `runtime.signal.requested`, `runtime.signal.applied`, `runtime.signal.ignored` | `signal`, `pause`, `resume`, `cancel`, `kill`, `stop`, and cooperative commandlets | Traces requested runtime controls and whether target jobs/steps applied or ignored them |

@@ -1,5 +1,6 @@
 default_plugins = [
   "discovery.hostscanner",
+  "analysis.finding",
   "analysis.finding_dedupe",
   "analysis.finding_report",
   "analysis.report",

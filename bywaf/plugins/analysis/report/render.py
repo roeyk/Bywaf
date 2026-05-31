@@ -153,6 +153,8 @@ def parse_bool_selector(value: object) -> bool:
 
 def empty_status_message(status: str) -> str:
     """Return a natural empty-state message for one report status filter."""
+    if status == "open":
+        return "no open findings"
     if status == "unreviewed":
         return "no unreviewed findings"
     if status == "all":
@@ -242,9 +244,10 @@ def review_summary_line(
 ) -> str:
     """Return a compact review-state summary for the report heading."""
     summary = (
-        "Findings: "
-        f"{counts.get('total', 0)} total, "
+        f"Findings: {counts.get('total', 0)} total\n"
+        "Review: "
         f"{counts.get('accepted', 0)} accepted, "
+        f"{counts.get('confirmed', 0)} confirmed, "
         f"{counts.get('deferred', 0)} deferred, "
         f"{counts.get('rejected', 0)} rejected, "
         f"{counts.get('unreviewed', 0)} unreviewed"
@@ -281,6 +284,8 @@ def render_status_heading(parsed: Namespace) -> str:
     if parsed.action == "detail":
         selection = parsed.selection or ""
         return f"Finding detail: {selection}"
+    if status == "open":
+        return "Open findings:"
     return "All findings:" if status == "all" else f"{status.capitalize()} findings:"
 
 

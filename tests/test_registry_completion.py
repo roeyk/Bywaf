@@ -144,6 +144,7 @@ class RegistryCompletionTests(unittest.TestCase):
             entries,
             [
                 "discovery.hostscanner",
+                "analysis.finding",
                 "analysis.finding_dedupe",
                 "analysis.finding_report",
                 "analysis.report",
@@ -297,7 +298,7 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertEqual(report_manifest.commandlet_database_actions["report"], ("view", "write"))
 
     def test_registry_tracks_provider_groups(self):
-        self.assertEqual(self.registry.grouped_names()["analysis"], ["finding_dedupe", "finding_report", "report", "yara_scan"])
+        self.assertEqual(self.registry.grouped_names()["analysis"], ["finding", "finding_dedupe", "finding_report", "report", "yara_scan"])
         self.assertEqual(self.registry.grouped_names()["identity"], ["ldap_probe", "smb_probe"])
         self.assertEqual(self.registry.grouped_names()["network"], ["ports", "portscanner", "service_probe", "snmp_get", "ssh_probe", "tcp_banner", "traceroute"])
         self.assertIn("os", self.registry.provider_names())
@@ -388,7 +389,7 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertNotIn("analysis/report/report", top_level)
         self.assertEqual(
             completer.candidates("use analysis/"),
-            ["analysis/finding_dedupe", "analysis/finding_report", "analysis/report", "analysis/yara_scan"],
+            ["analysis/finding", "analysis/finding_dedupe", "analysis/finding_report", "analysis/report", "analysis/yara_scan"],
         )
         self.assertEqual(completer.candidates("use glo"), ["global"])
         self.assertEqual(completer.candidates("use host"), ["hosts", "hostscanner"])

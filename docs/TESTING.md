@@ -71,7 +71,7 @@ Start at the narrowest layer that can catch the bug:
 - Runtime persistence: test `EventStore`, jobs, steps, pipelines, artifacts,
   secrets, and variables.
 - Reporting: test grouping, scoped selectors, review-state events, detail
-  rendering, and accepted/deferred/rejected filtering.
+  rendering, and accepted/confirmed/deferred/rejected filtering.
 - Packaging: build and smoke-test `.deb` and `.rpm` artifacts.
 - Manual network behavior: use controlled targets only; do not put live network
   dependence in normal CI tests.
@@ -168,7 +168,7 @@ Good manual passes include:
   `/.git/config`.
 - Reporting and review:
   `report`, `report status=all`,
-  `report accept all note="confirmed in manual pass"`,
+  `finding confirm 1 note="confirmed in manual pass"`,
   `event finding.reviewed`.
 - Script behavior:
   `script load file=scripts/manual_finding_report_flow.bywaf`.

@@ -15,7 +15,21 @@ from bywaf.plugin import CommandContext
 
 from .model import FindingGroup, effective_finding_payload, group_finding_events
 
-REVIEW_DECISIONS = {"accept": "accepted", "defer": "deferred", "reject": "rejected"}
+REVIEW_DECISIONS = {
+    "accept": "accepted",
+    "confirm": "confirmed",
+    "defer": "deferred",
+    "reject": "rejected",
+    "unconfirm": "unreviewed",
+}
+REVIEW_STATUSES = ("accepted", "confirmed", "deferred", "rejected", "unreviewed")
+ACTION_OUTPUT_LABELS = {
+    "accepted": "accepted",
+    "confirmed": "confirmed",
+    "deferred": "deferred",
+    "rejected": "rejected",
+    "unreviewed": "unconfirmed",
+}
 
 
 @dataclass(frozen=True)
@@ -27,7 +41,7 @@ class ReviewDecision:
     event_id: int | None = None
 
 
-def review_report_groups(context: CommandContext, parsed, events) -> None:
+def review_report_groups(context: CommandContext, parsed, events, *, source: str = "report") -> None:
     """Emit review events for selected report groups."""
     if not parsed.selection:
         raise ValueError(f"report {parsed.action} requires a selection such as 1, 1-3, or all")
@@ -48,10 +62,11 @@ def review_report_groups(context: CommandContext, parsed, events) -> None:
                 "finding_id": group.finding_id,
                 "decision": decision,
                 "note": parsed.note,
-                "source": "report",
+                "source": source,
             },
         )
-    context.output(f"{decision} {len(selected)} finding{'s' if len(selected) != 1 else ''}")
+    label = ACTION_OUTPUT_LABELS.get(decision, decision)
+    context.output(f"{label} {len(selected)} finding{'s' if len(selected) != 1 else ''}")
 
 
 def selected_groups(groups: list[FindingGroup], selection: str) -> list[FindingGroup]:
@@ -107,7 +122,7 @@ def latest_review_decisions(context: CommandContext) -> dict[str, ReviewDecision
         if not finding_id:
             continue
         decision = str(event.payload.get("decision") or "accepted")
-        if decision not in {"accepted", "deferred", "rejected"}:
+        if decision not in REVIEW_STATUSES:
             decision = "accepted"
         if (
             event.id is not None
@@ -129,7 +144,11 @@ def latest_review_decisions(context: CommandContext) -> dict[str, ReviewDecision
 def review_status(group: FindingGroup, decisions: Mapping[str, ReviewDecision]) -> str:
     """Return the effective review status for one finding group."""
     decision = review_decision_for_group(group, decisions)
-    return decision.decision if decision is not None else "unreviewed"
+    if decision is not None:
+        return decision.decision
+    if group_has_confirmed_proof(group):
+        return "confirmed"
+    return "unreviewed"
 
 
 def review_decision_for_group(
@@ -170,6 +189,8 @@ def filter_groups_by_status(
     """Return report groups matching the requested review status."""
     if status == "all":
         return groups
+    if status == "open":
+        return [group for group in groups if review_status(group, decisions) in {"confirmed", "unreviewed"}]
     return [group for group in groups if review_status(group, decisions) == status]
 
 
@@ -178,8 +199,17 @@ def review_counts(
     decisions: Mapping[str, ReviewDecision],
 ) -> dict[str, int]:
     """Count finding groups by current review status."""
-    counts = {key: 0 for key in ("total", "accepted", "deferred", "rejected", "unreviewed")}
+    counts = {key: 0 for key in ("total", *REVIEW_STATUSES)}
     counts["total"] = len(groups)
     for group in groups:
         counts[review_status(group, decisions)] += 1
     return counts
+
+
+def group_has_confirmed_proof(group: FindingGroup) -> bool:
+    """Return whether a group includes a plugin-produced confirmed finding."""
+    return any(
+        event.topic == "finding.confirmed"
+        or str(effective_finding_payload(event).get("status") or "").casefold() == "confirmed"
+        for event in group.events
+    )

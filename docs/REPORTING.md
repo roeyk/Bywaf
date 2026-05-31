@@ -49,9 +49,10 @@ the latest pipeline first, then job or step context when that is the only
 available scope. It shows a count summary before listing rows:
 
 ```text
-Findings: 12 total, 3 accepted, 1 deferred, 0 rejected, 8 unreviewed
+Findings: 12 total
+Review: 3 accepted, 2 confirmed, 1 deferred, 0 rejected, 6 unreviewed
 
-Unreviewed findings:
+Open findings:
 Findings
 #  Finding                               Affected                      CVE      Severity
 1  Exposed Git repository configuration  https://example/.git/config   CWE-538  high
@@ -59,9 +60,10 @@ Findings
 Use `report <#>` or `report detail <#>` for evidence, artifacts, and provenance.
 ```
 
-By default, `report` shows unreviewed findings. Use `status=all`,
-`status=accepted`, `status=deferred`, or `status=rejected` to inspect other
-review states.
+By default, `report` shows open findings: unreviewed findings plus confirmed
+findings that should stay visible during field work. Use `status=all`,
+`status=accepted`, `status=confirmed`, `status=deferred`, `status=rejected`, or
+`status=unreviewed` to inspect a specific review state.
 
 ## Network View
 
@@ -168,9 +170,12 @@ Review commands use the `finding.review` capability and write
 
 ```text
 bywaf> report accept all pipeline=1
+bywaf> report confirm 1 pipeline=1 note=validated manually
 bywaf> report accept 1-3,7-9 pipeline=1 note=validated during retest
 bywaf> report defer 4 pipeline=1 note=needs owner confirmation
 bywaf> report reject 2 pipeline=1 note=false positive after manual check
+bywaf> finding confirm 1 pipeline=1
+bywaf> finding unconfirm 1 status=confirmed pipeline=1
 ```
 
 Selection values are row numbers from the current report view:
@@ -182,6 +187,10 @@ Selection values are row numbers from the current report view:
 
 Use `note=` for operator context. Put `note=` last when the note contains
 spaces.
+
+`finding.confirmed` is proof produced by a plugin. `finding confirm ...` and
+`report confirm ...` are operator review decisions. Both make a row show as
+confirmed in reports, but the event history preserves which one happened.
 
 ## Current Boundaries
 

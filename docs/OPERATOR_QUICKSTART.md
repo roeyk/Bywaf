@@ -124,10 +124,12 @@ bywaf> report sort=finding
 When a finding is real, record the decision:
 
 ```text
-bywaf> report accept 1 note=confirmed during manual review
+bywaf> finding confirm 1 note=validated manually
+bywaf> report confirm 1 note=validated manually
 ```
 
-Use `defer` for later review and `reject` for false positives.
+Use `accept` for reviewed-but-not-proofed issues, `defer` for later review, and
+`reject` for false positives.
 
 ## Audit And Artifacts
 

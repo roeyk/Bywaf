@@ -284,6 +284,8 @@ bywaf> report job=7
 bywaf> report step=12
 bywaf> report status=all
 bywaf> report accept all pipeline=1
+bywaf> report confirm 1 pipeline=1 note=validated manually
+bywaf> finding confirm 1 pipeline=1
 bywaf> report accept 1-3,7-9 pipeline=1
 bywaf> report defer 4 pipeline=1 note=needs manual validation
 bywaf> report reject 2 pipeline=1 note=false positive after retest
@@ -291,15 +293,17 @@ bywaf> report reject 2 pipeline=1 note=false positive after retest
 
 Defaults are optimized for field use:
 
-- `report` shows unreviewed findings from the latest pipeline
-  that produced finding events.
+- `report` shows open findings from the latest pipeline that produced finding
+  events. Open means unreviewed plus confirmed.
 - `report pipeline=...`, `report job=...`, and `report step=...` render scoped
   grouped findings without requiring manual event queries.
-- Every report view shows total, accepted, deferred, rejected, and unreviewed
-  counts before rendering rows.
-- The default status is `unreviewed`; use `status=all`, `status=accepted`,
-  `status=deferred`, or `status=rejected` to inspect other review states.
-- `report accept ...`, `report defer ...`, and `report reject ...` write
+- Every report view shows total, accepted, confirmed, deferred, rejected, and
+  unreviewed counts before rendering rows.
+- The default status is `open`; use `status=all`, `status=accepted`,
+  `status=confirmed`, `status=deferred`, `status=rejected`, or
+  `status=unreviewed` to inspect other review states.
+- `report accept ...`, `report confirm ...`, `report defer ...`,
+  `report reject ...`, and `finding confirm ...` write
   `finding.reviewed` events. Selection values are row numbers from the current
   report view: `all`, `1`, `1-4`, or comma-separated mixes such as `1-3,7,9-11`.
 - Use `note=` for operator context on a review decision. Put `note=` last when

@@ -29,10 +29,10 @@ from .events import select_report_context_events, select_report_new_context_even
 from .render import render_finding_report, render_network_report
 from .review import REVIEW_DECISIONS, review_report_groups
 
-REPORT_ACTIONS = ("accept", "defer", "reject", "detail", "network")
+REPORT_ACTIONS = ("accept", "confirm", "defer", "reject", "unconfirm", "detail", "network")
 REPORT_REVIEW_ACTIONS = tuple(REVIEW_DECISIONS)
 REPORT_OPTION_KEYS = {"job", "pipeline", "step", "limit", "note", "page", "sort", "status"}
-REPORT_STATUS_CHOICES = ("all", "accepted", "deferred", "rejected", "unreviewed")
+REPORT_STATUS_CHOICES = ("all", "accepted", "confirmed", "deferred", "open", "rejected", "unreviewed")
 REPORT_SORT_CHOICES = ("finding", "host")
 
 
@@ -40,7 +40,7 @@ REPORT_SORT_CHOICES = ("finding", "host")
     name="report",
     description="Show grouped finding reports for recent, step, job, or pipeline scopes.",
     usage=(
-        "report [--last|--new|network|<index-range>|detail <index-range>|accept|defer|reject <index-range|all>] "
+        "report [--last|--new|network|<index-range>|detail <index-range>|accept|confirm|defer|reject|unconfirm <index-range|all>] "
         "[pipeline=<ids>] [job=<ids>] [step=<ids>] [status=<filter>]"
     ),
     examples=(
@@ -51,6 +51,8 @@ REPORT_SORT_CHOICES = ("finding", "host")
         "report 1",
         "report detail 1-3",
         "report accept 1-3,7",
+        "report confirm 1 note=validated manually",
+        "report unconfirm 1 status=confirmed",
         "report defer 4 note=needs manual validation",
         "report pipeline=1",
         "report page=false",
@@ -93,14 +95,14 @@ REPORT_SORT_CHOICES = ("finding", "host")
 @option("limit", "maximum events to inspect", "1000")
 @option("page", "page rendered report output", "true", ("true", "false"))
 @option("sort", "group report rows by finding or host", "finding", REPORT_SORT_CHOICES)
-@option("status", "finding review status filter", "unreviewed", REPORT_STATUS_CHOICES)
+@option("status", "finding review status filter", "open", REPORT_STATUS_CHOICES)
 class Report(CommandletBase):
     """Render grouped finding inboxes and scoped finding reports."""
 
     def database_actions_for_args(self, args: list[str]) -> tuple[str, ...]:
         """Classify report moderation separately from read-only report views."""
         normalized = normalize_report_args(args)
-        action = next((arg for arg in normalized if not arg.startswith("-")), "")
+        action = next((arg for arg in normalized if arg in REPORT_REVIEW_ACTIONS), "")
         return ("write",) if action in REPORT_REVIEW_ACTIONS else ("view",)
 
     def run(
@@ -127,7 +129,7 @@ class Report(CommandletBase):
         parser.add_argument("--note", default="")
         parser.add_argument("--page", choices=("true", "false"), default="false")
         parser.add_argument("--sort", choices=REPORT_SORT_CHOICES, default="finding")
-        parser.add_argument("--status", choices=REPORT_STATUS_CHOICES, default="unreviewed")
+        parser.add_argument("--status", choices=REPORT_STATUS_CHOICES, default="open")
         parsed = parser.parse_args(normalize_report_args(args))
         normalize_report_action(parsed)
         if parsed.last and parsed.new:
@@ -172,7 +174,9 @@ class Report(CommandletBase):
             "status=",
             "status=accepted",
             "status=all",
+            "status=confirmed",
             "status=deferred",
+            "status=open",
             "status=rejected",
             "status=unreviewed",
         )

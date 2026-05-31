@@ -95,15 +95,16 @@ Planning dates are release planning markers, not compatibility commitments.
   - Exercise repository exposure with
     `http/repo_exposure/git_expose_check target=http://<test-host>`, then
     inspect `event finding.candidate` and `report`.
-  - Exercise triage with `report accept all note="confirmed in manual pass"`,
+  - Exercise triage with `finding confirm 1 note="confirmed in manual pass"`,
     then run `report` and `event finding.reviewed`.
   - Inspect `event finding.candidate` and confirm each finding has `class`,
     `target_scope`, `group_key`, `identifiers`, `target`, and `affected`.
   - Run `report` and `report pipeline=<id>` and verify events with the same
     `class + target_scope + CVE/CWE` collapse into one group.
-  - Use `report accept`, `report defer note=...`, and `report reject` on a
-    controlled set, then confirm the default report view hides reviewed
-    findings and `status=all` still shows the full set with review counts.
+  - Use `report accept`, `report confirm`, `report defer note=...`, and
+    `report reject` on a controlled set, then confirm the default report view
+    shows open findings and `status=all` still shows the full set with review
+    counts.
   - Simulate the same CVE on `/`, `/admin`, and `/login` with
     `target_scope={"kind":"web_origin","value":"https://host"}` and confirm
     reporting groups them together.
