@@ -62,6 +62,49 @@ class ReportTests(unittest.TestCase):
             self.assertEqual(rendered.payload["groups"], ["finding-1"])
             self.assertEqual(rendered.payload["rows"], 1)
 
+    def test_report_sort_host_groups_findings_under_hosts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "finding-1",
+                    "title": "Missing HSTS",
+                    "target": {"host": "web-1.test"},
+                    "severity": "medium",
+                },
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+            runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "finding-2",
+                    "title": "Telnet exposed",
+                    "target": {"host": "web-1.test"},
+                    "severity": "high",
+                },
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report pipeline=pipeline-a sort=host")
+                process_framework_requests(runner, ShellState())
+
+            text = output.getvalue()
+            self.assertIn("Report: grouped by host", text)
+            self.assertIn("Use sort=finding to group affected hosts under each finding.", text)
+            self.assertIn("Hosts", text)
+            self.assertIn("web-1.test", text)
+            self.assertIn("Missing HSTS [medium, unreviewed]; Telnet exposed [high, unreviewed]", text)
+            rendered = runner.db.events_for_topic("report.rendered")[0]
+            self.assertEqual(rendered.payload["sort"], "host")
+            self.assertEqual(rendered.payload["rows"], 1)
+
     def test_report_repl_does_not_echo_rendered_audit_event(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))

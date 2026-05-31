@@ -52,6 +52,7 @@ def render_finding_report(
         displayed_groups = selected_groups(filtered_groups, str(parsed.selection))
     filtered_events = events_for_groups(filtered_groups)
     output_lines = [
+        report_text(context, "heading", report_grouping_line(parsed)),
         report_text(context, "heading", report_heading(parsed, events, groups)),
         report_text(
             context,
@@ -77,7 +78,11 @@ def render_finding_report(
         )
         return
     output_lines.append(report_text(context, "section", render_status_heading(parsed)))
-    table = indexed_findings_table(displayed_groups, decisions=decisions, show_review_status=parsed.status == "all")
+    table = (
+        indexed_hosts_table(displayed_groups, decisions=decisions)
+        if parsed.sort == "host" and parsed.action != "detail"
+        else indexed_findings_table(displayed_groups, decisions=decisions, show_review_status=parsed.status == "all")
+    )
     output_lines.append(render_styled_report_table(context, table))
     if parsed.action == "detail":
         output_lines.append(render_group_details(context, displayed_groups))
@@ -213,6 +218,7 @@ def report_rendered_payload(
         "pipeline": parsed.pipeline,
         "step": parsed.step,
         "status": parsed.status,
+        "sort": getattr(parsed, "sort", "finding"),
         "events": [event.id for event in events if event.id is not None],
         "groups": [group.finding_id for group in groups or []],
         "counts": dict(counts or {}),
@@ -241,6 +247,13 @@ def review_summary_line(
         if severity_counts.get(item, 0)
     )
     return f"{summary}\nseverity classes: {class_summary}" if class_summary else summary
+
+
+def report_grouping_line(parsed: Namespace) -> str:
+    """Return the report grouping mode and the inverse selector hint."""
+    if parsed.sort == "host":
+        return "Report: grouped by host\nUse sort=finding to group affected hosts under each finding."
+    return "Report: grouped by finding\nUse sort=host to group findings under each host."
 
 
 def severity_class_counts(groups: list[FindingGroup]) -> dict[str, int]:
@@ -293,6 +306,60 @@ def indexed_findings_table(
     )
 
 
+def indexed_hosts_table(
+    groups: list[FindingGroup],
+    *,
+    decisions: Mapping[str, ReviewDecision],
+) -> Table:
+    """Return report rows grouped by affected host."""
+    rows_by_host: dict[str, list[str]] = {}
+    host_order: list[str] = []
+    representatives = [group.representative for group in groups]
+    for group, row in zip(groups, finding_rows(representatives, include_candidates=True), strict=True):
+        review = review_status(group, decisions)
+        summary = finding_host_summary(row, review)
+        hosts = affected_hosts_from_row(row)
+        for host in hosts:
+            if host not in rows_by_host:
+                rows_by_host[host] = []
+                host_order.append(host)
+            rows_by_host[host].append(summary)
+    rows = [
+        {
+            "index": index,
+            "host": host,
+            "findings": "; ".join(dict.fromkeys(rows_by_host[host])),
+        }
+        for index, host in enumerate(host_order, start=1)
+    ]
+    return Table.from_rows(
+        rows,
+        (
+            Column("index", "#", "right"),
+            Column("host", "Host"),
+            Column("findings", "Findings"),
+        ),
+        title="Hosts",
+    )
+
+
+def finding_host_summary(row: Mapping[str, object], review: str) -> str:
+    """Return one compact finding description for a host-grouped report."""
+    title = str(row.get("finding_name") or "finding")
+    severity = str(row.get("severity") or "").strip()
+    suffix = ", ".join(value for value in (severity, review) if value)
+    return f"{title} [{suffix}]" if suffix else title
+
+
+def affected_hosts_from_row(row: Mapping[str, object]) -> list[str]:
+    """Return affected-host display values from one finding row."""
+    raw = str(row.get("hosts_affected") or "").strip()
+    if not raw:
+        return ["(unknown)"]
+    hosts = [host.strip() for host in raw.split(",") if host.strip()]
+    return hosts or ["(unknown)"]
+
+
 def render_styled_report_table(context: CommandContext, table: Table) -> str:
     """Render a report table with theme-driven baseline and subject styles."""
     if not table.columns:
@@ -340,6 +407,8 @@ def styled_report_cell(
 ) -> str:
     """Apply the most specific report-table style for one cell."""
     if column_key == "index":
+        return table_text(context, "index", value)
+    if column_key == "host":
         return table_text(context, "index", value)
     if column_key == "finding_name":
         return finding_text(context, "title", value)

@@ -31,8 +31,9 @@ from .review import REVIEW_DECISIONS, review_report_groups
 
 REPORT_ACTIONS = ("accept", "defer", "reject", "detail", "network")
 REPORT_REVIEW_ACTIONS = tuple(REVIEW_DECISIONS)
-REPORT_OPTION_KEYS = {"job", "pipeline", "step", "limit", "note", "page", "status"}
+REPORT_OPTION_KEYS = {"job", "pipeline", "step", "limit", "note", "page", "sort", "status"}
 REPORT_STATUS_CHOICES = ("all", "accepted", "deferred", "rejected", "unreviewed")
+REPORT_SORT_CHOICES = ("finding", "host")
 
 
 @commandlet(
@@ -51,6 +52,8 @@ REPORT_STATUS_CHOICES = ("all", "accepted", "deferred", "rejected", "unreviewed"
         "report defer 4 note=needs manual validation",
         "report pipeline=1",
         "report page=false",
+        "report sort=host",
+        "report sort=finding",
         "report pipeline=1,2,3",
         "report job=7",
         "report step=12",
@@ -65,7 +68,11 @@ REPORT_STATUS_CHOICES = ("all", "accepted", "deferred", "rejected", "unreviewed"
         "db.read:host.found",
         "db.read:name.resolved",
         "db.read:port.open",
+        "db.read:service.detected",
         "db.read:http.endpoint",
+        "db.read:http.path",
+        "db.read:tls.certificate",
+        "db.read:web.waf.detected",
         "db.read:artifact.attached",
         "db.write:report.rendered",
         "db.write:finding.reviewed",
@@ -80,6 +87,7 @@ REPORT_STATUS_CHOICES = ("all", "accepted", "deferred", "rejected", "unreviewed"
 @option("step", "step id or comma-separated step ids", completion="step")
 @option("limit", "maximum events to inspect", "1000")
 @option("page", "page rendered report output", "true", ("true", "false"))
+@option("sort", "group report rows by finding or host", "finding", REPORT_SORT_CHOICES)
 @option("status", "finding review status filter", "unreviewed", REPORT_STATUS_CHOICES)
 class Report(CommandletBase):
     """Render grouped finding inboxes and scoped finding reports."""
@@ -111,6 +119,7 @@ class Report(CommandletBase):
         parser.add_argument("--limit", type=int, default=1000)
         parser.add_argument("--note", default="")
         parser.add_argument("--page", choices=("true", "false"), default="false")
+        parser.add_argument("--sort", choices=REPORT_SORT_CHOICES, default="finding")
         parser.add_argument("--status", choices=REPORT_STATUS_CHOICES, default="unreviewed")
         parsed = parser.parse_args(normalize_report_args(args))
         normalize_report_action(parsed)
@@ -142,6 +151,9 @@ class Report(CommandletBase):
             "page=",
             "page=false",
             "page=true",
+            "sort=",
+            "sort=finding",
+            "sort=host",
             "status=",
             "status=accepted",
             "status=all",
