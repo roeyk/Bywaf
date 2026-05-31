@@ -60,6 +60,7 @@ base installation commandlets that declare or use each capability.
 | `db.write:finding.new` | `finding_dedupe` |
 | `db.write:finding.reviewed` | `report` |
 | `db.write:finding.updated` | `finding_dedupe` |
+| `db.write:http.headers` | `http_headers` |
 | `db.write:key.generated` | `key` |
 | `db.write:key.imported` | `key` |
 | `db.write:key.removed` | `key` |

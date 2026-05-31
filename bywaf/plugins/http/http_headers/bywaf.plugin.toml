@@ -5,8 +5,51 @@ service = false
 
 [[commandlets]]
 name = "http_headers"
+consumes = [
+  "port.open",
+]
+emits = [
+  "http.headers",
+  "finding.candidate",
+]
 capabilities = [
   "db.write:finding.candidate",
+  "db.write:http.headers",
   "network.connect",
 ]
 module = "bywaf.plugins.http.http_headers"
+database.actions.view = false
+database.actions.write = true
+database.actions.manage = false
+
+[[event_schemas]]
+topic = "http.headers"
+version = "1"
+summary = "HTTP response headers observed from one host and port."
+notes = [
+  "This is a plugin-owned fact emitted by http_headers; use finding.candidate for reportable missing-header issues.",
+]
+
+[[event_schemas.fields]]
+name = "host"
+type = "str"
+required = true
+description = "HTTP target host."
+
+[[event_schemas.fields]]
+name = "port"
+type = "int"
+required = true
+description = "HTTP target port."
+
+[[event_schemas.fields]]
+name = "status"
+type = "int"
+required = true
+description = "HTTP response status code."
+
+[[event_schemas.fields]]
+name = "headers"
+type = "dict"
+required = true
+description = "Observed response headers keyed by header name."

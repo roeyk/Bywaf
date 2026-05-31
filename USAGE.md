@@ -1864,6 +1864,10 @@ bywaf> http_headers example.com
 bywaf> http_headers --ssl true example.com
 ```
 
+`results` renders `http.headers` as a compact header summary, including missing
+high-value security headers. Missing-header findings still flow through
+`finding.candidate` for review.
+
 `http_probe` probes HTTP endpoints and emits `http.endpoint` events:
 
 ```text

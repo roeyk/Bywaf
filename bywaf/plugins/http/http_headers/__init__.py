@@ -47,7 +47,8 @@ DEFAULTS = {"port": "", "ssl": "false", "target": "", "timeout": 5}
     ),
     consumes=("port.open",),
     emits=("http.headers", "finding.candidate"),
-    capabilities=("db.write:finding.candidate", "network.connect"),
+    capabilities=("db.write:finding.candidate", "db.write:http.headers", "network.connect"),
+    database_actions=("write",),
 )
 @option("port", "target port")
 @option("ssl", "use HTTPS", "false", ("true", "false"))

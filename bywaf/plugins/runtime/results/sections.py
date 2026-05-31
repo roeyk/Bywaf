@@ -91,6 +91,50 @@ def render_http_endpoints_section(context: CommandContext, events: list[Event]) 
     return f"HTTP endpoints ({len(events)})\n{table}"
 
 
+def render_http_headers_section(context: CommandContext, events: list[Event]) -> str:
+    """Render HTTP header probe results."""
+    rows = [
+        (
+            event.payload.get("host", ""),
+            event.payload.get("port", ""),
+            event.payload.get("status", ""),
+            header_count(event.payload.get("headers")),
+            missing_header_summary(event.payload.get("headers")),
+        )
+        for event in sorted(
+            events,
+            key=lambda event: (
+                str(event.payload.get("host") or ""),
+                int(event.payload.get("port") or 0),
+                event.id or 0,
+            ),
+        )
+    ]
+    table = render_table(
+        ("HOST", "PORT", "STATUS", "HEADERS", "MISSING"),
+        rows,
+        cell_subjects=("host", "port", "status", "value", "finding.title"),
+        style_getter=command_context_style_getter(context),
+        max_width=terminal_table_width(),
+    )
+    return f"HTTP headers ({len(events)})\n{table}"
+
+
+def header_count(value: object) -> int | str:
+    """Return the number of observed headers."""
+    return len(value) if isinstance(value, dict) else ""
+
+
+def missing_header_summary(value: object) -> str:
+    """Return missing high-value headers from an observed header mapping."""
+    if not isinstance(value, dict):
+        return ""
+    observed = {str(header).lower() for header in value}
+    expected = ("strict-transport-security", "x-content-type-options")
+    missing = [header for header in expected if header not in observed]
+    return ", ".join(missing)
+
+
 def render_tcp_banners_section(context: CommandContext, events: list[Event]) -> str:
     """Render TCP banner probe results as a compact result table."""
     rows = [

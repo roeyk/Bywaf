@@ -1695,10 +1695,10 @@ class AppDispatchTests(unittest.TestCase):
 
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "schemas owner=plugin topic=web.fingerprint detail=true")
+                dispatch_repl_line(runner, "schemas owner=plugin topic=web. detail=true")
 
             text = output.getvalue()
-            self.assertIn("Schemas: owner=plugin topic=web.fingerprint", text)
+            self.assertIn("Schemas: owner=plugin topic=web.", text)
             self.assertIn("Schema detail: web.fingerprint", text)
             self.assertIn("owner: plugin", text)
             self.assertIn("FIELD", text)
@@ -2131,6 +2131,41 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("Web fingerprints", text)
             self.assertIn("nginx", text)
             self.assertIn("info:1", text)
+            self.assertNotIn("Representative events", text)
+
+    def test_results_renders_http_headers_summary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.record_job("http_headers example.test", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=1,
+                pipeline_id="headers-pipeline",
+                command_run_id="headers-step",
+                commandlet="http_headers",
+                values={},
+            )
+            runner.db.publish(
+                "http.headers",
+                {
+                    "host": "example.test",
+                    "port": 443,
+                    "status": 200,
+                    "headers": {"server": "nginx"},
+                },
+                "http_headers",
+                pipeline_id="headers-pipeline",
+                command_run_id="headers-step",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "results")
+
+            text = output.getvalue()
+            self.assertIn("Shared schemas: http.headers", text)
+            self.assertIn("HTTP headers", text)
+            self.assertIn("example.test", text)
+            self.assertIn("strict-transport-security", text)
             self.assertNotIn("Representative events", text)
 
     def test_results_renders_tcp_banner_summaries(self):
