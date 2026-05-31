@@ -26,6 +26,7 @@ from .capabilities import (
     framework_request_capability,
 )
 from .process import ContextProcess
+from .pipeline import ContextPipeline
 from .services import (
     ContextArtifacts,
     ContextEvents,
@@ -132,6 +133,11 @@ class CommandContext:
     def signals(self) -> "ContextSignals":
         """Return live-control signals addressed to this commandlet run."""
         return ContextSignals(self)
+
+    @property
+    def pipeline(self) -> ContextPipeline:
+        """Return mediated control over the current pipeline."""
+        return ContextPipeline(self)
 
     @property
     def pipeline_id(self) -> str | None:

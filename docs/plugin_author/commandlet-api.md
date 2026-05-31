@@ -508,6 +508,7 @@ At execution time, commandlets receive a `CommandContext`:
 - `context.process.stream(argv)`: stream stdout/stderr chunks incrementally
 - `context.artifacts.attach_file(path, name=..., note=...)`: attach one evidence file
 - `context.artifacts.attach_files(paths)`: attach several evidence files
+- `context.pipeline.stop(reason=...)`: intentionally stop downstream pipeline stages
 - `context.signals.pending(action=...)`: read live-control signals for this step
 - `context.signals.applied(request, message, **details)`: acknowledge a signal
 - `context.signals.ignored(request, message, **details)`: decline a signal
@@ -527,6 +528,15 @@ Plugin-domain signals should be designed around steps. A step is the commandlet
 execution context that can poll `context.signals`; a job is the framework's
 supervised lifecycle wrapper, and a pipeline is a grouping scope rather than
 code that can receive a plugin signal.
+
+Use `context.pipeline.stop(reason=...)` when a commandlet has reached a
+deliberate terminal decision and downstream stages should not run. For example,
+a prerequisite checker can stop a pipeline after proving that a required
+external tool or target state is absent. Declare `framework.pipeline.control`
+for commandlets that may stop pipelines. The framework records
+`framework.pipeline.stop.requested`, records a pipeline cancellation marker,
+marks the current step completed with stop metadata, and skips later foreground
+stages without treating the stop as an unhandled crash.
 
 For beginner plugins, the core loop is usually:
 

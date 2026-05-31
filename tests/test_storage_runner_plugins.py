@@ -35,9 +35,44 @@ from bywaf.plugins.runtime.artifact import select_artifacts
 from bywaf.plugins.runtime.watchdog import Watchdog
 from bywaf.plugins.storage.db import encrypt_active_database
 from bywaf.plugin import CommandContext
+from bywaf.specs import CommandSpec
 from bywaf.command.parser import parse_invocation, parse_pipeline
 from bywaf.runner import expand_at_file_arg, prepare_stage_runs, run_background_job, should_run_stage_processes
 from bywaf.varstore import VarStore
+
+
+class StopPipelinePlugin:
+    spec = CommandSpec(
+        "stop_pipeline",
+        "stop the current pipeline",
+        capabilities=("framework.pipeline.control",),
+    )
+
+    def run(self, context, args, input_events):
+        del args, input_events
+        context.pipeline.stop("nothing useful downstream")
+        return ()
+
+
+class StopPipelineWithoutCapabilityPlugin:
+    spec = CommandSpec("stop_pipeline_undeclared", "stop the current pipeline without declaring control")
+
+    def run(self, context, args, input_events):
+        del args, input_events
+        context.pipeline.stop("undeclared")
+        return ()
+
+
+class DownstreamMarkerPlugin:
+    spec = CommandSpec(
+        "downstream_marker",
+        "mark downstream execution",
+        emits=("downstream.marker",),
+    )
+
+    def run(self, context, args, input_events):
+        del context, args, input_events
+        yield {"ran": True}
 
 
 
@@ -46,6 +81,34 @@ class StorageRunnerPluginTests(unittest.TestCase):
         invocation = parse_invocation("hostscanner 127.0.0.1")
         self.assertEqual(invocation.name, "hostscanner")
         self.assertEqual(invocation.args, ["127.0.0.1"])
+
+    def test_plugin_can_stop_pipeline_before_downstream_stage(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.registry.register_commandlet("test", StopPipelinePlugin(), origin="bundled")
+            runner.registry.register_commandlet("test", DownstreamMarkerPlugin(), origin="bundled")
+
+            events = runner.execute("stop_pipeline | downstream_marker")
+
+            self.assertEqual(events, [])
+            self.assertTrue(runner.db.events_for_topic("framework.pipeline.stop.requested"))
+            stopped = runner.db.events_for_topic("pipeline.stopped")[0]
+            self.assertEqual(stopped.payload["reason"], "nothing useful downstream")
+            self.assertTrue(runner.db.cancellation_requested(pipeline_id=stopped.pipeline_id))
+            self.assertEqual(runner.db.events_for_topic("downstream.marker"), [])
+
+    def test_plugin_pipeline_stop_requires_declared_capability(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.registry.register_commandlet("test", StopPipelineWithoutCapabilityPlugin(), origin="bundled")
+            runner.registry.register_commandlet("test", DownstreamMarkerPlugin(), origin="bundled")
+
+            with self.assertRaisesRegex(PermissionError, "framework.pipeline.control"):
+                runner.execute("stop_pipeline_undeclared | downstream_marker")
+
+            self.assertTrue(runner.db.events_for_topic("plugin.capability.missing"))
+            self.assertEqual(runner.db.events_for_topic("framework.pipeline.stop.requested"), [])
+            self.assertEqual(runner.db.events_for_topic("downstream.marker"), [])
 
     def test_parse_pipeline(self):
         pipeline = parse_pipeline("hostscanner 127.0.0.1 | portscanner port=80 &")

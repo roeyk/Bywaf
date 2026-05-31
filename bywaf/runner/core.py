@@ -153,6 +153,21 @@ class Runner:
             )
             input_events = result.events
             produced.extend(result.events)
+            if result.stopped:
+                self.db.publish(
+                    "pipeline.stopped",
+                    {
+                        "pipeline_id": pipeline_id,
+                        "reason": result.stop_reason,
+                        "command_run_id": stage.command_run_id,
+                        "job_id": self.job_id,
+                    },
+                    "framework",
+                    pipeline_id=pipeline_id,
+                    command_run_id=stage.command_run_id,
+                    parent_command_run_id=stage.parent_command_run_id,
+                )
+                break
         return produced
 
     def replace_db(self, db: EventStore) -> None:

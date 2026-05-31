@@ -20,7 +20,7 @@ from typing import cast
 from ..command.parser import CommandInvocation
 from ..db import EventStore
 from ..event import Event
-from ..plugin import CommandContext
+from ..plugin import CommandContext, PipelineStop
 from ..plugin.capabilities import DATABASE_ACTIONS
 from ..registry import PluginRegistry
 from ..secret.store import REDACTED_VALUE, fingerprint_secret, load_or_create_fingerprint_key
@@ -35,6 +35,8 @@ class StageResult:
     """Events produced by one executed pipeline stage."""
 
     events: list[Event]
+    stopped: bool = False
+    stop_reason: str = ""
 
 
 def execute_stage(
@@ -116,6 +118,9 @@ def execute_stage(
         )
         publish_command_run_lifecycle(context, "completed", emitted=len(events))
         return StageResult(events)
+    except PipelineStop as exc:
+        publish_command_run_lifecycle(context, "completed", emitted=0, stopped=True, reason=exc.reason)
+        return StageResult([], stopped=True, stop_reason=exc.reason)
     except Exception as exc:
         publish_command_run_lifecycle(context, "failed", error=str(exc), exception=exc.__class__.__name__)
         raise

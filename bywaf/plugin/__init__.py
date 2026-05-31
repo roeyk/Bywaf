@@ -38,6 +38,10 @@ from .context import (
     command_run_id,
     emit_alert,
 )
+from .pipeline import (
+    ContextPipeline,
+    PipelineStop,
+)
 from .services import (
     CompletionContext,
     ContextArtifacts,
@@ -92,6 +96,7 @@ __all__ = [
     "ContextArtifacts",
     "ContextEvents",
     "ContextProcess",
+    "ContextPipeline",
     "ContextRender",
     "ContextSecrets",
     "ContextSignals",
@@ -102,6 +107,7 @@ __all__ = [
     "PlanReport",
     "ProcessChunk",
     "ProcessResult",
+    "PipelineStop",
     "RunConfig",
     "TriggerSpec",
     "argument",
