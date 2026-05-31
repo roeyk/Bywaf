@@ -2216,6 +2216,7 @@ class AppDispatchTests(unittest.TestCase):
 
             text = output.getvalue()
             self.assertIn("Hosts: project inventory", text)
+            self.assertIn("sorted by host ascending (use sort=-host to sort descending)", text)
             self.assertIn("192.0.2.20", text)
             self.assertIn("443/tcp https", text)
             self.assertIn("Services: project inventory", text)
@@ -2236,6 +2237,17 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("/.git/config", text)
             self.assertIn("Screenshots: project inventory", text)
             self.assertIn("artifact-1", text)
+
+            sorted_output = io.StringIO()
+            with contextlib.redirect_stdout(sorted_output):
+                dispatch_repl_line(runner, "services sort=-port")
+                dispatch_repl_line(runner, "web sort=status")
+                dispatch_repl_line(runner, "routes sort=hop")
+
+            sorted_text = sorted_output.getvalue()
+            self.assertIn("sorted by port descending (use sort=port to sort ascending)", sorted_text)
+            self.assertIn("sorted by status ascending (use sort=-status to sort descending)", sorted_text)
+            self.assertIn("sorted by hop ascending (use sort=-hop to sort descending)", sorted_text)
 
     def test_inventory_new_filters_to_latest_new_facts(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -8,7 +8,7 @@ from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.runtime_display import command_context_style_getter, render_table, terminal_table_width
 
-from .shared import add_value, finding_urls, join_values
+from .shared import add_value, finding_urls, host_sort_value, join_values, sort_note, split_sort
 
 
 @dataclass(slots=True)
@@ -41,11 +41,12 @@ class WafInventory:
     evidence: set[str] = field(default_factory=set)
 
 
-def render_web_inventory(context: CommandContext, events: list[Event], scope: str) -> str:
+def render_web_inventory(context: CommandContext, events: list[Event], scope: str, sort: str = "url") -> str:
     """Render web inventory from endpoint, WAF, path, screenshot, and finding facts."""
     inventory = build_web_inventory(events)
     if not inventory:
         return "Web: no web inventory"
+    sort_key, descending = split_sort(sort, "url")
     rows = [
         (
             web.url,
@@ -56,7 +57,7 @@ def render_web_inventory(context: CommandContext, events: list[Event], scope: st
             len(web.screenshots),
             join_values(web.findings, limit=2),
         )
-        for web in sorted(inventory.values(), key=lambda item: item.url)
+        for web in sorted(inventory.values(), key=lambda item: web_inventory_sort_key(item, sort_key), reverse=descending)
     ]
     table = render_table(
         ("URL", "STATUS", "SERVER", "PATHS", "WAF", "SHOTS", "FINDINGS"),
@@ -65,7 +66,18 @@ def render_web_inventory(context: CommandContext, events: list[Event], scope: st
         style_getter=command_context_style_getter(context),
         max_width=terminal_table_width(),
     )
-    return f"Web: {scope} ({len(rows)} endpoints)\n{table}"
+    return f"Web: {scope} ({len(rows)} endpoints)\n{sort_note(sort, 'url')}\n{table}"
+
+
+def web_inventory_sort_key(web: WebInventory, key: str) -> object:
+    """Return a sortable web inventory value."""
+    if key == "host":
+        return (host_sort_value(web.host), web.url)
+    if key == "status":
+        return (web.status, web.url)
+    if key == "server":
+        return (web.server.casefold(), web.url)
+    return web.url
 
 def build_web_inventory(events: list[Event]) -> dict[str, WebInventory]:
     """Aggregate web endpoint facts."""
@@ -98,11 +110,12 @@ def build_web_inventory(events: list[Event]) -> dict[str, WebInventory]:
                 add_value(row.findings, payload.get("title") or payload.get("class"))
     return web
 
-def render_wafs_inventory(context: CommandContext, events: list[Event], scope: str) -> str:
+def render_wafs_inventory(context: CommandContext, events: list[Event], scope: str, sort: str = "vendor") -> str:
     """Render WAF inventory from edge-protection fingerprint facts."""
     inventory = build_waf_inventory(events)
     if not inventory:
         return "WAFs: no WAF inventory"
+    sort_key, descending = split_sort(sort, "vendor")
     rows = [
         (
             waf.url,
@@ -112,7 +125,7 @@ def render_wafs_inventory(context: CommandContext, events: list[Event], scope: s
             waf.confidence,
             join_values(waf.evidence, limit=2),
         )
-        for waf in sorted(inventory.values(), key=lambda item: (item.vendor.casefold(), item.url))
+        for waf in sorted(inventory.values(), key=lambda item: waf_inventory_sort_key(item, sort_key), reverse=descending)
     ]
     table = render_table(
         ("URL", "HOST", "VENDOR", "PRODUCT", "CONF", "EVIDENCE"),
@@ -121,7 +134,20 @@ def render_wafs_inventory(context: CommandContext, events: list[Event], scope: s
         style_getter=command_context_style_getter(context),
         max_width=terminal_table_width(),
     )
-    return f"WAFs: {scope} ({len(rows)} signals)\n{table}"
+    return f"WAFs: {scope} ({len(rows)} signals)\n{sort_note(sort, 'vendor')}\n{table}"
+
+
+def waf_inventory_sort_key(waf: WafInventory, key: str) -> object:
+    """Return a sortable WAF inventory value."""
+    if key == "url":
+        return (waf.url, waf.vendor.casefold())
+    if key == "host":
+        return (host_sort_value(waf.host), waf.vendor.casefold(), waf.url)
+    if key == "product":
+        return (waf.product.casefold(), waf.vendor.casefold(), waf.url)
+    if key == "confidence":
+        return (waf.confidence, waf.vendor.casefold(), waf.url)
+    return (waf.vendor.casefold(), waf.url)
 
 def build_waf_inventory(events: list[Event]) -> dict[tuple[str, str], WafInventory]:
     """Aggregate WAF fingerprint facts."""

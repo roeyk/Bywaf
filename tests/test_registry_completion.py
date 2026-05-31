@@ -630,6 +630,10 @@ class RegistryCompletionTests(unittest.TestCase):
                 self.assertIn("job=", completer.candidates(f"{command} j"))
                 self.assertIn("pipeline=", completer.candidates(f"{command} p"))
                 self.assertIn("step=", completer.candidates(f"{command} s"))
+                if command == "ports":
+                    self.assertIn("sort=", completer.candidates(f"{command} so"))
+                else:
+                    self.assertTrue(any(item.startswith("sort=") for item in completer.candidates(f"{command} so")))
         report_candidates = completer.candidates("report --")
         self.assertIn("--last", report_candidates)
         self.assertIn("--new", report_candidates)

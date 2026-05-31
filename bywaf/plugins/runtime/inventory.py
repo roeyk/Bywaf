@@ -52,12 +52,24 @@ class InventoryCommand(CommandletBase):
     """Shared parser and selector behavior for inventory commandlets."""
 
     topics: tuple[str, ...] = ()
+    sort_keys: tuple[str, ...] = ()
     identity = staticmethod(lambda event: set())
 
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
         """Complete common inventory selectors."""
         del context, args
-        candidates = ["--last", "--new", "--page", "all=true", "job=", "job=latest", "pipeline=", "step="]
+        candidates = [
+            "--last",
+            "--new",
+            "--page",
+            "all=true",
+            "job=",
+            "job=latest",
+            "pipeline=",
+            "step=",
+            *(f"sort={key}" for key in self.sort_keys),
+            *(f"sort=-{key}" for key in self.sort_keys),
+        ]
         return [candidate for candidate in candidates if candidate.startswith(prefix)]
 
     def selected_events(self, context: CommandContext, args: list[str]) -> tuple[Namespace, list[Event], bool]:
@@ -69,7 +81,12 @@ class InventoryCommand(CommandletBase):
         parser.add_argument("--page", action="store_true")
         parser.add_argument("selectors", nargs="*", metavar="key=value")
         parsed = parser.parse_args(args)
-        selectors = parse_inventory_selectors(parsed.selectors, last=parsed.last, new=parsed.new)
+        selectors = parse_inventory_selectors(
+            parsed.selectors,
+            last=parsed.last,
+            new=parsed.new,
+            sort_keys=self.sort_keys,
+        )
         context.require_foreground(f"{self.spec.name} inventory views")
         events = select_inventory_events(context, self.topics, selectors, self.identity)
         return selectors, events, bool(parsed.page)
@@ -88,13 +105,14 @@ class Hosts(InventoryCommand):
     """Render a compact host inventory."""
 
     topics = HOST_TOPICS
+    sort_keys = ("host", "name", "status", "ports", "web", "findings")
     identity = staticmethod(lambda event: host_event_keys(event))
 
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Render host inventory rows."""
         del input_events
         selectors, events, page = self.selected_events(context, args)
-        output = render_hosts_inventory(context, events, inventory_scope_label(selectors))
+        output = render_hosts_inventory(context, events, inventory_scope_label(selectors), selectors.sort)
         if page:
             context.page_text(output)
         else:
@@ -115,13 +133,14 @@ class Services(InventoryCommand):
     """Render a compact service inventory."""
 
     topics = SERVICE_TOPICS
+    sort_keys = ("host", "port", "service", "product")
     identity = staticmethod(lambda event: service_event_keys(event))
 
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Render service inventory rows."""
         del input_events
         selectors, events, page = self.selected_events(context, args)
-        output = render_services_inventory(context, events, inventory_scope_label(selectors))
+        output = render_services_inventory(context, events, inventory_scope_label(selectors), selectors.sort)
         if page:
             context.page_text(output)
         else:
@@ -142,13 +161,14 @@ class Web(InventoryCommand):
     """Render a compact web endpoint inventory."""
 
     topics = WEB_TOPICS
+    sort_keys = ("url", "host", "status", "server")
     identity = staticmethod(lambda event: web_event_keys(event))
 
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Render web inventory rows."""
         del input_events
         selectors, events, page = self.selected_events(context, args)
-        output = render_web_inventory(context, events, inventory_scope_label(selectors))
+        output = render_web_inventory(context, events, inventory_scope_label(selectors), selectors.sort)
         if page:
             context.page_text(output)
         else:
@@ -169,13 +189,14 @@ class Wafs(InventoryCommand):
     """Render compact WAF fingerprint inventory."""
 
     topics = WAF_TOPICS
+    sort_keys = ("vendor", "url", "host", "product", "confidence")
     identity = staticmethod(lambda event: waf_event_keys(event))
 
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Render WAF inventory rows."""
         del input_events
         selectors, events, page = self.selected_events(context, args)
-        output = render_wafs_inventory(context, events, inventory_scope_label(selectors))
+        output = render_wafs_inventory(context, events, inventory_scope_label(selectors), selectors.sort)
         if page:
             context.page_text(output)
         else:
@@ -196,13 +217,14 @@ class Shares(InventoryCommand):
     """Render compact network share inventory."""
 
     topics = SHARE_TOPICS
+    sort_keys = ("host", "share", "access")
     identity = staticmethod(lambda event: share_event_keys(event))
 
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Render share inventory rows."""
         del input_events
         selectors, events, page = self.selected_events(context, args)
-        output = render_shares_inventory(context, events, inventory_scope_label(selectors))
+        output = render_shares_inventory(context, events, inventory_scope_label(selectors), selectors.sort)
         if page:
             context.page_text(output)
         else:
@@ -223,13 +245,14 @@ class Routes(InventoryCommand):
     """Render compact route-hop inventory."""
 
     topics = ROUTE_TOPICS
+    sort_keys = ("target", "hop", "host", "ip", "rtt")
     identity = staticmethod(lambda event: route_event_keys(event))
 
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Render route inventory rows."""
         del input_events
         selectors, events, page = self.selected_events(context, args)
-        output = render_routes_inventory(context, events, inventory_scope_label(selectors))
+        output = render_routes_inventory(context, events, inventory_scope_label(selectors), selectors.sort)
         if page:
             context.page_text(output)
         else:
@@ -250,13 +273,14 @@ class Certs(InventoryCommand):
     """Render compact TLS certificate inventory."""
 
     topics = CERT_TOPICS
+    sort_keys = ("host", "port", "subject", "issuer", "not_after")
     identity = staticmethod(lambda event: cert_event_keys(event))
 
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Render certificate inventory rows."""
         del input_events
         selectors, events, page = self.selected_events(context, args)
-        output = render_certs_inventory(context, events, inventory_scope_label(selectors))
+        output = render_certs_inventory(context, events, inventory_scope_label(selectors), selectors.sort)
         if page:
             context.page_text(output)
         else:
@@ -277,13 +301,14 @@ class Banners(InventoryCommand):
     """Render compact TCP banner inventory."""
 
     topics = BANNER_TOPICS
+    sort_keys = ("host", "port")
     identity = staticmethod(lambda event: banner_event_keys(event))
 
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Render banner inventory rows."""
         del input_events
         selectors, events, page = self.selected_events(context, args)
-        output = render_banners_inventory(context, events, inventory_scope_label(selectors))
+        output = render_banners_inventory(context, events, inventory_scope_label(selectors), selectors.sort)
         if page:
             context.page_text(output)
         else:
@@ -304,13 +329,14 @@ class Paths(InventoryCommand):
     """Render compact HTTP path inventory."""
 
     topics = PATH_TOPICS
+    sort_keys = ("host", "path", "status", "url")
     identity = staticmethod(lambda event: path_event_keys(event))
 
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Render path inventory rows."""
         del input_events
         selectors, events, page = self.selected_events(context, args)
-        output = render_paths_inventory(context, events, inventory_scope_label(selectors))
+        output = render_paths_inventory(context, events, inventory_scope_label(selectors), selectors.sort)
         if page:
             context.page_text(output)
         else:
@@ -331,13 +357,14 @@ class Screenshots(InventoryCommand):
     """Render compact screenshot artifact inventory."""
 
     topics = SCREENSHOT_TOPICS
+    sort_keys = ("host", "shots", "tool")
     identity = staticmethod(lambda event: screenshot_event_keys(event))
 
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Render screenshot inventory rows."""
         del input_events
         selectors, events, page = self.selected_events(context, args)
-        output = render_screenshots_inventory(context, events, inventory_scope_label(selectors))
+        output = render_screenshots_inventory(context, events, inventory_scope_label(selectors), selectors.sort)
         if page:
             context.page_text(output)
         else:

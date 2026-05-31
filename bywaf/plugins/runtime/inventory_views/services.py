@@ -9,7 +9,7 @@ from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.runtime_display import command_context_style_getter, render_table, terminal_table_width
 
-from .shared import add_value, default_port, format_product, host_sort_value, join_values
+from .shared import add_value, default_port, format_product, host_sort_value, join_values, sort_note, split_sort
 
 SERVICE_TOPICS = ("port.open", "service.detected", "http.endpoint", "tcp.banner", "tls.certificate")
 
@@ -29,11 +29,12 @@ class ServiceInventory:
     evidence: set[str] = field(default_factory=set)
 
 
-def render_services_inventory(context: CommandContext, events: list[Event], scope: str) -> str:
+def render_services_inventory(context: CommandContext, events: list[Event], scope: str, sort: str = "host") -> str:
     """Render service inventory from network and web service facts."""
     inventory = build_service_inventory(events)
     if not inventory:
         return "Services: no service inventory"
+    sort_key, descending = split_sort(sort, "host")
     rows = [
         (
             service.host,
@@ -43,7 +44,7 @@ def render_services_inventory(context: CommandContext, events: list[Event], scop
             join_values(service.products),
             join_values(service.urls, limit=2) or join_values(service.evidence, limit=2),
         )
-        for service in sorted(inventory.values(), key=lambda item: (host_sort_value(item.host), item.port, item.protocol))
+        for service in sorted(inventory.values(), key=lambda item: service_inventory_sort_key(item, sort_key), reverse=descending)
     ]
     table = render_table(
         ("HOST", "PORT", "PROTO", "SERVICE", "PRODUCT", "URL / EVIDENCE"),
@@ -52,7 +53,18 @@ def render_services_inventory(context: CommandContext, events: list[Event], scop
         style_getter=command_context_style_getter(context),
         max_width=terminal_table_width(),
     )
-    return f"Services: {scope} ({len(rows)} services)\n{table}"
+    return f"Services: {scope} ({len(rows)} services)\n{sort_note(sort, 'host')}\n{table}"
+
+
+def service_inventory_sort_key(service: ServiceInventory, key: str) -> object:
+    """Return a sortable service inventory value."""
+    if key == "port":
+        return (service.port, host_sort_value(service.host), service.protocol)
+    if key == "service":
+        return (join_values(service.services), host_sort_value(service.host), service.port)
+    if key == "product":
+        return (join_values(service.products), host_sort_value(service.host), service.port)
+    return (host_sort_value(service.host), service.port, service.protocol)
 
 def build_service_inventory(events: list[Event]) -> dict[tuple[str, int, str], ServiceInventory]:
     """Aggregate service-level event facts."""

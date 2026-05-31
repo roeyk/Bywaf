@@ -8,7 +8,7 @@ from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.runtime_display import command_context_style_getter, render_table, terminal_table_width
 
-from .shared import add_value, finding_hosts, host_sort_value, join_values, port_label
+from .shared import add_value, finding_hosts, host_sort_value, join_values, port_label, sort_note, split_sort
 
 
 @dataclass(slots=True)
@@ -25,11 +25,12 @@ class HostInventory:
     findings: set[str] = field(default_factory=set)
 
 
-def render_hosts_inventory(context: CommandContext, events: list[Event], scope: str) -> str:
+def render_hosts_inventory(context: CommandContext, events: list[Event], scope: str, sort: str = "host") -> str:
     """Render host inventory from schema-backed event facts."""
     inventory = build_host_inventory(events)
     if not inventory:
         return "Hosts: no host inventory"
+    sort_key, descending = split_sort(sort, "host")
     rows = [
         (
             host.host,
@@ -39,7 +40,7 @@ def render_hosts_inventory(context: CommandContext, events: list[Event], scope: 
             len(host.web_urls),
             len(host.findings),
         )
-        for host in sorted(inventory.values(), key=lambda item: host_sort_value(item.host))
+        for host in sorted(inventory.values(), key=lambda item: host_inventory_sort_key(item, sort_key), reverse=descending)
     ]
     table = render_table(
         ("HOST", "NAMES", "STATUS", "OPEN PORTS", "WEB", "FINDINGS"),
@@ -48,7 +49,22 @@ def render_hosts_inventory(context: CommandContext, events: list[Event], scope: 
         style_getter=command_context_style_getter(context),
         max_width=terminal_table_width(),
     )
-    return f"Hosts: {scope} ({len(rows)} hosts)\n{table}"
+    return f"Hosts: {scope} ({len(rows)} hosts)\n{sort_note(sort, 'host')}\n{table}"
+
+
+def host_inventory_sort_key(host: HostInventory, key: str) -> object:
+    """Return a sortable host inventory value."""
+    if key == "name":
+        return join_values(host.names)
+    if key == "status":
+        return join_values(host.statuses)
+    if key == "ports":
+        return len(host.ports)
+    if key == "web":
+        return len(host.web_urls)
+    if key == "findings":
+        return len(host.findings)
+    return host_sort_value(host.host)
 
 def build_host_inventory(events: list[Event]) -> dict[str, HostInventory]:
     """Aggregate host-level event facts."""

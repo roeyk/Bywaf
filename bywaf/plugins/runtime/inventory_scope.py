@@ -14,17 +14,32 @@ SCOPE_KEYS = {"all", "job", "pipeline", "step"}
 InventoryIdentity = Callable[[Event], set[tuple[Any, ...]]]
 
 
-def parse_inventory_selectors(tokens: list[str], *, last: bool = False, new: bool = False) -> Namespace:
+def parse_inventory_selectors(
+    tokens: list[str],
+    *,
+    last: bool = False,
+    new: bool = False,
+    sort_keys: tuple[str, ...] = (),
+) -> Namespace:
     """Parse shared inventory scope selectors."""
     scope: dict[str, str] = {}
+    sort = sort_keys[0] if sort_keys else ""
     for token in tokens:
         if token.startswith("--"):
             raise ValueError(f"inventory views use selector syntax; use key=value, not {token}")
         key, separator, value = token.partition("=")
         if not separator or not key or not value:
             raise ValueError("inventory selectors must be key=value")
+        if key == "sort":
+            descending = value.startswith("-")
+            sort_name = value[1:] if descending else value
+            if sort_name not in sort_keys:
+                raise ValueError(f"inventory sort= must be one of: {', '.join(sort_keys)}")
+            sort = value
+            continue
         if key not in SCOPE_KEYS:
-            raise ValueError("inventory selectors must be one of: all, job, pipeline, step")
+            allowed = ", ".join((*sorted(SCOPE_KEYS), "sort"))
+            raise ValueError(f"inventory selectors must be one of: {allowed}")
         scope[key] = value
     all_value = scope.get("all", "true")
     if all_value not in {"true", "false"}:
@@ -38,7 +53,7 @@ def parse_inventory_selectors(tokens: list[str], *, last: bool = False, new: boo
         raise ValueError("inventory accepts only one of --last or --new")
     if (last or new) and scope.get("all") == "true":
         raise ValueError("inventory all=true cannot be combined with --last or --new")
-    return Namespace(scope=scope, last=last, new=new)
+    return Namespace(scope=scope, last=last, new=new, sort=sort)
 
 
 def select_inventory_events(
