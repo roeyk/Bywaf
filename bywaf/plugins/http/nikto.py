@@ -158,8 +158,8 @@ def run_target(context: CommandContext, parsed: Any, target: dict[str, Any]) -> 
                 },
             )
 
-        data = load_nikto_json(context, output_path, target)
         artifact_payload = attach_raw_output(context, output_path, target) if output_path.exists() else {}
+        data = load_nikto_json(context, output_path, target, artifact_payload)
         findings = normalize_findings(target, data, artifact_payload)
         for finding in findings:
             publish_finding(context, finding, silent=bool(parsed.silent))
@@ -270,7 +270,12 @@ def dedupe_targets(targets: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     return deduped
 
 
-def load_nikto_json(context: CommandContext, output_path: Path, target: dict[str, Any]) -> Any:
+def load_nikto_json(
+    context: CommandContext,
+    output_path: Path,
+    target: dict[str, Any],
+    artifact_payload: dict[str, Any] | None = None,
+) -> Any:
     """Load Nikto JSON output, reporting malformed output as a tool error."""
     if not output_path.exists():
         context.events.publish(
@@ -287,7 +292,14 @@ def load_nikto_json(context: CommandContext, output_path: Path, target: dict[str
         context.audit_capability("filesystem.read")
         return json.loads(output_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
-        publish_tool_problem(context, "tool.error", target, "nikto produced invalid JSON", exc)
+        publish_tool_problem(
+            context,
+            "tool.error",
+            target,
+            "nikto produced invalid JSON; raw output artifact attached",
+            exc,
+            artifact_payload=artifact_payload,
+        )
         return {}
 
 
@@ -469,6 +481,7 @@ def publish_tool_problem(
     target: dict[str, Any],
     message: str,
     exc: BaseException,
+    artifact_payload: dict[str, Any] | None = None,
 ) -> None:
     """Publish a normalized operational problem from the Nikto wrapper."""
     context.events.publish(
@@ -480,6 +493,7 @@ def publish_tool_problem(
             "target": target,
             "exception": exc.__class__.__name__,
             "error": str(exc),
+            **(artifact_payload or {}),
         },
     )
 

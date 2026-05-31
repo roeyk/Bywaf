@@ -38,6 +38,7 @@ from bywaf.plugin import CommandContext
 from bywaf.specs import CommandSpec
 from bywaf.command.parser import parse_invocation, parse_pipeline
 from bywaf.runner import expand_at_file_arg, prepare_stage_runs, run_background_job, should_run_stage_processes
+from bywaf.repl.shell import dispatch_repl_line
 from bywaf.varstore import VarStore
 
 
@@ -526,6 +527,28 @@ class StorageRunnerPluginTests(unittest.TestCase):
             self.assertEqual(attached_events[0].payload["name"], "Landing page")
             self.assertEqual(attached_events[0].payload["sha256"], artifacts[0].sha256)
             self.assertEqual(runner.db.events_for_topic("artifact.exported")[0].payload["file"], str(output_path))
+
+    def test_artifact_show_renders_detail_and_next_commands(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp, "db.sqlite3")
+            runner = make_runner(db_path)
+            source = Path(tmp, "proof.txt")
+            source.write_text("proof", encoding="utf-8")
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute(f"artifact attach step=run-1 file={source} name=proof.txt note=evidence")
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "artifact show 1")
+
+            text = output.getvalue()
+            self.assertIn("Artifact summary", text)
+            self.assertIn("name: proof.txt", text)
+            self.assertIn("step: run-1", text)
+            self.assertIn("note: evidence", text)
+            self.assertIn("inspect further with: artifact export artifact=1", text)
+            self.assertIn("artifact verify artifact=1", text)
+            self.assertIn("Provenance events", text)
 
     @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
     def test_artifact_search_filters_name_note_and_content(self):

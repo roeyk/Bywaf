@@ -33,6 +33,7 @@ from .actions import (
     remove_artifacts,
     replace_artifact,
     search_artifact_command as run_artifact_search,
+    show_artifact,
     verify_artifacts,
 )
 from .common import ARTIFACT_ACTIONS, SEARCH_FIELDS, SEARCH_FLAGS, ArtifactActionHandler
@@ -48,13 +49,14 @@ from .selectors import parse_artifact_selectors, parse_search_selectors, pop_pag
 
 @commandlet(
     name="artifact",
-    description="Import, attach, list, export, replace, remove, and verify artifacts.",
-    usage="artifact <import|attach|list|export|replace|remove|search|verify> [serial=id|artifact=id|step=id|pipeline=id|job=id|topic=name] [file=path|dir=path]",
+    description="Import, attach, show, list, export, replace, remove, and verify artifacts.",
+    usage="artifact <import|attach|show|list|export|replace|remove|search|verify> [serial=id|artifact=id|step=id|pipeline=id|job=id|topic=name] [file=path|dir=path]",
     examples=(
         "artifact attach step=1 file=snapshot.html name='Landing page'",
         "artifact attach serial=run-... file=snapshot.html",
         "artifact import file=snapshot.html name='Landing page'",
         "artifact attach artifact=1 step=1",
+        "artifact show artifact=1",
         "artifact list step=1",
         "artifact search --regexp note='login|cookie'",
         "artifact replace artifact=1 file=snapshot-v2.html",
@@ -81,7 +83,7 @@ class ArtifactCommand(CommandletBase):
     def database_actions_for_args(self, args: list[str]) -> tuple[str, ...]:
         """Classify artifact inspection separately from artifact mutation."""
         action = args[0] if args else ""
-        return ("view",) if action in {"list", "search", "verify"} else ("write",)
+        return ("view",) if action in {"list", "search", "show", "verify"} else ("write",)
 
     def run(
         self,
@@ -92,7 +94,7 @@ class ArtifactCommand(CommandletBase):
         """Execute one artifact action."""
         del input_events
         if not args:
-            raise ValueError("artifact requires an action: import, attach, export, list, remove, replace, search, or verify")
+            raise ValueError("artifact requires an action: import, attach, export, list, remove, replace, search, show, or verify")
         action, *tokens = args
         handler = artifact_action_handlers().get(action)
         if handler is None:
@@ -122,6 +124,7 @@ def artifact_action_handlers() -> dict[str, ArtifactActionHandler]:
         "replace": replace_artifact_command,
         "export": export_artifacts_command,
         "search": search_artifact_command,
+        "show": show_artifact_command,
         "verify": verify_artifacts_command,
     }
 
@@ -134,6 +137,7 @@ def artifact_completion_selectors() -> dict[str, list[str]]:
         "replace": ["artifact=", "file=", "name=", "note="],
         "remove": ["artifact=", "serial=", "step=", "pipeline=", "job="],
         "list": ["artifact=", "serial=", "step=", "pipeline=", "job=", "topic=", "--page"],
+        "show": ["artifact=", "serial="],
         "verify": ["artifact=", "serial=", "step=", "pipeline=", "job=", "topic="],
         "export": ["artifact=", "serial=", "step=", "pipeline=", "job=", "topic=", "file=", "dir="],
         "search": [
@@ -188,6 +192,13 @@ def list_artifacts_command(context: CommandContext, tokens: list[str]) -> None:
     """Parse and run artifact list."""
     selectors = parse_artifact_selectors(tokens, allow_page=True)
     list_artifacts(context, selectors, page=pop_page_flag(selectors))
+
+
+def show_artifact_command(context: CommandContext, tokens: list[str]) -> None:
+    """Parse and run artifact show."""
+    if len(tokens) == 1 and "=" not in tokens[0]:
+        tokens = [f"artifact={tokens[0]}"]
+    show_artifact(context, parse_artifact_selectors(tokens))
 
 
 def remove_artifacts_command(context: CommandContext, tokens: list[str]) -> None:

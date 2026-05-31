@@ -13,7 +13,7 @@ from collections.abc import Callable
 
 from bywaf.plugin import CommandContext
 
-ARTIFACT_ACTIONS = ("attach", "export", "import", "list", "remove", "replace", "search", "verify")
+ARTIFACT_ACTIONS = ("attach", "export", "import", "list", "remove", "replace", "search", "show", "verify")
 SEARCH_FLAGS = ("--regexp",)
 SEARCH_FIELDS = ("name", "filename", "note", "content")
 

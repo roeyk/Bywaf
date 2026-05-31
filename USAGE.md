@@ -507,7 +507,9 @@ such as `job`, `pipeline`, `step`, `event`, and `artifact` remain separate from
 inventory commands.
 When a selected result scope produced artifacts, `results` shows an `Artifacts`
 section and the equivalent `artifact list ...` command for retrieving the
-evidence bodies.
+evidence bodies. If a wrapper cannot parse otherwise successful tool output,
+`results` shows a `Tool problems` section and includes the raw-output artifact
+reference when one is available.
 
 `web` includes HTTP endpoint, path, screenshot, WAF, finding, and web
 fingerprint facts, so `webfin` technology tags appear directly in the web
@@ -796,6 +798,8 @@ List, search, export, and verify artifacts:
 ```text
 bywaf> artifact list step=<step-id>
 bywaf> artifact list topic=artifact.attached
+bywaf> artifact show 1
+bywaf> artifact show artifact=1
 bywaf> search step=<step-id> name=landing
 bywaf> search step=<step-id> filename=snapshot.html
 bywaf> search step=<step-id> content=csrf
@@ -833,7 +837,8 @@ bywaf> step 34
 
 Each detail view prints compact artifact references plus the matching
 `artifact list job=...`, `artifact list pipeline=...`, or `artifact list
-step=...` command.
+step=...` command. Use `artifact show <id>` to inspect a single artifact's
+provenance events, hash, storage metadata, and next commands.
 
 # At-File Arguments
 

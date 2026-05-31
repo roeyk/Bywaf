@@ -80,6 +80,12 @@ def detect_waf(url: str, result: dict[str, object]) -> WebWafDetected | None:
         vendor, product = "Imperva", "Imperva Incapsula"
     elif "mod_security" in evidence.casefold() or "modsecurity" in evidence.casefold():
         vendor, product = "ModSecurity", "ModSecurity"
+    elif "x-amzn-errortype" in folded or "awsalb" in evidence.casefold() or "awselb" in evidence.casefold():
+        vendor, product = "AWS", "AWS ALB/WAF signal"
+    elif "bigipserver" in evidence.casefold() or ("f5" in evidence.casefold() and "x-waf" in folded):
+        vendor, product = "F5", "F5 BIG-IP/ASM signal"
+    elif "barracuda" in evidence.casefold():
+        vendor, product = "Barracuda", "Barracuda WAF"
     if not vendor:
         return None
     parsed = urllib.parse.urlparse(url)

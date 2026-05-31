@@ -36,6 +36,7 @@ def render_group_details(context: CommandContext, groups: list[FindingGroup]) ->
         artifacts = artifact_values(context, group)
         append_detail_line(context, lines, "Artifacts", artifacts)
         if artifacts:
+            append_detail_line(context, lines, "Artifact groups", artifact_group_values(context, group))
             append_detail_line(context, lines, "Inspect artifacts with", artifact_commands(context, group))
         append_detail_line(context, lines, "Provenance", provenance_values(context, group))
         latest = max(group.events, key=lambda event: event.created_at).created_at.isoformat()
@@ -148,6 +149,11 @@ def compact_source_value(raw: object) -> str:
 
 def artifact_values(context: CommandContext, group: FindingGroup) -> list[str]:
     """Return artifacts associated with a finding group by step or pipeline."""
+    return unique_compact_values(format_artifact_reference(context, event) for event in finding_artifact_events(context, group))
+
+
+def finding_artifact_events(context: CommandContext, group: FindingGroup) -> list[Event]:
+    """Return artifact events associated with a finding group."""
     steps = unique_compact_values(event.command_run_id or "" for event in group.events)
     pipelines = unique_compact_values(event.pipeline_id or "" for event in group.events)
     events: list[Event] = []
@@ -156,7 +162,23 @@ def artifact_values(context: CommandContext, group: FindingGroup) -> list[str]:
     if not steps:
         for pipeline in pipelines:
             events.extend(context.events.query(topic="artifact.attached", pipeline=pipeline, limit=1000))
-    return unique_compact_values(format_artifact_reference(context, event) for event in sort_unique_events(events))
+    return sort_unique_events(events)
+
+
+def artifact_group_values(context: CommandContext, group: FindingGroup) -> list[str]:
+    """Return grouped artifact references by producing commandlet/step."""
+    events = finding_artifact_events(context, group)
+    grouped: dict[str, list[str]] = {}
+    for event in events:
+        payload = event.payload
+        label = str(payload.get("commandlet") or event.source or "")
+        step = str(payload.get("command_run_id") or event.command_run_id or "")
+        if step:
+            label = f"{label}/{step}" if label else step
+        grouped.setdefault(label or "artifact", []).append(format_artifact_reference(context, event))
+    if len(grouped) <= 1:
+        return []
+    return [f"{label}: {', '.join(values)}" for label, values in sorted(grouped.items())]
 
 
 def artifact_commands(context: CommandContext, group: FindingGroup) -> list[str]:

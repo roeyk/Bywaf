@@ -14,7 +14,7 @@ from bywaf.event import Event
 from bywaf.finding import candidate_payload
 from bywaf.plugin import CommandContext, Commandlet, RunConfig, commandlet, split_var_values
 
-DEFAULT_PATHS = "/robots.txt,/.git/config,/server-status,/admin/"
+DEFAULT_PATHS = "/robots.txt,/.git/config,/server-status,/admin/,/login,/wp-login.php,/.env,/actuator/env"
 
 
 @commandlet
@@ -131,7 +131,12 @@ def is_interesting_path(path: str, result: dict[str, object]) -> bool:
         return False
     lowered = path.casefold()
     sample = str(result.get("sample") or "").casefold()
-    return lowered in {"/.git/config", "/server-status"} or "repositoryformatversion" in sample
+    return (
+        lowered in {"/.git/config", "/server-status", "/.env", "/actuator/env"}
+        or "repositoryformatversion" in sample
+        or "spring.cloud" in sample
+        or "database_url" in sample
+    )
 
 
 def finding_for_path(observed: HttpPathObserved) -> dict[str, object] | None:
@@ -146,6 +151,14 @@ def finding_for_path(observed: HttpPathObserved) -> dict[str, object] | None:
         title = "Exposed Apache server-status endpoint"
         finding_class = "web.server_status.exposed"
         severity = "medium"
+    elif observed.path == "/.env":
+        title = "Exposed environment configuration file"
+        finding_class = "web.config.env_exposed"
+        severity = "high"
+    elif observed.path == "/actuator/env":
+        title = "Exposed Spring Boot environment endpoint"
+        finding_class = "web.spring.actuator_env_exposed"
+        severity = "high"
     else:
         title = f"Interesting HTTP path exposed: {observed.path}"
         finding_class = "web.path.interesting"

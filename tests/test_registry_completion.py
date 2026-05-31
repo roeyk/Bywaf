@@ -647,7 +647,10 @@ class RegistryCompletionTests(unittest.TestCase):
 
     def test_artifact_completion_prefers_actions_first(self):
         completer = Completer(self.registry)
-        self.assertEqual(completer.candidates("artifact "), ["attach", "export", "import", "list", "remove", "replace", "search", "verify"])
+        self.assertEqual(
+            completer.candidates("artifact "),
+            ["attach", "export", "import", "list", "remove", "replace", "search", "show", "verify"],
+        )
         self.assertEqual(completer.candidates("artifact a"), ["attach"])
         self.assertIn("file=", completer.candidates("artifact attach "))
         self.assertIn("file=", completer.candidates("artifact import "))

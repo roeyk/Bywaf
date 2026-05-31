@@ -130,9 +130,11 @@ Yes. `hostscanner example.com` resolves the name before invoking nmap, records a
 
 ```text
 bywaf> artifact list
+bywaf> artifact show 1
 ```
 
-Find the artifact attached by the `nikto` pipeline step, then save it:
+Find the artifact attached by the `nikto` pipeline step, inspect its provenance,
+then save it:
 
 ```text
 bywaf> artifact export artifact=1 file=nikto.json
@@ -144,6 +146,10 @@ If you know the step ID, list or save artifacts with the `step=` selector:
 bywaf> artifact list step=7
 bywaf> artifact export step=7 dir=artifacts/nikto-step-7/
 ```
+
+If Nikto exits successfully but produces malformed JSON, `results` shows a
+`Tool problems` section with the raw-output artifact reference so the parser
+failure does not hide the evidence.
 
 For normalized Nikto findings, use the event or report flow:
 
@@ -374,11 +380,14 @@ the main audit database through metadata and hashes.
 
 ```text
 bywaf> artifact list artifact=1
+bywaf> artifact show 1
 bywaf> artifact list serial=<artifact-serial>
 ```
 
 Artifact rows show the producing `commandlet=`, attached `step=` step selector,
-`pipeline=`, `job=`, `artifact_id=`, and `sha256=`.
+`pipeline=`, `job=`, `artifact_id=`, and `sha256=`. `artifact show` expands one
+row into a readable detail block with provenance events and the exact export,
+verify, list, step, pipeline, and job commands that apply.
 
 ## How do I see the producing commandlet's parameters and environment?
 

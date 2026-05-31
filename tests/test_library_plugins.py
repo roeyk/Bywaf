@@ -192,6 +192,32 @@ class LibraryPluginTests(unittest.TestCase):
             waf = db.events_for_topic("web.waf.detected")[0].payload
             self.assertEqual(waf["vendor"], "Cloudflare")
 
+    def test_waf_detect_recognizes_aws_and_f5_signals(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(db=db, source="waf_detect", metadata={"capabilities": waf_detect.spec.capabilities})
+            responses = [
+                {"status": 403, "headers": {"X-Amzn-Errortype": "ForbiddenException"}},
+                {"status": 200, "headers": {"Set-Cookie": "BIGipServerpool=1", "X-WAF": "F5"}},
+            ]
+            with patch("bywaf.plugins.http.waf_detect.fetch_headers", side_effect=responses):
+                list(waf_detect.run(context, ["https://aws.example.test/", "https://f5.example.test/"], []))
+            vendors = [event.payload["vendor"] for event in db.events_for_topic("web.waf.detected")]
+            self.assertEqual(vendors, ["AWS", "F5"])
+
+    def test_http_paths_promotes_env_exposures(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(db=db, source="http_paths", metadata={"capabilities": http_paths.spec.capabilities})
+            with patch(
+                "bywaf.plugins.http.http_paths.probe_path",
+                return_value={"status": 200, "content_type": "text/plain", "length": 20, "sample": "DATABASE_URL=postgres://x"},
+            ):
+                list(http_paths.run(context, ["paths=/.env", "http://127.0.0.1:8080"], []))
+            finding = db.events_for_topic("finding.candidate")[0].payload
+            self.assertEqual(finding["class"], "web.config.env_exposed")
+            self.assertEqual(finding["severity"], "high")
+
     def test_traceroute_uses_host_found_input_events(self):
         targets = trace_targets(
             [],

@@ -97,6 +97,12 @@ def list_artifacts(context: CommandContext, selectors: dict[str, list[str]], *, 
         context.output(line)
 
 
+def show_artifact(context: CommandContext, selectors: dict[str, list[str]]) -> None:
+    """Show a readable detail view for exactly one artifact."""
+    artifact = single_selected_artifact(context, selectors, "artifact show")
+    context.output(format_artifact_detail(context, artifact))
+
+
 def export_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> None:
     """Export selected artifacts back to the filesystem."""
     artifacts = select_artifacts(context, selectors)
@@ -221,6 +227,67 @@ def single_selected_artifact(context: CommandContext, selectors: dict[str, list[
     if len(artifacts) > 1:
         raise ValueError(f"{action} matched multiple artifacts; use artifact=<id>")
     return artifacts[0]
+
+
+def format_artifact_detail(context: CommandContext, artifact: Artifact) -> str:
+    """Return a compact artifact detail block with provenance and next commands."""
+    rows = [
+        ("artifact", str(artifact.id)),
+        ("serial", artifact.artifact_id),
+        ("name", artifact.name),
+        ("content type", artifact.content_type),
+        ("size", str(artifact.size)),
+        ("sha256", artifact.sha256),
+        ("created", artifact.created_at),
+    ]
+    if artifact.source_path:
+        rows.append(("source path", artifact.source_path))
+    if artifact.commandlet:
+        rows.append(("commandlet", artifact.commandlet))
+    if artifact.job_id:
+        rows.append(("job", artifact.job_id))
+    if artifact.pipeline_id:
+        rows.append(("pipeline", artifact.pipeline_id))
+    if artifact.command_run_id:
+        rows.append(("step", artifact.command_run_id))
+    if artifact.parent_command_run_id:
+        rows.append(("parent step", artifact.parent_command_run_id))
+    if artifact.note:
+        rows.append(("note", artifact.note))
+    lines = ["Artifact summary", *[f"  {label}: {value}" for label, value in rows]]
+    commands = [
+        f"artifact export artifact={artifact.id} file={safe_artifact_filename(artifact)}",
+        f"artifact verify artifact={artifact.id}",
+        f"artifact list artifact={artifact.id}",
+    ]
+    if artifact.command_run_id:
+        commands.append(f"step {artifact.command_run_id}")
+    if artifact.pipeline_id:
+        commands.append(f"pipeline {artifact.pipeline_id}")
+    if artifact.job_id:
+        commands.append(f"job {artifact.job_id}")
+    lines.append("")
+    lines.append("inspect further with: " + "; ".join(commands))
+    provenance = artifact_provenance_events(context, artifact)
+    if provenance:
+        lines.append("")
+        lines.append("Provenance events")
+        for event in provenance[:8]:
+            lines.append(f"  {event.id}: {event.topic} source={event.source}")
+    return "\n".join(lines)
+
+
+def artifact_provenance_events(context: CommandContext, artifact: Artifact) -> list:
+    """Return main-DB provenance events for one artifact."""
+    events = context.event_store("artifact show")
+    matches = []
+    for topic in ("artifact.attached", "artifact.imported", "artifact.replaced", "artifact.exported", "artifact.removed"):
+        for event in events.events_matching(topic=topic, limit=100000):
+            if str(event.payload.get("artifact_id") or "") == artifact.artifact_id:
+                matches.append(event)
+            elif str(event.payload.get("artifact_row_id") or "") == str(artifact.id):
+                matches.append(event)
+    return sorted(matches, key=lambda event: event.id or 0)
 
 
 def write_artifact(context: CommandContext, artifact: Artifact, path: Path) -> None:

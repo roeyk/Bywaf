@@ -26,6 +26,7 @@ from bywaf.plugins.runtime.results.sections import (
     render_smb_shares_section,
     render_tcp_banners_section,
     render_tls_certificates_section,
+    render_tool_errors_section,
     render_waf_section,
     render_web_fingerprints_section,
 )
@@ -53,6 +54,7 @@ def render_results(context: CommandContext, scope: Namespace) -> str:
         ("web.screenshotted_host", render_screenshots_section),
         ("smb.share.found", render_smb_shares_section),
         ("artifact.attached", lambda ctx, events: render_artifacts_section(ctx, events, scope)),
+        ("tool.error", render_tool_errors_section),
     )
     summarized_topics = {topic for topic, _ in section_renderers}
     for topic, renderer in section_renderers:

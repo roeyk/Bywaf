@@ -144,6 +144,32 @@ class NiktoTests(unittest.TestCase):
             self.assertEqual(system_error["tool"], "nikto")
             self.assertIn("not found", system_error["message"])
 
+    def test_invalid_json_error_references_raw_output_artifact(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="nikto",
+                metadata={
+                    "command_run_id": "run-1",
+                    "pipeline_id": "pipeline-1",
+                    "capabilities": Nikto().spec.capabilities,
+                },
+            )
+
+            def fake_run(argv, *, cwd=None, env=None, timeout=None):
+                output_path = Path(argv[argv.index("-output") + 1])
+                output_path.write_text("{not json", encoding="utf-8")
+                return subprocess.CompletedProcess(argv, 0, stdout="ok", stderr="")
+
+            with patch("bywaf.plugin.process.run_process_argv", side_effect=fake_run):
+                list(Nikto().run(context, ["https://example.test/"], []))
+
+            error = db.events_for_topic("tool.error")[0].payload
+            self.assertIn("invalid JSON", error["message"])
+            self.assertIn("artifact_id", error)
+            self.assertTrue(db.events_for_topic("artifact.attached"))
+
 
 if __name__ == "__main__":
     unittest.main()

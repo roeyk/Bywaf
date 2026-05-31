@@ -107,8 +107,10 @@ Details
 ```
 
 Report detail intentionally references artifact rows instead of embedding file
-bodies. Use the printed `artifact list ...` command to inspect, verify, or
-export the evidence.
+bodies. Use the printed `artifact list ...` command to browse the evidence set,
+or `artifact show <id>` to inspect one artifact's provenance, hash, and export
+commands. If a finding has artifacts from multiple producer steps, report detail
+also groups those references by producing commandlet/scope.
 
 ## Scoped Views
 

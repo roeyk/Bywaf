@@ -2555,6 +2555,46 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("192.0.2.20.png", text)
             self.assertNotIn("Representative events", text)
 
+    def test_results_renders_tool_errors_with_artifact_references(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.record_job("nikto https://example.test/", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=1,
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+                commandlet="nikto",
+                values={},
+            )
+            runner.db.publish(
+                "tool.error",
+                {
+                    "tool": "nikto",
+                    "severity": "error",
+                    "message": "nikto produced invalid JSON; raw output artifact attached",
+                    "target": {"url": "https://example.test/"},
+                    "artifact_id": "artifact-raw",
+                    "artifact_row_id": 4,
+                    "name": "nikto-example.json",
+                    "content_type": "application/json",
+                    "size": 8,
+                },
+                "nikto",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "results")
+
+        text = output.getvalue()
+        self.assertIn("Tool problems", text)
+        self.assertIn("nikto produced invalid JSON", text)
+        self.assertIn("#4 nikto-example.json", text)
+        self.assertIn("applicat", text)
+        self.assertNotIn("Representative events", text)
+
     def test_results_passes_sort_to_embedded_ports_view(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
