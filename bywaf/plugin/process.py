@@ -179,6 +179,10 @@ class ContextProcess:
         if audit_env is not None:
             payload.update(audit_env)
         request = self.context.request("framework.process.run.requested", payload)
+        if self.context._db is not None:
+            # Blocking process wrappers always retain stdout/stderr as an
+            # artifact, so enforce the artifact capability before launching.
+            self.context.audit_capability("artifact.write")
         completed = run_process_argv(normalized, cwd=payload["cwd"], env=env, timeout=timeout)
         # Store redacted argv in the result object.  Plugin code gets stdout,
         # stderr, and returncode, while audit-safe argv is carried forward to
@@ -190,7 +194,8 @@ class ContextProcess:
             stderr=completed.stderr,
             request_event_id=request.id if request is not None else None,
         )
-        self.publish_result(result)
+        artifact_payload = self.attach_output_artifact(result)
+        self.publish_result(result, artifact_payload=artifact_payload)
         if check:
             result.check_returncode()
         return result
@@ -268,21 +273,41 @@ class ContextProcess:
                 process.wait(timeout=5)
         self.publish_exit(audit_argv, returncode, request_id)
 
-    def publish_result(self, result: ProcessResult) -> None:
+    def attach_output_artifact(self, result: ProcessResult) -> dict[str, Any]:
+        """Attach one redacted stdout/stderr transcript artifact for a process run."""
+        if self.context._db is None:
+            return {}
+        transcript = process_output_transcript(self.context, result)
+        artifact = self.context.artifacts.attach_text(
+            transcript,
+            name=process_output_artifact_name(result),
+            note="framework-mediated process stdout/stderr",
+            content_type="text/plain; charset=utf-8",
+        )
+        return {
+            "artifact_id": artifact.artifact_id,
+            "artifact_row_id": artifact.id,
+            "artifact_name": artifact.name,
+            "artifact_sha256": artifact.sha256,
+        }
+
+    def publish_result(self, result: ProcessResult, *, artifact_payload: Mapping[str, Any] | None = None) -> None:
         """Record the process outcome without exposing raw DB operations."""
         if self.context._db is None:
             return
+        payload = {
+            "argv": list(result.argv),
+            "returncode": result.returncode,
+            "stdout": redact_known_secret_values(self.context, result.stdout),
+            "stderr": redact_known_secret_values(self.context, result.stderr),
+            "ok": result.ok,
+            "request_event_id": result.request_event_id,
+            "job_id": self.context.job_id,
+        }
+        payload.update(artifact_payload or {})
         self.context._db.publish(
             "process.run",
-            {
-                "argv": list(result.argv),
-                "returncode": result.returncode,
-                "stdout": redact_known_secret_values(self.context, result.stdout),
-                "stderr": redact_known_secret_values(self.context, result.stderr),
-                "ok": result.ok,
-                "request_event_id": result.request_event_id,
-                "job_id": self.context.job_id,
-            },
+            payload,
             "framework",
             pipeline_id=self.context.pipeline_id,
             command_run_id=self.context.command_run_id,
@@ -355,6 +380,32 @@ def normalize_argv(argv: Sequence[str]) -> tuple[str, ...]:
     if any(part == "" for part in normalized):
         raise ValueError("process argv cannot contain empty arguments")
     return normalized
+
+
+def process_output_artifact_name(result: ProcessResult) -> str:
+    """Return a stable display name for one process-output transcript artifact."""
+    stem = Path(result.argv[0]).name if result.argv else "process"
+    request = f"-{result.request_event_id}" if result.request_event_id is not None else ""
+    return f"{stem}{request}-output.txt"
+
+
+def process_output_transcript(context: CommandContext, result: ProcessResult) -> str:
+    """Return an audit-safe process transcript suitable for artifact storage."""
+    stdout = redact_known_secret_values(context, result.stdout)
+    stderr = redact_known_secret_values(context, result.stderr)
+    return "\n".join(
+        (
+            "argv: " + " ".join(result.argv),
+            f"returncode: {result.returncode}",
+            f"ok: {str(result.ok).lower()}",
+            "",
+            "stdout:",
+            stdout,
+            "",
+            "stderr:",
+            stderr,
+        )
+    )
 
 
 def run_process_argv(

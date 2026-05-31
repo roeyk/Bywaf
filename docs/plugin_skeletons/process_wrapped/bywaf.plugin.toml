@@ -17,6 +17,7 @@ emits = [
   "example.tool.result",
 ]
 capabilities = [
+  "artifact.write",
   "framework.process.run",
 ]
 

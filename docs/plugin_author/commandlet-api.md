@@ -786,7 +786,10 @@ for chunk in context.process.stream(["tool", "--verbose"]):
         context.output(chunk.text, end="")
 ```
 
-The blocking API records `framework.process.run.requested` and `process.run`.
+The blocking API records `framework.process.run.requested`, stores a redacted
+stdout/stderr transcript as an artifact, and records `process.run` with the
+artifact reference. Commandlets that call `context.process.run(...)` should
+declare both `framework.process.run` and `artifact.write`.
 The streaming API records `framework.process.stream.requested`,
 `process.started`, `process.stdout`, `process.stderr`, and `process.exited`.
 

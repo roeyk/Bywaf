@@ -24,6 +24,7 @@ from bywaf.app import (
     process_framework_requests,
     render_prompt,
 )
+from bywaf.artifacts import artifact_store_for_event_store
 from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.plugins.http.http_headers import HttpHeaders
@@ -336,9 +337,12 @@ class FrameworkHttpAppTests(unittest.TestCase):
             )
             process_framework_requests(runner, state)
             event = runner.db.events_for_topic("process.run")[0]
+            artifact = artifact_store_for_event_store(runner.db).list(command_run_id="run-1")[0]
             self.assertEqual(event.payload["request_event_id"], request.id)
             self.assertEqual(event.payload["stdout"], "hello\n")
             self.assertEqual(event.payload["returncode"], 0)
+            self.assertEqual(event.payload["artifact_id"], artifact.artifact_id)
+            self.assertIn("stdout:\nhello\n", artifact.body.decode())
 
     def test_framework_request_denies_invalid_process_argv(self):
         with tempfile.TemporaryDirectory() as tmp:

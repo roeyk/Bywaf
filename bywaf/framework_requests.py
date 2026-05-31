@@ -16,6 +16,7 @@ from typing import Protocol
 from .db import Subscription
 from .pager import page_file
 from .plugin.process import normalize_argv, run_process_argv
+from .plugin.services import attach_generated_artifact
 from .rendering import Table, render_console_table
 from .runner import Runner
 
@@ -250,23 +251,62 @@ def handle_process_run_request(runner: Runner, state: FrameworkRequestState, eve
     except Exception as exc:
         deny_framework_request(runner, event, str(exc))
         return
+    artifact_payload = attach_framework_process_output(runner, event, argv, completed)
+    payload = {
+        "argv": list(argv),
+        "returncode": completed.returncode,
+        "stdout": completed.stdout,
+        "stderr": completed.stderr,
+        "ok": completed.returncode == 0,
+        "source": event.payload.get("source", event.source),
+        "job_id": event.payload.get("job_id"),
+        "request_event_id": event.id,
+    }
+    payload.update(artifact_payload)
     runner.events.publish(
         "process.run",
-        {
-            "argv": list(argv),
-            "returncode": completed.returncode,
-            "stdout": completed.stdout,
-            "stderr": completed.stderr,
-            "ok": completed.returncode == 0,
-            "source": event.payload.get("source", event.source),
-            "job_id": event.payload.get("job_id"),
-            "request_event_id": event.id,
-        },
+        payload,
         "framework",
         pipeline_id=event.pipeline_id,
         command_run_id=event.command_run_id,
         parent_command_run_id=event.parent_command_run_id,
     )
+
+
+def attach_framework_process_output(runner: Runner, event, argv: tuple[str, ...], completed) -> dict[str, object]:
+    """Attach one stdout/stderr transcript for shell-handled process requests."""
+    transcript = "\n".join(
+        (
+            "argv: " + " ".join(argv),
+            f"returncode: {completed.returncode}",
+            f"ok: {str(completed.returncode == 0).lower()}",
+            "",
+            "stdout:",
+            completed.stdout,
+            "",
+            "stderr:",
+            completed.stderr,
+        )
+    )
+    name = f"{Path(argv[0]).name}-{event.id}-output.txt" if event.id is not None else f"{Path(argv[0]).name}-output.txt"
+    artifact = attach_generated_artifact(
+        runner.events,
+        transcript.encode("utf-8"),
+        name=name,
+        content_type="text/plain; charset=utf-8",
+        note="framework-mediated process stdout/stderr",
+        commandlet=str(event.payload.get("source") or event.source),
+        job_id=event.payload.get("job_id"),
+        pipeline_id=event.pipeline_id,
+        command_run_id=event.command_run_id,
+        parent_command_run_id=event.parent_command_run_id,
+    )
+    return {
+        "artifact_id": artifact.artifact_id,
+        "artifact_row_id": artifact.id,
+        "artifact_name": artifact.name,
+        "artifact_sha256": artifact.sha256,
+    }
 
 
 def handle_process_stream_request(runner: Runner, state: FrameworkRequestState, event) -> None:

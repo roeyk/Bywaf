@@ -19,12 +19,14 @@ events should come from the most stable machine-readable source available.
 Wrappers should keep enough raw evidence to debug parser drift:
 
 - `process.run` or equivalent stdout/stderr provenance
-- attached raw output artifacts for large or important scans
+- attached raw output artifacts for every blocking `context.process.run(...)`
 - tool argv, return code, timeout state, and stderr summary
 - parser warning/error events when normalization is incomplete
 
 Do not make normalized events the only copy of an external tool's result when
-the parser is nontrivial.
+the parser is nontrivial. Bywaf's blocking process helper stores a redacted
+stdout/stderr transcript artifact automatically; wrapper plugins still need to
+declare `artifact.write`.
 
 ## Fixture Tests
 

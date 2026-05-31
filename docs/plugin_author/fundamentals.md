@@ -31,8 +31,9 @@ Common integration types:
   than command-line tools, but failures happen inside the Bywaf process.
 - **Process-wrapped plugins** run a mature external program through
   `context.process.run()` or `context.process.stream()`. They should declare
-  `framework.process.run` or `framework.process.stream` and let the framework
-  capture stdout, stderr, return codes, and audit events.
+  `framework.process.run` or `framework.process.stream`; blocking
+  `context.process.run()` wrappers should also declare `artifact.write` because
+  Bywaf attaches a redacted stdout/stderr transcript artifact for each run.
 - **Native or FFI plugins** load compiled code or talk to a native component.
   Treat these as higher-risk because crashes, ABI mismatches, or memory-safety
   bugs can affect the framework process unless they are isolated.

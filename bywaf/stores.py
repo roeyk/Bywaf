@@ -302,6 +302,23 @@ class ArtifactStoreProtocol(Protocol):
         """Store one file as an artifact."""
         ...
 
+    def attach_bytes(
+        self,
+        data: bytes,
+        *,
+        name: str,
+        content_type: str = "application/octet-stream",
+        note: str | None = None,
+        source_path: str | None = None,
+        commandlet: str | None = None,
+        job_id: int | str | None = None,
+        pipeline_id: str | None = None,
+        command_run_id: str | None = None,
+        parent_command_run_id: str | None = None,
+    ) -> Artifact:
+        """Store one in-memory artifact body."""
+        ...
+
     def get(self, artifact: int | str) -> Artifact:
         """Return one artifact by local row id or durable artifact id."""
         ...

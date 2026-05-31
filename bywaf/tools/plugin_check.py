@@ -187,8 +187,7 @@ class CapabilityVisitor(ast.NodeVisitor):
     def inspect_call(self, node: ast.Call, path: str) -> None:
         """Inspect one call path and record capability evidence."""
         self.inspect_authoring_call(node, path)
-        framework_capability = framework_call_capability(path)
-        if framework_capability is not None:
+        for framework_capability in framework_call_capabilities(path):
             self.add_evidence(framework_capability, "framework_call", node, path)
 
         # Calls through CommandContext are high-confidence evidence because they
@@ -491,27 +490,27 @@ class CapabilityVisitor(ast.NodeVisitor):
         return ""
 
 
-def framework_call_capability(path: str) -> str | None:
-    """Return the capability implied by a known framework API call."""
+def framework_call_capabilities(path: str) -> tuple[str, ...]:
+    """Return capabilities implied by a known framework API call."""
     return {
-        "context.alert": "framework.console.alert",
-        "context.output": "framework.console.output",
-        "context.page_file": "framework.file.page",
-        "context.page_text": "framework.file.page",
-        "context.table": "framework.render.table",
-        "context.render.table": "framework.render.table",
-        "context.process.run": "framework.process.run",
-        "context.process.stream": "framework.process.stream",
-        "context.require_db": "db.raw",
-        "context.maintenance_store": "db.raw",
-        "context.progress": "plugin.progress",
-        "context.progress_started": "plugin.progress",
-        "context.progress_completed": "plugin.progress",
-        "context.progress_failed": "plugin.progress",
-        "context.secrets.resolve": "framework.secret.resolve",
-        "context.artifacts.attach_file": "filesystem.read",
-        "context.artifacts.attach_files": "filesystem.read",
-    }.get(path)
+        "context.alert": ("framework.console.alert",),
+        "context.output": ("framework.console.output",),
+        "context.page_file": ("framework.file.page",),
+        "context.page_text": ("framework.file.page",),
+        "context.table": ("framework.render.table",),
+        "context.render.table": ("framework.render.table",),
+        "context.process.run": ("framework.process.run", "artifact.write"),
+        "context.process.stream": ("framework.process.stream",),
+        "context.require_db": ("db.raw",),
+        "context.maintenance_store": ("db.raw",),
+        "context.progress": ("plugin.progress",),
+        "context.progress_started": ("plugin.progress",),
+        "context.progress_completed": ("plugin.progress",),
+        "context.progress_failed": ("plugin.progress",),
+        "context.secrets.resolve": ("framework.secret.resolve",),
+        "context.artifacts.attach_file": ("filesystem.read",),
+        "context.artifacts.attach_files": ("filesystem.read",),
+    }.get(path, ())
 
 
 def literal_string_argument(node: ast.Call, keyword: str, position: int | None) -> str | None:

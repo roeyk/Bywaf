@@ -15,6 +15,7 @@ import tempfile
 import unittest
 
 from bywaf.config import Settings, default_settings
+from bywaf.artifacts import artifact_store_for_event_store
 from bywaf.db import EventStore
 from bywaf.event.schema_objects import OpenPort
 from bywaf.plugin import (
@@ -253,11 +254,14 @@ class ConfigPluginTests(unittest.TestCase):
             requests = db.events_for_topic("framework.process.run.requested")
             results = db.events_for_topic("process.run")
             used = db.events_for_topic("plugin.capability.used")
+            artifacts = artifact_store_for_event_store(db).list(command_run_id="run-1")
         self.assertTrue(result.ok)
         self.assertEqual(result.stdout, "hello\n")
         self.assertEqual(requests[0].payload["argv"], [sys.executable, "-c", "print('hello')"])
         self.assertEqual(results[0].payload["returncode"], 0)
         self.assertEqual(results[0].payload["request_event_id"], requests[0].id)
+        self.assertEqual(results[0].payload["artifact_id"], artifacts[0].artifact_id)
+        self.assertIn("stdout:\nhello\n", artifacts[0].body.decode())
         self.assertEqual(used[0].payload["capability"], "framework.process.run")
         self.assertTrue(used[0].payload["declared"])
 
@@ -285,6 +289,40 @@ class ConfigPluginTests(unittest.TestCase):
             context.process.run([sys.executable, "-c", "print('hello')"])
             missing = db.events_for_topic("plugin.capability.missing")
         self.assertEqual(missing[0].payload["capability"], "framework.process.run")
+
+    def test_process_run_enforce_mode_requires_artifact_write_before_launch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            store = VarStore()
+            store.set("global.capabilities.mode", "enforce")
+            marker = Path(tmp, "marker")
+            context = CommandContext(
+                db=db,
+                source="test",
+                _varstore=store,
+                metadata={
+                    "command_run_id": "run-1",
+                    "capabilities": ("framework.process.run",),
+                },
+            )
+
+            with self.assertRaisesRegex(PermissionError, "undeclared capability: artifact.write"):
+                context.process.run(
+                    [
+                        sys.executable,
+                        "-c",
+                        "from pathlib import Path; Path(__import__('sys').argv[1]).write_text('ran')",
+                        str(marker),
+                    ]
+                )
+
+            missing = db.events_for_topic("plugin.capability.missing")
+            results = db.events_for_topic("process.run")
+            artifacts = artifact_store_for_event_store(db).list(command_run_id="run-1")
+        self.assertFalse(marker.exists())
+        self.assertEqual(missing[0].payload["capability"], "artifact.write")
+        self.assertEqual(results, [])
+        self.assertEqual(artifacts, [])
 
     def test_capability_enforce_mode_denies_missing_declarations(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -408,8 +446,10 @@ class ConfigPluginTests(unittest.TestCase):
                 ]
             )
             event = db.events_for_topic("process.run")[0]
+            artifact = artifact_store_for_event_store(db).list(command_run_id="run-1")[0]
         self.assertIn("supersecret", result.stdout)
         self.assertNotIn("supersecret", str(event.payload))
+        self.assertNotIn("supersecret", artifact.body.decode())
         self.assertEqual(event.payload["stdout"], "[REDACTED]\n")
         self.assertEqual(event.payload["stderr"], "[REDACTED]\n")
 

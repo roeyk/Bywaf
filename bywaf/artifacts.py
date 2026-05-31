@@ -151,9 +151,35 @@ class ArtifactStore:
     ) -> Artifact:
         """Store one file as an artifact and return its row."""
         source_path = path.expanduser()
-        data = source_path.read_bytes()
+        return self.attach_bytes(
+            source_path.read_bytes(),
+            name=name or source_path.name,
+            content_type=mimetypes.guess_type(source_path.name)[0] or "application/octet-stream",
+            note=note,
+            source_path=str(source_path),
+            commandlet=commandlet,
+            job_id=job_id,
+            pipeline_id=pipeline_id,
+            command_run_id=command_run_id,
+            parent_command_run_id=parent_command_run_id,
+        )
+
+    def attach_bytes(
+        self,
+        data: bytes,
+        *,
+        name: str,
+        content_type: str = "application/octet-stream",
+        note: str | None = None,
+        source_path: str | None = None,
+        commandlet: str | None = None,
+        job_id: int | str | None = None,
+        pipeline_id: str | None = None,
+        command_run_id: str | None = None,
+        parent_command_run_id: str | None = None,
+    ) -> Artifact:
+        """Store one in-memory artifact body and return its row."""
         artifact_id = self._allocate_artifact_id()
-        content_type = mimetypes.guess_type(source_path.name)[0] or "application/octet-stream"
         digest = hashlib.sha256(data).hexdigest()
         created_at = datetime.now(timezone.utc).isoformat()
         # Store the artifact body and provenance together.  The main event DB
@@ -188,7 +214,7 @@ class ArtifactStore:
                     len(data),
                     data,
                     created_at,
-                    str(source_path),
+                    source_path,
                     commandlet,
                     str(job_id) if job_id is not None else None,
                     pipeline_id,

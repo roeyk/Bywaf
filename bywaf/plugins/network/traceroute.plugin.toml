@@ -20,6 +20,7 @@ emits = [
   "host.found",
 ]
 capabilities = [
+  "artifact.write",
   "db.write:tool.error",
   "framework.console.alert",
   "framework.console.output",
