@@ -124,6 +124,8 @@ bywaf> report
 bywaf> report --last
 bywaf> report sort=host
 bywaf> report sort=finding
+bywaf> report create name=client-a pipeline=1,2,3
+bywaf> report show name=client-a
 ```
 
 When a finding is real, record the decision:

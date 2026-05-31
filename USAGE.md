@@ -515,6 +515,10 @@ reference when one is available.
 fingerprint facts, so `webfin` technology tags appear directly in the web
 inventory and in `results`.
 
+`http_headers` promotes common web hardening issues into findings, including
+missing HSTS and X-Content-Type-Options, weak cookie attributes, informative
+Server headers, and HTTPS-to-HTTP redirects.
+
 Use `--last` on inventory commands to show the latest relevant producer scope.
 Use `--new` to show facts from the selected or latest producer scope that were
 not present in prior project inventory.

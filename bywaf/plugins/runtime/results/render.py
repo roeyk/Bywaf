@@ -12,8 +12,8 @@ from collections import Counter
 from bywaf.event import Event
 from bywaf.event.schemas import event_schema
 from bywaf.plugin import CommandContext
+from bywaf.plugins.runtime.results.artifact_sections import render_artifacts_section, render_tool_errors_section
 from bywaf.plugins.runtime.results.sections import (
-    render_artifacts_section,
     render_hosts_section,
     render_http_endpoints_section,
     render_http_headers_section,
@@ -26,7 +26,6 @@ from bywaf.plugins.runtime.results.sections import (
     render_smb_shares_section,
     render_tcp_banners_section,
     render_tls_certificates_section,
-    render_tool_errors_section,
     render_waf_section,
     render_web_fingerprints_section,
 )

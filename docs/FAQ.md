@@ -158,6 +158,8 @@ bywaf> event nikto.finding
 bywaf> nikto https://example.com/ | finding_dedupe | finding_report
 bywaf> report
 bywaf> report pipeline=1
+bywaf> report create name=client-a pipeline=1,2,3
+bywaf> report show name=client-a
 ```
 
 Use `event` when you want raw event payloads. Use `report` when you want the

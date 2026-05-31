@@ -170,6 +170,25 @@ class NiktoTests(unittest.TestCase):
             self.assertIn("artifact_id", error)
             self.assertTrue(db.events_for_topic("artifact.attached"))
 
+    def test_missing_json_output_is_reported_without_findings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="nikto",
+                metadata={"command_run_id": "run-1", "capabilities": Nikto().spec.capabilities},
+            )
+
+            def fake_run(argv, *, cwd=None, env=None, timeout=None):
+                return subprocess.CompletedProcess(argv, 0, stdout="warning only", stderr="")
+
+            with patch("bywaf.plugin.process.run_process_argv", side_effect=fake_run):
+                list(Nikto().run(context, ["https://example.test/"], []))
+
+            error = db.events_for_topic("tool.error")[0].payload
+            self.assertEqual(error["message"], "nikto did not produce a JSON output file")
+            self.assertEqual(db.events_for_topic("finding.candidate"), [])
+
 
 if __name__ == "__main__":
     unittest.main()

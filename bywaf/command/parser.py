@@ -117,7 +117,7 @@ COMMANDLET_TEXT_SELECTORS = {
     "artifact": frozenset({"name", "note"}),
     "bundle": frozenset({"name"}),
     "key": frozenset({"name"}),
-    "report": frozenset({"note"}),
+    "report": frozenset({"name", "note"}),
     "search": frozenset({"name", "note"}),
 }
 

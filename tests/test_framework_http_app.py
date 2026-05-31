@@ -457,6 +457,22 @@ class FrameworkHttpAppTests(unittest.TestCase):
             )
             self.assertTrue(all(event.pipeline_id for event in candidates))
 
+    def test_http_headers_promotes_cookie_redirect_and_server_findings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            with patch(
+                "bywaf.plugins.http.http_headers.detect.http.client.HTTPSConnection",
+                WeakHeaderConnection,
+            ):
+                runner.execute("http_headers --ssl true example.test")
+
+            classes = {event.payload["class"] for event in runner.db.events_for_topic("finding.candidate")}
+            self.assertIn("web.cookie.missing_secure", classes)
+            self.assertIn("web.cookie.missing_httponly", classes)
+            self.assertIn("web.cookie.missing_samesite", classes)
+            self.assertIn("web.header.server_disclosure", classes)
+            self.assertIn("web.redirect.https_to_http", classes)
+
 
 class FakeHostResult:
     def state(self):
@@ -489,6 +505,20 @@ class FakeHttpConnection:
 
     def close(self):
         return None
+
+
+class WeakHeaderResponse:
+    status = 302
+    headers = {
+        "Server": "Apache/2.4.58",
+        "Set-Cookie": "sid=abc123; Path=/",
+        "Location": "http://example.test/login",
+    }
+
+
+class WeakHeaderConnection(FakeHttpConnection):
+    def getresponse(self):
+        return WeakHeaderResponse()
 
 
 class FakePortScanner:

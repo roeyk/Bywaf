@@ -13,6 +13,8 @@ from pathlib import Path
 
 from bywaf.artifacts import Artifact
 from bywaf.plugin import CommandContext
+from bywaf.runtime_display import command_context_style_getter
+from bywaf.style import styled_subject_text
 
 from .query import search_artifacts, select_artifacts
 from .render import artifact_event_payload, format_artifact_row, safe_artifact_filename
@@ -232,40 +234,40 @@ def single_selected_artifact(context: CommandContext, selectors: dict[str, list[
 def format_artifact_detail(context: CommandContext, artifact: Artifact) -> str:
     """Return a compact artifact detail block with provenance and next commands."""
     rows = [
-        ("artifact", str(artifact.id)),
-        ("serial", artifact.artifact_id),
+        ("artifact", styled_artifact_value(context, "artifact", artifact.id)),
+        ("serial", styled_artifact_value(context, "serial", artifact.artifact_id)),
         ("name", artifact.name),
         ("content type", artifact.content_type),
         ("size", str(artifact.size)),
-        ("sha256", artifact.sha256),
+        ("sha256", styled_artifact_value(context, "hash", artifact.sha256)),
         ("created", artifact.created_at),
     ]
     if artifact.source_path:
-        rows.append(("source path", artifact.source_path))
+        rows.append(("source path", styled_artifact_value(context, "path", artifact.source_path)))
     if artifact.commandlet:
         rows.append(("commandlet", artifact.commandlet))
     if artifact.job_id:
-        rows.append(("job", artifact.job_id))
+        rows.append(("job", styled_artifact_value(context, "job", artifact.job_id)))
     if artifact.pipeline_id:
-        rows.append(("pipeline", artifact.pipeline_id))
+        rows.append(("pipeline", styled_artifact_value(context, "pipeline", artifact.pipeline_id)))
     if artifact.command_run_id:
-        rows.append(("step", artifact.command_run_id))
+        rows.append(("step", styled_artifact_value(context, "step", artifact.command_run_id)))
     if artifact.parent_command_run_id:
         rows.append(("parent step", artifact.parent_command_run_id))
     if artifact.note:
         rows.append(("note", artifact.note))
     lines = ["Artifact summary", *[f"  {label}: {value}" for label, value in rows]]
     commands = [
-        f"artifact export artifact={artifact.id} file={safe_artifact_filename(artifact)}",
-        f"artifact verify artifact={artifact.id}",
-        f"artifact list artifact={artifact.id}",
+        styled_artifact_value(context, "command_line", f"artifact export artifact={artifact.id} file={safe_artifact_filename(artifact)}"),
+        styled_artifact_value(context, "command_line", f"artifact verify artifact={artifact.id}"),
+        styled_artifact_value(context, "command_line", f"artifact list artifact={artifact.id}"),
     ]
     if artifact.command_run_id:
-        commands.append(f"step {artifact.command_run_id}")
+        commands.append(styled_artifact_value(context, "command_line", f"step {artifact.command_run_id}"))
     if artifact.pipeline_id:
-        commands.append(f"pipeline {artifact.pipeline_id}")
+        commands.append(styled_artifact_value(context, "command_line", f"pipeline {artifact.pipeline_id}"))
     if artifact.job_id:
-        commands.append(f"job {artifact.job_id}")
+        commands.append(styled_artifact_value(context, "command_line", f"job {artifact.job_id}"))
     lines.append("")
     lines.append("inspect further with: " + "; ".join(commands))
     provenance = artifact_provenance_events(context, artifact)
@@ -273,8 +275,14 @@ def format_artifact_detail(context: CommandContext, artifact: Artifact) -> str:
         lines.append("")
         lines.append("Provenance events")
         for event in provenance[:8]:
-            lines.append(f"  {event.id}: {event.topic} source={event.source}")
+            event_id = styled_artifact_value(context, "event", event.id)
+            lines.append(f"  {event_id}: {event.topic} source={event.source}")
     return "\n".join(lines)
+
+
+def styled_artifact_value(context: CommandContext, subject: str, value: object) -> str:
+    """Return an artifact detail value using the operator's subject style."""
+    return styled_subject_text(command_context_style_getter(context), subject, value)
 
 
 def artifact_provenance_events(context: CommandContext, artifact: Artifact) -> list:

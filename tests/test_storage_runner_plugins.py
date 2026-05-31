@@ -532,6 +532,8 @@ class StorageRunnerPluginTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             db_path = Path(tmp, "db.sqlite3")
             runner = make_runner(db_path)
+            runner.registry.varstore.set("display/style.command_line", "cyan")
+            runner.registry.varstore.set("display/style.hash", "color245")
             source = Path(tmp, "proof.txt")
             source.write_text("proof", encoding="utf-8")
             with contextlib.redirect_stdout(io.StringIO()):
@@ -546,9 +548,12 @@ class StorageRunnerPluginTests(unittest.TestCase):
             self.assertIn("name: proof.txt", text)
             self.assertIn("step: run-1", text)
             self.assertIn("note: evidence", text)
-            self.assertIn("inspect further with: artifact export artifact=1", text)
+            self.assertIn("inspect further with:", text)
+            self.assertIn("artifact export artifact=1", text)
             self.assertIn("artifact verify artifact=1", text)
             self.assertIn("Provenance events", text)
+            self.assertIn("\x1b[36martifact export artifact=1", text)
+            self.assertIn("\x1b[38;5;245m", text)
 
     @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
     def test_artifact_search_filters_name_note_and_content(self):

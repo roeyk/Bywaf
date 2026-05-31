@@ -2588,12 +2588,57 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "results")
 
-        text = output.getvalue()
-        self.assertIn("Tool problems", text)
-        self.assertIn("nikto produced invalid JSON", text)
-        self.assertIn("#4 nikto-example.json", text)
-        self.assertIn("applicat", text)
-        self.assertNotIn("Representative events", text)
+            text = output.getvalue()
+            self.assertIn("Tool problems", text)
+            self.assertIn("nikto produced invalid JSON", text)
+            self.assertIn("#4 nikto-example.json", text)
+            self.assertIn("applicat", text)
+            self.assertIn("Inspect artifacts with: artifact show 4", text)
+            self.assertNotIn("Representative events", text)
+
+    def test_report_create_update_and_show_saved_scope(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.record_job("git_expose_check http://example.test", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=1,
+                pipeline_id="pipeline-a",
+                command_run_id="step-a",
+                commandlet="git_expose_check",
+                values={},
+            )
+            runner.db.publish(
+                "finding.candidate",
+                {
+                    "title": "Exposed Git repository configuration",
+                    "class": "web.exposure.git_config",
+                    "severity": "high",
+                    "confidence": "high",
+                    "target": {"url": "http://example.test/.git/config"},
+                    "affected": [{"url": "http://example.test/.git/config"}],
+                    "evidence": "git config returned",
+                    "recommendation": "Block .git paths.",
+                },
+                "git_expose_check",
+                pipeline_id="pipeline-a",
+                command_run_id="step-a",
+            )
+
+            create_output = io.StringIO()
+            with contextlib.redirect_stdout(create_output):
+                dispatch_repl_line(runner, "report create name=client-a pipeline=pipeline-a")
+            self.assertIn("saved report scope name=client-a", create_output.getvalue())
+
+            show_output = io.StringIO()
+            with contextlib.redirect_stdout(show_output):
+                dispatch_repl_line(runner, "report show name=client-a")
+            self.assertIn("Report scope: pipeline=pipeline-a", show_output.getvalue())
+            self.assertIn("Exposed Git repository configuration", show_output.getvalue())
+
+            update_output = io.StringIO()
+            with contextlib.redirect_stdout(update_output):
+                dispatch_repl_line(runner, "report update name=client-a pipeline=pipeline-a,pipeline-b")
+            self.assertIn("pipeline=pipeline-a,pipeline-b", update_output.getvalue())
 
     def test_results_passes_sort_to_embedded_ports_view(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -124,6 +124,17 @@ bywaf> report step=12
 bywaf> report status=all pipeline=1
 ```
 
+Save a named report scope when you expect to revisit the same set of work:
+
+```text
+bywaf> report create name=client-a pipeline=1,2,3
+bywaf> report show name=client-a
+bywaf> report update name=client-a pipeline=1,2,3,4
+```
+
+Saved scopes are append-only events over selectors. They do not copy findings
+or artifact bodies into a separate report store.
+
 Selector values use the same include/exclude grammar as event inspection:
 comma-separated values are ORed, `!value` excludes values, and different
 selector keys are ANDed together. Host/event selectors also accept CIDR and

@@ -28,10 +28,12 @@ from bywaf.plugins.analysis.finding_report import REPORT_FINDING_TOPICS
 from .events import select_report_context_events, select_report_new_context_events, select_report_new_scope_events, select_report_scope_events
 from .render import render_finding_report, render_network_report
 from .review import REVIEW_DECISIONS, review_report_groups
+from .saved import apply_saved_report_scope, save_report_scope
 
-REPORT_ACTIONS = ("accept", "confirm", "defer", "reject", "unconfirm", "detail", "network")
+REPORT_ACTIONS = ("accept", "confirm", "defer", "reject", "unconfirm", "create", "detail", "network", "show", "update")
 REPORT_REVIEW_ACTIONS = tuple(REVIEW_DECISIONS)
-REPORT_OPTION_KEYS = {"job", "pipeline", "step", "limit", "note", "page", "sort", "status"}
+REPORT_SAVE_ACTIONS = ("create", "update")
+REPORT_OPTION_KEYS = {"job", "pipeline", "step", "limit", "name", "note", "page", "sort", "status"}
 REPORT_STATUS_CHOICES = ("all", "accepted", "confirmed", "deferred", "open", "rejected", "unreviewed")
 REPORT_SORT_CHOICES = ("finding", "host")
 
@@ -53,6 +55,9 @@ REPORT_SORT_CHOICES = ("finding", "host")
         "report accept 1-3,7",
         "report confirm 1 note=validated manually",
         "report unconfirm 1 status=confirmed",
+        "report create name=quarterly pipeline=1,2,3",
+        "report show name=quarterly",
+        "report update name=quarterly pipeline=1,2,3,4",
         "report defer 4 note=needs manual validation",
         "report pipeline=1",
         "report page=false",
@@ -81,6 +86,8 @@ REPORT_SORT_CHOICES = ("finding", "host")
         "db.read:web.screenshotted_host",
         "db.read:network.route.hop",
         "db.read:artifact.attached",
+        "db.read:report.scope.saved",
+        "db.write:report.scope.saved",
         "db.write:report.rendered",
         "db.write:finding.reviewed",
         "finding.review",
@@ -92,6 +99,7 @@ REPORT_SORT_CHOICES = ("finding", "host")
 @option("job", "job id or comma-separated job ids", completion="job")
 @option("pipeline", "pipeline id or comma-separated pipeline ids", completion="pipeline")
 @option("step", "step id or comma-separated step ids", completion="step")
+@option("name", "saved report scope name")
 @option("limit", "maximum events to inspect", "1000")
 @option("page", "page rendered report output", "true", ("true", "false"))
 @option("sort", "group report rows by finding or host", "finding", REPORT_SORT_CHOICES)
@@ -102,8 +110,8 @@ class Report(CommandletBase):
     def database_actions_for_args(self, args: list[str]) -> tuple[str, ...]:
         """Classify report moderation separately from read-only report views."""
         normalized = normalize_report_args(args)
-        action = next((arg for arg in normalized if arg in REPORT_REVIEW_ACTIONS), "")
-        return ("write",) if action in REPORT_REVIEW_ACTIONS else ("view",)
+        action = next((arg for arg in normalized if arg in (*REPORT_REVIEW_ACTIONS, *REPORT_SAVE_ACTIONS)), "")
+        return ("write",) if action else ("view",)
 
     def run(
         self,
@@ -125,6 +133,7 @@ class Report(CommandletBase):
             help="pipeline id or comma-separated pipeline ids",
         )
         parser.add_argument("--step", default="", help="step id or comma-separated step ids")
+        parser.add_argument("--name", default="", help="saved report scope name")
         parser.add_argument("--limit", type=int, default=1000)
         parser.add_argument("--note", default="")
         parser.add_argument("--page", choices=("true", "false"), default="false")
@@ -134,6 +143,11 @@ class Report(CommandletBase):
         normalize_report_action(parsed)
         if parsed.last and parsed.new:
             raise ValueError("report accepts only one of --last or --new")
+        if parsed.action in REPORT_SAVE_ACTIONS:
+            save_report_scope(context, parsed, action=parsed.action)
+            return ()
+        if parsed.action == "show":
+            apply_saved_report_scope(context, parsed)
 
         input_findings = [event for event in input_events if event.topic in REPORT_FINDING_TOPICS]
         if parsed.new and not input_findings:
@@ -164,6 +178,7 @@ class Report(CommandletBase):
             "job=",
             "step=",
             "limit=",
+            "name=",
             "note=",
             "page=",
             "page=false",

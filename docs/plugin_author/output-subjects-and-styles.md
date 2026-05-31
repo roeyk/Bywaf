@@ -91,6 +91,9 @@ Common subjects include:
 | `service` | Service names such as `ssh`, `telnet`, `http` |
 | `timestamp` | Operator-facing timestamps |
 | `serial` | Durable runtime or artifact serials |
+| `artifact` | Artifact IDs, names, or paths |
+| `event` | Event IDs in provenance or audit output |
+| `hash` | Cryptographic hashes and digests |
 | `job` / `step` / `pipeline` | Runtime provenance identifiers |
 | `command_line` | Commands shown for rerun, inspection, provenance, or follow-up actions |
 | `comment` | Human comments and inline notes |
@@ -101,7 +104,6 @@ Common subjects include:
 | `finding.class` | Bywaf finding class strings |
 | `finding.status` | Finding lifecycle status |
 | `evidence` / `explanation` | Evidence snippets and explanatory vulnerability text |
-| `artifact` | Artifact IDs, names, or paths |
 
 ## Table And Report Styles
 
