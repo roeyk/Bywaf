@@ -78,6 +78,11 @@ Planning dates are release planning markers, not compatibility commitments.
 - Harden the MVP plugin suite around realistic end-to-end assessment chains:
   discovery, port scanning, HTTP probing, fingerprinting, vulnerability
   probing, dedupe, reporting, artifacts, notes, and bundle export.
+- Operator review TODO: review the expanded command argument surface after the
+  recent inventory/report/runtime additions. Confirm naming, `--last` versus
+  `--new` semantics, selector spelling, completion menus, and help output are
+  consistent across inventory commands, report commands, and runtime/store
+  views before the next testing release.
 - Manual finding/report testing checklist:
   - Run built-in finding producers: `portscanner` for Telnet-like/open-port
     cases, `http_headers` for HTTPS targets missing HSTS or
