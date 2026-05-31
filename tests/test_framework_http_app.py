@@ -190,6 +190,21 @@ class FrameworkHttpAppTests(unittest.TestCase):
             self.assertIs(context.runtime_store(), runner.db)
             self.assertEqual(runner.db.events_for_topic("plugin.capability.used"), [])
 
+    def test_artifact_store_accessor_audits_artifact_access_not_raw_db(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            context = CommandContext(
+                runner.db,
+                source="plugin",
+                metadata={"capabilities": ("artifact.read", "artifact.write")},
+            )
+            self.assertIsNotNone(context.artifact_store(access="readwrite"))
+            capabilities = [
+                event.payload["capability"]
+                for event in runner.db.events_for_topic("plugin.capability.used")
+            ]
+            self.assertEqual(capabilities, ["artifact.read", "artifact.write"])
+
     def test_maintenance_store_accessor_audits_raw_db_access(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

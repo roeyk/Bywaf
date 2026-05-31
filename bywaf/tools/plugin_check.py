@@ -208,6 +208,12 @@ class CapabilityVisitor(ast.NodeVisitor):
             self.add_evidence(f"db.read:{topic}" if topic else "db.read:*", "framework_call", node, path)
         if path in {"context.artifacts.attach_file", "context.artifacts.attach_files"}:
             self.add_evidence("artifact.write", "framework_call", node, path)
+        if path == "context.artifact_store":
+            access = literal_string_argument(node, "access", None)
+            if access in {"read", "readwrite"}:
+                self.add_evidence("artifact.read", "framework_call", node, path)
+            if access in {"write", "readwrite"}:
+                self.add_evidence("artifact.write", "framework_call", node, path)
         if path == "open":
             self.inspect_open_call(node)
         if path in {"pathlib.Path.read_text", "pathlib.Path.read_bytes"} or path.endswith(".read_text") or path.endswith(".read_bytes"):

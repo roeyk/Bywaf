@@ -37,9 +37,7 @@ def attach_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
         # provenance edge to a job, pipeline, or step.
         if not any((scope.job_id, scope.pipeline_id, scope.command_run_id)):
             raise ValueError("artifact attach artifact= requires step=, pipeline=, job=, or serial=")
-        store = context.artifact_store("artifact attach")
-        context.audit_capability("artifact.read")
-        context.audit_capability("artifact.write")
+        store = context.artifact_store("artifact attach", access="readwrite")
         artifact = store.get(artifact_selector)
         attached_artifact = store.attach_existing(
             artifact,
@@ -73,9 +71,8 @@ def import_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
     if len(files) > 1 and "name" in selectors:
         raise ValueError("artifact import name= is only valid with one file=")
     events = context.event_store("artifact import")
-    store = context.artifact_store("artifact import")
+    store = context.artifact_store("artifact import", access="write")
     context.audit_capability("filesystem.read")
-    context.audit_capability("artifact.write")
     imported: list[Artifact] = []
     for file_name in files:
         artifact = store.attach_file(
@@ -130,8 +127,7 @@ def remove_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
         context.output("no artifacts matched")
         return
     events = context.event_store("artifact")
-    store = context.artifact_store("artifact")
-    context.audit_capability("artifact.write")
+    store = context.artifact_store("artifact", access="write")
     for artifact in artifacts:
         store.remove(artifact)
         events.publish(
@@ -152,9 +148,8 @@ def replace_artifact(context: CommandContext, selectors: dict[str, list[str]]) -
     if file_name is None:
         raise ValueError("artifact replace requires file=")
     events = context.event_store("artifact")
-    store = context.artifact_store("artifact")
+    store = context.artifact_store("artifact", access="write")
     context.audit_capability("filesystem.read")
-    context.audit_capability("artifact.write")
     replacement = store.replace_file(
         artifact,
         Path(file_name),
@@ -186,7 +181,7 @@ def replace_artifact(context: CommandContext, selectors: dict[str, list[str]]) -
 def verify_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> None:
     """Verify artifact body integrity and main-DB provenance links."""
     events = context.event_store("artifact")
-    store = context.artifact_store("artifact")
+    store = context.artifact_store("artifact", access="read")
     artifacts = select_artifacts(context, selectors)
     body_results = {result.artifact_id: result for result in store.verify(artifacts)}
     # Artifact bodies live in the artifact DB, but provenance is mirrored in the

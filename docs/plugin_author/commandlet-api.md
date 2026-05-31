@@ -505,6 +505,8 @@ At execution time, commandlets receive a `CommandContext`:
 - `context.require_foreground()`: reject background execution for unsafe actions
 - `context.output(text)`: request normal console output from the framework
 - `context.alert(message)`: request an operator alert from the framework
+- `context.artifact_store(access="read"|"write"|"readwrite")`: artifact DB access
+  with explicit capability auditing
 - `context.progress(...)`: report throttled structured progress
 - `context.progress_started(...)`: report progress start
 - `context.progress_completed(...)`: report progress completion
@@ -659,9 +661,11 @@ for event in context.events.fetch(("host.found",), after_id=context.input_high_w
 ```
 
 `context.events` records `db.read:<topic>` and `db.write:<topic>` capability
-usage. Raw `context.db` remains available for privileged/internal framework
-commandlets during the transition; accessing it records `db.raw`, and
-third-party plugins should avoid it.
+usage. `context.artifact_store(access=...)` similarly records `artifact.read`
+and `artifact.write` without exposing raw database maintenance operations. Raw
+`context.db` remains available for privileged/internal framework commandlets
+during the transition; accessing it records `db.raw`, and third-party plugins
+should avoid it.
 
 Finite listener commandlets should use `context.events.follow(...)` instead of
 hand-rolled polling loops. In a normal pipeline, a downstream listener should

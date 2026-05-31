@@ -73,6 +73,22 @@ class PluginCheckTests(unittest.TestCase):
             self.assertEqual(report["errors"], [])
             self.assertEqual(report["evidence"][0]["kind"], "framework_call")
 
+    def test_check_plugin_infers_artifact_store_access_capabilities(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(
+                Path(tmp),
+                capabilities=(),
+                run_body='        context.artifact_store("example", access="readwrite")\n',
+            )
+
+            report = check_plugin(plugin_dir)
+
+            self.assertTrue(report["ok"])
+            self.assertIn("artifact.read", report["inferred_capabilities"])
+            self.assertIn("artifact.write", report["inferred_capabilities"])
+            self.assertIn("artifact.read", report["missing_capabilities"])
+            self.assertIn("artifact.write", report["missing_capabilities"])
+
     def test_check_plugin_strict_inference_fails_on_missing_capabilities(self):
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(

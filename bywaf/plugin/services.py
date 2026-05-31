@@ -403,13 +403,12 @@ class ContextArtifacts:
         command_run_id: str | None = None,
     ) -> Artifact:
         """Attach one file to the paired artifact store and audit it."""
-        db = self.require_event_store("artifact attach")
         self.context.audit_capability("filesystem.read")
-        self.context.audit_capability("artifact.write")
         # Default provenance comes from the current context, but framework
         # commandlets can override it when attaching evidence on behalf of a
         # job, pipeline, or step selected by the operator.
-        artifact = artifact_store_for_event_store(db).attach_file(
+        store = self.context.artifact_store("artifact attach", access="write")
+        artifact = store.attach_file(
             Path(path),
             name=name,
             note=note,

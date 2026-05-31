@@ -204,6 +204,14 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertTrue(manifest.service)
         self.assertTrue(manifest.native)
 
+    def test_bundled_db_raw_capability_is_privileged_allowlist_only(self):
+        raw_users = {
+            name
+            for name in self.registry.names()
+            if "db.raw" in self.registry.get(name).spec.capabilities
+        }
+        self.assertEqual(raw_users, {"audit", "db"})
+
     def test_canonical_manifest_bytes_ignore_order_and_signature_block(self):
         first = {
             "plugin": {"roles": ["beta", "alpha"], "native": True},
