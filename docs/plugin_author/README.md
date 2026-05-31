@@ -118,6 +118,7 @@ operator action is visible and auditable.
 
 | Need | Go to |
 | --- | --- |
+| End-to-end author loop | [Plugin Author Workflow](workflow.md) |
 | Current decorator API | [Plugin Fundamentals](fundamentals.md#current-api-not-generic-plugin-patterns) |
 | Manifest-backed `cfg` | [Commandlet API Reference](commandlet-api.md#manifest-backed-configuration) |
 | `@argument` vs `@option` | [Plugin Fundamentals](fundamentals.md#defining-inputs-arguments-vs-options) |

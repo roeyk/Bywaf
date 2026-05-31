@@ -78,6 +78,8 @@ offensive frameworks, do not look for Veil-style modules, Metasploit-style
   plugin author documentation set.
 - [Plugin Fundamentals](plugin_author/fundamentals.md): plugin types, manifests,
   current API, arguments/options, and small examples.
+- [Plugin Author Workflow](plugin_author/workflow.md): recommended create,
+  check, test, load, sign/package, and safe-default review loop.
 - [Commandlet API Reference](plugin_author/commandlet-api.md): command specs, parsing,
   rendering, event publishing, completion, runtime context, and defaults.
 - [Vulnerability Plugin Guide](plugin_author/vulnerability-plugins.md): vulnerability
