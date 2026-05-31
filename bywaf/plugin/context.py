@@ -14,7 +14,7 @@ import time
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 from ..artifacts import artifact_store_for_event_store
 from ..db import EventStore
@@ -209,14 +209,15 @@ class CommandContext:
         self,
         label: str | None = None,
         *,
-        access: Literal["read", "write", "readwrite"] | None = None,
+        read_access: bool = False,
+        write_access: bool = False,
     ) -> ArtifactStoreProtocol:
         """Return the paired artifact store for framework/internal commandlets."""
         if self._db is None:
             raise ValueError(f"{label or self.source} requires active artifact storage")
-        if access in {"read", "readwrite"}:
+        if read_access:
             self.audit_capability("artifact.read")
-        if access in {"write", "readwrite"}:
+        if write_access:
             self.audit_capability("artifact.write")
         return artifact_store_for_event_store(self._db)
 

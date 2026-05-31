@@ -425,7 +425,7 @@ def resolve_bundle_content(
 
 def selected_artifacts(context: CommandContext, selectors: dict[str, str]) -> list[Artifact]:
     """Return artifacts selected for a bundle item."""
-    store = context.artifact_store("bundle", access="read")
+    store = context.artifact_store("bundle", read_access=True)
     artifacts = store.list(
         job_id=resolve_job_selector(context, selectors.get("job")),
         pipeline_id=resolve_pipeline_selector(context, selectors.get("pipeline")),

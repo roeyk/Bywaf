@@ -209,10 +209,9 @@ class CapabilityVisitor(ast.NodeVisitor):
         if path in {"context.artifacts.attach_file", "context.artifacts.attach_files"}:
             self.add_evidence("artifact.write", "framework_call", node, path)
         if path == "context.artifact_store":
-            access = literal_string_argument(node, "access", None)
-            if access in {"read", "readwrite"}:
+            if literal_bool_argument(node, "read_access", default=False):
                 self.add_evidence("artifact.read", "framework_call", node, path)
-            if access in {"write", "readwrite"}:
+            if literal_bool_argument(node, "write_access", default=False):
                 self.add_evidence("artifact.write", "framework_call", node, path)
         if path == "open":
             self.inspect_open_call(node)
@@ -523,6 +522,14 @@ def literal_string_argument(node: ast.Call, keyword: str, position: int | None) 
         if isinstance(value, ast.Constant) and isinstance(value.value, str):
             return value.value
     return None
+
+
+def literal_bool_argument(node: ast.Call, keyword: str, *, default: bool) -> bool:
+    """Return a literal boolean keyword argument."""
+    for item in node.keywords:
+        if item.arg == keyword and isinstance(item.value, ast.Constant) and isinstance(item.value.value, bool):
+            return item.value.value
+    return default
 
 
 def literal_string_sequence_argument(node: ast.Call, keyword: str, position: int) -> tuple[str, ...]:

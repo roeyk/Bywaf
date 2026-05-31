@@ -407,7 +407,7 @@ class ContextArtifacts:
         # Default provenance comes from the current context, but framework
         # commandlets can override it when attaching evidence on behalf of a
         # job, pipeline, or step selected by the operator.
-        store = self.context.artifact_store("artifact attach", access="write")
+        store = self.context.artifact_store("artifact attach", write_access=True)
         artifact = store.attach_file(
             Path(path),
             name=name,

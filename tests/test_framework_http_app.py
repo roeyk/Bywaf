@@ -198,7 +198,7 @@ class FrameworkHttpAppTests(unittest.TestCase):
                 source="plugin",
                 metadata={"capabilities": ("artifact.read", "artifact.write")},
             )
-            self.assertIsNotNone(context.artifact_store(access="readwrite"))
+            self.assertIsNotNone(context.artifact_store(read_access=True, write_access=True))
             capabilities = [
                 event.payload["capability"]
                 for event in runner.db.events_for_topic("plugin.capability.used")

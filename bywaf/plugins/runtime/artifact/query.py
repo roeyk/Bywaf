@@ -24,7 +24,7 @@ from .selectors import resolve_artifact_scope, single_value
 
 def select_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> list[Artifact]:
     """Return artifacts selected by id, provenance, serial, or topic."""
-    store = context.artifact_store("artifact", access="read")
+    store = context.artifact_store("artifact", read_access=True)
     artifact_id = single_value(selectors, "artifact")
     if artifact_id is not None:
         artifacts = [store.get(artifact_id)]
@@ -44,7 +44,7 @@ def select_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
 
 def search_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> list[Artifact]:
     """Return artifacts matching search/regexp query selectors."""
-    store = context.artifact_store("search", access="read")
+    store = context.artifact_store("search", read_access=True)
     artifact_id = single_value(selectors, "artifact")
     if artifact_id is not None:
         artifacts = [store.get(artifact_id)]

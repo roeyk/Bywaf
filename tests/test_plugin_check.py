@@ -78,7 +78,7 @@ class PluginCheckTests(unittest.TestCase):
             plugin_dir = write_plugin_fixture(
                 Path(tmp),
                 capabilities=(),
-                run_body='        context.artifact_store("example", access="readwrite")\n',
+                run_body='        context.artifact_store("example", read_access=True, write_access=True)\n',
             )
 
             report = check_plugin(plugin_dir)
