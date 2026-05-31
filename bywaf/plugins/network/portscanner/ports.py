@@ -17,6 +17,7 @@ from collections.abc import Iterable
 from bywaf.event.filters import filter_events_by_payload, parse_payload_filter_tokens
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
+from bywaf.plugins.runtime.inventory_scope import events_new_to_scope
 from bywaf.plugins.runtime.job import require_job
 from bywaf.runtime_display import (
     command_context_style_getter,
@@ -62,6 +63,7 @@ class Ports(CommandletBase):
         """Parse selectors, select port events, and print a result table."""
         del input_events
         parser = self.parser()
+        parser.usage = self.spec.usage
         parser.add_argument("--last", action="store_true")
         parser.add_argument("--new", action="store_true")
         parser.add_argument("--page", action="store_true")
@@ -157,7 +159,7 @@ def select_port_events(context: CommandContext, selectors: Namespace) -> list[Ev
     runtime = context.runtime_store("ports")
     if getattr(selectors, "new", False):
         scoped = select_port_scope_events(context, selectors)
-        return new_port_events(context, scoped)
+        return events_new_to_scope(context, ("port.open",), scoped, port_event_keys)
     if getattr(selectors, "last", False):
         latest = latest_portscanner_scope(context)
         return latest.events if latest is not None else []
@@ -187,31 +189,10 @@ def select_port_scope_events(context: CommandContext, selectors: Namespace) -> l
     return latest.events if latest is not None else []
 
 
-def new_port_events(context: CommandContext, scoped: list[Event]) -> list[Event]:
-    """Return selected port facts not seen before the selected scope."""
-    if not scoped:
-        return []
-    first_id = min((event.id or 0) for event in scoped)
-    store = context.event_store("ports new")
-    previous = {
-        port_event_key(event)
-        for event in store.events_matching(topic="port.open", limit=10000)
-        if (event.id or 0) < first_id
-    }
-    seen: set[tuple[str, int, str]] = set()
-    result: list[Event] = []
-    for event in sorted(scoped, key=lambda row: row.id or 0):
-        key = port_event_key(event)
-        if key not in previous and key not in seen:
-            result.append(event)
-            seen.add(key)
-    return result
-
-
-def port_event_key(event: Event) -> tuple[str, int, str]:
+def port_event_keys(event: Event) -> set[tuple[str, int, str]]:
     """Return the stable open-port fact identity."""
     payload = event.payload
-    return (str(payload.get("host") or ""), int(payload.get("port") or 0), str(payload.get("protocol") or "tcp"))
+    return {(str(payload.get("host") or ""), int(payload.get("port") or 0), str(payload.get("protocol") or "tcp"))}
 
 
 def latest_portscanner_scope(context: CommandContext) -> Namespace | None:

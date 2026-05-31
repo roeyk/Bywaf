@@ -1583,6 +1583,21 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("--maxhops", text)
             self.assertNotIn("--timeout", text)
 
+    def test_inventory_help_shows_common_scope_arguments(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "help hosts")
+                dispatch_repl_line(runner, "help ports")
+            text = output.getvalue()
+            self.assertIn("--last", text)
+            self.assertIn("--new", text)
+            self.assertIn("job=<id>", text)
+            self.assertIn("pipeline=<id>", text)
+            self.assertIn("step=<id>", text)
+            self.assertIn("all=true", text)
+
     def test_dispatch_help_colors_commands_when_enabled(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

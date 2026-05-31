@@ -608,6 +608,22 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn("firefox-profile=", completer.candidates("http_probe fir"))
         self.assertIn("method=", completer.candidates("http_probe me"))
 
+    def test_inventory_and_report_completion_exposes_last_new_selectors(self):
+        completer = Completer(self.registry)
+        for command in ("hosts", "services", "web", "ports"):
+            with self.subTest(command=command):
+                candidates = completer.candidates(f"{command} --")
+                self.assertIn("--last", candidates)
+                self.assertIn("--new", candidates)
+                self.assertIn("--page", candidates)
+                self.assertIn("job=", completer.candidates(f"{command} j"))
+                self.assertIn("pipeline=", completer.candidates(f"{command} p"))
+                self.assertIn("step=", completer.candidates(f"{command} s"))
+        report_candidates = completer.candidates("report --")
+        self.assertIn("--last", report_candidates)
+        self.assertIn("--new", report_candidates)
+        self.assertIn("sort=host", completer.candidates("report sort=h"))
+
     def test_commandlet_topics_complete_only_in_from_selector_context(self):
         completer = Completer(self.registry)
         self.assertNotIn("host.found", completer.candidates("hostscanner h"))
