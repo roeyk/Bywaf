@@ -148,6 +148,7 @@ def write_external_plugin(root: Path, entry: str, commandlet: str, source: str) 
     )
     plugin_dir.joinpath("bywaf.plugin.toml").write_text(
         "[plugin]\n"
+        'version = "0.1.0"\n'
         "native = true\n\n"
         "[[commandlets]]\n"
         f'name = "{commandlet}"\n'

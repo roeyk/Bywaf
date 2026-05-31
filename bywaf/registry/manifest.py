@@ -9,6 +9,7 @@ Used by:
 
 from __future__ import annotations
 
+import re
 import tomllib
 from dataclasses import dataclass, field
 from importlib import resources
@@ -32,6 +33,8 @@ class PluginManifest:
     """Pre-import metadata that controls filesystem plugin exposure."""
 
     commandlets: frozenset[str]
+    version: str
+    requires_bywaf: str | None = None
     triggers: tuple[TriggerSpec, ...] = ()
     commandlet_capabilities: dict[str, tuple[str, ...]] = field(default_factory=dict)
     commandlet_database_actions: dict[str, tuple[str, ...]] = field(default_factory=dict)
@@ -89,6 +92,11 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
     plugins.
     """
     plugin_data = table_value(data, "plugin", source)
+    version = optional_string_field(plugin_data, "version", source, "plugin", default="0.0.0") or "0.0.0"
+    validate_version_string(version, source, "plugin.version")
+    requires_bywaf = optional_string_field(plugin_data, "requires_bywaf", source, "plugin")
+    if requires_bywaf is not None:
+        validate_requires_bywaf(requires_bywaf, source, "plugin.requires_bywaf")
     commandlet_rows = data.get("commandlets")
     if not isinstance(commandlet_rows, list) or not commandlet_rows:
         raise ValueError(f"{source} must declare at least one [[commandlets]] entry")
@@ -139,6 +147,8 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
     event_schemas = parse_event_schema_rows(data.get("event_schemas", []), source)
     return PluginManifest(
         commandlets=frozenset(commandlets),
+        version=version,
+        requires_bywaf=requires_bywaf,
         triggers=triggers,
         commandlet_capabilities=commandlet_capabilities,
         commandlet_database_actions=commandlet_database_actions,
@@ -157,6 +167,22 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
         native=native or not (library_backed or process_wrapped),
         roles=roles,
     )
+
+
+SEMVERISH_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
+REQUIRES_BYWAF_RE = re.compile(r"^(>=|>|<=|<|==)?\s*\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
+
+
+def validate_version_string(value: str, source: str, context: str) -> None:
+    """Validate a SemVer-like plugin version string."""
+    if not SEMVERISH_RE.match(value):
+        raise ValueError(f"{source} {context} must be SemVer-like, for example 0.1.0")
+
+
+def validate_requires_bywaf(value: str, source: str, context: str) -> None:
+    """Validate a simple one-clause framework version requirement."""
+    if not REQUIRES_BYWAF_RE.match(value.strip()):
+        raise ValueError(f"{source} {context} must look like >=0.13.0")
 
 
 def parse_trigger_rows(value: Any, source: str) -> tuple[TriggerSpec, ...]:

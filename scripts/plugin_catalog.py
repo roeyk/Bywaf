@@ -89,6 +89,8 @@ def catalog_plugin_entry(
     native = bool_value(plugin_data, "native", manifest_path, "plugin", default=not (library_backed or process_wrapped))
     return {
         "entry": dotted_entry,
+        "version": required_string(plugin_data, "version", manifest_path, "plugin"),
+        "requires_bywaf": optional_string(plugin_data, "requires_bywaf", manifest_path, "plugin"),
         "module": relative_posix(module_path, root=root),
         "manifest": relative_posix(manifest_path, root=root),
         "module_sha256": sha256_file(module_path),

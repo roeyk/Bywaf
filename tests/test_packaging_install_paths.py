@@ -65,6 +65,7 @@ def write_plugin(root: Path, entry: str, name: str, source: str) -> Path:
     (plugin_dir / "defaults.toml").write_text(f'[defaults]\norigin = "{source}"\n')
     (plugin_dir / "bywaf.plugin.toml").write_text(
         "[plugin]\n"
+        'version = "0.1.0"\n'
         "native = true\n\n"
         "[[commandlets]]\n"
         f'name = "{name}"\n'

@@ -1,4 +1,5 @@
 [plugin]
+version = "0.1.0"
 native = true
 service = false
 

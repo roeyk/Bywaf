@@ -54,12 +54,14 @@ A manifest has four practical jobs:
 
 # Schema
 
-A manifest contains one optional `[plugin]` table, one or more
+A manifest contains one `[plugin]` table, one or more
 `[[commandlets]]` entries, optional `[[event_schemas]]` entries, and optional
 `[[triggers]]` entries.
 
 ```toml
 [plugin]
+version = "0.1.0"
+requires_bywaf = ">=0.12.2"
 native = true
 library_backed = false
 process_wrapped = false
@@ -193,6 +195,12 @@ machinery.
 `manage` permits all database actions, including raw or management access.
 Lifecycle/audit events emitted by the framework itself are separate from these
 plugin action flags.
+
+Plugin manifests must declare a SemVer-like `plugin.version`, such as
+`0.1.0`. `requires_bywaf` is optional and currently supports a simple one-clause
+framework requirement such as `>=0.12.2`. Bywaf records both the plugin version
+and the framework version that executed a commandlet in command-run provenance
+events.
 
 Commandlets that mix read-only and mutating actions may declare the broad
 allowed set here and narrow the effective action in Python for a specific argv.

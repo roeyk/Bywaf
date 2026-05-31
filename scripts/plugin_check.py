@@ -23,7 +23,7 @@ if str(ROOT) not in sys.path:
 
 from bywaf.event.schemas import event_schema, register_event_schemas  # noqa: E402
 from bywaf.plugin.capabilities import capability_declared  # noqa: E402
-from bywaf.registry import PluginManifestTrust, verify_plugin_manifest_signature_data, load_filesystem_plugin_package, parse_plugin_manifest  # noqa: E402
+from bywaf.registry import PluginManifestTrust, verify_plugin_manifest_signature_data, load_filesystem_plugin_package, parse_plugin_manifest_data  # noqa: E402
 from bywaf.toml_support import load_data_file  # noqa: E402
 from bywaf.tools.plugin_check import analyze_plugin_source  # noqa: E402
 
@@ -39,6 +39,8 @@ def check_plugin(
     report: dict[str, Any] = {
         "ok": False,
         "plugin": str(plugin_dir),
+        "plugin_version": "",
+        "requires_bywaf": None,
         "commandlets": [],
         "triggers": [],
         "declared_capabilities": [],
@@ -65,8 +67,15 @@ def check_plugin(
         report["errors"].extend(f"{path} not found" for path in missing)
         return report
     try:
-        pre_import_manifest = parse_plugin_manifest(plugin_dir / "bywaf.plugin.toml")
+        manifest_data = load_data_file(plugin_dir / "bywaf.plugin.toml")
+        plugin_data = manifest_data.get("plugin", {})
+        if not isinstance(plugin_data, dict) or not isinstance(plugin_data.get("version"), str) or not plugin_data.get("version"):
+            report["errors"].append("manifest [plugin].version is required")
+            return report
+        pre_import_manifest = parse_plugin_manifest_data(manifest_data, str(plugin_dir / "bywaf.plugin.toml"))
         register_event_schemas(pre_import_manifest.event_schemas)
+        report["plugin_version"] = pre_import_manifest.version
+        report["requires_bywaf"] = pre_import_manifest.requires_bywaf
     except Exception as exc:  # noqa: BLE001 - this is a CLI validation report.
         report["errors"].append(f"manifest parse failed: {exc}")
         return report
@@ -154,6 +163,10 @@ def render_text(report: dict[str, Any]) -> str:
     diagnostics = report.get("diagnostics") or []
     if commandlets:
         lines.append("commandlets: " + ", ".join(str(item) for item in commandlets))
+    if report.get("plugin_version"):
+        lines.append(f"plugin version: {report['plugin_version']}")
+    if report.get("requires_bywaf"):
+        lines.append(f"requires Bywaf: {report['requires_bywaf']}")
     if triggers:
         lines.append("triggers: " + ", ".join(str(item) for item in triggers))
     if inferred_capabilities:

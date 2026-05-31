@@ -41,6 +41,8 @@ class PluginCatalogTests(unittest.TestCase):
         catalog = build_catalog()
         watchdog = next(row for row in catalog["plugins"] if row["entry"] == "runtime.watchdog")
 
+        self.assertEqual(watchdog["version"], "0.1.0")
+        self.assertIsNone(watchdog["requires_bywaf"])
         self.assertEqual(watchdog["triggers"][0]["name"], "network-access-starts-watchdog")
         self.assertEqual(watchdog["triggers"][0]["action_mode"], "service")
 
@@ -52,6 +54,8 @@ class PluginCatalogTests(unittest.TestCase):
             plugin_dir.mkdir(parents=True)
             (plugin_dir / "plugin.py").write_text("raise RuntimeError('catalog imported plugin code')\n")
             (plugin_dir / "bywaf.plugin.toml").write_text(
+                "[plugin]\n"
+                'version = "0.1.0"\n\n'
                 "[[commandlets]]\n"
                 'name = "example"\n\n'
                 "[[triggers]]\n"
@@ -75,6 +79,8 @@ class PluginCatalogTests(unittest.TestCase):
             plugin_dir.mkdir(parents=True)
             (plugin_dir / "plugin.py").write_text("raise RuntimeError('catalog imported plugin code')\n")
             (plugin_dir / "bywaf.plugin.toml").write_text(
+                "[plugin]\n"
+                'version = "0.1.0"\n\n'
                 "[[commandlets]]\n"
                 'name = "example"\n\n'
                 "[[event_schemas]]\n"
@@ -103,6 +109,8 @@ class PluginCatalogTests(unittest.TestCase):
             plugin_dir.mkdir(parents=True)
             (plugin_dir / "plugin.py").write_text("def plugin():\n    raise RuntimeError('not imported')\n")
             (plugin_dir / "bywaf.plugin.toml").write_text(
+                "[plugin]\n"
+                'version = "0.1.0"\n\n'
                 "[[commandlets]]\n"
                 'name = "example"\n'
                 "capabilities = []\n"
@@ -123,6 +131,8 @@ class PluginCatalogTests(unittest.TestCase):
             plugin_dir.mkdir(parents=True)
             (plugin_dir / "__init__.py").write_text("def plugin():\n    raise RuntimeError('not imported')\n")
             (plugin_dir / "bywaf.plugin.toml").write_text(
+                "[plugin]\n"
+                'version = "0.1.0"\n\n'
                 "[[commandlets]]\n"
                 'name = "example"\n'
                 "capabilities = []\n"
@@ -262,6 +272,10 @@ def write_catalog_fixture(tmp: str, manifest: str) -> tuple[Path, Path]:
     plugin_dir = plugin_root / "myplugin"
     plugin_dir.mkdir(parents=True)
     (plugin_dir / "plugin.py").write_text("def plugin():\n    raise RuntimeError('not imported')\n")
+    if "[plugin]" not in manifest:
+        manifest = "[plugin]\nversion = \"0.1.0\"\n\n" + manifest
+    elif "version =" not in manifest:
+        manifest = manifest.replace("[plugin]\n", "[plugin]\nversion = \"0.1.0\"\n", 1)
     (plugin_dir / "bywaf.plugin.toml").write_text(manifest)
     (root / "plugins.toml").write_text('default_plugins = ["myplugin"]\n')
     return root, plugin_root

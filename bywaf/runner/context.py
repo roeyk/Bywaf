@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .. import __version__ as BYWAF_VERSION
 from ..command.parser import CommandInvocation
 from ..db import EventStore, new_serial
 from ..event import Event
@@ -213,5 +214,8 @@ def build_context(
             "database_actions": plugin.spec.database_actions or database_actions_for_capabilities(capabilities),
             "capability_mode": "enforce",
             "plugin_origin": registry.commandlet_origin(invocation.name),
+            "plugin_version": registry.commandlet_plugin_version(invocation.name),
+            "requires_bywaf": registry.commandlet_requires_bywaf(invocation.name),
+            "bywaf_version": BYWAF_VERSION,
         },
     )

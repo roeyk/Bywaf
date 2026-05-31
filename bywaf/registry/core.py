@@ -62,6 +62,8 @@ class PluginRegistry:
     triggers: list[TriggerSpec] = field(default_factory=list)
     trigger_providers: dict[int, str] = field(default_factory=dict)
     commandlet_origins: dict[str, str] = field(default_factory=dict)
+    commandlet_plugin_versions: dict[str, str] = field(default_factory=dict)
+    commandlet_bywaf_requirements: dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def discover(
@@ -140,7 +142,13 @@ class PluginRegistry:
             manifest_trust=manifest_trust,
         )
         for plugin in plugins:
-            self.register_commandlet(provider_path, plugin, origin="filesystem")
+            self.register_commandlet(
+                provider_path,
+                plugin,
+                origin="filesystem",
+                plugin_version=manifest.version,
+                requires_bywaf=manifest.requires_bywaf,
+            )
             load_defaults_file(plugin_dir, plugin, self.varstore, scope=self.variable_scope(plugin.spec.name))
         self.register_provider_default(provider_path, manifest.default_commandlet)
         self.add_triggers(entry, triggers)
@@ -166,17 +174,34 @@ class PluginRegistry:
         elif triggers:
             raise ValueError(f"{package_name}.{entry} exposes undeclared triggers without a plugin manifest")
         for plugin in plugins:
-            self.register_commandlet(provider_path, plugin, origin="bundled")
+            self.register_commandlet(
+                provider_path,
+                plugin,
+                origin="bundled",
+                plugin_version=manifest.version if manifest is not None else "0.0.0",
+                requires_bywaf=manifest.requires_bywaf if manifest is not None else None,
+            )
             load_module_defaults(module, plugin, self.varstore, scope=self.variable_scope(plugin.spec.name))
         if manifest is not None:
             self.register_provider_default(provider_path, manifest.default_commandlet)
         self.add_triggers(entry, triggers)
         return plugins[0]
 
-    def register_commandlet(self, entry: str, plugin: Commandlet, *, origin: str = "bundled") -> None:
+    def register_commandlet(
+        self,
+        entry: str,
+        plugin: Commandlet,
+        *,
+        origin: str = "bundled",
+        plugin_version: str = "0.0.0",
+        requires_bywaf: str | None = None,
+    ) -> None:
         """Register one commandlet and its provider-qualified aliases."""
         self.plugins[plugin.spec.name] = plugin
         self.commandlet_origins[plugin.spec.name] = origin
+        self.commandlet_plugin_versions[plugin.spec.name] = plugin_version
+        if requires_bywaf is not None:
+            self.commandlet_bywaf_requirements[plugin.spec.name] = requires_bywaf
         catalog_path = normalize_catalog_path(entry)
         self.providers.setdefault(provider_name(catalog_path), []).append(plugin.spec.name)
         self.provider_commandlets.setdefault(catalog_path, []).append(plugin.spec.name)
@@ -252,6 +277,16 @@ class PluginRegistry:
         """Return where one commandlet was loaded from."""
         canonical_name = self.resolve_commandlet_name(name)
         return self.commandlet_origins.get(canonical_name, "bundled")
+
+    def commandlet_plugin_version(self, name: str) -> str:
+        """Return plugin version for a flat name or alias."""
+        canonical_name = self.resolve_commandlet_name(name)
+        return self.commandlet_plugin_versions.get(canonical_name, "0.0.0")
+
+    def commandlet_requires_bywaf(self, name: str) -> str | None:
+        """Return framework version requirement for a flat name or alias."""
+        canonical_name = self.resolve_commandlet_name(name)
+        return self.commandlet_bywaf_requirements.get(canonical_name)
 
     def names(self) -> list[str]:
         """Return commandlet names for command completion."""

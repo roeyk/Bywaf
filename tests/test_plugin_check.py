@@ -34,9 +34,21 @@ class PluginCheckTests(unittest.TestCase):
             report = check_plugin(plugin_dir)
 
             self.assertTrue(report["ok"])
+            self.assertEqual(report["plugin_version"], "0.1.0")
             self.assertEqual(report["commandlets"], ["example"])
             self.assertEqual(report["triggers"], [])
             self.assertEqual(report["errors"], [])
+
+    def test_check_plugin_requires_plugin_version(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(Path(tmp), capabilities=("network.connect",))
+            manifest = plugin_dir.joinpath("bywaf.plugin.toml")
+            manifest.write_text(manifest.read_text().replace('version = "0.1.0"\n\n', ""))
+
+            report = check_plugin(plugin_dir)
+
+            self.assertFalse(report["ok"])
+            self.assertIn("manifest [plugin].version is required", report["errors"])
 
     def test_check_plugin_accepts_multifile_relative_imports(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -476,6 +488,8 @@ def write_plugin_fixture(
     declared_emits = emits if manifest_emits is None else manifest_emits
     manifest_emits_text = "emits = [" + ", ".join(f'"{item}"' for item in declared_emits) + "]\n" if declared_emits else ""
     plugin_dir.joinpath("bywaf.plugin.toml").write_text(
+        "[plugin]\n"
+        'version = "0.1.0"\n\n'
         "[[commandlets]]\n"
         'name = "example"\n'
         "capabilities = [\n"
@@ -520,6 +534,8 @@ def write_multifile_plugin_fixture(root: Path) -> Path:
         "    yield {'ok': True}\n"
     )
     plugin_dir.joinpath("bywaf.plugin.toml").write_text(
+        "[plugin]\n"
+        'version = "0.1.0"\n\n'
         "[[commandlets]]\n"
         'name = "example"\n'
     )
