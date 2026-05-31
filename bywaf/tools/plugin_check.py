@@ -209,10 +209,20 @@ class CapabilityVisitor(ast.NodeVisitor):
         if path in {"context.artifacts.attach_file", "context.artifacts.attach_files"}:
             self.add_evidence("artifact.write", "framework_call", node, path)
         if path == "context.artifact_store":
-            if literal_bool_argument(node, "read_access", default=False):
+            read_access = literal_bool_argument(node, "read_access")
+            write_access = literal_bool_argument(node, "write_access")
+            if read_access is True:
                 self.add_evidence("artifact.read", "framework_call", node, path)
-            if literal_bool_argument(node, "write_access", default=False):
+            if write_access is True:
                 self.add_evidence("artifact.write", "framework_call", node, path)
+            if read_access is not True and write_access is not True:
+                self.add_warning(
+                    "artifact.read",
+                    "artifact_store_access_unspecified",
+                    node,
+                    "context.artifact_store without read_access=True or write_access=True",
+                    confidence="high",
+                )
         if path == "open":
             self.inspect_open_call(node)
         if path in {"pathlib.Path.read_text", "pathlib.Path.read_bytes"} or path.endswith(".read_text") or path.endswith(".read_bytes"):
@@ -524,12 +534,12 @@ def literal_string_argument(node: ast.Call, keyword: str, position: int | None) 
     return None
 
 
-def literal_bool_argument(node: ast.Call, keyword: str, *, default: bool) -> bool:
+def literal_bool_argument(node: ast.Call, keyword: str) -> bool | None:
     """Return a literal boolean keyword argument."""
     for item in node.keywords:
         if item.arg == keyword and isinstance(item.value, ast.Constant) and isinstance(item.value.value, bool):
             return item.value.value
-    return default
+    return None
 
 
 def literal_string_sequence_argument(node: ast.Call, keyword: str, position: int) -> tuple[str, ...]:

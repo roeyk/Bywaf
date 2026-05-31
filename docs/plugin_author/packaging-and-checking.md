@@ -235,7 +235,9 @@ capabilities, database action flags, shared event declarations, secret options,
 and trigger specs match the code. It also runs a lightweight AST pass over
 plugin source and reports inferred capabilities, missing inferred declarations,
 unused declarations, and warnings for direct network, process, and filesystem
-APIs that bypass framework mediation.
+APIs that bypass framework mediation. It also warns when runtime artifact-store
+access omits explicit `read_access=True` or `write_access=True`, since that
+usually means artifact capability auditing would be ambiguous.
 Inference is advisory by default; `--strict-inference` turns missing inferred
 capabilities into a failed check. When `--manifest-key` is supplied, it also
 verifies the manifest signature.

@@ -89,6 +89,20 @@ class PluginCheckTests(unittest.TestCase):
             self.assertIn("artifact.read", report["missing_capabilities"])
             self.assertIn("artifact.write", report["missing_capabilities"])
 
+    def test_check_plugin_warns_on_unspecified_artifact_store_access(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(
+                Path(tmp),
+                capabilities=(),
+                run_body='        context.artifact_store("example")\n',
+            )
+
+            report = check_plugin(plugin_dir)
+
+            self.assertTrue(report["ok"])
+            self.assertEqual(report["warnings"][0]["kind"], "artifact_store_access_unspecified")
+            self.assertEqual(report["warnings"][0]["confidence"], "high")
+
     def test_check_plugin_strict_inference_fails_on_missing_capabilities(self):
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(
@@ -366,6 +380,38 @@ class PluginCheckTests(unittest.TestCase):
                 failures.append(f"{plugin_dir}/findings.py: uses nonexistent confirmed_payload helper")
 
         self.assertEqual([], failures)
+
+    def test_runtime_code_uses_context_for_artifact_store_access(self):
+        root = Path(__file__).resolve().parents[1]
+        allowed = {
+            root / "bywaf" / "artifacts.py",
+            root / "bywaf" / "plugin" / "context.py",
+            root / "bywaf" / "plugin" / "services.py",
+        }
+        offenders: list[str] = []
+        for path in (root / "bywaf").rglob("*.py"):
+            if path in allowed:
+                continue
+            if "artifact_store_for_event_store" in path.read_text(encoding="utf-8"):
+                offenders.append(str(path.relative_to(root)))
+
+        self.assertEqual([], offenders)
+
+    def test_runtime_artifact_store_access_declares_access_intent(self):
+        root = Path(__file__).resolve().parents[1]
+        completion_exception = root / "bywaf" / "plugins" / "runtime" / "artifact" / "completion.py"
+        offenders: list[str] = []
+        for path in (root / "bywaf" / "plugins").rglob("*.py"):
+            for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+                if "context.artifact_store(" not in line:
+                    continue
+                if "read_access=" in line or "write_access=" in line:
+                    continue
+                if path == completion_exception:
+                    continue
+                offenders.append(f"{path.relative_to(root)}:{lineno}")
+
+        self.assertEqual([], offenders)
 
 
 def write_plugin_fixture(

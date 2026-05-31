@@ -57,7 +57,9 @@ maintenance behavior:
 
 - `context.event_store()` returns the event/audit contract;
 - `context.runtime_store()` returns the job/step/pipeline metadata contract;
-- `context.artifact_store()` returns the paired artifact body store;
+- `context.artifact_store(read_access=True, write_access=True)` returns the
+  paired artifact body store and audits artifact capabilities according to the
+  requested access;
 - `context.maintenance_store()` returns maintenance operations and is audited
   as raw DB access.
 
