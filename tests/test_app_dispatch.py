@@ -1634,6 +1634,45 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("Cloudflare", text)
             self.assertIn("https://example.test/", text)
 
+    def test_web_inventory_includes_fingerprint_technology(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.record_job("webfin https://example.test/", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=1,
+                pipeline_id="web-pipeline",
+                command_run_id="webfin-step",
+                commandlet="webfin",
+                values={},
+            )
+            runner.db.publish(
+                "web.fingerprint",
+                {
+                    "url": "https://example.test/",
+                    "host": "example.test",
+                    "port": 443,
+                    "scheme": "https",
+                    "status": 200,
+                    "server": "nginx",
+                    "technologies": ["nginx", "jquery"],
+                    "observations": [{"severity": "low", "message": "missing header"}],
+                    "interesting": True,
+                },
+                "webfin",
+                pipeline_id="web-pipeline",
+                command_run_id="webfin-step",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "web")
+
+            text = output.getvalue()
+            self.assertIn("Web: project inventory", text)
+            self.assertIn("https://example.test/", text)
+            self.assertIn("nginx", text)
+            self.assertIn("jquery", text)
+
     def test_schemas_view_lists_versions_and_usage(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -2050,6 +2089,49 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("Name resolutions", text)
             self.assertIn("HTTP endpoints", text)
             self.assertIn("https://example.test/", text)
+
+    def test_results_renders_web_fingerprint_summary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.record_job("webfin https://example.test/", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=1,
+                pipeline_id="web-pipeline",
+                command_run_id="webfin-step",
+                commandlet="webfin",
+                values={},
+            )
+            runner.db.publish(
+                "web.fingerprint",
+                {
+                    "url": "https://example.test/",
+                    "host": "example.test",
+                    "port": 443,
+                    "scheme": "https",
+                    "status": 200,
+                    "server": "nginx",
+                    "technologies": ["nginx", "jquery"],
+                    "observations": [
+                        {"severity": "low", "message": "missing header"},
+                        {"severity": "info", "message": "server header"},
+                    ],
+                    "interesting": True,
+                },
+                "webfin",
+                pipeline_id="web-pipeline",
+                command_run_id="webfin-step",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "results")
+
+            text = output.getvalue()
+            self.assertIn("Shared schemas: web.fingerprint", text)
+            self.assertIn("Web fingerprints", text)
+            self.assertIn("nginx", text)
+            self.assertIn("info:1", text)
+            self.assertNotIn("Representative events", text)
 
     def test_results_renders_tcp_banner_summaries(self):
         with tempfile.TemporaryDirectory() as tmp:

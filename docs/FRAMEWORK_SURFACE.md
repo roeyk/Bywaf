@@ -85,6 +85,7 @@ base installation commandlets that declare or use each capability.
 | `db.write:watchdog.stalled` | `watchdog` |
 | `db.write:watchdog.timeout` | `watchdog` |
 | `db.write:web.error` | `nikto` |
+| `db.write:web.fingerprint` | `webfin` |
 | `db.write:web.screenshotted_host` | `eyewitness`, `screenshotter` |
 | `db.write:wifi.network` | `wifi_scan` |
 | `db.write:yara.match` | `yara_scan` |

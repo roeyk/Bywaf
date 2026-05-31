@@ -38,7 +38,14 @@ from bywaf.plugins.runtime.inventory_scope import inventory_scope_label, parse_i
 
 HOST_TOPICS = ("host.found", "name.resolved", "port.open", "http.endpoint", "service.detected", "finding.candidate")
 SERVICE_TOPICS = ("port.open", "service.detected", "http.endpoint", "tcp.banner", "tls.certificate")
-WEB_TOPICS = ("http.endpoint", "http.path", "web.waf.detected", "web.screenshotted_host", "finding.candidate")
+WEB_TOPICS = (
+    "http.endpoint",
+    "http.path",
+    "web.fingerprint",
+    "web.waf.detected",
+    "web.screenshotted_host",
+    "finding.candidate",
+)
 WAF_TOPICS = ("web.waf.detected",)
 SHARE_TOPICS = ("smb.share.found",)
 ROUTE_TOPICS = ("network.route.hop",)
@@ -161,7 +168,7 @@ class Web(InventoryCommand):
     """Render a compact web endpoint inventory."""
 
     topics = WEB_TOPICS
-    sort_keys = ("url", "host", "status", "server")
+    sort_keys = ("url", "host", "status", "server", "tech")
     identity = staticmethod(lambda event: web_event_keys(event))
 
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):

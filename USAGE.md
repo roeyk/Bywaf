@@ -506,6 +506,10 @@ They default to the accumulated project inventory and accept `job=`,
 such as `job`, `pipeline`, `step`, `event`, and `artifact` remain separate from
 inventory commands.
 
+`web` includes HTTP endpoint, path, screenshot, WAF, finding, and web
+fingerprint facts, so `webfin` technology tags appear directly in the web
+inventory and in `results`.
+
 Use `--last` on inventory commands to show the latest relevant producer scope.
 Use `--new` to show facts from the selected or latest producer scope that were
 not present in prior project inventory.

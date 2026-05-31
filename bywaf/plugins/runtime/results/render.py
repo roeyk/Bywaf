@@ -32,6 +32,7 @@ def render_results(context: CommandContext, scope: Namespace) -> str:
         ("network.route.hop", render_route_hops_section),
         ("http.endpoint", render_http_endpoints_section),
         ("http.path", render_http_paths_section),
+        ("web.fingerprint", render_web_fingerprints_section),
         ("web.waf.detected", render_waf_section),
         ("web.screenshotted_host", render_screenshots_section),
         ("smb.share.found", render_smb_shares_section),
@@ -380,6 +381,43 @@ def render_http_paths_section(context: CommandContext, events: list[Event]) -> s
         max_width=terminal_table_width(),
     )
     return f"HTTP paths ({len(events)})\n{table}"
+
+
+def render_web_fingerprints_section(context: CommandContext, events: list[Event]) -> str:
+    """Render web technology fingerprints."""
+    rows = [
+        (
+            event.payload.get("url", ""),
+            event.payload.get("status", ""),
+            ", ".join(str(value) for value in event.payload.get("technologies", [])[:4]),
+            observation_summary(event.payload.get("observations")),
+            event.payload.get("server", ""),
+            "yes" if event.payload.get("interesting") else "",
+        )
+        for event in sorted(events, key=lambda event: (str(event.payload.get("url") or ""), event.id or 0))
+    ]
+    table = render_table(
+        ("URL", "STATUS", "TECH", "OBSERVATIONS", "SERVER", "INTERESTING"),
+        rows,
+        cell_subjects=("url", "status", "value", "value", "", "status"),
+        style_getter=command_context_style_getter(context),
+        max_width=terminal_table_width(),
+    )
+    return f"Web fingerprints ({len(events)})\n{table}"
+
+
+def observation_summary(value: object) -> str:
+    """Summarize webfin observation lists for compact result views."""
+    if not isinstance(value, list) or not value:
+        return ""
+    severities: Counter[str] = Counter()
+    for item in value:
+        if isinstance(item, dict):
+            severity = str(item.get("severity") or "unknown")
+        else:
+            severity = "unknown"
+        severities[severity] += 1
+    return ", ".join(f"{severity}:{count}" for severity, count in sorted(severities.items()))
 
 
 def render_waf_section(context: CommandContext, events: list[Event]) -> str:

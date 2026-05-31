@@ -12,8 +12,6 @@ from .shared import add_value, finding_urls, host_sort_value, join_values, sort_
 
 
 @dataclass(slots=True)
-
-
 class WebInventory:
     """Aggregated operator-facing facts for one web endpoint."""
 
@@ -21,6 +19,8 @@ class WebInventory:
     host: str = ""
     status: str = ""
     server: str = ""
+    technologies: set[str] = field(default_factory=set)
+    observations: int = 0
     paths: set[str] = field(default_factory=set)
     wafs: set[str] = field(default_factory=set)
     screenshots: set[str] = field(default_factory=set)
@@ -28,8 +28,6 @@ class WebInventory:
 
 
 @dataclass(slots=True)
-
-
 class WafInventory:
     """Aggregated operator-facing facts for one WAF signal."""
 
@@ -52,6 +50,8 @@ def render_web_inventory(context: CommandContext, events: list[Event], scope: st
             web.url,
             web.status,
             web.server,
+            join_values(web.technologies, limit=3),
+            web.observations or "",
             join_values(web.paths, limit=3),
             join_values(web.wafs),
             len(web.screenshots),
@@ -60,9 +60,9 @@ def render_web_inventory(context: CommandContext, events: list[Event], scope: st
         for web in sorted(inventory.values(), key=lambda item: web_inventory_sort_key(item, sort_key), reverse=descending)
     ]
     table = render_table(
-        ("URL", "STATUS", "SERVER", "PATHS", "WAF", "SHOTS", "FINDINGS"),
+        ("URL", "STATUS", "SERVER", "TECH", "OBS", "PATHS", "WAF", "SHOTS", "FINDINGS"),
         rows,
-        cell_subjects=("url", "status", "", "url", "value", "artifact", "finding.title"),
+        cell_subjects=("url", "status", "", "value", "value", "url", "value", "artifact", "finding.title"),
         style_getter=command_context_style_getter(context),
         max_width=terminal_table_width(),
     )
@@ -77,6 +77,8 @@ def web_inventory_sort_key(web: WebInventory, key: str) -> object:
         return (web.status, web.url)
     if key == "server":
         return (web.server.casefold(), web.url)
+    if key == "tech":
+        return (join_values(web.technologies).casefold(), web.url)
     return web.url
 
 def build_web_inventory(events: list[Event]) -> dict[str, WebInventory]:
@@ -93,6 +95,16 @@ def build_web_inventory(events: list[Event]) -> dict[str, WebInventory]:
             row = web_record(web, payload.get("url"))
             row.host = str(payload.get("host") or row.host)
             add_value(row.paths, payload.get("path"))
+        elif event.topic == "web.fingerprint":
+            row = web_record(web, payload.get("url"))
+            row.host = str(payload.get("host") or row.host)
+            row.status = str(payload.get("status") or row.status)
+            row.server = str(payload.get("server") or row.server)
+            for technology in payload.get("technologies", []):
+                add_value(row.technologies, technology)
+            observations = payload.get("observations", [])
+            if isinstance(observations, list):
+                row.observations = max(row.observations, len(observations))
         elif event.topic == "web.waf.detected":
             row = web_record(web, payload.get("url"))
             row.host = str(payload.get("host") or row.host)
@@ -176,7 +188,7 @@ def web_event_keys(event: Event) -> set[tuple[str, str]]:
     """Return stable web inventory identity keys for one event."""
     payload = event.payload
     values: set[str] = set()
-    if event.topic in {"http.endpoint", "http.path", "web.waf.detected"}:
+    if event.topic in {"http.endpoint", "http.path", "web.fingerprint", "web.waf.detected"}:
         add_value(values, payload.get("url"))
     elif event.topic == "web.screenshotted_host":
         for url in payload.get("urls", []):

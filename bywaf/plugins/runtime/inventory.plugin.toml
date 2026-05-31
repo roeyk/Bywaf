@@ -49,6 +49,7 @@ capabilities = [
 consumes = [
   "http.endpoint",
   "http.path",
+  "web.fingerprint",
   "web.waf.detected",
   "web.screenshotted_host",
   "finding.candidate",
