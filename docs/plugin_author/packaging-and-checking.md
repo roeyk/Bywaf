@@ -120,7 +120,7 @@ loading. A config entry such as `default_plugins = ["myplugin"]` describes
 `~/.bywaf/plugins/myplugin/bywaf.plugin.toml`.
 
 Every plugin manifest should declare `[plugin].version`, for example
-`version = "0.1.0"`. Use optional `requires_bywaf = ">=0.12.2"` when the plugin
+`version = "0.12.2"`. Use optional `requires_bywaf = ">=0.12.2"` when the plugin
 depends on framework APIs or event-schema behavior introduced in a specific
 Bywaf release. `plugin_check` fails missing plugin versions, and command-run
 provenance records the plugin version and Bywaf version that produced each

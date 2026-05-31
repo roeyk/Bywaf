@@ -21,8 +21,10 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from bywaf import __version__ as BYWAF_VERSION  # noqa: E402
 from bywaf.event.schemas import event_schema, register_event_schemas  # noqa: E402
 from bywaf.plugin.capabilities import capability_declared  # noqa: E402
+from bywaf.registry.compat import satisfies_bywaf_requirement  # noqa: E402
 from bywaf.registry import PluginManifestTrust, verify_plugin_manifest_signature_data, load_filesystem_plugin_package, parse_plugin_manifest_data  # noqa: E402
 from bywaf.toml_support import load_data_file  # noqa: E402
 from bywaf.tools.plugin_check import analyze_plugin_source  # noqa: E402
@@ -76,6 +78,11 @@ def check_plugin(
         register_event_schemas(pre_import_manifest.event_schemas)
         report["plugin_version"] = pre_import_manifest.version
         report["requires_bywaf"] = pre_import_manifest.requires_bywaf
+        if not satisfies_bywaf_requirement(BYWAF_VERSION, pre_import_manifest.requires_bywaf):
+            report["errors"].append(
+                f"requires Bywaf {pre_import_manifest.requires_bywaf}, current Bywaf is {BYWAF_VERSION}"
+            )
+            return report
     except Exception as exc:  # noqa: BLE001 - this is a CLI validation report.
         report["errors"].append(f"manifest parse failed: {exc}")
         return report

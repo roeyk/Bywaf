@@ -23,8 +23,13 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 CATALOG_SCHEMA = "bywaf.plugin-catalog.v1"
 SIGNATURE_ALGORITHM = "ed25519"
+
+from bywaf import __version__ as BYWAF_VERSION  # noqa: E402
+from bywaf.registry.compat import satisfies_bywaf_requirement  # noqa: E402
 
 
 def build_catalog(
@@ -87,10 +92,13 @@ def catalog_plugin_entry(
     library_backed = bool_value(plugin_data, "library_backed", manifest_path, "plugin")
     process_wrapped = bool_value(plugin_data, "process_wrapped", manifest_path, "plugin")
     native = bool_value(plugin_data, "native", manifest_path, "plugin", default=not (library_backed or process_wrapped))
+    requires_bywaf = optional_string(plugin_data, "requires_bywaf", manifest_path, "plugin")
+    if not satisfies_bywaf_requirement(BYWAF_VERSION, requires_bywaf):
+        raise ValueError(f"{manifest_path} requires Bywaf {requires_bywaf}, current Bywaf is {BYWAF_VERSION}")
     return {
         "entry": dotted_entry,
         "version": required_string(plugin_data, "version", manifest_path, "plugin"),
-        "requires_bywaf": optional_string(plugin_data, "requires_bywaf", manifest_path, "plugin"),
+        "requires_bywaf": requires_bywaf,
         "module": relative_posix(module_path, root=root),
         "manifest": relative_posix(manifest_path, root=root),
         "module_sha256": sha256_file(module_path),

@@ -20,6 +20,7 @@ from ..event.schemas import EVENT_SCHEMAS, FIELD_TYPES, EventSchema, FieldSchema
 from ..plugin import Commandlet
 from ..specs import ArgumentSpec, CompletionSpec, OptionSpec, TriggerSpec
 from ..toml_support import load_data_file
+from .compat import REQUIREMENT_RE
 from .loading import load_module_path, load_plugins, load_trigger_specs
 from .trust import (
     PluginManifestTrust,
@@ -170,9 +171,6 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
 
 
 SEMVERISH_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
-REQUIRES_BYWAF_RE = re.compile(r"^(>=|>|<=|<|==)?\s*\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
-
-
 def validate_version_string(value: str, source: str, context: str) -> None:
     """Validate a SemVer-like plugin version string."""
     if not SEMVERISH_RE.match(value):
@@ -181,7 +179,7 @@ def validate_version_string(value: str, source: str, context: str) -> None:
 
 def validate_requires_bywaf(value: str, source: str, context: str) -> None:
     """Validate a simple one-clause framework version requirement."""
-    if not REQUIRES_BYWAF_RE.match(value.strip()):
+    if not REQUIREMENT_RE.match(value.strip()):
         raise ValueError(f"{source} {context} must look like >=0.13.0")
 
 

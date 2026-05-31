@@ -60,7 +60,7 @@ A manifest contains one `[plugin]` table, one or more
 
 ```toml
 [plugin]
-version = "0.1.0"
+version = "0.12.2"
 requires_bywaf = ">=0.12.2"
 native = true
 library_backed = false
@@ -197,7 +197,7 @@ Lifecycle/audit events emitted by the framework itself are separate from these
 plugin action flags.
 
 Plugin manifests must declare a SemVer-like `plugin.version`, such as
-`0.1.0`. `requires_bywaf` is optional and currently supports a simple one-clause
+`0.12.2`. `requires_bywaf` is optional and currently supports a simple one-clause
 framework requirement such as `>=0.12.2`. Bywaf records both the plugin version
 and the framework version that executed a commandlet in command-run provenance
 events.

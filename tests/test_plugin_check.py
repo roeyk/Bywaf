@@ -50,6 +50,19 @@ class PluginCheckTests(unittest.TestCase):
             self.assertFalse(report["ok"])
             self.assertIn("manifest [plugin].version is required", report["errors"])
 
+    def test_check_plugin_rejects_incompatible_bywaf_requirement(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(Path(tmp), capabilities=("network.connect",))
+            manifest = plugin_dir.joinpath("bywaf.plugin.toml")
+            manifest.write_text(
+                manifest.read_text().replace('version = "0.1.0"\n\n', 'version = "0.1.0"\nrequires_bywaf = ">99.0.0"\n\n')
+            )
+
+            report = check_plugin(plugin_dir)
+
+            self.assertFalse(report["ok"])
+            self.assertIn("requires Bywaf >99.0.0", report["errors"][0])
+
     def test_check_plugin_accepts_multifile_relative_imports(self):
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_multifile_plugin_fixture(Path(tmp))

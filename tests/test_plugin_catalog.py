@@ -41,7 +41,7 @@ class PluginCatalogTests(unittest.TestCase):
         catalog = build_catalog()
         watchdog = next(row for row in catalog["plugins"] if row["entry"] == "runtime.watchdog")
 
-        self.assertEqual(watchdog["version"], "0.1.0")
+        self.assertEqual(watchdog["version"], "0.12.2")
         self.assertIsNone(watchdog["requires_bywaf"])
         self.assertEqual(watchdog["triggers"][0]["name"], "network-access-starts-watchdog")
         self.assertEqual(watchdog["triggers"][0]["action_mode"], "service")
