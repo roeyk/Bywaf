@@ -210,7 +210,9 @@ for session in SmbSession.from_events(input_events):
 
 Declare the topic in `consumes` and `emits` as usual. If the topic becomes
 broadly useful, promote it into a framework-known schema and move the canonical
-class into `bywaf.event.schema_objects`.
+class into `bywaf.event.schema_objects`. Promotion is a framework maintainer
+decision, not a plugin-side registration action; see
+[Framework Development](../FRAMEWORK_DEVELOPMENT.md#promote-a-plugin-owned-event-schema).
 
 Promotion should normally keep the same topic name and version lineage so
 existing producers and consumers keep interoperating. Create a new framework

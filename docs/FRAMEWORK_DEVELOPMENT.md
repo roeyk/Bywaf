@@ -29,6 +29,7 @@ Bywaf is a commandlet framework built around a few stable ideas:
 - [Common Change Paths](#common-change-paths)
   - [Add Or Change A View Command](#add-or-change-a-view-command)
   - [Add A Runtime Selector](#add-a-runtime-selector)
+  - [Promote A Plugin-Owned Event Schema](#promote-a-plugin-owned-event-schema)
   - [Refactor A Large Module](#refactor-a-large-module)
   - [Change Plugin Contracts](#change-plugin-contracts)
 - [Testing Expectations](#testing-expectations)
@@ -163,6 +164,35 @@ fingerprint provenance for audit without exposing reusable handles.
    scans in each command.
 3. Update completion.
 4. Add tests across all view commands that should support it.
+
+### Promote A Plugin-Owned Event Schema
+
+Plugin-owned schemas are registered through manifest TOML so the framework can
+inspect them before importing plugin Python. Promotion is different: it is a
+framework maintainer decision to adopt a registered plugin schema as core shared
+vocabulary.
+
+Use this policy:
+
+1. Require evidence that the schema is useful beyond one plugin, such as reuse
+   by multiple commandlets, inventory/report views, bundles, GUI/API work, or
+   follow-up plugins.
+2. Keep the same topic name and version lineage when the topic name and field
+   meanings are sound. Promotion should usually change ownership, not event
+   identity.
+3. Create a new framework topic only when the plugin-owned topic name or field
+   semantics are wrong enough to mislead future consumers.
+4. Treat aliases as temporary migration bridges, not permanent vocabulary.
+5. Move the canonical schema into `bywaf/event/schemas.py` and, when useful,
+   add a framework-owned object class in `bywaf/event/schema_objects.py`.
+6. Update `docs/EVENT_MODEL.md`, `docs/plugin_author/event-schemas.md`, and
+   any inventory/report/result views that should treat the topic as first-class.
+7. Add tests for validation, schema inspection, at least one producer, and at
+   least one consumer/view.
+8. Add a changelog note when promotion affects external plugin compatibility.
+
+Plugin authors can register and use plugin-owned schemas without this process.
+Promotion is only for schemas that Bywaf itself promises to keep stable.
 
 ### Refactor A Large Module
 
