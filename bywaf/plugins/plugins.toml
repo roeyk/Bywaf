@@ -30,6 +30,7 @@ default_plugins = [
   "runtime.pipeline",
   "runtime.step",
   "runtime.results",
+  "runtime.inventory",
   "runtime.control",
   "runtime.audit",
   "runtime.bundle",

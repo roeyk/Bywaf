@@ -2019,6 +2019,86 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("WAF signals", text)
             self.assertIn("Cloudflare", text)
 
+    def test_inventory_commands_summarize_project_knowledge(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.record_job("hostscanner 192.0.2.0/24 | portscanner | http_probe", 123, "finished")
+            runner.db.record_command_run_vars(
+                job_id=1,
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+                commandlet="http_probe",
+                values={},
+            )
+            runner.db.publish("host.found", {"host": "192.0.2.20", "name": "web-1", "status": "up"}, "hostscanner", pipeline_id="scan-pipeline", command_run_id="scan-step")
+            runner.db.publish("name.resolved", {"name": "example.test", "host": "192.0.2.20"}, "dns_lookup", pipeline_id="scan-pipeline", command_run_id="scan-step")
+            runner.db.publish(
+                "port.open",
+                {"host": "192.0.2.20", "port": 443, "protocol": "tcp", "service": "https"},
+                "portscanner",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
+            runner.db.publish(
+                "service.detected",
+                {"host": "192.0.2.20", "port": 443, "protocol": "tcp", "service": "https", "product": "nginx"},
+                "service_probe",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
+            runner.db.publish(
+                "http.endpoint",
+                {"url": "https://example.test/", "host": "192.0.2.20", "port": 443, "scheme": "https", "status": 200, "server": "nginx"},
+                "http_probe",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
+            runner.db.publish(
+                "http.path",
+                {"url": "https://example.test/.git/config", "host": "192.0.2.20", "port": 443, "path": "/.git/config", "status": 200, "interesting": True},
+                "http_paths",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
+            runner.db.publish(
+                "web.waf.detected",
+                {"url": "https://example.test/", "host": "192.0.2.20", "vendor": "Cloudflare", "confidence": "medium"},
+                "waf_detect",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
+            runner.db.publish(
+                "web.screenshotted_host",
+                {"host": "192.0.2.20", "urls": ["https://example.test/"], "screenshots": [{"artifact_id": "artifact-1"}]},
+                "screenshotter",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
+            runner.db.publish(
+                "finding.candidate",
+                {"title": "Missing HSTS", "class": "web.header.missing_hsts", "target_scope": {"kind": "web_origin", "value": "https://example.test/"}},
+                "http_headers",
+                pipeline_id="scan-pipeline",
+                command_run_id="scan-step",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "hosts")
+                dispatch_repl_line(runner, "services")
+                dispatch_repl_line(runner, "web")
+
+            text = output.getvalue()
+            self.assertIn("Hosts: project inventory", text)
+            self.assertIn("192.0.2.20", text)
+            self.assertIn("443/tcp https", text)
+            self.assertIn("Services: project inventory", text)
+            self.assertIn("nginx", text)
+            self.assertIn("Web: project inventory", text)
+            self.assertIn("https://example.test/", text)
+            self.assertIn("Cloudflare", text)
+            self.assertIn("Missing HSTS", text)
+
     def test_results_renders_route_hop_summaries(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

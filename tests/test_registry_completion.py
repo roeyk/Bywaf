@@ -114,6 +114,9 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn("report", self.registry.names())
         self.assertIn("results", self.registry.names())
         self.assertIn("result", self.registry.names())
+        self.assertIn("hosts", self.registry.names())
+        self.assertIn("services", self.registry.names())
+        self.assertIn("web", self.registry.names())
         self.assertIn("yara_scan", self.registry.names())
         self.assertIn("db", self.registry.names())
         self.assertIn("job", self.registry.names())
@@ -169,6 +172,7 @@ class RegistryCompletionTests(unittest.TestCase):
                 "runtime.pipeline",
                 "runtime.step",
                 "runtime.results",
+                "runtime.inventory",
                 "runtime.control",
                 "runtime.audit",
                 "runtime.bundle",
@@ -304,6 +308,7 @@ class RegistryCompletionTests(unittest.TestCase):
                 "bundle",
                 "cancel",
                 "end",
+                "hosts",
                 "job",
                 "key",
                 "kill",
@@ -315,10 +320,12 @@ class RegistryCompletionTests(unittest.TestCase):
                 "results",
                 "resume",
                 "search",
+                "services",
                 "signal",
                 "step",
                 "stop",
                 "watchdog",
+                "web",
             ],
         )
         self.assertEqual(self.registry.grouped_names()["storage"], ["db"])
@@ -373,7 +380,7 @@ class RegistryCompletionTests(unittest.TestCase):
             ["analysis/finding_dedupe", "analysis/finding_report", "analysis/report", "analysis/yara_scan"],
         )
         self.assertEqual(completer.candidates("use glo"), ["global"])
-        self.assertEqual(completer.candidates("use host"), ["hostscanner"])
+        self.assertEqual(completer.candidates("use host"), ["hosts", "hostscanner"])
 
     def test_vars_completion_prefers_active_context_scope(self):
         self.registry.varstore.set("discovery/hostscanner.targets", "127.0.0.1")

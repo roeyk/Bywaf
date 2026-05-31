@@ -481,6 +481,26 @@ Unqualified `since=` and `until=` audit bounds default to `time:`. Encrypted
 SQLite audit exports use SQLCipher. Encrypted PDF export uses `pikepdf` when
 available, otherwise the external `qpdf` command.
 
+Inventory commands are schema-backed project views that answer operator
+questions like "which hosts do we know about?", "which services are exposed?",
+and "which web endpoints have we seen?" They summarize accumulated target
+knowledge instead of showing runtime bookkeeping.
+
+```text
+bywaf> hosts
+bywaf> services
+bywaf> web
+bywaf> hosts pipeline=12
+bywaf> services step=portscanner-...
+bywaf> web job=latest
+```
+
+`results` answers "what did that scan insert?" while `hosts`, `services`, and
+`web` answer "what does the project know now?" They default to the accumulated
+project inventory and accept `job=`, `pipeline=`, and `step=` when you want a
+narrower slice. Runtime/store views such as `job`, `pipeline`, `step`, `event`,
+and `artifact` remain separate from inventory commands.
+
 # Signing Keys
 
 Bywaf keeps user signing and verification keys under `~/.bywaf/keys`, outside

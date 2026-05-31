@@ -1,0 +1,58 @@
+[plugin]
+native = true
+service = false
+
+[[commandlets]]
+name = "hosts"
+capabilities = [
+  "framework.console.output",
+  "framework.file.page",
+]
+consumes = [
+  "host.found",
+  "name.resolved",
+  "port.open",
+  "http.endpoint",
+  "service.detected",
+  "finding.candidate",
+]
+database.actions.view = true
+database.actions.write = false
+database.actions.manage = false
+module = "bywaf.plugins.runtime.inventory"
+
+[[commandlets]]
+name = "services"
+capabilities = [
+  "framework.console.output",
+  "framework.file.page",
+]
+consumes = [
+  "port.open",
+  "service.detected",
+  "http.endpoint",
+  "tcp.banner",
+  "tls.certificate",
+]
+database.actions.view = true
+database.actions.write = false
+database.actions.manage = false
+module = "bywaf.plugins.runtime.inventory"
+
+[[commandlets]]
+name = "web"
+capabilities = [
+  "framework.console.output",
+  "framework.file.page",
+]
+consumes = [
+  "http.endpoint",
+  "http.path",
+  "web.waf.detected",
+  "web.screenshotted_host",
+  "finding.candidate",
+]
+database.actions.view = true
+database.actions.write = false
+database.actions.manage = false
+module = "bywaf.plugins.runtime.inventory"

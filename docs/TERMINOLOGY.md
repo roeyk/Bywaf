@@ -13,6 +13,7 @@ intended to keep the CLI, documentation, plugin API, and audit records aligned.
 - [Event](#event)
 - [Topic](#topic)
 - [Commandlet](#commandlet)
+- [Inventory Command](#inventory-command)
 - [Plugin](#plugin)
 - [Capability](#capability)
 
@@ -199,6 +200,27 @@ pipeline
 ```
 
 A plugin may provide one commandlet or multiple commandlets.
+
+## Inventory Command
+
+An inventory command is an operator-facing commandlet that summarizes the
+project's accumulated target knowledge from normalized events. Inventory
+commands answer questions such as "which hosts are known?", "which services are
+open?", and "which web endpoints exist?" without requiring the operator to know
+which scanner produced the underlying events.
+
+Current examples include:
+
+```text
+hosts
+services
+web
+ports
+```
+
+Inventory commands are distinct from runtime/store views such as `job`,
+`pipeline`, `step`, `event`, and `artifact`, which inspect execution and storage
+bookkeeping.
 
 ## Plugin
 
