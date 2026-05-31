@@ -17,6 +17,7 @@ from typing import Any
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
 from bywaf.plugins.runtime.view_common import (
+    apply_runtime_new_cursor,
     filter_runtime_rows_by_events,
     filter_runtime_rows_since,
     filter_view_run_rows,
@@ -121,10 +122,14 @@ def print_steps(
     if filters:
         events = context.event_store("step")
         rows = filter_runtime_rows_by_events(events, "step", rows, filters)
+    rows, newest_alias = apply_runtime_new_cursor(context, "step", rows, highlight_newest)
     if sort_key:
         rows = sort_step_rows(rows, sort_key)
     if not rows:
-        context.output("no matching steps" if filters or since else "no active steps" if active_only else "no steps")
+        if highlight_newest:
+            context.output("no new steps")
+        else:
+            context.output("no matching steps" if filters or since else "no active steps" if active_only else "no steps")
         return
     names = runtime.runtime_names()
     run_aliases = runtime.run_aliases()
@@ -132,7 +137,6 @@ def print_steps(
     artifact_counts = runtime.artifact_counts_by_run()
     table_rows: list[tuple[object, ...]] = []
     row_subjects: list[str] = []
-    newest_alias = max((int(run_aliases.get(str(row["command_run_id"]), "0")) for row in rows), default=0) if highlight_newest else 0
     for row in rows:
         run_serial = str(row["command_run_id"])
         pipeline_serial = str(row["pipeline_id"]) if row["pipeline_id"] is not None else ""

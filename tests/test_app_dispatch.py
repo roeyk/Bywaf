@@ -3063,7 +3063,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("portscanner host=192.0.2.20", text)
             self.assertNotIn("portscanner host=192.0.2.10", text)
 
-    def test_runtime_views_accept_new_marker_without_cursor_writes(self):
+    def test_runtime_views_new_uses_operator_cursors(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("portscanner host=192.0.2.20", 123, "finished")
@@ -3087,11 +3087,18 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "job --new")
                 dispatch_repl_line(runner, "pipeline --new")
                 dispatch_repl_line(runner, "step --new")
+                dispatch_repl_line(runner, "job --new")
+                dispatch_repl_line(runner, "pipeline --new")
+                dispatch_repl_line(runner, "step --new")
 
             text = output.getvalue()
             self.assertIn("portscanner host=192.0.2.20", text)
             self.assertIn("PIPELINE", text)
             self.assertIn("STEP", text)
+            self.assertIn("no new jobs", text)
+            self.assertIn("no new pipelines", text)
+            self.assertIn("no new steps", text)
+            self.assertTrue(Path(tmp, "view-cursors.json").exists())
 
     def test_db_new_resets_repl_framework_request_cursor(self):
         with tempfile.TemporaryDirectory() as tmp:

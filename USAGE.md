@@ -1186,8 +1186,9 @@ selector to type next. `pipeline --sort=events` is rejected; use
 `event`. They show runtime objects that have at least one associated event
 matching the filter. `since=<id>` shows runtime objects created after a known
 local ID for that command, for example `job since=120` or `step since=40`.
-`--new` highlights the newest row in the current runtime listing without
-writing a hidden cursor to the project database.
+`--new` shows runtime objects created since the last time that runtime view was
+checked and highlights the newest displayed row. Its cursor is stored as
+operator-local filesystem state, not as project database events.
 
 Show events by pipeline step or pipeline:
 

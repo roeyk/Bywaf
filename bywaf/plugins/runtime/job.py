@@ -17,6 +17,7 @@ from collections.abc import Callable, Iterable
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
 from bywaf.plugins.runtime.view_common import (
+    apply_runtime_new_cursor,
     filter_runtime_rows_by_events,
     filter_runtime_rows_since,
     filter_view_job_rows,
@@ -208,16 +209,19 @@ def print_jobs(
     if filters:
         events = context.event_store("job list")
         rows = filter_runtime_rows_by_events(events, "job", rows, filters)
+    rows, newest_id = apply_runtime_new_cursor(context, "job", rows, highlight_newest)
     if sort_key:
         rows = sort_job_rows(rows, sort_key)
     if not rows:
-        context.output("no matching jobs" if filters or since else "no active jobs" if active_only else "no jobs")
+        if highlight_newest:
+            context.output("no new jobs")
+        else:
+            context.output("no matching jobs" if filters or since else "no active jobs" if active_only else "no jobs")
         return
     names = runtime.runtime_names()
     artifact_counts = runtime.artifact_counts_by_job()
     table_rows: list[tuple[object, ...]] = []
     row_subjects: list[str] = []
-    newest_id = max((int(row["id"]) for row in rows), default=0) if highlight_newest else 0
     for row in rows:
         # Listings keep time in STARTED/DUR only. Detail views can carry richer
         # lifecycle prose without duplicating timestamps across table cells.

@@ -17,6 +17,7 @@ from bywaf.runtime_display import (
     runtime_sort_completion_candidates,
     runtime_view_completion_candidates,
 )
+from bywaf.operator_state import update_view_cursor, view_cursor
 from bywaf.stores import EventStoreProtocol
 
 VIEW_COMMANDLETS = {
@@ -86,6 +87,39 @@ def filter_runtime_rows_since(runtime, kind: str, rows: list[dict], since: str) 
         aliases = runtime.run_aliases()
         threshold = resolve_alias_since("step", aliases, runtime.resolve_run_serial(since), since)
         return [row for row in rows if int(aliases.get(str(row["command_run_id"]), "0")) > threshold]
+    raise ValueError(f"unknown runtime view kind: {kind}")
+
+
+def apply_runtime_new_cursor(context, kind: str, rows: list[dict], enabled: bool) -> tuple[list[dict], int]:
+    """Filter rows to those newer than a local view cursor and advance it.
+
+    The cursor is operator-local JSON state, not a database event. The returned
+    integer is the newest local row ID so callers can highlight it.
+    """
+    newest = newest_runtime_row_id(context.runtime_store(f"{kind} new cursor"), kind, rows)
+    if not enabled:
+        return rows, 0
+    runner = context.metadata.get("runner")
+    threshold = view_cursor(runner, kind)
+    new_rows = [row for row in rows if runtime_row_local_id(context.runtime_store(f"{kind} new cursor"), kind, row) > threshold]
+    if newest:
+        update_view_cursor(runner, kind, newest)
+    return new_rows, newest_runtime_row_id(context.runtime_store(f"{kind} new cursor"), kind, new_rows)
+
+
+def newest_runtime_row_id(runtime, kind: str, rows: list[dict]) -> int:
+    """Return the newest local runtime ID in a row set."""
+    return max((runtime_row_local_id(runtime, kind, row) for row in rows), default=0)
+
+
+def runtime_row_local_id(runtime, kind: str, row: dict) -> int:
+    """Return one row's local runtime selector as an integer."""
+    if kind == "job":
+        return int(row["id"])
+    if kind == "pipeline":
+        return int(runtime.pipeline_aliases().get(str(row["pipeline_id"]), "0"))
+    if kind == "step":
+        return int(runtime.run_aliases().get(str(row["command_run_id"]), "0"))
     raise ValueError(f"unknown runtime view kind: {kind}")
 
 

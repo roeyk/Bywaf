@@ -267,8 +267,9 @@ entities and shows lifecycle state such as in progress, failed, completed, or
 stale. Listings also include artifact counts when available.
 
 Runtime listings accept `since=<id>` to show rows created after a known local
-job, pipeline, or step ID. `--new` is read-only and highlights the newest row in
-the current listing; it does not advance a hidden project-database cursor.
+job, pipeline, or step ID. `--new` shows rows created since the last time that
+runtime view was checked and highlights the newest row. The cursor is stored in
+operator-local filesystem state, not as project database events.
 
 ## Plugin Author Implications
 

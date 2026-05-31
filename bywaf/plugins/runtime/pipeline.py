@@ -26,6 +26,7 @@ from bywaf.plugin import (
 )
 from bywaf.plugins.runtime.job import cancel_job, format_job_command, kill_job
 from bywaf.plugins.runtime.view_common import (
+    apply_runtime_new_cursor,
     filter_runtime_rows_by_events,
     filter_runtime_rows_since,
     split_since_selector,
@@ -331,17 +332,20 @@ def print_pipelines(
     if filters:
         events = context.event_store("pipeline list")
         rows = filter_runtime_rows_by_events(events, "pipeline", rows, filters)
+    rows, newest_alias = apply_runtime_new_cursor(context, "pipeline", rows, highlight_newest)
     if sort_key:
         rows = sort_pipeline_rows(rows, sort_key)
     if not rows:
-        context.output("no matching pipelines" if filters or since else "no active pipelines" if active_only else "no pipelines")
+        if highlight_newest:
+            context.output("no new pipelines")
+        else:
+            context.output("no matching pipelines" if filters or since else "no active pipelines" if active_only else "no pipelines")
         return
     names = runtime.runtime_names()
     aliases = runtime.pipeline_aliases()
     artifact_counts = runtime.artifact_counts_by_pipeline()
     table_rows: list[tuple[object, ...]] = []
     row_subjects: list[str] = []
-    newest_alias = max((int(aliases.get(str(row["pipeline_id"]), "0")) for row in rows), default=0) if highlight_newest else 0
     for row in rows:
         statuses = row["job_statuses"] or "unknown"
         state = runtime_state_label(statuses)

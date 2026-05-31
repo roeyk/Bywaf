@@ -579,8 +579,8 @@ pipelines, or steps that have at least one associated matching event. Runtime
 tables also accept command-specific `sort=` selectors such as
 `pipeline sort=events`; add a leading `-` for descending order, for example
 `pipeline sort=-events`. `since=<id>` shows rows after a known local runtime
-ID, and `--new` highlights the newest row without writing a hidden cursor.
-`--sort=...` is not accepted.
+ID, and `--new` uses an operator-local filesystem cursor to show rows created
+since the last check. `--sort=...` is not accepted.
 
 ## How do I force IPv4 or IPv6 when a command resolves a DNS name?
 
