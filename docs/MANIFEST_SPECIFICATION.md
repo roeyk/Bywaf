@@ -309,6 +309,15 @@ are for topics that are stable enough for other plugins and inventory/report
 views to consume, but not yet framework-known. Scanner-private raw topics can
 remain undeclared and free-form.
 
+Plugin-owned schemas are intentionally declared as TOML data, not Python code.
+Bywaf reads this metadata before importing the plugin module so schema
+registration, capability review, catalog generation, and static checking do
+not require executing plugin-provided code in the framework process.
+Declaring an `[[event_schemas]]` entry also registers that topic as a
+schema-backed topic. Commandlets that produce it still declare the topic in
+`emits`; schema ownership and commandlet behavior are related but separate
+manifest claims.
+
 | Key | Type | Required | Meaning |
 | --- | --- | --- | --- |
 | `topic` | string | yes | Event topic owned by this plugin. It must not override a framework-owned schema such as `host.found` or `port.open`. |
@@ -330,6 +339,10 @@ remain undeclared and free-form.
 Bywaf registers these schemas when the plugin manifest is loaded. `plugin_check`
 uses them to validate literal `context.events.publish(...)` payloads and to
 require matching `emits` declarations for schema-backed topics.
+At runtime, schema-backed payloads published through the plugin event API are
+strictly validated by default. Operators can disable this during development
+with `global.schema.validation=off`; private topics without registered schemas
+remain free-form.
 
 Operators and plugin authors can inspect registered schemas from a loaded
 project with `schemas`, for example `schemas owner=plugin` or

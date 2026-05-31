@@ -27,6 +27,7 @@ from bywaf.app import (
 from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.plugins.http.http_headers import HttpHeaders
+from bywaf.varstore import VarStore
 
 
 
@@ -151,6 +152,28 @@ class FrameworkHttpAppTests(unittest.TestCase):
             used = runner.db.events_for_topic("plugin.capability.used")[0]
             self.assertEqual(used.payload["capability"], "db.write:test.topic")
             self.assertTrue(used.payload["declared"])
+
+    def test_context_events_publish_validates_schema_backed_topic_by_default(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            context = CommandContext(runner.db, source="plugin")
+
+            with self.assertRaisesRegex(ValueError, "invalid port.open event"):
+                context.events.publish("port.open", {"host": "127.0.0.1", "port": "80", "protocol": "tcp"})
+
+            self.assertEqual(runner.db.events_for_topic("port.open"), [])
+
+    def test_context_events_publish_schema_validation_can_be_disabled(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            store = VarStore()
+            store.set("global.schema.validation", "off")
+            context = CommandContext(runner.db, source="plugin", _varstore=store)
+
+            event = context.events.publish("port.open", {"host": "127.0.0.1", "port": "80", "protocol": "tcp"})
+
+            self.assertEqual(event.topic, "port.open")
+            self.assertEqual(runner.db.events_for_topic("port.open")[0].payload["port"], "80")
 
     def test_context_events_fetch_audits_read(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -119,6 +119,21 @@ schema in `bywaf.plugin.toml`. That makes the topic visible to `plugin_check`,
 runtime validation, `results`, and future inventory/report views without
 requiring other plugins to import this plugin's Python classes.
 
+The manifest declaration is the authority for plugin-owned schema metadata.
+Keep it data-only: Bywaf must be able to inspect schemas, capabilities,
+consumes/emits, and versions before executing plugin Python. Plugin code may
+define local `EventSchemaObject` convenience classes, but those classes do not
+register interoperability metadata by themselves.
+
+An `[[event_schemas]]` entry registers the topic as a schema-backed topic. The
+commandlet must still list the topic in `emits`, so Bywaf can distinguish “this
+provider owns the shape of this event” from “this commandlet actually produces
+this event.” Schema-backed events published through `context.events.publish(...)`
+or `context.events.publish_object(...)` are validated before insertion. The
+default is strict; during development, operators can explicitly set
+`global.schema.validation=off` to allow invalid schema-backed payloads while
+debugging.
+
 ```toml
 [[event_schemas]]
 topic = "smb.session.observed"
@@ -196,6 +211,11 @@ for session in SmbSession.from_events(input_events):
 Declare the topic in `consumes` and `emits` as usual. If the topic becomes
 broadly useful, promote it into a framework-known schema and move the canonical
 class into `bywaf.event.schema_objects`.
+
+Promotion should normally keep the same topic name and version lineage so
+existing producers and consumers keep interoperating. Create a new framework
+topic only when the plugin-owned topic name or field meanings are clearly wrong.
+Temporary aliases are a migration bridge, not the long-term model.
 
 ## Inspect Registered Schemas
 

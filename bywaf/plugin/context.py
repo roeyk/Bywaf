@@ -337,6 +337,16 @@ class CommandContext:
         mode = (configured or fallback).strip().lower()
         return mode if mode in {"off", "audit", "warn", "enforce"} else "audit"
 
+    @property
+    def schema_validation_mode(self) -> str:
+        """Return whether schema-backed plugin events are strictly validated."""
+        configured = self.vars.get_global("schema.validation")
+        fallback = str(self.metadata.get("schema_validation_mode") or "strict")
+        mode = (configured or fallback).strip().lower()
+        if mode in {"off", "false", "no", "0"}:
+            return "off"
+        return "strict"
+
     def enforce_database_action_policy(self, capability: str) -> None:
         """Reject DB capabilities outside this commandlet's action policy."""
         required = database_action_for_capability(capability)

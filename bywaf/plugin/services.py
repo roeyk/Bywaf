@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any
 
 from ..artifacts import Artifact, artifact_store_for_event_store
 from ..db import EventStore, Subscription
-from ..event.schemas import EventSchemaObject, schema_objects
+from ..event.schemas import EventSchemaObject, schema_objects, validate_event_payload
 from ..event import Event
 from ..rendering import Table, render_console_table
 from ..varstore import VarStore
@@ -198,6 +198,7 @@ class ContextEvents:
     def publish(self, topic: str, payload: dict[str, Any]) -> Event:
         """Publish one event in the current commandlet scope."""
         db = self.require_event_store(f"{self.context.source} event publish")
+        self.validate_payload(topic, payload)
         self.context.audit_capability(f"db.write:{topic}")
         return db.publish(
             topic,
@@ -207,6 +208,15 @@ class ContextEvents:
             command_run_id=self.context.command_run_id,
             parent_command_run_id=self.context.parent_command_run_id,
         )
+
+    def validate_payload(self, topic: str, payload: Mapping[str, Any]) -> None:
+        """Validate schema-backed plugin events before they enter the event log."""
+        if self.context.schema_validation_mode == "off":
+            return
+        errors = validate_event_payload(topic, payload)
+        if errors:
+            detail = "; ".join(errors)
+            raise ValueError(f"{self.context.source} published invalid {topic} event: {detail}")
 
     def publish_object(self, obj: EventSchemaObject) -> Event:
         """Publish one shared or plugin-owned schema object."""
