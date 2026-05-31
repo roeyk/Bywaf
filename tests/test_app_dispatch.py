@@ -1583,6 +1583,20 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("--maxhops", text)
             self.assertNotIn("--timeout", text)
 
+    def test_signal_help_and_missing_args_show_usage(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "signal")
+                dispatch_repl_line(runner, "help signal")
+                dispatch_repl_line(runner, "signal --help")
+            text = output.getvalue()
+            self.assertIn("usage: signal <job=id|step=id|serial=id> <action>", text)
+            self.assertIn("actions: prune, mute, unmute", text)
+            self.assertIn("examples:", text)
+            self.assertNotIn("signal requires target and action", text)
+
     def test_inventory_help_shows_common_scope_arguments(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

@@ -10,6 +10,7 @@ Used by:
 
 from __future__ import annotations
 
+import argparse
 from collections.abc import Iterable
 from typing import cast
 
@@ -86,6 +87,25 @@ class RuntimeSignal(CommandletBase):
 
     actions = ("prune", "mute", "unmute", "verbosity", "increase-verbosity", "decrease-verbosity", "pause", "resume", "stop", "end", "kill")
 
+    def parser(self) -> argparse.ArgumentParser:
+        """Return help for live-control signal syntax."""
+        parser = argparse.ArgumentParser(
+            prog=self.spec.name,
+            usage=self.spec.usage,
+            description=self.spec.description,
+            epilog=(
+                "actions: " + ", ".join(self.actions) + "\n\n"
+                "examples:\n  " + "\n  ".join(self.spec.examples)
+            ),
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+        parser.add_argument("target", nargs="?", help="job=<id>, step=<id>, or serial=<id>")
+        parser.add_argument("action", nargs="?", help="signal action")
+        parser.add_argument("args", nargs="*", help="optional key=value payload arguments")
+        parser.add_argument("--hard", action="store_true", help="request hard control for framework-native actions")
+        parser.add_argument("--soft", action="store_true", help="request cooperative control")
+        return parser
+
     def run(
         self,
         context: CommandContext,
@@ -94,6 +114,12 @@ class RuntimeSignal(CommandletBase):
     ):
         """Publish a signal and apply framework-native actions when needed."""
         del input_events
+        if not args:
+            self.parser().print_help()
+            return ()
+        if args[0] in {"-h", "--help", "help"}:
+            self.parser().parse_args(args)
+            return ()
         parsed = parse_signal_args(args)
         context.require_foreground("signal command")
         signal_kind, signal_target_id = resolve_control_target(
