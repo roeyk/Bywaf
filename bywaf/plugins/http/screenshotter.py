@@ -42,7 +42,6 @@ from bywaf.plugins.http.eyewitness import EyeWitness
         "framework.console.alert",
         "framework.process.run",
         "network.connect",
-        "process.run",
     ),
 )
 @option("binary", "EyeWitness executable", "eyewitness", completion="path")

@@ -37,8 +37,8 @@ def framework_request_capability_map() -> dict[str, str]:
         "framework.console.output.requested": "framework.console.output",
         "framework.console.alert.requested": "framework.console.alert",
         "framework.file.page.requested": "framework.file.page",
-        "framework.process.run.requested": "process.run",
-        "framework.process.stream.requested": "process.run",
+        "framework.process.run.requested": "framework.process.run",
+        "framework.process.stream.requested": "framework.process.stream",
         "framework.render.table.requested": "framework.render.table",
         "shell.prompt.requested": "framework.prompt.change",
     }

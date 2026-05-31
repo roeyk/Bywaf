@@ -60,7 +60,6 @@ SCREENSHOT_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
         "framework.console.alert",
         "framework.process.run",
         "network.connect",
-        "process.run",
     ),
 )
 @option("binary", "EyeWitness executable", "eyewitness", completion="path")

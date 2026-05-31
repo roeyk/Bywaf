@@ -72,7 +72,6 @@ FINDING_TOPICS = (
         "framework.console.alert",
         "framework.process.run",
         "network.connect",
-        "process.run",
     ),
 )
 @option("binary", "Nikto executable", "nikto", completion="path")

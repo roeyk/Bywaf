@@ -246,17 +246,20 @@ class ConfigPluginTests(unittest.TestCase):
                 source="test",
                 metadata={
                     "command_run_id": "run-1",
-                    "capabilities": ("process.run",),
+                    "capabilities": ("framework.process.run",),
                 },
             )
             result = context.process.run([sys.executable, "-c", "print('hello')"])
             requests = db.events_for_topic("framework.process.run.requested")
             results = db.events_for_topic("process.run")
+            used = db.events_for_topic("plugin.capability.used")
         self.assertTrue(result.ok)
         self.assertEqual(result.stdout, "hello\n")
         self.assertEqual(requests[0].payload["argv"], [sys.executable, "-c", "print('hello')"])
         self.assertEqual(results[0].payload["returncode"], 0)
         self.assertEqual(results[0].payload["request_event_id"], requests[0].id)
+        self.assertEqual(used[0].payload["capability"], "framework.process.run")
+        self.assertTrue(used[0].payload["declared"])
 
     def test_command_context_events_publish_and_read_schema_objects(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -281,7 +284,7 @@ class ConfigPluginTests(unittest.TestCase):
             context = CommandContext(db=db, source="test")
             context.process.run([sys.executable, "-c", "print('hello')"])
             missing = db.events_for_topic("plugin.capability.missing")
-        self.assertEqual(missing[0].payload["capability"], "process.run")
+        self.assertEqual(missing[0].payload["capability"], "framework.process.run")
 
     def test_capability_enforce_mode_denies_missing_declarations(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -346,7 +349,7 @@ class ConfigPluginTests(unittest.TestCase):
                 _secrets=secrets,
                 metadata={
                     "command_run_id": "run-1",
-                    "capabilities": ("framework.secret.resolve", "process.run"),
+                    "capabilities": ("framework.secret.resolve", "framework.process.run"),
                 },
             )
             password = context.secrets.resolve(secret_ref.ref)
@@ -370,7 +373,7 @@ class ConfigPluginTests(unittest.TestCase):
                 _secrets=secrets,
                 metadata={
                     "command_run_id": "run-1",
-                    "capabilities": ("framework.secret.resolve", "process.run"),
+                    "capabilities": ("framework.secret.resolve", "framework.process.run"),
                 },
             )
             password = context.secrets.resolve(secret_ref.ref)
@@ -392,7 +395,7 @@ class ConfigPluginTests(unittest.TestCase):
                 _secrets=secrets,
                 metadata={
                     "command_run_id": "run-1",
-                    "capabilities": ("framework.secret.resolve", "process.run"),
+                    "capabilities": ("framework.secret.resolve", "framework.process.run"),
                 },
             )
             password = context.secrets.resolve(secret_ref.ref)
@@ -464,7 +467,7 @@ class ConfigPluginTests(unittest.TestCase):
             context = CommandContext(
                 db=db,
                 source="test",
-                metadata={"capabilities": ("process.run",)},
+                metadata={"capabilities": ("framework.process.stream",)},
             )
             chunks = list(
                 context.process.stream(
@@ -480,11 +483,14 @@ class ConfigPluginTests(unittest.TestCase):
             stdout = db.events_for_topic("process.stdout")
             stderr = db.events_for_topic("process.stderr")
             exited = db.events_for_topic("process.exited")
+            used = db.events_for_topic("plugin.capability.used")
         self.assertEqual([chunk.stream for chunk in chunks], ["stdout", "stderr"])
         self.assertEqual(started[0].payload["argv"][0], sys.executable)
         self.assertEqual(stdout[0].payload["text"], "out\n")
         self.assertEqual(stderr[0].payload["text"], "err\n")
         self.assertEqual(exited[0].payload["returncode"], 0)
+        self.assertEqual(used[0].payload["capability"], "framework.process.stream")
+        self.assertTrue(used[0].payload["declared"])
 
     def test_command_context_process_stream_redacts_secret_output_events(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -497,7 +503,7 @@ class ConfigPluginTests(unittest.TestCase):
                 _secrets=secrets,
                 metadata={
                     "command_run_id": "run-1",
-                    "capabilities": ("framework.secret.resolve", "process.run"),
+                    "capabilities": ("framework.secret.resolve", "framework.process.stream"),
                 },
             )
             password = context.secrets.resolve(secret_ref.ref)

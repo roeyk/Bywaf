@@ -19,6 +19,7 @@ Review these areas before a testing release:
 - bundled plugins and their manifests;
 - filesystem plugin loading, manifest signatures, and catalog trust;
 - capability declarations and effective database actions;
+- plugin-facing context surface and topology boundaries;
 - artifact import, export, replacement, deletion, and bundle inclusion;
 - secret input, secret persistence, redaction, and process/env handling;
 - framework-mediated process wrappers and streamed process output;
@@ -41,6 +42,10 @@ Review these areas before a testing release:
   mode can deny undeclared mediated framework requests.
 - Effective `database.actions.*` metadata lets view-only commandlet invocations
   be separated from write/review/manage invocations.
+- Plugin context APIs are data-aware rather than topology-aware. Commandlets can
+  read their own IDs, consume upstream events, and request a mediated pipeline
+  stop, but should not receive the full pipeline plan or downstream commandlet
+  list.
 - Artifact storage records size and SHA-256 and `artifact verify` compares
   artifact bodies with main-DB provenance events.
 - Private key files are written with owner-only permissions on normal POSIX
@@ -53,7 +58,9 @@ For code changes, check:
 - Does any plugin import `subprocess`, open sockets, read/write files, or call
   framework internals directly instead of using mediated context APIs?
 - Are all process-wrapped tools using argv lists, bounded timeouts where
-  practical, and redacted audit events?
+  practical, `framework.process.*` capabilities, and redacted audit events?
+- Does any new context API expose workflow topology, raw stores, or mutable
+  framework internals without an explicit capability and test?
 - Can any user-controlled path be interpreted as an option by an external tool?
 - Can an artifact export overwrite an unexpected file, follow a symlink, or hide
   provenance?

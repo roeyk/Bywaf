@@ -216,6 +216,21 @@ class FrameworkHttpAppTests(unittest.TestCase):
             self.assertEqual(used.payload["capability"], "db.raw")
             self.assertTrue(used.payload["declared"])
 
+    def test_raw_context_db_access_is_denied_in_enforce_mode_without_capability(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            context = CommandContext(
+                runner.db,
+                source="plugin",
+                metadata={"capability_mode": "enforce"},
+            )
+
+            with self.assertRaisesRegex(PermissionError, "db.raw"):
+                _ = context.db
+
+            missing = runner.db.events_for_topic("plugin.capability.missing")[0]
+            self.assertEqual(missing.payload["capability"], "db.raw")
+
     def test_framework_request_pages_file_without_tty(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "file.txt")

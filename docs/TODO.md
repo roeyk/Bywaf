@@ -250,8 +250,9 @@ Planning dates are release planning markers, not compatibility commitments.
   third-party plugins.
 - Add enforcement modes for missing capabilities after audit-only mode has been
   exercised with real plugins.
-- Add policy checks for direct process execution and require `process.run` for
-  mediated external tool wrappers.
+- Add policy checks for direct process execution and require
+  `framework.process.run` or `framework.process.stream` for mediated external
+  tool wrappers.
 - Split future deep-dive docs from `CAPABILITY_MODEL.md` if needed, such as
   `PLUGIN_TYPES.md`, `PLUGIN_SECURITY_MODEL.md`, and `PLUGIN_PACKAGING.md`.
 

@@ -16,6 +16,5 @@ capabilities = [
   "framework.console.alert",
   "framework.process.run",
   "network.listen",
-  "process.run",
 ]
 module = "bywaf.plugins.wireless.wifi_scan"

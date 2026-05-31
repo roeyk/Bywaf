@@ -23,7 +23,6 @@ capabilities = [
   "framework.console.alert",
   "framework.console.output",
   "framework.process.run",
-  "process.run",
 ]
 module = "bywaf.plugins.network.traceroute"
 

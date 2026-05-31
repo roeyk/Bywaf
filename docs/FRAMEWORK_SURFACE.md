@@ -100,7 +100,6 @@ base installation commandlets that declare or use each capability.
 | `framework.secret.resolve` | `ldap_probe`, `shodan_lookup`, `smb_probe`, `ssh_probe` |
 | `network.connect` | `dns_lookup`, `eyewitness`, `git_expose_check`, `hostscanner`, `http_headers`, `http_probe`, `ldap_probe`, `nikto`, `portscanner`, `screenshotter`, `shodan_lookup`, `smb_probe`, `snmp_get`, `ssh_probe`, `tcp_banner`, `webfin` |
 | `network.listen` | `wifi_scan` |
-| `process.run` | `eyewitness`, `nikto`, `screenshotter`, `traceroute`, `wifi_scan` |
 
 ## Trigger Rules
 

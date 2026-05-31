@@ -17,7 +17,6 @@ emits = [
 ]
 capabilities = [
   "framework.process.run",
-  "process.run",
 ]
 
 [[commandlets.arguments]]

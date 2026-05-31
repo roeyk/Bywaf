@@ -58,7 +58,6 @@ OPTION_KEYS = {"binary", "duration", "interface", "log-types", "output-dir"}
         "framework.console.alert",
         "framework.process.run",
         "network.listen",
-        "process.run",
     ),
 )
 @option("binary", "Kismet executable", "kismet", completion="path")

@@ -217,7 +217,7 @@ class CapabilityVisitor(ast.NodeVisitor):
         if direct_network_call(path):
             self.add_warning("network.connect", "direct_network", node, path, confidence="medium")
         if direct_process_call(path):
-            self.add_warning("process.run", "direct_process", node, path, confidence="medium")
+            self.add_warning("framework.process.run", "direct_process", node, path, confidence="medium")
 
     def inspect_plugin_factory_decorators(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
         """Report commandlet metadata decorators on plugin() instead of the commandlet class."""
@@ -393,7 +393,7 @@ class CapabilityVisitor(ast.NodeVisitor):
         if direct_network_module(qualified):
             self.add_warning("network.connect", "direct_network_import", node, f"import {qualified}", confidence="medium")
         if direct_process_module(qualified):
-            self.add_warning("process.run", "direct_process_import", node, f"import {qualified}", confidence="medium")
+            self.add_warning("framework.process.run", "direct_process_import", node, f"import {qualified}", confidence="medium")
 
     def add_evidence(
         self,
@@ -493,8 +493,8 @@ def framework_call_capability(path: str) -> str | None:
         "context.page_text": "framework.file.page",
         "context.table": "framework.render.table",
         "context.render.table": "framework.render.table",
-        "context.process.run": "process.run",
-        "context.process.stream": "process.run",
+        "context.process.run": "framework.process.run",
+        "context.process.stream": "framework.process.stream",
         "context.require_db": "db.raw",
         "context.maintenance_store": "db.raw",
         "context.progress": "plugin.progress",

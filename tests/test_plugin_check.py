@@ -68,8 +68,8 @@ class PluginCheckTests(unittest.TestCase):
             report = check_plugin(plugin_dir)
 
             self.assertTrue(report["ok"])
-            self.assertIn("process.run", report["inferred_capabilities"])
-            self.assertIn("process.run", report["missing_capabilities"])
+            self.assertIn("framework.process.run", report["inferred_capabilities"])
+            self.assertIn("framework.process.run", report["missing_capabilities"])
             self.assertEqual(report["errors"], [])
             self.assertEqual(report["evidence"][0]["kind"], "framework_call")
 

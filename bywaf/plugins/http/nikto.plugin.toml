@@ -20,6 +20,5 @@ capabilities = [
   "framework.console.alert",
   "framework.process.run",
   "network.connect",
-  "process.run",
 ]
 module = "bywaf.plugins.http.nikto"

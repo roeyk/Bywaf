@@ -755,8 +755,9 @@ newer than its last high-water mark.
 
 Plugins should avoid direct process execution with `subprocess`,
 `os.system`, or `os.spawn*`. External tool wrappers should declare
-`process.run`, go through `context.process`, and let Bywaf record the request
-and outcome for auditability.
+`framework.process.run` or `framework.process.stream`, go through
+`context.process`, and let Bywaf record the request and outcome for
+auditability.
 
 For short commands, use the blocking API:
 
@@ -967,7 +968,7 @@ from bywaf.plugin import CommandletBase, commandlet, option
     capabilities=(
         "framework.secret.resolve",
         "framework.secret.argv",
-        "process.run",
+        "framework.process.run",
     ),
 )
 @option("password", "demo password", secret=True)

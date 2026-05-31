@@ -142,8 +142,9 @@ class ContextProcess:
     """Framework-mediated process API exposed to commandlets.
 
     Plugins should use this instead of importing `subprocess` directly. The API
-    records the request, audits the `process.run` capability, executes an argv
-    vector with `shell=False`, and records the result for later inspection.
+    records the request, audits the `framework.process.*` capability, executes
+    an argv vector with `shell=False`, and records the result for later
+    inspection.
     """
 
     context: CommandContext

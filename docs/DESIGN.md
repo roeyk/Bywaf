@@ -205,12 +205,12 @@ where useful:
 - `framework.prompt.change`
 - `framework.secret.prompt`
 - `framework.job.control`
+- `framework.process.run`
+- `framework.process.stream`
 - `filesystem.read`
 - `filesystem.write`
 - `network.connect`
 - `network.listen`
-- `process.run`
-- `process.spawn`
 
 Topic capabilities are implied from `CommandSpec.consumes` and
 `CommandSpec.emits`. Framework request capabilities align with the helper
@@ -223,9 +223,10 @@ Raw `context.db` remains available for privileged/internal framework
 commandlets while the API transitions. Accessing it records `db.raw`, and
 commandlets that intentionally need it should declare `db.raw`.
 
-Plugins that need to execute external tools should declare `process.run` and
-use `context.process`. `process.spawn` is reserved for long-lived detached
-processes and should be treated as higher risk.
+Plugins that need to execute external tools should declare
+`framework.process.run` or `framework.process.stream` and use
+`context.process`. A future detached-process capability would be reserved for
+long-lived detached processes and should be treated as higher risk.
 
 ### Framework-Mediated Process Execution
 
