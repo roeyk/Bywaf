@@ -31,8 +31,10 @@ Use a shared schema when the data should be useful outside your plugin:
 - `artifact.attached`: artifact metadata attached to provenance
 
 Framework-known schemas live in `bywaf/event/schemas.py` and are summarized
-in [Event Model](../EVENT_MODEL.md#shared-event-schemas). Plugin-private
-topics are still allowed for scanner-specific detail.
+in [Event Model](../EVENT_MODEL.md#shared-event-schemas). Plugin-owned schemas
+are declared in the plugin manifest so Bywaf can validate their event payloads
+without importing plugin code. Plugin-private topics are still allowed for
+scanner-specific detail.
 
 ## Why Schemas Instead Of Plugin Classes
 
@@ -111,9 +113,33 @@ vocabulary.
 
 ## Plugin-Owned Schemas
 
-If a plugin introduces a fact that the framework does not know yet, the plugin
-can still offer object-oriented interoperability to other plugins by exporting
-its own schema object class.
+If a plugin introduces a fact that the framework does not know yet, declare the
+schema in `bywaf.plugin.toml`. That makes the topic visible to `plugin_check`,
+runtime validation, `results`, and future inventory/report views without
+requiring other plugins to import this plugin's Python classes.
+
+```toml
+[[event_schemas]]
+topic = "smb.session.observed"
+summary = "An authenticated SMB session was observed."
+
+[[event_schemas.fields]]
+name = "host"
+type = "str"
+required = true
+description = "SMB server host."
+
+[[event_schemas.fields]]
+name = "username"
+type = "str"
+required = true
+
+[[event_schemas.fields]]
+name = "domain"
+type = "str"
+```
+
+The producing plugin can still keep an object-oriented local model:
 
 ```python
 # smb_enum/event_schema_objects.py
@@ -131,29 +157,39 @@ class SmbSession(EventSchemaObject):
     domain: str = ""
 ```
 
-The producing plugin publishes the serialized boundary form:
+Then it publishes the serialized boundary form:
 
 ```python
 session = SmbSession(host="dc01.example.test", username="alice", domain="EXAMPLE")
 context.events.publish_object(session)
 ```
 
-A consuming plugin imports the plugin-owned class and immediately returns to
-typed code:
+A consuming plugin should depend on the manifest-declared event schema, not on
+the producer plugin's Python module. It can use `schema_payload(...)`, or define
+its own local object for the same topic if that makes its implementation
+cleaner:
 
 ```python
-from smb_enum.event_schema_objects import SmbSession
+from dataclasses import dataclass
 
+from bywaf.event.schemas import EventSchemaObject
+
+
+@dataclass(frozen=True)
+class SmbSession(EventSchemaObject):
+    __topic__ = "smb.session.observed"
+
+    host: str
+    username: str
+    domain: str = ""
 
 for session in SmbSession.from_events(input_events):
     inspect_session(session.host, session.username, session.domain)
 ```
 
-Declare the topic in `consumes` and `emits` as usual. Framework tooling can see
-the event flow from the manifest, while plugins that opt into the producer's
-Python package can use the exported object class. If the topic becomes broadly
-useful, promote it into a framework-known schema and move the canonical class
-into `bywaf.event.schema_objects`.
+Declare the topic in `consumes` and `emits` as usual. If the topic becomes
+broadly useful, promote it into a framework-known schema and move the canonical
+class into `bywaf.event.schema_objects`.
 
 ## Declare Consumes And Emits
 

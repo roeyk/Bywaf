@@ -21,9 +21,9 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from bywaf.event.schemas import event_schema  # noqa: E402
+from bywaf.event.schemas import event_schema, register_event_schemas  # noqa: E402
 from bywaf.plugin.capabilities import capability_declared  # noqa: E402
-from bywaf.registry import PluginManifestTrust, verify_plugin_manifest_signature_data, load_filesystem_plugin_package  # noqa: E402
+from bywaf.registry import PluginManifestTrust, verify_plugin_manifest_signature_data, load_filesystem_plugin_package, parse_plugin_manifest  # noqa: E402
 from bywaf.toml_support import load_data_file  # noqa: E402
 from bywaf.tools.plugin_check import analyze_plugin_source  # noqa: E402
 
@@ -63,6 +63,12 @@ def check_plugin(
     missing = [str(path) for path in (plugin_dir / "plugin.py", plugin_dir / "bywaf.plugin.toml") if not path.exists()]
     if missing:
         report["errors"].extend(f"{path} not found" for path in missing)
+        return report
+    try:
+        pre_import_manifest = parse_plugin_manifest(plugin_dir / "bywaf.plugin.toml")
+        register_event_schemas(pre_import_manifest.event_schemas)
+    except Exception as exc:  # noqa: BLE001 - this is a CLI validation report.
+        report["errors"].append(f"manifest parse failed: {exc}")
         return report
     try:
         source_analysis = analyze_plugin_source(plugin_dir)

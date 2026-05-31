@@ -9,8 +9,8 @@ plugins should prefer a bare `@commandlet` function: declare the public
 arguments and options in TOML, then implement
 `my_commandlet(context, cfg, input_events)` in Python.
 The manifest records the plugin traits, commandlets, capabilities, options,
-arguments, provider variables, and trigger rules that Bywaf should trust before
-or while loading plugin code.
+arguments, provider variables, event schemas, and trigger rules that Bywaf
+should trust before or while loading plugin code.
 
 The manifest exists so plugin contracts can be enforced and inspected before
 arbitrary Python code is imported. It lets Bywaf reject undeclared capabilities,
@@ -26,6 +26,7 @@ build static catalog views, accept pre-load catalog variables, and give
 - [Commandlet Entries](#commandlet-entries)
 - [Commandlet Options](#commandlet-options)
 - [Commandlet Arguments](#commandlet-arguments)
+- [Event Schema Entries](#event-schema-entries)
 - [Trigger Entries](#trigger-entries)
 - [Generation](#generation)
 - [Validation](#validation)
@@ -54,7 +55,8 @@ A manifest has four practical jobs:
 # Schema
 
 A manifest contains one optional `[plugin]` table, one or more
-`[[commandlets]]` entries, and optional `[[triggers]]` entries.
+`[[commandlets]]` entries, optional `[[event_schemas]]` entries, and optional
+`[[triggers]]` entries.
 
 ```toml
 [plugin]
@@ -101,6 +103,21 @@ name = "password"
 description = "password reference"
 secret = true
 type = "str"
+
+[[event_schemas]]
+topic = "example.found"
+summary = "Example plugin-owned normalized result."
+
+[[event_schemas.fields]]
+name = "host"
+type = "str"
+required = true
+description = "Affected host."
+
+[[event_schemas.fields]]
+name = "state"
+type = "str"
+allowed = ["open", "closed"]
 
 [[triggers]]
 name = "example-trigger"
@@ -275,6 +292,34 @@ completion = "host"
 
 Use positional arguments for natural command syntax, and use options for values
 that the operator may want to persist with `set` or override by name.
+
+# Event Schema Entries
+
+`[[event_schemas]]` entries declare plugin-owned normalized event topics. They
+are for topics that are stable enough for other plugins and inventory/report
+views to consume, but not yet framework-known. Scanner-private raw topics can
+remain undeclared and free-form.
+
+| Key | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `topic` | string | yes | Event topic owned by this plugin. It must not override a framework-owned schema such as `host.found` or `port.open`. |
+| `summary` | string | no | Human-readable description of the fact represented by this topic. |
+| `notes` | list of strings | no | Additional guidance for plugin authors or views. |
+
+`[[event_schemas.fields]]` entries belong to the nearest preceding
+`[[event_schemas]]` entry.
+
+| Key | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `name` | string | yes | Payload field name. |
+| `type` | string | no | One of `any`, `bool`, `dict`, `int`, `list`, `number`, or `str`. Defaults to `any`. |
+| `required` | boolean | no | Whether the field must be present. |
+| `description` | string | no | Field description. |
+| `allowed` | list of strings | no | Optional allowed values. Values are compared as strings. |
+
+Bywaf registers these schemas when the plugin manifest is loaded. `plugin_check`
+uses them to validate literal `context.events.publish(...)` payloads and to
+require matching `emits` declarations for schema-backed topics.
 
 # Trigger Entries
 

@@ -17,6 +17,7 @@ from dataclasses import dataclass, fields, is_dataclass
 from typing import Any, ClassVar, Literal, Self, TypeVar
 
 FieldType = Literal["any", "bool", "dict", "int", "list", "number", "str"]
+FIELD_TYPES: tuple[FieldType, ...] = ("any", "bool", "dict", "int", "list", "number", "str")
 T = TypeVar("T")
 
 
@@ -287,10 +288,41 @@ EVENT_SCHEMAS: dict[str, EventSchema] = {
     ),
 }
 
+PLUGIN_EVENT_SCHEMAS: dict[str, EventSchema] = {}
+
 
 def event_schema(topic: str) -> EventSchema | None:
-    """Return the shared schema for a topic, if Bywaf defines one."""
-    return EVENT_SCHEMAS.get(topic)
+    """Return the shared schema for a topic, if Bywaf or a loaded plugin defines one."""
+    return EVENT_SCHEMAS.get(topic) or PLUGIN_EVENT_SCHEMAS.get(topic)
+
+
+def register_event_schema(schema: EventSchema) -> None:
+    """Register one plugin-owned event schema for runtime validation and views."""
+    existing_framework_schema = EVENT_SCHEMAS.get(schema.topic)
+    if existing_framework_schema is not None:
+        if existing_framework_schema == schema:
+            return
+        raise ValueError(f"cannot override framework event schema: {schema.topic}")
+    existing_plugin_schema = PLUGIN_EVENT_SCHEMAS.get(schema.topic)
+    if existing_plugin_schema is not None and existing_plugin_schema != schema:
+        raise ValueError(f"conflicting plugin event schema: {schema.topic}")
+    PLUGIN_EVENT_SCHEMAS[schema.topic] = schema
+
+
+def register_event_schemas(schemas: Iterable[EventSchema]) -> None:
+    """Register plugin-owned event schemas."""
+    for schema in schemas:
+        register_event_schema(schema)
+
+
+def unregister_event_schema(topic: str) -> None:
+    """Remove one plugin-owned schema. Intended mainly for isolated tests."""
+    PLUGIN_EVENT_SCHEMAS.pop(topic, None)
+
+
+def plugin_event_schemas() -> Mapping[str, EventSchema]:
+    """Return currently registered plugin-owned schemas."""
+    return dict(PLUGIN_EVENT_SCHEMAS)
 
 
 def validate_event_payload(topic: str, payload: Mapping[str, Any]) -> list[str]:

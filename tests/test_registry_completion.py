@@ -45,10 +45,12 @@ from bywaf.registry import (
     load_plugin,
     parse_package_plugin_config,
     parse_plugin_config,
+    parse_plugin_manifest_data,
     parse_plugin_manifest,
     plugin_manifest_digest,
 )
 from bywaf.secret.input import PromptSecretInputState, PromptSecretSpan, SECRET_BLOCK_VALUE, open_secret_assignment_name
+from bywaf.event.schemas import EventSchema, FieldSchema
 from bywaf.specs import ArgumentSpec, CommandSpec, CompletionSpec, OptionSpec, TriggerSpec
 from bywaf.tools.plugin_manifest import manifest_from_plugins
 
@@ -1520,6 +1522,83 @@ class RegistryCompletionTests(unittest.TestCase):
         self.assertIn('topic = "example.event"', text)
         self.assertIn('action_command = "example"', text)
         self.assertIn('payload_equals = { kind = "demo" }', text)
+
+    def test_plugin_manifest_tool_can_render_event_schemas(self):
+        class Example:
+            spec = CommandSpec("example", "example plugin")
+
+            def run(self, context, args, input_events):
+                yield {"ok": True}
+
+        text = manifest_from_plugins(
+            (Example(),),
+            event_schemas=(
+                EventSchema(
+                    "example.session.observed",
+                    "Example session fact.",
+                    (
+                        FieldSchema("host", "str", True, "Session host."),
+                        FieldSchema("access", "str", False, allowed=("read", "write")),
+                    ),
+                ),
+            ),
+        )
+
+        self.assertIn("[[event_schemas]]", text)
+        self.assertIn('topic = "example.session.observed"', text)
+        self.assertIn("[[event_schemas.fields]]", text)
+        self.assertIn('allowed = ["read", "write"]', text)
+
+    def test_plugin_manifest_parses_plugin_owned_event_schemas(self):
+        manifest = parse_plugin_manifest_data(
+            {
+                "commandlets": [{"name": "example"}],
+                "event_schemas": [
+                    {
+                        "topic": "example.session.observed",
+                        "summary": "Example session fact.",
+                        "fields": [
+                            {"name": "host", "type": "str", "required": True},
+                            {"name": "access", "type": "str", "allowed": ["read", "write"]},
+                        ],
+                    }
+                ],
+            },
+            "test.toml",
+        )
+
+        self.assertEqual(manifest.event_schemas[0].topic, "example.session.observed")
+        self.assertEqual(manifest.event_schemas[0].required_fields, ("host",))
+
+    def test_plugin_manifest_rejects_framework_owned_event_schema(self):
+        with self.assertRaisesRegex(ValueError, "framework-owned"):
+            parse_plugin_manifest_data(
+                {
+                    "commandlets": [{"name": "example"}],
+                    "event_schemas": [
+                        {
+                            "topic": "host.found",
+                            "fields": [{"name": "host", "type": "str", "required": True}],
+                        }
+                    ],
+                },
+                "test.toml",
+            )
+
+    def test_plugin_manifest_rejects_invalid_event_schema_field_type(self):
+        with self.assertRaisesRegex(ValueError, "type must be one of"):
+            parse_plugin_manifest_data(
+                {
+                    "commandlets": [{"name": "example"}],
+                    "event_schemas": [
+                        {
+                            "topic": "example.session.observed",
+                            "fields": [{"name": "host", "type": "cidr"}],
+                        }
+                    ],
+                },
+                "test.toml",
+            )
 
 
 def write_trigger_plugin(plugin_dir: Path) -> None:

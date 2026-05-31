@@ -13,9 +13,13 @@ from .schemas import (
     accepted_factory_fields,
     event_schema,
     object_payload_fields,
+    plugin_event_schemas,
+    register_event_schema,
+    register_event_schemas,
     schema_object,
     schema_objects,
     schema_payload,
+    unregister_event_schema,
     validate_event_payload,
 )
 
@@ -28,8 +32,12 @@ __all__ = [
     "accepted_factory_fields",
     "event_schema",
     "object_payload_fields",
+    "plugin_event_schemas",
+    "register_event_schema",
+    "register_event_schemas",
     "schema_object",
     "schema_objects",
     "schema_payload",
+    "unregister_event_schema",
     "validate_event_payload",
 ]

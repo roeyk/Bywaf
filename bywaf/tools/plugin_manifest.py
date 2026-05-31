@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from bywaf.event.schemas import EventSchema, FieldSchema
 from bywaf.plugin import Commandlet
 from bywaf.registry import load_module_path, load_plugins, load_trigger_specs
 from bywaf.specs import TriggerSpec
@@ -28,6 +29,7 @@ def manifest_from_plugins(
     process_wrapped: bool = False,
     service: bool = False,
     inferred_capabilities: tuple[str, ...] = (),
+    event_schemas: tuple[EventSchema, ...] = (),
 ) -> str:
     """Return TOML text describing commandlets discovered from Python code."""
     # Manifest generation uses runtime inspection: the plugin module has
@@ -48,6 +50,8 @@ def manifest_from_plugins(
         lines.extend(commandlet_manifest_lines(plugin, inferred_capabilities=extra))
     for trigger in triggers:
         lines.extend(trigger_manifest_lines(trigger))
+    for schema in event_schemas:
+        lines.extend(event_schema_manifest_lines(schema))
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -112,6 +116,36 @@ def trigger_manifest_lines(trigger: TriggerSpec) -> list[str]:
     if not trigger.suppress_self_trigger:
         lines.append("suppress_self_trigger = false")
     lines.append("")
+    return lines
+
+
+def event_schema_manifest_lines(schema: EventSchema) -> list[str]:
+    """Return TOML lines for one plugin-owned event schema."""
+    lines = [
+        "[[event_schemas]]",
+        f'topic = "{escape_toml_string(schema.topic)}"',
+        f'summary = "{escape_toml_string(schema.summary)}"',
+    ]
+    if schema.notes:
+        lines.append(f"notes = {toml_string_list(list(schema.notes))}")
+    for field in schema.fields:
+        lines.extend(event_schema_field_lines(field))
+    lines.append("")
+    return lines
+
+
+def event_schema_field_lines(field: FieldSchema) -> list[str]:
+    """Return TOML lines for one event schema field."""
+    lines = [
+        "  [[event_schemas.fields]]",
+        f'  name = "{escape_toml_string(field.name)}"',
+        f'  type = "{escape_toml_string(field.field_type)}"',
+        f"  required = {toml_bool(field.required)}",
+    ]
+    if field.description:
+        lines.append(f'  description = "{escape_toml_string(field.description)}"')
+    if field.allowed:
+        lines.append(f"  allowed = {toml_string_list(list(field.allowed))}")
     return lines
 
 

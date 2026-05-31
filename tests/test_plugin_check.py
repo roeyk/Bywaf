@@ -307,6 +307,35 @@ class PluginCheckTests(unittest.TestCase):
             self.assertEqual(report["diagnostics"][0]["code"], "invalid-shared-event-payload")
             self.assertIn("port.open.protocol is required", report["diagnostics"][0]["message"])
 
+    def test_check_plugin_validates_literal_plugin_owned_event_payload(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(
+                Path(tmp),
+                capabilities=("db.write:example.session.observed",),
+                emits=("example.session.observed",),
+                manifest_emits=("example.session.observed",),
+                manifest_extra=(
+                    "\n[[event_schemas]]\n"
+                    'topic = "example.session.observed"\n'
+                    'summary = "Example session fact."\n'
+                    "\n[[event_schemas.fields]]\n"
+                    'name = "host"\n'
+                    'type = "str"\n'
+                    "required = true\n"
+                    "\n[[event_schemas.fields]]\n"
+                    'name = "username"\n'
+                    'type = "str"\n'
+                    "required = true\n"
+                ),
+                run_body='        context.events.publish("example.session.observed", {"host": "dc01"})\n',
+            )
+
+            report = check_plugin(plugin_dir)
+
+            self.assertFalse(report["ok"])
+            self.assertEqual(report["diagnostics"][0]["code"], "invalid-shared-event-payload")
+            self.assertIn("example.session.observed.username is required", report["diagnostics"][0]["message"])
+
     def test_check_plugin_reports_boolean_option_without_default(self):
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(
@@ -425,6 +454,7 @@ def write_plugin_fixture(
     decorators: str = "",
     parser_import: str = "from bywaf.plugin import CommandSpec\n",
     run_body: str = "        yield {'ok': True}\n",
+    manifest_extra: str = "",
 ) -> Path:
     plugin_dir = root / "example"
     plugin_dir.mkdir()
@@ -452,6 +482,7 @@ def write_plugin_fixture(
         f"{manifest_capability_lines}"
         "]\n"
         f"{manifest_emits_text}"
+        f"{manifest_extra}"
     )
     return plugin_dir
 

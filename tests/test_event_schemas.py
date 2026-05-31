@@ -12,7 +12,7 @@ import unittest
 from dataclasses import dataclass
 
 from bywaf.event.schema_objects import ArtifactAttached, HostFound, HttpEndpoint, HttpPathObserved, NameResolved, NetworkRouteHop, OpenPort, ScreenshottedHost, ServiceDetected, SmbShareFound, TcpBanner, TlsCertificate, WebWafDetected
-from bywaf.event.schemas import EVENT_SCHEMAS, EventSchemaObject, schema_object, schema_objects, validate_event_payload
+from bywaf.event.schemas import EVENT_SCHEMAS, EventSchema, EventSchemaObject, FieldSchema, event_schema, register_event_schema, schema_object, schema_objects, unregister_event_schema, validate_event_payload
 from bywaf.event import Event
 
 
@@ -88,6 +88,32 @@ class EventSchemaTests(unittest.TestCase):
 
     def test_plugin_private_topics_are_free_form(self):
         self.assertEqual(validate_event_payload("smb_enum.raw_share_acl", {"any": object()}), [])
+
+    def test_plugin_owned_schema_registration_validates_payloads(self):
+        topic = "plugin.session.observed"
+        self.addCleanup(unregister_event_schema, topic)
+        register_event_schema(
+            EventSchema(
+                topic,
+                "Plugin-owned session fact.",
+                (
+                    FieldSchema("host", "str", True),
+                    FieldSchema("username", "str", True),
+                    FieldSchema("access", "str", False, allowed=("read", "write")),
+                ),
+            )
+        )
+
+        self.assertIsNotNone(event_schema(topic))
+        self.assertEqual(validate_event_payload(topic, {"host": "dc01", "username": "alice"}), [])
+        self.assertEqual(
+            validate_event_payload(topic, {"host": "dc01", "username": "alice", "access": "admin"}),
+            ["plugin.session.observed.access must be one of: read, write"],
+        )
+
+    def test_plugin_schema_registration_rejects_framework_override(self):
+        with self.assertRaisesRegex(ValueError, "cannot override framework event schema"):
+            register_event_schema(EventSchema("host.found", "override", (FieldSchema("other", "str", True),)))
 
     def test_plugin_private_schema_objects_round_trip_without_framework_registry(self):
         session = PluginPrivateSession("dc01.example.test", "alice", "EXAMPLE")

@@ -15,6 +15,7 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
+from ..event.schemas import EVENT_SCHEMAS, FIELD_TYPES, EventSchema, FieldSchema, register_event_schemas
 from ..plugin import Commandlet
 from ..specs import ArgumentSpec, CompletionSpec, OptionSpec, TriggerSpec
 from ..toml_support import load_data_file
@@ -41,6 +42,7 @@ class PluginManifest:
     commandlet_secret_options: dict[str, tuple[str, ...]] = field(default_factory=dict)
     commandlet_provider_variables: dict[str, tuple[str, ...]] = field(default_factory=dict)
     commandlet_secret_provider_variables: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    event_schemas: tuple[EventSchema, ...] = ()
     default_commandlet: str | None = None
     library_backed: bool = False
     process_wrapped: bool = False
@@ -69,6 +71,7 @@ def load_filesystem_plugin_package(
     module = load_module_path(plugin_dir / "plugin.py")
     plugins = enforce_plugin_manifest(manifest, load_plugins(module), manifest_path)
     triggers = enforce_trigger_manifest(manifest, load_trigger_specs(module), manifest_path)
+    register_event_schemas(manifest.event_schemas)
     return plugins, triggers, manifest
 
 
@@ -133,6 +136,7 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
     if default_commandlet is not None and default_commandlet not in commandlets:
         raise ValueError(f"{source} plugin.default_commandlet must name a declared commandlet")
     triggers = parse_trigger_rows(data.get("triggers", []), source)
+    event_schemas = parse_event_schema_rows(data.get("event_schemas", []), source)
     return PluginManifest(
         commandlets=frozenset(commandlets),
         triggers=triggers,
@@ -145,6 +149,7 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
         commandlet_secret_options=commandlet_secret_options,
         commandlet_provider_variables=commandlet_provider_variables,
         commandlet_secret_provider_variables=commandlet_secret_provider_variables,
+        event_schemas=event_schemas,
         default_commandlet=default_commandlet,
         library_backed=library_backed,
         process_wrapped=process_wrapped,
@@ -211,6 +216,68 @@ def parse_trigger_rows(value: Any, source: str) -> tuple[TriggerSpec, ...]:
             )
         )
     return tuple(triggers)
+
+
+def parse_event_schema_rows(value: Any, source: str) -> tuple[EventSchema, ...]:
+    """Parse optional plugin-owned event schema manifest entries."""
+    if value in (None, []):
+        return ()
+    if not isinstance(value, list):
+        raise ValueError(f"{source} event_schemas must be a list")
+    schemas: list[EventSchema] = []
+    topics: set[str] = set()
+    for index, row in enumerate(value, start=1):
+        if not isinstance(row, dict):
+            raise ValueError(f"{source} event_schemas entry {index} must be a table")
+        context = f"event_schemas entry {index}"
+        topic = string_field(row, "topic", source, context)
+        if topic in EVENT_SCHEMAS:
+            raise ValueError(f"{source} {context}.topic is framework-owned: {topic}")
+        if topic in topics:
+            raise ValueError(f"{source} duplicate event schema: {topic}")
+        topics.add(topic)
+        summary = optional_string_field(row, "summary", source, context, default="") or ""
+        fields = event_schema_fields(row.get("fields", []), source, context)
+        if not fields:
+            raise ValueError(f"{source} {context}.fields must declare at least one field")
+        schemas.append(
+            EventSchema(
+                topic=topic,
+                summary=summary,
+                fields=fields,
+                notes=string_list_field(row, "notes", source, context),
+            )
+        )
+    return tuple(schemas)
+
+
+def event_schema_fields(value: Any, source: str, context: str) -> tuple[FieldSchema, ...]:
+    """Parse one event schema's field rows."""
+    if not isinstance(value, list):
+        raise ValueError(f"{source} {context}.fields must be a list")
+    fields: list[FieldSchema] = []
+    names: set[str] = set()
+    for index, row in enumerate(value, start=1):
+        field_context = f"{context}.fields entry {index}"
+        if not isinstance(row, dict):
+            raise ValueError(f"{source} {field_context} must be a table")
+        name = string_field(row, "name", source, field_context)
+        if name in names:
+            raise ValueError(f"{source} {context}.fields duplicate field: {name}")
+        names.add(name)
+        field_type = optional_string_field(row, "type", source, field_context, default="any") or "any"
+        if field_type not in FIELD_TYPES:
+            raise ValueError(f"{source} {field_context}.type must be one of: {', '.join(FIELD_TYPES)}")
+        fields.append(
+            FieldSchema(
+                name=name,
+                field_type=field_type,
+                required=bool_field(row, "required", source, field_context),
+                description=optional_string_field(row, "description", source, field_context, default="") or "",
+                allowed=string_list_field(row, "allowed", source, field_context),
+            )
+        )
+    return tuple(fields)
 
 
 def option_rows_field(data: dict[str, Any], source: str, context: str) -> tuple[OptionSpec, ...]:

@@ -13,6 +13,7 @@ import importlib
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from ..event.schemas import register_event_schemas
 from ..plugin import Commandlet
 from ..secret.store import InMemorySecretStore
 from ..specs import TriggerSpec
@@ -161,6 +162,7 @@ class PluginRegistry:
             manifest_path = Path(f"{package_name}.{entry}.plugin.toml")
             plugins = enforce_plugin_manifest(manifest, plugins, manifest_path)
             triggers = enforce_trigger_manifest(manifest, triggers, manifest_path)
+            register_event_schemas(manifest.event_schemas)
         elif triggers:
             raise ValueError(f"{package_name}.{entry} exposes undeclared triggers without a plugin manifest")
         for plugin in plugins:

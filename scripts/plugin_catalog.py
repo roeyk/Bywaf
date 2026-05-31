@@ -101,6 +101,7 @@ def catalog_plugin_entry(
         },
         "roles": list(string_list_value(plugin_data, "roles", manifest_path, "plugin")),
         "commandlets": catalog_commandlet_entries(commandlet_rows, manifest_path),
+        "event_schemas": catalog_event_schema_entries(manifest_data, manifest_path),
         "triggers": catalog_trigger_entries(manifest_data, manifest_path),
     }
 
@@ -154,6 +155,53 @@ def catalog_trigger_entries(manifest_data: dict[str, Any], manifest_path: Path) 
                 "active_job": bool_value(trigger, "active_job", manifest_path, context),
                 "exclude_commandlets": list(string_list_value(trigger, "exclude_commandlets", manifest_path, context)),
                 "suppress_self_trigger": bool_value(trigger, "suppress_self_trigger", manifest_path, context, default=True),
+            }
+        )
+    return rows
+
+
+def catalog_event_schema_entries(manifest_data: dict[str, Any], manifest_path: Path) -> list[dict[str, Any]]:
+    """Return event schema metadata declared by one plugin sidecar manifest."""
+    schema_rows = manifest_data.get("event_schemas", [])
+    if not isinstance(schema_rows, list):
+        raise ValueError(f"{manifest_path} event_schemas must be a list")
+    rows: list[dict[str, Any]] = []
+    for index, schema in enumerate(schema_rows, start=1):
+        if not isinstance(schema, dict):
+            raise ValueError(f"{manifest_path} event_schemas entry {index} must be a table")
+        context = f"event_schemas entry {index}"
+        field_rows = schema.get("fields", [])
+        if not isinstance(field_rows, list):
+            raise ValueError(f"{manifest_path} {context}.fields must be a list")
+        rows.append(
+            {
+                "topic": required_string(schema, "topic", manifest_path, context),
+                "summary": optional_string(schema, "summary", manifest_path, context, default=""),
+                "notes": list(string_list_value(schema, "notes", manifest_path, context)),
+                "fields": catalog_event_schema_field_entries(field_rows, manifest_path, context),
+            }
+        )
+    return rows
+
+
+def catalog_event_schema_field_entries(
+    field_rows: list[Any],
+    manifest_path: Path,
+    schema_context: str,
+) -> list[dict[str, Any]]:
+    """Return strict event schema field metadata rows."""
+    rows: list[dict[str, Any]] = []
+    for index, field in enumerate(field_rows, start=1):
+        if not isinstance(field, dict):
+            raise ValueError(f"{manifest_path} {schema_context}.fields entry {index} must be a table")
+        context = f"{schema_context}.fields entry {index}"
+        rows.append(
+            {
+                "name": required_string(field, "name", manifest_path, context),
+                "type": optional_string(field, "type", manifest_path, context, default="any"),
+                "required": bool_value(field, "required", manifest_path, context),
+                "description": optional_string(field, "description", manifest_path, context, default=""),
+                "allowed": list(string_list_value(field, "allowed", manifest_path, context)),
             }
         )
     return rows
