@@ -74,6 +74,23 @@ class EyeWitnessTests(unittest.TestCase):
             self.assertEqual(web_screenshot["screenshots"][0]["file"], str(output_dir / "screens" / "example.png"))
             self.assertTrue(db.events_for_topic("framework.process.run.requested"))
 
+    def test_eyewitness_missing_binary_fails_after_audit_event(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="eyewitness",
+                metadata={"command_run_id": "run-1", "capabilities": EyeWitness().spec.capabilities},
+            )
+            event = Event.new("http.endpoint", {"url": "https://example.test/"}, "test")
+
+            with patch("bywaf.plugin.process.run_process_argv", side_effect=FileNotFoundError("eyewitness")):
+                with self.assertRaisesRegex(ValueError, "EyeWitness executable not found"):
+                    list(EyeWitness().run(context, ["binary=missing-eyewitness"], [event]))
+
+            errors = db.events_for_topic("system.error")
+            self.assertEqual(errors[0].payload["message"], "EyeWitness executable not found")
+
 
 class WifiScanTests(unittest.TestCase):
     def test_kismet_argv_is_shell_free(self):

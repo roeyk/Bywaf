@@ -40,11 +40,12 @@ REPORT_SORT_CHOICES = ("finding", "host")
     name="report",
     description="Show grouped finding reports for recent, step, job, or pipeline scopes.",
     usage=(
-        "report [network|<index-range>|detail <index-range>|accept|defer|reject <index-range|all>] "
+        "report [--last|network|<index-range>|detail <index-range>|accept|defer|reject <index-range|all>] "
         "[pipeline=<ids>] [job=<ids>] [step=<ids>] [status=<filter>]"
     ),
     examples=(
         "report",
+        "report --last",
         "report network",
         "report 1",
         "report detail 1-3",
@@ -73,6 +74,8 @@ REPORT_SORT_CHOICES = ("finding", "host")
         "db.read:http.path",
         "db.read:tls.certificate",
         "db.read:web.waf.detected",
+        "db.read:web.screenshotted_host",
+        "db.read:network.route.hop",
         "db.read:artifact.attached",
         "db.write:report.rendered",
         "db.write:finding.reviewed",
@@ -109,6 +112,7 @@ class Report(CommandletBase):
         parser.usage = self.spec.usage
         parser.add_argument("action", nargs="?")
         parser.add_argument("selection", nargs="?")
+        parser.add_argument("--last", action="store_true", help="show the latest scan/reportable pipeline")
         parser.add_argument("--job", default="", help="job id or comma-separated job ids")
         parser.add_argument(
             "--pipeline",
@@ -141,6 +145,7 @@ class Report(CommandletBase):
         del context, args
         candidates = (
             *REPORT_ACTIONS,
+            "--last",
             "all",
             "detail",
             "pipeline=",

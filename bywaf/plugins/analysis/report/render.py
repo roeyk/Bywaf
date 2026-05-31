@@ -81,7 +81,7 @@ def render_finding_report(
     table = (
         indexed_hosts_table(displayed_groups, decisions=decisions)
         if parsed.sort == "host" and parsed.action != "detail"
-        else indexed_findings_table(displayed_groups, decisions=decisions, show_review_status=parsed.status == "all")
+        else indexed_findings_table(displayed_groups, decisions=decisions, show_review_status=True)
     )
     output_lines.append(render_styled_report_table(context, table))
     if parsed.action == "detail":
@@ -171,9 +171,12 @@ def report_heading(parsed: Namespace, events: list[Event], groups: list[FindingG
     elif parsed.step:
         action = "scope"
         scope = f"step={parsed.step}"
+    elif getattr(parsed, "last", False):
+        action = "scope"
+        scope = "latest scan"
     else:
         action = "inbox"
-        scope = "latest completed pipeline"
+        scope = "latest scan"
     event_count = len(events)
     group_count = len(groups)
     return (
@@ -191,8 +194,10 @@ def network_report_heading(parsed: Namespace, context_events: list[Event], findi
         scope = f"pipeline={parsed.pipeline}"
     elif parsed.step:
         scope = f"step={parsed.step}"
+    elif getattr(parsed, "last", False):
+        scope = "latest scan"
     else:
-        scope = "latest completed pipeline"
+        scope = "latest scan"
     event_count = len(context_events) + len(finding_events)
     host_count = len(host_overviews(context_events, finding_events))
     return (

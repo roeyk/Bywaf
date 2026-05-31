@@ -112,7 +112,7 @@ def run_eyewitness(context: CommandContext, parsed: Any, targets: list[dict[str,
         result = context.process.run(argv, timeout=float(parsed.timeout))
     except FileNotFoundError as exc:
         publish_tool_problem(context, "system.error", "eyewitness", "EyeWitness executable not found", exc)
-        return
+        raise ValueError(f"EyeWitness executable not found: {parsed.binary}") from exc
     except subprocess.TimeoutExpired as exc:
         publish_tool_problem(context, "tool.error", "eyewitness", "EyeWitness run timed out", exc)
         return

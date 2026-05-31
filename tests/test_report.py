@@ -105,6 +105,59 @@ class ReportTests(unittest.TestCase):
             self.assertEqual(rendered.payload["sort"], "host")
             self.assertEqual(rendered.payload["rows"], 1)
 
+    def test_report_finding_rows_always_show_review_status(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "finding-1",
+                    "title": "Missing HSTS",
+                    "target": {"host": "web-1.test"},
+                    "severity": "medium",
+                },
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report pipeline=pipeline-a")
+                process_framework_requests(runner, ShellState())
+
+            text = output.getvalue()
+            self.assertIn("Review", text)
+            self.assertIn("unreviewed", text)
+
+    def test_report_last_explicitly_uses_latest_scan_scope(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "finding.candidate",
+                {"finding_id": "old", "title": "Old finding", "target": {"host": "old.test"}},
+                "scanner",
+                pipeline_id="old-pipeline",
+                command_run_id="old-step",
+            )
+            runner.db.publish(
+                "port.open",
+                {"host": "192.0.2.20", "port": 443, "protocol": "tcp", "service": "https"},
+                "portscanner",
+                pipeline_id="new-pipeline",
+                command_run_id="new-step",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report --last")
+                process_framework_requests(runner, ShellState())
+
+            text = output.getvalue()
+            self.assertIn("Report scope: latest scan", text)
+            self.assertIn("192.0.2.20", text)
+            self.assertNotIn("Old finding", text)
+
     def test_report_repl_does_not_echo_rendered_audit_event(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
@@ -184,6 +237,20 @@ class ReportTests(unittest.TestCase):
                 command_run_id="http-step",
             )
             runner.db.publish(
+                "web.screenshotted_host",
+                {"host": "192.0.2.10", "urls": ["https://web.test/"], "screenshots": [{"artifact_id": "artifact-1"}]},
+                "screenshotter",
+                pipeline_id="pipeline-a",
+                command_run_id="shot-step",
+            )
+            runner.db.publish(
+                "network.route.hop",
+                {"target": "192.0.2.10", "hop": 1, "host": "192.0.2.10", "ip": "192.0.2.10", "status": "responded"},
+                "traceroute",
+                pipeline_id="pipeline-a",
+                command_run_id="route-step",
+            )
+            runner.db.publish(
                 "finding.candidate",
                 {
                     "finding_id": "finding-1",
@@ -207,6 +274,8 @@ class ReportTests(unittest.TestCase):
             self.assertIn("192.0.2.10", text)
             self.assertIn("443/tcp https", text)
             self.assertIn("https://web.test/", text)
+            self.assertIn("screenshots:1", text)
+            self.assertIn("hop:1", text)
             self.assertIn("Missing HSTS", text)
 
     def test_report_network_renders_network_only_scope(self):
@@ -789,7 +858,7 @@ class ReportTests(unittest.TestCase):
                 process_framework_requests(runner, ShellState())
 
             text = output.getvalue()
-            self.assertIn("latest completed pipeline", text)
+            self.assertIn("latest scan", text)
             self.assertIn("New finding", text)
             self.assertNotIn("Old finding", text)
 

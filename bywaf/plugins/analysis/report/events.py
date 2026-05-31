@@ -26,6 +26,8 @@ REPORT_CONTEXT_TOPICS = (
     "http.path",
     "tls.certificate",
     "web.waf.detected",
+    "web.screenshotted_host",
+    "network.route.hop",
 )
 
 

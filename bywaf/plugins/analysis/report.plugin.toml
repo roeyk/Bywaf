@@ -17,6 +17,8 @@ capabilities = [
   "db.read:http.path",
   "db.read:tls.certificate",
   "db.read:web.waf.detected",
+  "db.read:web.screenshotted_host",
+  "db.read:network.route.hop",
   "db.read:artifact.attached",
   "db.write:report.rendered",
   "db.write:finding.reviewed",
