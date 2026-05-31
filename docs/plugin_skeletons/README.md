@@ -12,8 +12,9 @@ over inventing a new plugin layout from scratch.
 
 LLM Guardrails:
 
-- For small commandlets, prefer a manifest-backed `@commandlet` function that
-  receives `(context, cfg, input_events)`.
+- For ordinary commandlets, prefer a manifest-backed bare `@commandlet`
+  function that receives `(context, cfg, input_events)`. This is the default
+  authoring path unless the commandlet needs advanced hooks.
 - For advanced commandlets, decorate the `CommandletBase` class with
   `@commandlet`, `@argument`, and `@option`. Do not decorate the `plugin()`
   factory in either style.

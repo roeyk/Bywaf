@@ -7,7 +7,19 @@ roles = ["command-provider"]
 
 [[commandlets]]
 name = "example_library_check"
+description = "Example library-backed commandlet."
+usage = "example_library_check <target>"
+examples = [
+  "example_library_check example.test",
+]
+emits = [
+  "example.library.result",
+]
 capabilities = [
   "framework.console.output",
   "network.connect",
 ]
+
+[[commandlets.arguments]]
+name = "target"
+description = "Target value to inspect"

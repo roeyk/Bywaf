@@ -51,16 +51,19 @@ Important fields:
 - `arguments`: positional argument metadata for completion
 - `consumes`: event topics this commandlet expects as input
 - `emits`: event topics this commandlet publishes
-- `capabilities`: audit declarations for sensitive behavior
+- `capabilities`: enforceable declarations for sensitive behavior
 
-Bywaf currently treats capabilities as audit metadata, not hard sandboxing.
-`consumes` and `emits` imply `db.read:<topic>` and `db.write:<topic>` for the
-listed topics. Declare other behavior explicitly, such as
+Bywaf enforces declared capabilities by default. If a commandlet calls a
+mediated framework API without declaring the matching capability, Bywaf records
+the missing capability evidence and denies the operation. `consumes` and
+`emits` imply `db.read:<topic>` and `db.write:<topic>` for the listed topics.
+Declare other behavior explicitly, such as
 `framework.console.output`, `framework.console.alert`, `framework.file.page`,
 `filesystem.read`, or `network.connect`.
 
-For class-based commandlets, decorators can remove most of that metadata
-boilerplate:
+For new commandlets, prefer the manifest-backed function style in the next
+section. Class-based commandlets remain available when a commandlet needs
+custom parser hooks, planning hooks, or mixed per-action behavior:
 
 ```python
 from bywaf.plugin import CommandletBase, argument, commandlet, option
@@ -94,9 +97,9 @@ Decorator order is intentional: Python applies decorators from bottom to top, so
 
 ## Manifest-Backed Configuration
 
-For new commandlets, prefer a manifest-backed function when the command-line
+For new commandlets, this is the preferred authoring path when the command-line
 interface is ordinary options plus positional arguments. The manifest declares
-the public interface once, and `@commandlet` adapts the function into the
+the public interface once, and bare `@commandlet` adapts the function into the
 internal commandlet object that Bywaf expects.
 
 ```toml

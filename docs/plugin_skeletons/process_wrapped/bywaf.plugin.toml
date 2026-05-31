@@ -7,7 +7,19 @@ roles = ["command-provider"]
 
 [[commandlets]]
 name = "example_wrapped_tool"
+description = "Example process-wrapped commandlet."
+usage = "example_wrapped_tool <target>"
+examples = [
+  "example_wrapped_tool example.test",
+]
+emits = [
+  "example.tool.result",
+]
 capabilities = [
   "framework.process.run",
   "process.run",
 ]
+
+[[commandlets.arguments]]
+name = "target"
+description = "Target value passed to the external tool"
