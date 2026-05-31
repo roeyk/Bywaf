@@ -331,6 +331,10 @@ Bywaf registers these schemas when the plugin manifest is loaded. `plugin_check`
 uses them to validate literal `context.events.publish(...)` payloads and to
 require matching `emits` declarations for schema-backed topics.
 
+Operators and plugin authors can inspect registered schemas from a loaded
+project with `schemas`, for example `schemas owner=plugin` or
+`schemas topic=web.fingerprint detail=true`.
+
 # Trigger Entries
 
 Each `[[triggers]]` entry declares one provider-owned trigger rule.

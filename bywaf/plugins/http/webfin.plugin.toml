@@ -5,8 +5,108 @@ service = false
 
 [[commandlets]]
 name = "webfin"
+description = "Fingerprint web endpoints from HTTP probe results or explicit targets."
+usage = "webfin [target ...]"
+examples = [
+  "http_probe https://example.test/ | webfin",
+  "webfin https://example.test/",
+]
+consumes = [
+  "http.endpoint",
+]
+emits = [
+  "web.fingerprint",
+]
 capabilities = [
+  "db.write:web.fingerprint",
   "framework.console.alert",
   "network.connect",
 ]
 module = "bywaf.plugins.http.webfin"
+database.actions.view = false
+database.actions.write = true
+database.actions.manage = false
+
+[[commandlets.options]]
+name = "silent"
+description = "suppress fingerprint alerts"
+default = "false"
+
+[[commandlets.options]]
+name = "timeout"
+description = "request timeout seconds"
+default = "5"
+
+[[commandlets.options]]
+name = "user-agent"
+description = "HTTP User-Agent"
+default = "Bywaf/0.9"
+
+[[event_schemas]]
+topic = "web.fingerprint"
+version = "1"
+summary = "Technology and observation metadata inferred for one web endpoint."
+notes = [
+  "This is a plugin-owned schema emitted by webfin; consumers should treat technologies as tags and observations as triage hints, not reviewed findings.",
+  "Use finding.candidate for reportable security findings derived from this fingerprint.",
+]
+
+[[event_schemas.fields]]
+name = "url"
+type = "str"
+required = true
+description = "Canonical endpoint URL that was fingerprinted."
+
+[[event_schemas.fields]]
+name = "host"
+type = "str"
+required = true
+description = "Endpoint host."
+
+[[event_schemas.fields]]
+name = "port"
+type = "int"
+required = true
+description = "Endpoint port."
+
+[[event_schemas.fields]]
+name = "scheme"
+type = "str"
+required = true
+description = "Endpoint scheme."
+allowed = ["http", "https"]
+
+[[event_schemas.fields]]
+name = "status"
+type = "int"
+description = "HTTP status code from the source endpoint metadata."
+
+[[event_schemas.fields]]
+name = "server"
+type = "str"
+description = "Server header or equivalent server banner."
+
+[[event_schemas.fields]]
+name = "content_type"
+type = "str"
+description = "Response content type."
+
+[[event_schemas.fields]]
+name = "title"
+type = "str"
+description = "HTML title when present."
+
+[[event_schemas.fields]]
+name = "technologies"
+type = "list"
+description = "Inferred technology tags."
+
+[[event_schemas.fields]]
+name = "observations"
+type = "list"
+description = "Endpoint observations used for triage or follow-up plugins."
+
+[[event_schemas.fields]]
+name = "interesting"
+type = "bool"
+description = "Whether webfin observed technologies or triage-worthy metadata."

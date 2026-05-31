@@ -1640,13 +1640,32 @@ class AppDispatchTests(unittest.TestCase):
 
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                dispatch_repl_line(runner, "schemas topic=web.")
+                dispatch_repl_line(runner, "schemas topic=web. sort=topic")
 
             text = output.getvalue()
             self.assertIn("Schemas: all registered schemas topic=web.", text)
+            self.assertIn("sorted by topic ascending", text)
+            self.assertIn("web.fingerprint", text)
             self.assertIn("web.waf.detect", text)
             self.assertIn("VER", text)
             self.assertIn("wafs", text)
+
+    def test_schemas_detail_shows_plugin_owned_fields(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "schemas owner=plugin topic=web.fingerprint detail=true")
+
+            text = output.getvalue()
+            self.assertIn("Schemas: owner=plugin topic=web.fingerprint", text)
+            self.assertIn("Schema detail: web.fingerprint", text)
+            self.assertIn("owner: plugin", text)
+            self.assertIn("FIELD", text)
+            self.assertIn("technologies", text)
+            self.assertIn("observations", text)
+            self.assertIn("webfin", text)
 
     def test_wafs_new_shows_latest_new_waf_signal(self):
         with tempfile.TemporaryDirectory() as tmp:

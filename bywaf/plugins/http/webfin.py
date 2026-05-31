@@ -42,7 +42,8 @@ DEFAULTS = {
     ),
     consumes=("http.endpoint",),
     emits=("web.fingerprint",),
-    capabilities=("framework.console.alert", "network.connect"),
+    capabilities=("db.write:web.fingerprint", "framework.console.alert", "network.connect"),
+    database_actions=("write",),
 )
 @option("silent", "suppress fingerprint alerts", "false")
 @option("timeout", "request timeout seconds", "5")

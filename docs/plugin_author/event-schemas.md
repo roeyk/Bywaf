@@ -10,6 +10,7 @@ without knowing the original scanner.
 - [Why Schemas Instead Of Plugin Classes](#why-schemas-instead-of-plugin-classes)
 - [Deserialize At The Boundary](#deserialize-at-the-boundary)
 - [Plugin-Owned Schemas](#plugin-owned-schemas)
+- [Inspect Registered Schemas](#inspect-registered-schemas)
 - [Declare Consumes And Emits](#declare-consumes-and-emits)
 - [Keep Raw Tool Detail Separate](#keep-raw-tool-detail-separate)
 - [Examples](#examples)
@@ -195,6 +196,22 @@ for session in SmbSession.from_events(input_events):
 Declare the topic in `consumes` and `emits` as usual. If the topic becomes
 broadly useful, promote it into a framework-known schema and move the canonical
 class into `bywaf.event.schema_objects`.
+
+## Inspect Registered Schemas
+
+Use `schemas` in the REPL to inspect the active schema catalog loaded from the
+framework and plugin manifests:
+
+```text
+schemas owner=plugin
+schemas topic=web. sort=topic
+schemas topic=web.fingerprint detail=true
+```
+
+The list view shows owner, topic, schema version, required fields, field count,
+declared users, and summary. `detail=true` expands the field table and notes for
+the selected schemas. This gives plugin authors a stable way to see what a
+producer emits without importing that producer's Python module.
 
 ## Declare Consumes And Emits
 
