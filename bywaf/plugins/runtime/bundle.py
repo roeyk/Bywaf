@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from bywaf.artifacts import Artifact, artifact_store_for_event_store
+from bywaf.artifacts import Artifact
 from bywaf.event import Event
 from bywaf.keyring import sign_bytes, verify_bytes
 from bywaf.plugin import (
@@ -67,7 +67,6 @@ class Bundle:
         "db.read:bundle.created",
         "db.read:bundle.item.added",
         "db.read:bundle.sealed",
-        "db.raw",
         "db.write:bundle.created",
         "db.write:bundle.item.added",
         "db.write:bundle.sealed",
@@ -75,7 +74,7 @@ class Bundle:
         "filesystem.write",
         "framework.console.output",
     ),
-    database_actions=("view", "write", "manage"),
+    database_actions=("view", "write"),
 )
 @argument("action", "bundle action", completion=CompletionSpec("choice", BUNDLE_ACTIONS))
 class BundleCommand(CommandletBase):
@@ -426,7 +425,7 @@ def resolve_bundle_content(
 
 def selected_artifacts(context: CommandContext, selectors: dict[str, str]) -> list[Artifact]:
     """Return artifacts selected for a bundle item."""
-    store = artifact_store_for_event_store(context.require_db("bundle"))
+    store = context.artifact_store("bundle")
     artifacts = store.list(
         job_id=resolve_job_selector(context, selectors.get("job")),
         pipeline_id=resolve_pipeline_selector(context, selectors.get("pipeline")),

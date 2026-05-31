@@ -33,6 +33,25 @@ class BundleTests(unittest.TestCase):
         self.assertEqual(invocation.args, ["create", "name=client-a"])
         self.assertIsNone(invocation.display_name)
 
+    def test_bundle_uses_artifact_store_without_raw_db_capability(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            evidence = root / "evidence.txt"
+            evidence.write_text("bundle evidence\n", encoding="utf-8")
+            runner = make_runner(root / "bywaf.sqlite3")
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute("bundle create name=client-a")
+                runner.execute(f"artifact attach step=1 file={evidence} name=sample note=bundle")
+                runner.execute("bundle add name=client-a evidence commandlet=artifact")
+                process_framework_requests(runner, ShellState())
+
+            capabilities = {
+                event.payload["capability"]
+                for event in runner.db.events_for_topic("plugin.capability.used")
+            }
+            self.assertIn("db.write:bundle.item.added", capabilities)
+            self.assertNotIn("db.raw", capabilities)
+
     @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
     def test_bundle_create_add_seal_verify_export(self):
         with tempfile.TemporaryDirectory() as tmp:
