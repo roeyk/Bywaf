@@ -266,6 +266,10 @@ By default, listings focus on active entities. `--all` includes historical
 entities and shows lifecycle state such as in progress, failed, completed, or
 stale. Listings also include artifact counts when available.
 
+Runtime listings accept `since=<id>` to show rows created after a known local
+job, pipeline, or step ID. `--new` is read-only and highlights the newest row in
+the current listing; it does not advance a hidden project-database cursor.
+
 ## Plugin Author Implications
 
 Plugin code should treat the `CommandContext` as the source of step state. Do

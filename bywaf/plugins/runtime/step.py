@@ -16,7 +16,13 @@ from typing import Any
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
-from bywaf.plugins.runtime.view_common import filter_runtime_rows_by_events, filter_view_run_rows, view_selector_candidates
+from bywaf.plugins.runtime.view_common import (
+    filter_runtime_rows_by_events,
+    filter_runtime_rows_since,
+    filter_view_run_rows,
+    split_since_selector,
+    view_selector_candidates,
+)
 from bywaf.runtime_display import (
     command_context_style_getter,
     format_runtime_duration,
@@ -38,8 +44,8 @@ STEP_SORT_KEYS = ("id", "serial", "state", "pipeline", "source", "events", "star
 @commandlet(
     name="step",
     description="List and inspect pipeline steps.",
-    usage="step [--all] [field=value ...] | step <id>",
-    examples=("step", "step --all", "step 1", "step host=192.0.2.10"),
+    usage="step [--all] [--new] [field=value ...] [since=<id>] | step <id>",
+    examples=("step", "step --all", "step --new", "step since=40", "step 1", "step host=192.0.2.10"),
     capabilities=("framework.console.output",),
     database_actions=("view",),
 )
@@ -56,6 +62,7 @@ class Step(CommandletBase):
         del input_events
         parser = self.parser()
         parser.add_argument("--all", action="store_true")
+        parser.add_argument("--new", action="store_true")
         parsed, tokens = parser.parse_known_args(args)
         operation = parse_step_operation(tokens)
         context.require_foreground("step inspection commands")
@@ -66,13 +73,15 @@ class Step(CommandletBase):
                 context,
                 active_only=False,
                 filters=operation.filters,
+                highlight_newest=parsed.new,
+                since=operation.since,
                 sort_key=operation.sort,
             )
         return ()
 
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
         """Complete step IDs and list options from the active database."""
-        candidates = ["--all", "sort=", *step_ids(context)]
+        candidates = ["--all", "--new", "sort=", "since=", *step_ids(context)]
         if not args:
             return candidates
         if args and args[-1].startswith("sort="):
@@ -84,11 +93,12 @@ class Step(CommandletBase):
 def parse_step_operation(tokens: list[str]) -> Namespace:
     """Interpret terse `step` forms into an optional id plus filters."""
     if not tokens:
-        return Namespace(id=None, filters={}, sort="")
+        return Namespace(id=None, filters={}, since="", sort="")
     if len(tokens) == 1 and "=" not in tokens[0]:
-        return Namespace(id=tokens[0], filters={}, sort="")
-    filters, sort = parse_runtime_list_selectors(tokens, allowed_sort_keys=STEP_SORT_KEYS, command="step")
-    return Namespace(id=None, filters=filters, sort=sort)
+        return Namespace(id=tokens[0], filters={}, since="", sort="")
+    selectors, since = split_since_selector("step", tokens)
+    filters, sort = parse_runtime_list_selectors(selectors, allowed_sort_keys=STEP_SORT_KEYS, command="step")
+    return Namespace(id=None, filters=filters, since=since, sort=sort)
 
 
 def print_steps(
@@ -96,6 +106,8 @@ def print_steps(
     *,
     active_only: bool = True,
     filters: dict[str, str] | None = None,
+    highlight_newest: bool = False,
+    since: str = "",
     sort_key: str = "",
 ) -> None:
     """Print commandlet step summaries."""
@@ -105,13 +117,14 @@ def print_steps(
     if current_run_id:
         rows = [row for row in rows if str(row["command_run_id"]) != current_run_id]
     rows = filter_view_run_rows(context.event_store("step list"), rows)
+    rows = filter_runtime_rows_since(runtime, "step", rows, since)
     if filters:
         events = context.event_store("step")
         rows = filter_runtime_rows_by_events(events, "step", rows, filters)
     if sort_key:
         rows = sort_step_rows(rows, sort_key)
     if not rows:
-        context.output("no matching steps" if filters else "no active steps" if active_only else "no steps")
+        context.output("no matching steps" if filters or since else "no active steps" if active_only else "no steps")
         return
     names = runtime.runtime_names()
     run_aliases = runtime.run_aliases()
@@ -119,6 +132,7 @@ def print_steps(
     artifact_counts = runtime.artifact_counts_by_run()
     table_rows: list[tuple[object, ...]] = []
     row_subjects: list[str] = []
+    newest_alias = max((int(run_aliases.get(str(row["command_run_id"]), "0")) for row in rows), default=0) if highlight_newest else 0
     for row in rows:
         run_serial = str(row["command_run_id"])
         pipeline_serial = str(row["pipeline_id"]) if row["pipeline_id"] is not None else ""
@@ -136,7 +150,11 @@ def print_steps(
                 names.get(("run", run_serial), ""),
             )
         )
-        row_subjects.append("table.active_row" if state in {"active", "in progress"} else "")
+        row_subjects.append(
+            "table.active_row"
+            if state in {"active", "in progress"} or int(run_aliases.get(run_serial, "0")) == newest_alias
+            else ""
+        )
     output = render_table(
         ("STEP", "STATUS", "PIPELINE", "SOURCE", "EVENTS", "ART", "STARTED", "DUR", "NAME"),
         table_rows,
@@ -148,6 +166,8 @@ def print_steps(
     )
     if sort_key:
         output = f"{runtime_sort_note(sort_key)}\n{output}"
+    if since:
+        output = f"after step {since}\n{output}"
     context.output(output)
 
 

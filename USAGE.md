@@ -1167,6 +1167,8 @@ bywaf> step
 bywaf> step host=192.168.50.163
 bywaf> job host=192.168.50.163
 bywaf> pipeline host=192.168.50.163
+bywaf> job since=120
+bywaf> pipeline --new
 bywaf> job sort=started
 bywaf> job sort=-started
 bywaf> pipeline sort=events
@@ -1182,7 +1184,10 @@ selector to type next. `pipeline --sort=events` is rejected; use
 
 `job`, `pipeline`, and `step` accept the same payload-style filters as
 `event`. They show runtime objects that have at least one associated event
-matching the filter.
+matching the filter. `since=<id>` shows runtime objects created after a known
+local ID for that command, for example `job since=120` or `step since=40`.
+`--new` highlights the newest row in the current runtime listing without
+writing a hidden cursor to the project database.
 
 Show events by pipeline step or pipeline:
 

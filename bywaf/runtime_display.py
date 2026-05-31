@@ -31,6 +31,7 @@ RUNTIME_FILTER_COMPLETIONS = (
     "status=",
     "source=",
     "topic=",
+    "since=",
 )
 
 

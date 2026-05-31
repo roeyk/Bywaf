@@ -49,6 +49,66 @@ def view_selector_candidates(prefix: str, allowed_sort_keys: Sequence[str]) -> l
     return runtime_view_completion_candidates(prefix, allowed_sort_keys)
 
 
+def split_since_selector(command: str, tokens: Sequence[str]) -> tuple[list[str], str]:
+    """Remove one `since=` runtime selector from a token list.
+
+    Runtime IDs are local operator selectors, so `job since=120` means jobs
+    after local job 120, `pipeline since=30` means pipelines after local
+    pipeline 30, and `step since=90` means steps after local step 90.
+    """
+    selectors: list[str] = []
+    since = ""
+    for token in tokens:
+        key, separator, value = token.partition("=")
+        if key == "since" and separator:
+            if since:
+                raise ValueError(f"{command} accepts only one since= selector")
+            if not value:
+                raise ValueError(f"{command} since= requires an id")
+            since = value
+        else:
+            selectors.append(token)
+    return selectors, since
+
+
+def filter_runtime_rows_since(runtime, kind: str, rows: list[dict], since: str) -> list[dict]:
+    """Return runtime rows newer than a local runtime id or durable serial."""
+    if not since:
+        return rows
+    if kind == "job":
+        threshold = resolve_job_since(runtime, since)
+        return [row for row in rows if int(row["id"]) > threshold]
+    if kind == "pipeline":
+        aliases = runtime.pipeline_aliases()
+        threshold = resolve_alias_since("pipeline", aliases, runtime.resolve_pipeline_serial(since), since)
+        return [row for row in rows if int(aliases.get(str(row["pipeline_id"]), "0")) > threshold]
+    if kind == "step":
+        aliases = runtime.run_aliases()
+        threshold = resolve_alias_since("step", aliases, runtime.resolve_run_serial(since), since)
+        return [row for row in rows if int(aliases.get(str(row["command_run_id"]), "0")) > threshold]
+    raise ValueError(f"unknown runtime view kind: {kind}")
+
+
+def resolve_job_since(runtime, since: str) -> int:
+    """Resolve a job `since=` selector to a local numeric job id."""
+    if since.isdigit():
+        return int(since)
+    resolved = runtime.job_id_for_serial(since)
+    if resolved is None:
+        raise ValueError(f"unknown job since= selector: {since}")
+    return int(resolved)
+
+
+def resolve_alias_since(kind: str, aliases: dict[str, str], serial: str, raw: str) -> int:
+    """Resolve a step/pipeline `since=` selector to a local numeric alias."""
+    if raw.isdigit():
+        return int(raw)
+    alias = aliases.get(serial)
+    if alias is None:
+        raise ValueError(f"unknown {kind} since= selector: {raw}")
+    return int(alias)
+
+
 def is_view_command_line(command_line: str) -> bool:
     """Return whether a recorded command line is an operator view command."""
     commandlet = commandlet_from_command_line(command_line)

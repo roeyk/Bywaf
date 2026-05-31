@@ -25,7 +25,13 @@ from bywaf.plugin import (
     commandlet,
 )
 from bywaf.plugins.runtime.job import cancel_job, format_job_command, kill_job
-from bywaf.plugins.runtime.view_common import filter_runtime_rows_by_events, view_run_ids, view_selector_candidates
+from bywaf.plugins.runtime.view_common import (
+    filter_runtime_rows_by_events,
+    filter_runtime_rows_since,
+    split_since_selector,
+    view_run_ids,
+    view_selector_candidates,
+)
 from bywaf.runtime_display import (
     command_context_style_getter,
     display_runtime_serial,
@@ -54,10 +60,12 @@ NOISE_TOPICS = {"framework.console.output.requested", "console.output", "runtime
 @commandlet(
     name="pipeline",
     description="Manage pipelines.",
-    usage="pipeline [--all] [field=value ...] | pipeline <id> | pipeline <cancel|end|kill|attach> [options] <id>",
+    usage="pipeline [--all] [--new] [field=value ...] [since=<id>] | pipeline <id> | pipeline <cancel|end|kill|attach> [options] <id>",
     examples=(
         "pipeline",
         "pipeline --all",
+        "pipeline --new",
+        "pipeline since=30",
         "pipeline 1",
         "pipeline cancel 1",
         "pipeline end --hard 1",
@@ -93,6 +101,7 @@ class Pipeline(CommandletBase):
             return ()
         parser.add_argument("--all", action="store_true")
         parser.add_argument("--hard", action="store_true")
+        parser.add_argument("--new", action="store_true")
         parser.add_argument("--page", action="store_true")
         parser.add_argument("--soft", action="store_true")
         parsed, tokens = parser.parse_known_args(args)
@@ -100,6 +109,7 @@ class Pipeline(CommandletBase):
         parsed.action = operation.action
         parsed.id = operation.id
         parsed.filters = operation.filters
+        parsed.since = operation.since
         parsed.sort = operation.sort
         context.require_foreground("pipeline management commands")
         validate_pipeline_mode(parsed.action, soft=parsed.soft, hard=parsed.hard)
@@ -109,7 +119,7 @@ class Pipeline(CommandletBase):
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
         """Complete subcommands and pipeline IDs from the active database."""
         if not args:
-            return ["--all", "--page", "sort=", *pipeline_ids(context), *PIPELINE_ACTIONS]
+            return ["--all", "--new", "--page", "sort=", "since=", *pipeline_ids(context), *PIPELINE_ACTIONS]
         if len(args) == 1 and args[0] == "attach":
             return pipeline_ids(context)
         if len(args) == 1 and args[0] in {"cancel", "end", "kill"}:
@@ -117,7 +127,7 @@ class Pipeline(CommandletBase):
         if args and args[-1].startswith("sort="):
             return view_selector_candidates(args[-1], PIPELINE_SORT_KEYS)
         if len(args) == 1:
-            candidates = ["--all", "--page", "sort=", *pipeline_ids(context), *PIPELINE_ACTIONS]
+            candidates = ["--all", "--new", "--page", "sort=", "since=", *pipeline_ids(context), *PIPELINE_ACTIONS]
             candidates.extend(view_selector_candidates(prefix, PIPELINE_SORT_KEYS))
             return [candidate for candidate in candidates if candidate.startswith(prefix)]
         if args and args[0] == "attach":
@@ -130,7 +140,7 @@ class Pipeline(CommandletBase):
 def parse_pipeline_operation(tokens: list[str]) -> Namespace:
     """Interpret terse `pipeline` forms into the internal action/id/filter shape."""
     if not tokens:
-        return Namespace(action="list", id=None, filters={}, sort="")
+        return Namespace(action="list", id=None, filters={}, since="", sort="")
     first, rest = tokens[0], tokens[1:]
     if first in REMOVED_PIPELINE_ACTIONS:
         raise ValueError(
@@ -139,12 +149,14 @@ def parse_pipeline_operation(tokens: list[str]) -> Namespace:
     if first in {"cancel", "end", "kill"}:
         if not rest:
             raise ValueError(f"pipeline {first} requires a pipeline id")
-        filters, sort = parse_runtime_list_selectors(rest[1:], allowed_sort_keys=PIPELINE_SORT_KEYS, command="pipeline")
-        return Namespace(action=first, id=rest[0], filters=filters, sort=sort)
+        selectors, since = split_since_selector("pipeline", rest[1:])
+        filters, sort = parse_runtime_list_selectors(selectors, allowed_sort_keys=PIPELINE_SORT_KEYS, command="pipeline")
+        return Namespace(action=first, id=rest[0], filters=filters, since=since, sort=sort)
     if "=" not in first and not rest:
-        return Namespace(action="show", id=first, filters={}, sort="")
-    filters, sort = parse_runtime_list_selectors(tokens, allowed_sort_keys=PIPELINE_SORT_KEYS, command="pipeline")
-    return Namespace(action="list", id=None, filters=filters, sort=sort)
+        return Namespace(action="show", id=first, filters={}, since="", sort="")
+    selectors, since = split_since_selector("pipeline", tokens)
+    filters, sort = parse_runtime_list_selectors(selectors, allowed_sort_keys=PIPELINE_SORT_KEYS, command="pipeline")
+    return Namespace(action="list", id=None, filters=filters, since=since, sort=sort)
 
 
 def pipeline_action_handlers() -> dict[str, PipelineActionHandler]:
@@ -166,6 +178,8 @@ def list_pipeline_action(context: CommandContext, parsed: Namespace) -> None:
         show_active=parsed.all,
         page=parsed.page,
         filters=parsed.filters,
+        highlight_newest=parsed.new,
+        since=parsed.since,
         sort_key=parsed.sort,
     )
 
@@ -305,25 +319,29 @@ def print_pipelines(
     show_active: bool = False,
     page: bool = False,
     filters: dict[str, str] | None = None,
+    highlight_newest: bool = False,
+    since: str = "",
     sort_key: str = "",
 ) -> None:
     """Print active pipelines by default, or all pipelines when requested."""
     runtime = context.runtime_store("pipeline list")
     rows = runtime.pipelines(active_only=active_only)
     rows = filter_view_only_pipelines(context, rows)
+    rows = filter_runtime_rows_since(runtime, "pipeline", rows, since)
     if filters:
         events = context.event_store("pipeline list")
         rows = filter_runtime_rows_by_events(events, "pipeline", rows, filters)
     if sort_key:
         rows = sort_pipeline_rows(rows, sort_key)
     if not rows:
-        context.output("no matching pipelines" if filters else "no active pipelines" if active_only else "no pipelines")
+        context.output("no matching pipelines" if filters or since else "no active pipelines" if active_only else "no pipelines")
         return
     names = runtime.runtime_names()
     aliases = runtime.pipeline_aliases()
     artifact_counts = runtime.artifact_counts_by_pipeline()
     table_rows: list[tuple[object, ...]] = []
     row_subjects: list[str] = []
+    newest_alias = max((int(aliases.get(str(row["pipeline_id"]), "0")) for row in rows), default=0) if highlight_newest else 0
     for row in rows:
         statuses = row["job_statuses"] or "unknown"
         state = runtime_state_label(statuses)
@@ -340,7 +358,11 @@ def print_pipelines(
                 names.get(("pipeline", str(row["pipeline_id"])), ""),
             )
         )
-        row_subjects.append("table.active_row" if state in {"active", "in progress"} else "")
+        row_subjects.append(
+            "table.active_row"
+            if state in {"active", "in progress"} or int(aliases.get(str(row["pipeline_id"]), "0")) == newest_alias
+            else ""
+        )
     output = render_table(
         ("PIPELINE", "STATUS", "JOB", "STEPS", "EVENTS", "ART", "STARTED", "DUR", "NAME"),
         table_rows,
@@ -352,6 +374,8 @@ def print_pipelines(
     )
     if sort_key:
         output = f"{runtime_sort_note(sort_key)}\n{output}"
+    if since:
+        output = f"after pipeline {since}\n{output}"
     if page:
         context.page_text(output)
     else:
