@@ -9,19 +9,32 @@ Used by:
 
 from __future__ import annotations
 
-import re
 import tomllib
 from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
 from typing import Any
 
-from ..event.schemas import EVENT_SCHEMAS, FIELD_TYPES, EventSchema, FieldSchema, register_event_schemas
+from ..event.schemas import EventSchema, register_event_schemas
 from ..plugin import Commandlet
-from ..specs import ArgumentSpec, CompletionSpec, OptionSpec, TriggerSpec
+from ..specs import ArgumentSpec, OptionSpec, TriggerSpec
 from ..toml_support import load_data_file
-from .compat import REQUIREMENT_RE
 from .loading import load_module_path, load_plugins, load_trigger_specs
+from .manifest_fields import (
+    argument_rows_field,
+    bool_field,
+    database_actions_field,
+    list_field,
+    option_rows_field,
+    optional_string_field,
+    string_field,
+    string_list_field,
+    table_value,
+    validate_requires_bywaf,
+    validate_version_string,
+)
+from .manifest_schemas import parse_event_schema_rows
+from .manifest_triggers import parse_trigger_rows
 from .trust import (
     PluginManifestTrust,
     PluginTrustPolicy,
@@ -170,228 +183,6 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
     )
 
 
-SEMVERISH_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
-def validate_version_string(value: str, source: str, context: str) -> None:
-    """Validate a SemVer-like plugin version string."""
-    if not SEMVERISH_RE.match(value):
-        raise ValueError(f"{source} {context} must be SemVer-like, for example 0.1.0")
-
-
-def validate_requires_bywaf(value: str, source: str, context: str) -> None:
-    """Validate a simple one-clause framework version requirement."""
-    if not REQUIREMENT_RE.match(value.strip()):
-        raise ValueError(f"{source} {context} must look like >=0.13.0")
-
-
-def parse_trigger_rows(value: Any, source: str) -> tuple[TriggerSpec, ...]:
-    """Parse optional [[triggers]] manifest entries.
-
-    Trigger rows are provider-owned automation rules.  They are parsed from the
-    manifest so the registry can list and validate trigger behavior without
-    trusting arbitrary top-level plugin code first.
-    """
-    if value in (None, []):
-        return ()
-    if not isinstance(value, list):
-        raise ValueError(f"{source} triggers must be a list")
-    triggers: list[TriggerSpec] = []
-    names: set[str] = set()
-    for index, row in enumerate(value, start=1):
-        if not isinstance(row, dict):
-            raise ValueError(f"{source} triggers entry {index} must be a table")
-        name = string_field(row, "name", source, f"triggers entry {index}")
-        if name in names:
-            raise ValueError(f"{source} duplicate trigger: {name}")
-        names.add(name)
-        topic = string_field(row, "topic", source, f"triggers entry {index}")
-        action_command = string_field(row, "action_command", source, f"triggers entry {index}")
-        action_mode = optional_string_field(row, "action_mode", source, f"triggers entry {index}", default="service")
-        assert action_mode is not None
-        if action_mode not in {"foreground", "background", "service"}:
-            raise ValueError(f"{source} triggers entry {index} action_mode must be foreground, background, or service")
-        payload_equals = row.get("payload_equals", {})
-        # Keep manifest predicates simple and deterministic.  Complex matching
-        # belongs in explicit commandlets; trigger metadata should remain
-        # inspectable without importing plugin code.
-        if not isinstance(payload_equals, dict):
-            raise ValueError(f"{source} triggers entry {index} payload_equals must be a table")
-        for key, item in payload_equals.items():
-            if not isinstance(key, str) or not key:
-                raise ValueError(f"{source} triggers entry {index} payload_equals keys must be strings")
-            if not isinstance(item, str):
-                raise ValueError(f"{source} triggers entry {index} payload_equals values must be strings")
-        suppress_self_trigger = row.get("suppress_self_trigger", True)
-        if not isinstance(suppress_self_trigger, bool):
-            raise ValueError(f"{source} triggers entry {index} suppress_self_trigger must be true or false")
-        description = optional_string_field(row, "description", source, f"triggers entry {index}", default="")
-        capability = optional_string_field(row, "capability", source, f"triggers entry {index}")
-        triggers.append(
-            TriggerSpec(
-                name=name,
-                topic=topic,
-                action_command=action_command,
-                description=description or "",
-                action_mode=action_mode,
-                capability=capability,
-                payload_equals=tuple(sorted(payload_equals.items())),
-                active_job=bool_field(row, "active_job", source, f"triggers entry {index}"),
-                exclude_commandlets=string_list_field(row, "exclude_commandlets", source, f"triggers entry {index}"),
-                suppress_self_trigger=suppress_self_trigger,
-            )
-        )
-    return tuple(triggers)
-
-
-def parse_event_schema_rows(value: Any, source: str) -> tuple[EventSchema, ...]:
-    """Parse optional plugin-owned event schema manifest entries."""
-    if value in (None, []):
-        return ()
-    if not isinstance(value, list):
-        raise ValueError(f"{source} event_schemas must be a list")
-    schemas: list[EventSchema] = []
-    topics: set[str] = set()
-    for index, row in enumerate(value, start=1):
-        if not isinstance(row, dict):
-            raise ValueError(f"{source} event_schemas entry {index} must be a table")
-        context = f"event_schemas entry {index}"
-        topic = string_field(row, "topic", source, context)
-        if topic in EVENT_SCHEMAS:
-            raise ValueError(f"{source} {context}.topic is framework-owned: {topic}")
-        if topic in topics:
-            raise ValueError(f"{source} duplicate event schema: {topic}")
-        topics.add(topic)
-        summary = optional_string_field(row, "summary", source, context, default="") or ""
-        fields = event_schema_fields(row.get("fields", []), source, context)
-        if not fields:
-            raise ValueError(f"{source} {context}.fields must declare at least one field")
-        schemas.append(
-            EventSchema(
-                topic=topic,
-                summary=summary,
-                fields=fields,
-                notes=string_list_field(row, "notes", source, context),
-                version=optional_string_field(row, "version", source, context, default="1") or "1",
-            )
-        )
-    return tuple(schemas)
-
-
-def event_schema_fields(value: Any, source: str, context: str) -> tuple[FieldSchema, ...]:
-    """Parse one event schema's field rows."""
-    if not isinstance(value, list):
-        raise ValueError(f"{source} {context}.fields must be a list")
-    fields: list[FieldSchema] = []
-    names: set[str] = set()
-    for index, row in enumerate(value, start=1):
-        field_context = f"{context}.fields entry {index}"
-        if not isinstance(row, dict):
-            raise ValueError(f"{source} {field_context} must be a table")
-        name = string_field(row, "name", source, field_context)
-        if name in names:
-            raise ValueError(f"{source} {context}.fields duplicate field: {name}")
-        names.add(name)
-        field_type = optional_string_field(row, "type", source, field_context, default="any") or "any"
-        if field_type not in FIELD_TYPES:
-            raise ValueError(f"{source} {field_context}.type must be one of: {', '.join(FIELD_TYPES)}")
-        fields.append(
-            FieldSchema(
-                name=name,
-                field_type=field_type,
-                required=bool_field(row, "required", source, field_context),
-                description=optional_string_field(row, "description", source, field_context, default="") or "",
-                allowed=string_list_field(row, "allowed", source, field_context),
-            )
-        )
-    return tuple(fields)
-
-
-def option_rows_field(data: dict[str, Any], source: str, context: str) -> tuple[OptionSpec, ...]:
-    """Parse optional commandlet option metadata rows."""
-    value = data.get("options", ())
-    if value in (None, ()):
-        return ()
-    if not isinstance(value, list):
-        raise ValueError(f"{source} {context}.options must be a list")
-    return tuple(option_row_field(row, source, f"{context}.options entry {index}") for index, row in enumerate(value, start=1))
-
-
-def option_row_field(row: Any, source: str, context: str) -> OptionSpec:
-    """Parse one manifest commandlet option row."""
-    if not isinstance(row, dict):
-        raise ValueError(f"{source} {context} must be a table")
-    value_type = optional_string_field(row, "type", source, context, default="str") or "str"
-    if value_type not in {"str", "int", "optional-int", "float", "bool"}:
-        raise ValueError(f"{source} {context}.type must be one of: str, int, optional-int, float, bool")
-    completion = optional_string_field(row, "completion", source, context)
-    return OptionSpec(
-        name=string_field(row, "name", source, context),
-        description=optional_string_field(row, "description", source, context, default="") or "",
-        default=manifest_default_to_string(row.get("default")),
-        choices=string_list_field(row, "choices", source, context),
-        completion=CompletionSpec(completion or "none"),
-        secret=bool_field(row, "secret", source, context),
-        value_type=value_type,
-    )
-
-
-def argument_rows_field(data: dict[str, Any], source: str, context: str) -> tuple[ArgumentSpec, ...]:
-    """Parse optional commandlet argument metadata rows."""
-    value = data.get("arguments", ())
-    if value in (None, ()):
-        return ()
-    if not isinstance(value, list):
-        raise ValueError(f"{source} {context}.arguments must be a list")
-    return tuple(argument_row_field(row, source, f"{context}.arguments entry {index}") for index, row in enumerate(value, start=1))
-
-
-def argument_row_field(row: Any, source: str, context: str) -> ArgumentSpec:
-    """Parse one manifest commandlet argument row."""
-    if not isinstance(row, dict):
-        raise ValueError(f"{source} {context} must be a table")
-    nargs = optional_string_field(row, "nargs", source, context, default="") or ""
-    completion = optional_string_field(row, "completion", source, context)
-    return ArgumentSpec(
-        name=string_field(row, "name", source, context),
-        description=optional_string_field(row, "description", source, context, default="") or "",
-        required=nargs not in {"?", "*"},
-        completion=CompletionSpec(completion or "none"),
-    )
-
-
-def string_field(data: dict[str, Any], key: str, source: str, context: str) -> str:
-    """Return a required string field."""
-    value = data.get(key)
-    if not isinstance(value, str) or not value:
-        raise ValueError(f"{source} {context} requires {key}")
-    return value
-
-
-def optional_string_field(
-    data: dict[str, Any],
-    key: str,
-    source: str,
-    context: str,
-    *,
-    default: str | None = None,
-) -> str | None:
-    """Return an optional string manifest field."""
-    value = data.get(key, default)
-    if value is None:
-        return None
-    if not isinstance(value, str):
-        raise ValueError(f"{source} {context}.{key} must be a string")
-    return value
-
-
-def manifest_default_to_string(value: Any) -> str | None:
-    """Normalize manifest defaults into CommandSpec string metadata."""
-    if value is None:
-        return None
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    return str(value)
-
-
 def enforce_plugin_manifest(
     manifest: PluginManifest,
     plugins: tuple[Commandlet, ...],
@@ -513,83 +304,6 @@ def enforce_trigger_manifest(
             raise ValueError(f"{path} trigger mismatch for {name}")
     return tuple(declared[name] for name in sorted(declared))
 
-
-
-def table_value(data: dict[str, Any], key: str, source: str) -> dict[str, Any]:
-    """Return one TOML table from a manifest."""
-    value = data.get(key, {})
-    if not isinstance(value, dict):
-        raise ValueError(f"{source} [{key}] must be a table")
-    return value
-
-
-def bool_field(data: dict[str, Any], key: str, source: str, context: str = "plugin") -> bool:
-    """Return a boolean manifest field."""
-    value = data.get(key, False)
-    if not isinstance(value, bool):
-        raise ValueError(f"{source} {context}.{key} must be true or false")
-    return value
-
-
-def list_field(data: dict[str, Any], key: str, source: str) -> list[Any]:
-    """Return a list manifest field."""
-    value = data.get(key, [])
-    if not isinstance(value, list):
-        raise ValueError(f"{source} plugin.{key} must be a list")
-    return value
-
-
-def string_list_field(data: dict[str, Any], key: str, source: str, context: str) -> tuple[str, ...]:
-    """Return an optional list field that must contain only non-empty strings."""
-    value = data.get(key, [])
-    if not isinstance(value, list):
-        raise ValueError(f"{source} {context}.{key} must be a list")
-    for index, item in enumerate(value, start=1):
-        if not isinstance(item, str) or not item:
-            raise ValueError(f"{source} {context}.{key} entry {index} must be a string")
-    return tuple(value)
-
-
-def database_actions_field(data: dict[str, Any], source: str, context: str) -> tuple[str, ...]:
-    """Return commandlet database action metadata from list/string/booleans."""
-    direct = data.get("database_actions")
-    if direct is not None:
-        if isinstance(direct, str):
-            items = [item.strip() for item in direct.split(",") if item.strip()]
-        elif isinstance(direct, list):
-            items = direct
-        else:
-            raise ValueError(f"{source} {context}.database_actions must be a string or list")
-        return normalize_database_actions(items, source, f"{context}.database_actions")
-    database = data.get("database", {})
-    if database in ({}, None):
-        return ()
-    if not isinstance(database, dict):
-        raise ValueError(f"{source} {context}.database must be a table")
-    actions = database.get("actions", {})
-    if not isinstance(actions, dict):
-        raise ValueError(f"{source} {context}.database.actions must be a table")
-    selected: list[str] = []
-    for action in ("view", "write", "manage"):
-        enabled = actions.get(action, False)
-        if not isinstance(enabled, bool):
-            raise ValueError(f"{source} {context}.database.actions.{action} must be true or false")
-        if enabled:
-            selected.append(action)
-    return tuple(selected)
-
-
-def normalize_database_actions(items: list[Any], source: str, context: str) -> tuple[str, ...]:
-    """Validate and order database action names."""
-    allowed = ("view", "write", "manage")
-    selected: set[str] = set()
-    for index, item in enumerate(items, start=1):
-        if not isinstance(item, str):
-            raise ValueError(f"{source} {context} entry {index} must be a string")
-        if item not in allowed:
-            raise ValueError(f"{source} {context} entry {index} must be one of: {', '.join(allowed)}")
-        selected.add(item)
-    return tuple(action for action in allowed if action in selected)
 
 
 def load_package_manifest(package_name: str, entry: str) -> PluginManifest | None:

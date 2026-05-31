@@ -12,6 +12,8 @@ from .shared import add_value, finding_urls, join_values
 
 
 @dataclass(slots=True)
+
+
 class WebInventory:
     """Aggregated operator-facing facts for one web endpoint."""
 
@@ -26,6 +28,8 @@ class WebInventory:
 
 
 @dataclass(slots=True)
+
+
 class WafInventory:
     """Aggregated operator-facing facts for one WAF signal."""
 
@@ -35,6 +39,8 @@ class WafInventory:
     product: str = ""
     confidence: str = ""
     evidence: set[str] = field(default_factory=set)
+
+
 def render_web_inventory(context: CommandContext, events: list[Event], scope: str) -> str:
     """Render web inventory from endpoint, WAF, path, screenshot, and finding facts."""
     inventory = build_web_inventory(events)

@@ -12,6 +12,8 @@ from .shared import add_value, finding_hosts, host_sort_value, join_values, port
 
 
 @dataclass(slots=True)
+
+
 class HostInventory:
     """Aggregated operator-facing facts for one host."""
 
@@ -21,6 +23,8 @@ class HostInventory:
     ports: set[str] = field(default_factory=set)
     web_urls: set[str] = field(default_factory=set)
     findings: set[str] = field(default_factory=set)
+
+
 def render_hosts_inventory(context: CommandContext, events: list[Event], scope: str) -> str:
     """Render host inventory from schema-backed event facts."""
     inventory = build_host_inventory(events)

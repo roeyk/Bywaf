@@ -15,6 +15,8 @@ SERVICE_TOPICS = ("port.open", "service.detected", "http.endpoint", "tcp.banner"
 
 
 @dataclass(slots=True)
+
+
 class ServiceInventory:
     """Aggregated operator-facing facts for one host/port service."""
 
@@ -25,6 +27,8 @@ class ServiceInventory:
     products: set[str] = field(default_factory=set)
     urls: set[str] = field(default_factory=set)
     evidence: set[str] = field(default_factory=set)
+
+
 def render_services_inventory(context: CommandContext, events: list[Event], scope: str) -> str:
     """Render service inventory from network and web service facts."""
     inventory = build_service_inventory(events)
