@@ -39,6 +39,7 @@ class EventSchemaTests(unittest.TestCase):
         self.assertEqual(EVENT_SCHEMAS["web.waf.detected"].required_fields, ("url", "host", "vendor"))
         self.assertEqual(EVENT_SCHEMAS["network.route.hop"].required_fields, ("target", "hop"))
         self.assertEqual(EVENT_SCHEMAS["smb.share.found"].required_fields, ("host", "share"))
+        self.assertEqual(EVENT_SCHEMAS["finding.confirmed"].required_fields, ("title", "class"))
 
     def test_valid_shared_payloads_pass(self):
         cases = [
@@ -54,6 +55,7 @@ class EventSchemaTests(unittest.TestCase):
             ("network.route.hop", {"target": "example.test", "hop": 1, "host": "192.0.2.1", "rtt_ms": 1.5, "status": "responded"}),
             ("smb.share.found", {"host": "dc01.example.test", "share": "SYSVOL", "access": "read", "authenticated": True}),
             ("finding.candidate", {"title": "Example finding", "class": "example.finding"}),
+            ("finding.confirmed", {"title": "Confirmed finding", "class": "example.finding", "status": "confirmed"}),
             ("artifact.attached", {"artifact_id": "artifact-1", "name": "scan.json", "content_type": "application/json", "sha256": "a" * 64, "size": 10}),
         ]
         for topic, payload in cases:
@@ -84,6 +86,10 @@ class EventSchemaTests(unittest.TestCase):
         self.assertEqual(
             validate_event_payload("network.route.hop", {"target": "example.test", "hop": "1"}),
             ["network.route.hop.hop must be int"],
+        )
+        self.assertEqual(
+            validate_event_payload("finding.confirmed", {"title": "Confirmed finding", "class": "example.finding", "status": "potential"}),
+            ["finding.confirmed.status must be one of: confirmed"],
         )
 
     def test_plugin_private_topics_are_free_form(self):

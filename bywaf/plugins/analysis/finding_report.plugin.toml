@@ -8,6 +8,7 @@ name = "finding_report"
 capabilities = [
   "artifact.write",
   "db.read:finding.candidate",
+  "db.read:finding.confirmed",
   "db.read:finding.new",
   "db.read:finding.merge_candidate",
   "db.read:nikto.finding",

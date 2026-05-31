@@ -8,6 +8,7 @@ name = "finding_dedupe"
 capabilities = [
   "artifact.write",
   "db.read:finding.candidate",
+  "db.read:finding.confirmed",
   "db.read:nikto.finding",
   "db.read:vulnerability.found",
   "db.read:vulnerability.potential",

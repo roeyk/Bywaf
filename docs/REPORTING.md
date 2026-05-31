@@ -25,11 +25,13 @@ A commandlet can emit many kinds of fact events, such as `port.open`,
 plugin or analysis commandlet emits a normalized finding topic:
 
 - `finding.candidate`
+- `finding.confirmed`
 - `finding.new`
 - `finding.updated`
 - `finding.merge_candidate`
 
-Finding payloads should be built with `bywaf.finding.candidate_payload(...)`.
+Finding payloads should be built with `bywaf.finding.candidate_payload(...)`
+or `bywaf.finding.confirmed_payload(...)`.
 The reporting layer expects normalized fields such as `finding_id`, `class`,
 `severity`, `confidence`, `target_scope`, `target`, `identifiers`, `affected`,
 `evidence`, and `sources`.

@@ -4,7 +4,7 @@ import unittest
 
 from bywaf.finding.grouping import finding_group_key, normalized_target_scope
 from bywaf.finding.taxonomy import validate_finding_class
-from bywaf.finding import candidate_payload, subject_value
+from bywaf.finding import candidate_payload, confirmed_payload, subject_value
 
 
 class FindingGroupingTests(unittest.TestCase):
@@ -87,6 +87,19 @@ class FindingGroupingTests(unittest.TestCase):
         self.assertEqual(payload["subjects"]["evidence"], "explanation")
         self.assertEqual(payload["subjects"]["affected[].login"], "username")
         self.assertEqual(payload["subjects"]["affected[].path"], "path")
+
+    def test_confirmed_payload_uses_candidate_shape_with_confirmed_status(self):
+        payload = confirmed_payload(
+            title="Exposed Git repository configuration",
+            finding_class="web.exposure.git_config",
+            severity="high",
+            target={"host": "example.test", "path": "/.git/config"},
+            evidence="Git config content was returned.",
+        )
+
+        self.assertEqual(payload["status"], "confirmed")
+        self.assertEqual(payload["confidence"], "high")
+        self.assertEqual(payload["subjects"]["title"], "finding.title")
 
     def test_normalized_target_scope_supports_host_port(self):
         scope = normalized_target_scope(

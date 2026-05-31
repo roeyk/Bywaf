@@ -84,6 +84,25 @@ class FindingDedupeTests(unittest.TestCase):
             self.assertEqual(updated["previous_status"], "potential")
             self.assertEqual(updated["new_status"], "confirmed")
 
+    def test_confirmed_finding_topic_is_normalized_as_confirmed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            event = db.publish(
+                "finding.confirmed",
+                {
+                    "title": "Exposed Git repository configuration",
+                    "class": "web.exposure.git_config",
+                    "target": {"host": "example.test", "path": "/.git/config"},
+                    "status": "confirmed",
+                },
+                "scanner",
+            )
+
+            normalized = normalize_event(event)
+
+            self.assertEqual(normalized.source_topic, "finding.confirmed")
+            self.assertEqual(normalized.status, "confirmed")
+
     def test_fuzzy_candidate_does_not_auto_merge(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))

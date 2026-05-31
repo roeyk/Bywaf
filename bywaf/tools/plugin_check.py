@@ -285,15 +285,7 @@ class CapabilityVisitor(ast.NodeVisitor):
                 "context.is_cancelled() is not the documented cancellation API",
                 "Use context.raise_if_cancelled() inside long-running loops.",
             )
-        if basename == "confirmed_payload":
-            self.add_diagnostic(
-                "error",
-                "no-confirmed-payload-helper",
-                node,
-                "bywaf.finding.confirmed_payload(...) does not exist",
-                "Use bywaf.finding.candidate_payload(...) and then set payload['status'] = 'confirmed'.",
-            )
-        if basename == "candidate_payload":
+        if basename in {"candidate_payload", "confirmed_payload"}:
             self.inspect_allowed_keywords(
                 node,
                 allowed={
@@ -312,8 +304,8 @@ class CapabilityVisitor(ast.NodeVisitor):
                     "source",
                     "subjects",
                 },
-                code="invalid-candidate-payload-keyword",
-                guidance="Use the exact bywaf.finding.candidate_payload(...) keyword names from the docs.",
+                code=f"invalid-{basename.replace('_', '-')}-keyword",
+                guidance=f"Use the exact bywaf.finding.{basename}(...) keyword names from the docs.",
             )
 
     def inspect_allowed_keywords(self, node: ast.Call, *, allowed: set[str], code: str, guidance: str) -> None:

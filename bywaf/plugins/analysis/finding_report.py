@@ -22,7 +22,7 @@ from bywaf.rendering import Column, Table, render_table
 from bywaf.utils import complete_path
 
 DEDUP_FINDING_TOPICS = ("finding.new", "finding.merge_candidate")
-REPORT_FINDING_TOPICS = ("finding.candidate", *DEDUP_FINDING_TOPICS)
+REPORT_FINDING_TOPICS = ("finding.candidate", "finding.confirmed", *DEDUP_FINDING_TOPICS)
 SOURCE_CHOICES = ("auto", "dedupe", "tools", "all")
 FORMAT_CHOICES = ("md", "csv", "jsonl", "html", "docx", "xlsx")
 OPTION_KEYS = {"export", "file", "format", "limit", "source"}
@@ -44,6 +44,7 @@ OPTION_KEYS = {"export", "file", "format", "limit", "source"}
     capabilities=(
         "artifact.write",
         "db.read:finding.candidate",
+        "db.read:finding.confirmed",
         "db.read:finding.new",
         "db.read:finding.merge_candidate",
         "db.read:nikto.finding",
@@ -171,7 +172,7 @@ def finding_rows(events: list[Event], *, include_candidates: bool) -> list[dict[
             continue
         row = row_from_event(event)
         finding_id = str(event.payload.get("finding_id") or "")
-        if finding_id and event.topic in {"finding.candidate", "finding.new"}:
+        if finding_id and event.topic in {"finding.candidate", "finding.confirmed", "finding.new"}:
             # Keep the table readable when a commandlet emitted the same
             # normalized finding more than once in the selected scope.
             if finding_id in seen_finding_ids:

@@ -271,6 +271,23 @@ EVENT_SCHEMAS: dict[str, EventSchema] = {
         ),
         notes=("Use bywaf.finding.candidate_payload(...) when possible.",),
     ),
+    "finding.confirmed": EventSchema(
+        topic="finding.confirmed",
+        summary="A normalized finding with direct evidence strong enough to treat as confirmed risk.",
+        fields=(
+            FieldSchema("title", "str", True, "Human-readable finding title."),
+            FieldSchema("class", "str", True, "Stable Bywaf finding class."),
+            FieldSchema("severity", "str", False, "Severity label."),
+            FieldSchema("confidence", "str", False, "Confidence label."),
+            FieldSchema("status", "str", False, "Finding verification status.", ("confirmed",)),
+            FieldSchema("target", "dict", False, "Structured primary target."),
+            FieldSchema("target_scope", "dict", False, "Finding grouping scope."),
+            FieldSchema("affected", "list", False, "Affected resources."),
+            FieldSchema("evidence", "str", False, "Short evidence summary."),
+            FieldSchema("recommendation", "str", False, "Operator-facing remediation guidance."),
+        ),
+        notes=("Use bywaf.finding.confirmed_payload(...) when possible.",),
+    ),
     "artifact.attached": EventSchema(
         topic="artifact.attached",
         summary="An artifact body was attached to runtime provenance.",

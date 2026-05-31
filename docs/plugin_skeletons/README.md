@@ -20,12 +20,10 @@ LLM Guardrails:
   factory in either style.
 - In these skeletons, keep the registration object in `plugin.py`. `command.py`
   should provide orchestration functions, not registration.
-- Publish normalized findings with `finding.candidate` or `finding.confirmed`
-  payloads built through `bywaf.finding.candidate_payload(...)`; do not invent
-  unrelated finding keys.
-- There is no `bywaf.finding.confirmed_payload(...)` helper. For confirmed
-  findings, call `candidate_payload(...)` and then set `payload["status"] =
-  "confirmed"`, as shown in the skeleton.
+- Publish normalized findings with `finding.candidate` payloads built through
+  `bywaf.finding.candidate_payload(...)` or `finding.confirmed` payloads built
+  through `bywaf.finding.confirmed_payload(...)`; do not invent unrelated
+  finding keys.
 - If code publishes `finding.candidate` or `finding.confirmed`, declare
   `db.write:finding.candidate` or `db.write:finding.confirmed` in both the
   decorator capabilities and `bywaf.plugin.toml`.
@@ -52,7 +50,7 @@ LLM Guardrails:
 Exact finding helper shape:
 
 ```python
-from bywaf.finding import candidate_payload, subject_value
+from bywaf.finding import candidate_payload, confirmed_payload, subject_value
 
 payload = candidate_payload(
     title="Missing Strict Transport Security",
@@ -65,6 +63,18 @@ payload = candidate_payload(
     evidence="https://example.test/ did not return Strict-Transport-Security.",
     recommendation="Enable HSTS after confirming HTTPS coverage.",
     source={"tool": "my_plugin", "topic": "finding.candidate"},
+)
+
+confirmed = confirmed_payload(
+    title="Exposed Git repository configuration",
+    finding_class="web.exposure.git_config",
+    severity="high",
+    confidence="high",
+    finding_scope="web_route",
+    target={"scheme": "https", "host": "example.test", "port": "443", "path": "/.git/config"},
+    evidence="The endpoint returned Git config content.",
+    recommendation="Block access to .git paths and rotate exposed credentials.",
+    source={"tool": "my_plugin", "topic": "finding.confirmed"},
 )
 ```
 

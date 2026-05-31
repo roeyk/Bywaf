@@ -65,6 +65,7 @@ REPORT_SORT_CHOICES = ("finding", "host")
     capabilities=(
         "db.read:finding.new",
         "db.read:finding.candidate",
+        "db.read:finding.confirmed",
         "db.read:finding.merge_candidate",
         "db.read:finding.reviewed",
         "db.read:host.found",

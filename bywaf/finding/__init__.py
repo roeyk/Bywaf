@@ -9,6 +9,7 @@ Used by:
 
 from .grouping import finding_group_key, normalized_target_scope
 from .payloads import candidate_payload
+from .payloads import confirmed_payload
 from .payloads import missing_http_security_header_candidates
 from .payloads import stable_finding_id
 from .payloads import telnet_open_candidate
@@ -22,6 +23,7 @@ __all__ = [
     "STARTER_FINDING_CLASSES",
     "SEVERITY_CLASS_ORDER",
     "candidate_payload",
+    "confirmed_payload",
     "finding_group_key",
     "infer_subjects",
     "known_finding_class",

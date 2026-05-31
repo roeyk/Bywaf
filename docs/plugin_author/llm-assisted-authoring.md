@@ -85,8 +85,8 @@ Rules:
   such as default = "false". For class @option metadata, use explicit string
   defaults and choices such as @option("confirm", "perform confirmation",
   "false", ("true", "false")).
-- Use bywaf.finding.candidate_payload(...) for normalized findings.
-- Do not use a nonexistent confirmed_payload helper.
+- Use bywaf.finding.candidate_payload(...) for normalized candidate findings.
+- Use bywaf.finding.confirmed_payload(...) only when the plugin has direct proof.
 - Yield only JSON-serializable dictionaries.
 - Include usage examples using real Bywaf commands.
 

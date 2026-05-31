@@ -105,6 +105,39 @@ class ReportTests(unittest.TestCase):
             self.assertEqual(rendered.payload["sort"], "host")
             self.assertEqual(rendered.payload["rows"], 1)
 
+    def test_report_marks_confirmed_findings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "finding.confirmed",
+                {
+                    "finding_id": "finding-1",
+                    "title": "Exposed Git repository configuration",
+                    "target": {"host": "web-1.test"},
+                    "severity": "high",
+                    "status": "confirmed",
+                },
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report pipeline=pipeline-a")
+                process_framework_requests(runner, ShellState())
+
+            text = output.getvalue()
+            self.assertIn("Exposed Git repository configuration (confirmed)", text)
+            self.assertIn("Findings: 1 total", text)
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report detail 1 pipeline=pipeline-a")
+                process_framework_requests(runner, ShellState())
+
+            self.assertIn("Finding status: confirmed", output.getvalue())
+
     def test_report_finding_rows_always_show_review_status(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))

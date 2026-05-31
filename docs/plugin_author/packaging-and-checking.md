@@ -260,8 +260,8 @@ python3 scripts/plugin_check.py /tmp/llm-plugin --strict-inference --llm-feedbac
 Paste the full output back into the assistant and ask it to regenerate the
 complete plugin directory. The feedback mode calls out common authoring
 mistakes such as `@argument(..., nargs=...)`, decorators placed on `plugin()`,
-unsupported `candidate_payload(...)` keyword names, nonexistent
-`confirmed_payload(...)`, and `context.is_cancelled()`.
+unsupported `candidate_payload(...)` or `confirmed_payload(...)` keyword names,
+and `context.is_cancelled()`.
 
 The checked-in skeletons under `../plugin_skeletons/` are validated by the
 test suite with this checker. If a skeleton no longer loads or its manifest

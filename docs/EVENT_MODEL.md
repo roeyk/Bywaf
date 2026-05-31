@@ -70,11 +70,13 @@ This is the normalized layer above tool-native output:
 raw/private event       = tool-specific observation or detail
 shared/framework event  = normalized fact other tools can use
 finding.candidate       = reportable security interpretation
+finding.confirmed       = reportable security interpretation with direct proof
 ```
 
 For example, an SMB plugin can preserve scanner-specific ACL detail in a
 private topic such as `smb_enum.raw_share_acl`, emit normalized share facts as
-`smb.share.found`, and emit `finding.candidate` only for risky shares.
+`smb.share.found`, and emit `finding.candidate` only for risky shares. Use
+`finding.confirmed` only when direct proof has been collected.
 
 Framework-known schemas currently live in `bywaf.event.schemas`. The first
 shared topics are:
@@ -90,12 +92,14 @@ shared topics are:
 | `network.route.hop` | `target`, `hop` | One hop observed while tracing a route. |
 | `smb.share.found` | `host`, `share` | An SMB share was observed on a host. |
 | `finding.candidate` | `title`, `class` | A normalized finding-shaped observation. |
+| `finding.confirmed` | `title`, `class` | A normalized finding with direct proof. |
 | `artifact.attached` | `artifact_id`, `name`, `content_type`, `sha256`, `size` | Artifact metadata attached to provenance. |
 
 Plugin-private topics remain free-form. A plugin only needs to align with a
 framework schema when other plugins or framework views should understand that
 data. If data is private evidence, use a plugin-specific topic or artifact. If
-data is security-reportable, also map it into `finding.candidate`.
+data is security-reportable, also map it into `finding.candidate`; use
+`finding.confirmed` only when direct proof has been collected.
 
 Shared event payloads are interchange records, not mandatory in-process domain
 objects. A plugin may convert a `port.open` or `http.endpoint` payload into its

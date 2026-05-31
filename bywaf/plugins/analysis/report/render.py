@@ -296,6 +296,7 @@ def indexed_findings_table(
         {
             "index": index,
             **row,
+            "finding_name": finding_display_name(row, group),
             "review": review_status(group, decisions),
         }
         for index, (group, row) in enumerate(zip(groups, finding_rows(representatives, include_candidates=True), strict=True), start=1)
@@ -326,6 +327,7 @@ def indexed_hosts_table(
     host_order: list[str] = []
     representatives = [group.representative for group in groups]
     for group, row in zip(groups, finding_rows(representatives, include_candidates=True), strict=True):
+        row = {**row, "finding_name": finding_display_name(row, group)}
         review = review_status(group, decisions)
         summary = finding_host_summary(row, review)
         hosts = affected_hosts_from_row(row)
@@ -359,6 +361,23 @@ def finding_host_summary(row: Mapping[str, object], review: str) -> str:
     severity = str(row.get("severity") or "").strip()
     suffix = ", ".join(value for value in (severity, review) if value)
     return f"{title} [{suffix}]" if suffix else title
+
+
+def finding_display_name(row: Mapping[str, object], group: FindingGroup) -> str:
+    """Return finding title annotated with stronger evidence state when useful."""
+    title = str(row.get("finding_name") or "finding")
+    if group_has_confirmed_event(group) and "confirmed" not in title.casefold():
+        return f"{title} (confirmed)"
+    return title
+
+
+def group_has_confirmed_event(group: FindingGroup) -> bool:
+    """Return whether a report group includes a confirmed finding observation."""
+    return any(
+        event.topic == "finding.confirmed"
+        or str(effective_finding_payload(event).get("status") or "").casefold() == "confirmed"
+        for event in group.events
+    )
 
 
 def affected_hosts_from_row(row: Mapping[str, object]) -> list[str]:

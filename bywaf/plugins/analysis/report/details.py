@@ -28,6 +28,7 @@ def render_group_details(context: CommandContext, groups: list[FindingGroup]) ->
         representative = effective_finding_payload(group.representative)
         title = str(representative.get("title") or representative.get("class") or group.finding_id)
         lines.append(f"{report_text(context, 'index', f'{index}.')} {finding_text(context, 'title', title)}")
+        append_detail_line(context, lines, "Finding status", finding_status_values(group))
         append_detail_line(context, lines, "Affected", affected_values(payloads))
         append_detail_line(context, lines, "Evidence", evidence_values(payloads), limit=3)
         append_detail_line(context, lines, "Sources", source_values(group))
@@ -36,6 +37,15 @@ def render_group_details(context: CommandContext, groups: list[FindingGroup]) ->
         latest = max(group.events, key=lambda event: event.created_at).created_at.isoformat()
         append_detail_line(context, lines, "Latest update", [latest])
     return "\n".join(lines)
+
+
+def finding_status_values(group: FindingGroup) -> list[str]:
+    """Return candidate/confirmed status labels represented in one group."""
+    values = [
+        "confirmed" if event.topic == "finding.confirmed" else str(effective_finding_payload(event).get("status") or "")
+        for event in group.events
+    ]
+    return unique_compact_values(values)
 
 
 def append_detail_line(

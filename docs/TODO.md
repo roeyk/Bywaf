@@ -220,7 +220,7 @@ Planning dates are release planning markers, not compatibility commitments.
 - Keep cloud checks authorization-first and provider-aware. Prefer
   non-destructive listing, HEAD, metadata, and policy-inspection probes over
   write tests unless explicitly enabled by the operator.
-- Normalize both families into `finding.candidate` / future
+- Normalize both families into `finding.candidate` /
   `finding.confirmed` events so report, dedupe, and artifact workflows can
   treat them consistently.
 

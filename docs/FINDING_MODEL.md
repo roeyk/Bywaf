@@ -32,7 +32,7 @@ artifact provenance already stored in the project.
 | --- | --- | --- | --- |
 | Fact | `port.open`, `http.endpoint`, `nikto.finding`, `web.screenshotted_host` | Something a tool observed or produced | Follow-up commandlets, dedupe, report builders |
 | Candidate | `finding.candidate`, `finding.new`, `finding.merge_candidate` | A normalized finding-shaped record that deserves review or correlation | `finding_dedupe`, `report`, `finding_report`, future triage commands |
-| Confirmed finding | planned `finding.confirmed` | A finding accepted by a rule, commandlet, or operator as confirmed risk | Reports and exports |
+| Confirmed finding | `finding.confirmed` | A finding backed by direct proof strong enough to treat as confirmed risk | Reports, exports, and review |
 | Review state | `finding.reviewed` | Operator or framework review marker for a finding id | `report` and future triage flows |
 
 An open port is usually a fact, not automatically a finding. A promoter rule
@@ -256,6 +256,7 @@ low-confidence merge candidates.
 The first implementation uses these normalized topics:
 
 - `finding.candidate`
+- `finding.confirmed`
 - `finding.new`
 - `finding.duplicate`
 - `finding.updated`
@@ -264,8 +265,9 @@ The first implementation uses these normalized topics:
 Bundled commandlets may emit `finding.candidate` when a fact matches a small
 review-worthy rule. For example, `portscanner` promotes exposed Telnet, and
 `http_headers` promotes missing high-value HTTP security headers.
-`git_expose_check` promotes exposed `.git/config` repository metadata. Future
-work may add explicit `finding.confirmed` topics for stronger verification.
+`git_expose_check` promotes exposed `.git/config` repository metadata. Commandlets
+emit `finding.confirmed` only when they have direct proof strong enough to mark
+the risk confirmed while still allowing operator review.
 
 ## Report Command
 

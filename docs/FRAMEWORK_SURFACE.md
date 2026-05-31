@@ -38,6 +38,7 @@ base installation commandlets that declare or use each capability.
 | `db.read:bundle.item.added` | `bundle` |
 | `db.read:bundle.sealed` | `bundle` |
 | `db.read:finding.candidate` | `finding_dedupe`, `finding_report`, `report` |
+| `db.read:finding.confirmed` | `finding_dedupe`, `finding_report`, `report` |
 | `db.read:finding.merge_candidate` | `finding_report`, `report` |
 | `db.read:finding.new` | `finding_report`, `report` |
 | `db.read:finding.reviewed` | `report` |
@@ -126,8 +127,8 @@ the association and `Consumes` is the normal consumer side.
 | `dns_lookup` | none | `dns.record`, `dns.error` |
 | `eyewitness` | `http.endpoint` | `eyewitness.screenshot`, `web.screenshotted_host` |
 | `screenshotter` | `http.endpoint` | `eyewitness.screenshot`, `web.screenshotted_host` |
-| `finding_dedupe` | `finding.candidate`, `nikto.finding`, `vulnerability.found`, `vulnerability.potential`, `vulnerability.confirmed`, `vulnerability.speculative`, `vulnerability.false_positive` | `finding.new`, `finding.duplicate`, `finding.updated`, `finding.merge_candidate` |
-| `finding_report` | `finding.candidate`, `finding.new`, `finding.merge_candidate`, `nikto.finding`, `vulnerability.found`, `vulnerability.potential`, `vulnerability.confirmed`, `vulnerability.speculative`, `vulnerability.false_positive` | `framework.render.table.requested`, `artifact.attached` |
+| `finding_dedupe` | `finding.candidate`, `finding.confirmed`, `nikto.finding`, `vulnerability.found`, `vulnerability.potential`, `vulnerability.confirmed`, `vulnerability.speculative`, `vulnerability.false_positive` | `finding.new`, `finding.duplicate`, `finding.updated`, `finding.merge_candidate` |
+| `finding_report` | `finding.candidate`, `finding.confirmed`, `finding.new`, `finding.merge_candidate`, `nikto.finding`, `vulnerability.found`, `vulnerability.potential`, `vulnerability.confirmed`, `vulnerability.speculative`, `vulnerability.false_positive` | `framework.render.table.requested`, `artifact.attached` |
 | `git_expose_check` | `http.endpoint` | `repo.git_config.checked`, `finding.candidate` |
 | `hostscanner` | none | `name.resolved`, `host.found` |
 | `http_headers` | `port.open` | `http.headers`, `finding.candidate` |
@@ -136,7 +137,7 @@ the association and `Consumes` is the normal consumer side.
 | `ldap_probe` | none | `ldap.server` |
 | `nikto` | `http.endpoint`, `web.fingerprint` | `nikto.finding`, `vulnerability.found`, `vulnerability.potential` |
 | `portscanner` | `host.found` | `port.open`, `finding.candidate` |
-| `report` | `finding.candidate`, `finding.new`, `finding.merge_candidate` | `report.rendered` |
+| `report` | `finding.candidate`, `finding.confirmed`, `finding.new`, `finding.merge_candidate` | `report.rendered` |
 | `repo_exposure` | `http.endpoint` | `repo.git_config.checked`, `finding.candidate` |
 | `shodan_lookup` | none | `shodan.host`, `shodan.result` |
 | `smb_probe` | none | `smb.server` |

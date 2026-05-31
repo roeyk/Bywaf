@@ -429,9 +429,8 @@ class PluginCheckTests(unittest.TestCase):
                 failures.append(f"{plugin_dir}/findings.py: missing current candidate_payload import")
             if "candidate_payload(" not in findings:
                 failures.append(f"{plugin_dir}/findings.py: missing candidate_payload usage")
-            executable_lines = "\n".join(line for line in findings.splitlines() if not line.lstrip().startswith("#"))
-            if "confirmed_payload(" in executable_lines:
-                failures.append(f"{plugin_dir}/findings.py: uses nonexistent confirmed_payload helper")
+            if "confirmed_payload(" in findings and "from bywaf.finding import candidate_payload, confirmed_payload" not in findings:
+                failures.append(f"{plugin_dir}/findings.py: missing confirmed_payload import")
 
         self.assertEqual([], failures)
 

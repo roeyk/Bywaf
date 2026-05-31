@@ -72,6 +72,48 @@ def candidate_payload(
     return compact(payload)
 
 
+def confirmed_payload(
+    *,
+    title: str,
+    finding_class: str,
+    target: dict[str, Any],
+    severity: str = "info",
+    confidence: str = "high",
+    evidence: Any = "",
+    recommendation: str = "",
+    identifiers: dict[str, list[str]] | None = None,
+    source: dict[str, Any] | None = None,
+    finding_scope: str = "",
+    target_scope: dict[str, Any] | None = None,
+    affected: list[dict[str, Any]] | None = None,
+    group_key: str = "",
+    subjects: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Return a normalized confirmed finding payload.
+
+    Confirmed findings use the same payload shape as candidates so report,
+    dedupe, review, and export paths can consume either topic uniformly.
+    """
+    payload = candidate_payload(
+        title=title,
+        finding_class=finding_class,
+        target=target,
+        severity=severity,
+        confidence=confidence,
+        evidence=evidence,
+        recommendation=recommendation,
+        identifiers=identifiers,
+        source=source,
+        finding_scope=finding_scope,
+        target_scope=target_scope,
+        affected=affected,
+        group_key=group_key,
+        subjects=subjects,
+    )
+    payload["status"] = "confirmed"
+    return payload
+
+
 def telnet_open_candidate(port_payload: dict[str, Any]) -> dict[str, Any] | None:
     """Return a finding candidate for an exposed Telnet service."""
     from ..plugins.network.portscanner.findings import telnet_open_candidate as plugin_candidate
