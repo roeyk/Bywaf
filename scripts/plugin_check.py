@@ -28,6 +28,8 @@ from bywaf.registry.compat import satisfies_bywaf_requirement  # noqa: E402
 from bywaf.registry import PluginManifestTrust, verify_plugin_manifest_signature_data, load_filesystem_plugin_package, parse_plugin_manifest_data  # noqa: E402
 from bywaf.toml_support import load_data_file  # noqa: E402
 from bywaf.tools.plugin_check import analyze_plugin_source  # noqa: E402
+from bywaf.tools.plugin_parser_contract import parser_contract_diagnostics  # noqa: E402
+from bywaf.tools.plugin_submission import check_plugin_in_temp_checkout, materialized_plugin_submission  # noqa: E402
 
 
 def check_plugin(
@@ -38,6 +40,7 @@ def check_plugin(
     strict_inference: bool = False,
 ) -> dict[str, Any]:
     """Return a validation report for one filesystem plugin directory."""
+    original_plugin = plugin_dir
     report: dict[str, Any] = {
         "ok": False,
         "plugin": str(plugin_dir),
@@ -58,12 +61,33 @@ def check_plugin(
         "manifest_signature": "unchecked",
         "errors": [],
     }
-    if not plugin_dir.exists():
-        report["errors"].append(f"{plugin_dir} not found")
+    try:
+        with materialized_plugin_submission(plugin_dir) as materialized:
+            materialized_report = check_materialized_plugin(
+                materialized,
+                manifest_key=manifest_key,
+                verify_manifest=verify_manifest,
+                strict_inference=strict_inference,
+                report=report,
+            )
+            materialized_report["plugin"] = str(original_plugin)
+            if original_plugin.is_dir() and materialized.resolve() != original_plugin.resolve():
+                materialized_report["materialized_plugin"] = str(materialized)
+            return materialized_report
+    except Exception as exc:  # noqa: BLE001 - this is a CLI validation report.
+        report["errors"].append(str(exc))
         return report
-    if not plugin_dir.is_dir():
-        report["errors"].append(f"{plugin_dir} is not a directory")
-        return report
+
+
+def check_materialized_plugin(
+    plugin_dir: Path,
+    *,
+    manifest_key: Path | None,
+    verify_manifest: bool,
+    strict_inference: bool,
+    report: dict[str, Any],
+) -> dict[str, Any]:
+    """Validate an already-unpacked filesystem plugin directory."""
     missing = [str(path) for path in (plugin_dir / "plugin.py", plugin_dir / "bywaf.plugin.toml") if not path.exists()]
     if missing:
         report["errors"].extend(f"{path} not found" for path in missing)
@@ -115,6 +139,9 @@ def check_plugin(
         return report
     report["commandlets"] = [plugin.spec.name for plugin in plugins]
     report["triggers"] = [trigger.name for trigger in triggers]
+    parser_diagnostics = parser_contract_diagnostics(plugins, plugin_dir / "plugin.py")
+    report["diagnostics"].extend(parser_diagnostics)
+    report["errors"].extend(f"{item['code']}: {item['message']}" for item in parser_diagnostics if item["severity"] == "error")
     declared_capabilities = sorted({capability for plugin in plugins for capability in plugin.spec.capabilities})
     report["declared_capabilities"] = declared_capabilities
     declared_emits = sorted({topic for topics in manifest.commandlet_emits.values() for topic in topics})
@@ -287,9 +314,15 @@ def render_llm_feedback(report: dict[str, Any]) -> str:
 def build_parser() -> argparse.ArgumentParser:
     """Build the plugin-check CLI parser."""
     parser = argparse.ArgumentParser(prog="scripts/plugin_check.py")
-    parser.add_argument("plugin", type=Path, help="filesystem plugin directory containing plugin.py and bywaf.plugin.toml")
+    parser.add_argument("plugin", type=Path, help="filesystem plugin directory or .zip containing plugin.py and bywaf.plugin.toml")
     parser.add_argument("--manifest-key", type=Path, help="trusted public key for verifying bywaf.plugin.toml")
     parser.add_argument("--verify", action="store_true", help="require a verified manifest signature")
+    parser.add_argument(
+        "--temp-checkout",
+        action="store_true",
+        help="copy this Bywaf tree to a temp checkout, apply the plugin submission, and validate from there",
+    )
+    parser.add_argument("--no-temp-checkout", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument(
         "--strict-inference",
         action="store_true",
@@ -303,12 +336,21 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     """Run plugin package validation."""
     args = build_parser().parse_args(argv)
-    report = check_plugin(
-        args.plugin,
-        manifest_key=args.manifest_key,
-        verify_manifest=args.verify,
-        strict_inference=args.strict_inference,
-    )
+    if args.temp_checkout and not args.no_temp_checkout:
+        report = check_plugin_in_temp_checkout(
+            args.plugin,
+            checkout_source=ROOT,
+            manifest_key=args.manifest_key,
+            verify_manifest=args.verify,
+            strict_inference=args.strict_inference,
+        )
+    else:
+        report = check_plugin(
+            args.plugin,
+            manifest_key=args.manifest_key,
+            verify_manifest=args.verify,
+            strict_inference=args.strict_inference,
+        )
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
     elif args.llm_feedback:

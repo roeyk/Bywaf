@@ -212,6 +212,7 @@ python3 scripts/plugin_check.py path/to/plugin-dir --strict-inference
 python3 scripts/plugin_check.py path/to/plugin-dir --strict-inference --llm-feedback
 python3 scripts/plugin_check.py path/to/plugin-dir --manifest-key manifest-signing.pub.pem --verify
 python3 scripts/plugin_check.py path/to/plugin-dir --json
+python3 scripts/plugin_check.py path/to/plugin.zip --temp-checkout --strict-inference --llm-feedback
 ```
 
 `plugin_check` is a schema verifier, not just a style linter. Its strict
@@ -236,16 +237,24 @@ The checker does not make plugin code sandboxed or inherently safe. Native and
 library-backed plugins are still Python code. Treat a passing check as
 "schema checked and ready for review," not as a security proof.
 
+The input may be an unpacked plugin directory or a `.zip` containing one plugin
+directory. Use `--temp-checkout` for LLM-generated or review submissions: the
+checker copies the current Bywaf tree to a temporary checkout, safely unpacks or
+copies the submitted plugin into that checkout, and reruns validation there with
+the same flags. This catches packaging and import assumptions without changing
+the working tree.
+
 The checker requires `plugin.py` and `bywaf.plugin.toml`, parses strict manifest
 metadata, registers plugin-owned `[[event_schemas]]` declarations for checking,
 imports the plugin factory, and verifies that declared commandlets,
 capabilities, database action flags, shared event declarations, secret options,
-and trigger specs match the code. It also runs a lightweight AST pass over
-plugin source and reports inferred capabilities, missing inferred declarations,
-unused declarations, and warnings for direct network, process, and filesystem
-APIs that bypass framework mediation. It also warns when runtime artifact-store
-access omits explicit `read_access=True` or `write_access=True`, since that
-usually means artifact capability auditing would be ambiguous.
+trigger specs, and declared parser options/arguments match the code. It also
+runs a lightweight AST pass over plugin source and reports inferred
+capabilities, missing inferred declarations, unused declarations, and warnings
+for direct network, process, and filesystem APIs that bypass framework
+mediation. It also warns when runtime artifact-store access omits explicit
+`read_access=True` or `write_access=True`, since that usually means artifact
+capability auditing would be ambiguous.
 Inference is advisory by default; `--strict-inference` turns missing inferred
 capabilities into a failed check. When `--manifest-key` is supplied, it also
 verifies the manifest signature.

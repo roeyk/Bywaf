@@ -27,6 +27,8 @@ Use this loop for AI-generated plugins:
 5. Run the post-generation validation gate:
 
    ```bash
+   python3 scripts/plugin_check.py /tmp/bywaf-llm-plugins/git_expose_check.zip \
+     --temp-checkout --strict-inference --llm-feedback
    python3 scripts/plugin_check.py /tmp/bywaf-llm-plugins/git_expose_check \
      --strict-inference --llm-feedback
    ```
