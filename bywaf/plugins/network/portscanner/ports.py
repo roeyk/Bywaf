@@ -154,9 +154,6 @@ def select_port_events(context: CommandContext, selectors: Namespace) -> list[Ev
     `port.open`.  That mirrors how operators consult an nmap result file after a
     scan instead of rereading every previous scan in the project.
     """
-    scope = selectors.scope
-    events = context.event_store("ports")
-    runtime = context.runtime_store("ports")
     if getattr(selectors, "new", False):
         scoped = select_port_scope_events(context, selectors)
         return events_new_to_scope(context, ("port.open",), scoped, port_event_keys)

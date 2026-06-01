@@ -6,7 +6,6 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Iterable
-from dataclasses import dataclass
 from typing import cast
 
 from bywaf.event.schema_objects import HttpEndpoint, HttpPathObserved
@@ -27,15 +26,17 @@ def http_paths(context: CommandContext, cfg: RunConfig, input_events: Iterable[E
             url = join_url(base, path)
             context.audit_capability("network.connect")
             result = probe_path(url, cfg.timeout, cfg.user_agent)
+            raw_status = result.get("status")
+            raw_length = result.get("length")
             observed = HttpPathObserved(
                 url=url,
                 host=urllib.parse.urlparse(url).hostname or "",
                 port=urllib.parse.urlparse(url).port or default_port(url),
                 path=urllib.parse.urlparse(url).path or "/",
-                status=result.get("status") if isinstance(result.get("status"), int) else None,
+                status=raw_status if isinstance(raw_status, int) else None,
                 title=str(result.get("title") or ""),
                 content_type=str(result.get("content_type") or ""),
-                length=result.get("length") if isinstance(result.get("length"), int) else None,
+                length=raw_length if isinstance(raw_length, int) else None,
                 interesting=is_interesting_path(path, result),
                 scanner="http_paths",
             )
