@@ -309,16 +309,24 @@ def record_command_history(
     """Append a history-safe command to persistent and session history."""
     if not history_command.strip():
         return None
-    path.parent.mkdir(parents=True, exist_ok=True)
     # Store the timestamp as an inline comment so history files remain readable
     # as executable scripts after stripping comments.
     timestamp = datetime.now().astimezone().strftime(timestamp_format).strip()
     entry = f"{history_command}  # {timestamp}"
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(f"{entry}\n")
     if session_history is not None:
         session_history.append(entry)
+    if not should_persist_history_command(history_command):
+        return entry
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(f"{entry}\n")
     return entry
+
+
+def should_persist_history_command(command: str) -> bool:
+    """Return whether a command is suitable for clear-text history storage."""
+    normalized = command.replace("-", "_").casefold()
+    return not any(secret_name.replace("-", "_") in normalized for secret_name in HISTORY_SECRET_NAMES)
 
 
 def redact_history_command(command: str) -> str:

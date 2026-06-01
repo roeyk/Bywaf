@@ -34,7 +34,7 @@ from bywaf.app import (
 )
 from bywaf.plugins.network.nmap_backend import NmapScanError, NmapUnavailableError
 from bywaf.repl import redact_history_command
-from bywaf.repl.shell import apply_startup_preferences
+from bywaf.repl.shell import apply_startup_preferences, should_persist_history_command
 from bywaf.style import subject_style
 
 
@@ -202,12 +202,16 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             record_command_history("plugins", path, timestamp_format="%Y/%m/%d")
             self.assertRegex(path.read_text(), r"^plugins  # \d{4}/\d{2}/\d{2}\n$")
 
-    def test_record_command_history_accepts_redacted_command(self):
+    def test_record_command_history_accepts_safe_command(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, ".bywaf", "history.bywaf")
-            record_command_history("set password=[REDACTED]", path)
+            record_command_history("set scope=lab", path)
             text = path.read_text()
-            self.assertIn("set password=[REDACTED]", text)
+            self.assertIn("set scope=lab", text)
+
+    def test_sensitive_history_commands_are_not_persisted(self):
+        self.assertFalse(should_persist_history_command("set token=[REDACTED]"))
+        self.assertTrue(should_persist_history_command("set scope=lab"))
 
     def test_redact_history_command_redacts_common_secret_names_by_default(self):
         redacted = redact_history_command("set password=supersecret")
