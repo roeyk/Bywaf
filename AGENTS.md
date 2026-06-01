@@ -3,11 +3,11 @@
 Before editing code, committing, pushing, or running a broad coding batch in
 this repository, read these files in order:
 
-1. `/home/roey/Downloads/codex/bywaf-discussions/START_HERE.md`
-2. `/home/roey/Downloads/codex/bywaf-discussions/ACTIONS.md`
-3. `/home/roey/Downloads/codex/bywaf-discussions/CONVENTIONS.md`
-4. `/home/roey/Downloads/codex/bywaf-discussions/TRACKER.md`
-5. `/home/roey/Downloads/codex/bywaf-discussions/index.json`
+1. the private discussion handoff `START_HERE.md`, if available
+2. the private actions log `ACTIONS.md`, if available
+3. the private conventions file `CONVENTIONS.md`, if available
+4. the private tracker guide `TRACKER.md`, if available
+5. the private tracker index `index.json`, if available
 6. the active tracker items and lessons-learned files listed in
    `START_HERE.md`
 
