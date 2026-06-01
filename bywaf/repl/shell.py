@@ -96,14 +96,13 @@ def repl(runner: Runner) -> None:
                     return
                 continue
             record_command_history(
-                line,
+                redact_history_command(line),
                 state.history_path,
                 state.session_history,
                 runner.registry.varstore.get(
                     HISTORY_TIMESTAMP_FORMAT_VAR,
                     DEFAULT_HISTORY_TIMESTAMP_FORMAT,
                 ) or DEFAULT_HISTORY_TIMESTAMP_FORMAT,
-                stored_command=redact_history_command(line),
             )
             if dispatch_repl_line(runner, line, state) == "exit":
                 return
@@ -302,21 +301,19 @@ def run_commandlet_remainder(runner: Runner, tokens: list[str]) -> int:
 
 
 def record_command_history(
-    command: str,
+    history_command: str,
     path: Path = DEFAULT_HISTORY,
     session_history: list[str] | None = None,
     timestamp_format: str = DEFAULT_HISTORY_TIMESTAMP_FORMAT,
-    stored_command: str | None = None,
 ) -> str | None:
-    """Append a command to persistent history and the in-memory session list."""
-    if not command.strip():
+    """Append a history-safe command to persistent and session history."""
+    if not history_command.strip():
         return None
     path.parent.mkdir(parents=True, exist_ok=True)
     # Store the timestamp as an inline comment so history files remain readable
     # as executable scripts after stripping comments.
     timestamp = datetime.now().astimezone().strftime(timestamp_format).strip()
-    safe_command = redact_history_command(stored_command if stored_command is not None else command)
-    entry = f"{safe_command}  # {timestamp}"
+    entry = f"{history_command}  # {timestamp}"
     with path.open("a", encoding="utf-8") as handle:
         handle.write(f"{entry}\n")
     if session_history is not None:

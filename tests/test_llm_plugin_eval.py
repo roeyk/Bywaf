@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import json
-import tempfile
 import unittest
-from pathlib import Path
 
-from scripts.run_llm_plugin_eval import REDACTED_VALUE, sanitize_json, write_json
+from scripts.run_llm_plugin_eval import REDACTED_VALUE, response_summary, sanitize_json
 
 
 class LlmPluginEvalTests(unittest.TestCase):
@@ -26,14 +24,15 @@ class LlmPluginEvalTests(unittest.TestCase):
         self.assertEqual(redacted["choices"][0]["message"]["session-token"], REDACTED_VALUE)
         self.assertEqual(redacted["choices"][0]["message"]["content"], "ok")
 
-    def test_write_json_persists_non_sensitive_payload(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp, "payload.json")
-            write_json(path, {"text": "safe"})
+    def test_response_summary_contains_only_shape_and_text_length(self):
+        response = {"id": "response-1", "choices": [{"message": {"content": "safe text"}}]}
 
-            text = path.read_text(encoding="utf-8")
-            data = json.loads(text)
-            self.assertEqual(data["text"], "safe")
+        summary = response_summary("openai", response)
+
+        text = json.dumps(summary)
+        self.assertEqual(summary["top_level_keys"], ["choices", "id"])
+        self.assertEqual(summary["text_length"], len("safe text"))
+        self.assertNotIn("safe text", text)
 
 
 if __name__ == "__main__":

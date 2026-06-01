@@ -33,6 +33,7 @@ from bywaf.app import (
     strip_inline_comment,
 )
 from bywaf.plugins.network.nmap_backend import NmapScanError, NmapUnavailableError
+from bywaf.repl import redact_history_command
 from bywaf.repl.shell import apply_startup_preferences
 from bywaf.style import subject_style
 
@@ -201,21 +202,17 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             record_command_history("plugins", path, timestamp_format="%Y/%m/%d")
             self.assertRegex(path.read_text(), r"^plugins  # \d{4}/\d{2}/\d{2}\n$")
 
-    def test_record_command_history_accepts_redacted_stored_command(self):
+    def test_record_command_history_accepts_redacted_command(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, ".bywaf", "history.bywaf")
-            record_command_history("set password=supersecret", path, stored_command="set password=[REDACTED]")
+            record_command_history("set password=[REDACTED]", path)
             text = path.read_text()
             self.assertIn("set password=[REDACTED]", text)
-            self.assertNotIn("supersecret", text)
 
-    def test_record_command_history_redacts_common_secret_names_by_default(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp, ".bywaf", "history.bywaf")
-            record_command_history("set password=supersecret", path)
-            text = path.read_text()
-            self.assertIn("set password=[REDACTED]", text)
-            self.assertNotIn("supersecret", text)
+    def test_redact_history_command_redacts_common_secret_names_by_default(self):
+        redacted = redact_history_command("set password=supersecret")
+
+        self.assertEqual(redacted, "set password=[REDACTED]")
 
     def test_format_history_entry_for_display_puts_timestamp_first(self):
         self.assertEqual(

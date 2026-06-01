@@ -22,7 +22,7 @@ import urllib.request
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeAlias
 
 
 DEFAULT_PACKET = Path("../bywaf-llm-plugin-eval-packet")
@@ -42,6 +42,9 @@ SENSITIVE_KEY_FRAGMENTS = (
     "session",
     "token",
 )
+
+PublicJsonValue: TypeAlias = str | int | float | bool | None | list[str]
+PublicJsonDocument: TypeAlias = dict[str, PublicJsonValue]
 
 
 @dataclass(frozen=True)
@@ -197,9 +200,9 @@ def run_provider(config: ProviderConfig, prompt: str) -> dict[str, Any]:
     raise ValueError(config.name)
 
 
-def write_json(path: Path, payload: dict[str, Any]) -> None:
-    """Write JSON after redacting sensitive-looking fields."""
-    path.write_text(json.dumps(sanitize_json(payload), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+def write_public_json(path: Path, document: PublicJsonDocument) -> None:
+    """Write explicitly non-sensitive run metadata."""
+    path.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def sanitize_json(value: Any) -> Any:
@@ -217,7 +220,7 @@ def sensitive_json_key(key: str) -> bool:
     return any(fragment in normalized for fragment in SENSITIVE_KEY_FRAGMENTS)
 
 
-def response_summary(provider: str, response: dict[str, Any]) -> dict[str, Any]:
+def response_summary(provider: str, response: dict[str, Any]) -> PublicJsonDocument:
     """Return non-sensitive provider response metadata."""
     return {
         "top_level_keys": sorted(str(key) for key in response),
@@ -240,27 +243,27 @@ def main() -> int:
     if not selected:
         raise SystemExit("no providers selected and no provider API keys found")
 
-    manifest = {
+    manifest: PublicJsonDocument = {
         "packet": str(packet),
         "providers": selected,
         "created": datetime.now().isoformat(),
         "dry_run": args.dry_run,
         "max_repo_file_chars": args.max_repo_file_chars,
     }
-    write_json(run_dir / "run.json", manifest)
+    write_public_json(run_dir / "run.json", manifest)
 
     for provider in selected:
         config = configs[provider]
         provider_dir = run_dir / provider
         provider_dir.mkdir()
-        metadata = {
+        metadata: PublicJsonDocument = {
             "provider": config.name,
             "model": config.model,
             "api_key_env": config.api_key_env,
             "started": datetime.now().isoformat(),
             "dry_run": args.dry_run,
         }
-        write_json(provider_dir / "metadata.json", metadata)
+        write_public_json(provider_dir / "metadata.json", metadata)
         if args.dry_run:
             (provider_dir / "response.md").write_text("", encoding="utf-8")
             continue
@@ -269,7 +272,7 @@ def main() -> int:
             response = run_provider(config, prompt)
             metadata["duration_seconds"] = round(time.monotonic() - started, 3)
             metadata["ok"] = True
-            write_json(provider_dir / "response-summary.json", response_summary(provider, response))
+            write_public_json(provider_dir / "response-summary.json", response_summary(provider, response))
             (provider_dir / "response.md").write_text(extract_text(provider, response), encoding="utf-8")
         except Exception as exc:  # noqa: BLE001 - preserve provider failures in run output.
             metadata["duration_seconds"] = round(time.monotonic() - started, 3)
@@ -278,7 +281,7 @@ def main() -> int:
             (provider_dir / "error.txt").write_text(str(exc), encoding="utf-8")
         finally:
             metadata["finished"] = datetime.now().isoformat()
-            write_json(provider_dir / "metadata.json", metadata)
+            write_public_json(provider_dir / "metadata.json", metadata)
 
     print(run_dir)
     return 0
