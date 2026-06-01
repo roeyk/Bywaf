@@ -19,6 +19,7 @@ emits = [
 capabilities = [
   "db.write:dns.record",
   "db.write:dns.error",
+  "db.write:tool.error",
   "network.connect",
 ]
 module = "bywaf.plugins.recon.dns_lookup"

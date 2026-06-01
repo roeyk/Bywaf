@@ -7,6 +7,7 @@ service = false
 name = "finding_report"
 capabilities = [
   "artifact.write",
+  "db.read:*",
   "db.read:finding.candidate",
   "db.read:finding.confirmed",
   "db.read:finding.new",

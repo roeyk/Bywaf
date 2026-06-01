@@ -52,6 +52,7 @@ def triggers() -> tuple[TriggerSpec, ...]:
     emits=("watchdog.timeout", "watchdog.stalled", "watchdog.error_rate"),
     capabilities=(
         "db.read:*",
+        "db.write:*",
         "db.write:watchdog.timeout",
         "db.write:watchdog.stalled",
         "db.write:watchdog.error_rate",

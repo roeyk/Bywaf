@@ -59,6 +59,7 @@ FINDING_TOPICS = (
     emits=FINDING_TOPICS,
     capabilities=(
         "artifact.write",
+        "db.write:*",
         "db.write:nikto.finding",
         "db.write:vulnerability.found",
         "db.write:vulnerability.potential",

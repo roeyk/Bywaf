@@ -15,6 +15,7 @@ emits = [
   "finding.candidate",
 ]
 capabilities = [
+  "db.read:host.found",
   "db.read:command.run.completed",
   "db.read:command.run.failed",
   "db.write:finding.candidate",

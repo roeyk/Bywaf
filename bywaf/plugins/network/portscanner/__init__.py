@@ -52,6 +52,7 @@ DEFAULTS = {
     consumes=("host.found", "network.route.hop"),
     emits=("port.open", "finding.candidate"),
     capabilities=(
+        "db.read:host.found",
         "db.write:finding.candidate",
         "db.write:name.resolved",
         "db.read:command.run.completed",

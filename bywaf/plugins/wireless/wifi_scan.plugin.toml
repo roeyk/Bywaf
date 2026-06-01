@@ -8,6 +8,7 @@ service = false
 name = "wifi_scan"
 capabilities = [
   "artifact.write",
+  "db.write:*",
   "db.write:kismet.network",
   "db.write:wifi.network",
   "db.write:tool.error",

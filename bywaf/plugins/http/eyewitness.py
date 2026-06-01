@@ -51,6 +51,7 @@ SCREENSHOT_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
     emits=("eyewitness.screenshot", "web.screenshotted_host"),
     capabilities=(
         "artifact.write",
+        "db.write:*",
         "db.write:eyewitness.screenshot",
         "db.write:web.screenshotted_host",
         "db.write:tool.error",

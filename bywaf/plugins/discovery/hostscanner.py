@@ -62,6 +62,7 @@ class ExpandedTargets:
     emits=("host.found", "name.resolved"),
     capabilities=(
         "artifact.write",
+        "db.write:name.resolved",
         "filesystem.read",
         "framework.console.alert",
         "framework.console.output",

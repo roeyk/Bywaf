@@ -49,6 +49,7 @@ OPTION_KEYS = {"binary", "duration", "interface", "log-types", "output-dir"}
     emits=("wifi.network", "kismet.network"),
     capabilities=(
         "artifact.write",
+        "db.write:*",
         "db.write:kismet.network",
         "db.write:wifi.network",
         "db.write:tool.error",

@@ -172,6 +172,7 @@ class CanonicalFinding:
     emits=FINDING_OUTPUT_TOPICS,
     capabilities=(
         "artifact.write",
+        "db.read:*",
         "db.read:finding.candidate",
         "db.read:finding.confirmed",
         "db.read:nikto.finding",
@@ -180,6 +181,7 @@ class CanonicalFinding:
         "db.read:vulnerability.confirmed",
         "db.read:vulnerability.speculative",
         "db.read:vulnerability.false_positive",
+        "db.write:*",
         "db.write:finding.new",
         "db.write:finding.duplicate",
         "db.write:finding.updated",

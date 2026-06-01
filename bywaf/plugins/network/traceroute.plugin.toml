@@ -21,6 +21,7 @@ emits = [
 ]
 capabilities = [
   "artifact.write",
+  "db.write:host.found",
   "db.write:tool.error",
   "framework.console.alert",
   "framework.console.output",

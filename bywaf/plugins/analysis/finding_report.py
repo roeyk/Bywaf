@@ -43,6 +43,7 @@ OPTION_KEYS = {"export", "file", "format", "limit", "source"}
     emits=("framework.render.table.requested", "artifact.attached"),
     capabilities=(
         "artifact.write",
+        "db.read:*",
         "db.read:finding.candidate",
         "db.read:finding.confirmed",
         "db.read:finding.new",

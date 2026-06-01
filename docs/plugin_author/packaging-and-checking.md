@@ -214,6 +214,7 @@ python3 scripts/plugin_check.py path/to/plugin-dir --manifest-key manifest-signi
 python3 scripts/plugin_check.py path/to/plugin-dir --json
 python3 scripts/plugin_check.py path/to/plugin.zip --temp-checkout --strict-inference --llm-feedback
 python3 scripts/plugin_check.py --all
+python3 scripts/plugin_check.py --all --strict-inference
 ```
 
 `plugin_check` is a schema verifier, not just a style linter. Its strict
@@ -241,7 +242,9 @@ library-backed plugins are still Python code. Treat a passing check as
 Use `--all` as a maintainer check for the bundled plugin suite. It validates
 every provider listed in `bywaf.plugins/plugins.toml` and fails if any bundled
 manifest drifts from its Python commandlet metadata, parser contract, shared
-event declarations, or trigger declarations.
+event declarations, or trigger declarations. Use `--all --strict-inference`
+before release-style batches to also fail missing AST-inferred capability
+declarations across the bundled suite.
 
 The input may be an unpacked plugin directory or a `.zip` containing one plugin
 directory. Use `--temp-checkout` for LLM-generated or review submissions: the

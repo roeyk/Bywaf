@@ -119,6 +119,12 @@ class PluginCheckTests(unittest.TestCase):
         self.assertEqual(report["plugin"], "bywaf.plugins")
         self.assertEqual(report["errors"], [])
 
+    def test_check_bundled_plugins_strict_inference_passes(self):
+        report = check_bundled_plugins(strict_inference=True)
+
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["errors"], [])
+
     def test_check_plugin_reports_manifest_drift(self):
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(Path(tmp), capabilities=("network.connect",), manifest_capabilities=())

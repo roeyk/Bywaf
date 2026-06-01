@@ -7,6 +7,7 @@ service = true
 name = "watchdog"
 capabilities = [
   "db.read:*",
+  "db.write:*",
   "db.write:watchdog.timeout",
   "db.write:watchdog.stalled",
   "db.write:watchdog.error_rate",

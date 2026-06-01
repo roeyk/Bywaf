@@ -72,6 +72,7 @@ REPORT_SORT_CHOICES = ("finding", "host")
     consumes=REPORT_FINDING_TOPICS,
     emits=("report.rendered",),
     capabilities=(
+        "db.read:*",
         "db.read:finding.new",
         "db.read:finding.candidate",
         "db.read:finding.confirmed",
@@ -89,6 +90,7 @@ REPORT_SORT_CHOICES = ("finding", "host")
         "db.read:network.route.hop",
         "db.read:artifact.attached",
         "db.read:report.scope.saved",
+        "db.write:*",
         "db.write:report.scope.saved",
         "db.write:report.rendered",
         "db.write:finding.reviewed",
