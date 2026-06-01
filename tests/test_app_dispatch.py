@@ -12,6 +12,7 @@ import contextlib
 import io
 import json
 import os
+import signal
 import subprocess
 import tempfile
 import unittest
@@ -42,6 +43,7 @@ from bywaf.plugins.network.nmap_backend import NmapPort
 from bywaf.projects import ProjectPaths
 from bywaf.specs import TriggerSpec
 from bywaf.triggers import start_default_services
+from bywaf.repl.shell import install_shell_suspend_handler, restore_shell_suspend_handler, suspend_to_shell
 class AppDispatchTests(unittest.TestCase):
     def test_build_parser_accepts_exec(self):
         parser = build_parser()
@@ -767,6 +769,36 @@ class AppDispatchTests(unittest.TestCase):
         with contextlib.redirect_stdout(output):
             self.assertTrue(confirm_repl_exit(key_reader=lambda: next(answers)))
         self.assertIn("please press y or n", output.getvalue())
+
+    def test_shell_suspend_handler_announces_and_suspends_process_group(self):
+        output = io.StringIO()
+        with (
+            contextlib.redirect_stdout(output),
+            patch("bywaf.repl.shell.os.getpgrp", return_value=4321),
+            patch("bywaf.repl.shell.os.killpg") as killpg,
+            patch("bywaf.repl.shell.os.kill") as kill,
+            patch("bywaf.repl.shell.signal.signal") as signal_handler,
+        ):
+            suspend_to_shell(20, None)
+
+        self.assertIn('Dropping to shell; enter "fg" to resume.', output.getvalue())
+        killpg.assert_called_once_with(4321, 20)
+        kill.assert_not_called()
+        self.assertEqual(signal_handler.call_args_list[0].args[1], signal.SIG_DFL)
+        self.assertEqual(signal_handler.call_args_list[1].args[1], suspend_to_shell)
+
+    def test_shell_suspend_handler_installs_only_for_interactive_tty(self):
+        with (
+            patch("bywaf.repl.shell.sys.stdin.isatty", return_value=True),
+            patch("bywaf.repl.shell.sys.stdout.isatty", return_value=True),
+            patch("bywaf.repl.shell.signal.signal", return_value="old") as signal_handler,
+        ):
+            handler = install_shell_suspend_handler()
+            self.assertIsNotNone(handler)
+            restore_shell_suspend_handler(handler)
+
+        self.assertEqual(signal_handler.call_args_list[0].args[1], suspend_to_shell)
+        self.assertEqual(signal_handler.call_args_list[1].args[1], "old")
 
     def test_read_logical_input_joins_backslash_continuations(self):
         state = ShellState()

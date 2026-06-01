@@ -13,6 +13,7 @@ Used by:
 from __future__ import annotations
 
 import os
+import signal
 import sys
 import termios
 import tty
@@ -55,6 +56,7 @@ def repl(runner: Runner) -> None:
     state.completer = Completer(runner.registry, runner.db)
     input_reader = build_input_reader(state.completer, state)
     start_default_services(runner)
+    suspend_handler = install_shell_suspend_handler()
     try:
         while True:
             # Framework requests are event-driven UI side effects such as
@@ -89,6 +91,7 @@ def repl(runner: Runner) -> None:
             # showing the next prompt.
             process_framework_requests(runner, state)
     finally:
+        restore_shell_suspend_handler(suspend_handler)
         shutdown_runner(runner)
 
 
@@ -111,6 +114,35 @@ def build_input_reader(completer: Completer, state: ShellState | None = None) ->
             return prompt_with_secret_capture
     install_readline(completer)
     return input
+
+
+def install_shell_suspend_handler():
+    """Install a Ctrl-Z handler for interactive Unix shells."""
+    sigtstp = getattr(signal, "SIGTSTP", None)
+    if sigtstp is None or not sys.stdin.isatty() or not sys.stdout.isatty():
+        return None
+    previous = signal.signal(sigtstp, suspend_to_shell)
+    return sigtstp, previous
+
+
+def restore_shell_suspend_handler(handler) -> None:
+    """Restore the Ctrl-Z handler captured by install_shell_suspend_handler."""
+    if handler is None:
+        return
+    signum, previous = handler
+    signal.signal(signum, previous)
+
+
+def suspend_to_shell(signum, frame) -> None:
+    """Announce and delegate Ctrl-Z to normal terminal job control."""
+    del frame
+    print('\nDropping to shell; enter "fg" to resume.', flush=True)
+    signal.signal(signum, signal.SIG_DFL)
+    try:
+        os.killpg(os.getpgrp(), signum)
+    except OSError:
+        os.kill(os.getpid(), signum)
+    signal.signal(signum, suspend_to_shell)
 
 
 def confirm_repl_exit(
