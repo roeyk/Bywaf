@@ -12,4 +12,8 @@ capabilities = [
   "filesystem.write",
   "framework.console.output",
 ]
+database.actions.view = true
+database.actions.write = false
+database.actions.review = false
+database.actions.manage = true
 module = "bywaf.plugins.storage.db"

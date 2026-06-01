@@ -284,8 +284,10 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 event.payload["capability"]
                 for event in runner.db.events_for_topic("plugin.capability.used")
             }
-            self.assertIn("db.manage", capabilities)
+            self.assertNotIn("db.manage", capabilities)
             self.assertIn("db.raw", capabilities)
+            argument_events = runner.db.events_for_topic("command.run.arguments")
+            self.assertEqual(argument_events[-1].payload["database_actions"], ["view"])
 
     def test_audit_show_prints_matching_events(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -439,6 +441,34 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 self.assertTrue(runner.db.path.name.startswith("bywaf-"))
             finally:
                 os.chdir(cwd)
+
+    def test_db_stats_reports_main_and_artifact_database_counts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp, "db.sqlite3")
+            runner = make_runner(db_path)
+            source = Path(tmp, "proof.txt")
+            source.write_text("proof", encoding="utf-8")
+            runner.db.publish("custom.topic", {"value": 1}, "test")
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute(f"artifact attach step=run-1 file={source} name=proof.txt")
+                process_framework_requests(runner, ShellState())
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("db stats")
+                process_framework_requests(runner, ShellState())
+
+            text = output.getvalue()
+            self.assertIn("Database statistics", text)
+            self.assertIn("Main database files", text)
+            self.assertIn("Main database tables", text)
+            self.assertIn("Events by topic", text)
+            self.assertIn("custom.topic", text)
+            self.assertIn("Artifacts", text)
+            self.assertIn("artifacts: 1", text)
+            self.assertIn("text/plain", text)
+            argument_events = runner.db.events_for_topic("command.run.arguments")
+            self.assertEqual(argument_events[-1].payload["database_actions"], ["view"])
 
     @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
     def test_db_commandlet_encrypt_decrypts_and_rekeys_active_database(self):

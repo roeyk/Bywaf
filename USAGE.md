@@ -1133,6 +1133,17 @@ Bywaf stores events in SQLite. The default database is:
 .bywaf/bywaf.sqlite3
 ```
 
+Show database and artifact-store statistics:
+
+```text
+bywaf> db stats
+```
+
+This reports main database file sizes, table counts, event-topic counts,
+runtime entity counts, and artifact database counts without performing database
+maintenance. Use `db checkpoint` or `db vacuum` explicitly when you want those
+maintenance operations.
+
 SQLite is used in WAL mode. Inserts are committed immediately; there is no
 separate document-style save step. On shutdown, Bywaf checkpoints the WAL using
 `PRAGMA wal_checkpoint(TRUNCATE)` so WAL contents are folded back into the main
