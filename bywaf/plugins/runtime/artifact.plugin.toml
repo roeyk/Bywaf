@@ -12,6 +12,7 @@ capabilities = [
   "filesystem.read",
   "filesystem.write",
   "framework.console.output",
+  "framework.file.page",
 ]
 database.actions.view = true
 database.actions.write = true

@@ -649,10 +649,11 @@ class RegistryCompletionTests(unittest.TestCase):
         completer = Completer(self.registry)
         self.assertEqual(
             completer.candidates("artifact "),
-            ["attach", "export", "import", "list", "remove", "replace", "search", "show", "verify"],
+            ["attach", "cat", "export", "import", "list", "remove", "replace", "search", "show", "verify"],
         )
         self.assertEqual(completer.candidates("artifact a"), ["attach"])
         self.assertIn("file=", completer.candidates("artifact attach "))
+        self.assertIn("limit=", completer.candidates("artifact cat "))
         self.assertIn("file=", completer.candidates("artifact import "))
         self.assertIn("file=", completer.candidates("artifact replace "))
         self.assertIn("dir=", completer.candidates("artifact export "))

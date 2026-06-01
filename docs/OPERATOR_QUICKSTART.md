@@ -152,6 +152,7 @@ Artifacts are tracked separately but linked back to runtime provenance:
 ```text
 bywaf> artifact list
 bywaf> artifact list step=12
+bywaf> artifact cat 1
 bywaf> artifact show 1
 bywaf> artifact verify
 ```

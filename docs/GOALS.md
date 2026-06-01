@@ -5,6 +5,7 @@
 - [1. Make security workflows fast and convenient](#1-make-security-workflows-fast-and-convenient)
 - [2. Remain flexible and leverage existing tools](#2-remain-flexible-and-leverage-existing-tools)
 - [3. Make plugin writing easy](#3-make-plugin-writing-easy)
+- [Evidence integrity and chain of custody](#evidence-integrity-and-chain-of-custody)
 - [4. Remove manual handoffs between pipeline steps](#4-remove-manual-handoffs-between-pipeline-steps)
 - [5. Provide robust documentation](#5-provide-robust-documentation)
 - [6. Guarantee auditability and traceability](#6-guarantee-auditability-and-traceability)
@@ -91,6 +92,30 @@ The framework should provide:
 - stable event schemas;
 - straightforward capability declarations;
 - and strong documentation.
+
+---
+
+## Evidence integrity and chain of custody
+
+Bywaf should treat captured evidence as assessment records, not disposable
+terminal output. Artifacts should record content type, size, cryptographic hash,
+runtime provenance, and the commandlet that produced or attached them. Reports
+and findings should refer back to those evidence records so an operator can move
+from a claim to the supporting data without losing context.
+
+The long-term goal is a chain-of-custody-friendly workflow:
+
+- artifact bodies are immutable by default;
+- replacement creates an auditable lineage instead of silently overwriting
+  evidence;
+- bundle and export paths preserve hashes and provenance;
+- verification commands make tampering or drift visible;
+- and review decisions remain linked to the evidence and events that supported
+  them.
+
+This does not mean Bywaf becomes a full legal evidence-management system. It
+means pentest evidence should be durable, attributable, and checkable enough
+that operators can trust what they reported and explain how they got there.
 
 ---
 

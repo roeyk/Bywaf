@@ -42,6 +42,24 @@ def parse_artifact_selectors(tokens: list[str], *, allow_page: bool = False) -> 
     return selectors
 
 
+def parse_artifact_cat_selectors(tokens: list[str]) -> dict[str, list[str]]:
+    """Parse selectors for artifact body preview."""
+    selectors: dict[str, list[str]] = {}
+    for token in tokens:
+        if token == "--page":
+            selectors.setdefault("page", []).append("true")
+            continue
+        if "=" not in token:
+            raise ValueError(f"invalid artifact cat selector: {token}")
+        key, value = token.split("=", 1)
+        if key not in {"artifact", "step", "pipeline", "job", "serial", "topic", "limit", "encoding"}:
+            raise ValueError(f"unknown artifact cat selector: {key}")
+        if not value:
+            raise ValueError(f"artifact cat selector {key}= requires a value")
+        selectors.setdefault(key, []).append(value)
+    return selectors
+
+
 def parse_search_selectors(tokens: list[str]) -> dict[str, list[str]]:
     """Parse search selectors and scope flags."""
     selectors: dict[str, list[str]] = {}

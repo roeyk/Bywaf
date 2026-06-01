@@ -27,6 +27,7 @@ from bywaf.utils import complete_path
 
 from .actions import (
     attach_artifacts,
+    cat_artifact,
     export_artifacts,
     import_artifacts,
     list_artifacts,
@@ -44,18 +45,20 @@ from .query import (
     select_artifacts as select_artifacts,
 )
 from .render import artifact_event_payload as artifact_event_payload, format_artifact_row
-from .selectors import parse_artifact_selectors, parse_search_selectors, pop_page_flag
+from .selectors import parse_artifact_cat_selectors, parse_artifact_selectors, parse_search_selectors, pop_page_flag
 
 
 @commandlet(
     name="artifact",
-    description="Import, attach, show, list, export, replace, remove, and verify artifacts.",
-    usage="artifact <import|attach|show|list|export|replace|remove|search|verify> [serial=id|artifact=id|step=id|pipeline=id|job=id|topic=name] [file=path|dir=path]",
+    description="Import, attach, cat, show, list, export, replace, remove, and verify artifacts.",
+    usage="artifact <import|attach|cat|show|list|export|replace|remove|search|verify> [serial=id|artifact=id|step=id|pipeline=id|job=id|topic=name] [file=path|dir=path]",
     examples=(
         "artifact attach step=1 file=snapshot.html name='Landing page'",
         "artifact attach serial=run-... file=snapshot.html",
         "artifact import file=snapshot.html name='Landing page'",
         "artifact attach artifact=1 step=1",
+        "artifact cat artifact=1",
+        "artifact cat 1 limit=4096",
         "artifact show artifact=1",
         "artifact list step=1",
         "artifact search --regexp note='login|cookie'",
@@ -72,6 +75,7 @@ from .selectors import parse_artifact_selectors, parse_search_selectors, pop_pag
         "filesystem.read",
         "filesystem.write",
         "framework.console.output",
+        "framework.file.page",
     ),
     database_actions=("view", "write"),
 )
@@ -83,7 +87,7 @@ class ArtifactCommand(CommandletBase):
     def database_actions_for_args(self, args: list[str]) -> tuple[str, ...]:
         """Classify artifact inspection separately from artifact mutation."""
         action = args[0] if args else ""
-        return ("view",) if action in {"list", "search", "show", "verify"} else ("write",)
+        return ("view",) if action in {"cat", "list", "search", "show", "verify"} else ("write",)
 
     def run(
         self,
@@ -94,7 +98,7 @@ class ArtifactCommand(CommandletBase):
         """Execute one artifact action."""
         del input_events
         if not args:
-            raise ValueError("artifact requires an action: import, attach, export, list, remove, replace, search, show, or verify")
+            raise ValueError("artifact requires an action: import, attach, cat, export, list, remove, replace, search, show, or verify")
         action, *tokens = args
         handler = artifact_action_handlers().get(action)
         if handler is None:
@@ -118,6 +122,7 @@ def artifact_action_handlers() -> dict[str, ArtifactActionHandler]:
     """Return artifact action handlers keyed by action name."""
     return {
         "attach": attach_artifacts_command,
+        "cat": cat_artifact_command,
         "list": list_artifacts_command,
         "import": import_artifacts_command,
         "remove": remove_artifacts_command,
@@ -134,6 +139,7 @@ def artifact_completion_selectors() -> dict[str, list[str]]:
     return {
         "attach": ["artifact=", "serial=", "step=", "pipeline=", "job=", "file=", "name=", "note="],
         "import": ["file=", "name=", "note="],
+        "cat": ["artifact=", "serial=", "step=", "pipeline=", "job=", "topic=", "limit=", "encoding=", "--page"],
         "replace": ["artifact=", "file=", "name=", "note="],
         "remove": ["artifact=", "serial=", "step=", "pipeline=", "job="],
         "list": ["artifact=", "serial=", "step=", "pipeline=", "job=", "topic=", "--page"],
@@ -199,6 +205,13 @@ def show_artifact_command(context: CommandContext, tokens: list[str]) -> None:
     if len(tokens) == 1 and "=" not in tokens[0]:
         tokens = [f"artifact={tokens[0]}"]
     show_artifact(context, parse_artifact_selectors(tokens))
+
+
+def cat_artifact_command(context: CommandContext, tokens: list[str]) -> None:
+    """Parse and run artifact cat."""
+    if tokens and "=" not in tokens[0] and not tokens[0].startswith("--"):
+        tokens = [f"artifact={tokens[0]}", *tokens[1:]]
+    cat_artifact(context, parse_artifact_cat_selectors(tokens))
 
 
 def remove_artifacts_command(context: CommandContext, tokens: list[str]) -> None:

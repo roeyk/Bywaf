@@ -17,6 +17,7 @@ from bywaf.runtime_display import command_context_style_getter
 from bywaf.style import styled_subject_text
 
 from .query import search_artifacts, select_artifacts
+from .preview import artifact_cat_limit, artifact_preview_suffix, format_artifact_preview, pop_selector_flag
 from .render import artifact_event_payload, format_artifact_row, safe_artifact_filename
 from .selectors import require_values, resolve_artifact_scope, single_value
 
@@ -103,6 +104,16 @@ def show_artifact(context: CommandContext, selectors: dict[str, list[str]]) -> N
     """Show a readable detail view for exactly one artifact."""
     artifact = single_selected_artifact(context, selectors, "artifact show")
     context.output(format_artifact_detail(context, artifact))
+
+
+def cat_artifact(context: CommandContext, selectors: dict[str, list[str]]) -> None:
+    """Render one artifact body as text or hex."""
+    artifact = single_selected_artifact(context, selectors, "artifact cat")
+    limit = artifact_cat_limit(selectors)
+    encoding = single_value(selectors, "encoding") or "utf-8"
+    preview = format_artifact_preview(artifact, limit=limit, encoding=encoding)
+    pop_selector_flag(selectors, "page")
+    context.page_text(preview, suffix=artifact_preview_suffix(artifact))
 
 
 def export_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> None:
@@ -258,6 +269,7 @@ def format_artifact_detail(context: CommandContext, artifact: Artifact) -> str:
         rows.append(("note", artifact.note))
     lines = ["Artifact summary", *[f"  {label}: {value}" for label, value in rows]]
     commands = [
+        styled_artifact_value(context, "command_line", f"artifact cat artifact={artifact.id}"),
         styled_artifact_value(context, "command_line", f"artifact export artifact={artifact.id} file={safe_artifact_filename(artifact)}"),
         styled_artifact_value(context, "command_line", f"artifact verify artifact={artifact.id}"),
         styled_artifact_value(context, "command_line", f"artifact list artifact={artifact.id}"),

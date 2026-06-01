@@ -130,11 +130,12 @@ Yes. `hostscanner example.com` resolves the name before invoking nmap, records a
 
 ```text
 bywaf> artifact list
+bywaf> artifact cat 1
 bywaf> artifact show 1
 ```
 
-Find the artifact attached by the `nikto` pipeline step, inspect its provenance,
-then save it:
+Find the artifact attached by the `nikto` pipeline step, preview the body,
+inspect its provenance, then save it:
 
 ```text
 bywaf> artifact export artifact=1 file=nikto.json

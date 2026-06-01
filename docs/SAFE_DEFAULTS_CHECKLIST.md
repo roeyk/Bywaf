@@ -51,7 +51,11 @@ release that changes security-sensitive behavior.
 ## Artifacts And Exports
 
 - Artifact writes record size, SHA-256, content type, and runtime provenance.
+- Artifact inspection commands such as `artifact cat` are read-only and do not
+  mutate evidence bodies or provenance.
 - Exports avoid unexpected overwrite behavior and record what was exported.
+- Evidence replacement preserves lineage or emits enough audit data to explain
+  the previous and new artifact records.
 - Bundle/export commands preserve evidence hashes.
 - `artifact verify` or equivalent integrity checks cover new artifact paths.
 

@@ -555,6 +555,44 @@ class StorageRunnerPluginTests(unittest.TestCase):
             self.assertIn("\x1b[36martifact export artifact=1", text)
             self.assertIn("\x1b[38;5;245m", text)
 
+    def test_artifact_cat_renders_text_preview(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp, "db.sqlite3")
+            runner = make_runner(db_path)
+            source = Path(tmp, "proof.txt")
+            source.write_text("hello\nworld", encoding="utf-8")
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute(f"artifact attach step=run-1 file={source} name=proof.txt")
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "artifact cat 1 limit=5")
+
+            text = output.getvalue()
+            self.assertIn("Artifact: 1 proof.txt text/plain size=11", text)
+            self.assertIn("Preview: text utf-8, first 5 of 11 bytes", text)
+            self.assertIn("hello", text)
+            self.assertIn("[truncated after 5 of 11 bytes", text)
+
+    def test_artifact_cat_renders_binary_as_hex(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp, "db.sqlite3")
+            runner = make_runner(db_path)
+            source = Path(tmp, "proof.bin")
+            source.write_bytes(b"\x00\x01ABC\xff")
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute(f"artifact attach step=run-1 file={source} name=proof.bin")
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "artifact cat artifact=1 limit=6")
+
+            text = output.getvalue()
+            self.assertIn("Artifact: 1 proof.bin application/octet-stream size=6", text)
+            self.assertIn("Preview: binary hex, first 6 of 6 bytes", text)
+            self.assertIn("00000000  00 01 41 42 43 ff", text)
+            self.assertIn("|..ABC.|", text)
+
     @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
     def test_artifact_search_filters_name_note_and_content(self):
         with tempfile.TemporaryDirectory() as tmp:

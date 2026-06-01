@@ -802,6 +802,8 @@ List, search, export, and verify artifacts:
 ```text
 bywaf> artifact list step=<step-id>
 bywaf> artifact list topic=artifact.attached
+bywaf> artifact cat 1
+bywaf> artifact cat artifact=1 limit=4096
 bywaf> artifact show 1
 bywaf> artifact show artifact=1
 bywaf> search step=<step-id> name=landing
@@ -824,6 +826,9 @@ the search to artifact names, source filenames, notes, or decoded text contents.
 `--regexp` to treat those field values as Python regular expressions. Any
 commandlet whose main action is text search should follow the same `--regexp`
 convention. `since=` and `until=` restrict matches by artifact creation time.
+Use `artifact cat` to preview an artifact body in the terminal. Text-like
+artifacts are decoded as text; binary artifacts are shown as a bounded hex dump.
+Add `limit=<bytes>` to change the preview size.
 Use `file=` when exporting exactly one artifact. Use `dir=` when exporting a set. If
 `file=` matches multiple artifacts, Bywaf reports that clearly and asks you to
 use `dir=` instead.

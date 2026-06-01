@@ -21,6 +21,13 @@ Each pipeline step emits normalized events into the project database. Later
 steps, reports, artifact searches, audit exports, and future frontends inspect
 those recorded facts instead of scraping terminal scrollback.
 
+Evidence handling is a first-class design goal. Artifacts record body size,
+SHA-256, content type, and runtime provenance; findings and reports should point
+back to those records instead of detached screenshots or copied snippets. Bywaf
+is being hardened toward a chain-of-custody workflow where evidence is
+immutable, verifiable, and reviewable from the same event ledger that drove the
+assessment.
+
 Use Bywaf only on systems and networks where you have explicit authorization.
 
 ## Contents
