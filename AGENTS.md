@@ -27,3 +27,7 @@ uncommitted or unpushed work; name the applicable validation matrix row from
 `CONVENTIONS.md`; and list the local repository files inspected before editing.
 
 If you cannot honestly provide that read receipt, do not edit files yet.
+
+Do not commit local machine paths, usernames, home directories, scratch
+directories, secrets, tokens, keys, cookies, or other environment-specific
+disclosure into this repository.
