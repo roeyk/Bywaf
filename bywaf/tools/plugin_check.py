@@ -28,7 +28,8 @@ def analyze_plugin_source(plugin_dir: Path) -> SourceAnalysis:
     warnings: list[CapabilityEvidence] = []
     diagnostics: list[SourceDiagnostic] = []
     inferred_emits: set[str] = set()
-    for path in sorted(plugin_dir.rglob("*.py")):
+    paths = [plugin_dir] if plugin_dir.is_file() else sorted(plugin_dir.rglob("*.py"))
+    for path in paths:
         if "__pycache__" in path.parts:
             continue
         source = path.read_text(encoding="utf-8")

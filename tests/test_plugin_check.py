@@ -19,8 +19,9 @@ import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
-from scripts.plugin_check import check_plugin, main, render_llm_feedback, render_text
+from scripts.plugin_check import check_bundled_plugins, check_plugin, main, render_llm_feedback, render_text
 from scripts.plugin_manifest_sign import main as sign_manifest_main
+from bywaf.tools.plugin_check import analyze_plugin_source
 from tests.plugin_check_fixtures import (
     capture_stdout,
     write_decorated_factory_fixture,
@@ -93,6 +94,30 @@ class PluginCheckTests(unittest.TestCase):
             self.assertTrue(report["ok"])
             self.assertEqual(report["commandlets"], ["example"])
             self.assertEqual(report["errors"], [])
+
+    def test_source_analysis_accepts_single_file_plugin_modules(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "single.py"
+            path.write_text('def run(context):\n    context.output("ok")\n')
+
+            analysis = analyze_plugin_source(path)
+
+            self.assertEqual(analysis.inferred_capabilities, ("framework.console.output",))
+
+    def test_check_all_bundled_plugins_json_output(self):
+        output = capture_stdout(lambda: main(["--all", "--json"]))
+
+        data = json.loads(output)
+        self.assertTrue(data["ok"])
+        self.assertGreater(data["checked"], 10)
+        self.assertTrue(any(item["entry"] == "http.webfin" for item in data["plugins"]))
+
+    def test_check_bundled_plugins_report_shape(self):
+        report = check_bundled_plugins()
+
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["plugin"], "bywaf.plugins")
+        self.assertEqual(report["errors"], [])
 
     def test_check_plugin_reports_manifest_drift(self):
         with tempfile.TemporaryDirectory() as tmp:

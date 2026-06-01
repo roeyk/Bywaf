@@ -5,6 +5,10 @@ service = false
 
 [[commandlets]]
 name = "git_expose_check"
+emits = [
+  "repo.git_config.checked",
+  "finding.candidate",
+]
 capabilities = [
   "db.write:finding.candidate",
   "framework.console.alert",
@@ -14,6 +18,10 @@ module = "bywaf.plugins.http.repo_exposure"
 
 [[commandlets]]
 name = "repo_exposure"
+emits = [
+  "repo.git_config.checked",
+  "finding.candidate",
+]
 capabilities = [
   "db.write:finding.candidate",
   "framework.console.alert",

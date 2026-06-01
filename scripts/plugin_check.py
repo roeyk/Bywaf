@@ -12,6 +12,7 @@ Used by:
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import sys
 from pathlib import Path
@@ -24,8 +25,10 @@ if str(ROOT) not in sys.path:
 from bywaf import __version__ as BYWAF_VERSION  # noqa: E402
 from bywaf.event.schemas import event_schema, register_event_schemas  # noqa: E402
 from bywaf.plugin.capabilities import capability_declared  # noqa: E402
+from bywaf.registry.config import parse_package_plugin_config  # noqa: E402
+from bywaf.registry.loading import load_plugins, load_trigger_specs  # noqa: E402
 from bywaf.registry.compat import satisfies_bywaf_requirement  # noqa: E402
-from bywaf.registry import PluginManifestTrust, verify_plugin_manifest_signature_data, load_filesystem_plugin_package, parse_plugin_manifest_data  # noqa: E402
+from bywaf.registry import PluginManifestTrust, verify_plugin_manifest_signature_data, load_filesystem_plugin_package, parse_plugin_manifest_data, load_package_manifest, enforce_plugin_manifest, enforce_trigger_manifest  # noqa: E402
 from bywaf.toml_support import load_data_file  # noqa: E402
 from bywaf.tools.plugin_check import analyze_plugin_source  # noqa: E402
 from bywaf.tools.plugin_parser_contract import parser_contract_diagnostics  # noqa: E402
@@ -77,6 +80,79 @@ def check_plugin(
     except Exception as exc:  # noqa: BLE001 - this is a CLI validation report.
         report["errors"].append(str(exc))
         return report
+
+
+def check_bundled_plugins(*, strict_inference: bool = False) -> dict[str, Any]:
+    """Return validation results for every bundled plugin config entry."""
+    reports = [
+        check_bundled_plugin(entry, strict_inference=strict_inference)
+        for entry in parse_package_plugin_config("bywaf.plugins", "plugins.toml")
+    ]
+    return {
+        "ok": all(report["ok"] for report in reports),
+        "plugin": "bywaf.plugins",
+        "checked": len(reports),
+        "plugins": reports,
+        "errors": [f"{report['entry']}: {error}" for report in reports for error in report.get("errors", [])],
+    }
+
+
+def check_bundled_plugin(entry: str, *, strict_inference: bool = False) -> dict[str, Any]:
+    """Return a validation report for one bundled plugin config entry."""
+    report = {
+        "ok": False,
+        "plugin": f"bywaf.plugins.{entry}",
+        "entry": entry,
+        "plugin_version": "",
+        "requires_bywaf": None,
+        "commandlets": [],
+        "triggers": [],
+        "declared_capabilities": [],
+        "declared_emits": [],
+        "inferred_capabilities": [],
+        "inferred_emits": [],
+        "missing_capabilities": [],
+        "missing_shared_emits": [],
+        "unused_capabilities": [],
+        "evidence": [],
+        "warnings": [],
+        "diagnostics": [],
+        "manifest_signature": "bundled",
+        "errors": [],
+    }
+    try:
+        manifest = load_package_manifest("bywaf.plugins", entry)
+        if manifest is None:
+            report["errors"].append("bundled plugin manifest is required")
+            return report
+        report["plugin_version"] = manifest.version
+        report["requires_bywaf"] = manifest.requires_bywaf
+        module = importlib.import_module(f"bywaf.plugins.{entry}")
+        plugins = enforce_plugin_manifest(manifest, load_plugins(module), Path(f"bywaf.plugins.{entry}.plugin.toml"))
+        triggers = enforce_trigger_manifest(manifest, load_trigger_specs(module), Path(f"bywaf.plugins.{entry}.plugin.toml"))
+        source_path = bundled_source_path(module)
+        source_analysis = analyze_plugin_source(source_path)
+        report.update(source_analysis.to_dict())
+        report["commandlets"] = [plugin.spec.name for plugin in plugins]
+        report["triggers"] = [trigger.name for trigger in triggers]
+        parser_diagnostics = parser_contract_diagnostics(plugins, source_path)
+        report["diagnostics"].extend(parser_diagnostics)
+        report["errors"].extend(f"{item['code']}: {item['message']}" for item in parser_diagnostics if item["severity"] == "error")
+        declared_capabilities = sorted({capability for plugin in plugins for capability in plugin.spec.capabilities})
+        report["declared_capabilities"] = declared_capabilities
+        declared_emits = sorted({topic for topics in manifest.commandlet_emits.values() for topic in topics})
+        report["declared_emits"] = declared_emits
+        finalize_inference_report(report, declared_capabilities, declared_emits, strict_inference=strict_inference)
+    except Exception as exc:  # noqa: BLE001 - this is a CLI validation report.
+        report["errors"].append(str(exc))
+    report["ok"] = not report["errors"]
+    return report
+
+
+def bundled_source_path(module: Any) -> Path:
+    """Return the source file or package directory for a bundled plugin module."""
+    module_file = Path(str(module.__file__))
+    return module_file.parent if module_file.name == "__init__.py" else module_file
 
 
 def check_materialized_plugin(
@@ -146,6 +222,19 @@ def check_materialized_plugin(
     report["declared_capabilities"] = declared_capabilities
     declared_emits = sorted({topic for topics in manifest.commandlet_emits.values() for topic in topics})
     report["declared_emits"] = declared_emits
+    finalize_inference_report(report, declared_capabilities, declared_emits, strict_inference=strict_inference)
+    report["ok"] = not report["errors"]
+    return report
+
+
+def finalize_inference_report(
+    report: dict[str, Any],
+    declared_capabilities: list[str],
+    declared_emits: list[str],
+    *,
+    strict_inference: bool,
+) -> None:
+    """Populate capability and emits drift fields on a checker report."""
     inferred_capabilities = tuple(str(item) for item in report["inferred_capabilities"])
     inferred_emits = tuple(str(item) for item in report["inferred_emits"])
     missing_capabilities = sorted(
@@ -178,12 +267,20 @@ def check_materialized_plugin(
         report["errors"].append("missing inferred capabilities: " + ", ".join(missing_capabilities))
     if missing_shared_emits:
         report["errors"].append("missing shared event emits declarations: " + ", ".join(missing_shared_emits))
-    report["ok"] = not report["errors"]
-    return report
 
 
 def render_text(report: dict[str, Any]) -> str:
     """Return human-readable validation output."""
+    if "plugins" in report:
+        failed = [item for item in report["plugins"] if not item["ok"]]
+        lines = [f"{'ok' if report['ok'] else 'failed'} plugin={report['plugin']} checked={report['checked']} failed={len(failed)}"]
+        for item in report["plugins"]:
+            status = "ok" if item["ok"] else "failed"
+            commandlets = ", ".join(str(commandlet) for commandlet in item.get("commandlets", ()))
+            lines.append(f"{status} entry={item['entry']} commandlets={commandlets}")
+            for error in item.get("errors", ()):
+                lines.append(f"  error: {error}")
+        return "\n".join(lines)
     lines = [f"{'ok' if report['ok'] else 'failed'} plugin={report['plugin']}"]
     commandlets = report.get("commandlets") or []
     triggers = report.get("triggers") or []
@@ -231,6 +328,8 @@ def render_text(report: dict[str, Any]) -> str:
 
 def render_llm_feedback(report: dict[str, Any]) -> str:
     """Return concise feedback suitable for pasting into an LLM chat."""
+    if "plugins" in report:
+        return render_text(report)
     lines = [f"{'PASSED' if report['ok'] else 'FAILED'}: Bywaf plugin check", f"Plugin: {report['plugin']}"]
     diagnostics = report.get("diagnostics") or []
     errors = report.get("errors") or []
@@ -324,7 +423,8 @@ def render_llm_feedback(report: dict[str, Any]) -> str:
 def build_parser() -> argparse.ArgumentParser:
     """Build the plugin-check CLI parser."""
     parser = argparse.ArgumentParser(prog="scripts/plugin_check.py")
-    parser.add_argument("plugin", type=Path, help="filesystem plugin directory or .zip containing plugin.py and bywaf.plugin.toml")
+    parser.add_argument("plugin", nargs="?", type=Path, help="filesystem plugin directory or .zip containing plugin.py and bywaf.plugin.toml")
+    parser.add_argument("--all", action="store_true", help="validate every bundled plugin listed in bywaf.plugins/plugins.toml")
     parser.add_argument("--manifest-key", type=Path, help="trusted public key for verifying bywaf.plugin.toml")
     parser.add_argument("--verify", action="store_true", help="require a verified manifest signature")
     parser.add_argument(
@@ -346,7 +446,11 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     """Run plugin package validation."""
     args = build_parser().parse_args(argv)
-    if args.temp_checkout and not args.no_temp_checkout:
+    if args.all:
+        report = check_bundled_plugins(strict_inference=args.strict_inference)
+    elif args.plugin is None:
+        raise SystemExit("plugin path is required unless --all is used")
+    elif args.temp_checkout and not args.no_temp_checkout:
         report = check_plugin_in_temp_checkout(
             args.plugin,
             checkout_source=ROOT,

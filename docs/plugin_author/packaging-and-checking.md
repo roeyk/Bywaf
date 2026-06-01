@@ -213,6 +213,7 @@ python3 scripts/plugin_check.py path/to/plugin-dir --strict-inference --llm-feed
 python3 scripts/plugin_check.py path/to/plugin-dir --manifest-key manifest-signing.pub.pem --verify
 python3 scripts/plugin_check.py path/to/plugin-dir --json
 python3 scripts/plugin_check.py path/to/plugin.zip --temp-checkout --strict-inference --llm-feedback
+python3 scripts/plugin_check.py --all
 ```
 
 `plugin_check` is a schema verifier, not just a style linter. Its strict
@@ -236,6 +237,11 @@ runtime patterns disagree. In particular, it checks:
 The checker does not make plugin code sandboxed or inherently safe. Native and
 library-backed plugins are still Python code. Treat a passing check as
 "schema checked and ready for review," not as a security proof.
+
+Use `--all` as a maintainer check for the bundled plugin suite. It validates
+every provider listed in `bywaf.plugins/plugins.toml` and fails if any bundled
+manifest drifts from its Python commandlet metadata, parser contract, shared
+event declarations, or trigger declarations.
 
 The input may be an unpacked plugin directory or a `.zip` containing one plugin
 directory. Use `--temp-checkout` for LLM-generated or review submissions: the

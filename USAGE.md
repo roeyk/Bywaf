@@ -2231,6 +2231,7 @@ python3 scripts/plugin_check.py path/to/plugin-dir --strict-inference
 python3 scripts/plugin_check.py path/to/plugin-dir --manifest-key manifest-signing.pub.pem --verify
 python3 scripts/plugin_check.py path/to/plugin-dir --json
 python3 scripts/plugin_check.py path/to/plugin.zip --temp-checkout --strict-inference --llm-feedback
+python3 scripts/plugin_check.py --all
 python3 -m bywaf.tools.plugin_manifest path/to/plugin-dir/plugin.py --infer-capabilities
 python3 scripts/plugin_manifest_sign.py --manifest path/to/plugin-dir/bywaf.plugin.toml --private manifest-signing.pem --in-place
 ```
@@ -2243,7 +2244,8 @@ hostile Python code. The manifest generator emits commandlets, secret options,
 trigger specs, and, for single-commandlet plugins, can merge inferred
 capabilities into a starter manifest. Filesystem plugin manifests must include
 a non-empty `[plugin].version`; use `requires_bywaf` when the plugin depends on
-a minimum Bywaf API version.
+a minimum Bywaf API version. Use `--all` as a maintainer check for every
+bundled plugin listed in `bywaf.plugins/plugins.toml`.
 
 The maintainer keeps private manifest-signing keys outside the repository.
 Official public verification keys are packaged under `bywaf/keys/` when
