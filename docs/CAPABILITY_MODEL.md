@@ -182,12 +182,17 @@ capability exists. For example, `db.write:host.found` uses the semantic name
 `db.write:host.found` and belongs to the C102 family unless a later design
 needs per-topic codes.
 
+If per-topic or per-action subcodes become useful, prefer a dotted hierarchy
+under the assigned family code rather than new unrelated top-level codes. For
+example, a future explicit subcode could look like `C102.001` or
+`C600.100.003`. Do not introduce those subcodes until there is a concrete
+review, audit, or compatibility need.
+
 `audit list capabilities` inventories declared capability names against runtime
-`plugin.capability.used` and `plugin.capability.missing` evidence. The current
-runtime command displays the accepted family range, the dotted name, declaring
-commandlets, last observed use, and all timestamps with timezone. Displaying
-the exact assigned code in checker/audit output is a follow-up implementation
-step.
+`plugin.capability.used` and `plugin.capability.missing` evidence. Runtime
+audit and checker output display exact assigned codes for known capabilities,
+topic family labels such as `C102 family` for topic-specific capabilities, and
+accepted family ranges for future or unassigned capabilities.
 
 ## Plugin Integration Types
 

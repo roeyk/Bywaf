@@ -194,7 +194,10 @@ class PluginCheckTests(unittest.TestCase):
 
             self.assertFalse(report["ok"])
             self.assertIn("db.write:example.event", report["missing_capabilities"])
+            self.assertEqual(report["capability_codes"]["db.write:example.event"], "C102 family")
             self.assertIn("missing inferred capabilities", report["errors"][0])
+            self.assertIn("db.write:example.event=C102 family", render_text(report))
+            self.assertIn("Missing capability declaration: db.write:example.event (C102 family)", render_llm_feedback(report))
 
     def test_check_plugin_warns_on_direct_network_import(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -208,7 +211,9 @@ class PluginCheckTests(unittest.TestCase):
 
             self.assertTrue(report["ok"])
             self.assertEqual(report["warnings"][0]["capability"], "network.connect")
+            self.assertEqual(report["capability_codes"]["network.connect"], "C401")
             self.assertEqual(report["warnings"][0]["kind"], "direct_network_import")
+            self.assertIn("direct network.connect (C401) use detected", render_llm_feedback(report))
 
     def test_check_plugin_does_not_warn_on_urllib_parse_after_urllib_request_import(self):
         with tempfile.TemporaryDirectory() as tmp:

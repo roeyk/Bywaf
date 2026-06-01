@@ -15,6 +15,7 @@ import argparse
 import importlib
 import json
 import sys
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -24,7 +25,7 @@ if str(ROOT) not in sys.path:
 
 from bywaf import __version__ as BYWAF_VERSION  # noqa: E402
 from bywaf.event.schemas import event_schema, register_event_schemas  # noqa: E402
-from bywaf.plugin.capabilities import capability_declared  # noqa: E402
+from bywaf.plugin.capabilities import capability_code_label, capability_declared  # noqa: E402
 from bywaf.registry.config import parse_package_plugin_config  # noqa: E402
 from bywaf.registry.loading import load_plugins, load_trigger_specs  # noqa: E402
 from bywaf.registry.compat import satisfies_bywaf_requirement  # noqa: E402
@@ -52,6 +53,7 @@ def check_plugin(
         "commandlets": [],
         "triggers": [],
         "declared_capabilities": [],
+        "capability_codes": {},
         "declared_emits": [],
         "inferred_capabilities": [],
         "inferred_emits": [],
@@ -108,6 +110,7 @@ def check_bundled_plugin(entry: str, *, strict_inference: bool = False) -> dict[
         "commandlets": [],
         "triggers": [],
         "declared_capabilities": [],
+        "capability_codes": {},
         "declared_emits": [],
         "inferred_capabilities": [],
         "inferred_emits": [],
@@ -257,6 +260,15 @@ def finalize_inference_report(
     )
     report["missing_capabilities"] = missing_capabilities
     report["unused_capabilities"] = unused_capabilities
+    report["capability_codes"] = capability_code_map(
+        (
+            *declared_capabilities,
+            *inferred_capabilities,
+            *missing_capabilities,
+            *unused_capabilities,
+            *(str(item.get("capability")) for item in report.get("warnings", ())),
+        )
+    )
     missing_shared_emits = sorted(
         topic
         for topic in inferred_emits
@@ -267,6 +279,11 @@ def finalize_inference_report(
         report["errors"].append("missing inferred capabilities: " + ", ".join(missing_capabilities))
     if missing_shared_emits:
         report["errors"].append("missing shared event emits declarations: " + ", ".join(missing_shared_emits))
+
+
+def capability_code_map(capabilities: Iterable[str]) -> dict[str, str]:
+    """Return stable display labels for capability names."""
+    return {capability: capability_code_label(capability) for capability in sorted(set(capabilities))}
 
 
 def render_text(report: dict[str, Any]) -> str:
@@ -290,6 +307,7 @@ def render_text(report: dict[str, Any]) -> str:
     unused_capabilities = report.get("unused_capabilities") or []
     inferred_capabilities = report.get("inferred_capabilities") or []
     inferred_emits = report.get("inferred_emits") or []
+    capability_codes = report.get("capability_codes") or {}
     warnings = report.get("warnings") or []
     diagnostics = report.get("diagnostics") or []
     if commandlets:
@@ -302,6 +320,8 @@ def render_text(report: dict[str, Any]) -> str:
         lines.append("triggers: " + ", ".join(str(item) for item in triggers))
     if inferred_capabilities:
         lines.append("inferred capabilities: " + ", ".join(str(item) for item in inferred_capabilities))
+    if capability_codes:
+        lines.append("capability codes: " + format_capability_codes(capability_codes))
     if inferred_emits:
         lines.append("inferred emits: " + ", ".join(str(item) for item in inferred_emits))
     if missing_capabilities:
@@ -337,6 +357,7 @@ def render_llm_feedback(report: dict[str, Any]) -> str:
     missing_capabilities = report.get("missing_capabilities") or []
     missing_shared_emits = report.get("missing_shared_emits") or []
     unused_capabilities = report.get("unused_capabilities") or []
+    capability_codes = report.get("capability_codes") or {}
     if not diagnostics and not errors and not warnings and not missing_capabilities and not missing_shared_emits and not unused_capabilities:
         lines.append("No checker feedback.")
         return "\n".join(lines)
@@ -356,9 +377,11 @@ def render_llm_feedback(report: dict[str, Any]) -> str:
         )
         item_number += 1
     for capability in missing_capabilities:
+        code = capability_codes.get(capability)
+        code_suffix = f" ({code})" if code else ""
         lines.extend(
             [
-                f"{item_number}. Missing capability declaration: {capability}",
+                f"{item_number}. Missing capability declaration: {capability}{code_suffix}",
                 "   Problem: source analysis inferred this capability but it is not declared.",
                 "   Fix: add the capability to the @commandlet(..., capabilities=(...)) tuple and the matching "
                 "bywaf.plugin.toml [[commandlets]] capabilities list.",
@@ -366,10 +389,12 @@ def render_llm_feedback(report: dict[str, Any]) -> str:
         )
         item_number += 1
     for warning in warnings:
+        code = capability_codes.get(str(warning["capability"]))
+        code_suffix = f" ({code})" if code else ""
         lines.extend(
             [
                 f"{item_number}. {warning['path']}:{warning['line']} [{warning['kind']}]",
-                f"   Problem: direct {warning['capability']} use detected: {warning['detail']}",
+                f"   Problem: direct {warning['capability']}{code_suffix} use detected: {warning['detail']}",
                 "   Fix: prefer the documented mediated Bywaf context API when one exists, or make sure the "
                 "matching capability is declared and the direct API use is intentional.",
             ]
@@ -385,9 +410,11 @@ def render_llm_feedback(report: dict[str, Any]) -> str:
         )
         item_number += 1
     for capability in unused_capabilities:
+        code = capability_codes.get(capability)
+        code_suffix = f" ({code})" if code else ""
         lines.extend(
             [
-                f"{item_number}. Possibly unused declared capability: {capability}",
+                f"{item_number}. Possibly unused declared capability: {capability}{code_suffix}",
                 "   Problem: the checker did not infer source evidence for this declaration.",
                 "   Fix: remove it if it is unnecessary, or keep it if it is required by runtime behavior the "
                 "static checker cannot see.",
@@ -418,6 +445,11 @@ def render_llm_feedback(report: dict[str, Any]) -> str:
         )
         item_number += 1
     return "\n".join(lines)
+
+
+def format_capability_codes(capability_codes: dict[str, Any]) -> str:
+    """Return compact capability-to-code display text."""
+    return ", ".join(f"{capability}={code}" for capability, code in sorted(capability_codes.items()))
 
 
 def build_parser() -> argparse.ArgumentParser:

@@ -124,9 +124,13 @@ security are separate layers.
   python3 scripts/architecture_metrics.py --top 12
   ```
 
-- Ordinary cohesive source and test files should generally stay around the
-  400-600 LOC range when a clean split exists. This is a refactoring signal, not
-  a hard failure threshold.
+- Prefer ordinary source and test files under 500 lines when a clean, cohesive
+  split exists. This is a refactoring signal, not a hard failure threshold.
+  Larger cohesive files are acceptable when splitting would reduce clarity or
+  create artificial boundaries.
+- For test files, prefer splitting by behavior, command surface, or subsystem
+  boundary before a file grows past 500 lines. Avoid splitting only to satisfy
+  the number when shared setup or scenario flow reads better together.
 - Avoid dependency cycles. Do not introduce imports that turn narrow helpers
   into package hubs or create circular dependencies.
 

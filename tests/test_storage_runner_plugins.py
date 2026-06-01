@@ -32,6 +32,7 @@ from bywaf.plugins.discovery.hostscanner import HostScanner
 from bywaf.plugins.discovery.hostscanner import expand_targets
 from bywaf.plugins.network.portscanner import PortScanner
 from bywaf.plugins.runtime.artifact import select_artifacts
+from bywaf.plugins.runtime.audit.inventory import capability_inventory_row
 from bywaf.plugins.runtime.watchdog import Watchdog
 from bywaf.plugins.storage.db import encrypt_active_database
 from bywaf.plugin import CommandContext
@@ -314,11 +315,24 @@ class StorageRunnerPluginTests(unittest.TestCase):
                 process_framework_requests(runner, ShellState())
             text = output.getvalue()
             self.assertIn("Capability", text)
-            self.assertIn("Range", text)
+            self.assertIn("Code", text)
             self.assertIn("network.connect", text)
-            self.assertIn("C400-C499", text)
+            self.assertIn("C401", text)
             self.assertIn("hostscanner", text)
             self.assertIn("observed", text)
+
+    def test_audit_list_capabilities_prints_topic_family_code(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            event = runner.db.publish(
+                "plugin.capability.used",
+                {"commandlet": "fixture", "capability": "db.write:host.found", "declared": True},
+                "fixture",
+            )
+            row = capability_inventory_row("db.write:host.found", {}, {"db.write:host.found": [event]}, {})
+
+            self.assertEqual(row["Capability"], "db.write:host.found")
+            self.assertEqual(row["Code"], "C102 family")
 
     def test_audit_show_filters_since_until_time(self):
         with tempfile.TemporaryDirectory() as tmp:

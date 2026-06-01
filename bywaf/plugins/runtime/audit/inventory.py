@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext
-from bywaf.plugin.capabilities import implied_capabilities
+from bywaf.plugin.capabilities import capability_code_label, implied_capabilities
 from bywaf.registry import PluginRegistry
 from bywaf.runtime_display import render_table, terminal_table_width
 from bywaf.time_format import format_operator_timestamp
@@ -76,7 +76,7 @@ def capability_inventory_row(
     status = capability_status(capability, declared, used_events, missing_events)
     return {
         "Capability": capability,
-        "Range": capability_range(capability),
+        "Code": capability_code_label(capability),
         "Declared By": ", ".join(declared.get(capability, ())) or "-",
         "Last Used": format_event_time(last_event) if last_event is not None else "never",
         "Last User": str(last_event.payload.get("commandlet") or last_event.source) if last_event is not None else "-",
@@ -103,27 +103,6 @@ def capability_status(
     return "unknown"
 
 
-def capability_range(capability: str) -> str:
-    """Return the accepted capability-code family range for a capability."""
-    if capability.startswith("db.read:") or capability.startswith("db.write:"):
-        return "C100-C199"
-    if capability.startswith("db.") or capability.startswith("artifact."):
-        return "C200-C299"
-    if capability.startswith("process.") or capability.startswith("filesystem."):
-        return "C300-C399"
-    if capability.startswith("network."):
-        return "C400-C499"
-    if capability.startswith("framework.secret"):
-        return "C500-C599"
-    if capability.startswith("framework.job") or capability.startswith("framework.pipeline"):
-        return "C600-C699"
-    if capability.startswith("framework.render"):
-        return "C700-C799"
-    if capability.startswith("plugin.") or capability.startswith("framework."):
-        return "C001-C099"
-    return "C900-C999"
-
-
 def format_event_time(event: Event) -> str:
     """Return a user-facing timestamp with timezone."""
     return format_operator_timestamp(event.created_at)
@@ -131,6 +110,6 @@ def format_event_time(event: Event) -> str:
 
 def format_capability_inventory(rows: list[dict[str, str]]) -> str:
     """Return a fixed-width capability inventory table."""
-    columns = ["Capability", "Range", "Declared By", "Last Used", "Last User", "Missing", "Status"]
+    columns = ["Capability", "Code", "Declared By", "Last Used", "Last User", "Missing", "Status"]
     table_rows = [tuple(row[column] for column in columns) for row in rows]
     return render_table(tuple(columns), table_rows, max_width=terminal_table_width())

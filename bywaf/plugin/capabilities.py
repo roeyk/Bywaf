@@ -15,6 +15,27 @@ from ..specs import CommandSpec
 
 DATABASE_ACTIONS = ("view", "write", "manage")
 
+ASSIGNED_CAPABILITY_CODES = {
+    "db.raw": "C201",
+    "artifact.read": "C202",
+    "artifact.write": "C203",
+    "framework.process.run": "C301",
+    "framework.process.stream": "C302",
+    "filesystem.read": "C311",
+    "filesystem.write": "C312",
+    "network.connect": "C401",
+    "network.listen": "C402",
+    "framework.secret.prompt": "C501",
+    "framework.secret.resolve": "C502",
+    "framework.job.control": "C601",
+    "finding.review": "C602",
+    "framework.console.output": "C701",
+    "framework.console.alert": "C702",
+    "framework.file.page": "C703",
+    "framework.render.table": "C704",
+    "plugin.progress": "C801",
+}
+
 
 def framework_request_capability(topic: str) -> str | None:
     """Map a framework request topic to the capability it uses."""
@@ -63,6 +84,41 @@ def capability_declared(capability: str, declarations: Iterable[str]) -> bool:
             # db.read:*; they are not general glob patterns.
             return True
     return False
+
+
+def capability_code_label(capability: str) -> str:
+    """Return the assigned C### code, topic family code, or accepted range."""
+    exact = ASSIGNED_CAPABILITY_CODES.get(capability)
+    if exact is not None:
+        return exact
+    if capability.startswith("db.read:"):
+        return "C101 family"
+    if capability.startswith("db.write:"):
+        return "C102 family"
+    return capability_family_range(capability)
+
+
+def capability_family_range(capability: str) -> str:
+    """Return the accepted capability-code family range for a capability."""
+    if capability.startswith("db.read:") or capability.startswith("db.write:"):
+        return "C100-C199"
+    if capability.startswith("db.") or capability.startswith("artifact."):
+        return "C200-C299"
+    if capability.startswith("process.") or capability.startswith("filesystem."):
+        return "C300-C399"
+    if capability.startswith("network."):
+        return "C400-C499"
+    if capability.startswith("framework.secret"):
+        return "C500-C599"
+    if capability.startswith("framework.job") or capability.startswith("framework.pipeline"):
+        return "C600-C699"
+    if capability.startswith("framework.render"):
+        return "C700-C799"
+    if capability.startswith("plugin."):
+        return "C800-C899"
+    if capability.startswith("framework."):
+        return "C001-C099"
+    return "C900-C999"
 
 
 def database_actions_for_capabilities(capabilities: Iterable[str]) -> tuple[str, ...]:
