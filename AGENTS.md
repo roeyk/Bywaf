@@ -14,8 +14,10 @@ and do not commit local absolute paths to them.
 When a private action log is provided, use it as continuity for fresh
 zero-knowledge context starts and restarts: it should summarize recent concrete
 coding actions, major implementation decisions, commits, validation commands
-and results, and immediate follow-up state. It is not the source of truth for
-durable design rationale or priority sequencing.
+and results, current work-goal management, and immediate follow-up state. It
+should record when work starts on an item, when priorities change, when items
+are reprioritized or shelved, and when items finish. It is not the source of
+truth for durable design rationale or long-term priority sequencing.
 
 Before editing code, committing, pushing, or running a broad coding batch,
 inspect the repository state:
