@@ -65,6 +65,17 @@ findings that should stay visible during field work. Use `status=all`,
 `status=accepted`, `status=confirmed`, `status=deferred`, `status=rejected`, or
 `status=unreviewed` to inspect a specific review state.
 
+Use ordering flags when a review pass needs a specific queue shape:
+
+```text
+bywaf> report status=all --accepted-first
+bywaf> report status=all --candidates-first
+```
+
+`--accepted-first` moves findings with the latest `accepted` review marker to
+the top of the current report view. `--candidates-first` moves candidate or
+potential findings ahead of confirmed rows.
+
 ## Network View
 
 Use `report network` when you want the current host-centric picture instead of
@@ -122,6 +133,8 @@ bywaf> report pipeline=1,2,3
 bywaf> report job=7
 bywaf> report step=12
 bywaf> report status=all pipeline=1
+bywaf> report status=all pipeline=1 --accepted-first
+bywaf> report status=all pipeline=1 --candidates-first
 ```
 
 Save a named report scope when you expect to revisit the same set of work:

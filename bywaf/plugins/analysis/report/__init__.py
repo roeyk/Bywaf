@@ -61,6 +61,8 @@ REPORT_SORT_CHOICES = ("finding", "host")
         "report defer 4 note=needs manual validation",
         "report pipeline=1",
         "report page=false",
+        "report --accepted-first status=all",
+        "report --candidates-first status=all",
         "report sort=host",
         "report sort=finding",
         "report pipeline=1,2,3",
@@ -126,6 +128,8 @@ class Report(CommandletBase):
         parser.add_argument("selection", nargs="?")
         parser.add_argument("--last", action="store_true", help="show the latest scan/reportable pipeline")
         parser.add_argument("--new", action="store_true", help="show facts newly introduced by the latest relevant scans")
+        parser.add_argument("--accepted-first", action="store_true", help="show accepted findings before other review states")
+        parser.add_argument("--candidates-first", action="store_true", help="show candidate or potential findings before other rows")
         parser.add_argument("--job", default="", help="job id or comma-separated job ids")
         parser.add_argument(
             "--pipeline",
@@ -143,6 +147,8 @@ class Report(CommandletBase):
         normalize_report_action(parsed)
         if parsed.last and parsed.new:
             raise ValueError("report accepts only one of --last or --new")
+        if parsed.accepted_first and parsed.candidates_first:
+            raise ValueError("report accepts only one of --accepted-first or --candidates-first")
         if parsed.action in REPORT_SAVE_ACTIONS:
             save_report_scope(context, parsed, action=parsed.action)
             return ()
@@ -172,6 +178,8 @@ class Report(CommandletBase):
             *REPORT_ACTIONS,
             "--last",
             "--new",
+            "--accepted-first",
+            "--candidates-first",
             "all",
             "detail",
             "pipeline=",

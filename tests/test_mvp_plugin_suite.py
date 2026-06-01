@@ -21,6 +21,7 @@ from unittest.mock import patch
 
 from bywaf.app import ShellState, make_runner, process_framework_requests
 from bywaf.plugins.network.nmap_backend import NmapPort
+from bywaf.plugins.http.repo_exposure import DetectionStatus, base_result
 
 
 class MvpPluginSuiteTests(unittest.TestCase):
@@ -58,6 +59,17 @@ class MvpPluginSuiteTests(unittest.TestCase):
                     }
                 return {"status": 404, "content_type": "text/plain", "length": 0, "sample": ""}
 
+            def fake_probe_git_config(opener, endpoint, *, timeout, user_agent):
+                del opener, timeout, user_agent
+                checked_url = f"{endpoint['url'].rstrip('/')}/.git/config"
+                return base_result(
+                    endpoint,
+                    checked_url,
+                    DetectionStatus.CANDIDATE,
+                    http_status=200,
+                    evidence="[core]\n\trepositoryformatversion = 0\n",
+                )
+
             def fake_run_process(argv, *, cwd=None, env=None, timeout=None):
                 del cwd, env, timeout
                 output_path = Path(argv[argv.index("-output") + 1])
@@ -89,6 +101,7 @@ class MvpPluginSuiteTests(unittest.TestCase):
                 ),
                 patch("bywaf.plugins.http.http_probe.probe_url", side_effect=fake_probe_url),
                 patch("bywaf.plugins.http.http_paths.probe_path", side_effect=fake_probe_path),
+                patch("bywaf.plugins.http.repo_exposure.command.probe_git_config", side_effect=fake_probe_git_config),
                 patch(
                     "bywaf.plugins.http.tls_probe.fetch_certificate",
                     return_value={"subject": "commonName=example.test", "issuer": "commonName=CA", "san": ["example.test"]},
@@ -103,6 +116,8 @@ class MvpPluginSuiteTests(unittest.TestCase):
                 runner.execute(f"service_probe --from pipeline={pipeline_id} topic=http.endpoint")
                 process_framework_requests(runner, ShellState())
                 runner.execute(f"http_paths --from pipeline={pipeline_id} topic=http.endpoint paths=/.git/config")
+                process_framework_requests(runner, ShellState())
+                runner.execute(f"repo_exposure --from pipeline={pipeline_id} topic=http.endpoint")
                 process_framework_requests(runner, ShellState())
                 runner.execute(f"waf_detect --from pipeline={pipeline_id} topic=http.endpoint")
                 process_framework_requests(runner, ShellState())
@@ -122,6 +137,7 @@ class MvpPluginSuiteTests(unittest.TestCase):
                 "http.endpoint",
                 "service.detected",
                 "http.path",
+                "repo.git_config.checked",
                 "web.waf.detected",
                 "tls.certificate",
                 "web.fingerprint",
@@ -137,6 +153,9 @@ class MvpPluginSuiteTests(unittest.TestCase):
             finding_titles = [event.payload["title"] for event in runner.db.events_for_topic("finding.new")]
             self.assertIn("Missing X-Frame-Options header", finding_titles)
             self.assertIn("Exposed Git repository configuration", finding_titles)
+            exposure_events = runner.db.events_for_topic("repo.git_config.checked")
+            self.assertEqual(exposure_events[0].payload["family"], "repo_exposure")
+            self.assertEqual(exposure_events[0].payload["status"], "candidate")
             self.assertIn("Missing X-Frame-Options header", output.getvalue())
 
 

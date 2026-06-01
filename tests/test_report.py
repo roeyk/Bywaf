@@ -1120,6 +1120,68 @@ class ReportTests(unittest.TestCase):
             self.assertIn("Accepted finding", text)
             self.assertIn("Open finding", text)
 
+    def test_report_accepted_first_orders_reviewed_findings_first(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "finding.candidate",
+                {"finding_id": "finding-1", "title": "Open finding", "target": {"host": "b.test"}},
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="step-a",
+            )
+            runner.db.publish(
+                "finding.candidate",
+                {"finding_id": "finding-2", "title": "Accepted finding", "target": {"host": "a.test"}},
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="step-a",
+            )
+            runner.db.publish(
+                "finding.reviewed",
+                {"finding_id": "finding-2", "decision": "accepted"},
+                "report",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report pipeline=pipeline-a status=all --accepted-first")
+                process_framework_requests(runner, ShellState())
+
+            rendered = runner.db.events_for_topic("report.rendered")[0]
+            self.assertEqual(rendered.payload["order"], "accepted-first")
+            self.assertEqual(rendered.payload["groups"], ["finding-2", "finding-1"])
+            self.assertLess(output.getvalue().index("Accepted finding"), output.getvalue().index("Open finding"))
+
+    def test_report_candidates_first_orders_candidate_findings_first(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "finding.confirmed",
+                {"finding_id": "finding-1", "title": "Confirmed finding", "target": {"host": "a.test"}, "status": "confirmed"},
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="step-a",
+            )
+            runner.db.publish(
+                "finding.candidate",
+                {"finding_id": "finding-2", "title": "Candidate finding", "target": {"host": "b.test"}, "status": "potential"},
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="step-a",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report pipeline=pipeline-a status=all --candidates-first")
+                process_framework_requests(runner, ShellState())
+
+            rendered = runner.db.events_for_topic("report.rendered")[0]
+            self.assertEqual(rendered.payload["order"], "candidates-first")
+            self.assertEqual(rendered.payload["groups"], ["finding-2", "finding-1"])
+            self.assertIn("Candidate finding", output.getvalue())
+            self.assertIn("Confirmed finding", output.getvalue())
+
     def test_report_accepts_selection_ranges_and_lists(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))

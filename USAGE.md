@@ -2044,6 +2044,8 @@ bywaf> report job=7
 bywaf> report step=12
 bywaf> report status=all
 bywaf> report status=confirmed
+bywaf> report status=all --accepted-first
+bywaf> report status=all --candidates-first
 bywaf> report accept all pipeline=1
 bywaf> report confirm 1 pipeline=1 note=validated manually
 bywaf> finding confirm 1 pipeline=1

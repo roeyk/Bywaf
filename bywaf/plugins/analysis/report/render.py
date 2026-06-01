@@ -45,6 +45,7 @@ def render_finding_report(
     groups = group_finding_events(events)
     decisions = latest_review_decisions(context)
     filtered_groups = filter_groups_by_status(groups, decisions, parsed.status)
+    filtered_groups = order_report_groups(filtered_groups, decisions, parsed)
     displayed_groups = filtered_groups
     if parsed.action == "detail":
         if not parsed.selection:
@@ -231,11 +232,48 @@ def report_rendered_payload(
         "step": parsed.step,
         "status": parsed.status,
         "sort": getattr(parsed, "sort", "finding"),
+        "order": report_order(parsed),
         "events": [event.id for event in events if event.id is not None],
         "groups": [group.finding_id for group in groups or []],
         "counts": dict(counts or {}),
         "rows": rows,
     }
+
+
+def order_report_groups(
+    groups: list[FindingGroup],
+    decisions: Mapping[str, ReviewDecision],
+    parsed: Namespace,
+) -> list[FindingGroup]:
+    """Return report groups in the requested operator-priority order."""
+    if getattr(parsed, "accepted_first", False):
+        return sorted(groups, key=lambda group: (review_status(group, decisions) != "accepted", first_group_event_id(group)))
+    if getattr(parsed, "candidates_first", False):
+        return sorted(groups, key=lambda group: (not group_has_candidate_status(group), first_group_event_id(group)))
+    return groups
+
+
+def report_order(parsed: Namespace) -> str:
+    """Return the report row ordering label for audit payloads."""
+    if getattr(parsed, "accepted_first", False):
+        return "accepted-first"
+    if getattr(parsed, "candidates_first", False):
+        return "candidates-first"
+    return "default"
+
+
+def first_group_event_id(group: FindingGroup) -> int:
+    """Return a stable chronological key for one finding group."""
+    return min((event.id or 0) for event in group.events)
+
+
+def group_has_candidate_status(group: FindingGroup) -> bool:
+    """Return whether a group represents candidate or potential finding evidence."""
+    return any(
+        event.topic in {"finding.candidate", "finding.merge_candidate"}
+        or str(effective_finding_payload(event).get("status") or "").casefold() in {"candidate", "potential"}
+        for event in group.events
+    )
 
 
 def review_summary_line(
