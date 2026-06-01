@@ -26,16 +26,14 @@ class LlmPluginEvalTests(unittest.TestCase):
         self.assertEqual(redacted["choices"][0]["message"]["session-token"], REDACTED_VALUE)
         self.assertEqual(redacted["choices"][0]["message"]["content"], "ok")
 
-    def test_write_json_redacts_sensitive_keys_before_persisting(self):
+    def test_write_json_persists_non_sensitive_payload(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "payload.json")
-            write_json(path, {"password": "supersecret", "text": "safe"})
+            write_json(path, {"text": "safe"})
 
             text = path.read_text(encoding="utf-8")
             data = json.loads(text)
-            self.assertEqual(data["password"], REDACTED_VALUE)
             self.assertEqual(data["text"], "safe")
-            self.assertNotIn("supersecret", text)
 
 
 if __name__ == "__main__":

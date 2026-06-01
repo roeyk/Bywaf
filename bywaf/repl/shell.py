@@ -315,7 +315,7 @@ def record_command_history(
     # Store the timestamp as an inline comment so history files remain readable
     # as executable scripts after stripping comments.
     timestamp = datetime.now().astimezone().strftime(timestamp_format).strip()
-    safe_command = stored_command if stored_command is not None else redact_history_command(command)
+    safe_command = redact_history_command(stored_command if stored_command is not None else command)
     entry = f"{safe_command}  # {timestamp}"
     with path.open("a", encoding="utf-8") as handle:
         handle.write(f"{entry}\n")

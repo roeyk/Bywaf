@@ -217,6 +217,14 @@ def sensitive_json_key(key: str) -> bool:
     return any(fragment in normalized for fragment in SENSITIVE_KEY_FRAGMENTS)
 
 
+def response_summary(provider: str, response: dict[str, Any]) -> dict[str, Any]:
+    """Return non-sensitive provider response metadata."""
+    return {
+        "top_level_keys": sorted(str(key) for key in response),
+        "text_length": len(extract_text(provider, response)),
+    }
+
+
 def main() -> int:
     args = parse_args()
     root = repo_root()
@@ -261,7 +269,7 @@ def main() -> int:
             response = run_provider(config, prompt)
             metadata["duration_seconds"] = round(time.monotonic() - started, 3)
             metadata["ok"] = True
-            write_json(provider_dir / "raw-response.json", response)
+            write_json(provider_dir / "response-summary.json", response_summary(provider, response))
             (provider_dir / "response.md").write_text(extract_text(provider, response), encoding="utf-8")
         except Exception as exc:  # noqa: BLE001 - preserve provider failures in run output.
             metadata["duration_seconds"] = round(time.monotonic() - started, 3)
