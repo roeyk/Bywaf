@@ -11,6 +11,12 @@ those files as optional supplemental context when the user explicitly provides
 or references them. Do not require them before working from this repository,
 and do not commit local absolute paths to them.
 
+When a private action log is provided, use it as continuity for fresh
+zero-knowledge context starts and restarts: it should summarize recent concrete
+coding actions, major implementation decisions, commits, validation commands
+and results, and immediate follow-up state. It is not the source of truth for
+durable design rationale or priority sequencing.
+
 Before editing code, committing, pushing, or running a broad coding batch,
 inspect the repository state:
 
