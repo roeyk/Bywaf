@@ -121,6 +121,18 @@ class MvpPluginSuiteTests(unittest.TestCase):
         """Run the MVP pentest chain using local fake tool responses."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            stale_finding = runner.db.publish(
+                "finding.new",
+                {
+                    "finding_id": "legacy-finding",
+                    "title": "Legacy admin panel exposure",
+                    "target": {"host": "198.51.100.20"},
+                    "severity": "high",
+                },
+                "fixture",
+                pipeline_id="old-pipeline",
+                command_run_id="old-step",
+            )
             runner.db.publish(
                 "web.fingerprint",
                 {"url": "https://stale.example.test/", "interesting": True},
@@ -257,6 +269,9 @@ class MvpPluginSuiteTests(unittest.TestCase):
             self.assertEqual(exposure_events[0].payload["family"], "repo_exposure")
             self.assertEqual(exposure_events[0].payload["status"], "candidate")
             self.assertIn("Missing X-Frame-Options header", output.getvalue())
+            self.assertNotIn("Legacy admin panel exposure", output.getvalue())
+            rendered = runner.db.events_for_topic("report.rendered")[0]
+            self.assertNotIn(stale_finding.id, rendered.payload["events"])
 
 
 if __name__ == "__main__":
