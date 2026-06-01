@@ -141,6 +141,8 @@ The `[plugin]` table describes plugin-level traits.
 
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |
+| `version` | string | required | Plugin manifest version string. Filesystem plugins must include this field in `[plugin]`; skeletons use the current Bywaf release version as a starter value. |
+| `requires_bywaf` | string | none | Optional version requirement checked before import, such as `>=0.12.2`. Use this when the plugin depends on a minimum Bywaf API version. |
 | `native` | boolean | `true` when neither `library_backed` nor `process_wrapped` is true | In-process Python plugin written against the Bywaf framework API. |
 | `library_backed` | boolean | `false` | Uses third-party Python libraries or non-Bywaf Python packages. |
 | `process_wrapped` | boolean | `false` | Runs an external executable through the framework process API. |

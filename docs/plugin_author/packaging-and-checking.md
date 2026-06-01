@@ -270,7 +270,9 @@ Paste the full output back into the assistant and ask it to regenerate the
 complete plugin directory. The feedback mode calls out common authoring
 mistakes such as `@argument(..., nargs=...)`, decorators placed on `plugin()`,
 unsupported `candidate_payload(...)` or `confirmed_payload(...)` keyword names,
-and `context.is_cancelled()`.
+and `context.is_cancelled()`. Manifest blockers are also rendered as concrete
+paste-back fixes, including missing required fields such as
+`[plugin].version`.
 
 The checked-in skeletons under `../plugin_skeletons/` are validated by the
 test suite with this checker. If a skeleton no longer loads or its manifest

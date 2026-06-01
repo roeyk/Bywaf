@@ -70,6 +70,8 @@ validation rules.
 
 ```toml
 [plugin]
+version = "0.12.2"
+requires_bywaf = ">=0.12.2"
 library_backed = true
 process_wrapped = true
 service = false
@@ -359,6 +361,7 @@ Put this in `.bywaf/plugins/hello/bywaf.plugin.toml`:
 
 ```toml
 [plugin]
+version = "0.12.2"
 native = true
 
 [[commandlets]]
@@ -405,6 +408,7 @@ Put this in `.bywaf/plugins/http_header_check/bywaf.plugin.toml`:
 
 ```toml
 [plugin]
+version = "0.12.2"
 native = true
 library_backed = false
 process_wrapped = false

@@ -300,6 +300,16 @@ def render_llm_feedback(report: dict[str, Any]) -> str:
             continue
         if str(error).startswith("missing shared event emits declarations:"):
             continue
+        if error == "manifest [plugin].version is required":
+            lines.extend(
+                [
+                    f"{item_number}. Missing required manifest field: [plugin].version",
+                    "   Problem: bywaf.plugin.toml must include a non-empty version string in the [plugin] table.",
+                    '   Fix: add a line such as version = "0.1.0" under [plugin], or preserve this field when copying a skeleton manifest.',
+                ]
+            )
+            item_number += 1
+            continue
         lines.extend(
             [
                 f"{item_number}. Checker error",

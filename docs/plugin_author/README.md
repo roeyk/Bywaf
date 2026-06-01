@@ -51,7 +51,7 @@ command.py         runtime parsing, event iteration, context interaction
 detect.py          pure detection/protocol logic, testable without Bywaf
 findings.py        normalized finding payloads via bywaf.finding helpers
 models.py          plugin-local domain objects
-bywaf.plugin.toml  sidecar manifest contract for capabilities and traits
+bywaf.plugin.toml  sidecar manifest contract, including [plugin].version, capabilities, and traits
 ```
 
 The current plugin API centers on:
@@ -63,6 +63,9 @@ The current plugin API centers on:
 - yielded JSON-serializable dictionaries for normal event output
 - `def plugin() -> Commandlet`
 - `bywaf.plugin.toml`
+
+Every filesystem plugin manifest must include a non-empty `[plugin].version`.
+Use `requires_bywaf` when the plugin depends on a minimum Bywaf API version.
 
 `ManifestCommandlet`, `CommandletBase`, `@argument`, and `@option` remain
 available for advanced commandlets that need class hooks or unusual parsing.

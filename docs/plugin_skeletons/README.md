@@ -100,6 +100,9 @@ The split is guidance, not a loader requirement. Bywaf still loads any valid
 plugin package with `plugin.py`, `plugin()`, and a matching `bywaf.plugin.toml`.
 The skeletons exist to make the preferred structure easy to copy, especially
 for vulnerability-detection plugins and AI-assisted plugin generation.
+Keep required manifest fields from the copied skeleton. In particular,
+filesystem plugin manifests must include a non-empty `[plugin].version`; add
+`requires_bywaf` when the plugin needs a minimum Bywaf API version.
 
 Before loading or sharing a generated plugin, run:
 

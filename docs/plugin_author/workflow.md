@@ -31,6 +31,8 @@ without running plugin Python:
 - required Bywaf version
 
 Do not use Python registration side effects for interoperability metadata.
+Every filesystem plugin manifest must include a non-empty `[plugin].version`.
+Use `requires_bywaf` when the plugin depends on a minimum Bywaf API version.
 
 ## 3. Keep Plugin Code Small
 

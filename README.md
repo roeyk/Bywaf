@@ -197,7 +197,7 @@ command.py         runtime parsing, event iteration, context interaction
 detect.py          pure detection/protocol logic, testable without Bywaf
 findings.py        normalized finding payloads via bywaf.finding helpers
 models.py          plugin-local domain objects
-bywaf.plugin.toml  sidecar manifest contract for capabilities and traits
+bywaf.plugin.toml  sidecar manifest contract, including [plugin].version, capabilities, and traits
 ```
 
 Before loading or sharing a plugin, run the checker:

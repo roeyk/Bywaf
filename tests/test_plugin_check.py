@@ -59,6 +59,18 @@ class PluginCheckTests(unittest.TestCase):
             self.assertFalse(report["ok"])
             self.assertIn("manifest [plugin].version is required", report["errors"])
 
+    def test_llm_feedback_gives_manifest_version_fix(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(Path(tmp), capabilities=("network.connect",))
+            manifest = plugin_dir.joinpath("bywaf.plugin.toml")
+            manifest.write_text(manifest.read_text().replace('version = "0.1.0"\n\n', ""))
+
+            feedback = render_llm_feedback(check_plugin(plugin_dir))
+
+            self.assertIn("Missing required manifest field: [plugin].version", feedback)
+            self.assertIn('version = "0.1.0"', feedback)
+            self.assertNotIn("correct the plugin so scripts/plugin_check.py can import", feedback)
+
     def test_check_plugin_rejects_incompatible_bywaf_requirement(self):
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(Path(tmp), capabilities=("network.connect",))

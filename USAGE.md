@@ -2241,7 +2241,9 @@ suggestions with file and line evidence, and can validate a plugin directory or
 is intended for reviewable LLM-generated submissions; it does not sandbox
 hostile Python code. The manifest generator emits commandlets, secret options,
 trigger specs, and, for single-commandlet plugins, can merge inferred
-capabilities into a starter manifest.
+capabilities into a starter manifest. Filesystem plugin manifests must include
+a non-empty `[plugin].version`; use `requires_bywaf` when the plugin depends on
+a minimum Bywaf API version.
 
 The maintainer keeps private manifest-signing keys outside the repository.
 Official public verification keys are packaged under `bywaf/keys/` when
