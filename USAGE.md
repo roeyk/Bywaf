@@ -1680,13 +1680,10 @@ files can still be loaded for compatibility.
 
 # History
 
-Every non-empty REPL command is appended to:
+Every non-empty REPL command is added to in-memory session history. Bywaf does
+not automatically append REPL commands to a clear-text history file.
 
-```text
-.bywaf/history.bywaf
-```
-
-History lines are stored as commands followed by a timestamp comment:
+History entries are stored as commands followed by a timestamp comment:
 
 ```text
 hostscanner 127.0.0.1  # 20260512 10:15:30 EDT
@@ -1708,15 +1705,16 @@ bywaf> history since=20260517 until=20260518
 bywaf> history since=time:202605171000 until=time:202605171059
 ```
 
-The persistent history file can be viewed with the OS commandlets:
+Save session history explicitly when you need a file. Use `--encrypt` for
+sensitive sessions:
 
 ```text
-bywaf> cat .bywaf/history.bywaf
-bywaf> less .bywaf/history.bywaf
+bywaf> history save file=session-history.bywaf --encrypt
+bywaf> history load file=session-history.bywaf
 ```
 
-The persistent history file stays script-friendly: timestamps are stored after
-commands as comments, so history lines can be copied into a script file.
+Explicitly saved history files stay script-friendly: timestamps are stored
+after commands as comments, so history lines can be copied into a script file.
 
 Change the timestamp format:
 

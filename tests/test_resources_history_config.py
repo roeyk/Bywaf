@@ -34,7 +34,7 @@ from bywaf.app import (
 )
 from bywaf.plugins.network.nmap_backend import NmapScanError, NmapUnavailableError
 from bywaf.repl import redact_history_command
-from bywaf.repl.shell import apply_startup_preferences, should_persist_history_command
+from bywaf.repl.shell import apply_startup_preferences
 from bywaf.style import subject_style
 
 
@@ -186,32 +186,28 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
                 ],
             )
 
-    def test_record_command_history_writes_script_friendly_lines(self):
+    def test_record_command_history_records_session_history_only(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, ".bywaf", "history.bywaf")
             session_history = []
             entry = record_command_history("ls bywaf", path, session_history)
-            text = path.read_text()
-            self.assertRegex(text, r"^ls bywaf  # \d{8} \d{2}:\d{2}:\d{2}( [A-Z]+)?\n$")
-            self.assertEqual(script_commands(path)[0][1], "ls bywaf")
+            self.assertFalse(path.exists())
+            self.assertRegex(entry or "", r"^ls bywaf  # \d{8} \d{2}:\d{2}:\d{2}( [A-Z]+)?$")
             self.assertEqual(session_history, [entry])
 
     def test_record_command_history_uses_configured_timestamp_format(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, ".bywaf", "history.bywaf")
-            record_command_history("plugins", path, timestamp_format="%Y/%m/%d")
-            self.assertRegex(path.read_text(), r"^plugins  # \d{4}/\d{2}/\d{2}\n$")
+            entry = record_command_history("plugins", path, timestamp_format="%Y/%m/%d")
+            self.assertFalse(path.exists())
+            self.assertRegex(entry or "", r"^plugins  # \d{4}/\d{2}/\d{2}$")
 
     def test_record_command_history_accepts_safe_command(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, ".bywaf", "history.bywaf")
-            record_command_history("set scope=lab", path)
-            text = path.read_text()
-            self.assertIn("set scope=lab", text)
-
-    def test_sensitive_history_commands_are_not_persisted(self):
-        self.assertFalse(should_persist_history_command("set token=[REDACTED]"))
-        self.assertTrue(should_persist_history_command("set scope=lab"))
+            entry = record_command_history("set scope=lab", path)
+            self.assertFalse(path.exists())
+            self.assertIn("set scope=lab", entry or "")
 
     def test_redact_history_command_redacts_common_secret_names_by_default(self):
         redacted = redact_history_command("set password=supersecret")
