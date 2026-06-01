@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from dataclasses import dataclass, field
 
 from bywaf.event import Event
@@ -52,7 +54,7 @@ def render_hosts_inventory(context: CommandContext, events: list[Event], scope: 
     return f"Hosts: {scope} ({len(rows)} hosts)\n{sort_note(sort, 'host')}\n{table}"
 
 
-def host_inventory_sort_key(host: HostInventory, key: str) -> object:
+def host_inventory_sort_key(host: HostInventory, key: str) -> Any:
     """Return a sortable host inventory value."""
     if key == "name":
         return join_values(host.names)

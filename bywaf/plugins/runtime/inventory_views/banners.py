@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.runtime_display import command_context_style_getter, render_table, terminal_table_width
@@ -32,7 +34,7 @@ def render_banners_inventory(context: CommandContext, events: list[Event], scope
     )
     return f"Banners: {scope} ({len(rows)} banners)\n{sort_note(sort, 'host')}\n{table}"
 
-def banner_sort_key(event: Event, key: str) -> object:
+def banner_sort_key(event: Event, key: str) -> Any:
     """Return a sortable banner event value."""
     payload = event.payload
     if key == "port":

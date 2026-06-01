@@ -111,8 +111,10 @@ class EventSchemaTests(unittest.TestCase):
             )
         )
 
-        self.assertIsNotNone(event_schema(topic))
-        self.assertEqual(event_schema(topic).version, "2")
+        schema = event_schema(topic)
+        self.assertIsNotNone(schema)
+        assert schema is not None
+        self.assertEqual(schema.version, "2")
         self.assertEqual(validate_event_payload(topic, {"host": "dc01", "username": "alice"}), [])
         self.assertEqual(
             validate_event_payload(topic, {"host": "dc01", "username": "alice", "access": "admin"}),

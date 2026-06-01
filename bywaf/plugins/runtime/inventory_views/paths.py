@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.runtime_display import command_context_style_getter, render_table, terminal_table_width
@@ -34,7 +36,7 @@ def render_paths_inventory(context: CommandContext, events: list[Event], scope: 
     )
     return f"Paths: {scope} ({len(rows)} paths)\n{sort_note(sort, 'host')}\n{table}"
 
-def path_sort_key(event: Event, key: str) -> object:
+def path_sort_key(event: Event, key: str) -> Any:
     """Return a sortable path event value."""
     payload = event.payload
     if key == "path":

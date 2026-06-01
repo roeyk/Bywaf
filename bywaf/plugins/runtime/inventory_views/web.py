@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
@@ -70,7 +72,7 @@ def render_web_inventory(context: CommandContext, events: list[Event], scope: st
     return f"Web: {scope} ({len(rows)} endpoints)\n{sort_note(sort, 'url')}\n{table}"
 
 
-def web_inventory_sort_key(web: WebInventory, key: str) -> object:
+def web_inventory_sort_key(web: WebInventory, key: str) -> Any:
     """Return a sortable web inventory value."""
     if key == "host":
         return (host_sort_value(web.host), web.url)
@@ -116,8 +118,10 @@ def apply_web_fingerprint(web: dict[str, WebInventory], payload: dict[str, objec
     row.host = str(payload.get("host") or row.host)
     row.status = str(payload.get("status") or row.status)
     row.server = str(payload.get("server") or row.server)
-    for technology in payload.get("technologies", []):
-        add_value(row.technologies, technology)
+    technologies = payload.get("technologies", [])
+    if isinstance(technologies, list):
+        for technology in technologies:
+            add_value(row.technologies, technology)
     observations = payload.get("observations", [])
     if isinstance(observations, list):
         row.observations = max(row.observations, len(observations))
@@ -193,7 +197,7 @@ def render_wafs_inventory(context: CommandContext, events: list[Event], scope: s
     return f"WAFs: {scope} ({len(rows)} signals)\n{sort_note(sort, 'vendor')}\n{table}"
 
 
-def waf_inventory_sort_key(waf: WafInventory, key: str) -> object:
+def waf_inventory_sort_key(waf: WafInventory, key: str) -> Any:
     """Return a sortable WAF inventory value."""
     if key == "url":
         return (waf.url, waf.vendor.casefold())

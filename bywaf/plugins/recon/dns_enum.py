@@ -54,7 +54,7 @@ def dns_targets(names: list[str], domain: str, words: str) -> list[str]:
 def resolve_name(name: str) -> list[str]:
     """Resolve one DNS name with the system resolver."""
     addresses = {
-        info[4][0]
+        str(info[4][0])
         for info in socket.getaddrinfo(name, None, type=socket.SOCK_STREAM)
     }
     return sorted(addresses)

@@ -11,9 +11,9 @@ Used by:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, cast
 
-from .db import Subscription
+from .db import EventStore, Subscription
 from .pager import page_file
 from .plugin.process import normalize_argv, run_process_argv
 from .plugin.services import attach_generated_artifact
@@ -290,7 +290,7 @@ def attach_framework_process_output(runner: Runner, event, argv: tuple[str, ...]
     )
     name = f"{Path(argv[0]).name}-{event.id}-output.txt" if event.id is not None else f"{Path(argv[0]).name}-output.txt"
     artifact = attach_generated_artifact(
-        runner.events,
+        cast(EventStore, runner.events),
         transcript.encode("utf-8"),
         name=name,
         content_type="text/plain; charset=utf-8",

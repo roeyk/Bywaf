@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.runtime_display import command_context_style_getter, render_table, terminal_table_width
@@ -34,7 +36,7 @@ def render_screenshots_inventory(context: CommandContext, events: list[Event], s
     )
     return f"Screenshots: {scope} ({len(rows)} hosts)\n{sort_note(sort, 'host')}\n{table}"
 
-def screenshot_sort_key(event: Event, key: str) -> object:
+def screenshot_sort_key(event: Event, key: str) -> Any:
     """Return a sortable screenshot event value."""
     payload = event.payload
     if key == "shots":

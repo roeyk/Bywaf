@@ -56,7 +56,7 @@ def render_services_inventory(context: CommandContext, events: list[Event], scop
     return f"Services: {scope} ({len(rows)} services)\n{sort_note(sort, 'host')}\n{table}"
 
 
-def service_inventory_sort_key(service: ServiceInventory, key: str) -> object:
+def service_inventory_sort_key(service: ServiceInventory, key: str) -> Any:
     """Return a sortable service inventory value."""
     if key == "port":
         return (service.port, host_sort_value(service.host), service.protocol)

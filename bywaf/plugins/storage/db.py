@@ -336,6 +336,7 @@ def format_bytes(size: int) -> str:
                 return f"{int(value)} B"
             return f"{value:.1f} {unit}"
         value /= 1024
+    return f"{value:.1f} {units[-1]}"
 
 
 def normalize_db_args(args: list[str]) -> list[str]:
