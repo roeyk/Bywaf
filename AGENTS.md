@@ -1,17 +1,18 @@
-# Bywaf Assistant Restart Gate
+# Bywaf Assistant Guide
 
-Before editing code, committing, pushing, or running a broad coding batch in
-this repository, read these files in order:
+This file is the repository-local startup guide for coding assistants. It
+should contain the durable project conventions needed to get up to speed
+without relying on private development notes, chat history, or machine-specific
+paths.
 
-1. the private discussion handoff `START_HERE.md`, if available
-2. the private actions log `ACTIONS.md`, if available
-3. the private conventions file `CONVENTIONS.md`, if available
-4. the private tracker guide `TRACKER.md`, if available
-5. the private tracker index `index.json`, if available
-6. the active tracker items and lessons-learned files listed in
-   `START_HERE.md`
+Private handoff, tracker, action-log, and lessons-learned files may exist
+outside this repository for the maintainer's own development workflow. Treat
+those files as optional supplemental context when the user explicitly provides
+or references them. Do not require them before working from this repository,
+and do not commit local absolute paths to them.
 
-Then inspect the repository state:
+Before editing code, committing, pushing, or running a broad coding batch,
+inspect the repository state:
 
 ```bash
 git status --short --branch
@@ -20,17 +21,33 @@ git log --oneline -5
 git log --oneline origin/main..HEAD
 ```
 
-The first working update must explicitly state that the mandatory handoff,
-actions, conventions, tracker guide, index, tracker, and lessons-learned files
-were read; summarize branch/status and latest local commit; note any
-uncommitted or unpushed work; name the applicable validation matrix row from
-`CONVENTIONS.md`; and list the local repository files inspected before editing.
+Then inspect the local files relevant to the task before editing. If there is
+uncommitted work, assume it is intentional and read the relevant diffs before
+touching those files.
 
-If you cannot honestly provide that read receipt, do not edit files yet.
+The first working update should summarize branch/status, the latest local
+commit, whether there is uncommitted or unpushed work, the applicable validation
+guidance below, and the repository files inspected or planned for inspection.
 
 Do not commit local machine paths, usernames, home directories, scratch
 directories, secrets, tokens, keys, cookies, or other environment-specific
 disclosure into this repository.
+
+## Project Model
+
+Bywaf is an event and evidence orchestration framework, not only a plugin
+runner. Plugins should use framework-mediated APIs for events, artifacts,
+process execution, secrets, rendering, runtime state, and control-plane
+actions.
+
+Normalized events are the shared data model. Raw external tool output should
+remain provenance-rich artifact evidence, while normalized events summarize
+facts that other commands and plugins can reuse.
+
+Plugin manifests are a review and trust contract. `plugin_check` validates
+conformance and provides author feedback; it is not a hostile-code sandbox.
+Sandboxing, signing, policy enforcement, encrypted storage, and dependency
+security are separate layers.
 
 ## Operating Conventions
 
