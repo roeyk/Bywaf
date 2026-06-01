@@ -55,6 +55,12 @@ class MvpPluginSuiteTests(unittest.TestCase):
         """Run the MVP pentest chain using local fake tool responses."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "web.fingerprint",
+                {"url": "https://stale.example.test/", "interesting": True},
+                "fixture",
+            )
+            nikto_targets: list[str] = []
 
             def fake_probe_url(opener, url, method, timeout, user_agent):
                 del opener, timeout, user_agent
@@ -98,6 +104,7 @@ class MvpPluginSuiteTests(unittest.TestCase):
 
             def fake_run_process(argv, *, cwd=None, env=None, timeout=None):
                 del cwd, env, timeout
+                nikto_targets.append(argv[argv.index("-host") + 1])
                 output_path = Path(argv[argv.index("-output") + 1])
                 output_path.write_text(
                     json.dumps(
@@ -179,6 +186,7 @@ class MvpPluginSuiteTests(unittest.TestCase):
             finding_titles = [event.payload["title"] for event in runner.db.events_for_topic("finding.new")]
             self.assertIn("Missing X-Frame-Options header", finding_titles)
             self.assertIn("Exposed Git repository configuration", finding_titles)
+            self.assertEqual(nikto_targets, ["http://192.0.2.20/"])
             exposure_events = runner.db.events_for_topic("repo.git_config.checked")
             self.assertEqual(exposure_events[0].payload["family"], "repo_exposure")
             self.assertEqual(exposure_events[0].payload["status"], "candidate")

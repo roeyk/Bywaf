@@ -187,7 +187,29 @@ class NiktoTests(unittest.TestCase):
 
             error = db.events_for_topic("tool.error")[0].payload
             self.assertEqual(error["message"], "nikto did not produce a JSON output file")
+            self.assertIn("artifact_id", error)
+            self.assertTrue(db.events_for_topic("artifact.attached"))
             self.assertEqual(db.events_for_topic("finding.candidate"), [])
+
+    def test_nonzero_exit_attaches_process_output_artifact(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="nikto",
+                metadata={"command_run_id": "run-1", "capabilities": Nikto().spec.capabilities},
+            )
+
+            def fake_run(argv, *, cwd=None, env=None, timeout=None):
+                return subprocess.CompletedProcess(argv, 2, stdout="partial stdout", stderr="fatal stderr")
+
+            with patch("bywaf.plugin.process.run_process_argv", side_effect=fake_run):
+                list(Nikto().run(context, ["https://example.test/"], []))
+
+            errors = [event.payload for event in db.events_for_topic("tool.error")]
+            exit_error = next(error for error in errors if "exited with status 2" in error["message"])
+            self.assertIn("artifact_id", exit_error)
+            self.assertTrue(db.events_for_topic("artifact.attached"))
 
 
 if __name__ == "__main__":

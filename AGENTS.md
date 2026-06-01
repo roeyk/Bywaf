@@ -11,6 +11,12 @@ those files as optional supplemental context when the user explicitly provides
 or references them. Do not require them before working from this repository,
 and do not commit local absolute paths to them.
 
+On startup or restart, do not begin code development, edit repository files,
+commit, push, or run a broad coding batch until the user explicitly clears you
+to proceed. You may inspect repository state and relevant files for context.
+After that inspection, state your next intended action and wait for the
+go-ahead.
+
 When a private action log is provided, use it as continuity for fresh
 zero-knowledge context starts and restarts: it should summarize recent concrete
 coding actions, major implementation decisions, commits, validation commands

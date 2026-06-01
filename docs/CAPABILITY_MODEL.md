@@ -152,11 +152,42 @@ C800-C899   plugin/package management
 C900-C999   reserved/experimental/local
 ```
 
+Initial assigned codes:
+
+| Code | Capability | Notes |
+| --- | --- | --- |
+| C101 | `db.read:<topic>` | Read normalized event/store topics. Topic-specific suffixes remain part of the semantic capability. |
+| C102 | `db.write:<topic>` | Write normalized event/store topics. Topic-specific suffixes remain part of the semantic capability. |
+| C201 | `db.raw` | Privileged direct or management database access. |
+| C202 | `artifact.read` | Read artifact bodies or metadata through framework services. |
+| C203 | `artifact.write` | Attach or write artifact evidence through framework services. |
+| C301 | `framework.process.run` | Blocking framework-mediated process execution. |
+| C302 | `framework.process.stream` | Streaming framework-mediated process execution. |
+| C311 | `filesystem.read` | Direct filesystem reads or framework-mediated file attachment reads. |
+| C312 | `filesystem.write` | Direct filesystem writes. |
+| C401 | `network.connect` | Outbound network connections or active probes. |
+| C402 | `network.listen` | Passive capture, listeners, or local network receive modes. |
+| C501 | `framework.secret.prompt` | Prompting for secret input. |
+| C502 | `framework.secret.resolve` | Resolving stored secret references. |
+| C601 | `framework.job.control` | Job, pipeline, step, or live-control operations. |
+| C602 | `finding.review` | Review-state changes such as accept, reject, or candidate ordering. |
+| C701 | `framework.console.output` | Normal console output. |
+| C702 | `framework.console.alert` | Operator-visible alerts. |
+| C703 | `framework.file.page` | Pager/file display output. |
+| C704 | `framework.render.table` | Framework table/render provider output. |
+| C801 | `plugin.progress` | Plugin progress events. |
+
+Do not assign a new code in this table only because a topic-specific
+capability exists. For example, `db.write:host.found` uses the semantic name
+`db.write:host.found` and belongs to the C102 family unless a later design
+needs per-topic codes.
+
 `audit list capabilities` inventories declared capability names against runtime
-`plugin.capability.used` and `plugin.capability.missing` evidence. Until exact
-per-capability `C###` codes are assigned, the command displays the accepted
-family range, the dotted name, declaring commandlets, last observed use, and all
-timestamps with timezone.
+`plugin.capability.used` and `plugin.capability.missing` evidence. The current
+runtime command displays the accepted family range, the dotted name, declaring
+commandlets, last observed use, and all timestamps with timezone. Displaying
+the exact assigned code in checker/audit output is a follow-up implementation
+step.
 
 ## Plugin Integration Types
 

@@ -145,6 +145,11 @@ def run_target(context: CommandContext, parsed: Any, target: dict[str, Any]) -> 
             publish_tool_problem(context, "system.error", target, "could not execute nikto", exc)
             return
 
+        process_artifact_payload = (
+            attach_process_output(context, Path(temp_dir), target, result)
+            if not result.ok or not output_path.exists()
+            else {}
+        )
         if not result.ok:
             context.events.publish(
                 "tool.error",
@@ -156,12 +161,14 @@ def run_target(context: CommandContext, parsed: Any, target: dict[str, Any]) -> 
                     "returncode": result.returncode,
                     "stdout": result.stdout,
                     "stderr": result.stderr,
+                    **process_artifact_payload,
                 },
             )
 
         artifact_payload = attach_raw_output(context, output_path, target) if output_path.exists() else {}
-        data = load_nikto_json(context, output_path, target, artifact_payload)
-        findings = normalize_findings(target, data, artifact_payload)
+        combined_artifact_payload = {**process_artifact_payload, **artifact_payload}
+        data = load_nikto_json(context, output_path, target, combined_artifact_payload)
+        findings = normalize_findings(target, data, combined_artifact_payload)
         for finding in findings:
             publish_finding(context, finding, silent=bool(parsed.silent))
 
@@ -286,6 +293,7 @@ def load_nikto_json(
                 "severity": "error",
                 "message": "nikto did not produce a JSON output file",
                 "target": target,
+                **(artifact_payload or {}),
             },
         )
         return {}
@@ -319,6 +327,53 @@ def attach_raw_output(context: CommandContext, output_path: Path, target: dict[s
                 "tool": "nikto",
                 "severity": "warning",
                 "message": "raw Nikto JSON was not attached as an artifact",
+                "target": target,
+                "error": str(exc),
+            },
+        )
+        return {}
+    return {
+        "artifact_id": artifact.artifact_id,
+        "artifact_name": artifact.name,
+        "artifact_sha256": artifact.sha256,
+    }
+
+
+def attach_process_output(context: CommandContext, temp_dir: Path, target: dict[str, Any], result: Any) -> dict[str, Any]:
+    """Attach stdout/stderr evidence when Nikto output is missing or failed."""
+    stdout = str(getattr(result, "stdout", "") or "")
+    stderr = str(getattr(result, "stderr", "") or "")
+    returncode = getattr(result, "returncode", None)
+    if not stdout and not stderr and returncode == 0:
+        return {}
+    evidence_path = temp_dir / "nikto-process-output.txt"
+    evidence_path.write_text(
+        "\n".join(
+            (
+                f"returncode: {returncode}",
+                "",
+                "stdout:",
+                stdout,
+                "",
+                "stderr:",
+                stderr,
+            )
+        ),
+        encoding="utf-8",
+    )
+    try:
+        artifact = context.artifacts.attach_file(
+            evidence_path,
+            name=f"nikto-{safe_name(str(target['url']))}-process-output.txt",
+            note=f"Nikto stdout/stderr for {target['url']}",
+        )
+    except (RuntimeError, ValueError) as exc:
+        context.events.publish(
+            "tool.error",
+            {
+                "tool": "nikto",
+                "severity": "warning",
+                "message": "Nikto stdout/stderr was not attached as an artifact",
                 "target": target,
                 "error": str(exc),
             },
