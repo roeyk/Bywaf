@@ -26,6 +26,18 @@ PACKET_FILES = (
     "docs/plugin_author/commandlet-api.md",
     "docs/plugin_author/event-schemas.md",
     "docs/plugin_author/testing-and-guidelines.md",
+    "docs/plugin_skeletons/README.md",
+    "docs/plugin_skeletons/native_minimal/plugin.py",
+    "docs/plugin_skeletons/native_minimal/bywaf.plugin.toml",
+    "docs/plugin_skeletons/native_vulnerability/plugin.py",
+    "docs/plugin_skeletons/native_vulnerability/command.py",
+    "docs/plugin_skeletons/native_vulnerability/detect.py",
+    "docs/plugin_skeletons/native_vulnerability/findings.py",
+    "docs/plugin_skeletons/native_vulnerability/models.py",
+    "docs/plugin_skeletons/native_vulnerability/bywaf.plugin.toml",
+    "docs/plugin_skeletons/native_vulnerability/tests/test_detect.py",
+    "docs/plugin_skeletons/library_backed/plugin.py",
+    "docs/plugin_skeletons/library_backed/bywaf.plugin.toml",
     "docs/MANIFEST_SPECIFICATION.md",
     "docs/EVENT_MODEL.md",
     "docs/CAPABILITY_MODEL.md",
@@ -63,16 +75,28 @@ Your task is to write a new Bywaf plugin from the provided documentation and
 source examples only. Do not ask how Bywaf works unless the provided docs and
 files are genuinely insufficient.
 
+Skeleton-first rule:
+Choose the closest skeleton under `repo-files/docs/plugin_skeletons/`, copy its
+layout, and fill in that structure. Do not invent a plugin layout from scratch.
+For this task, start from `native_minimal` if the plugin stays very small, or
+from `native_vulnerability` if you split detection, command orchestration,
+finding/event payloads, models, and tests. Preserve required files such as
+`plugin.py` and `bywaf.plugin.toml`, including required manifest fields, unless
+you can prove a change from the provided docs.
+
 Before writing any code, do a repository reconnaissance pass.
 
 Reconnaissance requirements:
 1. Read the plugin-author documentation.
-2. Read at least two existing plugins that are similar to the requested plugin.
-3. Read the manifest specification or existing plugin manifests.
-4. Read relevant tests for similar plugins.
-5. Identify the framework helper APIs you intend to use.
-6. Identify the event schemas/topics you intend to publish or consume.
-7. Explicitly list the files you read and the facts you learned from each.
+2. Read `docs/plugin_skeletons/README.md`.
+3. Choose one skeleton and explain why it is the closest fit.
+4. Read every file in the chosen skeleton.
+5. Read at least two existing plugins that are similar to the requested plugin.
+6. Read the manifest specification or existing plugin manifests.
+7. Read relevant tests for similar plugins.
+8. Identify the framework helper APIs you intend to use.
+9. Identify the event schemas/topics you intend to publish or consume.
+10. Explicitly list the files you read and the facts you learned from each.
 
 Critical rule: before writing code, every import path, manifest key, capability,
 event topic, helper API, and test helper you plan to use must be proven by
@@ -144,6 +168,9 @@ Required validation loop:
    - fixes made after each failure
 
 Important constraints:
+- Start from a provided skeleton. Keep its required manifest fields and plugin
+  factory shape unless a cited repository line proves a different shape is
+  required.
 - Do not use raw database access unless the docs explicitly say that is correct.
 - Do not invent framework APIs without checking existing code.
 - Do not infer the plugin API from general Python plugin patterns; use this
