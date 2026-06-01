@@ -51,6 +51,72 @@ class MvpPluginSuiteTests(unittest.TestCase):
             self.assertEqual(repair.payload["repair"], "prune-out-of-scope")
             self.assertEqual(repair.payload["after"], {"targets": ["192.0.2.20"]})
 
+    def test_mvp_downstream_replay_ignores_stale_http_endpoints(self):
+        """Keep replayed downstream checks scoped to the selected pipeline."""
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "http.endpoint",
+                {
+                    "url": "http://198.51.100.20/",
+                    "host": "198.51.100.20",
+                    "port": 80,
+                    "scheme": "http",
+                },
+                "fixture",
+                pipeline_id="old-pipeline",
+                command_run_id="old-step",
+            )
+            checked_urls: list[str] = []
+
+            def fake_probe_url(opener, url, method, timeout, user_agent):
+                del opener, method, timeout, user_agent
+                return {
+                    "ok": True,
+                    "status": 200,
+                    "reason": "OK",
+                    "final_url": url,
+                    "elapsed_ms": 2,
+                    "headers": {"Server": "nginx"},
+                    "server": "nginx",
+                    "content_type": "text/html",
+                    "title": "",
+                }
+
+            def fake_probe_git_config(opener, endpoint, *, timeout, user_agent):
+                del opener, timeout, user_agent
+                checked_url = f"{endpoint['url'].rstrip('/')}/.git/config"
+                checked_urls.append(checked_url)
+                return base_result(
+                    endpoint,
+                    checked_url,
+                    DetectionStatus.CANDIDATE,
+                    http_status=200,
+                    evidence="[core]\n\trepositoryformatversion = 0\n",
+                )
+
+            with (
+                patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["192.0.2.20"]),
+                patch(
+                    "bywaf.plugins.network.portscanner.scan_open_ports",
+                    return_value=[NmapPort("192.0.2.20", 80, "tcp", "open", "http", "syn-ack")],
+                ),
+                patch("bywaf.plugins.http.http_probe.probe_url", side_effect=fake_probe_url),
+                patch("bywaf.plugins.http.repo_exposure.command.probe_git_config", side_effect=fake_probe_git_config),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                endpoint_events = runner.execute("hostscanner 192.0.2.20 | portscanner port=80 | http_probe --method GET")
+                process_framework_requests(runner, ShellState())
+                pipeline_id = endpoint_events[0].pipeline_id
+                runner.execute(f"repo_exposure --from pipeline={pipeline_id} topic=http.endpoint")
+                process_framework_requests(runner, ShellState())
+
+            self.assertEqual(checked_urls, ["http://192.0.2.20/.git/config"])
+            exposure_events = runner.db.events_for_topic("repo.git_config.checked")
+            self.assertEqual(len(exposure_events), 1)
+            self.assertNotEqual(exposure_events[0].pipeline_id, "old-pipeline")
+            self.assertEqual(exposure_events[0].payload["url"], "http://192.0.2.20/")
+
     def test_discovery_to_report_mvp_chain_uses_fixtures(self):
         """Run the MVP pentest chain using local fake tool responses."""
         with tempfile.TemporaryDirectory() as tmp:
