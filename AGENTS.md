@@ -31,3 +31,100 @@ If you cannot honestly provide that read receipt, do not edit files yet.
 Do not commit local machine paths, usernames, home directories, scratch
 directories, secrets, tokens, keys, cookies, or other environment-specific
 disclosure into this repository.
+
+## Operating Conventions
+
+- Treat uncommitted work as intentional. Read relevant diffs and continue from
+  them. Do not revert or overwrite unrelated local edits.
+- Prefer small, testable batches. Complete each batch through implementation,
+  focused validation, metrics when relevant, and documentation/tracker updates
+  when behavior or conventions change.
+- Use existing package boundaries and helper APIs before adding abstractions.
+  Split only when the new module has a clear responsibility and reduces future
+  friction.
+- Keep cross-plugin communication through framework-normalized events,
+  artifacts, schemas, and stores. Do not add direct imports between plugins.
+- Use framework-mediated services for events, artifacts, processes, secrets,
+  rendering, runtime state, and control-plane actions.
+- Distinguish conformance checks, trust/signing, policy enforcement,
+  encryption-at-rest, and hostile-code sandboxing. A passing checker result is
+  not a sandbox.
+- Private handoff, tracker, and lessons-learned material may live outside this
+  repository. Do not commit local absolute paths to those files; refer to them
+  with generic names or repo-relative context only.
+
+## File Size And Architecture
+
+- Use architecture metrics as normal development feedback after larger changes,
+  refactors, plugin-surface work, and checker/policy/security-adjacent work:
+
+  ```bash
+  python3 scripts/architecture_metrics.py --top 12
+  ```
+
+- Ordinary cohesive source and test files should generally stay around the
+  400-600 LOC range when a clean split exists. This is a refactoring signal, not
+  a hard failure threshold.
+- Avoid dependency cycles. Do not introduce imports that turn narrow helpers
+  into package hubs or create circular dependencies.
+
+## CLI And Output Style
+
+- Use `name=value` for ordinary Bywaf commandlet options that carry values,
+  such as `timeout=5`, `host=192.0.2.10`, `sort=host`, and
+  `binary=traceroute`.
+- Use `--flag` for true boolean/toggle behavior and shell-standard control,
+  such as `--help`, `--json`, `--force`, and `--follow`.
+- CLI errors should be actionable. Include the expected command shape or point
+  to the relevant help command.
+- View and inventory commands should inspect state without mutating it.
+  Maintenance actions should be explicit.
+- Prefer established output shapes for command lines, headings, tables,
+  findings, runtime IDs, and inspect-next hints.
+- Use `inspect further with:` for follow-up commands instead of vague labels.
+
+## Plugin Authoring And Checker Work
+
+- Plugin manifests are a trust and review contract. `plugin_check` validates
+  conformance and gives author feedback; it does not safely execute hostile
+  plugin code.
+- Generated or submitted plugins are evaluation artifacts. Do not repair them
+  silently by hand. Improve docs, skeletons, packets, and checker feedback so
+  the generating LLM or author can correct the plugin.
+- For process-wrapped plugins, attach raw stdout/stderr/tool output as artifact
+  evidence when meaningful, even when normalized events are also emitted.
+- Raw external tool output should remain provenance-rich artifact evidence.
+  Normalized events should summarize reusable facts.
+- Artifact previews must be read-only. Binary previews should render as safe
+  non-executing representations such as hex.
+- Plugin variables should be exposed to plugin code as a simple config snapshot
+  for each invocation. Long-running control state should not depend on live
+  mutation of ordinary plugin vars.
+
+## Validation Guidance
+
+Start with focused checks for the surface touched, then broaden when the change
+affects shared behavior, security, packaging, or release flow.
+
+- Narrow Python behavior: `PYTHONPATH=. pytest -q <focused tests>`
+- Plugin checker, manifests, capabilities, skeletons:
+  `PYTHONPATH=. pytest -q tests/test_plugin_check.py` and relevant
+  `python3 scripts/plugin_check.py <plugin-dir-or-zip> --strict-inference`
+- Parser, completion, REPL, app dispatch:
+  `PYTHONPATH=. pytest -q tests/test_app_dispatch.py tests/test_registry_completion.py tests/test_completion_regression.py`
+- Events, storage, jobs, runtime state:
+  `PYTHONPATH=. pytest -q tests/test_events_db.py tests/test_store_protocols.py tests/test_storage_runner_plugins.py`
+- Findings and reports:
+  `PYTHONPATH=. pytest -q tests/test_report.py tests/test_finding_report.py tests/test_finding_grouping.py tests/test_finding_dedupe.py`
+- Shared architecture or large refactor: focused tests plus
+  `PYTHONPATH=. pytest -q tests/test_architecture_metrics.py` and
+  `python3 scripts/architecture_metrics.py --top 12`
+- Security, plugin loading, secrets, process wrappers, dependency changes:
+  focused tests plus `pyright`, `ruff check .`, relevant `plugin_check`, and
+  `pip-audit` when dependencies changed or before release-style work.
+- Release candidate or broad shared change: `PYTHONPATH=. pytest -q`,
+  `pyright`, `ruff check .`, `pip-audit`, architecture metrics, and release
+  package build/smoke checks as applicable.
+
+If a command cannot run because the environment lacks an optional tool or
+package, record that clearly. Do not treat an unrun check as passed.
