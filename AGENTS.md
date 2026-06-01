@@ -182,7 +182,7 @@ treat them as passed.
   `PYTHONPATH=. pytest -q tests/test_plugin_check.py` and relevant
   `python3 scripts/plugin_check.py <plugin-dir-or-zip> --strict-inference`
 - Parser, completion, REPL, app dispatch:
-  `PYTHONPATH=. pytest -q tests/test_app_dispatch.py tests/test_registry_completion.py tests/test_completion_regression.py`
+  `PYTHONPATH=. pytest -q tests/app_dispatch tests/test_registry_completion.py tests/test_completion_regression.py`
 - Events, storage, jobs, runtime state:
   `PYTHONPATH=. pytest -q tests/test_events_db.py tests/test_store_protocols.py tests/test_storage_runner_plugins.py`
 - Findings and reports:

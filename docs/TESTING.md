@@ -103,7 +103,7 @@ python scripts/plugin_check.py docs/plugin_skeletons/native_vulnerability
 Use these suites as starting points for common framework changes:
 
 - App dispatch, command parsing, and REPL flows:
-  `tests/test_app_dispatch.py`, `tests/test_user_flows.py`.
+  `tests/app_dispatch/`, `tests/test_user_flows.py`.
 - Completion:
   `tests/test_registry_completion.py`, `tests/test_completion_regression.py`,
   `tests/test_interactive_completion_smoke.py`.

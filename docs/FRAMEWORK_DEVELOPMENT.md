@@ -220,7 +220,7 @@ Useful focused checks:
 
 ```bash
 PYTHONPATH=. pytest -q tests/test_registry_completion.py tests/test_completion_regression.py
-PYTHONPATH=. pytest -q tests/test_app_dispatch.py tests/test_resources_history_config.py
+PYTHONPATH=. pytest -q tests/app_dispatch tests/test_resources_history_config.py
 PYTHONPATH=. pytest -q tests/test_plugin_check.py tests/test_repo_exposure.py
 PYTHONPATH=. pytest -q tests/test_report.py tests/test_finding_grouping.py
 ```
