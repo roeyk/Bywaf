@@ -25,6 +25,32 @@ from bywaf.plugins.http.repo_exposure import DetectionStatus, base_result
 
 
 class MvpPluginSuiteTests(unittest.TestCase):
+    def test_mvp_chain_prunes_out_of_scope_hosts_before_downstream_scan(self):
+        """Keep the demo pentest chain inside the configured network scope."""
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.registry.varstore.set("global.policy.network.allow", "192.0.2.0/24")
+
+            with (
+                patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["192.0.2.20"]) as discover,
+                patch(
+                    "bywaf.plugins.network.portscanner.scan_open_ports",
+                    return_value=[NmapPort("192.0.2.20", 80, "tcp", "open", "http", "syn-ack")],
+                ) as scan_ports,
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                runner.execute("hostscanner 192.0.2.20 198.51.100.20 --yes | portscanner port=80")
+                process_framework_requests(runner, ShellState())
+
+            discover.assert_called_once_with("192.0.2.20", "-sn")
+            scan_ports.assert_called_once()
+            self.assertEqual(scan_ports.call_args.args[0], ["192.0.2.20"])
+            hosts = [event.payload["host"] for event in runner.db.events_for_topic("host.found")]
+            self.assertEqual(hosts, ["192.0.2.20"])
+            repair = runner.db.events_for_topic("plan.repair.applied")[0]
+            self.assertEqual(repair.payload["repair"], "prune-out-of-scope")
+            self.assertEqual(repair.payload["after"], {"targets": ["192.0.2.20"]})
+
     def test_discovery_to_report_mvp_chain_uses_fixtures(self):
         """Run the MVP pentest chain using local fake tool responses."""
         with tempfile.TemporaryDirectory() as tmp:
