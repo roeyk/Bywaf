@@ -118,7 +118,7 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "missing")
-            self.assertIn("error: unknown command or commandlet: missing", output.getvalue())
+            self.assertIn("error: unknown command or commandlet", output.getvalue())
 
     def test_dispatch_help_alias(self):
         with tempfile.TemporaryDirectory() as tmp:

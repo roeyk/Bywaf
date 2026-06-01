@@ -34,7 +34,7 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "list")
-            self.assertIn("error: unknown command or commandlet: list", output.getvalue())
+            self.assertIn("error: unknown command or commandlet", output.getvalue())
 
     def test_dispatch_topics_accepts_prefix_on_empty_db(self):
         with tempfile.TemporaryDirectory() as tmp:

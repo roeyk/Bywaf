@@ -170,6 +170,43 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertEqual(cert["host"], "example.test")
             self.assertEqual(cert["subject"], "commonName=example.test")
 
+    def test_tls_probe_requires_tls_1_2_or_newer(self):
+        import importlib
+
+        tls_probe_module = importlib.import_module("bywaf.plugins.http.tls_probe")
+
+        class FakeSocket:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def getpeercert(self):
+                return {}
+
+            def cipher(self):
+                return None
+
+            def version(self):
+                return "TLSv1.2"
+
+        class FakeContext:
+            minimum_version = None
+
+            def wrap_socket(self, raw, *, server_hostname):
+                del raw, server_hostname
+                return FakeSocket()
+
+        fake_context = FakeContext()
+        with (
+            patch("bywaf.plugins.http.tls_probe.ssl.create_default_context", return_value=fake_context),
+            patch("bywaf.plugins.http.tls_probe.socket.create_connection", return_value=FakeSocket()),
+        ):
+            tls_probe_module.fetch_certificate("example.test", 443, 5)
+
+        self.assertEqual(fake_context.minimum_version, tls_probe_module.ssl.TLSVersion.TLSv1_2)
+
     def test_http_paths_publishes_path_and_finding_candidate(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))

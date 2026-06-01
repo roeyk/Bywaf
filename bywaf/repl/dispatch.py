@@ -49,7 +49,7 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
         if runner.registry.has_commandlet(name):
             execute_repl_commandlet(runner, state, line)
             return None
-        print(f"error: unknown command or commandlet: {name}")
+        print("error: unknown command or commandlet")
     except SystemExit as exc:
         if exc.code not in (0, None):
             print(f"error: command failed with exit code {exc.code}")

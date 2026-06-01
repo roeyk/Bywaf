@@ -16,7 +16,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import sys
 import time
 import urllib.error
 import urllib.request
@@ -30,6 +29,19 @@ DEFAULT_PACKET = Path("../bywaf-llm-plugin-eval-packet")
 DEFAULT_OUTPUT = Path("../bywaf-llm-plugin-eval-runs")
 
 PROVIDERS = ("openai", "gemini", "xai")
+REDACTED_VALUE = "[REDACTED]"
+SENSITIVE_KEY_FRAGMENTS = (
+    "api_key",
+    "apikey",
+    "authorization",
+    "bearer",
+    "client_secret",
+    "cookie",
+    "password",
+    "secret",
+    "session",
+    "token",
+)
 
 
 @dataclass(frozen=True)
@@ -186,7 +198,23 @@ def run_provider(config: ProviderConfig, prompt: str) -> dict[str, Any]:
 
 
 def write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    """Write JSON after redacting sensitive-looking fields."""
+    path.write_text(json.dumps(sanitize_json(payload), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def sanitize_json(value: Any) -> Any:
+    """Return a copy with sensitive-looking JSON fields redacted."""
+    if isinstance(value, dict):
+        return {str(key): REDACTED_VALUE if sensitive_json_key(str(key)) else sanitize_json(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [sanitize_json(item) for item in value]
+    return value
+
+
+def sensitive_json_key(key: str) -> bool:
+    """Return whether a JSON key should not be persisted in clear text."""
+    normalized = key.replace("-", "_").casefold()
+    return any(fragment in normalized for fragment in SENSITIVE_KEY_FRAGMENTS)
 
 
 def main() -> int:

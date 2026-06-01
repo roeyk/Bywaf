@@ -209,6 +209,14 @@ class ResourcesHistoryConfigTests(unittest.TestCase):
             self.assertIn("set password=[REDACTED]", text)
             self.assertNotIn("supersecret", text)
 
+    def test_record_command_history_redacts_common_secret_names_by_default(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp, ".bywaf", "history.bywaf")
+            record_command_history("set password=supersecret", path)
+            text = path.read_text()
+            self.assertIn("set password=[REDACTED]", text)
+            self.assertNotIn("supersecret", text)
+
     def test_format_history_entry_for_display_puts_timestamp_first(self):
         self.assertEqual(
             format_history_entry_for_display("plugins  # 2026-05-17 10:00:00 EDT"),

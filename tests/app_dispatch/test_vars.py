@@ -115,7 +115,8 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "vars password=supersecret", ShellState())
-            self.assertIn("error: unknown command or commandlet: vars", output.getvalue())
+            self.assertIn("error: unknown command or commandlet", output.getvalue())
+            self.assertNotIn("password=supersecret", output.getvalue())
             self.assertIsNone(runner.registry.varstore.get("password"))
 
     def test_vars_explicit_secret_assignment_is_redacted(self):

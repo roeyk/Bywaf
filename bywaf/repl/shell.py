@@ -34,8 +34,28 @@ from ..plugins.network.nmap_backend import NmapScanError, NmapUnavailableError
 from ..runner import Runner
 from ..secret.store import load_or_create_fingerprint_key, redact_command_text
 from .resource_specs import DEFAULT_HISTORY
-from .state import DEFAULT_HISTORY_TIMESTAMP_FORMAT, HISTORY_TIMESTAMP_FORMAT_VAR, ShellState, new_shell_state, render_prompt
+from .state import DEFAULT_HISTORY_TIMESTAMP_FORMAT, HISTORY_TIMESTAMP_FORMAT_VAR, ShellState, new_shell_state
 from ..triggers import disable_session_triggers, start_default_services, stop_session_services
+
+HISTORY_SECRET_NAMES = frozenset(
+    {
+        "api-key",
+        "api_key",
+        "apikey",
+        "auth",
+        "authorization",
+        "bearer",
+        "client-secret",
+        "client_secret",
+        "cookie",
+        "key",
+        "pass",
+        "password",
+        "secret",
+        "session",
+        "token",
+    }
+)
 
 
 def shutdown_runner(runner: Runner) -> None:
@@ -295,7 +315,8 @@ def record_command_history(
     # Store the timestamp as an inline comment so history files remain readable
     # as executable scripts after stripping comments.
     timestamp = datetime.now().astimezone().strftime(timestamp_format).strip()
-    entry = f"{stored_command or command}  # {timestamp}"
+    safe_command = stored_command if stored_command is not None else redact_history_command(command)
+    entry = f"{safe_command}  # {timestamp}"
     with path.open("a", encoding="utf-8") as handle:
         handle.write(f"{entry}\n")
     if session_history is not None:
@@ -307,5 +328,5 @@ def redact_history_command(command: str) -> str:
     """Return a history-safe command with obvious secret assignments removed."""
     if "=" not in command:
         return command
-    result = redact_command_text(command, key=load_or_create_fingerprint_key())
+    result = redact_command_text(command, key=load_or_create_fingerprint_key(), secret_names=HISTORY_SECRET_NAMES)
     return result.command

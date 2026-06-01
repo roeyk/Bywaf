@@ -6,7 +6,7 @@ import socket
 import ssl
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import cast
+from typing import Any, cast
 
 from bywaf.event.schema_objects import HttpEndpoint, OpenPort, TlsCertificate
 from bywaf.event import Event
@@ -81,12 +81,13 @@ def target_from_text(target: str, default_port: int) -> TlsTarget:
     return TlsTarget(target.strip("[]"), default_port)
 
 
-def fetch_certificate(host: str, port: int, timeout: float) -> dict[str, object]:
+def fetch_certificate(host: str, port: int, timeout: float) -> dict[str, Any]:
     """Return normalized TLS certificate metadata."""
     context = ssl.create_default_context()
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
     with socket.create_connection((host, port), timeout=timeout) as raw:
         with context.wrap_socket(raw, server_hostname=host) as sock:
-            cert = sock.getpeercert()
+            cert = sock.getpeercert() or {}
             cipher = sock.cipher()
             return {
                 "subject": name_values(cert.get("subject", ())),
