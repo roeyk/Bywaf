@@ -6,7 +6,7 @@ this repository, read these files in order:
 1. `/home/roey/Downloads/codex/bywaf-discussions/START_HERE.md`
 2. `/home/roey/Downloads/codex/bywaf-discussions/ACTIONS.md`
 3. `/home/roey/Downloads/codex/bywaf-discussions/CONVENTIONS.md`
-4. `/home/roey/Downloads/codex/bywaf-discussions/README.md`
+4. `/home/roey/Downloads/codex/bywaf-discussions/TRACKER.md`
 5. `/home/roey/Downloads/codex/bywaf-discussions/index.json`
 6. the active tracker items and lessons-learned files listed in
    `START_HERE.md`
@@ -21,7 +21,7 @@ git log --oneline origin/main..HEAD
 ```
 
 The first working update must explicitly state that the mandatory handoff,
-actions, conventions, tracker README, index, tracker, and lessons-learned files
+actions, conventions, tracker guide, index, tracker, and lessons-learned files
 were read; summarize branch/status and latest local commit; note any
 uncommitted or unpushed work; name the applicable validation matrix row from
 `CONVENTIONS.md`; and list the local repository files inspected before editing.
