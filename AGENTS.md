@@ -33,6 +33,37 @@ Do not commit local machine paths, usernames, home directories, scratch
 directories, secrets, tokens, keys, cookies, or other environment-specific
 disclosure into this repository.
 
+## Repository Orientation
+
+Read the smallest set of repo-local files that explains the task before
+editing. Good starting points are:
+
+- General project context: `README.md`, `USAGE.md`, `docs/README.md`,
+  `docs/GOALS.md`, and `docs/DESIGN.md`.
+- Framework architecture: `docs/FRAMEWORK_SURFACE.md`,
+  `docs/EVENT_MODEL.md`, `docs/CAPABILITY_MODEL.md`,
+  `docs/RUNTIME_MODEL.md`, `docs/PERSISTENCE_MODEL.md`, and
+  `docs/TERMINOLOGY.md`.
+- Plugin authoring and checking: `docs/PLUGIN_AUTHOR_GUIDE.md`,
+  `docs/MANIFEST_SPECIFICATION.md`, `docs/plugin_author/README.md`,
+  `docs/plugin_author/fundamentals.md`,
+  `docs/plugin_author/commandlet-api.md`,
+  `docs/plugin_author/event-schemas.md`, and
+  `docs/plugin_author/packaging-and-checking.md`.
+- Findings, reports, artifacts, and evidence: `docs/FINDING_MODEL.md`,
+  `docs/REPORTING.md`, `docs/SAVE_EXPORT_MODEL.md`, and relevant bundle or
+  artifact tests.
+- Architecture and testing practice: `docs/ARCHITECTURE_METRICS.md`,
+  `docs/TESTING.md`, `pyproject.toml`, and the focused tests matching the
+  touched surface.
+- User-facing behavior: `docs/OPERATOR_QUICKSTART.md`, `USAGE.md`, relevant
+  command modules under `bywaf/plugins/`, and user-flow scripts under
+  `tests/user_flows/`.
+
+For implementation work, inspect the relevant code and tests together before
+editing. Prefer `rg`/`rg --files` to locate command handlers, plugin manifests,
+schema objects, completion providers, and existing tests for the same behavior.
+
 ## Project Model
 
 Bywaf is an event and evidence orchestration framework, not only a plugin
@@ -123,6 +154,11 @@ security are separate layers.
 Start with focused checks for the surface touched, then broaden when the change
 affects shared behavior, security, packaging, or release flow.
 
+Run these checks when the relevant tools are available on the target system. If
+`pytest`, `pyright`, `ruff`, `pip-audit`, package builders, or external service
+tools are unavailable, say exactly which checks could not be run and do not
+treat them as passed.
+
 - Narrow Python behavior: `PYTHONPATH=. pytest -q <focused tests>`
 - Plugin checker, manifests, capabilities, skeletons:
   `PYTHONPATH=. pytest -q tests/test_plugin_check.py` and relevant
@@ -143,5 +179,7 @@ affects shared behavior, security, packaging, or release flow.
   `pyright`, `ruff check .`, `pip-audit`, architecture metrics, and release
   package build/smoke checks as applicable.
 
-If a command cannot run because the environment lacks an optional tool or
-package, record that clearly. Do not treat an unrun check as passed.
+For docs-only changes, inspect the changed docs for broken references and
+audience fit. For larger docs changes, run
+`python3 scripts/architecture_metrics.py --doc-impact <changed-doc>` when that
+script is available and relevant.
