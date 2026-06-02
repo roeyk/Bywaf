@@ -17,6 +17,19 @@ from bywaf.plugins.target_policy import filter_targets_by_host
 DEFAULT_PATHS = "/robots.txt,/.git/config,/server-status,/admin/,/login,/wp-login.php,/.env,/actuator/env"
 ADMIN_PATHS = frozenset({"/admin/", "/admin", "/login", "/wp-login.php"})
 ADMIN_KEYWORDS = ("admin", "administrator", "login", "sign in", "wp-login")
+BACKUP_ARCHIVE_SUFFIXES = (".zip", ".tar", ".tar.gz", ".tgz", ".7z", ".rar")
+DATABASE_DUMP_SUFFIXES = (".sql", ".sql.gz", ".dump")
+ARCHIVE_CONTENT_TYPES = (
+    "application/gzip",
+    "application/octet-stream",
+    "application/x-7z-compressed",
+    "application/x-gzip",
+    "application/x-rar-compressed",
+    "application/x-tar",
+    "application/x-zip-compressed",
+    "application/zip",
+)
+SQL_DUMP_MARKERS = ("create table", "insert into", "dump completed", "mysqldump", "postgresql database dump")
 
 
 @commandlet
@@ -149,9 +162,11 @@ def is_interesting_path(path: str, result: dict[str, object]) -> bool:
     lowered = path.casefold()
     sample = str(result.get("sample") or "").casefold()
     title = str(result.get("title") or "").casefold()
+    content_type = str(result.get("content_type") or "").casefold()
     return (
         lowered in {"/.git/config", "/server-status", "/.env", "/actuator/env"}
         or (lowered in ADMIN_PATHS and looks_like_admin_surface(title, sample))
+        or looks_like_exposed_backup_artifact(lowered, content_type, sample)
         or "repositoryformatversion" in sample
         or "spring.cloud" in sample
         or "database_url" in sample
@@ -164,10 +179,28 @@ def looks_like_admin_surface(title: str, sample: str) -> bool:
     return any(keyword in evidence for keyword in ADMIN_KEYWORDS)
 
 
+def looks_like_exposed_backup_artifact(path: str, content_type: str, sample: str) -> bool:
+    """Return whether response metadata looks like a downloadable backup artifact."""
+    return (
+        is_backup_archive_path(path) and any(content_type.startswith(item) for item in ARCHIVE_CONTENT_TYPES)
+    ) or (is_database_dump_path(path) and any(marker in sample for marker in SQL_DUMP_MARKERS))
+
+
+def is_backup_archive_path(path: str) -> bool:
+    """Return whether the path name looks like a backup/archive artifact."""
+    return path.endswith(BACKUP_ARCHIVE_SUFFIXES)
+
+
+def is_database_dump_path(path: str) -> bool:
+    """Return whether the path name looks like a database dump artifact."""
+    return path.endswith(DATABASE_DUMP_SUFFIXES)
+
+
 def finding_for_path(observed: HttpPathObserved) -> dict[str, object] | None:
     """Promote clearly risky HTTP path observations to finding candidates."""
     if not observed.interesting:
         return None
+    path = observed.path.casefold()
     if observed.path == "/.git/config":
         title = "Exposed Git repository configuration"
         finding_class = "web.repo.git_config_exposed"
@@ -184,10 +217,18 @@ def finding_for_path(observed: HttpPathObserved) -> dict[str, object] | None:
         title = "Exposed Spring Boot environment endpoint"
         finding_class = "web.spring.actuator_env_exposed"
         severity = "high"
-    elif observed.path.casefold() in ADMIN_PATHS:
+    elif path in ADMIN_PATHS:
         title = "Exposed administrative login surface"
         finding_class = "web.admin_interface.exposed"
         severity = "low"
+    elif is_database_dump_path(path):
+        title = "Exposed database dump artifact"
+        finding_class = "web.backup.database_dump_exposed"
+        severity = "high"
+    elif is_backup_archive_path(path):
+        title = "Exposed backup or source archive"
+        finding_class = "web.backup.archive_exposed"
+        severity = "medium"
     else:
         title = f"Interesting HTTP path exposed: {observed.path}"
         finding_class = "web.path.interesting"

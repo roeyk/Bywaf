@@ -42,6 +42,9 @@ impact label and sorted from highest to lowest operator/developer impact:
 - [medium] Promoted `http_paths` admin/login responses into low-severity
   finding candidates when response evidence looks like an administrative
   surface, while keeping the check passive and fixture-backed.
+- [medium] Added fixture-backed `http_paths` promotion for explicit backup
+  archive and database dump paths when response metadata strongly indicates an
+  exposed artifact.
 - [medium] Added explicit screenshotter wrapper fixture coverage for missing
   binary, nonzero exit, timeout, empty selection, and successful screenshot
   evidence paths.

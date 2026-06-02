@@ -3,12 +3,28 @@
 
 from tests.storage_runner.support import *  # noqa: F403,F405
 
+
+class ImmediateProcess:
+    pid = 123
+
+    def __init__(self, *, target, args, daemon):
+        self.target = target
+        self.args = args
+        self.daemon = daemon
+
+    def start(self):
+        self.target(*self.args)
+
+
 class StorageRunnerBackgroundWatchdogTests(unittest.TestCase):
     def test_background_command_records_job_and_event(self):
         with tempfile.TemporaryDirectory() as tmp:
             db_path = Path(tmp, "db.sqlite3")
             runner = make_runner(db_path)
-            with patch("bywaf.plugins.network.nmap_backend.load_backend", return_value=("fake", FakeNmapModule())):
+            with (
+                patch("bywaf.runner.core.mp.Process", ImmediateProcess),
+                patch("bywaf.plugins.network.nmap_backend.load_backend", return_value=("fake", FakeNmapModule())),
+            ):
                 with contextlib.redirect_stdout(io.StringIO()):
                     events = runner.execute("hostscanner 127.0.0.1 &")
             self.assertEqual(events[0].topic, "job.requested")

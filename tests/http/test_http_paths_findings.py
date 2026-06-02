@@ -66,6 +66,83 @@ class HttpPathFindingTests(unittest.TestCase):
             self.assertFalse(path["interesting"])
             self.assertEqual(db.events_for_topic("finding.candidate"), [])
 
+    def test_backup_archive_path_with_archive_content_type_becomes_candidate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="http_paths",
+                metadata={"capabilities": http_paths.spec.capabilities},
+            )
+            with patch(
+                "bywaf.plugins.http.http_paths.probe_path",
+                return_value={
+                    "status": 200,
+                    "content_type": "application/zip",
+                    "length": 2048,
+                    "sample": "PK",
+                },
+            ):
+                list(http_paths.run(context, ["paths=/backup.zip", "https://example.test"], []))
+
+            path = db.events_for_topic("http.path")[0].payload
+            finding = db.events_for_topic("finding.candidate")[0].payload
+
+            self.assertTrue(path["interesting"])
+            self.assertEqual(finding["class"], "web.backup.archive_exposed")
+            self.assertEqual(finding["severity"], "medium")
+
+    def test_database_dump_path_with_sql_markers_becomes_candidate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="http_paths",
+                metadata={"capabilities": http_paths.spec.capabilities},
+            )
+            with patch(
+                "bywaf.plugins.http.http_paths.probe_path",
+                return_value={
+                    "status": 200,
+                    "content_type": "text/plain",
+                    "length": 120,
+                    "sample": "-- MySQL dump\nCREATE TABLE users (id int);\nINSERT INTO users VALUES (1);",
+                },
+            ):
+                list(http_paths.run(context, ["paths=/database.sql", "https://example.test"], []))
+
+            path = db.events_for_topic("http.path")[0].payload
+            finding = db.events_for_topic("finding.candidate")[0].payload
+
+            self.assertTrue(path["interesting"])
+            self.assertEqual(finding["class"], "web.backup.database_dump_exposed")
+            self.assertEqual(finding["severity"], "high")
+
+    def test_backup_named_html_page_is_not_a_finding_without_artifact_evidence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="http_paths",
+                metadata={"capabilities": http_paths.spec.capabilities},
+            )
+            with patch(
+                "bywaf.plugins.http.http_paths.probe_path",
+                return_value={
+                    "status": 200,
+                    "content_type": "text/html",
+                    "length": 120,
+                    "title": "Backup instructions",
+                    "sample": "<p>Backup policy and restore instructions</p>",
+                },
+            ):
+                list(http_paths.run(context, ["paths=/backup.zip", "https://example.test"], []))
+
+            path = db.events_for_topic("http.path")[0].payload
+
+            self.assertFalse(path["interesting"])
+            self.assertEqual(db.events_for_topic("finding.candidate"), [])
+
 
 if __name__ == "__main__":
     unittest.main()
