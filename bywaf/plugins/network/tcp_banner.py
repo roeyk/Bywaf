@@ -30,13 +30,14 @@ from bywaf.plugin import (
     RunConfig,
     commandlet,
 )
+from bywaf.plugins.target_policy import filter_targets_by_host
 
 
 @commandlet
 def tcp_banner(context: CommandContext, cfg: RunConfig, input_events: Iterable[Event]):
     """Grab banners for explicit targets or upstream `port.open` events."""
     cfg = cast(TcpBannerConfig, cfg)
-    for target in banner_targets(cfg.targets, cfg.port, input_events):
+    for target in filter_targets_by_host(context, banner_targets(cfg.targets, cfg.port, input_events), lambda target: target.host):
         context.raise_if_cancelled()
         context.audit_capability("network.connect")
         result = grab_tcp_banner(target.host, target.port, cfg.timeout, cfg.read_bytes, cfg.mode)

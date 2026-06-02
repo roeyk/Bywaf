@@ -26,7 +26,12 @@ from bywaf.config import Settings
 from bywaf.event.schema_objects import ScreenshottedHost
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
-from bywaf.plugins.http.nikto import dedupe_targets, target_from_endpoint_event, target_payload_from_text
+from bywaf.plugins.http.nikto import (
+    dedupe_targets,
+    filter_http_payloads_by_policy,
+    target_from_endpoint_event,
+    target_payload_from_text,
+)
 
 DEFAULTS = {
     "binary": "eyewitness",
@@ -70,7 +75,10 @@ class EyeWitness(CommandletBase):
         parser.add_argument("--timeout", type=float, default=self.var_default(context, "timeout", 600, cast=float))
         parsed = parser.parse_args(args)
 
-        targets = eyewitness_targets(parsed.targets, input_events, parsed.source)
+        targets = filter_http_payloads_by_policy(
+            context,
+            eyewitness_targets(parsed.targets, input_events, parsed.source),
+        )
         if not targets:
             context.events.publish(
                 "tool.error",

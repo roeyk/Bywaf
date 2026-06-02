@@ -20,7 +20,6 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from bywaf.event import Event
-from bywaf.policy import apply_network_policy, network_policy, publish_network_policy_evaluated, resolve_target
 from bywaf.plugins.addressing import filter_addresses_for_ip_family, is_ip_scan_target, target_matches_ip_family
 from bywaf.plugins.discovery.hostscanner import publish_name_resolution_events
 from bywaf.plugins.network.nmap_backend import scan_open_ports
@@ -143,7 +142,7 @@ def resolve_explicit_hosts(context: CommandContext, hosts: Iterable[str], argume
             else:
                 context.alert(f"scan target {host} does not match nmap address-family arguments")
             continue
-        addresses = filter_addresses_for_ip_family(resolve_target(host), arguments)
+        addresses = filter_addresses_for_ip_family(context.policy.resolve_target(host), arguments)
         if not addresses:
             context.alert(f"no resolved addresses for {host} match nmap address-family arguments")
             continue
@@ -220,16 +219,7 @@ def scan_hosts(
 
 def filter_hosts_by_network_policy(context: CommandContext, hosts: Iterable[str]) -> list[str]:
     """Apply framework network policy before invoking the port scanner."""
-    before = list(dict.fromkeys(hosts))
-    if not before:
-        return []
-    allowed, denied, _mode = network_policy(context)
-    after, warnings = apply_network_policy(before, allowed, denied)
-    if warnings:
-        for warning in warnings:
-            context.alert(warning)
-        publish_network_policy_evaluated(context, decision="warn", warnings=warnings, before=before, after=after)
-    return list(after)
+    return list(context.policy.filter_network_targets(hosts))
 
 
 def listen_for_upstream_hosts(context: CommandContext, parsed, seen_hosts: set[str]):

@@ -23,6 +23,7 @@ from bywaf.event.schema_objects import HostFound, NetworkRouteHop
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, RunConfig, commandlet
 from bywaf.plugin.process import ProcessResult
+from bywaf.plugins.target_policy import filter_targets_by_host
 from bywaf.runtime_display import command_context_style_getter, render_table, terminal_table_width
 
 HOP_RE = re.compile(r"^\s*(?P<hop>\d+)(?:\?:|:)?\s+(?P<body>.+?)\s*$")
@@ -35,7 +36,7 @@ IP_RE = re.compile(r"^(?:\d{1,3}\.){3}\d{1,3}$|^[0-9a-fA-F:]+$")
 def traceroute(context: CommandContext, cfg: RunConfig, input_events: Iterable[Event]):
     """Trace routes for explicit targets or upstream `host.found` events."""
     cfg = cast(TracerouteConfig, cfg)
-    targets = trace_targets(cfg.targets, input_events)
+    targets = filter_targets_by_host(context, trace_targets(cfg.targets, input_events), lambda target: target)
     if not targets:
         raise ValueError("traceroute requires targets or host.found input")
     for target in targets:

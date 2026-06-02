@@ -29,6 +29,7 @@ from bywaf.event import Event
 from bywaf.event.schema_objects import HttpEndpoint, OpenPort
 from bywaf.plugins.http.cookies import load_cookie_jar
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
+from bywaf.plugins.target_policy import filter_targets_by_host
 
 DEFAULTS = {
     "cookie-file": "",
@@ -94,7 +95,12 @@ class HttpProbe(CommandletBase):
         # consistently across all explicit and pipeline-derived targets.
         opener = build_opener(parsed.cookie_file, parsed.firefox_profile, parsed.follow_redirects == "true")
         targets = self.values_or_var(context, parsed.targets, "targets")
-        for target in probe_targets(targets, input_events, parsed.scheme, parsed.path):
+        selected_targets = filter_targets_by_host(
+            context,
+            probe_targets(targets, input_events, parsed.scheme, parsed.path),
+            lambda target: target.host,
+        )
+        for target in selected_targets:
             context.audit_capability("network.connect")
             result = probe_url(opener, target.url, parsed.method, parsed.timeout, parsed.user_agent)
             endpoint = HttpEndpoint(

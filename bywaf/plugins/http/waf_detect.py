@@ -11,13 +11,14 @@ from typing import cast
 from bywaf.event.schema_objects import HttpEndpoint, WebWafDetected
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, RunConfig, commandlet
+from bywaf.plugins.target_policy import filter_targets_by_host
 
 
 @commandlet
 def waf_detect(context: CommandContext, cfg: RunConfig, input_events: Iterable[Event]):
     """Detect common WAF/CDN fingerprints from HTTP headers."""
     cfg = cast(WafDetectConfig, cfg)
-    for url in waf_targets(cfg.targets, input_events):
+    for url in filter_targets_by_host(context, waf_targets(cfg.targets, input_events), host_from_url):
         context.raise_if_cancelled()
         context.audit_capability("network.connect")
         result = fetch_headers(url, cfg.timeout, cfg.user_agent)
@@ -47,6 +48,11 @@ def waf_targets(targets: list[str], input_events: Iterable[Event]) -> list[str]:
         for event in input_events
         if event.topic == HttpEndpoint.__topic__
     ]
+
+
+def host_from_url(url: str) -> str:
+    """Return the network host portion of a URL."""
+    return urllib.parse.urlparse(url).hostname or ""
 
 
 def fetch_headers(url: str, timeout: float, user_agent: str) -> dict[str, object]:

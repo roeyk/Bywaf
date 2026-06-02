@@ -16,6 +16,7 @@ Reference for commandlet specs, parsing, output, event flow, completion, runtime
 - [Runtime Context](#runtime-context)
   - [Trigger Providers](#trigger-providers)
   - [Process Execution](#process-execution)
+  - [Network Policy](#network-policy)
   - [Catalog Variable Keys](#catalog-variable-keys)
   - [Secrets](#secrets)
 - [Framework Requests and Audit Events](#framework-requests-and-audit-events)
@@ -517,6 +518,7 @@ At execution time, commandlets receive a `CommandContext`:
 - `context.process.stream(argv)`: stream stdout/stderr chunks incrementally
 - `context.artifacts.attach_file(path, name=..., note=...)`: attach one evidence file
 - `context.artifacts.attach_files(paths)`: attach several evidence files
+- `context.policy`: resolve and filter network targets through framework policy
 - `context.pipeline.stop(reason=...)`: intentionally stop downstream pipeline stages
 - `context.signals.pending(action=...)`: read live-control signals for this step
 - `context.signals.applied(request, message, **details)`: acknowledge a signal
@@ -666,6 +668,19 @@ records `artifact.read` and `artifact.write` without exposing raw database
 maintenance operations. Raw `context.db` remains available for
 privileged/internal framework commandlets during the transition; accessing it
 records `db.raw`, and third-party plugins should avoid it.
+
+### Network Policy
+
+Network-facing commandlets should filter selected hosts through
+`context.policy` before opening sockets or launching external scanners.
+`context.policy.resolve_target(host)` resolves a hostname or returns an IP
+literal unchanged. `context.policy.filter_network_targets(hosts)` returns the
+hosts that pass configured allow/deny scope and records `policy.evaluated` only
+when a target is pruned or otherwise needs operator-visible intervention.
+
+Do the filtering after parsing command arguments and upstream events, but
+before `context.audit_capability("network.connect")` and before the real
+network call.
 
 Finite listener commandlets should use `context.events.follow(...)` instead of
 hand-rolled polling loops. In a normal pipeline, a downstream listener should

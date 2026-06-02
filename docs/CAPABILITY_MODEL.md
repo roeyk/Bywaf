@@ -270,6 +270,7 @@ Normal plugins should use mediated APIs:
 - `context.page_file()` for paging files;
 - `context.process.run()` and `context.process.stream()` for external tools;
 - `context.artifacts` for storing attached evidence;
+- `context.policy` for mediated network target resolution and filtering;
 - `context.pipeline.stop()` for deliberate downstream pipeline stops;
 - `context.signals` for soft runtime control.
 
@@ -281,10 +282,12 @@ need it.
 
 Policies are framework-level decisions that can deny, warn, or repair requested
 behavior. For example, a network policy can prune a target list before a scan.
-Bundled scanner paths should use the shared framework policy helpers before
-invoking active network work, so direct scanner arguments and pipeline-fed
-targets receive the same allow/deny filtering where the framework can mediate
-them.
+Bundled scanner paths should use `context.policy` before invoking active
+network work, so direct scanner arguments and pipeline-fed targets receive the
+same allow/deny filtering where the framework can mediate them. Routine
+allowed evaluations should stay quiet; `policy.evaluated` is for pruning,
+denial, approval, or other interventions that change or gate the requested
+action.
 
 `--test` asks the commandlet and policy engine to describe the intended action
 without running the real work:

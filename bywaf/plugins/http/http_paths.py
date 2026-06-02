@@ -12,6 +12,7 @@ from bywaf.event.schema_objects import HttpEndpoint, HttpPathObserved
 from bywaf.event import Event
 from bywaf.finding import candidate_payload
 from bywaf.plugin import CommandContext, Commandlet, RunConfig, commandlet, split_var_values
+from bywaf.plugins.target_policy import filter_targets_by_host
 
 DEFAULT_PATHS = "/robots.txt,/.git/config,/server-status,/admin/,/login,/wp-login.php,/.env,/actuator/env"
 
@@ -20,7 +21,7 @@ DEFAULT_PATHS = "/robots.txt,/.git/config,/server-status,/admin/,/login,/wp-logi
 def http_paths(context: CommandContext, cfg: RunConfig, input_events: Iterable[Event]):
     """Probe common HTTP paths from explicit bases or upstream endpoints."""
     cfg = cast(HttpPathsConfig, cfg)
-    for base in base_urls(cfg.targets, input_events):
+    for base in filter_targets_by_host(context, base_urls(cfg.targets, input_events), host_from_url):
         for path in split_var_values(cfg.paths):
             context.raise_if_cancelled()
             url = join_url(base, path)
@@ -69,6 +70,11 @@ def base_urls(targets: list[str], input_events: Iterable[Event]) -> list[str]:
             parsed = urllib.parse.urlparse(endpoint.url)
             urls.append(f"{parsed.scheme}://{parsed.netloc}/")
     return list(dict.fromkeys(urls))
+
+
+def host_from_url(url: str) -> str:
+    """Return the network host portion of a URL."""
+    return urllib.parse.urlparse(url).hostname or ""
 
 
 def normalize_base_url(value: str) -> str:

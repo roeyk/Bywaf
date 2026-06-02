@@ -23,6 +23,7 @@ from typing import Any
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
 from bywaf.plugins.http.http_probe import build_opener, probe_url, target_from_text
+from bywaf.plugins.target_policy import filter_targets_by_host
 
 DEFAULTS = {
     "silent": "false",
@@ -105,7 +106,7 @@ def endpoint_payloads(
         # a lightweight GET here to collect title/header evidence for inference.
         opener = build_opener(None, None, True)
         payloads: list[dict[str, Any]] = []
-        for target in targets:
+        for target in filter_targets_by_host(context, targets, lambda target: target_from_text(target, "auto", "/").host):
             parsed = target_from_text(target, "auto", "/")
             context.audit_capability("network.connect")
             result = probe_url(opener, parsed.url, "GET", timeout, user_agent)

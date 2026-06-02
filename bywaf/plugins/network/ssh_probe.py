@@ -15,6 +15,7 @@ from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
 from bywaf.plugins._args import key_value_to_long_options
 from bywaf.plugins.recon.dns_lookup import optional_module
+from bywaf.plugins.target_policy import filter_host_port_targets
 
 DEFAULTS = {"password": "", "port": "22", "timeout": "5", "username": ""}
 OPTION_KEYS = {"password", "port", "timeout", "username"}
@@ -47,7 +48,7 @@ class SshProbe(CommandletBase):
         paramiko = optional_module(context, "paramiko", "paramiko")
         if paramiko is None:
             return ()
-        for host, port in ssh_targets(parsed.hosts, parsed.port, input_events):
+        for host, port in filter_host_port_targets(context, ssh_targets(parsed.hosts, parsed.port, input_events)):
             # Authentication success is not required for usefulness: failed
             # auth still confirms an SSH service and often yields a banner.
             context.audit_capability("network.connect")

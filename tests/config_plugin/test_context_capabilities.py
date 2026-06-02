@@ -1,6 +1,8 @@
 # ruff: noqa: F403,F405
 """Config/plugin tests split by responsibility."""
 
+from unittest.mock import patch
+
 from tests.config_plugin.support import *  # noqa: F403,F405
 class ConfigPluginContextCapabilityTests(unittest.TestCase):
     def test_command_context_metadata_default(self):
@@ -189,6 +191,47 @@ class ConfigPluginContextCapabilityTests(unittest.TestCase):
 
         self.assertEqual(events[0].payload["host"], "192.0.2.10")
         self.assertEqual(context.events.objects(events, OpenPort), (OpenPort("192.0.2.10", 443, "tcp", service="https"),))
+
+    def test_context_policy_filter_logs_only_pruned_targets(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            store = VarStore()
+            store.set("global.policy.network.allow", "192.0.2.0/24")
+            context = CommandContext(db=db, source="test", _varstore=store)
+
+            allowed = context.policy.filter_network_targets(["192.0.2.10", "198.51.100.10"])
+
+            self.assertEqual(allowed, ("192.0.2.10",))
+            policy = db.events_for_topic("policy.evaluated")[0]
+            self.assertEqual(policy.payload["decision"], "warn")
+            self.assertEqual(policy.payload["before"], {"targets": ["192.0.2.10", "198.51.100.10"]})
+            self.assertEqual(policy.payload["after"], {"targets": ["192.0.2.10"]})
+            self.assertIn("198.51.100.10 is outside allowed network scope", policy.payload["warnings"])
+
+    def test_context_policy_allowed_targets_do_not_emit_policy_event(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            store = VarStore()
+            store.set("global.policy.network.allow", "192.0.2.0/24")
+            context = CommandContext(db=db, source="test", _varstore=store)
+
+            allowed = context.policy.filter_network_targets(["192.0.2.10"])
+
+            self.assertEqual(allowed, ("192.0.2.10",))
+            self.assertEqual(db.events_for_topic("policy.evaluated"), [])
+
+    def test_context_policy_resolves_hostnames_for_allow_scope(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            store = VarStore()
+            store.set("global.policy.network.allow", "192.0.2.0/24")
+            context = CommandContext(db=db, source="test", _varstore=store)
+
+            with patch("bywaf.plugin.services.network_policy.resolve_target", return_value=("192.0.2.55",)):
+                allowed = context.policy.filter_network_targets(["example.test"])
+
+            self.assertEqual(allowed, ("example.test",))
+            self.assertEqual(db.events_for_topic("policy.evaluated"), [])
 
     def test_command_context_process_run_audits_missing_capability(self):
         with tempfile.TemporaryDirectory() as tmp:

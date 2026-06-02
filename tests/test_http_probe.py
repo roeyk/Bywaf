@@ -16,9 +16,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from bywaf.db import EventStore
 from bywaf.event import Event
 from bywaf.plugins.http.cookies import load_firefox_cookies
 from bywaf.plugin import CommandContext
+from bywaf.varstore import VarStore
 from bywaf.plugins.http.http_probe import (
     HttpProbe,
     build_url,
@@ -97,6 +99,24 @@ class HttpProbeTests(unittest.TestCase):
         ):
             list(HttpProbe().run(context, ["--cookie-file", "/tmp/cookies.txt", "127.0.0.1"], []))
         self.assertEqual(context.vars.get("cookie-file"), "/tmp/cookies.txt")
+
+    def test_http_probe_prunes_targets_outside_policy_before_connecting(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            store = VarStore()
+            store.set("global.policy.network.allow", "192.0.2.0/24")
+            context = CommandContext(db=db, source="http_probe", _varstore=store)
+
+            with (
+                patch("bywaf.plugins.http.http_probe.probe_url", return_value={"ok": True, "status": 200}) as probe_url,
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                events = list(HttpProbe().run(context, ["192.0.2.10", "198.51.100.10"], []))
+
+            self.assertEqual([event["host"] for event in events], ["192.0.2.10"])
+            self.assertEqual(probe_url.call_args.args[1], "http://192.0.2.10/")
+            policy = db.events_for_topic("policy.evaluated")[0]
+            self.assertEqual(policy.payload["after"], {"targets": ["192.0.2.10"]})
 
     def test_load_firefox_cookies_reads_sqlite(self):
         with tempfile.TemporaryDirectory() as tmp:

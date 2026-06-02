@@ -85,11 +85,37 @@ def network_policy_decision(target: str, allowed: tuple[Any, ...], denied: tuple
     """Return a warning string when one target is denied, otherwise empty."""
     target_network = target_as_network(target)
     if target_network is None:
-        return f"{target} is not a normalized IP target"
+        return resolved_network_policy_decision(target, allowed, denied)
+    return network_policy_decision_for_network(str(target), target_network, allowed, denied)
+
+
+def resolved_network_policy_decision(target: str, allowed: tuple[Any, ...], denied: tuple[Any, ...]) -> str:
+    """Return a warning when a hostname resolves outside configured policy."""
+    try:
+        addresses = resolve_target(target)
+    except ValueError:
+        return f"{target} is not a normalized IP target" if allowed else ""
+    warnings = [
+        warning
+        for address in addresses
+        if (warning := network_policy_decision_for_network(target, ipaddress.ip_network(address, strict=False), allowed, denied))
+    ]
+    return warnings[0] if warnings else ""
+
+
+def network_policy_decision_for_network(
+    label: str,
+    target_network: Any | None,
+    allowed: tuple[Any, ...],
+    denied: tuple[Any, ...],
+) -> str:
+    """Return a warning string when one target network is denied."""
+    if target_network is None:
+        return f"{label} is not a normalized IP target"
     if any(target_network.overlaps(network) for network in denied):
-        return f"{target} is denied by network policy"
+        return f"{label} is denied by network policy"
     if allowed and not any(target_network.subnet_of(network) for network in allowed):
-        return f"{target} is outside allowed network scope"
+        return f"{label} is outside allowed network scope"
     return ""
 
 

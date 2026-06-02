@@ -23,6 +23,7 @@ from bywaf.event import Event
 from bywaf.plugin import CommandContext, CommandletBase
 from bywaf.plugins._args import key_value_to_long_options
 from bywaf.plugins.http.http_probe import build_opener, target_from_text
+from bywaf.plugins.http.nikto import filter_http_payloads_by_policy
 
 from .detect import probe_git_config
 from .findings import candidate_from_detection, result_payload
@@ -48,7 +49,7 @@ def run_git_config_check(
 
     opener = build_opener(None, None, False)
     explicit_targets = [*parsed.target_options, *parsed.targets]
-    for target in git_targets(explicit_targets, input_events):
+    for target in filter_http_payloads_by_policy(context, git_targets(explicit_targets, input_events)):
         context.raise_if_cancelled()
         context.audit_capability("network.connect")
         # The command layer bridges pure detection to framework events: first

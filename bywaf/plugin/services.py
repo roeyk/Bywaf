@@ -18,6 +18,7 @@ from ..artifacts import artifact_store_for_event_store
 from ..db import EventStore, Subscription
 from ..event.schemas import EventSchemaObject, schema_objects, validate_event_payload
 from ..event import Event
+from .. import policy as network_policy
 from ..rendering import Table, render_console_table
 from ..varstore import VarStore
 from .services_artifacts import (
@@ -54,6 +55,47 @@ class ContextSecrets:
     def is_secret_ref(self, value: str | None) -> bool:
         """Return whether a value is an in-memory secret reference."""
         return self.context._secrets.is_ref(value)
+
+
+@dataclass(frozen=True, slots=True)
+class ContextPolicy:
+    """Framework-mediated policy API exposed to commandlets."""
+
+    context: CommandContext
+
+    def resolve_target(self, target: str) -> tuple[str, ...]:
+        """Resolve one network target through the framework policy layer."""
+        return network_policy.resolve_target(target)
+
+    def network_policy(self) -> tuple[tuple[Any, ...], tuple[Any, ...], str]:
+        """Return configured network allow/deny policy."""
+        return network_policy.network_policy(self.context)
+
+    def evaluate_network_targets(self, targets: Iterable[str]) -> tuple[tuple[str, ...], list[str]]:
+        """Return allowed targets and warnings without auditing a decision."""
+        before = tuple(dict.fromkeys(targets))
+        if not before:
+            return (), []
+        allowed, denied, _mode = self.network_policy()
+        return network_policy.apply_network_policy(before, allowed, denied)
+
+    def filter_network_targets(self, targets: Iterable[str]) -> tuple[str, ...]:
+        """Return targets allowed by network policy and audit pruning."""
+        before = tuple(dict.fromkeys(targets))
+        if not before:
+            return ()
+        after, warnings = self.evaluate_network_targets(before)
+        if warnings:
+            for warning in warnings:
+                self.context.alert(warning)
+            network_policy.publish_network_policy_evaluated(
+                self.context,
+                decision="warn",
+                warnings=warnings,
+                before=before,
+                after=after,
+            )
+        return after
 
 
 @dataclass(frozen=True, slots=True)

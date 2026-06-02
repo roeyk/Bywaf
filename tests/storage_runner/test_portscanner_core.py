@@ -296,7 +296,7 @@ class StorageRunnerPortscannerCoreTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with (
-                patch("bywaf.plugins.network.portscanner.resolve_target", side_effect=AssertionError("should not resolve IP ranges")),
+                patch("bywaf.plugin.services.network_policy.resolve_target", side_effect=AssertionError("should not resolve IP ranges")),
                 patch(
                     "bywaf.plugins.network.portscanner.scan_open_ports",
                     return_value=[NmapPort("192.0.2.10", 80, "tcp", "open")],
@@ -310,7 +310,7 @@ class StorageRunnerPortscannerCoreTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with (
-                patch("bywaf.plugins.network.portscanner.resolve_target", return_value=("192.0.2.55",)),
+                patch("bywaf.plugin.services.network_policy.resolve_target", return_value=("192.0.2.55",)),
                 patch(
                     "bywaf.plugins.network.portscanner.scan_open_ports",
                     return_value=[NmapPort("192.0.2.55", 33169, "tcp", "open")],
@@ -328,7 +328,7 @@ class StorageRunnerPortscannerCoreTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with (
-                patch("bywaf.plugins.network.portscanner.resolve_target", return_value=("192.0.2.55", "2001:db8::55")),
+                patch("bywaf.plugin.services.network_policy.resolve_target", return_value=("192.0.2.55", "2001:db8::55")),
                 patch(
                     "bywaf.plugins.network.portscanner.scan_open_ports",
                     return_value=[NmapPort("192.0.2.55", 443, "tcp", "open")],
@@ -345,7 +345,7 @@ class StorageRunnerPortscannerCoreTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with (
-                patch("bywaf.plugins.network.portscanner.resolve_target", return_value=("192.0.2.55", "2001:db8::55")),
+                patch("bywaf.plugin.services.network_policy.resolve_target", return_value=("192.0.2.55", "2001:db8::55")),
                 patch(
                     "bywaf.plugins.network.portscanner.scan_open_ports",
                     return_value=[NmapPort("2001:db8::55", 443, "tcp", "open")],

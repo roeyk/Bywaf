@@ -11,13 +11,14 @@ from typing import Any, cast
 from bywaf.event.schema_objects import HttpEndpoint, OpenPort, TlsCertificate
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, RunConfig, commandlet
+from bywaf.plugins.target_policy import filter_targets_by_host
 
 
 @commandlet
 def tls_probe(context: CommandContext, cfg: RunConfig, input_events: Iterable[Event]):
     """Probe explicit or upstream TLS endpoints."""
     cfg = cast(TlsProbeConfig, cfg)
-    for target in tls_targets(cfg.targets, input_events, cfg.port):
+    for target in filter_targets_by_host(context, tls_targets(cfg.targets, input_events, cfg.port), lambda target: target.host):
         context.raise_if_cancelled()
         context.audit_capability("network.connect")
         try:

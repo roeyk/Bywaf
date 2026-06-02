@@ -21,7 +21,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 
 from bywaf.event import Event
-from bywaf.policy import apply_network_policy, network_policy, resolve_target
+from bywaf.policy import resolve_target
 from bywaf.plugins._args import key_value_to_long_options
 from bywaf.plugins.network.nmap_backend import discover_live_hosts
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, PlanItem, PlanRepair, PlanReport, commandlet, option, split_var_values
@@ -83,8 +83,8 @@ class HostScanner(CommandletBase):
         """Describe host discovery targets and policy warnings before scanning."""
         del input_events
         intent = hostscanner_intent(self, context, args)
-        allowed, denied, mode = network_policy(context)
-        allowed_targets, warnings = apply_network_policy(intent.targets, allowed, denied)
+        _allowed, _denied, mode = context.policy.network_policy()
+        allowed_targets, warnings = context.policy.evaluate_network_targets(intent.targets)
         repairs: tuple[PlanRepair, ...] = ()
         if warnings and allowed_targets:
             patched_args = tuple([*intent.options, *allowed_targets])
@@ -180,17 +180,17 @@ def cached_target_details(
     cache = context.metadata.setdefault("_hostscanner_target_cache", {})
     key = (tuple(targets), limit)
     if key not in cache:
-        cache[key] = expand_target_details(targets, limit)
+        cache[key] = expand_target_details(targets, limit, resolver=context.policy.resolve_target)
     return cache[key]
 
 
-def expand_target_details(targets: list[str], limit: int) -> ExpandedTargets:
+def expand_target_details(targets: list[str], limit: int, *, resolver=resolve_target) -> ExpandedTargets:
     """Expand IP ranges and hostnames into concrete scan targets."""
     expanded: list[str] = []
     names_by_host: dict[str, str] = {}
     for target in targets:
         for candidate in host_candidates(target):
-            addresses = resolve_target(candidate)
+            addresses = resolver(candidate)
             expanded.extend(addresses)
             for address in addresses:
                 if address != candidate:

@@ -27,6 +27,7 @@ from typing import Any
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
+from bywaf.plugins.target_policy import filter_targets_by_host
 from bywaf.plugins.http.nikto_findings import (
     extract_finding_records,
     finding_identifiers,
@@ -90,7 +91,10 @@ class Nikto(CommandletBase):
         parser.add_argument("--tuning", default=self.var_default(context, "tuning", ""))
         parsed = parser.parse_args(args)
 
-        targets = nikto_targets(parsed.targets, input_events, parsed.source)
+        targets = filter_http_payloads_by_policy(
+            context,
+            nikto_targets(parsed.targets, input_events, parsed.source),
+        )
         if not targets:
             context.events.publish(
                 "tool.error",
@@ -267,6 +271,11 @@ def dedupe_targets(targets: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
         seen.add(url)
         deduped.append(target)
     return deduped
+
+
+def filter_http_payloads_by_policy(context: CommandContext, targets: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return HTTP target payloads whose host passes framework policy."""
+    return filter_targets_by_host(context, targets, lambda target: str(target.get("host") or ""))
 
 
 def load_nikto_json(

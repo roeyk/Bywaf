@@ -20,6 +20,7 @@ from collections.abc import Iterable
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, CommandletBase
+from bywaf.plugins.target_policy import filter_targets_by_host
 
 from .detect import fetch_headers
 from .findings import missing_security_header_candidates, result_payload
@@ -42,7 +43,11 @@ def run_http_headers(
     parser.add_argument("--timeout", type=float, default=commandlet.var_default(context, "timeout", 5, cast=float))
     parsed = parser.parse_args(args)
     target = parsed.target or commandlet.var_default(context, "target", None)
-    targets = header_targets(target, parsed.port, parsed.ssl == "true", input_events)
+    targets = filter_targets_by_host(
+        context,
+        header_targets(target, parsed.port, parsed.ssl == "true", input_events),
+        lambda header_target: header_target.host,
+    )
     for header_target in targets:
         # Detection returns a neutral fact. Finding packaging is a separate
         # step so tests can exercise probe logic without Bywaf runtime context.

@@ -27,6 +27,7 @@ from .pipeline import ContextPipeline
 from .services import (
     ContextArtifacts,
     ContextEvents,
+    ContextPolicy,
     ContextRender,
     ContextSecrets,
     ContextSignals,
@@ -107,6 +108,11 @@ class CommandContext(ContextOutputMixin):
     def events(self) -> "ContextEvents":
         """Return the mediated event-bus API for plugin code."""
         return ContextEvents(self)
+
+    @property
+    def policy(self) -> "ContextPolicy":
+        """Return mediated policy helpers for plugin code."""
+        return ContextPolicy(self)
 
     @property
     def process(self) -> ContextProcess:
