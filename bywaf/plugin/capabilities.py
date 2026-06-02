@@ -10,6 +10,7 @@ Used by:
 from __future__ import annotations
 
 from collections.abc import Iterable
+from zlib import crc32
 
 from ..specs import CommandSpec
 
@@ -92,10 +93,16 @@ def capability_code_label(capability: str) -> str:
     if exact is not None:
         return exact
     if capability.startswith("db.read:"):
-        return "C101 family"
+        return topic_capability_code("C101", capability.removeprefix("db.read:"))
     if capability.startswith("db.write:"):
-        return "C102 family"
+        return topic_capability_code("C102", capability.removeprefix("db.write:"))
     return capability_family_range(capability)
+
+
+def topic_capability_code(family_code: str, topic: str) -> str:
+    """Return a stable dotted subcode for a topic-specific capability."""
+    subcode = crc32(topic.encode("utf-8")) % 1_000_000
+    return f"{family_code}.{subcode:06d}"
 
 
 def capability_family_range(capability: str) -> str:

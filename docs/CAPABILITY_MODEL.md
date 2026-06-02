@@ -177,22 +177,22 @@ Initial assigned codes:
 | C704 | `framework.render.table` | Framework table/render provider output. |
 | C801 | `plugin.progress` | Plugin progress events. |
 
-Do not assign a new code in this table only because a topic-specific
+Do not assign a new top-level code in this table only because a topic-specific
 capability exists. For example, `db.write:host.found` uses the semantic name
-`db.write:host.found` and belongs to the C102 family unless a later design
-needs per-topic codes.
+`db.write:host.found` and belongs under the C102 family.
 
-If per-topic or per-action subcodes become useful, prefer a dotted hierarchy
-under the assigned family code rather than new unrelated top-level codes. For
-example, a future explicit subcode could look like `C102.001` or
-`C600.100.003`. Do not introduce those subcodes until there is a concrete
-review, audit, or compatibility need.
+For checker and audit display, topic-specific `db.read:<topic>` and
+`db.write:<topic>` capabilities use stable dotted subcodes under their assigned
+families. The subcode is derived deterministically from the exact topic string,
+so the displayed code remains stable without maintaining a registry entry for
+every topic. This keeps semantic capability names exact while making review
+output more explicit than a broad family label.
 
 `audit list capabilities` inventories declared capability names against runtime
 `plugin.capability.used` and `plugin.capability.missing` evidence. Runtime
 audit and checker output display exact assigned codes for known capabilities,
-topic family labels such as `C102 family` for topic-specific capabilities, and
-accepted family ranges for future or unassigned capabilities.
+stable dotted subcodes such as `C102.224929` for topic-specific capabilities,
+and accepted family ranges for future or unassigned capabilities.
 
 ## Plugin Integration Types
 

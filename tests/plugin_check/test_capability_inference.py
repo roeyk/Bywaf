@@ -78,10 +78,10 @@ class TestCapabilityInferenceTests(unittest.TestCase):
 
             self.assertFalse(report["ok"])
             self.assertIn("db.write:example.event", report["missing_capabilities"])
-            self.assertEqual(report["capability_codes"]["db.write:example.event"], "C102 family")
+            self.assertEqual(report["capability_codes"]["db.write:example.event"], "C102.617506")
             self.assertIn("missing inferred capabilities", report["errors"][0])
-            self.assertIn("db.write:example.event=C102 family", render_text(report))
-            self.assertIn("Missing capability declaration: db.write:example.event (C102 family)", render_llm_feedback(report))
+            self.assertIn("db.write:example.event=C102.617506", render_text(report))
+            self.assertIn("Missing capability declaration: db.write:example.event (C102.617506)", render_llm_feedback(report))
 
     def test_check_plugin_warns_on_direct_network_import(self):
         with tempfile.TemporaryDirectory() as tmp:

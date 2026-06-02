@@ -55,7 +55,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             self.assertIn("hostscanner", text)
             self.assertIn("observed", text)
 
-    def test_audit_list_capabilities_prints_topic_family_code(self):
+    def test_audit_list_capabilities_prints_topic_subcode(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             event = runner.db.publish(
@@ -66,7 +66,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             row = capability_inventory_row("db.write:host.found", {}, {"db.write:host.found": [event]}, {})
 
             self.assertEqual(row["Capability"], "db.write:host.found")
-            self.assertEqual(row["Code"], "C102 family")
+            self.assertEqual(row["Code"], "C102.224929")
 
     def test_audit_show_filters_since_until_time(self):
         with tempfile.TemporaryDirectory() as tmp:
