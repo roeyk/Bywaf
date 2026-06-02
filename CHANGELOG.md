@@ -39,12 +39,18 @@ impact label and sorted from highest to lowest operator/developer impact:
   so Kismet and traceroute failures link retained process-output artifacts.
 - [medium] Added structured `tool.error` diagnostics and plugin-level fixture
   coverage for nmap-backed hostscanner and portscanner backend failures.
+- [medium] Added explicit screenshotter wrapper fixture coverage for missing
+  binary, nonzero exit, timeout, empty selection, and successful screenshot
+  evidence paths.
 - [medium] Documented the storage backend contract and added backend capability
   metadata plus backend-parametrized store contract coverage as preparation for
   a future Postgres adapter.
 - [medium] Replaced report network-overview topic branching with a dispatch
   table so new evidence-producing event topics can be added with less
   aggregation complexity.
+- [medium] Split plugin-check text and LLM-feedback rendering into focused
+  helpers, dropping the checker renderer out of the highest single-function
+  complexity list.
 - [medium] Added release-package version alignment coverage across Python,
   Debian, RPM, and README package examples.
 - [medium] Updated manual validation scripts to use local/authorized targets by
