@@ -78,7 +78,6 @@ def validate_control_mode(action: str, *, soft: bool, hard: bool) -> None:
         "signal job=1 mute",
         "signal step=1 pause --hard",
     ),
-    capabilities=("framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
 @argument("target", "job=<id>, step=<id>, or serial=<id>", completion=CompletionSpec("choice", ("job=", "step=", "serial=")))
 @argument("action", "signal action such as prune, mute, verbosity, pause, resume, stop, end, or kill")
@@ -167,7 +166,6 @@ class RuntimeSignal(CommandletBase):
     description="Stop a job, pipeline, or pipeline step; defaults to cooperative cancellation.",
     usage="end [--soft|--hard] <job=id|pipeline=id|step=id>",
     examples=("end job=1", "end --hard pipeline=1", "end step=1"),
-    capabilities=("framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
 @argument("target", "job=<id>, pipeline=<id>, step=<id>, or serial=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "step=", "serial=")))
 class End(Control):
@@ -181,7 +179,6 @@ class End(Control):
     description="Synonym for end; defaults to cooperative cancellation.",
     usage="kill [--soft|--hard] <job=id|pipeline=id|step=id>",
     examples=("kill job=1", "kill --hard pipeline=1", "kill step=1"),
-    capabilities=("framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
 @argument("target", "job=<id>, pipeline=<id>, step=<id>, or serial=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "step=", "serial=")))
 class Kill(Control):
@@ -195,7 +192,6 @@ class Kill(Control):
     description="Request cooperative cancellation for a job or pipeline.",
     usage="cancel <job=id|pipeline=id|step=id>",
     examples=("cancel job=1", "cancel pipeline=1", "cancel step=1"),
-    capabilities=("framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
 @argument("target", "job=<id>, pipeline=<id>, or step=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "step=")))
 class Cancel(Control):
@@ -209,7 +205,6 @@ class Cancel(Control):
     description="Pause a job or pipeline.",
     usage="pause [--soft|--hard] <job=id|pipeline=id|step=id>",
     examples=("pause job=1", "pause --hard pipeline=1", "pause step=1"),
-    capabilities=("framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
 @argument("target", "job=<id>, pipeline=<id>, or step=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "step=")))
 class Pause(Control):
@@ -223,7 +218,6 @@ class Pause(Control):
     description="Resume a paused job or pipeline.",
     usage="resume [--listonly] [--soft|--hard] <job=id|pipeline=id|step=id>",
     examples=("resume job=1", "resume --listonly pipeline=1", "resume step=1"),
-    capabilities=("framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
 @argument("target", "job=<id>, pipeline=<id>, or step=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "step=")))
 class Resume(Control):
@@ -237,7 +231,6 @@ class Resume(Control):
     description="Stop a job or pipeline.",
     usage="stop [--soft|--hard] <job=id|pipeline=id|step=id>",
     examples=("stop job=1", "stop --hard pipeline=1", "stop step=1"),
-    capabilities=("framework.console.output", "framework.job.control", "framework.pipeline.control"),
 )
 @argument("target", "job=<id>, pipeline=<id>, or step=<id>", completion=CompletionSpec("choice", ("job=", "pipeline=", "step=")))
 class Stop(Control):

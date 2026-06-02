@@ -57,8 +57,6 @@ JobActionHandler = Callable[[CommandContext, Namespace], None]
     description="Manage background jobs.",
     usage="job [--all] [--new] [field=value ...] [since=<id>] | job <id> | job <cancel|end|kill> [options] <id>",
     examples=("job", "job --all", "job --new", "job since=120", "job 1", "job cancel 1", "job end 1", "job kill --hard 1"),
-    capabilities=("framework.console.output", "framework.file.page", "framework.job.control"),
-    database_actions=("view", "write"),
 )
 @argument("action", "job operation", required=False, completion=CompletionSpec("choice", JOB_ACTIONS))
 @argument("id", "job id", required=False, completion="job")

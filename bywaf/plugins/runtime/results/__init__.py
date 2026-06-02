@@ -80,8 +80,6 @@ RESULT_VIEW_COMMANDS = {
         "results step=2",
         "results job=latest",
     ),
-    capabilities=("framework.console.output", "framework.file.page"),
-    database_actions=("view",),
 )
 class Results(CommandletBase):
     """Show scan results without exposing the raw event ledger by default."""
@@ -128,8 +126,6 @@ class Results(CommandletBase):
     description="Alias for results.",
     usage="result [--follow] [job=latest|<id>] [pipeline=<id>] [step=<id>] [all=true] [sort=<key>]",
     examples=("result", "result --follow", "result sort=port", "result pipeline=1", "result step=2"),
-    capabilities=("framework.console.output", "framework.file.page"),
-    database_actions=("view",),
 )
 class ResultAlias(Results):
     """Backwards-free synonym for the singular spelling operators try first."""

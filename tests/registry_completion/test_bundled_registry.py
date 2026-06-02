@@ -126,32 +126,54 @@ class RegistryBundledPluginTests(unittest.TestCase):
         from bywaf.plugins.os.cat import Cat
         from bywaf.plugins.os.less import Less
         from bywaf.plugins.os.ls import Ls
+        from bywaf.plugins.runtime.control import Cancel, RuntimeSignal
+        from bywaf.plugins.runtime.job import Job
         from bywaf.plugins.runtime.name import Name
+        from bywaf.plugins.runtime.pipeline import Pipeline
+        from bywaf.plugins.runtime.results import ResultAlias, Results
         from bywaf.plugins.runtime.schemas import Schemas
         from bywaf.plugins.runtime.step import Step
         from bywaf.plugins.wireless.wifi_scan import WifiScan
 
+        self.assertEqual(Cancel().spec.capabilities, ())
         self.assertEqual(Cat().spec.capabilities, ())
         self.assertEqual(EyeWitness().spec.capabilities, ())
+        self.assertEqual(Job().spec.capabilities, ())
+        self.assertEqual(Job().spec.database_actions, ())
         self.assertEqual(Less().spec.capabilities, ())
         self.assertEqual(Ls().spec.capabilities, ())
         self.assertEqual(Name().spec.capabilities, ())
         self.assertEqual(Nikto().spec.capabilities, ())
+        self.assertEqual(Pipeline().spec.capabilities, ())
+        self.assertEqual(Pipeline().spec.database_actions, ())
+        self.assertEqual(ResultAlias().spec.capabilities, ())
+        self.assertEqual(ResultAlias().spec.database_actions, ())
+        self.assertEqual(Results().spec.capabilities, ())
+        self.assertEqual(Results().spec.database_actions, ())
+        self.assertEqual(RuntimeSignal().spec.capabilities, ())
         self.assertEqual(Schemas().spec.capabilities, ())
         self.assertEqual(Schemas().spec.database_actions, ())
         self.assertEqual(Screenshotter().spec.capabilities, ())
         self.assertEqual(Step().spec.capabilities, ())
         self.assertEqual(Step().spec.database_actions, ())
         self.assertEqual(WifiScan().spec.capabilities, ())
+        self.assertIn("framework.job.control", self.registry.get("cancel").spec.capabilities)
         self.assertIn("filesystem.read", self.registry.get("cat").spec.capabilities)
         self.assertIn("network.connect", self.registry.get("eyewitness").spec.capabilities)
         self.assertEqual(self.registry.get("eyewitness").spec.consumes, ("http.endpoint",))
+        self.assertIn("framework.job.control", self.registry.get("job").spec.capabilities)
+        self.assertEqual(self.registry.get("job").spec.database_actions, ("view", "write"))
         self.assertIn("framework.file.page", self.registry.get("less").spec.capabilities)
         self.assertIn("filesystem.read", self.registry.get("ls").spec.capabilities)
         self.assertIn("framework.console.output", self.registry.get("name").spec.capabilities)
         self.assertIn("network.connect", self.registry.get("nikto").spec.capabilities)
         self.assertEqual(self.registry.get("nikto").spec.consumes, ("http.endpoint", "web.fingerprint"))
         self.assertIn("nikto.finding", self.registry.get("nikto").spec.emits)
+        self.assertIn("framework.pipeline.control", self.registry.get("pipeline").spec.capabilities)
+        self.assertEqual(self.registry.get("pipeline").spec.database_actions, ("view", "write"))
+        self.assertIn("framework.file.page", self.registry.get("result").spec.capabilities)
+        self.assertEqual(self.registry.get("results").spec.database_actions, ("view",))
+        self.assertIn("framework.pipeline.control", self.registry.get("signal").spec.capabilities)
         self.assertIn("framework.file.page", self.registry.get("schemas").spec.capabilities)
         self.assertEqual(self.registry.get("schemas").spec.database_actions, ("view",))
         self.assertIn("network.connect", self.registry.get("screenshotter").spec.capabilities)
