@@ -121,14 +121,23 @@ class RegistryBundledPluginTests(unittest.TestCase):
 
     def test_bundled_sidecar_hydrates_runtime_security_metadata(self):
         from bywaf.plugins.http.eyewitness import EyeWitness
+        from bywaf.plugins.http.nikto import Nikto
         from bywaf.plugins.http.screenshotter import Screenshotter
+        from bywaf.plugins.wireless.wifi_scan import WifiScan
 
         self.assertEqual(EyeWitness().spec.capabilities, ())
+        self.assertEqual(Nikto().spec.capabilities, ())
         self.assertEqual(Screenshotter().spec.capabilities, ())
+        self.assertEqual(WifiScan().spec.capabilities, ())
         self.assertIn("network.connect", self.registry.get("eyewitness").spec.capabilities)
         self.assertEqual(self.registry.get("eyewitness").spec.consumes, ("http.endpoint",))
+        self.assertIn("network.connect", self.registry.get("nikto").spec.capabilities)
+        self.assertEqual(self.registry.get("nikto").spec.consumes, ("http.endpoint", "web.fingerprint"))
+        self.assertIn("nikto.finding", self.registry.get("nikto").spec.emits)
         self.assertIn("network.connect", self.registry.get("screenshotter").spec.capabilities)
         self.assertEqual(self.registry.get("screenshotter").spec.consumes, ("http.endpoint",))
+        self.assertIn("network.listen", self.registry.get("wifi_scan").spec.capabilities)
+        self.assertEqual(self.registry.get("wifi_scan").spec.emits, ("wifi.network", "kismet.network"))
 
     def test_bundled_watchdog_manifest_is_service(self):
         manifest = load_package_manifest("bywaf.plugins", "runtime.watchdog")

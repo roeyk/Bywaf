@@ -46,20 +46,6 @@ OPTION_KEYS = {"binary", "duration", "interface", "log-types", "output-dir"}
         "wifi_scan interface=wlan0mon duration=60",
         "set wireless/wifi_scan.interface=wlan0mon",
     ),
-    emits=("wifi.network", "kismet.network"),
-    capabilities=(
-        "artifact.write",
-        "db.write:*",
-        "db.write:kismet.network",
-        "db.write:wifi.network",
-        "db.write:tool.error",
-        "db.write:system.error",
-        "filesystem.read",
-        "filesystem.write",
-        "framework.console.alert",
-        "framework.process.run",
-        "network.listen",
-    ),
 )
 @option("binary", "Kismet executable", "kismet", completion="path")
 @option("duration", "scan duration seconds", "60")

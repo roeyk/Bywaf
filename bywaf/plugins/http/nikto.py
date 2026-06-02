@@ -28,7 +28,6 @@ from typing import Any
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
 from bywaf.plugins.http.nikto_findings import (
-    FINDING_TOPICS,
     extract_finding_records,
     finding_identifiers,
     normalize_findings,
@@ -65,25 +64,6 @@ DEFAULTS = {
         "nikto https://example.test/",
         "http_probe https://example.test/ | nikto",
         "http_probe https://example.test/ | webfin | nikto source=webfin",
-    ),
-    consumes=("http.endpoint", "web.fingerprint"),
-    emits=FINDING_TOPICS,
-    capabilities=(
-        "artifact.write",
-        "db.write:*",
-        "db.write:nikto.finding",
-        "db.write:vulnerability.found",
-        "db.write:vulnerability.potential",
-        "db.write:tool.error",
-        "db.write:tool.exception",
-        "db.write:system.error",
-        "db.write:network.error",
-        "db.write:web.error",
-        "filesystem.read",
-        "filesystem.write",
-        "framework.console.alert",
-        "framework.process.run",
-        "network.connect",
     ),
 )
 @option("binary", "Nikto executable", "nikto", completion="path")

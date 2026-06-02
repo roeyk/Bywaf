@@ -6,6 +6,10 @@ service = false
 
 [[commandlets]]
 name = "wifi_scan"
+emits = [
+  "wifi.network",
+  "kismet.network",
+]
 capabilities = [
   "artifact.write",
   "db.write:*",

@@ -6,6 +6,15 @@ service = false
 
 [[commandlets]]
 name = "nikto"
+consumes = [
+  "http.endpoint",
+  "web.fingerprint",
+]
+emits = [
+  "nikto.finding",
+  "vulnerability.found",
+  "vulnerability.potential",
+]
 capabilities = [
   "artifact.write",
   "db.write:*",
