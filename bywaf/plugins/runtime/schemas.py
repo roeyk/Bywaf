@@ -22,8 +22,6 @@ from bywaf.runtime_display import command_context_style_getter, render_table, te
         "schemas sort=-used",
         "schemas --page",
     ),
-    capabilities=("framework.console.output", "framework.file.page"),
-    database_actions=("view",),
 )
 class Schemas(CommandletBase):
     """Render framework and plugin-owned event schemas."""

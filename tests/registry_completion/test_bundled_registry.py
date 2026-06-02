@@ -123,19 +123,41 @@ class RegistryBundledPluginTests(unittest.TestCase):
         from bywaf.plugins.http.eyewitness import EyeWitness
         from bywaf.plugins.http.nikto import Nikto
         from bywaf.plugins.http.screenshotter import Screenshotter
+        from bywaf.plugins.os.cat import Cat
+        from bywaf.plugins.os.less import Less
+        from bywaf.plugins.os.ls import Ls
+        from bywaf.plugins.runtime.name import Name
+        from bywaf.plugins.runtime.schemas import Schemas
+        from bywaf.plugins.runtime.step import Step
         from bywaf.plugins.wireless.wifi_scan import WifiScan
 
+        self.assertEqual(Cat().spec.capabilities, ())
         self.assertEqual(EyeWitness().spec.capabilities, ())
+        self.assertEqual(Less().spec.capabilities, ())
+        self.assertEqual(Ls().spec.capabilities, ())
+        self.assertEqual(Name().spec.capabilities, ())
         self.assertEqual(Nikto().spec.capabilities, ())
+        self.assertEqual(Schemas().spec.capabilities, ())
+        self.assertEqual(Schemas().spec.database_actions, ())
         self.assertEqual(Screenshotter().spec.capabilities, ())
+        self.assertEqual(Step().spec.capabilities, ())
+        self.assertEqual(Step().spec.database_actions, ())
         self.assertEqual(WifiScan().spec.capabilities, ())
+        self.assertIn("filesystem.read", self.registry.get("cat").spec.capabilities)
         self.assertIn("network.connect", self.registry.get("eyewitness").spec.capabilities)
         self.assertEqual(self.registry.get("eyewitness").spec.consumes, ("http.endpoint",))
+        self.assertIn("framework.file.page", self.registry.get("less").spec.capabilities)
+        self.assertIn("filesystem.read", self.registry.get("ls").spec.capabilities)
+        self.assertIn("framework.console.output", self.registry.get("name").spec.capabilities)
         self.assertIn("network.connect", self.registry.get("nikto").spec.capabilities)
         self.assertEqual(self.registry.get("nikto").spec.consumes, ("http.endpoint", "web.fingerprint"))
         self.assertIn("nikto.finding", self.registry.get("nikto").spec.emits)
+        self.assertIn("framework.file.page", self.registry.get("schemas").spec.capabilities)
+        self.assertEqual(self.registry.get("schemas").spec.database_actions, ("view",))
         self.assertIn("network.connect", self.registry.get("screenshotter").spec.capabilities)
         self.assertEqual(self.registry.get("screenshotter").spec.consumes, ("http.endpoint",))
+        self.assertIn("framework.console.output", self.registry.get("step").spec.capabilities)
+        self.assertEqual(self.registry.get("step").spec.database_actions, ("view",))
         self.assertIn("network.listen", self.registry.get("wifi_scan").spec.capabilities)
         self.assertEqual(self.registry.get("wifi_scan").spec.emits, ("wifi.network", "kismet.network"))
 

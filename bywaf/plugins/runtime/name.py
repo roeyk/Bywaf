@@ -24,7 +24,6 @@ from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionC
         "name pipeline=1 client subnet scan",
         "name job=12 background listener",
     ),
-    capabilities=("framework.console.output",),
 )
 @argument("selector", "step=, pipeline=, or job= selector", completion=CompletionSpec("choice", ("step=", "pipeline=", "job=")))
 @argument("value", "optional name text", required=False)

@@ -48,8 +48,6 @@ STEP_SORT_KEYS = ("id", "serial", "state", "pipeline", "source", "events", "star
     description="List and inspect pipeline steps.",
     usage="step [--all] [--new] [field=value ...] [since=<id>] | step <id>",
     examples=("step", "step --all", "step --new", "step since=40", "step 1", "step host=192.0.2.10"),
-    capabilities=("framework.console.output",),
-    database_actions=("view",),
 )
 class Step(CommandletBase):
     """List and inspect commandlet execution steps."""

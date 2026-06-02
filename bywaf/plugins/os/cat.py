@@ -22,7 +22,6 @@ from bywaf.plugins.os.files import read_text_file
     description="Print a local text file.",
     usage="cat <path>",
     examples=("cat README.md",),
-    capabilities=("filesystem.read", "framework.console.output"),
 )
 @argument("path", "file to print", completion="file")
 class Cat(CommandletBase):

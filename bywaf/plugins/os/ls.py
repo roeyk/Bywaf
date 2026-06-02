@@ -22,7 +22,6 @@ from bywaf.plugins.os.files import list_path
     description="List files in a local directory.",
     usage="ls [path]",
     examples=("ls", "ls bywaf/plugins"),
-    capabilities=("filesystem.read", "framework.console.output"),
 )
 @argument("path", "directory or file to list", required=False, completion="path")
 class Ls(CommandletBase):

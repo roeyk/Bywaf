@@ -22,7 +22,6 @@ from bywaf.plugins.os.files import read_text_file
     description="View a local text file through the framework pager.",
     usage="less <path>",
     examples=("less README.md",),
-    capabilities=("filesystem.read", "framework.file.page"),
 )
 @argument("path", "file to view", completion="file")
 class Less(CommandletBase):
