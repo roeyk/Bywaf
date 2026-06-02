@@ -122,6 +122,7 @@ class MvpPluginSuiteTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             bundle_export = Path(tmp, "client-a.bundle.json")
+            screenshot_output = Path(tmp, "eyewitness")
             stale_finding = runner.db.publish(
                 "finding.new",
                 {
@@ -183,6 +184,12 @@ class MvpPluginSuiteTests(unittest.TestCase):
 
             def fake_run_process(argv, *, cwd=None, env=None, timeout=None):
                 del cwd, env, timeout
+                if "--web" in argv:
+                    screenshot_dir = Path(argv[argv.index("-d") + 1]) / "screens"
+                    screenshot_dir.mkdir(parents=True, exist_ok=True)
+                    Path(screenshot_dir, "mvp.png").write_bytes(b"png")
+                    return subprocess.CompletedProcess(argv, 0, stdout="fixture eyewitness ok", stderr="")
+
                 nikto_targets.append(argv[argv.index("-host") + 1])
                 output_path = Path(argv[argv.index("-output") + 1])
                 output_path.write_text(
@@ -233,6 +240,12 @@ class MvpPluginSuiteTests(unittest.TestCase):
                 process_framework_requests(runner, ShellState())
                 runner.execute(f"waf_detect --from pipeline={pipeline_id} topic=http.endpoint")
                 process_framework_requests(runner, ShellState())
+                runner.execute(
+                    f"screenshotter --from pipeline={pipeline_id} topic=http.endpoint "
+                    f"--output-dir={screenshot_output} --silent"
+                )
+                process_framework_requests(runner, ShellState())
+                screenshot_pipeline_id = runner.db.events_for_topic("eyewitness.screenshot")[0].pipeline_id
                 runner.execute(f"webfin --from pipeline={pipeline_id} topic=http.endpoint | nikto --source webfin")
                 process_framework_requests(runner, ShellState())
                 nikto_pipeline_id = runner.db.events_for_topic("nikto.finding")[0].pipeline_id
@@ -247,6 +260,8 @@ class MvpPluginSuiteTests(unittest.TestCase):
                 runner.execute("bundle create name=client-a")
                 process_framework_requests(runner, ShellState())
                 runner.execute(f"bundle add name=client-a audit pipeline={pipeline_id}")
+                process_framework_requests(runner, ShellState())
+                runner.execute(f"bundle add name=client-a evidence pipeline={screenshot_pipeline_id}")
                 process_framework_requests(runner, ShellState())
                 runner.execute(f"bundle add name=client-a evidence pipeline={nikto_pipeline_id}")
                 process_framework_requests(runner, ShellState())
@@ -264,6 +279,8 @@ class MvpPluginSuiteTests(unittest.TestCase):
                 "web.waf.detected",
                 "tls.certificate",
                 "web.fingerprint",
+                "eyewitness.screenshot",
+                "web.screenshotted_host",
                 "nikto.finding",
                 "vulnerability.potential",
                 "artifact.attached",
@@ -284,6 +301,10 @@ class MvpPluginSuiteTests(unittest.TestCase):
             exposure_events = runner.db.events_for_topic("repo.git_config.checked")
             self.assertEqual(exposure_events[0].payload["family"], "repo_exposure")
             self.assertEqual(exposure_events[0].payload["status"], "candidate")
+            screenshot_events = runner.db.events_for_topic("eyewitness.screenshot")
+            self.assertEqual(screenshot_events[0].payload["relative_path"], "screens/mvp.png")
+            screenshotted = runner.db.events_for_topic("web.screenshotted_host")[0].payload
+            self.assertEqual(screenshotted["urls"], ["http://192.0.2.20/"])
             self.assertIn("Missing X-Frame-Options header", output.getvalue())
             self.assertNotIn("Legacy admin panel exposure", output.getvalue())
             rendered = runner.db.events_for_topic("report.rendered")[0]
@@ -294,16 +315,21 @@ class MvpPluginSuiteTests(unittest.TestCase):
             bundle = json.loads(bundle_export.read_text(encoding="utf-8"))
             self.assertEqual(bundle["format"], "bywaf.bundle.v1")
             self.assertEqual(bundle["name"], "client-a")
-            self.assertEqual([item["kind"] for item in bundle["items"]], ["audit", "evidence"])
+            self.assertEqual([item["kind"] for item in bundle["items"]], ["audit", "evidence", "evidence"])
             audit_records = bundle["items"][0]["records"]
             self.assertTrue(audit_records)
             self.assertTrue(all(record["pipeline_id"] == pipeline_id for record in audit_records))
             self.assertNotIn("legacy-finding", json.dumps(bundle, sort_keys=True))
             evidence_records = bundle["items"][1]["records"]
             self.assertTrue(evidence_records)
-            self.assertTrue(all(record["pipeline_id"] == nikto_pipeline_id for record in evidence_records))
-            self.assertTrue(all(record["commandlet"] == "nikto" for record in evidence_records))
+            self.assertTrue(all(record["pipeline_id"] == screenshot_pipeline_id for record in evidence_records))
+            self.assertTrue(all(record["commandlet"] == "screenshotter" for record in evidence_records))
             self.assertTrue(all("body_base64" in record for record in evidence_records))
+            nikto_evidence_records = bundle["items"][2]["records"]
+            self.assertTrue(nikto_evidence_records)
+            self.assertTrue(all(record["pipeline_id"] == nikto_pipeline_id for record in nikto_evidence_records))
+            self.assertTrue(all(record["commandlet"] == "nikto" for record in nikto_evidence_records))
+            self.assertTrue(all("body_base64" in record for record in nikto_evidence_records))
 
 
 if __name__ == "__main__":
