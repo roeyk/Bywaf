@@ -5,6 +5,12 @@ service = false
 
 [[commandlets]]
 name = "bundle"
+emits = [
+  "bundle.created",
+  "bundle.item.added",
+  "bundle.sealed",
+  "bundle.exported",
+]
 capabilities = [
   "artifact.read",
   "db.read:bundle.created",

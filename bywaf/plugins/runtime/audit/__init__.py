@@ -60,7 +60,6 @@ shutil = audit_export_module.shutil
         "audit export file=audit.jsonl",
         "audit export file=audit.sqlite3 --format sqlite",
     ),
-    capabilities=("db.raw", "filesystem.write", "framework.console.output"),
 )
 @option("format", "export format", "auto", choices=("auto", *AUDIT_FORMATS))
 @option("limit", "maximum events to show or export", "1000")

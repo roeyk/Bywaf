@@ -61,20 +61,6 @@ class Bundle:
         "bundle verify name=client-a",
         "bundle export name=client-a file=client-a.bundle.json",
     ),
-    emits=("bundle.created", "bundle.item.added", "bundle.sealed", "bundle.exported"),
-    capabilities=(
-        "artifact.read",
-        "db.read:bundle.created",
-        "db.read:bundle.item.added",
-        "db.read:bundle.sealed",
-        "db.write:bundle.created",
-        "db.write:bundle.item.added",
-        "db.write:bundle.sealed",
-        "db.write:bundle.exported",
-        "filesystem.write",
-        "framework.console.output",
-    ),
-    database_actions=("view", "write"),
 )
 @argument("action", "bundle action", completion=CompletionSpec("choice", BUNDLE_ACTIONS))
 class BundleCommand(CommandletBase):

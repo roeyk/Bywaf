@@ -5,6 +5,12 @@ service = false
 
 [[commandlets]]
 name = "key"
+emits = [
+  "key.generated",
+  "key.imported",
+  "key.removed",
+  "key.tested",
+]
 capabilities = [
   "db.write:key.generated",
   "db.write:key.imported",

@@ -68,16 +68,6 @@ from .selectors import parse_artifact_cat_selectors, parse_artifact_selectors, p
         "artifact export step=1 dir=artifacts/",
         "artifact verify pipeline=1",
     ),
-    capabilities=(
-        "artifact.read",
-        "artifact.write",
-        "db.read:artifact.attached",
-        "filesystem.read",
-        "filesystem.write",
-        "framework.console.output",
-        "framework.file.page",
-    ),
-    database_actions=("view", "write"),
 )
 @argument("action", "artifact action", completion=CompletionSpec("choice", ARTIFACT_ACTIONS))
 @argument("selector", "serial=, artifact=, step=, pipeline=, job=, file=, dir=, name=, or note=", required=False)
@@ -252,16 +242,16 @@ def search_artifact_command(context: CommandContext, tokens: list[str]) -> None:
         "search serial=pipeline-...",
         "search step=1 content=csrf",
     ),
-    capabilities=(
-        "artifact.read",
-        "framework.console.output",
-    ),
-    database_actions=("view",),
 )
 @argument("query", "name=, filename=, note=, or content= query text", required=False)
 @argument("regexp", "--regexp treats query values as Python regular expressions", required=False, completion=CompletionSpec("choice", SEARCH_FLAGS))
 class SearchCommand(CommandletBase):
     """Search artifact metadata without changing artifacts."""
+
+    def database_actions_for_args(self, args: list[str]) -> tuple[str, ...]:
+        """Search only inspects artifact metadata."""
+        del args
+        return ("view",)
 
     def run(
         self,

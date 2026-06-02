@@ -49,15 +49,6 @@ def triggers() -> tuple[TriggerSpec, ...]:
         "watchdog --once",
         "watchdog interval=10 timeout=300 stall-threshold=120 error-threshold=10 &",
     ),
-    emits=("watchdog.timeout", "watchdog.stalled", "watchdog.error_rate"),
-    capabilities=(
-        "db.read:*",
-        "db.write:*",
-        "db.write:watchdog.timeout",
-        "db.write:watchdog.stalled",
-        "db.write:watchdog.error_rate",
-        "framework.console.alert",
-    ),
 )
 @option("error-threshold", "number of error events before warning", "10")
 @option("interval", "seconds between service checks", "5")

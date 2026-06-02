@@ -51,17 +51,6 @@ KEY_ACTIONS = ("export", "generate", "import", "list", "remove", "show", "test")
         "key import public file=reviewer.pub name=reviewer",
         "key export public name=firm-evidence file=firm-evidence.pub",
     ),
-    emits=("key.generated", "key.imported", "key.removed", "key.tested"),
-    capabilities=(
-        "db.write:key.generated",
-        "db.write:key.imported",
-        "db.write:key.removed",
-        "db.write:key.tested",
-        "filesystem.read",
-        "filesystem.write",
-        "framework.console.output",
-    ),
-    database_actions=("view", "write"),
 )
 @argument("action", "key operation", completion=CompletionSpec("choice", KEY_ACTIONS))
 class Key(CommandletBase):

@@ -36,8 +36,6 @@ DbActionHandler = Callable[[CommandContext, Namespace], None]
     description="Manage the active Bywaf SQLite database.",
     usage="db <status|stats|path|checkpoint|vacuum|new|load|export|encrypt|decrypt|rekey>",
     examples=("db status", "db stats", "db load file=client.sqlite3 --force", "db export file=snapshot.sqlite3", "db rekey"),
-    capabilities=("db.manage", "db.raw", "filesystem.read", "filesystem.write", "framework.console.output"),
-    database_actions=("view", "manage"),
 )
 @argument("action", "database operation", completion=CompletionSpec("choice", DB_ACTIONS))
 class Db(CommandletBase):

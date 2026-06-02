@@ -36,8 +36,6 @@ from bywaf.utils import complete_path
         "note job=12 file=notes.txt",
         "note add step=1 text=follow-up note",
     ),
-    capabilities=("filesystem.read", "filesystem.write", "framework.console.output"),
-    database_actions=("view", "write"),
 )
 @argument(
     "selector",

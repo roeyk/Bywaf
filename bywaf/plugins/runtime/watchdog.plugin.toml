@@ -5,6 +5,11 @@ service = true
 
 [[commandlets]]
 name = "watchdog"
+emits = [
+  "watchdog.timeout",
+  "watchdog.stalled",
+  "watchdog.error_rate",
+]
 capabilities = [
   "db.read:*",
   "db.write:*",
