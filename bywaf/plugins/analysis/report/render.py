@@ -58,6 +58,7 @@ def render_finding_report(
             "summary",
             review_summary_line(review_counts(groups, decisions), severity_class_counts(groups)),
         ),
+        report_text(context, "summary", resume_summary_line(review_counts(groups, decisions))),
     ]
     network_overview = render_network_overview(context, context_events or [], events_for_groups(displayed_groups))
     if network_overview:
@@ -296,6 +297,20 @@ def review_summary_line(
         if severity_counts.get(item, 0)
     )
     return f"{summary}\nseverity classes: {class_summary}" if class_summary else summary
+
+
+def resume_summary_line(counts: Mapping[str, int]) -> str:
+    """Return a short field-resume summary for open report work."""
+    open_count = counts.get("confirmed", 0) + counts.get("unreviewed", 0)
+    if not open_count:
+        return "Resume: no open findings need review"
+    finding_word = "finding" if open_count == 1 else "findings"
+    verb = "needs" if open_count == 1 else "need"
+    return (
+        f"Resume: {open_count} open {finding_word} {verb} review "
+        f"({counts.get('confirmed', 0)} confirmed, "
+        f"{counts.get('unreviewed', 0)} unreviewed)"
+    )
 
 
 def report_grouping_line(parsed: Namespace) -> str:

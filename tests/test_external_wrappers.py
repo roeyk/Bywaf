@@ -91,6 +91,46 @@ class EyeWitnessTests(unittest.TestCase):
             errors = db.events_for_topic("system.error")
             self.assertEqual(errors[0].payload["message"], "EyeWitness executable not found")
 
+    def test_eyewitness_nonzero_exit_links_process_output_artifact(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="eyewitness",
+                metadata={"command_run_id": "run-1", "capabilities": EyeWitness().spec.capabilities},
+            )
+            event = Event.new("http.endpoint", {"url": "https://example.test/"}, "test")
+
+            def fake_run(argv, *, cwd=None, env=None, timeout=None):
+                del argv, cwd, env, timeout
+                return subprocess.CompletedProcess([], 3, stdout="partial stdout", stderr="fatal stderr")
+
+            with patch("bywaf.plugin.process.run_process_argv", side_effect=fake_run):
+                list(EyeWitness().run(context, ["--output-dir", str(Path(tmp, "eye"))], [event]))
+
+            errors = [event.payload for event in db.events_for_topic("tool.error")]
+            exit_error = next(error for error in errors if error["message"] == "EyeWitness exited with status 3")
+            self.assertIn("artifact_id", exit_error)
+            self.assertIn("partial stdout", exit_error["stdout"])
+            self.assertTrue(db.events_for_topic("artifact.attached"))
+
+    def test_eyewitness_timeout_reports_tool_error_without_findings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="eyewitness",
+                metadata={"command_run_id": "run-1", "capabilities": EyeWitness().spec.capabilities},
+            )
+            event = Event.new("http.endpoint", {"url": "https://example.test/"}, "test")
+
+            with patch("bywaf.plugin.process.run_process_argv", side_effect=subprocess.TimeoutExpired(["eyewitness"], 1)):
+                list(EyeWitness().run(context, ["--output-dir", str(Path(tmp, "eye"))], [event]))
+
+            error = db.events_for_topic("tool.error")[0].payload
+            self.assertEqual(error["message"], "EyeWitness run timed out")
+            self.assertEqual(db.events_for_topic("eyewitness.screenshot"), [])
+
 
 class WifiScanTests(unittest.TestCase):
     def test_kismet_argv_is_shell_free(self):

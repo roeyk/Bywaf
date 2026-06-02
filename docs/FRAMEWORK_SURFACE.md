@@ -55,7 +55,7 @@ base installation commandlets that declare or use each capability.
 | `db.write:dns.error` | `dns_lookup` |
 | `db.write:dns.record` | `dns_lookup` |
 | `db.write:eyewitness.screenshot` | `eyewitness`, `screenshotter` |
-| `db.write:finding.candidate` | `git_expose_check`, `http_headers`, `portscanner` |
+| `db.write:finding.candidate` | `git_expose_check`, `http_headers`, `portscanner`, `tls_probe` |
 | `db.write:finding.duplicate` | `finding_dedupe` |
 | `db.write:finding.merge_candidate` | `finding_dedupe` |
 | `db.write:finding.new` | `finding_dedupe` |
@@ -144,6 +144,7 @@ the association and `Consumes` is the normal consumer side.
 | `smb_probe` | none | `smb.server` |
 | `snmp_get` | none | `snmp.value` |
 | `ssh_probe` | `port.open` | `ssh.service` |
+| `tls_probe` | `http.endpoint`, `port.open` | `tls.certificate`, `tls.probe.error`, `finding.candidate` |
 | `traceroute` | `host.found` | `host.found`, `network.route.hop` |
 | `watchdog` | none | `watchdog.timeout`, `watchdog.stalled`, `watchdog.error_rate` |
 | `webfin` | `http.endpoint` | `web.fingerprint` |

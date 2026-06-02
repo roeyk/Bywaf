@@ -6,10 +6,12 @@ import socket
 import ssl
 from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any, cast
 
 from bywaf.event.schema_objects import HttpEndpoint, OpenPort, TlsCertificate
 from bywaf.event import Event
+from bywaf.finding import candidate_payload
 from bywaf.plugin import CommandContext, Commandlet, RunConfig, commandlet
 from bywaf.plugins.target_policy import filter_targets_by_host
 
@@ -30,7 +32,10 @@ def tls_probe(context: CommandContext, cfg: RunConfig, input_events: Iterable[Ev
             )
             continue
         cert = TlsCertificate(target.host, target.port, **result, scanner="tls_probe")
-        context.events.publish("tls.certificate", cert.to_payload())
+        cert_payload = cert.to_payload()
+        context.events.publish("tls.certificate", cert_payload)
+        for finding in tls_certificate_findings(cert_payload):
+            context.events.publish("finding.candidate", finding)
         context.alert(f"captured TLS certificate from {target.host}:{target.port}", silent=cfg.silent)
     return ()
 
@@ -121,6 +126,82 @@ def san_values(items: object) -> list[str]:
             if isinstance(pair, tuple) and len(pair) == 2:
                 values.append(str(pair[1]))
     return values
+
+
+def tls_certificate_findings(cert: dict[str, Any], *, now: datetime | None = None) -> list[dict[str, Any]]:
+    """Return safe TLS hygiene finding candidates from certificate metadata."""
+    findings: list[dict[str, Any]] = []
+    host = str(cert.get("host") or "")
+    port = int(cert.get("port") or 443)
+    not_after = parse_tls_time(str(cert.get("not_after") or ""))
+    now = now or datetime.now(UTC)
+    if not_after is not None and not_after < now:
+        findings.append(
+            candidate_payload(
+                title="Expired TLS certificate",
+                finding_class="service.tls.certificate_expired",
+                severity="medium",
+                confidence="high",
+                target={"host": host, "port": port, "protocol": "tcp"},
+                target_scope={"kind": "service", "value": f"{host}:{port}/tcp"},
+                affected=[{"host": host, "port": port}],
+                evidence=f"Certificate not_after is {cert.get('not_after')}",
+                recommendation="Renew or replace the certificate and retest the TLS endpoint.",
+                source={"tool": "tls_probe", "topic": "tls.certificate"},
+            )
+        )
+    if host and not certificate_matches_host(host, cert):
+        findings.append(
+            candidate_payload(
+                title="TLS certificate hostname mismatch",
+                finding_class="service.tls.hostname_mismatch",
+                severity="medium",
+                confidence="high",
+                target={"host": host, "port": port, "protocol": "tcp"},
+                target_scope={"kind": "service", "value": f"{host}:{port}/tcp"},
+                affected=[{"host": host, "port": port}],
+                evidence=f"Certificate SAN/subject does not match {host}",
+                recommendation="Install a certificate whose SAN covers the probed hostname.",
+                source={"tool": "tls_probe", "topic": "tls.certificate"},
+            )
+        )
+    return findings
+
+
+def parse_tls_time(value: str) -> datetime | None:
+    """Parse common TLS certificate timestamps."""
+    if not value:
+        return None
+    for pattern in ("%b %d %H:%M:%S %Y %Z", "%Y-%m-%dT%H:%M:%S%z"):
+        try:
+            parsed = datetime.strptime(value, pattern)
+        except ValueError:
+            continue
+        return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
+    return None
+
+
+def certificate_matches_host(host: str, cert: dict[str, Any]) -> bool:
+    """Return whether certificate SAN or subject covers the probed host."""
+    names = [str(name).casefold() for name in cert.get("san") or []]
+    subject = str(cert.get("subject") or "")
+    for part in subject.split(","):
+        key, _, value = part.strip().partition("=")
+        if key.casefold() in {"commonname", "cn"} and value:
+            names.append(value.casefold())
+    if not names:
+        return True
+    return any(host_matches_name(host.casefold(), name) for name in names)
+
+
+def host_matches_name(host: str, name: str) -> bool:
+    """Return whether a DNS name or one-label wildcard matches a host."""
+    if name == host:
+        return True
+    if not name.startswith("*."):
+        return False
+    suffix = name[1:]
+    return host.endswith(suffix) and host.count(".") == suffix.count(".")
 
 
 def plugin() -> Commandlet:

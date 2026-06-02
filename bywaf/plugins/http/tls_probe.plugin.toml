@@ -19,8 +19,10 @@ consumes = [
 emits = [
   "tls.certificate",
   "tls.probe.error",
+  "finding.candidate",
 ]
 capabilities = [
+  "db.write:finding.candidate",
   "db.write:tls.certificate",
   "db.write:tls.probe.error",
   "framework.console.alert",

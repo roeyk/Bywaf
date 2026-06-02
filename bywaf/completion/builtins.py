@@ -29,6 +29,16 @@ if TYPE_CHECKING:
     from ..registry import PluginRegistry
 
 
+EVENT_SELECTORS = ("job=", "step=", "pipeline=", "serial=", "topic=")
+EVENT_SELECTOR_COMPLETION_KINDS = {
+    "job": "job",
+    "pipeline": "pipeline",
+    "serial": "serial",
+    "step": "step",
+    "topic": "topic",
+}
+
+
 class BuiltinCompletionMixin:
     """Completion helpers for REPL built-ins and runtime selectors."""
 
@@ -54,17 +64,24 @@ class BuiltinCompletionMixin:
             if not self.db:
                 return []
             return [str(event.id) for event in self.db.recent_events(50) if str(event.id).startswith(prefix)]
-        selectors = ("job=", "step=", "pipeline=", "serial=", "topic=")
-        for selector in selectors:
-            if prefix.startswith(selector):
-                value_prefix = prefix.split("=", 1)[1]
-                kind = selector[:-1]
-                return [f"{selector}{value}" for value in self.complete_by_spec(CompletionSpec(kind), value_prefix)]
+        selector_values = self.event_selector_value_candidates(prefix)
+        if selector_values is not None:
+            return selector_values
         if prefix:
-            selector_matches = [selector for selector in selectors if selector.startswith(prefix)]
+            selector_matches = [selector for selector in EVENT_SELECTORS if selector.startswith(prefix)]
             if selector_matches:
                 return selector_matches
-        return [*self.topic_candidates(), *selectors]
+        return [*self.topic_candidates(), *EVENT_SELECTORS]
+
+    def event_selector_value_candidates(self, prefix: str) -> list[str] | None:
+        """Complete selector values after `event <selector>=`."""
+        for selector in EVENT_SELECTORS:
+            if not prefix.startswith(selector):
+                continue
+            value_prefix = prefix.split("=", 1)[1]
+            kind = EVENT_SELECTOR_COMPLETION_KINDS[selector[:-1]]
+            return [f"{selector}{value}" for value in self.complete_by_spec(CompletionSpec(kind), value_prefix)]
+        return None
 
     def run_candidates(self) -> list[str]:
         """Complete pipeline step IDs from the active database."""

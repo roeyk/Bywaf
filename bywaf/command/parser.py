@@ -159,24 +159,28 @@ def parse_pipeline(
         # A trailing `&` applies to the whole pipeline.  Store it on the final
         # stage so Runner can classify the parsed pipeline as background while
         # preserving each commandlet's own argument list.
-        last = commands[-1]
-        commands[-1] = CommandInvocation(
-            last.name,
-            last.args,
-            background=True,
-            from_step=last.from_step,
-            from_pipeline=last.from_pipeline,
-            from_job=last.from_job,
-            from_topic=last.from_topic,
-            replay_after_id=last.replay_after_id,
-            note=last.note,
-            display_name=last.display_name,
-            variable_expansions=last.variable_expansions,
-            expanded_text=last.expanded_text,
-            plan_only=last.plan_only,
-            approved=last.approved,
-        )
+        commands[-1] = invocation_with_background(commands[-1])
     return Pipeline(tuple(commands), any(command.background for command in commands), display_name)
+
+
+def invocation_with_background(invocation: CommandInvocation) -> CommandInvocation:
+    """Return a copy of an invocation marked for background pipeline execution."""
+    return CommandInvocation(
+        invocation.name,
+        invocation.args,
+        background=True,
+        from_step=invocation.from_step,
+        from_pipeline=invocation.from_pipeline,
+        from_job=invocation.from_job,
+        from_topic=invocation.from_topic,
+        replay_after_id=invocation.replay_after_id,
+        note=invocation.note,
+        display_name=invocation.display_name,
+        variable_expansions=invocation.variable_expansions,
+        expanded_text=invocation.expanded_text,
+        plan_only=invocation.plan_only,
+        approved=invocation.approved,
+    )
 
 
 def split_pipeline_raw(command_line: str) -> tuple[list[str], bool]:

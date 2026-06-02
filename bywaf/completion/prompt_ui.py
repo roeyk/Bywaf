@@ -110,25 +110,31 @@ def prompt_value_fragments(completer: Any, text: str):
         value_end = value_token_end(text, equals + 1)
         value_text = text[equals + 1:value_end]
         if value_text.startswith(("'", '"')):
-            quote_end = prompt_closing_quote_index(value_text, 0)
-            styled_len = len(value_text) if quote_end is None else quote_end + 1
-            if styled_len:
-                quote_allows_variables = value_text.startswith('"')
-                if quote_allows_variables:
-                    append_styled_value_fragments(
-                        fragments,
-                        value_text[:styled_len],
-                        string_style or value_style,
-                        variable_style,
-                    )
-                else:
-                    fragments.append((string_style or value_style, value_text[:styled_len]))
-            if styled_len < len(value_text):
-                append_styled_value_fragments(fragments, value_text[styled_len:], value_style, variable_style)
+            append_quoted_value_fragments(fragments, value_text, value_style, string_style, variable_style)
         else:
             append_styled_value_fragments(fragments, value_text, value_style, variable_style)
         index = value_end
     return [fragment for fragment in fragments if fragment[1]]
+
+
+def append_quoted_value_fragments(
+    fragments: list[tuple[str, str]],
+    value_text: str,
+    value_style: str,
+    string_style: str,
+    variable_style: str,
+) -> None:
+    """Append a quoted value token and style any trailing unquoted suffix."""
+    quote_end = prompt_closing_quote_index(value_text, 0)
+    styled_len = len(value_text) if quote_end is None else quote_end + 1
+    if styled_len:
+        quote_style = string_style or value_style
+        if value_text.startswith('"'):
+            append_styled_value_fragments(fragments, value_text[:styled_len], quote_style, variable_style)
+        else:
+            fragments.append((quote_style, value_text[:styled_len]))
+    if styled_len < len(value_text):
+        append_styled_value_fragments(fragments, value_text[styled_len:], value_style, variable_style)
 
 
 def append_styled_value_fragments(
