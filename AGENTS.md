@@ -129,6 +129,13 @@ security are separate layers.
   This is a refactoring signal, not a hard failure threshold. Larger cohesive
   files are acceptable when splitting would reduce clarity or create
   artificial boundaries.
+- As a mandatory post-coding, pre-commit review gate, check any changed
+  ordinary source or test file that is at or above 500 lines. Split it before
+  committing unless it is cohesive enough that splitting would reduce clarity.
+  This keeps file sizes controlled during development and forces the harder
+  design choices about responsibility and placement while the context is
+  fresh. If a file remains above the threshold, record why it is still cohesive
+  and where any follow-up belongs.
 - When a split is worthwhile, aim resulting ordinary files at roughly 300-400
   lines rather than merely just under 500. For test files, prefer splitting by
   behavior, command surface, or subsystem boundary. Avoid splitting only to
