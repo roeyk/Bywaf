@@ -168,7 +168,7 @@ class PluginRegistry:
         triggers = load_trigger_specs(module)
         if manifest is not None:
             manifest_path = Path(f"{package_name}.{entry}.plugin.toml")
-            plugins = enforce_plugin_manifest(manifest, plugins, manifest_path)
+            plugins = enforce_plugin_manifest(manifest, plugins, manifest_path, hydrate_specs=True)
             triggers = enforce_trigger_manifest(manifest, triggers, manifest_path)
             register_event_schemas(manifest.event_schemas)
         elif triggers:

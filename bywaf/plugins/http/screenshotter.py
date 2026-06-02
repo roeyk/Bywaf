@@ -29,20 +29,6 @@ from bywaf.plugins.http.eyewitness import EyeWitness
         "screenshotter https://example.test/",
         "http_probe https://example.test/ | screenshotter",
     ),
-    consumes=("http.endpoint",),
-    emits=("eyewitness.screenshot", "web.screenshotted_host"),
-    capabilities=(
-        "artifact.write",
-        "db.write:eyewitness.screenshot",
-        "db.write:web.screenshotted_host",
-        "db.write:tool.error",
-        "db.write:system.error",
-        "filesystem.read",
-        "filesystem.write",
-        "framework.console.alert",
-        "framework.process.run",
-        "network.connect",
-    ),
 )
 @option("binary", "EyeWitness executable", "eyewitness", completion="path")
 @option("output-dir", "directory for EyeWitness output", completion="path")

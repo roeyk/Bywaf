@@ -119,6 +119,17 @@ class RegistryBundledPluginTests(unittest.TestCase):
         self.assertTrue(manifest.process_wrapped)
         self.assertFalse(manifest.native)
 
+    def test_bundled_sidecar_hydrates_runtime_security_metadata(self):
+        from bywaf.plugins.http.eyewitness import EyeWitness
+        from bywaf.plugins.http.screenshotter import Screenshotter
+
+        self.assertEqual(EyeWitness().spec.capabilities, ())
+        self.assertEqual(Screenshotter().spec.capabilities, ())
+        self.assertIn("network.connect", self.registry.get("eyewitness").spec.capabilities)
+        self.assertEqual(self.registry.get("eyewitness").spec.consumes, ("http.endpoint",))
+        self.assertIn("network.connect", self.registry.get("screenshotter").spec.capabilities)
+        self.assertEqual(self.registry.get("screenshotter").spec.consumes, ("http.endpoint",))
+
     def test_bundled_watchdog_manifest_is_service(self):
         manifest = load_package_manifest("bywaf.plugins", "runtime.watchdog")
         self.assertIsNotNone(manifest)

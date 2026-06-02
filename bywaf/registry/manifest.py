@@ -10,7 +10,7 @@ Used by:
 from __future__ import annotations
 
 import tomllib
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from importlib import resources
 from pathlib import Path
 from typing import Any
@@ -187,6 +187,8 @@ def enforce_plugin_manifest(
     manifest: PluginManifest,
     plugins: tuple[Commandlet, ...],
     path: Path,
+    *,
+    hydrate_specs: bool = False,
 ) -> tuple[Commandlet, ...]:
     """Return only manifest-declared commandlets and reject missing declarations.
 
@@ -200,6 +202,8 @@ def enforce_plugin_manifest(
     if missing:
         raise ValueError(f"{path} declares missing commandlets: {', '.join(missing)}")
     for name in sorted(manifest.commandlets):
+        if hydrate_specs:
+            hydrate_command_spec_from_manifest(by_name[name], manifest, name)
         # Capabilities, secret options, and provider-variable declarations must
         # match exactly.  Missing entries would weaken enforcement; stale entries
         # would make the manifest claim permissions or secrets the code does not
@@ -279,6 +283,25 @@ def enforce_plugin_manifest(
                 details.append(f"stale {', '.join(stale_secret_provider_vars)}")
             raise ValueError(f"{path} secret_provider_variables mismatch for {name}: {'; '.join(details)}")
     return tuple(by_name[name] for name in sorted(manifest.commandlets))
+
+
+def hydrate_command_spec_from_manifest(plugin: Commandlet, manifest: PluginManifest, name: str) -> None:
+    """Overlay sidecar-owned bundled metadata onto a runtime command spec."""
+    spec = plugin.spec
+    plugin.spec = replace(
+        spec,
+        capabilities=manifest.commandlet_capabilities.get(name, spec.capabilities),
+        database_actions=manifest.commandlet_database_actions.get(name, spec.database_actions),
+        consumes=manifest.commandlet_consumes.get(name, spec.consumes) or spec.consumes,
+        emits=manifest.commandlet_emits.get(name, spec.emits) or spec.emits,
+        options=manifest.commandlet_options.get(name, spec.options) or spec.options,
+        arguments=manifest.commandlet_arguments.get(name, spec.arguments) or spec.arguments,
+        provider_variables=manifest.commandlet_provider_variables.get(name, spec.provider_variables),
+        secret_provider_variables=manifest.commandlet_secret_provider_variables.get(
+            name,
+            spec.secret_provider_variables,
+        ),
+    )
 
 
 def enforce_trigger_manifest(
