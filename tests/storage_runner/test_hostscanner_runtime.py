@@ -293,7 +293,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             with (
                 patch(
-                    "bywaf.plugins.discovery.hostscanner.socket.getaddrinfo",
+                    "bywaf.policy.socket.getaddrinfo",
                     return_value=address_info,
                 ) as getaddrinfo,
                 patch(
@@ -316,7 +316,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
     def test_hostscanner_rejects_unresolved_name(self):
         with tempfile.TemporaryDirectory() as tmp:
             with patch(
-                "bywaf.plugins.discovery.hostscanner.socket.getaddrinfo",
+                "bywaf.policy.socket.getaddrinfo",
                 side_effect=socket.gaierror,
             ):
                 runner = make_runner(Path(tmp, "db.sqlite3"))

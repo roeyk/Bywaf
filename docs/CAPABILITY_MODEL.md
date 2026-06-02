@@ -281,6 +281,10 @@ need it.
 
 Policies are framework-level decisions that can deny, warn, or repair requested
 behavior. For example, a network policy can prune a target list before a scan.
+Bundled scanner paths should use the shared framework policy helpers before
+invoking active network work, so direct scanner arguments and pipeline-fed
+targets receive the same allow/deny filtering where the framework can mediate
+them.
 
 `--test` asks the commandlet and policy engine to describe the intended action
 without running the real work:

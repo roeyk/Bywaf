@@ -54,6 +54,38 @@ class StorageRunnerPortscannerListenTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "pipeline scope"):
                 list(PortScanner().run(context, ["--listen", "--listen-timeout", "0.01"], []))
 
+    def test_portscanner_listen_prunes_out_of_scope_upstream_hosts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "db.sqlite3"))
+            db.publish(
+                "host.found",
+                {"host": "198.51.100.1"},
+                "hostscanner",
+                pipeline_id="pipe-1",
+                command_run_id="upstream-1",
+            )
+            varstore = VarStore()
+            varstore.set("global.policy.network.allow", "192.0.2.0/24")
+            context = CommandContext(
+                db,
+                source="portscanner",
+                _varstore=varstore,
+                metadata={
+                    "pipeline_id": "pipe-1",
+                    "command_run_id": "port-1",
+                    "parent_command_run_id": "upstream-1",
+                    "input_high_watermark": 0,
+                },
+            )
+            with patch("bywaf.plugins.network.portscanner.scan_open_ports") as scan:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    events = list(PortScanner().run(context, ["--listen", "--listen-timeout", "0.01"], []))
+            self.assertEqual(events, [])
+            scan.assert_not_called()
+            policy = db.events_for_topic("policy.evaluated")[0]
+            self.assertEqual(policy.payload["before"], {"targets": ["198.51.100.1"]})
+            self.assertEqual(policy.payload["after"], {"targets": []})
+
     def test_background_portscanner_auto_listens_to_upstream_scope(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))

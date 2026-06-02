@@ -922,6 +922,12 @@ bywaf> set global.plan.required=true
 The policy layer applies to the step being launched. Repairs do not mutate source
 files, saved variables, or command history.
 
+Bundled network scanners also pass normalized scan targets through the
+framework network policy before invoking nmap-backed work. This includes direct
+`portscanner host=...` usage and live upstream hosts consumed by
+`portscanner --listen`. Policy filtering is an execution guard for framework
+paths; it is not hostile-code sandboxing for arbitrary in-process plugins.
+
 # Command Continuation And Sequences
 
 Use a trailing backslash to continue a command across physical lines in the

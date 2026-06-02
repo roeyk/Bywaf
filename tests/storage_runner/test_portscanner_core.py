@@ -262,6 +262,36 @@ class StorageRunnerPortscannerCoreTests(unittest.TestCase):
             self.assertEqual(scan.call_args.args[1], "33169,33199")
             self.assertEqual(events[0].payload["port"], 33169)
 
+    def test_portscanner_prunes_explicit_out_of_scope_hosts_before_nmap(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.registry.varstore.set("global.policy.network.allow", "192.0.2.0/24")
+            with patch(
+                "bywaf.plugins.network.portscanner.scan_open_ports",
+                return_value=[NmapPort("192.0.2.10", 80, "tcp", "open")],
+            ) as scan:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    events = runner.execute("portscanner 192.0.2.10 198.51.100.10 port=80")
+            self.assertEqual(scan.call_args.args[0], ["192.0.2.10"])
+            self.assertEqual(events[0].payload["host"], "192.0.2.10")
+            policy = runner.db.events_for_topic("policy.evaluated")[0]
+            self.assertEqual(policy.payload["decision"], "warn")
+            self.assertEqual(policy.payload["after"], {"targets": ["192.0.2.10"]})
+            self.assertIn("198.51.100.10 is outside allowed network scope", policy.payload["warnings"])
+
+    def test_portscanner_skips_nmap_when_policy_prunes_all_explicit_hosts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.registry.varstore.set("global.policy.network.allow", "192.0.2.0/24")
+            with patch("bywaf.plugins.network.portscanner.scan_open_ports") as scan:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    events = runner.execute("portscanner 198.51.100.10 port=80")
+            scan.assert_not_called()
+            self.assertEqual(events, [])
+            policy = runner.db.events_for_topic("policy.evaluated")[0]
+            self.assertEqual(policy.payload["before"], {"targets": ["198.51.100.10"]})
+            self.assertEqual(policy.payload["after"], {"targets": []})
+
     def test_portscanner_keeps_cidr_and_ip_range_targets_unresolved(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

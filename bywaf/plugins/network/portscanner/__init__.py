@@ -20,8 +20,9 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from bywaf.event import Event
+from bywaf.policy import apply_network_policy, network_policy, publish_network_policy_evaluated, resolve_target
 from bywaf.plugins.addressing import filter_addresses_for_ip_family, is_ip_scan_target, target_matches_ip_family
-from bywaf.plugins.discovery.hostscanner import publish_name_resolution_events, resolve_target
+from bywaf.plugins.discovery.hostscanner import publish_name_resolution_events
 from bywaf.plugins.network.nmap_backend import scan_open_ports
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option, split_var_values
 from bywaf.plugins._args import key_value_to_long_options
@@ -165,6 +166,7 @@ def scan_hosts(
 ):
     """Scan hosts once and emit normalized open-port payloads."""
     new_hosts = [host for host in hosts if host and host not in seen_hosts]
+    new_hosts = filter_hosts_by_network_policy(context, new_hosts)
     if not new_hosts:
         return
     context.raise_if_cancelled()
@@ -214,6 +216,20 @@ def scan_hosts(
         if candidate:
             context.events.publish("finding.candidate", candidate)
         yield payload
+
+
+def filter_hosts_by_network_policy(context: CommandContext, hosts: Iterable[str]) -> list[str]:
+    """Apply framework network policy before invoking the port scanner."""
+    before = list(dict.fromkeys(hosts))
+    if not before:
+        return []
+    allowed, denied, _mode = network_policy(context)
+    after, warnings = apply_network_policy(before, allowed, denied)
+    if warnings:
+        for warning in warnings:
+            context.alert(warning)
+        publish_network_policy_evaluated(context, decision="warn", warnings=warnings, before=before, after=after)
+    return list(after)
 
 
 def listen_for_upstream_hosts(context: CommandContext, parsed, seen_hosts: set[str]):
