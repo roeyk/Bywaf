@@ -42,6 +42,9 @@ impact label and sorted from highest to lowest operator/developer impact:
 - [medium] Added explicit screenshotter wrapper fixture coverage for missing
   binary, nonzero exit, timeout, empty selection, and successful screenshot
   evidence paths.
+- [medium] Expanded fixture-backed wrapper coverage for HTTP, TLS, WAF, TCP
+  banner, SNMP, LDAP, SMB, DNS, and Shodan probes so provider failures are
+  preserved as structured events instead of escaping as raw exceptions.
 - [medium] Documented the storage backend contract and added backend capability
   metadata plus backend-parametrized store contract coverage as preparation for
   a future Postgres adapter.

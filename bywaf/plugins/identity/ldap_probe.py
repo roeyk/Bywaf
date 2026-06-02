@@ -54,7 +54,14 @@ class LdapProbe(CommandletBase):
         # action that follows.
         context.audit_capability("network.connect")
         server = ldap3.Server(parsed.host, port=parsed.port, use_ssl=parsed.ssl == "true", connect_timeout=parsed.timeout, get_info=ldap3.ALL)
-        conn = ldap3.Connection(server, user=parsed.username or None, password=password or None, auto_bind=True)
+        try:
+            conn = ldap3.Connection(server, user=parsed.username or None, password=password or None, auto_bind=True)
+        except Exception as exc:
+            context.events.publish(
+                "ldap.server",
+                {"host": parsed.host, "port": parsed.port, "ssl": parsed.ssl == "true", "bound": False, "error": str(exc)},
+            )
+            return ()
         try:
             info = getattr(server, "info", None)
             # ldap3 exposes naming contexts via server.info after bind. Keep

@@ -55,14 +55,18 @@ class SnmpGet(CommandletBase):
 
 def publish_snmp_value(context: CommandContext, hlapi: Any, host: str, port: int, community: str, oid: str, timeout: float) -> None:
     """Run one pysnmp GET and publish the result."""
-    iterator = hlapi.getCmd(
-        hlapi.SnmpEngine(),
-        hlapi.CommunityData(community),
-        hlapi.UdpTransportTarget((host, port), timeout=timeout, retries=0),
-        hlapi.ContextData(),
-        hlapi.ObjectType(hlapi.ObjectIdentity(oid)),
-    )
-    error_indication, error_status, error_index, var_binds = next(iterator)
+    try:
+        iterator = hlapi.getCmd(
+            hlapi.SnmpEngine(),
+            hlapi.CommunityData(community),
+            hlapi.UdpTransportTarget((host, port), timeout=timeout, retries=0),
+            hlapi.ContextData(),
+            hlapi.ObjectType(hlapi.ObjectIdentity(oid)),
+        )
+        error_indication, error_status, error_index, var_binds = next(iterator)
+    except Exception as exc:
+        context.events.publish("snmp.value", {"host": host, "port": port, "oid": oid, "error": str(exc)})
+        return
     if error_indication:
         # pysnmp separates transport/runtime failures from protocol-level
         # error_status. Preserve the distinction in the payload.

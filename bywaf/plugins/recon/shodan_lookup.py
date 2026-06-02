@@ -55,12 +55,25 @@ class ShodanLookup(CommandletBase):
             for host in parsed.query:
                 # Host mode preserves Shodan's host payload because the API
                 # already returns a structured document.
-                context.events.publish("shodan.host", api.host(host))
+                try:
+                    context.events.publish("shodan.host", api.host(host))
+                except Exception as exc:
+                    publish_shodan_error(context, f"host lookup failed for {host}: {exc}")
         else:
-            result = api.search(" ".join(parsed.query), limit=parsed.limit)
+            query = " ".join(parsed.query)
+            try:
+                result = api.search(query, limit=parsed.limit)
+            except Exception as exc:
+                publish_shodan_error(context, f"search failed for {query}: {exc}")
+                return ()
             for match in result.get("matches", []):
                 context.events.publish("shodan.result", match)
         return ()
+
+
+def publish_shodan_error(context: CommandContext, message: str) -> None:
+    """Publish one operational Shodan failure."""
+    context.events.publish("tool.error", {"tool": "shodan", "severity": "error", "message": message})
 
 
 def plugin() -> Commandlet:

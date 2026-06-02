@@ -51,24 +51,42 @@ class SmbProbe(CommandletBase):
             # Each host is independent. Publish partial metadata even when a
             # later host fails so long sweeps still leave useful evidence.
             context.audit_capability("network.connect")
-            conn = smb_mod.SMBConnection(host, host, sess_port=parsed.port, timeout=parsed.timeout)
             try:
-                if parsed.username or password:
-                    conn.login(parsed.username, password, parsed.domain)
-                context.events.publish(
-                    "smb.server",
-                    {
-                        "host": host,
-                        "port": parsed.port,
-                        "server_name": safe_call(conn, "getServerName"),
-                        "server_domain": safe_call(conn, "getServerDomain"),
-                        "server_os": safe_call(conn, "getServerOS"),
-                        "shares": safe_shares(conn),
-                    },
-                )
+                conn = smb_mod.SMBConnection(host, host, sess_port=parsed.port, timeout=parsed.timeout)
+            except Exception as exc:
+                publish_smb_error(context, host, parsed.port, exc)
+                continue
+            try:
+                try:
+                    if parsed.username or password:
+                        conn.login(parsed.username, password, parsed.domain)
+                except Exception as exc:
+                    publish_smb_error(context, host, parsed.port, exc)
+                    continue
+                publish_smb_server(context, conn, host, parsed.port)
             finally:
                 conn.close()
         return ()
+
+
+def publish_smb_server(context: CommandContext, conn, host: str, port: int) -> None:
+    """Publish SMB server metadata from one established connection."""
+    context.events.publish(
+        "smb.server",
+        {
+            "host": host,
+            "port": port,
+            "server_name": safe_call(conn, "getServerName"),
+            "server_domain": safe_call(conn, "getServerDomain"),
+            "server_os": safe_call(conn, "getServerOS"),
+            "shares": safe_shares(conn),
+        },
+    )
+
+
+def publish_smb_error(context: CommandContext, host: str, port: int, exc: Exception) -> None:
+    """Publish one SMB probe failure as service-scoped data."""
+    context.events.publish("smb.server", {"host": host, "port": port, "error": str(exc)})
 
 
 def safe_call(obj, method: str) -> str:
