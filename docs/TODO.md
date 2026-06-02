@@ -310,17 +310,17 @@ Planning dates are release planning markers, not compatibility commitments.
 
 ### Item: MVP Plugin Suite
 
-- Build a small, rock-solid plugin suite that demonstrates the main plugin
+- Maintain the implemented MVP plugin suite that demonstrates the main plugin
   integration styles: native user-facing, library-backed, external-tool
-  wrapper, and helper/provider.
+  wrapper, helper/provider, service, and evidence-bundle workflows.
 - Treat the existing `hostscanner` and `portscanner` commandlets as
   library-backed examples around libnmap/nmap-backed discovery and port
   scanning.
 - Treat the table rendering provider as the helper/provider example: it is
   framework-native and mainly exists for other commandlets to use.
-- Expand the new native `webfin` plugin into the user-facing native pentesting
-  example, and keep `web_fingerprint` plus `scope_audit` as naming/design
-  candidates for future native commandlets if they become separate behaviors.
+- Treat `webfin` as the user-facing native pentesting example, and keep
+  `web_fingerprint` plus `scope_audit` as naming/design candidates for future
+  commandlets if they become separate behaviors.
 - Keep the Nikto wrapper plugin as the external-tool wrapper example: it
   invokes Nikto through the framework-mediated process API, parses JSON output
   into structured finding and vulnerability events, and consumes upstream HTTP
@@ -328,11 +328,10 @@ Planning dates are release planning markers, not compatibility commitments.
 - Treat `eyewitness` and `wifi_scan` as additional external-tool wrapper
   examples covering screenshot artifacts and wireless scan logs.
 - Treat `finding_dedupe` as the native finding-normalization step that prepares
-  scanner output for a later reporter plugin using the framework table
-  provider.
-- Add at least one documented end-to-end chain showing discovery, port
-  scanning, HTTP probing, screenshots, Nikto scanning, table/report output,
-  notes, and artifacts.
+  scanner output for report views and the table/export provider.
+- Keep fixture-backed end-to-end coverage for discovery, port scanning, HTTP
+  probing, screenshots, Nikto scanning, report output, notes, audit records,
+  and evidence bundle export.
 
 ### Item: Plugin Helper Abstraction After Real Plugin Experience
 
