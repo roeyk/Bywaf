@@ -91,9 +91,12 @@ def default_port(url: str) -> int:
 
 def probe_path(url: str, timeout: float, user_agent: str) -> dict[str, object]:
     """Fetch a path and return bounded response metadata."""
+    if not is_http_url(url):
+        return {"error": "unsupported URL scheme"}
     request = urllib.request.Request(url, method="GET", headers={"User-Agent": user_agent})
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        # URL scheme is restricted to HTTP(S) above.
+        with urllib.request.urlopen(request, timeout=timeout) as response:  # nosec B310
             body = response.read(65536)
             return response_metadata(response, body)
     except urllib.error.HTTPError as exc:
@@ -113,6 +116,11 @@ def response_metadata(response, body: bytes) -> dict[str, object]:
         "title": extract_title(text),
         "sample": text[:4096],
     }
+
+
+def is_http_url(url: str) -> bool:
+    """Return whether URL uses an HTTP transport scheme."""
+    return urllib.parse.urlparse(url).scheme in {"http", "https"}
 
 
 def extract_title(text: str) -> str:

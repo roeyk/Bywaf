@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import getpass
 import os
+import re
 from argparse import Namespace
 from collections.abc import Callable, Iterable
 from datetime import datetime
@@ -26,6 +27,7 @@ from bywaf.utils import complete_path
 DB_ACTIONS = ("checkpoint", "decrypt", "encrypt", "export", "load", "new", "path", "rekey", "stats", "status", "vacuum")
 DB_VIEW_ACTIONS = {"path", "stats", "status"}
 ENCRYPTION_VAR = "encryption"
+SQL_IDENTIFIER_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 DbActionHandler = Callable[[CommandContext, Namespace], None]
 
 
@@ -264,7 +266,9 @@ def main_table_counts(db: EventStore) -> list[tuple[str, int]]:
         counts = []
         for row in rows:
             name = str(row["name"] if hasattr(row, "keys") else row[0])
-            count = conn.execute(f'SELECT COUNT(*) FROM "{name}"').fetchone()
+            table_name = quote_identifier(name)
+            query = f"SELECT COUNT(*) FROM {table_name}"  # nosec B608
+            count = conn.execute(query).fetchone()
             counts.append((name, int(count[0]) if count is not None else 0))
         return counts
 
@@ -278,11 +282,22 @@ def event_topic_counts(db: EventStore) -> list[tuple[str, int]]:
 
 def grouped_count(db: EventStore, table: str, column: str) -> list[tuple[str, int]]:
     """Return grouped counts for trusted schema table/column names."""
+    table_name = quote_identifier(table)
+    column_name = quote_identifier(column)
     with db.connect() as conn:
-        rows = conn.execute(
-            f'SELECT "{column}" AS value, COUNT(*) AS count FROM "{table}" GROUP BY "{column}" ORDER BY count DESC, value ASC'
-        ).fetchall()
+        query = (
+            f"SELECT {column_name} AS value, COUNT(*) AS count "
+            f"FROM {table_name} GROUP BY {column_name} ORDER BY count DESC, value ASC"  # nosec B608
+        )
+        rows = conn.execute(query).fetchall()
     return [(str(row["value"] if row["value"] is not None else ""), int(row["count"])) for row in rows]
+
+
+def quote_identifier(value: str) -> str:
+    """Return a SQLite identifier after strict schema-name validation."""
+    if not SQL_IDENTIFIER_RE.fullmatch(value):
+        raise ValueError(f"invalid SQL identifier: {value!r}")
+    return f'"{value}"'
 
 
 def format_artifact_stats(db: EventStore) -> list[str]:

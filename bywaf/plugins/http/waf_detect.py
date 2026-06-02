@@ -51,9 +51,12 @@ def waf_targets(targets: list[str], input_events: Iterable[Event]) -> list[str]:
 
 def fetch_headers(url: str, timeout: float, user_agent: str) -> dict[str, object]:
     """Fetch response headers with a HEAD request."""
+    if not is_http_url(url):
+        return {"error": "unsupported URL scheme", "headers": {}}
     request = urllib.request.Request(url, method="HEAD", headers={"User-Agent": user_agent})
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        # URL scheme is restricted to HTTP(S) above.
+        with urllib.request.urlopen(request, timeout=timeout) as response:  # nosec B310
             return {"status": response.status, "headers": dict(response.headers)}
     except urllib.error.HTTPError as exc:
         return {"status": exc.status, "headers": dict(exc.headers)}
@@ -98,6 +101,11 @@ def detect_waf(url: str, result: dict[str, object]) -> WebWafDetected | None:
         confidence="medium",
         scanner="waf_detect",
     )
+
+
+def is_http_url(url: str) -> bool:
+    """Return whether URL uses an HTTP transport scheme."""
+    return urllib.parse.urlparse(url).scheme in {"http", "https"}
 
 
 def plugin() -> Commandlet:
