@@ -5,7 +5,8 @@ from __future__ import annotations
 import urllib.error
 import urllib.parse
 import urllib.request
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from typing import cast
 
 from bywaf.event.schema_objects import HttpEndpoint, WebWafDetected
@@ -77,36 +78,65 @@ def detect_waf(url: str, result: dict[str, object]) -> WebWafDetected | None:
         headers = {}
     folded = {str(key).casefold(): str(value) for key, value in headers.items()}
     evidence = " ".join(f"{key}: {value}" for key, value in sorted(folded.items()))
-    vendor = ""
-    product = ""
-    if "cf-ray" in folded or "cloudflare" in evidence.casefold():
-        vendor, product = "Cloudflare", "Cloudflare WAF/CDN"
-    elif "x-sucuri-id" in folded or "sucuri" in evidence.casefold():
-        vendor, product = "Sucuri", "Sucuri WAF"
-    elif "akamai" in evidence.casefold():
-        vendor, product = "Akamai", "Akamai edge/WAF"
-    elif "incap_ses" in evidence.casefold() or "visid_incap" in evidence.casefold() or "x-iinfo" in folded:
-        vendor, product = "Imperva", "Imperva Incapsula"
-    elif "mod_security" in evidence.casefold() or "modsecurity" in evidence.casefold():
-        vendor, product = "ModSecurity", "ModSecurity"
-    elif "x-amzn-errortype" in folded or "awsalb" in evidence.casefold() or "awselb" in evidence.casefold():
-        vendor, product = "AWS", "AWS ALB/WAF signal"
-    elif "bigipserver" in evidence.casefold() or ("f5" in evidence.casefold() and "x-waf" in folded):
-        vendor, product = "F5", "F5 BIG-IP/ASM signal"
-    elif "barracuda" in evidence.casefold():
-        vendor, product = "Barracuda", "Barracuda WAF"
-    if not vendor:
+    rule = matching_waf_rule(folded, evidence.casefold())
+    if rule is None:
         return None
     parsed = urllib.parse.urlparse(url)
     return WebWafDetected(
         url=url,
         host=parsed.hostname or "",
-        vendor=vendor,
-        product=product,
+        vendor=rule.vendor,
+        product=rule.product,
         evidence=evidence[:512],
         confidence="medium",
         scanner="waf_detect",
     )
+
+
+@dataclass(frozen=True, slots=True)
+class WafRule:
+    """One WAF signal rule."""
+
+    vendor: str
+    product: str
+    matches: Callable[[dict[str, str], str], bool]
+
+
+def matching_waf_rule(headers: dict[str, str], evidence: str) -> WafRule | None:
+    """Return the first WAF rule matching normalized headers."""
+    return next((rule for rule in WAF_RULES if rule.matches(headers, evidence)), None)
+
+
+def has_header(name: str) -> Callable[[dict[str, str], str], bool]:
+    """Return a predicate for a normalized header name."""
+    return lambda headers, evidence: name in headers
+
+
+def evidence_contains(*needles: str) -> Callable[[dict[str, str], str], bool]:
+    """Return a predicate matching any lowercase evidence substring."""
+    return lambda headers, evidence: any(needle in evidence for needle in needles)
+
+
+def any_signal(*predicates: Callable[[dict[str, str], str], bool]) -> Callable[[dict[str, str], str], bool]:
+    """Return a predicate that matches when any signal predicate matches."""
+    return lambda headers, evidence: any(predicate(headers, evidence) for predicate in predicates)
+
+
+def f5_signal(headers: dict[str, str], evidence: str) -> bool:
+    """Return whether headers look like an F5 BIG-IP/ASM signal."""
+    return "bigipserver" in evidence or ("f5" in evidence and "x-waf" in headers)
+
+
+WAF_RULES = (
+    WafRule("Cloudflare", "Cloudflare WAF/CDN", any_signal(has_header("cf-ray"), evidence_contains("cloudflare"))),
+    WafRule("Sucuri", "Sucuri WAF", any_signal(has_header("x-sucuri-id"), evidence_contains("sucuri"))),
+    WafRule("Akamai", "Akamai edge/WAF", evidence_contains("akamai")),
+    WafRule("Imperva", "Imperva Incapsula", any_signal(has_header("x-iinfo"), evidence_contains("incap_ses", "visid_incap"))),
+    WafRule("ModSecurity", "ModSecurity", evidence_contains("mod_security", "modsecurity")),
+    WafRule("AWS", "AWS ALB/WAF signal", any_signal(has_header("x-amzn-errortype"), evidence_contains("awsalb", "awselb"))),
+    WafRule("F5", "F5 BIG-IP/ASM signal", f5_signal),
+    WafRule("Barracuda", "Barracuda WAF", evidence_contains("barracuda")),
+)
 
 
 def is_http_url(url: str) -> bool:

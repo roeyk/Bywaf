@@ -22,6 +22,13 @@ STATUS_RANKS = {
     "potential": 2,
     "confirmed": 3,
 }
+UPPERCASE_IDENTIFIER_KEYS = {"cve", "cwe", "ghsa", "osv"}
+EMBEDDED_IDENTIFIER_PATTERNS = {
+    "cve": re.compile(r"CVE-\d{4}-\d{4,}", re.IGNORECASE),
+    "cwe": re.compile(r"CWE-\d+", re.IGNORECASE),
+    "ghsa": re.compile(r"GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}", re.IGNORECASE),
+    "osv": re.compile(r"OSV-\d+", re.IGNORECASE),
+}
 
 def normalize_event(event: Event) -> NormalizedFinding:
     """Convert one source event into a tool-neutral finding candidate."""
@@ -51,43 +58,86 @@ def normalize_target(payload: dict[str, Any]) -> TargetIdentity:
     # Dedupe accepts legacy/raw tool payloads, so target data may be embedded as
     # a URL, split across fields, or nested under `target`. Normalize it once
     # before comparing findings.
-    target = payload.get("target")
-    target_payload = target if isinstance(target, dict) else {}
-    url = str(payload.get("url") or target_payload.get("url") or "")
+    target_payload = nested_target_payload(payload)
+    url = target_field(payload, target_payload, "url")
     parsed = urlparse(url)
-    scheme = str(target_payload.get("scheme") or payload.get("scheme") or parsed.scheme or "")
-    host = str(target_payload.get("host") or payload.get("host") or parsed.hostname or "")
-    port = str(target_payload.get("port") or payload.get("port") or parsed.port or default_port(scheme))
-    path = str(target_payload.get("path") or payload.get("path") or parsed.path or "/")
+    scheme = target_field(payload, target_payload, "scheme", parsed.scheme)
+    host = target_field(payload, target_payload, "host", parsed.hostname or "")
+    port = target_field(payload, target_payload, "port", str(parsed.port or default_port(scheme)))
+    path = target_field(payload, target_payload, "path", parsed.path or "/")
     return TargetIdentity(
         scheme=scheme.lower(),
         host=host.lower(),
         port=port,
         path=normalize_path(path),
-        parameter=str(payload.get("parameter") or target_payload.get("parameter") or ""),
-        service=str(payload.get("service") or target_payload.get("service") or ""),
-        product=str(payload.get("product") or target_payload.get("product") or ""),
-        version=str(payload.get("version") or target_payload.get("version") or ""),
+        parameter=target_field(payload, target_payload, "parameter"),
+        service=target_field(payload, target_payload, "service"),
+        product=target_field(payload, target_payload, "product"),
+        version=target_field(payload, target_payload, "version"),
     )
+
+
+def nested_target_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return nested target fields when the payload has a target object."""
+    target = payload.get("target")
+    return target if isinstance(target, dict) else {}
+
+
+def target_field(
+    payload: dict[str, Any],
+    target_payload: dict[str, Any],
+    key: str,
+    default: object = "",
+) -> str:
+    """Return a target field from nested target, top level, or default."""
+    value = target_payload.get(key)
+    if value is None or value == "":
+        value = payload.get(key)
+    if value is None or value == "":
+        value = default
+    return str(value)
 
 
 def normalize_identifiers(payload: dict[str, Any]) -> dict[str, list[str]]:
     """Normalize explicit and embedded vulnerability identifiers."""
-    identifiers: dict[str, list[str]] = {}
-    raw = payload.get("identifiers")
-    if isinstance(raw, dict):
-        for key, value in raw.items():
-            values = value if isinstance(value, list) else [value]
-            identifiers[str(key).lower()] = sorted({str(item) for item in values if str(item)})
+    identifiers = explicit_identifiers(payload.get("identifiers"))
     # Some older plugin payloads only mention CVEs/CWEs in text fields. Scan the
     # JSON representation so those findings can still dedupe with normalized
     # payloads that use the `identifiers` object.
+    add_embedded_identifiers(identifiers, payload)
+    return canonical_identifiers(identifiers)
+
+
+def explicit_identifiers(raw: Any) -> dict[str, list[str]]:
+    """Return normalized identifier lists from an explicit payload field."""
+    if not isinstance(raw, dict):
+        return {}
+    identifiers: dict[str, list[str]] = {}
+    for key, value in raw.items():
+        values = value if isinstance(value, list) else [value]
+        identifiers[str(key).lower()] = sorted({str(item) for item in values if str(item)})
+    return identifiers
+
+
+def add_embedded_identifiers(identifiers: dict[str, list[str]], payload: dict[str, Any]) -> None:
+    """Extract identifier-looking tokens from legacy free-form payload text."""
     text = json.dumps(payload, sort_keys=True, default=str)
-    add_identifiers(identifiers, "cve", re.findall(r"CVE-\d{4}-\d{4,}", text, re.IGNORECASE))
-    add_identifiers(identifiers, "cwe", re.findall(r"CWE-\d+", text, re.IGNORECASE))
-    add_identifiers(identifiers, "ghsa", re.findall(r"GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}", text, re.IGNORECASE))
-    add_identifiers(identifiers, "osv", re.findall(r"OSV-\d+", text, re.IGNORECASE))
-    return {key: sorted({value.upper() if key in {"cve", "cwe", "ghsa", "osv"} else value for value in values}) for key, values in identifiers.items() if values}
+    for key, pattern in EMBEDDED_IDENTIFIER_PATTERNS.items():
+        add_identifiers(identifiers, key, pattern.findall(text))
+
+
+def canonical_identifiers(identifiers: dict[str, list[str]]) -> dict[str, list[str]]:
+    """Return sorted identifier values with canonical casing."""
+    return {
+        key: sorted({canonical_identifier_value(key, value) for value in values})
+        for key, values in identifiers.items()
+        if values
+    }
+
+
+def canonical_identifier_value(key: str, value: str) -> str:
+    """Return canonical display form for one identifier value."""
+    return value.upper() if key in UPPERCASE_IDENTIFIER_KEYS else value
 
 
 def add_identifiers(identifiers: dict[str, list[str]], key: str, values: list[str]) -> None:

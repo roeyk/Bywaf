@@ -13,7 +13,7 @@ import tomllib
 from dataclasses import dataclass, field, replace
 from importlib import resources
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 from ..event.schemas import EventSchema, register_event_schemas
 from ..plugin import Commandlet
@@ -202,87 +202,100 @@ def enforce_plugin_manifest(
     if missing:
         raise ValueError(f"{path} declares missing commandlets: {', '.join(missing)}")
     for name in sorted(manifest.commandlets):
+        plugin = by_name[name]
         if hydrate_specs:
-            hydrate_command_spec_from_manifest(by_name[name], manifest, name)
-        # Capabilities, secret options, and provider-variable declarations must
-        # match exactly.  Missing entries would weaken enforcement; stale entries
-        # would make the manifest claim permissions or secrets the code does not
-        # actually use.
-        manifest_caps = set(manifest.commandlet_capabilities.get(name, ()))
-        code_caps = set(by_name[name].spec.capabilities)
-        if manifest_caps != code_caps:
-            missing_caps = sorted(code_caps.difference(manifest_caps))
-            stale_caps = sorted(manifest_caps.difference(code_caps))
-            details = []
-            if missing_caps:
-                details.append(f"missing {', '.join(missing_caps)}")
-            if stale_caps:
-                details.append(f"stale {', '.join(stale_caps)}")
-            raise ValueError(f"{path} capabilities mismatch for {name}: {'; '.join(details)}")
-        manifest_database_actions = set(manifest.commandlet_database_actions.get(name, ()))
-        code_database_actions = set(by_name[name].spec.database_actions)
-        if manifest_database_actions != code_database_actions:
-            missing_actions = sorted(code_database_actions.difference(manifest_database_actions))
-            stale_actions = sorted(manifest_database_actions.difference(code_database_actions))
-            details = []
-            if missing_actions:
-                details.append(f"missing {', '.join(missing_actions)}")
-            if stale_actions:
-                details.append(f"stale {', '.join(stale_actions)}")
-            raise ValueError(f"{path} database_actions mismatch for {name}: {'; '.join(details)}")
-        manifest_consumes = set(manifest.commandlet_consumes.get(name, ()))
-        code_consumes = set(by_name[name].spec.consumes)
-        if manifest_consumes and manifest_consumes != code_consumes:
-            raise ValueError(f"{path} consumes mismatch for {name}")
-        manifest_emits = set(manifest.commandlet_emits.get(name, ()))
-        code_emits = set(by_name[name].spec.emits)
-        if manifest_emits and manifest_emits != code_emits:
-            raise ValueError(f"{path} emits mismatch for {name}")
-        manifest_options = manifest.commandlet_options.get(name, ())
-        if manifest_options and manifest_options != by_name[name].spec.options:
-            raise ValueError(f"{path} options mismatch for {name}")
-        manifest_arguments = manifest.commandlet_arguments.get(name, ())
-        if manifest_arguments and manifest_arguments != by_name[name].spec.arguments:
-            raise ValueError(f"{path} arguments mismatch for {name}")
-        declared_secret_options = {
-            option.name
-            for option in manifest.commandlet_options.get(name, ())
-            if option.secret
-        }
-        manifest_secret_options = set(manifest.commandlet_secret_options.get(name, ())).union(declared_secret_options)
-        code_secret_options = {option.name for option in by_name[name].spec.options if option.secret}
-        if manifest_secret_options != code_secret_options:
-            missing_options = sorted(code_secret_options.difference(manifest_secret_options))
-            stale_options = sorted(manifest_secret_options.difference(code_secret_options))
-            details = []
-            if missing_options:
-                details.append(f"missing {', '.join(missing_options)}")
-            if stale_options:
-                details.append(f"stale {', '.join(stale_options)}")
-            raise ValueError(f"{path} secret_options mismatch for {name}: {'; '.join(details)}")
-        manifest_provider_vars = set(manifest.commandlet_provider_variables.get(name, ()))
-        code_provider_vars = set(by_name[name].spec.provider_variables)
-        if manifest_provider_vars != code_provider_vars:
-            missing_provider_vars = sorted(code_provider_vars.difference(manifest_provider_vars))
-            stale_provider_vars = sorted(manifest_provider_vars.difference(code_provider_vars))
-            details = []
-            if missing_provider_vars:
-                details.append(f"missing {', '.join(missing_provider_vars)}")
-            if stale_provider_vars:
-                details.append(f"stale {', '.join(stale_provider_vars)}")
-            raise ValueError(f"{path} provider_variables mismatch for {name}: {'; '.join(details)}")
-        manifest_secret_provider_vars = set(manifest.commandlet_secret_provider_variables.get(name, ()))
-        code_secret_provider_vars = set(by_name[name].spec.secret_provider_variables)
-        if manifest_secret_provider_vars != code_secret_provider_vars:
-            missing_secret_provider_vars = sorted(code_secret_provider_vars.difference(manifest_secret_provider_vars))
-            stale_secret_provider_vars = sorted(manifest_secret_provider_vars.difference(code_secret_provider_vars))
-            details = []
-            if missing_secret_provider_vars:
-                details.append(f"missing {', '.join(missing_secret_provider_vars)}")
-            if stale_secret_provider_vars:
-                details.append(f"stale {', '.join(stale_secret_provider_vars)}")
-            raise ValueError(f"{path} secret_provider_variables mismatch for {name}: {'; '.join(details)}")
+            hydrate_command_spec_from_manifest(plugin, manifest, name)
+        enforce_commandlet_manifest_entry(manifest, plugin, path, name)
     return tuple(by_name[name] for name in sorted(manifest.commandlets))
+
+
+def enforce_commandlet_manifest_entry(
+    manifest: PluginManifest,
+    plugin: Commandlet,
+    path: Path,
+    name: str,
+) -> None:
+    """Reject drift between one manifest row and its runtime command spec."""
+    spec = plugin.spec
+    # Capabilities, secret options, and provider variables must match exactly:
+    # missing entries weaken enforcement, while stale entries overstate what
+    # the code can use.
+    require_exact_set(path, name, "capabilities", manifest.commandlet_capabilities.get(name, ()), spec.capabilities)
+    require_exact_set(path, name, "database_actions", manifest.commandlet_database_actions.get(name, ()), spec.database_actions)
+    require_optional_set(path, name, "consumes", manifest.commandlet_consumes.get(name, ()), spec.consumes)
+    require_optional_set(path, name, "emits", manifest.commandlet_emits.get(name, ()), spec.emits)
+    require_optional_sequence(path, name, "options", manifest.commandlet_options.get(name, ()), spec.options)
+    require_optional_sequence(path, name, "arguments", manifest.commandlet_arguments.get(name, ()), spec.arguments)
+    require_exact_set(path, name, "secret_options", manifest_secret_options(manifest, name), (option.name for option in spec.options if option.secret))
+    require_exact_set(path, name, "provider_variables", manifest.commandlet_provider_variables.get(name, ()), spec.provider_variables)
+    require_exact_set(
+        path,
+        name,
+        "secret_provider_variables",
+        manifest.commandlet_secret_provider_variables.get(name, ()),
+        spec.secret_provider_variables,
+    )
+
+
+def manifest_secret_options(manifest: PluginManifest, name: str) -> set[str]:
+    """Return explicit and option-row-derived secret option names."""
+    return set(manifest.commandlet_secret_options.get(name, ())).union(
+        option.name
+        for option in manifest.commandlet_options.get(name, ())
+        if option.secret
+    )
+
+
+def require_exact_set(
+    path: Path,
+    name: str,
+    label: str,
+    manifest_values: Iterable[str],
+    code_values: Iterable[str],
+) -> None:
+    """Require exact set parity for security-sensitive manifest fields."""
+    manifest_set = set(manifest_values)
+    code_set = set(code_values)
+    if manifest_set == code_set:
+        return
+    raise ValueError(f"{path} {label} mismatch for {name}: {set_mismatch_details(manifest_set, code_set)}")
+
+
+def require_optional_set(
+    path: Path,
+    name: str,
+    label: str,
+    manifest_values: Iterable[str],
+    code_values: Iterable[str],
+) -> None:
+    """Require parity only when an optional manifest field is declared."""
+    manifest_set = set(manifest_values)
+    if manifest_set and manifest_set != set(code_values):
+        raise ValueError(f"{path} {label} mismatch for {name}")
+
+
+def require_optional_sequence(
+    path: Path,
+    name: str,
+    label: str,
+    manifest_values: tuple[object, ...],
+    code_values: tuple[object, ...],
+) -> None:
+    """Require exact tuple parity only when an optional manifest field exists."""
+    if manifest_values and manifest_values != code_values:
+        raise ValueError(f"{path} {label} mismatch for {name}")
+
+
+def set_mismatch_details(manifest_values: set[str], code_values: set[str]) -> str:
+    """Return a stable missing/stale summary for manifest drift errors."""
+    details = []
+    missing = sorted(code_values.difference(manifest_values))
+    stale = sorted(manifest_values.difference(code_values))
+    if missing:
+        details.append(f"missing {', '.join(missing)}")
+    if stale:
+        details.append(f"stale {', '.join(stale)}")
+    return "; ".join(details)
 
 
 def hydrate_command_spec_from_manifest(plugin: Commandlet, manifest: PluginManifest, name: str) -> None:

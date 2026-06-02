@@ -236,79 +236,29 @@ def prompt_secret_key_bindings(state: PromptSecretInputState, enabled: Callable[
 
     @bindings.add("left", eager=True)
     def _left(event) -> None:
-        buffer = event.current_buffer
-        span = state.span
-        if span is None:
-            buffer.cursor_left(count=1)
-            return
-        if span.focused:
-            state.leave_before(buffer, event.app)
-            return
-        relation = state.cursor_relation(buffer.document)
-        if relation == "end":
-            state.focus_span(event.app)
-            return
-        if relation == "inside":
-            buffer.cursor_position = max(0, span.start - 1)
-            return
-        buffer.cursor_left(count=1)
+        handle_secret_left(state, event.current_buffer, event.app)
 
     @bindings.add("right", eager=True)
     def _right(event) -> None:
-        buffer = event.current_buffer
-        span = state.span
-        if span is None:
-            buffer.cursor_right(count=1)
-            return
-        if span.focused:
-            state.leave_after(buffer, event.app)
-            return
-        relation = state.cursor_relation(buffer.document)
-        if relation in {"start", "left-adjacent"}:
-            state.focus_span(event.app)
-            return
-        if relation == "inside":
-            buffer.cursor_position = span.end
-            return
-        buffer.cursor_right(count=1)
+        handle_secret_right(state, event.current_buffer, event.app)
 
     @bindings.add("backspace", filter=span_focused, eager=True)
     @bindings.add("c-h", filter=span_focused, eager=True)
     def _clear_secret(event) -> None:
-        span = state.focused()
-        if span is not None:
-            span.value = ""
-            event.app.invalidate()
+        clear_focused_secret(state, event.app)
 
     @bindings.add("backspace", eager=True)
     @bindings.add("c-h", eager=True)
     def _backspace(event) -> None:
-        buffer = event.current_buffer
-        span = state.span
-        if span is not None and state.cursor_relation(buffer.document) == "end":
-            state.focus_span(event.app)
-            span.value = ""
-            event.app.invalidate()
-            return
-        state.delete_before_cursor(buffer)
+        handle_secret_backspace(state, event.current_buffer, event.app)
 
     @bindings.add("delete", filter=span_focused, eager=True)
     def _clear_secret_delete(event) -> None:
-        span = state.focused()
-        if span is not None:
-            span.value = ""
-            event.app.invalidate()
+        clear_focused_secret(state, event.app)
 
     @bindings.add("delete", eager=True)
     def _delete(event) -> None:
-        buffer = event.current_buffer
-        span = state.span
-        if span is not None and state.cursor_relation(buffer.document) == "start":
-            state.focus_span(event.app)
-            span.value = ""
-            event.app.invalidate()
-            return
-        state.delete_at_cursor(buffer)
+        handle_secret_delete(state, event.current_buffer, event.app)
 
     @bindings.add("escape", filter=span_focused, eager=True)
     def _leave_secret_focus(event) -> None:
@@ -316,21 +266,100 @@ def prompt_secret_key_bindings(state: PromptSecretInputState, enabled: Callable[
 
     @bindings.add(Keys.Any, filter=span_focused, eager=True)
     def _secret_text(event) -> None:
-        span = state.focused()
         key = event.key_sequence[0].key
         data = event.key_sequence[0].data
-        if key in {"tab", "c-i"} or data == "\t":
-            state.leave_after(event.current_buffer, event.app)
-            return
-        if key == "enter" or data in {"\r", "\n"}:
-            state.leave_after(event.current_buffer, event.app)
-            event.current_buffer.validate_and_handle()
-            return
-        if span is not None and data and data.isprintable():
-            span.value += data
-            event.app.invalidate()
+        handle_focused_secret_text(state, event.current_buffer, event.app, key, data)
 
     return bindings
+
+
+def handle_secret_left(state: PromptSecretInputState, buffer, app) -> None:
+    """Move left across or into a protected secret span."""
+    span = state.span
+    if span is None:
+        buffer.cursor_left(count=1)
+        return
+    if span.focused:
+        state.leave_before(buffer, app)
+        return
+    relation = state.cursor_relation(buffer.document)
+    if relation == "end":
+        state.focus_span(app)
+        return
+    if relation == "inside":
+        buffer.cursor_position = max(0, span.start - 1)
+        return
+    buffer.cursor_left(count=1)
+
+
+def handle_secret_right(state: PromptSecretInputState, buffer, app) -> None:
+    """Move right across or into a protected secret span."""
+    span = state.span
+    if span is None:
+        buffer.cursor_right(count=1)
+        return
+    if span.focused:
+        state.leave_after(buffer, app)
+        return
+    relation = state.cursor_relation(buffer.document)
+    if relation in {"start", "left-adjacent"}:
+        state.focus_span(app)
+        return
+    if relation == "inside":
+        buffer.cursor_position = span.end
+        return
+    buffer.cursor_right(count=1)
+
+
+def clear_focused_secret(state: PromptSecretInputState, app) -> None:
+    """Clear hidden text from the focused secret span."""
+    span = state.focused()
+    if span is not None:
+        span.value = ""
+        app.invalidate()
+
+
+def handle_secret_backspace(state: PromptSecretInputState, buffer, app) -> None:
+    """Backspace around or inside a protected secret span."""
+    span = state.span
+    if span is not None and state.cursor_relation(buffer.document) == "end":
+        state.focus_span(app)
+        span.value = ""
+        app.invalidate()
+        return
+    state.delete_before_cursor(buffer)
+
+
+def handle_secret_delete(state: PromptSecretInputState, buffer, app) -> None:
+    """Delete around or inside a protected secret span."""
+    span = state.span
+    if span is not None and state.cursor_relation(buffer.document) == "start":
+        state.focus_span(app)
+        span.value = ""
+        app.invalidate()
+        return
+    state.delete_at_cursor(buffer)
+
+
+def handle_focused_secret_text(
+    state: PromptSecretInputState,
+    buffer,
+    app,
+    key: str,
+    data: str,
+) -> None:
+    """Handle a key press while the secret span is focused."""
+    span = state.focused()
+    if key in {"tab", "c-i"} or data == "\t":
+        state.leave_after(buffer, app)
+        return
+    if key == "enter" or data in {"\r", "\n"}:
+        state.leave_after(buffer, app)
+        buffer.validate_and_handle()
+        return
+    if span is not None and data and data.isprintable():
+        span.value += data
+        app.invalidate()
 
 
 def prompt_secret_style():

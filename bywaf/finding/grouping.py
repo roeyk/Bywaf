@@ -9,7 +9,7 @@ Used by:
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Any
 
 from .taxonomy import validate_finding_class
@@ -78,49 +78,89 @@ def target_scope(kind: str, value: str) -> dict[str, str]:
 
 def target_scope_value(kind: str, target: Mapping[str, Any]) -> str:
     """Return a stable target-scope value from conventional target fields."""
-    if kind == "host":
-        return first_string(target, "ip", "host", "hostname")
-    if kind == "host_port":
-        host = first_string(target, "ip", "host", "hostname")
-        port = first_string(target, "port")
-        protocol = first_string(target, "protocol", default="tcp")
-        return f"{host}:{port}/{protocol}" if host and port else ""
-    if kind == "service":
-        host = first_string(target, "ip", "host", "hostname")
-        port = first_string(target, "port")
-        protocol = first_string(target, "protocol", default="tcp")
-        scheme = first_string(target, "scheme")
-        base = f"{host}:{port}/{protocol}" if host and port else ""
-        return f"{base}:{scheme}" if base and scheme else base
-    if kind in {"web_origin", "web_app", "web_route"}:
-        # Web targets need more than an IP address. `web_origin` groups every
-        # path on the same scheme/host/port, while `web_route` keeps individual
-        # URLs separate for findings whose impact is route-specific.
-        scheme = first_string(target, "scheme", default="https")
-        host = first_string(target, "host", "hostname")
-        port = first_string(target, "port")
-        path = first_string(target, "path")
-        origin = f"{scheme}://{host}" if host else ""
-        if port and port not in {"80", "443"}:
-            origin = f"{origin}:{port}"
-        if kind == "web_origin":
-            return origin
-        if kind == "web_app":
-            app = first_string(target, "app", "base_path", default=path)
-            return f"{origin}{normalize_path(app)}" if origin else ""
-        return f"{origin}{normalize_path(path)}" if origin else ""
-    if kind == "cloud_account":
-        provider = first_string(target, "provider")
-        account = first_string(target, "account", "account_id", "project")
-        return f"{provider}:{account}" if provider and account else ""
-    if kind == "cloud_resource":
-        provider = first_string(target, "provider")
-        resource = first_string(target, "arn", "resource", "id", "name")
-        return f"{provider}:{resource}" if provider and resource else resource
-    if kind == "artifact":
-        artifact_id = first_string(target, "artifact", "artifact_id", "id")
-        return f"artifact:{artifact_id}" if artifact_id else ""
+    handler = TARGET_SCOPE_VALUE_HANDLERS.get(kind)
+    if handler is not None:
+        return handler(target)
     return first_string(target, "value", "id", "url", "host")
+
+
+def host_scope_value(target: Mapping[str, Any]) -> str:
+    """Return host-level target identity."""
+    return first_string(target, "ip", "host", "hostname")
+
+
+def host_port_scope_value(target: Mapping[str, Any]) -> str:
+    """Return host/port/protocol target identity."""
+    host = first_string(target, "ip", "host", "hostname")
+    port = first_string(target, "port")
+    protocol = first_string(target, "protocol", default="tcp")
+    return f"{host}:{port}/{protocol}" if host and port else ""
+
+
+def service_scope_value(target: Mapping[str, Any]) -> str:
+    """Return service target identity, including scheme when present."""
+    scheme = first_string(target, "scheme")
+    base = host_port_scope_value(target)
+    return f"{base}:{scheme}" if base and scheme else base
+
+
+def web_origin_scope_value(target: Mapping[str, Any]) -> str:
+    """Return scheme/host/port identity for web-origin findings."""
+    scheme = first_string(target, "scheme", default="https")
+    host = first_string(target, "host", "hostname")
+    port = first_string(target, "port")
+    origin = f"{scheme}://{host}" if host else ""
+    if port and port not in {"80", "443"}:
+        origin = f"{origin}:{port}"
+    return origin
+
+
+def web_app_scope_value(target: Mapping[str, Any]) -> str:
+    """Return web application identity below an origin."""
+    origin = web_origin_scope_value(target)
+    path = first_string(target, "path")
+    app = first_string(target, "app", "base_path", default=path)
+    return f"{origin}{normalize_path(app)}" if origin else ""
+
+
+def web_route_scope_value(target: Mapping[str, Any]) -> str:
+    """Return route-specific web target identity."""
+    origin = web_origin_scope_value(target)
+    path = first_string(target, "path")
+    return f"{origin}{normalize_path(path)}" if origin else ""
+
+
+def cloud_account_scope_value(target: Mapping[str, Any]) -> str:
+    """Return cloud account or project identity."""
+    provider = first_string(target, "provider")
+    account = first_string(target, "account", "account_id", "project")
+    return f"{provider}:{account}" if provider and account else ""
+
+
+def cloud_resource_scope_value(target: Mapping[str, Any]) -> str:
+    """Return cloud resource identity."""
+    provider = first_string(target, "provider")
+    resource = first_string(target, "arn", "resource", "id", "name")
+    return f"{provider}:{resource}" if provider and resource else resource
+
+
+def artifact_scope_value(target: Mapping[str, Any]) -> str:
+    """Return artifact identity."""
+    artifact_id = first_string(target, "artifact", "artifact_id", "id")
+    return f"artifact:{artifact_id}" if artifact_id else ""
+
+
+TARGET_SCOPE_VALUE_HANDLERS: dict[str, Callable[[Mapping[str, Any]], str]] = {
+    "artifact": artifact_scope_value,
+    "cloud_account": cloud_account_scope_value,
+    "cloud_resource": cloud_resource_scope_value,
+    "host": host_scope_value,
+    "host_port": host_port_scope_value,
+    "service": service_scope_value,
+    "web_app": web_app_scope_value,
+    "web_origin": web_origin_scope_value,
+    "web_route": web_route_scope_value,
+}
 
 
 def primary_identifier(value: Any) -> tuple[str, str] | None:
