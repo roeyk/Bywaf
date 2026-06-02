@@ -285,6 +285,9 @@ bywaf> report pipeline=1,2,3
 bywaf> report job=7
 bywaf> report step=12
 bywaf> report status=all
+bywaf> report create name=client-a pipeline=1,2,3
+bywaf> report show name=client-a
+bywaf> report update name=client-a pipeline=1,2,3,4
 bywaf> report accept all pipeline=1
 bywaf> report confirm 1 pipeline=1 note=validated manually
 bywaf> finding confirm 1 pipeline=1
@@ -310,15 +313,19 @@ Defaults are optimized for field use:
   report view: `all`, `1`, `1-4`, or comma-separated mixes such as `1-3,7,9-11`.
 - Use `note=` for operator context on a review decision. Put `note=` last when
   the note contains spaces.
+- `report create/update/show` saves and reuses named report scopes as
+  append-only `report.scope.saved` events. These scopes store selectors and
+  render preferences; they do not copy finding or artifact bodies into a
+  report-owned store.
 
 `finding_report` remains the table/export plugin for normalized finding streams
 and file artifacts. `report` is the quick interactive view.
 
 ## Current Boundaries
 
-The current report model is deliberately small. Durable report objects,
-`report create/update/show/export`, richer review workflows, and resume
-summaries for unreviewed completed work are planned follow-up pieces.
+The current report model is deliberately small. Saved scopes are implemented as
+durable selector views. Richer report templates, delivery export formats, and
+resume summaries for unreviewed completed work remain planned follow-up pieces.
 
 This avoids making reports duplicate finding payloads. Reports should remain
 saved scopes, review state, and render/export instructions over canonical event

@@ -14,6 +14,21 @@ Prefer structured upstream output when the tool supports it:
 Human-readable output may still be preserved as evidence, but normalized Bywaf
 events should come from the most stable machine-readable source available.
 
+Wrapper parsing should follow this order of preference:
+
+1. Ask the tool for JSON, XML, or another documented machine-readable output
+   mode.
+2. Parse that output with a standard parser such as `json` or
+   `xml.etree.ElementTree`.
+3. Preserve the raw machine-readable output as an artifact when it is the
+   parser source for a nontrivial normalization step.
+4. Fall back to human text parsing only when the tool has no stable structured
+   mode, and document that limitation in the wrapper tests or help text.
+
+Parser failures are assessment evidence. They should create explicit
+`tool.error` or equivalent diagnostic events and should not silently suppress
+the tool result, fabricate normalized facts, or discard the raw output.
+
 ## Evidence Retention
 
 Wrappers should keep enough raw evidence to debug parser drift:
@@ -27,6 +42,12 @@ Do not make normalized events the only copy of an external tool's result when
 the parser is nontrivial. Bywaf's blocking process helper stores a redacted
 stdout/stderr transcript artifact automatically; wrapper plugins still need to
 declare `artifact.write`.
+
+When a tool exits nonzero, produces no expected structured output, produces no
+expected artifact files, or emits warnings with otherwise usable output, link
+the resulting diagnostic event to the retained artifact whenever possible. The
+operator should be able to move from `results` or `event tool.error` directly
+to `artifact show <id>` or `artifact list ...`.
 
 ## Fixture Tests
 
@@ -45,6 +66,17 @@ Tests should assert emitted Bywaf events, attached artifacts where relevant,
 and operator-facing summaries. Avoid live internet dependencies in parser
 tests.
 
+The minimum useful fixture set for a process wrapper is:
+
+- a successful structured parse that emits normalized facts;
+- malformed structured output that emits a parser `tool.error` and links raw
+  output evidence;
+- missing expected output that emits a `tool.error` and links process-output
+  evidence when stdout/stderr exists;
+- nonzero exit with partial stdout/stderr retained as artifact evidence;
+- warnings or empty results that do not create false positive normalized
+  findings.
+
 ## Runtime Behavior
 
 Wrappers should:
@@ -56,6 +88,8 @@ Wrappers should:
 - keep tool-native details in private topics or artifacts
 - support practical `timeout`, `limit`, and target-scope controls
 - surface parser failures as events or clear command failures, not silent drops
+- avoid emitting normalized vulnerability/finding facts from incomplete parser
+  state unless the payload clearly records the lower confidence and evidence
 
 ## Support Policy
 

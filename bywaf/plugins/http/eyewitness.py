@@ -118,6 +118,8 @@ def run_eyewitness(context: CommandContext, parsed: Any, targets: list[dict[str,
         if target_file is not None:
             target_file.unlink(missing_ok=True)
 
+    screenshots = screenshot_files(output_dir)
+    process_artifact_payload = process_output_artifact_payload(context) if not result.ok or not screenshots else {}
     if not result.ok:
         context.events.publish(
             "tool.error",
@@ -128,10 +130,10 @@ def run_eyewitness(context: CommandContext, parsed: Any, targets: list[dict[str,
                 "returncode": result.returncode,
                 "stdout": result.stdout,
                 "stderr": result.stderr,
+                **process_artifact_payload,
             },
         )
 
-    screenshots = screenshot_files(output_dir)
     screenshot_payloads = [
         publish_screenshot(context, screenshot, output_dir, targets, silent=bool(parsed.silent))
         for screenshot in screenshots
@@ -145,6 +147,7 @@ def run_eyewitness(context: CommandContext, parsed: Any, targets: list[dict[str,
                 "severity": "warning",
                 "message": "EyeWitness produced no screenshot files",
                 "output_dir": str(output_dir),
+                **process_artifact_payload,
             },
         )
 
@@ -289,6 +292,21 @@ def publish_tool_problem(context: CommandContext, topic: str, tool: str, message
             "error": str(exc),
         },
     )
+
+
+def process_output_artifact_payload(context: CommandContext) -> dict[str, Any]:
+    """Return the framework process-output artifact reference for diagnostics."""
+    if context.command_run_id is None:
+        return {}
+    events = context.events.query(topic="process.run", step=context.command_run_id, limit=1)
+    if not events:
+        return {}
+    payload = events[0].payload
+    return {
+        key: payload[key]
+        for key in ("artifact_id", "artifact_row_id", "artifact_name", "artifact_sha256")
+        if payload.get(key)
+    }
 
 
 def parse_bool(value: str | bool) -> bool:

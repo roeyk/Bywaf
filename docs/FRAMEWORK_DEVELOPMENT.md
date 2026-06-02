@@ -194,6 +194,27 @@ Use this policy:
 Plugin authors can register and use plugin-owned schemas without this process.
 Promotion is only for schemas that Bywaf itself promises to keep stable.
 
+### Parser And Completion Complexity Budget
+
+Parser, completion, prompt UI, and app-dispatch changes are user-facing shell
+contract changes. Keep them narrow and testable:
+
+1. Treat a parser/completion defect as a contract bug. Add the smallest
+   regression that captures the command shape, selector, variable expansion, or
+   completion menu before changing behavior.
+2. Split by responsibility when complexity grows: token parsing, command
+   invocation assembly, variable expansion, completion providers, prompt UI
+   rendering, and app-dispatch routing should stay separately reviewable.
+3. Keep ordinary parser/completion source and test files below the 500-line
+   review gate. When a changed file reaches the gate, split by functionality
+   and aim for 300-400 line cohesive modules where practical.
+4. Prefer tables, typed result objects, and focused provider classes over long
+   branch ladders. Do not replace the parser broadly unless a focused defect or
+   architectural metric supports the change.
+5. Run `tests/app_dispatch`, `tests/test_registry_completion.py`, and
+   `tests/test_completion_regression.py` for parser, completion, prompt UI, or
+   app-dispatch changes.
+
 ### Refactor A Large Module
 
 1. Run `python scripts/architecture_metrics.py --top 12 --churn`.

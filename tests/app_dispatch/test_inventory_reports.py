@@ -382,6 +382,19 @@ class AppDispatchTests(unittest.TestCase):
                 pipeline_id="pipeline-a",
                 command_run_id="step-a",
             )
+            runner.db.publish(
+                "finding.candidate",
+                {
+                    "title": "Missing X-Content-Type-Options",
+                    "class": "web.header.missing_x_content_type_options",
+                    "severity": "low",
+                    "target": {"url": "http://second.example.test/"},
+                    "target_scope": {"kind": "web_origin", "value": "http://second.example.test"},
+                },
+                "http_headers",
+                pipeline_id="pipeline-b",
+                command_run_id="step-b",
+            )
 
             create_output = io.StringIO()
             with contextlib.redirect_stdout(create_output):
@@ -398,6 +411,14 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(update_output):
                 dispatch_repl_line(runner, "report update name=client-a pipeline=pipeline-a,pipeline-b")
             self.assertIn("pipeline=pipeline-a,pipeline-b", update_output.getvalue())
+
+            updated_show_output = io.StringIO()
+            with contextlib.redirect_stdout(updated_show_output):
+                dispatch_repl_line(runner, "report show name=client-a")
+            updated_text = updated_show_output.getvalue()
+            self.assertIn("Report scope: pipeline=pipeline-a,pipeline-b", updated_text)
+            self.assertIn("Exposed Git repository configuration", updated_text)
+            self.assertIn("Missing X-Content-Type-Options", updated_text)
 
 
 if __name__ == "__main__":

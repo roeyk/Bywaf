@@ -146,7 +146,8 @@ bywaf> report update name=client-a pipeline=1,2,3,4
 ```
 
 Saved scopes are append-only events over selectors. They do not copy findings
-or artifact bodies into a separate report store.
+or artifact bodies into a separate report store. `report update` appends a new
+scope event for the same name, and `report show` uses the latest saved scope.
 
 Selector values use the same include/exclude grammar as event inspection:
 comma-separated values are ORed, `!value` excludes values, and different
@@ -225,15 +226,15 @@ confirmed in reports, but the event history preserves which one happened.
 
 ## Current Boundaries
 
-The current `report` command is an interactive inbox and scoped renderer. It is
-not yet a durable report-object manager.
+The current `report` command is an interactive inbox, scoped renderer, review
+tool, and saved-scope manager. Saved scopes are intentionally lightweight:
+they name selector sets and current render preferences over canonical events.
+They are not report-owned finding stores.
 
 Planned follow-up work includes:
 
-- `report create/update/show/export`
-- saved report scopes
 - richer report templates
 - export formats for delivery
 - "what changed since I last looked" resume/status summaries
 
-Until then, reports should remain views over canonical event and artifact data.
+Reports should continue to remain views over canonical event and artifact data.

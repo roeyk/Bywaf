@@ -255,6 +255,24 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertEqual(finding["class"], "web.config.env_exposed")
             self.assertEqual(finding["severity"], "high")
 
+    def test_http_paths_promotes_management_exposure_paths(self):
+        cases = [
+            ("/server-status", "web.server_status.exposed", "Exposed Apache server-status endpoint"),
+            ("/actuator/env", "web.spring.actuator_env_exposed", "Exposed Spring Boot environment endpoint"),
+        ]
+        for path, expected_class, expected_title in cases:
+            with self.subTest(path=path), tempfile.TemporaryDirectory() as tmp:
+                db = EventStore(Path(tmp, "bywaf.sqlite3"))
+                context = CommandContext(db=db, source="http_paths", metadata={"capabilities": http_paths.spec.capabilities})
+                with patch(
+                    "bywaf.plugins.http.http_paths.probe_path",
+                    return_value={"status": 200, "content_type": "text/plain", "length": 64, "sample": "spring.cloud config"},
+                ):
+                    list(http_paths.run(context, [f"paths={path}", "http://127.0.0.1:8080"], []))
+                finding = db.events_for_topic("finding.candidate")[0].payload
+                self.assertEqual(finding["class"], expected_class)
+                self.assertEqual(finding["title"], expected_title)
+
     def test_traceroute_uses_host_found_input_events(self):
         targets = trace_targets(
             [],
@@ -396,6 +414,35 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertEqual(screenshot_event.payload["host"], "")
             self.assertEqual(screenshot_event.payload["screenshots"][0]["artifact_id"], artifacts[0].artifact_id)
             self.assertEqual(db.events_for_topic("eyewitness.screenshot")[0].source, "screenshotter")
+
+    def test_screenshotter_no_screenshots_links_process_output_artifact(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="screenshotter",
+                metadata={
+                    "command_run_id": "run-1",
+                    "pipeline_id": "pipeline-1",
+                    "capabilities": Screenshotter().spec.capabilities,
+                },
+            )
+            output_dir = Path(tmp, "eyewitness")
+
+            def fake_run(argv, *, cwd=None, env=None, timeout=None):
+                del argv, cwd, env, timeout
+                return SimpleNamespace(ok=True, returncode=0, stdout="warning: no reachable targets", stderr="")
+
+            with patch("bywaf.plugin.process.run_process_argv", side_effect=fake_run):
+                list(Screenshotter().run(context, [f"--output-dir={output_dir}", "http://127.0.0.1/"], []))
+
+            error = db.events_for_topic("tool.error")[0].payload
+            self.assertEqual(error["message"], "EyeWitness produced no screenshot files")
+            self.assertIn("artifact_id", error)
+            artifacts = artifact_store_for_event_store(db).list(command_run_id=context.command_run_id)
+            self.assertEqual(len(artifacts), 1)
+            self.assertTrue(artifacts[0].name.startswith("eyewitness-"))
+            self.assertTrue(artifacts[0].name.endswith("-output.txt"))
 
     def test_yara_scan_publishes_matches(self):
         fake_rules = Mock()
