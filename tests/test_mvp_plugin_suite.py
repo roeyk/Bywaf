@@ -121,6 +121,7 @@ class MvpPluginSuiteTests(unittest.TestCase):
         """Run the MVP pentest chain using local fake tool responses."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            bundle_export = Path(tmp, "client-a.bundle.json")
             stale_finding = runner.db.publish(
                 "finding.new",
                 {
@@ -234,11 +235,22 @@ class MvpPluginSuiteTests(unittest.TestCase):
                 process_framework_requests(runner, ShellState())
                 runner.execute(f"webfin --from pipeline={pipeline_id} topic=http.endpoint | nikto --source webfin")
                 process_framework_requests(runner, ShellState())
+                nikto_pipeline_id = runner.db.events_for_topic("nikto.finding")[0].pipeline_id
                 runner.execute("tls_probe example.test:443 | service_probe")
                 process_framework_requests(runner, ShellState())
                 runner.execute("finding_dedupe")
                 process_framework_requests(runner, ShellState())
                 runner.execute("report status=all")
+                process_framework_requests(runner, ShellState())
+                runner.execute(f"note add pipeline={pipeline_id} text=client approved MVP evidence bundle")
+                process_framework_requests(runner, ShellState())
+                runner.execute("bundle create name=client-a")
+                process_framework_requests(runner, ShellState())
+                runner.execute(f"bundle add name=client-a audit pipeline={pipeline_id}")
+                process_framework_requests(runner, ShellState())
+                runner.execute(f"bundle add name=client-a evidence pipeline={nikto_pipeline_id}")
+                process_framework_requests(runner, ShellState())
+                runner.execute(f"bundle export name=client-a file={bundle_export}")
                 process_framework_requests(runner, ShellState())
 
             topics = set(runner.db.topics())
@@ -257,6 +269,10 @@ class MvpPluginSuiteTests(unittest.TestCase):
                 "artifact.attached",
                 "finding.new",
                 "report.rendered",
+                "note.attached",
+                "bundle.created",
+                "bundle.item.added",
+                "bundle.exported",
             ):
                 with self.subTest(topic=topic):
                     self.assertIn(topic, topics)
@@ -272,6 +288,22 @@ class MvpPluginSuiteTests(unittest.TestCase):
             self.assertNotIn("Legacy admin panel exposure", output.getvalue())
             rendered = runner.db.events_for_topic("report.rendered")[0]
             self.assertNotIn(stale_finding.id, rendered.payload["events"])
+            notes = runner.db.events_for_topic("note.attached")
+            self.assertEqual(notes[0].pipeline_id, pipeline_id)
+            self.assertEqual(notes[0].payload["note"], "client approved MVP evidence bundle")
+            bundle = json.loads(bundle_export.read_text(encoding="utf-8"))
+            self.assertEqual(bundle["format"], "bywaf.bundle.v1")
+            self.assertEqual(bundle["name"], "client-a")
+            self.assertEqual([item["kind"] for item in bundle["items"]], ["audit", "evidence"])
+            audit_records = bundle["items"][0]["records"]
+            self.assertTrue(audit_records)
+            self.assertTrue(all(record["pipeline_id"] == pipeline_id for record in audit_records))
+            self.assertNotIn("legacy-finding", json.dumps(bundle, sort_keys=True))
+            evidence_records = bundle["items"][1]["records"]
+            self.assertTrue(evidence_records)
+            self.assertTrue(all(record["pipeline_id"] == nikto_pipeline_id for record in evidence_records))
+            self.assertTrue(all(record["commandlet"] == "nikto" for record in evidence_records))
+            self.assertTrue(all("body_base64" in record for record in evidence_records))
 
 
 if __name__ == "__main__":
