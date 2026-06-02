@@ -22,6 +22,7 @@ from collections.abc import Iterable
 from bywaf.event import Event
 from bywaf.plugins.addressing import filter_addresses_for_ip_family, is_ip_scan_target, target_matches_ip_family
 from bywaf.plugins.discovery.hostscanner import publish_name_resolution_events
+from bywaf.plugins.network.nmap_diagnostics import NMAP_FAILURES, publish_nmap_error
 from bywaf.plugins.network.nmap_backend import scan_open_ports
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option, split_var_values
 from bywaf.plugins._args import key_value_to_long_options
@@ -168,7 +169,18 @@ def scan_hosts(
         ports=ports or "",
         arguments=arguments,
     )
-    open_ports = scan_open_ports(new_hosts, ports, arguments)
+    try:
+        open_ports = scan_open_ports(new_hosts, ports, arguments)
+    except NMAP_FAILURES as exc:
+        publish_nmap_error(context, exc, phase="port_scan")
+        context.progress_failed(
+            phase="port_scan",
+            message="port scan failed",
+            error=str(exc),
+            ports=ports or "",
+            arguments=arguments,
+        )
+        return
     context.progress_completed(
         phase="port_scan",
         current=len(new_hosts),

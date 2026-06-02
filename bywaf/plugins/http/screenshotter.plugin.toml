@@ -15,6 +15,7 @@ emits = [
 ]
 capabilities = [
   "artifact.write",
+  "db.read:process.run",
   "db.write:eyewitness.screenshot",
   "db.write:web.screenshotted_host",
   "db.write:tool.error",

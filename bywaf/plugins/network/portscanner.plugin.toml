@@ -20,6 +20,7 @@ capabilities = [
   "db.read:command.run.failed",
   "db.write:finding.candidate",
   "db.write:name.resolved",
+  "db.write:tool.error",
   "framework.console.alert",
   "framework.console.output",
   "network.connect",

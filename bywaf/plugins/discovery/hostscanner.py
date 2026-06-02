@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from bywaf.event import Event
 from bywaf.policy import resolve_target
 from bywaf.plugins._args import key_value_to_long_options
+from bywaf.plugins.network.nmap_diagnostics import NMAP_FAILURES, publish_nmap_error
 from bywaf.plugins.network.nmap_backend import discover_live_hosts
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, PlanItem, PlanRepair, PlanReport, commandlet, option, split_var_values
 from bywaf.utils import host_candidates
@@ -124,7 +125,13 @@ class HostScanner(CommandletBase):
         publish_name_resolution_events(context, names_by_host)
         context.raise_if_cancelled()
         context.audit_capability("network.connect")
-        for host in discover_live_hosts(" ".join(targets), parsed.arguments)[: parsed.limit]:
+        try:
+            live_hosts = discover_live_hosts(" ".join(targets), parsed.arguments)
+        except NMAP_FAILURES as exc:
+            publish_nmap_error(context, exc, phase="host_discovery")
+            context.output(f"error: {exc}")
+            return
+        for host in live_hosts[: parsed.limit]:
             context.raise_if_cancelled()
             context.alert(f"discovered host {host}", silent=parsed.silent)
             event: dict[str, object] = {"host": host, "status": "up", "scanner": "nmap"}

@@ -23,25 +23,34 @@ from bywaf.stores import (
 from bywaf.varstore import VarStore
 
 
+def event_store_backend_cases(tmp: str) -> tuple[tuple[str, EventStore], ...]:
+    """Return EventStore cases for backend contract tests."""
+    return (
+        ("sqlite-path", EventStore(Path(tmp, "path.sqlite3"))),
+        ("sqlite-backend", EventStore(backend=SQLiteBackend(Path(tmp, "backend.sqlite3")))),
+    )
+
+
 class StoreProtocolTests(unittest.TestCase):
-    def test_event_store_satisfies_event_runtime_and_maintenance_protocols(self):
+    def test_event_store_backends_satisfy_event_runtime_and_maintenance_protocols(self):
         with tempfile.TemporaryDirectory() as tmp:
-            store = EventStore(Path(tmp, "events.sqlite3"))
-            self.assertIsInstance(store, EventStoreProtocol)
-            self.assertIsInstance(store, RuntimeStoreProtocol)
-            self.assertIsInstance(store, MaintenanceStoreProtocol)
+            for backend_name, store in event_store_backend_cases(tmp):
+                with self.subTest(backend=backend_name):
+                    self.assertIsInstance(store, EventStoreProtocol)
+                    self.assertIsInstance(store, RuntimeStoreProtocol)
+                    self.assertIsInstance(store, MaintenanceStoreProtocol)
 
-            published = store.publish("test.topic", {"value": 1}, "test")
-            self.assertEqual(store.fetch(Subscription(("test.topic",))), [published])
-            self.assertEqual(store.events_matching(topic="test.topic"), [published])
-            self.assertEqual(store.latest_event_id(), published.id)
+                    published = store.publish("test.topic", {"value": 1}, "test")
+                    self.assertEqual(store.fetch(Subscription(("test.topic",))), [published])
+                    self.assertEqual(store.events_matching(topic="test.topic"), [published])
+                    self.assertEqual(store.latest_event_id(), published.id)
 
-            job_id = store.record_job("test", None, "queued")
-            self.assertTrue(store.claim_job(job_id, 123))
-            store.finish_job(job_id, "completed")
-            job = store.job(job_id)
-            assert job is not None
-            self.assertEqual(job["status"], "completed")
+                    job_id = store.record_job("test", None, "queued")
+                    self.assertTrue(store.claim_job(job_id, 123))
+                    store.finish_job(job_id, "completed")
+                    job = store.job(job_id)
+                    assert job is not None
+                    self.assertEqual(job["status"], "completed")
 
     def test_event_store_can_use_explicit_database_backend(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -9,6 +9,7 @@ Used by:
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from bywaf.event import Event
@@ -91,27 +92,39 @@ def host_overviews(context_events: list[Event], finding_events: list[Event]) -> 
     return hosts
 
 
+ContextEventHandler = Callable[[dict[str, HostOverview], Event], None]
+
+
 def add_context_event(hosts: dict[str, HostOverview], event: Event) -> None:
     """Add one shared network fact to host overview buckets."""
-    payload = event.payload
-    if event.topic in {"host.found", "name.resolved"}:
-        add_named_host(hosts, payload.get("host"), payload.get("name"))
-    elif event.topic == "port.open":
-        add_port_event(hosts, event)
-    elif event.topic == "service.detected":
-        add_service_event(hosts, event)
-    elif event.topic == "http.endpoint":
-        add_http_endpoint(hosts, payload.get("host"), payload.get("url"))
-    elif event.topic == "http.path":
-        add_http_path(hosts, payload.get("host"), payload.get("url"), payload.get("interesting"))
-    elif event.topic == "tls.certificate":
-        add_web_note(hosts, payload.get("host"), "tls")
-    elif event.topic == "web.waf.detected":
-        add_web_note(hosts, payload.get("host"), f"waf:{payload.get('vendor', '')}".strip(":"))
-    elif event.topic == "web.screenshotted_host":
-        add_screenshot_event(hosts, event)
-    elif event.topic == "network.route.hop":
-        add_route_hop(hosts, event)
+    handler = CONTEXT_EVENT_HANDLERS.get(event.topic)
+    if handler:
+        handler(hosts, event)
+
+
+def add_named_host_event(hosts: dict[str, HostOverview], event: Event) -> None:
+    """Add host/name facts from a shared event."""
+    add_named_host(hosts, event.payload.get("host"), event.payload.get("name"))
+
+
+def add_http_endpoint_event(hosts: dict[str, HostOverview], event: Event) -> None:
+    """Add HTTP endpoint facts from a shared event."""
+    add_http_endpoint(hosts, event.payload.get("host"), event.payload.get("url"))
+
+
+def add_http_path_event(hosts: dict[str, HostOverview], event: Event) -> None:
+    """Add interesting HTTP path facts from a shared event."""
+    add_http_path(hosts, event.payload.get("host"), event.payload.get("url"), event.payload.get("interesting"))
+
+
+def add_tls_certificate_event(hosts: dict[str, HostOverview], event: Event) -> None:
+    """Add TLS observations from a shared event."""
+    add_web_note(hosts, event.payload.get("host"), "tls")
+
+
+def add_waf_event(hosts: dict[str, HostOverview], event: Event) -> None:
+    """Add WAF observations from a shared event."""
+    add_web_note(hosts, event.payload.get("host"), f"waf:{event.payload.get('vendor', '')}".strip(":"))
 
 
 def add_named_host(hosts: dict[str, HostOverview], host_value: object, name_value: object) -> None:
@@ -218,3 +231,17 @@ def finding_hosts(payload: dict) -> set[str]:
             elif isinstance(item, str):
                 hosts.add(item)
     return hosts
+
+
+CONTEXT_EVENT_HANDLERS: dict[str, ContextEventHandler] = {
+    "host.found": add_named_host_event,
+    "name.resolved": add_named_host_event,
+    "port.open": add_port_event,
+    "service.detected": add_service_event,
+    "http.endpoint": add_http_endpoint_event,
+    "http.path": add_http_path_event,
+    "tls.certificate": add_tls_certificate_event,
+    "web.waf.detected": add_waf_event,
+    "web.screenshotted_host": add_screenshot_event,
+    "network.route.hop": add_route_hop,
+}
