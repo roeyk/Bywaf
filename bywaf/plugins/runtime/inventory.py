@@ -104,9 +104,6 @@ class InventoryCommand(CommandletBase):
     description="Show host inventory from accumulated scan results.",
     usage="hosts [--last|--new] [job=<id>|pipeline=<id>|step=<id>|all=true] [--page]",
     examples=("hosts", "hosts --last", "hosts --new", "hosts pipeline=12", "hosts step=portscanner-...", "hosts --page"),
-    consumes=HOST_TOPICS,
-    capabilities=("framework.console.output", "framework.file.page"),
-    database_actions=("view",),
 )
 class Hosts(InventoryCommand):
     """Render a compact host inventory."""
@@ -132,9 +129,6 @@ class Hosts(InventoryCommand):
     description="Show service inventory by host and port.",
     usage="services [--last|--new] [job=<id>|pipeline=<id>|step=<id>|all=true] [--page]",
     examples=("services", "services --last", "services --new", "services pipeline=12", "services step=portscanner-...", "services --page"),
-    consumes=SERVICE_TOPICS,
-    capabilities=("framework.console.output", "framework.file.page"),
-    database_actions=("view",),
 )
 class Services(InventoryCommand):
     """Render a compact service inventory."""
@@ -160,9 +154,6 @@ class Services(InventoryCommand):
     description="Show web endpoint inventory from accumulated scan results.",
     usage="web [--last|--new] [job=<id>|pipeline=<id>|step=<id>|all=true] [--page]",
     examples=("web", "web --last", "web --new", "web pipeline=12", "web step=http-probe-...", "web --page"),
-    consumes=WEB_TOPICS,
-    capabilities=("framework.console.output", "framework.file.page"),
-    database_actions=("view",),
 )
 class Web(InventoryCommand):
     """Render a compact web endpoint inventory."""
@@ -188,9 +179,6 @@ class Web(InventoryCommand):
     description="Show WAF and edge-protection fingerprints.",
     usage="wafs [--last|--new] [job=<id>|pipeline=<id>|step=<id>|all=true] [--page]",
     examples=("wafs", "wafs --last", "wafs --new", "wafs pipeline=12", "wafs step=waf-detect-...", "wafs --page"),
-    consumes=WAF_TOPICS,
-    capabilities=("framework.console.output", "framework.file.page"),
-    database_actions=("view",),
 )
 class Wafs(InventoryCommand):
     """Render compact WAF fingerprint inventory."""
@@ -216,9 +204,6 @@ class Wafs(InventoryCommand):
     description="Show discovered network shares.",
     usage="shares [--last|--new] [job=<id>|pipeline=<id>|step=<id>|all=true] [--page]",
     examples=("shares", "shares --last", "shares --new", "shares pipeline=12", "shares step=smb-shares-...", "shares --page"),
-    consumes=SHARE_TOPICS,
-    capabilities=("framework.console.output", "framework.file.page"),
-    database_actions=("view",),
 )
 class Shares(InventoryCommand):
     """Render compact network share inventory."""
@@ -244,9 +229,6 @@ class Shares(InventoryCommand):
     description="Show route hops discovered by traceroute-style scans.",
     usage="routes [--last|--new] [job=<id>|pipeline=<id>|step=<id>|all=true] [--page]",
     examples=("routes", "routes --last", "routes --new", "routes pipeline=12", "routes step=traceroute-...", "routes --page"),
-    consumes=ROUTE_TOPICS,
-    capabilities=("framework.console.output", "framework.file.page"),
-    database_actions=("view",),
 )
 class Routes(InventoryCommand):
     """Render compact route-hop inventory."""
@@ -272,9 +254,6 @@ class Routes(InventoryCommand):
     description="Show TLS certificate inventory.",
     usage="certs [--last|--new] [job=<id>|pipeline=<id>|step=<id>|all=true] [--page]",
     examples=("certs", "certs --last", "certs --new", "certs pipeline=12", "certs step=tls-probe-...", "certs --page"),
-    consumes=CERT_TOPICS,
-    capabilities=("framework.console.output", "framework.file.page"),
-    database_actions=("view",),
 )
 class Certs(InventoryCommand):
     """Render compact TLS certificate inventory."""
@@ -300,9 +279,6 @@ class Certs(InventoryCommand):
     description="Show captured TCP banners.",
     usage="banners [--last|--new] [job=<id>|pipeline=<id>|step=<id>|all=true] [--page]",
     examples=("banners", "banners --last", "banners --new", "banners pipeline=12", "banners step=tcp-banner-...", "banners --page"),
-    consumes=BANNER_TOPICS,
-    capabilities=("framework.console.output", "framework.file.page"),
-    database_actions=("view",),
 )
 class Banners(InventoryCommand):
     """Render compact TCP banner inventory."""
@@ -328,9 +304,6 @@ class Banners(InventoryCommand):
     description="Show discovered HTTP paths.",
     usage="paths [--last|--new] [job=<id>|pipeline=<id>|step=<id>|all=true] [--page]",
     examples=("paths", "paths --last", "paths --new", "paths pipeline=12", "paths step=webfin-...", "paths --page"),
-    consumes=PATH_TOPICS,
-    capabilities=("framework.console.output", "framework.file.page"),
-    database_actions=("view",),
 )
 class Paths(InventoryCommand):
     """Render compact HTTP path inventory."""
@@ -356,9 +329,6 @@ class Paths(InventoryCommand):
     description="Show screenshot artifacts by host.",
     usage="screenshots [--last|--new] [job=<id>|pipeline=<id>|step=<id>|all=true] [--page]",
     examples=("screenshots", "screenshots --last", "screenshots --new", "screenshots pipeline=12", "screenshots step=screenshotter-...", "screenshots --page"),
-    consumes=SCREENSHOT_TOPICS,
-    capabilities=("framework.console.output", "framework.file.page"),
-    database_actions=("view",),
 )
 class Screenshots(InventoryCommand):
     """Render compact screenshot artifact inventory."""

@@ -127,6 +127,21 @@ class RegistryBundledPluginTests(unittest.TestCase):
         from bywaf.plugins.os.less import Less
         from bywaf.plugins.os.ls import Ls
         from bywaf.plugins.runtime.control import Cancel, RuntimeSignal
+        from bywaf.plugins.runtime.inventory import (
+            HOST_TOPICS,
+            SERVICE_TOPICS,
+            WEB_TOPICS,
+            Banners,
+            Certs,
+            Hosts,
+            Paths,
+            Routes,
+            Screenshots,
+            Services,
+            Shares,
+            Wafs,
+            Web,
+        )
         from bywaf.plugins.runtime.job import Job
         from bywaf.plugins.runtime.name import Name
         from bywaf.plugins.runtime.pipeline import Pipeline
@@ -157,6 +172,24 @@ class RegistryBundledPluginTests(unittest.TestCase):
         self.assertEqual(Step().spec.capabilities, ())
         self.assertEqual(Step().spec.database_actions, ())
         self.assertEqual(WifiScan().spec.capabilities, ())
+        inventory_classes = (
+            Banners,
+            Certs,
+            Hosts,
+            Paths,
+            Routes,
+            Screenshots,
+            Services,
+            Shares,
+            Wafs,
+            Web,
+        )
+        for inventory_class in inventory_classes:
+            with self.subTest(commandlet=inventory_class.__name__):
+                spec = inventory_class().spec
+                self.assertEqual(spec.capabilities, ())
+                self.assertEqual(spec.consumes, ())
+                self.assertEqual(spec.database_actions, ())
         self.assertIn("framework.job.control", self.registry.get("cancel").spec.capabilities)
         self.assertIn("filesystem.read", self.registry.get("cat").spec.capabilities)
         self.assertIn("network.connect", self.registry.get("eyewitness").spec.capabilities)
@@ -182,6 +215,28 @@ class RegistryBundledPluginTests(unittest.TestCase):
         self.assertEqual(self.registry.get("step").spec.database_actions, ("view",))
         self.assertIn("network.listen", self.registry.get("wifi_scan").spec.capabilities)
         self.assertEqual(self.registry.get("wifi_scan").spec.emits, ("wifi.network", "kismet.network"))
+        inventory_names = (
+            "banners",
+            "certs",
+            "hosts",
+            "paths",
+            "routes",
+            "screenshots",
+            "services",
+            "shares",
+            "wafs",
+            "web",
+        )
+        for name in inventory_names:
+            with self.subTest(commandlet=name):
+                spec = self.registry.get(name).spec
+                self.assertIn("framework.console.output", spec.capabilities)
+                self.assertIn("framework.file.page", spec.capabilities)
+                self.assertEqual(spec.database_actions, ("view",))
+        self.assertEqual(self.registry.get("hosts").spec.consumes, HOST_TOPICS)
+        self.assertEqual(self.registry.get("services").spec.consumes, SERVICE_TOPICS)
+        self.assertEqual(self.registry.get("web").spec.consumes, WEB_TOPICS)
+        self.assertEqual(self.registry.get("screenshots").spec.consumes, ("web.screenshotted_host",))
 
     def test_bundled_watchdog_manifest_is_service(self):
         manifest = load_package_manifest("bywaf.plugins", "runtime.watchdog")
