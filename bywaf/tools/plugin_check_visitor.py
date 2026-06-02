@@ -64,13 +64,13 @@ class CapabilityVisitor(ast.NodeVisitor):
         """Detect decorators accidentally attached to plugin() factories."""
         if node.name == "plugin":
             self.inspect_plugin_factory_decorators(node)
-        self.generic_visit(node)
+        self.visit_function_body(node)
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:  # noqa: N802 - ast API
         """Detect decorators accidentally attached to async plugin() factories."""
         if node.name == "plugin":
             self.inspect_plugin_factory_decorators(node)
-        self.generic_visit(node)
+        self.visit_function_body(node)
 
     def visit_Import(self, node: ast.Import) -> None:  # noqa: N802 - ast API
         """Record import aliases and warn for direct network/process modules."""
@@ -153,6 +153,22 @@ class CapabilityVisitor(ast.NodeVisitor):
             self.add_warning("network.connect", "direct_network", node, path, confidence="medium")
         if direct_process_call(path):
             self.add_warning("framework.process.run", "direct_process", node, path, confidence="medium")
+
+    def visit_function_body(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+        """Visit a function with common context parameter aliases resolved."""
+        previous_aliases: dict[str, str | None] = {}
+        for arg in (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs):
+            if arg.arg in {"context", "ctx", "command_context", "command_ctx"}:
+                previous_aliases[arg.arg] = self.aliases.get(arg.arg)
+                self.aliases[arg.arg] = "context"
+        try:
+            self.generic_visit(node)
+        finally:
+            for name, previous in previous_aliases.items():
+                if previous is None:
+                    self.aliases.pop(name, None)
+                else:
+                    self.aliases[name] = previous
 
     def inspect_plugin_factory_decorators(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
         """Report commandlet metadata decorators on plugin() instead of the commandlet class."""

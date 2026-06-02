@@ -102,8 +102,9 @@ def render_llm_feedback(report: dict[str, Any]) -> str:
             [
                 f"{item_number}. Missing capability declaration: {capability}{code_suffix}",
                 "   Problem: source analysis inferred this capability but it is not declared.",
-                "   Fix: add the capability to the @commandlet(..., capabilities=(...)) tuple and the matching "
-                "bywaf.plugin.toml [[commandlets]] capabilities list.",
+                "   Fix: add the capability to the matching bywaf.plugin.toml [[commandlets]] capabilities list. "
+                "For legacy code-only plugins, also keep any Python CommandSpec/@commandlet capability metadata "
+                "consistent with the manifest.",
             ]
         )
         item_number += 1

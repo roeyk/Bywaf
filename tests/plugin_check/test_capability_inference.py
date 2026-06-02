@@ -81,7 +81,28 @@ class TestCapabilityInferenceTests(unittest.TestCase):
             self.assertEqual(report["capability_codes"]["db.write:example.event"], "C102.617506")
             self.assertIn("missing inferred capabilities", report["errors"][0])
             self.assertIn("db.write:example.event=C102.617506", render_text(report))
-            self.assertIn("Missing capability declaration: db.write:example.event (C102.617506)", render_llm_feedback(report))
+            feedback = render_llm_feedback(report)
+            self.assertIn("Missing capability declaration: db.write:example.event (C102.617506)", feedback)
+            self.assertIn("bywaf.plugin.toml [[commandlets]] capabilities list", feedback)
+            self.assertIn("legacy code-only plugins", feedback)
+
+    def test_check_plugin_infers_context_alias_parameter_calls(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(
+                Path(tmp),
+                capabilities=(),
+                run_body=(
+                    "        def emit(ctx):\n"
+                    '            ctx.events.publish("example.event", {})\n'
+                    "        emit(context)\n"
+                ),
+            )
+
+            report = check_plugin(plugin_dir, strict_inference=True)
+
+            self.assertFalse(report["ok"])
+            self.assertIn("db.write:example.event", report["missing_capabilities"])
+            self.assertIn("example.event", report["inferred_emits"])
 
     def test_check_plugin_warns_on_direct_network_import(self):
         with tempfile.TemporaryDirectory() as tmp:
