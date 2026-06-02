@@ -49,9 +49,6 @@ PORT_SCOPE_KEYS = {"all", "job", "pipeline", "step"}
         "ports job=69 sort=host",
         "ports host=192.168.50.0/24,!192.168.50.1-128 port=80,443",
     ),
-    consumes=("port.open",),
-    capabilities=("framework.console.output", "framework.file.page"),
-    database_actions=("view",),
 )
 class Ports(CommandletBase):
     """Render a compact table of open-port discoveries."""

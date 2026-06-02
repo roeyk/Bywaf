@@ -22,9 +22,31 @@ from unittest.mock import patch
 from bywaf.app import ShellState, make_runner, process_framework_requests
 from bywaf.plugins.network.nmap_backend import NmapPort
 from bywaf.plugins.http.repo_exposure import DetectionStatus, base_result
+from bywaf.registry import PluginRegistry
 
 
 class MvpPluginSuiteTests(unittest.TestCase):
+    def test_mvp_chain_specs_stay_composable_after_manifest_hydration(self):
+        """Keep the documented MVP chain wired by hydrated sidecar metadata."""
+        registry = PluginRegistry.discover()
+        hostscanner = registry.get("hostscanner").spec
+        portscanner = registry.get("portscanner").spec
+        http_probe = registry.get("http_probe").spec
+        webfin = registry.get("webfin").spec
+        nikto = registry.get("nikto").spec
+
+        self.assertIn("host.found", hostscanner.emits)
+        self.assertIn("host.found", portscanner.consumes)
+        self.assertIn("port.open", portscanner.emits)
+        self.assertIn("port.open", http_probe.consumes)
+        self.assertIn("http.endpoint", http_probe.emits)
+        self.assertIn("http.endpoint", webfin.consumes)
+        self.assertIn("web.fingerprint", webfin.emits)
+        self.assertIn("web.fingerprint", nikto.consumes)
+        for spec in (hostscanner, portscanner, http_probe, webfin, nikto):
+            with self.subTest(commandlet=spec.name):
+                self.assertIn("network.connect", spec.capabilities)
+
     def test_mvp_chain_prunes_out_of_scope_hosts_before_downstream_scan(self):
         """Keep the demo pentest chain inside the configured network scope."""
         with tempfile.TemporaryDirectory() as tmp:

@@ -41,10 +41,6 @@ DEFAULTS = {
         "webfin https://example.test/",
         "hostscanner 127.0.0.1 | portscanner port=80,443 | http_probe --method GET | webfin",
     ),
-    consumes=("http.endpoint",),
-    emits=("web.fingerprint",),
-    capabilities=("db.write:web.fingerprint", "framework.console.alert", "network.connect"),
-    database_actions=("write",),
 )
 @option("silent", "suppress fingerprint alerts", "false")
 @option("timeout", "request timeout seconds", "5")

@@ -9,9 +9,14 @@ class BundledManifestHydrationTests(unittest.TestCase):
         self.registry = PluginRegistry.discover()
 
     def test_bundled_sidecar_hydrates_runtime_security_metadata(self):
+        from bywaf.plugins.discovery.hostscanner import HostScanner
         from bywaf.plugins.http.eyewitness import EyeWitness
+        from bywaf.plugins.http.http_probe import HttpProbe
         from bywaf.plugins.http.nikto import Nikto
         from bywaf.plugins.http.screenshotter import Screenshotter
+        from bywaf.plugins.http.webfin import WebFingerprint
+        from bywaf.plugins.network.portscanner import PortScanner
+        from bywaf.plugins.network.portscanner.ports import Ports
         from bywaf.plugins.os.cat import Cat
         from bywaf.plugins.os.less import Less
         from bywaf.plugins.os.ls import Ls
@@ -54,6 +59,8 @@ class BundledManifestHydrationTests(unittest.TestCase):
             Cat,
             Db,
             EyeWitness,
+            HostScanner,
+            HttpProbe,
             Job,
             Key,
             Less,
@@ -62,6 +69,8 @@ class BundledManifestHydrationTests(unittest.TestCase):
             Nikto,
             Note,
             Pipeline,
+            Ports,
+            PortScanner,
             ResultAlias,
             Results,
             RuntimeSignal,
@@ -69,6 +78,7 @@ class BundledManifestHydrationTests(unittest.TestCase):
             Screenshotter,
             SearchCommand,
             Step,
+            WebFingerprint,
             Watchdog,
             WifiScan,
         )
@@ -77,6 +87,19 @@ class BundledManifestHydrationTests(unittest.TestCase):
                 spec = raw_class().spec
                 self.assertEqual(spec.capabilities, ())
                 self.assertEqual(spec.database_actions, ())
+
+        lean_catalog_classes = (
+            HostScanner,
+            HttpProbe,
+            Ports,
+            PortScanner,
+            WebFingerprint,
+        )
+        for raw_class in lean_catalog_classes:
+            with self.subTest(commandlet=f"{raw_class.__name__}-catalog"):
+                spec = raw_class().spec
+                self.assertEqual(spec.consumes, ())
+                self.assertEqual(spec.emits, ())
 
         inventory_classes = (
             Banners,
@@ -109,6 +132,11 @@ class BundledManifestHydrationTests(unittest.TestCase):
         self.assertEqual(self.registry.get("db").spec.database_actions, ("view", "manage"))
         self.assertIn("network.connect", self.registry.get("eyewitness").spec.capabilities)
         self.assertEqual(self.registry.get("eyewitness").spec.consumes, ("http.endpoint",))
+        self.assertIn("network.connect", self.registry.get("hostscanner").spec.capabilities)
+        self.assertEqual(self.registry.get("hostscanner").spec.emits, ("host.found", "name.resolved"))
+        self.assertIn("network.connect", self.registry.get("http_probe").spec.capabilities)
+        self.assertEqual(self.registry.get("http_probe").spec.consumes, ("port.open",))
+        self.assertEqual(self.registry.get("http_probe").spec.emits, ("http.endpoint",))
         self.assertIn("framework.job.control", self.registry.get("job").spec.capabilities)
         self.assertEqual(self.registry.get("job").spec.database_actions, ("view", "write"))
         self.assertIn("db.write:key.generated", self.registry.get("key").spec.capabilities)
@@ -123,6 +151,11 @@ class BundledManifestHydrationTests(unittest.TestCase):
         self.assertIn("nikto.finding", self.registry.get("nikto").spec.emits)
         self.assertIn("framework.pipeline.control", self.registry.get("pipeline").spec.capabilities)
         self.assertEqual(self.registry.get("pipeline").spec.database_actions, ("view", "write"))
+        self.assertIn("network.connect", self.registry.get("portscanner").spec.capabilities)
+        self.assertEqual(self.registry.get("portscanner").spec.consumes, ("host.found", "network.route.hop"))
+        self.assertEqual(self.registry.get("portscanner").spec.emits, ("port.open", "finding.candidate"))
+        self.assertEqual(self.registry.get("ports").spec.consumes, ("port.open",))
+        self.assertEqual(self.registry.get("ports").spec.database_actions, ("view",))
         self.assertIn("framework.file.page", self.registry.get("result").spec.capabilities)
         self.assertEqual(self.registry.get("results").spec.database_actions, ("view",))
         self.assertIn("framework.pipeline.control", self.registry.get("signal").spec.capabilities)
@@ -134,6 +167,10 @@ class BundledManifestHydrationTests(unittest.TestCase):
         self.assertEqual(self.registry.get("search").spec.database_actions, ("view",))
         self.assertIn("framework.console.output", self.registry.get("step").spec.capabilities)
         self.assertEqual(self.registry.get("step").spec.database_actions, ("view",))
+        self.assertIn("network.connect", self.registry.get("webfin").spec.capabilities)
+        self.assertEqual(self.registry.get("webfin").spec.consumes, ("http.endpoint",))
+        self.assertEqual(self.registry.get("webfin").spec.emits, ("web.fingerprint",))
+        self.assertEqual(self.registry.get("webfin").spec.database_actions, ("write",))
         self.assertIn("network.listen", self.registry.get("wifi_scan").spec.capabilities)
         self.assertEqual(self.registry.get("wifi_scan").spec.emits, ("wifi.network", "kismet.network"))
         self.assertIn("db.write:watchdog.timeout", self.registry.get("watchdog").spec.capabilities)
@@ -161,4 +198,3 @@ class BundledManifestHydrationTests(unittest.TestCase):
         self.assertEqual(self.registry.get("services").spec.consumes, SERVICE_TOPICS)
         self.assertEqual(self.registry.get("web").spec.consumes, WEB_TOPICS)
         self.assertEqual(self.registry.get("screenshots").spec.consumes, ("web.screenshotted_host",))
-

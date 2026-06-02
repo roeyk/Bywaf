@@ -54,9 +54,6 @@ DEFAULTS = {
         "set http/http_probe.cookie-file=/tmp/cookies.txt",
         "hostscanner 127.0.0.1 | portscanner | http_probe --method GET",
     ),
-    consumes=("port.open",),
-    emits=("http.endpoint",),
-    capabilities=("filesystem.read", "framework.console.alert", "network.connect"),
 )
 @option("cookie-file", "Netscape-format cookie file")
 @option("firefox-profile", "Firefox profile directory or cookies.sqlite")

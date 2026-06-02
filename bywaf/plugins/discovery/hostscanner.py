@@ -57,16 +57,6 @@ class ExpandedTargets:
         "hostscanner 192.168.0.1-255",
         "hostscanner 192.168.0.1& | portscanner&",
     ),
-    emits=("host.found", "name.resolved"),
-    capabilities=(
-        "artifact.write",
-        "db.write:name.resolved",
-        "filesystem.read",
-        "framework.console.alert",
-        "framework.console.output",
-        "network.connect",
-        "variable.read",
-    ),
 )
 @option("arguments", "nmap host discovery arguments", "-sn")
 @option("except", "hosts or ranges to exclude", "")
