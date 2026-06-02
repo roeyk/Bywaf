@@ -38,7 +38,7 @@ nargs = "*"
 name = "paths"
 description = "comma or whitespace separated paths"
 type = "str"
-default = "/robots.txt,/.git/config,/server-status,/admin/"
+default = "/robots.txt,/.git/config,/server-status,/admin/,/login,/wp-login.php,/.env,/actuator/env"
 
 [[commandlets.options]]
 name = "silent"

@@ -39,6 +39,9 @@ impact label and sorted from highest to lowest operator/developer impact:
   so Kismet and traceroute failures link retained process-output artifacts.
 - [medium] Added structured `tool.error` diagnostics and plugin-level fixture
   coverage for nmap-backed hostscanner and portscanner backend failures.
+- [medium] Promoted `http_paths` admin/login responses into low-severity
+  finding candidates when response evidence looks like an administrative
+  surface, while keeping the check passive and fixture-backed.
 - [medium] Added explicit screenshotter wrapper fixture coverage for missing
   binary, nonzero exit, timeout, empty selection, and successful screenshot
   evidence paths.

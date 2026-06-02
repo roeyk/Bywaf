@@ -55,7 +55,7 @@ base installation commandlets that declare or use each capability.
 | `db.write:dns.error` | `dns_lookup` |
 | `db.write:dns.record` | `dns_lookup` |
 | `db.write:eyewitness.screenshot` | `eyewitness`, `screenshotter` |
-| `db.write:finding.candidate` | `git_expose_check`, `http_headers`, `portscanner`, `tls_probe` |
+| `db.write:finding.candidate` | `git_expose_check`, `http_headers`, `http_paths`, `portscanner`, `tls_probe` |
 | `db.write:finding.duplicate` | `finding_dedupe` |
 | `db.write:finding.merge_candidate` | `finding_dedupe` |
 | `db.write:finding.new` | `finding_dedupe` |
@@ -93,7 +93,7 @@ base installation commandlets that declare or use each capability.
 | `db.write:yara.match` | `yara_scan` |
 | `filesystem.read` | `artifact`, `cat`, `db`, `eyewitness`, `finding_dedupe`, `finding_report`, `http_probe`, `key`, `less`, `ls`, `nikto`, `note`, `screenshotter`, `wifi_scan`, `yara_scan` |
 | `filesystem.write` | `artifact`, `audit`, `bundle`, `db`, `eyewitness`, `finding_dedupe`, `finding_report`, `key`, `nikto`, `note`, `screenshotter`, `wifi_scan` |
-| `framework.console.alert` | `eyewitness`, `git_expose_check`, `hostscanner`, `http_probe`, `nikto`, `portscanner`, `screenshotter`, `tcp_banner`, `traceroute`, `watchdog`, `webfin`, `wifi_scan` |
+| `framework.console.alert` | `eyewitness`, `git_expose_check`, `hostscanner`, `http_paths`, `http_probe`, `nikto`, `portscanner`, `screenshotter`, `tcp_banner`, `traceroute`, `watchdog`, `webfin`, `wifi_scan` |
 | `framework.console.output` | `artifact`, `audit`, `bundle`, `cancel`, `cat`, `db`, `end`, `finding_dedupe`, `job`, `key`, `kill`, `ls`, `name`, `note`, `pause`, `pipeline`, `report`, `resume`, `search`, `signal`, `stop`, `traceroute` |
 | `framework.file.page` | `less` |
 | `framework.job.control` | `cancel`, `end`, `job`, `kill`, `pause`, `pipeline`, `resume`, `signal`, `stop` |
@@ -101,7 +101,7 @@ base installation commandlets that declare or use each capability.
 | `framework.process.run` | `eyewitness`, `nikto`, `screenshotter`, `traceroute`, `wifi_scan` |
 | `framework.render.table` | `finding_report` |
 | `framework.secret.resolve` | `ldap_probe`, `shodan_lookup`, `smb_probe`, `ssh_probe` |
-| `network.connect` | `dns_lookup`, `eyewitness`, `git_expose_check`, `hostscanner`, `http_headers`, `http_probe`, `ldap_probe`, `nikto`, `portscanner`, `screenshotter`, `shodan_lookup`, `smb_probe`, `snmp_get`, `ssh_probe`, `tcp_banner`, `webfin` |
+| `network.connect` | `dns_lookup`, `eyewitness`, `git_expose_check`, `hostscanner`, `http_headers`, `http_paths`, `http_probe`, `ldap_probe`, `nikto`, `portscanner`, `screenshotter`, `shodan_lookup`, `smb_probe`, `snmp_get`, `ssh_probe`, `tcp_banner`, `webfin` |
 | `network.listen` | `wifi_scan` |
 
 ## Trigger Rules
@@ -134,6 +134,7 @@ the association and `Consumes` is the normal consumer side.
 | `hostscanner` | none | `name.resolved`, `host.found` |
 | `http_headers` | `port.open` | `http.headers`, `finding.candidate` |
 | `http_probe` | `port.open` | `http.endpoint` |
+| `http_paths` | `http.endpoint` | `http.path`, `finding.candidate` |
 | `key` | none | `key.generated`, `key.imported`, `key.removed`, `key.tested` |
 | `ldap_probe` | none | `ldap.server` |
 | `nikto` | `http.endpoint`, `web.fingerprint` | `nikto.finding`, `vulnerability.found`, `vulnerability.potential` |

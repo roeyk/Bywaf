@@ -15,6 +15,8 @@ from bywaf.plugin import CommandContext, Commandlet, RunConfig, commandlet, spli
 from bywaf.plugins.target_policy import filter_targets_by_host
 
 DEFAULT_PATHS = "/robots.txt,/.git/config,/server-status,/admin/,/login,/wp-login.php,/.env,/actuator/env"
+ADMIN_PATHS = frozenset({"/admin/", "/admin", "/login", "/wp-login.php"})
+ADMIN_KEYWORDS = ("admin", "administrator", "login", "sign in", "wp-login")
 
 
 @commandlet
@@ -146,12 +148,20 @@ def is_interesting_path(path: str, result: dict[str, object]) -> bool:
         return False
     lowered = path.casefold()
     sample = str(result.get("sample") or "").casefold()
+    title = str(result.get("title") or "").casefold()
     return (
         lowered in {"/.git/config", "/server-status", "/.env", "/actuator/env"}
+        or (lowered in ADMIN_PATHS and looks_like_admin_surface(title, sample))
         or "repositoryformatversion" in sample
         or "spring.cloud" in sample
         or "database_url" in sample
     )
+
+
+def looks_like_admin_surface(title: str, sample: str) -> bool:
+    """Return whether response text looks like a login or admin surface."""
+    evidence = f"{title} {sample}"
+    return any(keyword in evidence for keyword in ADMIN_KEYWORDS)
 
 
 def finding_for_path(observed: HttpPathObserved) -> dict[str, object] | None:
@@ -174,6 +184,10 @@ def finding_for_path(observed: HttpPathObserved) -> dict[str, object] | None:
         title = "Exposed Spring Boot environment endpoint"
         finding_class = "web.spring.actuator_env_exposed"
         severity = "high"
+    elif observed.path.casefold() in ADMIN_PATHS:
+        title = "Exposed administrative login surface"
+        finding_class = "web.admin_interface.exposed"
+        severity = "low"
     else:
         title = f"Interesting HTTP path exposed: {observed.path}"
         finding_class = "web.path.interesting"
