@@ -66,6 +66,7 @@ class RegistryBundledPluginTests(unittest.TestCase):
                 "analysis.yara_scan",
                 "identity.ldap_probe",
                 "identity.smb_probe",
+                "network.management_exposure",
                 "network.portscanner",
                 "network.service_probe",
                 "network.snmp_get",
@@ -215,7 +216,10 @@ class RegistryBundledPluginTests(unittest.TestCase):
     def test_registry_tracks_provider_groups(self):
         self.assertEqual(self.registry.grouped_names()["analysis"], ["finding", "finding_dedupe", "finding_report", "report", "yara_scan"])
         self.assertEqual(self.registry.grouped_names()["identity"], ["ldap_probe", "smb_probe"])
-        self.assertEqual(self.registry.grouped_names()["network"], ["ports", "portscanner", "service_probe", "snmp_get", "ssh_probe", "tcp_banner", "traceroute"])
+        self.assertEqual(
+            self.registry.grouped_names()["network"],
+            ["management_exposure", "ports", "portscanner", "service_probe", "snmp_get", "ssh_probe", "tcp_banner", "traceroute"],
+        )
         self.assertIn("os", self.registry.provider_names())
         self.assertEqual(self.registry.grouped_names()["os"], ["cat", "less", "ls"])
         self.assertEqual(self.registry.grouped_names()["recon"], ["dns_enum", "dns_lookup", "shodan_lookup"])

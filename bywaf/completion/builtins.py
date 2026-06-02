@@ -21,22 +21,13 @@ from ..command.names import (
 from ..projects import list_projects
 from ..specs import CompletionSpec
 from ..utils import complete_path
+from .event_selectors import event_candidates, event_selector_value_candidates
 from .providers import bundle_candidates, key_candidates
 from .resources import complete_at_file_prefix, complete_resource_value, resource_candidates
 
 if TYPE_CHECKING:
     from ..db import EventStore
     from ..registry import PluginRegistry
-
-
-EVENT_SELECTORS = ("job=", "step=", "pipeline=", "serial=", "topic=")
-EVENT_SELECTOR_COMPLETION_KINDS = {
-    "job": "job",
-    "pipeline": "pipeline",
-    "serial": "serial",
-    "step": "step",
-    "topic": "topic",
-}
 
 
 class BuiltinCompletionMixin:
@@ -60,28 +51,11 @@ class BuiltinCompletionMixin:
 
     def event_candidates(self, prefix: str) -> list[str]:
         """Complete `event` selectors and selector values."""
-        if prefix.isdigit():
-            if not self.db:
-                return []
-            return [str(event.id) for event in self.db.recent_events(50) if str(event.id).startswith(prefix)]
-        selector_values = self.event_selector_value_candidates(prefix)
-        if selector_values is not None:
-            return selector_values
-        if prefix:
-            selector_matches = [selector for selector in EVENT_SELECTORS if selector.startswith(prefix)]
-            if selector_matches:
-                return selector_matches
-        return [*self.topic_candidates(), *EVENT_SELECTORS]
+        return event_candidates(self, prefix)
 
     def event_selector_value_candidates(self, prefix: str) -> list[str] | None:
         """Complete selector values after `event <selector>=`."""
-        for selector in EVENT_SELECTORS:
-            if not prefix.startswith(selector):
-                continue
-            value_prefix = prefix.split("=", 1)[1]
-            kind = EVENT_SELECTOR_COMPLETION_KINDS[selector[:-1]]
-            return [f"{selector}{value}" for value in self.complete_by_spec(CompletionSpec(kind), value_prefix)]
-        return None
+        return event_selector_value_candidates(self, prefix)
 
     def run_candidates(self) -> list[str]:
         """Complete pipeline step IDs from the active database."""

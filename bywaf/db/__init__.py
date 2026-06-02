@@ -15,7 +15,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from .backends import DatabaseBackend, DatabaseConnection, SQLiteBackend
+from .backends import DatabaseBackend, DatabaseBackendCapabilities, DatabaseConnection, SQLiteBackend
 from .events import EventStoreEventMixin
 from .jobs import EventStoreJobMixin
 from .maintenance import EventStoreMaintenanceMixin
@@ -70,12 +70,13 @@ class EventStore(
         passphrase: str | None = None,
         backend: DatabaseBackend | None = None,
     ):
-        if backend is None:
+        db_backend = backend
+        if db_backend is None:
             if path is None:
                 raise ValueError("EventStore requires either path= or backend=")
-            backend = SQLiteBackend(path, passphrase=passphrase)
-        self.backend = backend
-        self.path = backend.path
+            db_backend = SQLiteBackend(path, passphrase=passphrase)
+        self.backend = db_backend
+        self.path = db_backend.path
         self.initialize()
 
     @property
@@ -109,6 +110,7 @@ class EventStore(
 __all__ = [
     "ACTIVE_JOB_STATUSES",
     "DatabaseBackend",
+    "DatabaseBackendCapabilities",
     "DatabaseConnection",
     "EventStore",
     "CROCKFORD_BASE32_ALPHABET",

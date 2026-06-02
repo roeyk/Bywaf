@@ -59,6 +59,7 @@ def render_finding_report(
             review_summary_line(review_counts(groups, decisions), severity_class_counts(groups)),
         ),
         report_text(context, "summary", resume_summary_line(review_counts(groups, decisions))),
+        report_text(context, "summary", resume_focus_line(groups, decisions)),
     ]
     network_overview = render_network_overview(context, context_events or [], events_for_groups(displayed_groups))
     if network_overview:
@@ -311,6 +312,20 @@ def resume_summary_line(counts: Mapping[str, int]) -> str:
         f"({counts.get('confirmed', 0)} confirmed, "
         f"{counts.get('unreviewed', 0)} unreviewed)"
     )
+
+
+def resume_focus_line(groups: list[FindingGroup], decisions: Mapping[str, ReviewDecision]) -> str:
+    """Return severity focus for findings still needing operator attention."""
+    open_groups = [group for group in groups if review_status(group, decisions) in {"confirmed", "unreviewed"}]
+    if not open_groups:
+        return ""
+    counts = severity_class_counts(open_groups)
+    class_summary = ", ".join(
+        f"{counts[item]} {item}"
+        for item in SEVERITY_CLASS_ORDER
+        if counts.get(item, 0)
+    )
+    return f"Resume focus: {class_summary}" if class_summary else ""
 
 
 def report_grouping_line(parsed: Namespace) -> str:

@@ -77,8 +77,21 @@ def known_service(port: int, protocol: str) -> str:
         445: "smb",
         993: "imaps",
         995: "pop3s",
+        2375: "docker",
+        2376: "docker",
         3389: "rdp",
+        5601: "kibana",
+        5985: "winrm",
+        5986: "winrm",
+        6379: "redis",
+        6443: "kubernetes",
         8443: "https-alt",
+        9090: "prometheus",
+        9200: "elasticsearch",
+        9300: "elasticsearch",
+        10250: "kubelet",
+        11211: "memcached",
+        27017: "mongodb",
     }.get(port, "")
 
 
@@ -93,6 +106,14 @@ def classify_banner(banner: str) -> str:
         return "smtp"
     if "ftp" in lowered:
         return "ftp"
+    if "redis_version" in lowered or lowered.startswith("-redis"):
+        return "redis"
+    if "memcached" in lowered:
+        return "memcached"
+    if "mongodb" in lowered:
+        return "mongodb"
+    if "elasticsearch" in lowered or "opensearch" in lowered:
+        return "elasticsearch"
     return ""
 
 

@@ -350,6 +350,9 @@ Planning dates are release planning markers, not compatibility commitments.
 - Keep SQLite as the production storage adapter for now. The first backend seam
   exists through `bywaf.db.backends`; continue reducing hard-coded SQL and
   SQLite-specific assumptions behind explicit storage interfaces.
+- Done: backend implementations now expose named capability metadata, and
+  `docs/STORAGE_BACKENDS.md` records the backend contract plus the next
+  Postgres adapter step.
 - Define repository/service boundaries for events, runtime state, job,
   variables, artifacts, migrations, and project archive/export workflows before
   attempting a second database backend.

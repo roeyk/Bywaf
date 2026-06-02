@@ -102,6 +102,8 @@ operator-facing output wherever possible.
   runtime state, artifacts, secrets, triggers, and maintenance.
 - `bywaf/stores.py`: protocol surfaces used to keep callers from depending on
   concrete SQLite implementation details.
+- `docs/STORAGE_BACKENDS.md`: backend contract and the next Postgres adapter
+  implementation step.
 
 Persistence code is shared by foreground and background work. Preserve
 multiprocess behavior and avoid hidden per-process state.

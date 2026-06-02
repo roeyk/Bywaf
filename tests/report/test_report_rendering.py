@@ -72,6 +72,7 @@ class ReportRenderingTests(unittest.TestCase):
             self.assertIn("Exposed Git repository configuration (confirmed)", text)
             self.assertIn("Findings: 1 total", text)
             self.assertIn("Resume: 1 open finding needs review (1 confirmed, 0 unreviewed)", text)
+            self.assertIn("Resume focus: 1 urgent", text)
 
             output = io.StringIO()
             with contextlib.redirect_stdout(output):

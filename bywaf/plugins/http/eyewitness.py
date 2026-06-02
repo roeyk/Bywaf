@@ -26,6 +26,7 @@ from bywaf.config import Settings
 from bywaf.event.schema_objects import ScreenshottedHost
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
+from bywaf.plugin.process_artifacts import process_output_artifact_payload
 from bywaf.plugins.http.nikto import (
     dedupe_targets,
     filter_http_payloads_by_policy,
@@ -292,21 +293,6 @@ def publish_tool_problem(context: CommandContext, topic: str, tool: str, message
             "error": str(exc),
         },
     )
-
-
-def process_output_artifact_payload(context: CommandContext) -> dict[str, Any]:
-    """Return the framework process-output artifact reference for diagnostics."""
-    if context.command_run_id is None:
-        return {}
-    events = context.events.query(topic="process.run", step=context.command_run_id, limit=1)
-    if not events:
-        return {}
-    payload = events[0].payload
-    return {
-        key: payload[key]
-        for key in ("artifact_id", "artifact_row_id", "artifact_name", "artifact_sha256")
-        if payload.get(key)
-    }
 
 
 def parse_bool(value: str | bool) -> bool:

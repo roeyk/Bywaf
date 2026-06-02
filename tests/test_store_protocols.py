@@ -52,6 +52,8 @@ class StoreProtocolTests(unittest.TestCase):
 
             self.assertIs(store.backend, backend)
             self.assertEqual(store.path, backend.path)
+            self.assertEqual(store.backend.capabilities.name, "sqlite")
+            self.assertTrue(store.backend.capabilities.local_file)
             self.assertEqual(store.event_by_id(published.id or 0), published)
 
     def test_event_store_backend_opens_fresh_connections(self):

@@ -23,6 +23,7 @@ from bywaf.event.schema_objects import HostFound, NetworkRouteHop
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, RunConfig, commandlet
 from bywaf.plugin.process import ProcessResult
+from bywaf.plugin.process_artifacts import process_output_artifact_payload
 from bywaf.plugins.target_policy import filter_targets_by_host
 from bywaf.runtime_display import command_context_style_getter, render_table, terminal_table_width
 
@@ -95,7 +96,13 @@ def run_traceroute(context: CommandContext, cfg: TracerouteConfig, target: str) 
         return None
     if not result.ok and not result.stdout:
         tool = result.argv[0] if result.argv else cfg.binary
-        publish_trace_error(context, tool, target, result.stderr.strip() or f"{tool} exited with {result.returncode}")
+        publish_trace_error(
+            context,
+            tool,
+            target,
+            result.stderr.strip() or f"{tool} exited with {result.returncode}",
+            process_output_artifact_payload(context),
+        )
     return result
 
 
@@ -125,7 +132,13 @@ def missing_executable_error(exc: OSError) -> bool:
     return getattr(exc, "errno", None) == 2
 
 
-def publish_trace_error(context: CommandContext, tool: str, target: str, message: str) -> None:
+def publish_trace_error(
+    context: CommandContext,
+    tool: str,
+    target: str,
+    message: str,
+    artifact_payload: dict[str, object] | None = None,
+) -> None:
     """Publish a traceroute tool error."""
     context.output(f"traceroute: {target}: {message}")
     context.events.publish(
@@ -135,6 +148,7 @@ def publish_trace_error(context: CommandContext, tool: str, target: str, message
             "severity": "error",
             "message": message,
             "target": target,
+            **(artifact_payload or {}),
         },
     )
 

@@ -68,6 +68,21 @@ STARTER_FINDING_CLASSES: dict[str, FindingClassInfo] = {
         "Telnet service exposed on a target.",
         {"cwe": ("CWE-319",), "owasp": ("A02:2021",)},
     ),
+    "service.management.redis_exposed": FindingClassInfo(
+        "service.management.redis_exposed",
+        "Redis service exposed on a target.",
+        {"cwe": ("CWE-284",), "owasp": ("A01:2021",)},
+    ),
+    "service.management.docker_api_exposed": FindingClassInfo(
+        "service.management.docker_api_exposed",
+        "Docker API management endpoint exposed on a target.",
+        {"cwe": ("CWE-284",), "owasp": ("A01:2021",)},
+    ),
+    "service.management.kubernetes_api_exposed": FindingClassInfo(
+        "service.management.kubernetes_api_exposed",
+        "Kubernetes management endpoint exposed on a target.",
+        {"cwe": ("CWE-284",), "owasp": ("A01:2021",)},
+    ),
     "service.tls.weak_protocol": FindingClassInfo(
         "service.tls.weak_protocol",
         "Weak TLS protocol version enabled.",

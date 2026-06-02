@@ -186,6 +186,44 @@ class WifiScanTests(unittest.TestCase):
             self.assertEqual(network["bssid"], "00:11:22:33:44:55")
             self.assertTrue(db.events_for_topic("kismet.network"))
 
+    def test_wifi_scan_nonzero_exit_links_process_output_artifact(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="wifi_scan",
+                metadata={"command_run_id": "run-1", "capabilities": WifiScan().spec.capabilities},
+            )
+
+            def fake_run(argv, *, cwd=None, env=None, timeout=None):
+                del argv, cwd, env, timeout
+                return subprocess.CompletedProcess([], 2, stdout="scan stdout", stderr="scan stderr")
+
+            with patch("bywaf.plugin.process.run_process_argv", side_effect=fake_run):
+                list(WifiScan().run(context, ["output-dir=" + str(Path(tmp, "wifi")), "interface=wlan0mon"], []))
+
+            error = db.events_for_topic("tool.error")[0].payload
+            self.assertEqual(error["message"], "Kismet exited with status 2")
+            self.assertIn("artifact_id", error)
+            self.assertIn("scan stderr", error["stderr"])
+
+    def test_wifi_scan_timeout_is_informational_stop_without_networks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="wifi_scan",
+                metadata={"command_run_id": "run-1", "capabilities": WifiScan().spec.capabilities},
+            )
+
+            with patch("bywaf.plugin.process.run_process_argv", side_effect=subprocess.TimeoutExpired(["kismet"], 1)):
+                list(WifiScan().run(context, ["output-dir=" + str(Path(tmp, "wifi")), "interface=wlan0mon"], []))
+
+            error = db.events_for_topic("tool.error")[0].payload
+            self.assertEqual(error["severity"], "info")
+            self.assertEqual(error["message"], "Kismet scan stopped after requested duration")
+            self.assertEqual(db.events_for_topic("wifi.network"), [])
+
 
 if __name__ == "__main__":
     unittest.main()

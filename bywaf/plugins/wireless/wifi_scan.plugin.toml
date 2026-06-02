@@ -12,6 +12,7 @@ emits = [
 ]
 capabilities = [
   "artifact.write",
+  "db.read:process.run",
   "db.write:*",
   "db.write:kismet.network",
   "db.write:wifi.network",

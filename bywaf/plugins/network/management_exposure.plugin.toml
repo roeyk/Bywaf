@@ -1,0 +1,34 @@
+[plugin]
+version = "0.12.2"
+native = true
+service = false
+
+[[commandlets]]
+name = "management_exposure"
+description = "Promote service and web facts into exposed management-surface finding candidates."
+usage = "management_exposure [silent=true]"
+examples = [
+  "portscanner 192.0.2.10 | service_probe | management_exposure",
+  "http_probe https://example.test:3000/ | webfin | management_exposure",
+]
+consumes = [
+  "port.open",
+  "service.detected",
+  "http.endpoint",
+  "web.fingerprint",
+  "tcp.banner",
+]
+emits = [
+  "finding.candidate",
+]
+capabilities = [
+  "db.write:finding.candidate",
+  "framework.console.alert",
+]
+module = "bywaf.plugins.network.management_exposure"
+
+[[commandlets.options]]
+name = "silent"
+description = "suppress management exposure alerts"
+type = "bool"
+default = "false"

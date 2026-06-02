@@ -224,6 +224,11 @@ class BundledManifestHydrationTests(unittest.TestCase):
         self.assertIn("filesystem.write", self.registry.get("note").spec.capabilities)
         self.assertEqual(self.registry.get("note").spec.database_actions, ("view", "write"))
         self.assertIn("network.connect", self.registry.get("nikto").spec.capabilities)
+        self.assertEqual(
+            self.registry.get("management_exposure").spec.consumes,
+            ("port.open", "service.detected", "http.endpoint", "web.fingerprint", "tcp.banner"),
+        )
+        self.assertEqual(self.registry.get("management_exposure").spec.emits, ("finding.candidate",))
         self.assertEqual(self.registry.get("nikto").spec.consumes, ("http.endpoint", "web.fingerprint"))
         self.assertIn("nikto.finding", self.registry.get("nikto").spec.emits)
         self.assertIn("framework.pipeline.control", self.registry.get("pipeline").spec.capabilities)

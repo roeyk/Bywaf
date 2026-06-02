@@ -13,11 +13,22 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
 from .schema import SCHEMA, ensure_event_columns
 from .support import set_sqlcipher_key, sqlcipher
+
+
+@dataclass(frozen=True, slots=True)
+class DatabaseBackendCapabilities:
+    """Backend capabilities that affect storage behavior and operator docs."""
+
+    name: str
+    local_file: bool
+    encrypted_at_rest: bool
+    supports_backup: bool
 
 
 class DatabaseCursor(Protocol):
@@ -69,6 +80,11 @@ class DatabaseBackend(Protocol):
     path: Path
     passphrase: str | None
 
+    @property
+    def capabilities(self) -> DatabaseBackendCapabilities:
+        """Return backend traits that affect portability and operator behavior."""
+        ...
+
     @contextmanager
     def connect(self) -> Iterator[DatabaseConnection]:
         """Open one configured database connection."""
@@ -85,6 +101,16 @@ class SQLiteBackend:
     def __init__(self, path: Path | str, *, passphrase: str | None = None) -> None:
         self.path = Path(path)
         self.passphrase = passphrase
+
+    @property
+    def capabilities(self) -> DatabaseBackendCapabilities:
+        """Return SQLite backend behavior relevant to portability."""
+        return DatabaseBackendCapabilities(
+            name="sqlite",
+            local_file=True,
+            encrypted_at_rest=self.passphrase is not None,
+            supports_backup=True,
+        )
 
     @contextmanager
     def connect(self) -> Iterator[DatabaseConnection]:
@@ -120,6 +146,7 @@ class SQLiteBackend:
 
 __all__ = [
     "DatabaseBackend",
+    "DatabaseBackendCapabilities",
     "DatabaseConnection",
     "DatabaseCursor",
     "SQLiteBackend",

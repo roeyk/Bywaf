@@ -24,6 +24,10 @@ impact label and sorted from highest to lowest operator/developer impact:
 
 ### Changed
 
+- [high] Added the native `management_exposure` commandlet to promote exposed
+  management-surface facts into normalized finding candidates for services such
+  as Redis, Docker API, Kubernetes, Grafana, Jenkins, Kibana, Prometheus, RDP,
+  and WinRM.
 - [high] Added a security audit document and hardened framework-mediated
   process and pager audit paths so known secret values are redacted from
   durable process output events and interactive paging uses secure `less`
@@ -31,6 +35,10 @@ impact label and sorted from highest to lowest operator/developer impact:
 - [high] Made `report` default to a compact finding inbox and added
   `report <#>` / `report detail <#>` drill-down for evidence, artifacts,
   provenance, and latest-update details.
+- [medium] Added report resume focus summaries and expanded wrapper diagnostics
+  so Kismet and traceroute failures link retained process-output artifacts.
+- [medium] Documented the storage backend contract and added backend capability
+  metadata as preparation for a future Postgres adapter.
 - [medium] Added release-package version alignment coverage across Python,
   Debian, RPM, and README package examples.
 - [medium] Updated manual validation scripts to use local/authorized targets by

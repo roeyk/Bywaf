@@ -25,6 +25,7 @@ from typing import Any
 from bywaf.config import Settings
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
+from bywaf.plugin.process_artifacts import process_output_artifact_payload
 from bywaf.plugins._args import key_value_to_long_options
 
 DEFAULTS = {
@@ -121,6 +122,7 @@ def run_wifi_scan(context: CommandContext, parsed: Any, output_dir: Path) -> Non
         return
 
     if result is not None and not result.ok:
+        process_artifact = process_output_artifact_payload(context)
         context.events.publish(
             "tool.error",
             {
@@ -130,6 +132,7 @@ def run_wifi_scan(context: CommandContext, parsed: Any, output_dir: Path) -> Non
                 "returncode": result.returncode,
                 "stdout": result.stdout,
                 "stderr": result.stderr,
+                **process_artifact,
             },
         )
 
