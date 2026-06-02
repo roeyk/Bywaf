@@ -26,8 +26,6 @@ OPTION_KEYS = {"api-key", "limit", "mode"}
     description="Query Shodan host or search data.",
     usage="shodan_lookup [mode=host|search] [api-key=KEY] <ip-or-query>",
     examples=("shodan_lookup 8.8.8.8", "shodan_lookup mode=search apache country:US"),
-    emits=("shodan.host", "shodan.result"),
-    capabilities=("db.write:shodan.host", "db.write:shodan.result", "db.write:tool.error", "framework.secret.resolve", "network.connect"),
 )
 @option("api-key", "Shodan API key; defaults to SHODAN_API_KEY", secret=True)
 @option("limit", "maximum search results", "10")

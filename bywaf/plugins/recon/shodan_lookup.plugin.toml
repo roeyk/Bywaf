@@ -6,6 +6,10 @@ service = false
 
 [[commandlets]]
 name = "shodan_lookup"
+emits = [
+  "shodan.host",
+  "shodan.result",
+]
 capabilities = [
   "db.write:shodan.host",
   "db.write:shodan.result",

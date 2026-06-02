@@ -26,8 +26,6 @@ OPTION_KEYS = {"community", "oid", "port", "timeout"}
     description="Read one SNMP OID with pysnmp.",
     usage="snmp_get [community=public] [oid=OID] <host ...>",
     examples=("snmp_get 127.0.0.1", "snmp_get oid=1.3.6.1.2.1.1.5.0 127.0.0.1"),
-    emits=("snmp.value",),
-    capabilities=("db.write:snmp.value", "db.write:tool.error", "network.connect"),
 )
 @option("community", "SNMP community", "public")
 @option("oid", "SNMP OID", "1.3.6.1.2.1.1.1.0")

@@ -26,8 +26,6 @@ OPTION_KEYS = {"rule"}
     description="Scan files with yara-python.",
     usage="yara_scan rule=rules.yar <file ...>",
     examples=("yara_scan rule=webshells.yar shell.php",),
-    emits=("yara.match",),
-    capabilities=("db.write:yara.match", "db.write:tool.error", "filesystem.read"),
 )
 @option("rule", "YARA rule file", completion="path")
 class YaraScan(CommandletBase):

@@ -45,10 +45,6 @@ DEFAULTS = {"port": "", "ssl": "false", "target": "", "timeout": 5}
         "http_headers --ssl true example.test",
         "hostscanner 127.0.0.1 | portscanner port=80,443 | http_headers",
     ),
-    consumes=("port.open",),
-    emits=("http.headers", "finding.candidate"),
-    capabilities=("db.write:finding.candidate", "db.write:http.headers", "network.connect"),
-    database_actions=("write",),
 )
 @option("port", "target port")
 @option("ssl", "use HTTPS", "false", ("true", "false"))

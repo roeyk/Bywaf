@@ -6,6 +6,12 @@ service = false
 
 [[commandlets]]
 name = "ssh_probe"
+consumes = [
+  "port.open",
+]
+emits = [
+  "ssh.service",
+]
 capabilities = [
   "db.write:ssh.service",
   "db.write:tool.error",

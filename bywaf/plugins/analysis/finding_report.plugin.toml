@@ -5,6 +5,22 @@ service = false
 
 [[commandlets]]
 name = "finding_report"
+consumes = [
+  "finding.candidate",
+  "finding.confirmed",
+  "finding.new",
+  "finding.merge_candidate",
+  "nikto.finding",
+  "vulnerability.found",
+  "vulnerability.potential",
+  "vulnerability.confirmed",
+  "vulnerability.speculative",
+  "vulnerability.false_positive",
+]
+emits = [
+  "framework.render.table.requested",
+  "artifact.attached",
+]
 capabilities = [
   "artifact.write",
   "db.read:*",

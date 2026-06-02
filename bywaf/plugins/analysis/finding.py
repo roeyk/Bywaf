@@ -32,19 +32,6 @@ FINDING_OPTION_KEYS = REPORT_OPTION_KEYS
         "finding confirm all status=unreviewed",
         "finding unconfirm 1 status=confirmed note=retest no longer reproduces",
     ),
-    consumes=REPORT_FINDING_TOPICS,
-    emits=("finding.reviewed",),
-    capabilities=(
-        "db.read:finding.new",
-        "db.read:finding.candidate",
-        "db.read:finding.confirmed",
-        "db.read:finding.merge_candidate",
-        "db.read:finding.reviewed",
-        "db.write:finding.reviewed",
-        "finding.review",
-        "framework.console.output",
-    ),
-    database_actions=("write",),
 )
 @option("job", "job id or comma-separated job ids", completion="job")
 @option("pipeline", "pipeline id or comma-separated pipeline ids", completion="pipeline")

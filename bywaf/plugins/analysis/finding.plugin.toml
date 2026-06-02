@@ -5,6 +5,15 @@ service = false
 
 [[commandlets]]
 name = "finding"
+consumes = [
+  "finding.candidate",
+  "finding.confirmed",
+  "finding.new",
+  "finding.merge_candidate",
+]
+emits = [
+  "finding.reviewed",
+]
 capabilities = [
   "db.read:finding.new",
   "db.read:finding.candidate",

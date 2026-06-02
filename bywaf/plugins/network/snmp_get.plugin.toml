@@ -6,6 +6,9 @@ service = false
 
 [[commandlets]]
 name = "snmp_get"
+emits = [
+  "snmp.value",
+]
 capabilities = [
   "db.write:snmp.value",
   "db.write:tool.error",

@@ -26,9 +26,6 @@ OPTION_KEYS = {"password", "port", "timeout", "username"}
     description="Probe SSH service metadata with Paramiko.",
     usage="ssh_probe [port=22] [username=USER password=PASS] <host ...>",
     examples=("ssh_probe 127.0.0.1", "ssh_probe username=test password=test 127.0.0.1"),
-    consumes=("port.open",),
-    emits=("ssh.service",),
-    capabilities=("db.write:ssh.service", "db.write:tool.error", "framework.secret.resolve", "network.connect"),
 )
 @option("password", "SSH password", secret=True)
 @option("port", "SSH port", "22")

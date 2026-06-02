@@ -25,8 +25,6 @@ OPTION_KEYS = {"base-dn", "password", "port", "ssl", "timeout", "username"}
     description="Probe LDAP bind and naming context metadata with ldap3.",
     usage="ldap_probe [username=USER password=PASS] <host>",
     examples=("ldap_probe dc.example.test", "ldap_probe username='EXAMPLE\\\\user' password=secret dc.example.test"),
-    emits=("ldap.server",),
-    capabilities=("db.write:ldap.server", "db.write:tool.error", "framework.secret.resolve", "network.connect"),
 )
 @option("base-dn", "optional LDAP search base")
 @option("password", "LDAP password", secret=True)

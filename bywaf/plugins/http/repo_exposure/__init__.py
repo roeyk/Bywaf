@@ -61,9 +61,6 @@ REPO_EXPOSURE_CHECKS = ("git_config",)
         "git_expose_check https://example.test/",
         "http_probe https://example.test/ | git_expose_check",
     ),
-    consumes=("http.endpoint",),
-    emits=("repo.git_config.checked", "finding.candidate"),
-    capabilities=("db.write:finding.candidate", "framework.console.alert", "network.connect"),
 )
 @option("silent", "suppress exposure alerts", "false")
 @option("timeout", "request timeout seconds", "5")
@@ -89,9 +86,6 @@ class GitExposeCheck(CommandletBase):
         "repo_exposure https://example.test/",
         "http_probe https://example.test/ | repo_exposure",
     ),
-    consumes=("http.endpoint",),
-    emits=("repo.git_config.checked", "finding.candidate"),
-    capabilities=("db.write:finding.candidate", "framework.console.alert", "network.connect"),
 )
 @option("silent", "suppress exposure alerts", "false")
 @option("timeout", "request timeout seconds", "5")

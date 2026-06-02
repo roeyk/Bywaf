@@ -6,6 +6,9 @@ service = false
 
 [[commandlets]]
 name = "smb_probe"
+emits = [
+  "smb.server",
+]
 capabilities = [
   "db.write:smb.server",
   "db.write:tool.error",

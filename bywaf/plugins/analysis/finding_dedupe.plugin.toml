@@ -5,6 +5,22 @@ service = false
 
 [[commandlets]]
 name = "finding_dedupe"
+consumes = [
+  "finding.candidate",
+  "finding.confirmed",
+  "nikto.finding",
+  "vulnerability.found",
+  "vulnerability.potential",
+  "vulnerability.confirmed",
+  "vulnerability.speculative",
+  "vulnerability.false_positive",
+]
+emits = [
+  "finding.new",
+  "finding.duplicate",
+  "finding.updated",
+  "finding.merge_candidate",
+]
 capabilities = [
   "artifact.write",
   "db.read:*",

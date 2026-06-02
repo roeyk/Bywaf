@@ -6,6 +6,9 @@ service = false
 
 [[commandlets]]
 name = "ldap_probe"
+emits = [
+  "ldap.server",
+]
 capabilities = [
   "db.write:ldap.server",
   "db.write:tool.error",

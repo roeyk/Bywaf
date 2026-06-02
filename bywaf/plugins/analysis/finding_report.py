@@ -39,25 +39,6 @@ OPTION_KEYS = {"export", "file", "format", "limit", "source"}
         "finding_report export=findings.md",
         "finding_report export=findings.xlsx",
     ),
-    consumes=(*REPORT_FINDING_TOPICS, *FINDING_INPUT_TOPICS),
-    emits=("framework.render.table.requested", "artifact.attached"),
-    capabilities=(
-        "artifact.write",
-        "db.read:*",
-        "db.read:finding.candidate",
-        "db.read:finding.confirmed",
-        "db.read:finding.new",
-        "db.read:finding.merge_candidate",
-        "db.read:nikto.finding",
-        "db.read:vulnerability.found",
-        "db.read:vulnerability.potential",
-        "db.read:vulnerability.confirmed",
-        "db.read:vulnerability.speculative",
-        "db.read:vulnerability.false_positive",
-        "filesystem.read",
-        "filesystem.write",
-        "framework.render.table",
-    ),
 )
 @option("export", "write and attach a table file; format is inferred from suffix", completion="path")
 @option("file", "compatibility alias for export=", completion="path")

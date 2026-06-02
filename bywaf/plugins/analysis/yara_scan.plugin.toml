@@ -6,6 +6,9 @@ service = false
 
 [[commandlets]]
 name = "yara_scan"
+emits = [
+  "yara.match",
+]
 capabilities = [
   "db.write:yara.match",
   "db.write:tool.error",

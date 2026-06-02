@@ -5,6 +5,9 @@ service = false
 
 [[commandlets]]
 name = "git_expose_check"
+consumes = [
+  "http.endpoint",
+]
 emits = [
   "repo.git_config.checked",
   "finding.candidate",
@@ -18,6 +21,9 @@ module = "bywaf.plugins.http.repo_exposure"
 
 [[commandlets]]
 name = "repo_exposure"
+consumes = [
+  "http.endpoint",
+]
 emits = [
   "repo.git_config.checked",
   "finding.candidate",

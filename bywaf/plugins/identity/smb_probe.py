@@ -25,8 +25,6 @@ OPTION_KEYS = {"domain", "password", "port", "timeout", "username"}
     description="Probe SMB server metadata with Impacket.",
     usage="smb_probe [username=USER password=PASS domain=DOMAIN] <host ...>",
     examples=("smb_probe 127.0.0.1", "smb_probe domain=EXAMPLE username=user password=secret dc.example.test"),
-    emits=("smb.server",),
-    capabilities=("db.write:smb.server", "db.write:tool.error", "framework.secret.resolve", "network.connect"),
 )
 @option("domain", "SMB domain")
 @option("password", "SMB password", secret=True)
