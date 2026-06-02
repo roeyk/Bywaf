@@ -47,6 +47,8 @@ release that changes security-sensitive behavior.
   argv/env/stdout/stderr, rendered tables, or artifacts unless explicitly
   intended.
 - Secret prompts and secret references are tested with redaction assertions.
+- Desktop askpass secret prompts have terminal fallback behavior and emit an
+  operator-visible warning when the graphical helper cannot run.
 
 ## Artifacts And Exports
 

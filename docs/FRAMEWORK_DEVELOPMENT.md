@@ -149,6 +149,20 @@ details.
 Secrets must never be displayed directly. Redacted values should preserve enough
 fingerprint provenance for audit without exposing reusable handles.
 
+Secret input mode is deliberately layered:
+
+- `block` is a prompt-toolkit editor feature that keeps typed text out of the
+  submitted command buffer and shows a redacted inline block.
+- `askpass`, `getpass`, and `plain` are value readers used after an explicit
+  empty secret assignment such as `set --secret name=`.
+- `auto` is the default. It resolves to desktop askpass when available and to
+  block mode otherwise.
+
+Askpass should warn and fall back to terminal input when a graphical helper is
+unavailable. Canceled prompts should remain cancellations. Rendered variables,
+history, runtime output, and audit surfaces must keep redacted fingerprint
+labels rather than cleartext.
+
 ## Common Change Paths
 
 ### Add Or Change A View Command

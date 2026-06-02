@@ -22,6 +22,7 @@ from bywaf.completion import (
     completion_wasd_selection_enabled,
     configure_readline_delimiters,
     display_label,
+    effective_prompt_secret_input_mode,
     secret_input_bottom_toolbar,
     secret_input_mode,
     should_print_completion_menu,

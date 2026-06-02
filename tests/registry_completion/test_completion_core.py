@@ -64,10 +64,29 @@ class RegistryCompletionCoreTests(unittest.TestCase):
 
     def test_secret_input_mode_accepts_plain_modes(self):
         completer = Completer(self.registry)
+        self.assertEqual(secret_input_mode(completer), "auto")
         self.registry.varstore.set("secret.input-mode", "plain")
         self.assertEqual(secret_input_mode(completer), "plain")
         self.registry.varstore.set("secret.input-mode", "plaintext")
         self.assertEqual(secret_input_mode(completer), "plaintext")
+        self.registry.varstore.set("secret.input-mode", "askpass")
+        self.assertEqual(secret_input_mode(completer), "askpass")
+
+    def test_effective_secret_input_auto_uses_desktop_askpass_when_available(self):
+        completer = Completer(self.registry)
+        with patch("bywaf.secret.input.desktop_askpass_available", return_value=True):
+            self.assertEqual(effective_prompt_secret_input_mode(completer), "askpass")
+
+    def test_effective_secret_input_auto_uses_block_when_desktop_prompt_unavailable(self):
+        completer = Completer(self.registry)
+        with patch("bywaf.secret.input.desktop_askpass_available", return_value=False):
+            self.assertEqual(effective_prompt_secret_input_mode(completer), "block")
+
+    def test_effective_secret_input_respects_explicit_block_in_desktop(self):
+        completer = Completer(self.registry)
+        self.registry.varstore.set("secret.input-mode", "block")
+        with patch("bywaf.secret.input.desktop_askpass_available", return_value=True):
+            self.assertEqual(effective_prompt_secret_input_mode(completer), "block")
 
     def test_secret_input_block_opens_only_for_var_secret_assignments(self):
         self.assertEqual(open_secret_assignment_name("set --secret ssh_probe.password="), "ssh_probe.password")

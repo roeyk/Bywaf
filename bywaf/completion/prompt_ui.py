@@ -23,7 +23,14 @@ except ImportError:  # pragma: no cover - exercised only on minimal installs.
     Lexer = object
     Style = None
 
-from ..secret.input import DEFAULT_SECRET_INPUT_MODE, SECRET_INPUT_MODES, SECRET_INPUT_MODE_VAR, PromptSecretInputState, PromptSecretLexer
+from ..secret.input import (
+    DEFAULT_SECRET_INPUT_MODE,
+    SECRET_INPUT_MODE_VAR,
+    PromptSecretInputState,
+    PromptSecretLexer,
+    effective_secret_input_mode,
+    normalize_secret_input_mode,
+)
 from .prompt_keys import (
     COMPLETION_SELECT_KEY_VAR as COMPLETION_SELECT_KEY_VAR,
     COMPLETION_WASD_SELECTION_VAR as COMPLETION_WASD_SELECTION_VAR,
@@ -354,8 +361,13 @@ def rgb_style_to_hex(token: str) -> str | None:
 def secret_input_mode(completer: Any) -> str:
     """Return the configured secret input method."""
     value = completer.registry.varstore.get(SECRET_INPUT_MODE_VAR, DEFAULT_SECRET_INPUT_MODE)
-    mode = str(value or DEFAULT_SECRET_INPUT_MODE).strip().casefold()
-    return mode if mode in SECRET_INPUT_MODES else DEFAULT_SECRET_INPUT_MODE
+    return normalize_secret_input_mode(value)
+
+
+def effective_prompt_secret_input_mode(completer: Any) -> str:
+    """Return the secret input method active for the current environment."""
+    value = completer.registry.varstore.get(SECRET_INPUT_MODE_VAR, DEFAULT_SECRET_INPUT_MODE)
+    return effective_secret_input_mode(value)
 
 
 def secret_input_bottom_toolbar(secret_state: PromptSecretInputState):

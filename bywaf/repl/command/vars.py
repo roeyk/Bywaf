@@ -12,11 +12,27 @@ from __future__ import annotations
 
 import getpass
 import shlex
+import sys
 from typing import TYPE_CHECKING
 
 from ...command.names import SET_COMMAND, SETG_COMMAND
 from ...runner import Runner
-from ...secret.input import SECRET_BLOCK_VALUE
+from ...secret.askpass import (
+    ASKPASS_MODE,
+    AskpassCancelled,
+    AskpassUnavailable,
+    PLAIN_SECRET_INPUT_MODE,
+    PLAINTEXT_SECRET_INPUT_MODE,
+    read_askpass_secret,
+)
+from ...secret.input import (
+    DEFAULT_SECRET_INPUT_MODE,
+    SECRET_BLOCK_VALUE,
+    SECRET_INPUT_MODES,
+    SECRET_INPUT_MODE_VAR,
+    effective_secret_input_mode,
+    normalize_secret_input_mode,
+)
 from ...secret.store import load_or_create_fingerprint_key
 from ..display import format_var_assignment
 
@@ -106,7 +122,7 @@ def set_var(runner: Runner, state: ShellState, assignment: str, *, source: str =
         if cleaned_value == SECRET_BLOCK_VALUE and hidden_value is not None:
             cleaned_value = hidden_value
         elif cleaned_value == "":
-            cleaned_value = read_secret_value(resolved_key)
+            cleaned_value = read_secret_value(resolved_key, mode=configured_secret_input_mode(runner))
         secret_ref = runner.registry.secrets.put(
             resolved_key,
             cleaned_value,
@@ -124,9 +140,43 @@ def set_var(runner: Runner, state: ShellState, assignment: str, *, source: str =
     warn_if_pending_catalog_variable(runner, resolved_key)
 
 
-def read_secret_value(name: str) -> str:
+def configured_secret_input_mode(runner: Runner) -> str:
+    """Return the configured secret input mode from the variable store."""
+    return runner.registry.varstore.get(SECRET_INPUT_MODE_VAR, DEFAULT_SECRET_INPUT_MODE) or DEFAULT_SECRET_INPUT_MODE
+
+
+def read_secret_value(name: str, *, mode: str | None = None) -> str:
     """Read one secret value without echoing it to the terminal."""
-    return getpass.getpass(f"Secret for {name}: ")
+    prompt = f"Secret for {name}: "
+    warn_if_unknown_secret_input_mode(mode)
+    configured_mode = normalize_secret_input_mode(mode)
+    effective_mode = effective_secret_input_mode(mode)
+    if effective_mode == ASKPASS_MODE:
+        try:
+            return read_askpass_secret(prompt)
+        except AskpassCancelled as exc:
+            raise ValueError("secret prompt cancelled") from exc
+        except AskpassUnavailable as exc:
+            if configured_mode in {DEFAULT_SECRET_INPUT_MODE, ASKPASS_MODE}:
+                print(
+                    f"warning: askpass secret input unavailable ({exc}); falling back to terminal prompt",
+                    file=sys.stderr,
+                )
+                return getpass.getpass(prompt)
+            raise ValueError("askpass secret input is unavailable") from exc
+    if effective_mode in {PLAIN_SECRET_INPUT_MODE, PLAINTEXT_SECRET_INPUT_MODE}:
+        return input(prompt)
+    return getpass.getpass(prompt)
+
+
+def warn_if_unknown_secret_input_mode(mode: str | None) -> None:
+    """Warn when a configured secret input mode is unsupported."""
+    normalized = str(mode or DEFAULT_SECRET_INPUT_MODE).strip().casefold()
+    if normalized not in SECRET_INPUT_MODES:
+        print(
+            "warning: unsupported input mode; falling back to auto",
+            file=sys.stderr,
+        )
 
 
 def clean_var_value(value: str) -> str:

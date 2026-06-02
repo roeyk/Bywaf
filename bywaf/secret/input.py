@@ -17,6 +17,15 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from ..command.names import VARIABLE_COMMANDS
+from .askpass import (
+    ASKPASS_MODE,
+    AUTO_SECRET_INPUT_MODE,
+    BLOCK_SECRET_INPUT_MODE,
+    GETPASS_SECRET_INPUT_MODE,
+    PLAIN_SECRET_INPUT_MODE,
+    PLAINTEXT_SECRET_INPUT_MODE,
+    desktop_askpass_available,
+)
 from .store import REDACTED_VALUE
 
 try:
@@ -38,9 +47,30 @@ except ImportError:  # pragma: no cover - exercised only on minimal installs.
 
 
 SECRET_INPUT_MODE_VAR = "secret.input-mode"
-DEFAULT_SECRET_INPUT_MODE = "block"
-SECRET_INPUT_MODES = {"block", "getpass", "plain", "plaintext"}
+DEFAULT_SECRET_INPUT_MODE = AUTO_SECRET_INPUT_MODE
+SECRET_INPUT_MODES = {
+    ASKPASS_MODE,
+    AUTO_SECRET_INPUT_MODE,
+    BLOCK_SECRET_INPUT_MODE,
+    GETPASS_SECRET_INPUT_MODE,
+    PLAIN_SECRET_INPUT_MODE,
+    PLAINTEXT_SECRET_INPUT_MODE,
+}
 SECRET_BLOCK_VALUE = REDACTED_VALUE
+
+
+def normalize_secret_input_mode(value: object | None) -> str:
+    """Return a supported secret input mode, defaulting to auto."""
+    mode = str(value or DEFAULT_SECRET_INPUT_MODE).strip().casefold()
+    return mode if mode in SECRET_INPUT_MODES else DEFAULT_SECRET_INPUT_MODE
+
+
+def effective_secret_input_mode(value: object | None) -> str:
+    """Resolve auto mode to askpass on desktops and block elsewhere."""
+    mode = normalize_secret_input_mode(value)
+    if mode == AUTO_SECRET_INPUT_MODE:
+        return ASKPASS_MODE if desktop_askpass_available() else BLOCK_SECRET_INPUT_MODE
+    return mode
 
 
 @dataclass(slots=True)

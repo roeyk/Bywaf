@@ -19,6 +19,7 @@ from bywaf.app import (
     dispatch_repl_line,
     make_runner,
 )
+from bywaf.secret.askpass import AskpassUnavailable
 
 
 
@@ -39,6 +40,7 @@ class AppDispatchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
+            runner.registry.varstore.set("secret.input-mode", "getpass")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "set zeta=last", state)
@@ -62,6 +64,7 @@ class AppDispatchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
+            runner.registry.varstore.set("secret.input-mode", "getpass")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "set global.proxy=http://127.0.0.1:8080", state)
@@ -163,6 +166,7 @@ class AppDispatchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
+            runner.registry.varstore.set("secret.input-mode", "getpass")
             output = io.StringIO()
             with (
                 patch("bywaf.repl.command.vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
@@ -180,6 +184,76 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(runner.registry.secrets.get(stored), "prompted-secret")
             self.assertNotIn("prompted-secret", text)
             self.assertIn("pw=[REDACTED#", text)
+
+    def test_vars_empty_explicit_secret_uses_askpass_and_redacts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            runner.registry.varstore.set("secret.input-mode", "askpass")
+            output = io.StringIO()
+            with (
+                patch("bywaf.repl.command.vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
+                patch("bywaf.repl.command.vars.read_askpass_secret", return_value="askpass-secret") as askpass,
+                contextlib.redirect_stdout(output),
+            ):
+                dispatch_repl_line(runner, "set --secret pw=", state)
+                dispatch_repl_line(runner, "set pw", state)
+            text = output.getvalue()
+            askpass.assert_called_once_with("Secret for pw: ")
+            stored = runner.registry.varstore.get("pw")
+            self.assertIsNotNone(stored)
+            assert stored is not None
+            self.assertTrue(runner.registry.secrets.is_ref(stored))
+            self.assertEqual(runner.registry.secrets.get(stored), "askpass-secret")
+            self.assertNotIn("askpass-secret", text)
+            self.assertIn("pw=[REDACTED#", text)
+
+    def test_vars_askpass_failure_warns_and_falls_back_to_getpass(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            runner.registry.varstore.set("secret.input-mode", "askpass")
+            output = io.StringIO()
+            errors = io.StringIO()
+            with (
+                patch("bywaf.repl.command.vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
+                patch("bywaf.repl.command.vars.read_askpass_secret", side_effect=AskpassUnavailable("no gui")),
+                patch("bywaf.repl.command.vars.getpass.getpass", return_value="fallback-secret") as getpass,
+                contextlib.redirect_stdout(output),
+                contextlib.redirect_stderr(errors),
+            ):
+                dispatch_repl_line(runner, "set --secret pw=", state)
+                dispatch_repl_line(runner, "set pw", state)
+            getpass.assert_called_once_with("Secret for pw: ")
+            stored = runner.registry.varstore.get("pw")
+            self.assertIsNotNone(stored)
+            assert stored is not None
+            self.assertEqual(runner.registry.secrets.get(stored), "fallback-secret")
+            self.assertNotIn("fallback-secret", output.getvalue())
+            self.assertIn("askpass secret input unavailable", errors.getvalue())
+
+    def test_vars_unknown_secret_input_mode_warns_and_falls_back(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            runner.registry.varstore.set("secret.input-mode", "typo")
+            output = io.StringIO()
+            errors = io.StringIO()
+            with (
+                patch("bywaf.repl.command.vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
+                patch("bywaf.repl.command.vars.effective_secret_input_mode", return_value="block"),
+                patch("bywaf.repl.command.vars.getpass.getpass", return_value="fallback-secret") as getpass,
+                contextlib.redirect_stdout(output),
+                contextlib.redirect_stderr(errors),
+            ):
+                dispatch_repl_line(runner, "set --secret pw=", state)
+                dispatch_repl_line(runner, "set pw", state)
+            getpass.assert_called_once_with("Secret for pw: ")
+            self.assertIn("unsupported input mode; falling back to auto", errors.getvalue())
+            stored = runner.registry.varstore.get("pw")
+            self.assertIsNotNone(stored)
+            assert stored is not None
+            self.assertEqual(runner.registry.secrets.get(stored), "fallback-secret")
 
     def test_vars_redacted_block_uses_hidden_secret_value(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -207,6 +281,7 @@ class AppDispatchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
+            runner.registry.varstore.set("secret.input-mode", "getpass")
             output = io.StringIO()
             with (
                 patch("bywaf.repl.command.vars.load_or_create_fingerprint_key", return_value=b"k" * 32),

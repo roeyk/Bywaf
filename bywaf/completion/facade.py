@@ -43,6 +43,7 @@ from .prompt_ui import (
     completion_select_key_display,
     completion_wasd_selection_enabled,
     enter_completion_selection_mode,
+    effective_prompt_secret_input_mode,
     framework_bool,
     merge_prompt_key_bindings,
     prompt_input_style,
@@ -103,6 +104,7 @@ __all__ = [
     "cancel_completion_menu",
     "display_label",
     "enter_completion_selection_mode",
+    "effective_prompt_secret_input_mode",
     "format_candidate",
     "framework_bool",
     "history_candidates",
@@ -218,7 +220,10 @@ def build_prompt_session(completer: Completer):
     assert CompleteStyle is not None
     secret_state = PromptSecretInputState()
     completion_bindings = completion_key_bindings(completer)
-    secret_bindings = prompt_secret_key_bindings(secret_state, enabled=lambda: secret_input_mode(completer) == "block")
+    secret_bindings = prompt_secret_key_bindings(
+        secret_state,
+        enabled=lambda: effective_prompt_secret_input_mode(completer) == "block",
+    )
     key_bindings = merge_prompt_key_bindings(completion_bindings, secret_bindings)
     session_kwargs = {
         "lexer": BywafPromptLexer(completer, secret_state),

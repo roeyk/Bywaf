@@ -56,6 +56,22 @@ Secret values should use secret-aware inputs and plugin secret options where a
 plugin supports them. Do not put passwords directly into reusable scripts or
 notes.
 
+By default, `set --secret name=` uses `secret.input-mode=auto`: Bywaf opens a
+desktop askpass prompt when a graphical session is available, otherwise it uses
+the inline redacted terminal block. You can force a mode with:
+
+```text
+bywaf> set secret.input-mode=askpass
+bywaf> set secret.input-mode=block
+bywaf> set secret.input-mode=getpass
+```
+
+Askpass mode uses Bywaf's desktop prompt with a show-input checkbox when
+possible, then falls back to `BYWAF_ASKPASS`, `SSH_ASKPASS`, or a terminal
+prompt with a warning if the graphical helper cannot run. Stored and displayed
+secret values remain redacted with fingerprint labels such as
+`[REDACTED#...]`.
+
 ## Run A Safe Local Flow
 
 Start with localhost or a lab host:
