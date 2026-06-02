@@ -108,17 +108,23 @@ class CapabilityVisitor(ast.NodeVisitor):
     def inspect_call(self, node: ast.Call, path: str) -> None:
         """Inspect one call path and record capability evidence."""
         self.inspect_authoring_call(node, path)
+        self.inspect_framework_capability_call(node, path)
+        self.inspect_event_store_call(node, path)
+        self.inspect_artifact_call(node, path)
+        self.inspect_filesystem_call(node, path)
+        self.inspect_direct_api_call(node, path)
+
+    def inspect_framework_capability_call(self, node: ast.Call, path: str) -> None:
+        """Infer capabilities from documented framework calls."""
         for framework_capability in framework_call_capabilities(path):
             self.add_evidence(framework_capability, "framework_call", node, path)
-
-        # Calls through CommandContext are high-confidence evidence because they
-        # map directly to Bywaf capabilities. Direct Python libraries are
-        # warnings, not hard errors, because native plugins may intentionally
-        # use stdlib APIs while still declaring the right capability.
         if path == "context.audit_capability":
             capability = literal_string_argument(node, "capability", 0)
             if capability is not None:
                 self.add_evidence(capability, "framework_call", node, f"context.audit_capability({capability})")
+
+    def inspect_event_store_call(self, node: ast.Call, path: str) -> None:
+        """Infer event store read/write capabilities from context.events calls."""
         if path == "context.events.publish":
             self.inspect_event_publish(node)
         if path in {"context.events.fetch", "context.events.follow"}:
@@ -126,6 +132,9 @@ class CapabilityVisitor(ast.NodeVisitor):
         if path == "context.events.query":
             topic = literal_string_argument(node, "topic", None)
             self.add_evidence(f"db.read:{topic}" if topic else "db.read:*", "framework_call", node, path)
+
+    def inspect_artifact_call(self, node: ast.Call, path: str) -> None:
+        """Infer artifact capabilities from artifact service calls."""
         if path in {"context.artifacts.attach_file", "context.artifacts.attach_files"}:
             self.add_evidence("artifact.write", "framework_call", node, path)
         if path == "context.artifact_store":
@@ -143,12 +152,21 @@ class CapabilityVisitor(ast.NodeVisitor):
                     "context.artifact_store without read_access=True or write_access=True",
                     confidence="high",
                 )
+
+    def inspect_filesystem_call(self, node: ast.Call, path: str) -> None:
+        """Warn for direct filesystem API use that should be declared."""
         if path == "open":
             self.inspect_open_call(node)
         if path in {"pathlib.Path.read_text", "pathlib.Path.read_bytes"} or path.endswith(".read_text") or path.endswith(".read_bytes"):
             self.add_warning("filesystem.read", "direct_filesystem", node, path)
         if path in {"pathlib.Path.write_text", "pathlib.Path.write_bytes"} or path.endswith(".write_text") or path.endswith(".write_bytes"):
             self.add_warning("filesystem.write", "direct_filesystem", node, path)
+
+    def inspect_direct_api_call(self, node: ast.Call, path: str) -> None:
+        """Warn for direct network/process APIs outside framework helpers."""
+        # Direct Python libraries are warnings, not hard errors, because native
+        # plugins may intentionally use stdlib APIs while still declaring the
+        # right capability.
         if direct_network_call(path):
             self.add_warning("network.connect", "direct_network", node, path, confidence="medium")
         if direct_process_call(path):

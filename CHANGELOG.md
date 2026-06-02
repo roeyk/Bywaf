@@ -60,6 +60,9 @@ impact label and sorted from highest to lowest operator/developer impact:
 - [medium] Split plugin-check text and LLM-feedback rendering into focused
   helpers, dropping the checker renderer out of the highest single-function
   complexity list.
+- [medium] Split plugin-check visitor call inference and plugin argument
+  completion priority handling into focused helpers, reducing the top measured
+  single-function complexity hotspot.
 - [medium] Added release-package version alignment coverage across Python,
   Debian, RPM, and README package examples.
 - [medium] Updated manual validation scripts to use local/authorized targets by
