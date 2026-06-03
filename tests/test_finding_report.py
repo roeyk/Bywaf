@@ -127,6 +127,47 @@ class FindingReportTests(unittest.TestCase):
             self.assertEqual(row["finding_name"], "Missing Content-Security-Policy header")
             self.assertEqual(runner.db.events_for_topic("finding.new")[0].command_run_id, request.parent_command_run_id)
 
+    def test_pipeline_report_preserves_deduped_affected_resources(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "finding.candidate",
+                {
+                    "title": "Exposed Git repository configuration",
+                    "class": "web.exposure.git_config",
+                    "target_scope": {"kind": "web_origin", "value": "https://example.test"},
+                    "target": {"url": "https://example.test/.git/config", "host": "example.test", "path": "/.git/config"},
+                    "identifiers": {"cwe": ["CWE-538"]},
+                    "affected": [{"url": "https://example.test/.git/config", "host": "example.test", "path": "/.git/config"}],
+                    "severity": "high",
+                },
+                "http_paths",
+            )
+            runner.db.publish(
+                "finding.candidate",
+                {
+                    "title": "Exposed Git repository configuration",
+                    "class": "web.exposure.git_config",
+                    "target_scope": {"kind": "web_origin", "value": "https://example.test"},
+                    "target": {"url": "https://example.test/app/.git/config", "host": "example.test", "path": "/app/.git/config"},
+                    "identifiers": {"cwe": ["CWE-538"]},
+                    "affected": [{"url": "https://example.test/app/.git/config", "host": "example.test", "path": "/app/.git/config"}],
+                    "severity": "high",
+                },
+                "repo_exposure",
+            )
+
+            runner.execute("finding_dedupe -s | finding_report")
+
+            request = runner.db.events_for_topic("framework.render.table.requested")[0]
+            row = request.payload["rows"][0]
+            self.assertEqual(row["finding_name"], "Exposed Git repository configuration")
+            self.assertEqual(
+                row["hosts_affected"],
+                "https://example.test/.git/config; https://example.test/app/.git/config",
+            )
+            self.assertEqual(row["cve"], "")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -143,7 +143,7 @@ class ReportGroupingTests(unittest.TestCase):
             text = output.getvalue()
             self.assertIn("Details", text)
             self.assertIn("1. Example service CVE", text)
-            self.assertIn("Affected: https://example.test/page1; 192.0.2.10:443/tcp; https://example.test/admin", text)
+            self.assertIn("Affected: https://example.test/page1; https://example.test/admin", text)
             self.assertIn("Evidence: page1 proof with newline; admin proof", text)
             self.assertIn("Sources: web_cve_check:http.response; web_cve_check:finding.candidate", text)
             self.assertIn("Artifacts: #3 proof.txt text/plain size=12 artifact-proof", text)
@@ -303,6 +303,55 @@ class ReportGroupingTests(unittest.TestCase):
             self.assertEqual(rendered.payload["events"], [first.id, second.id])
             self.assertEqual(rendered.payload["groups"], ["web.exposure.git_config|web_origin:https://example.test|cwe:CWE-538"])
             self.assertEqual(rendered.payload["rows"], 1)
+
+    def test_report_detail_uses_deduped_canonical_affected_resources(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "git-config-one",
+                    "class": "web.exposure.git_config",
+                    "title": "Exposed Git repository configuration",
+                    "target_scope": {"kind": "web_origin", "value": "https://example.test"},
+                    "target": {"url": "https://example.test/.git/config", "host": "example.test", "path": "/.git/config"},
+                    "identifiers": {"cwe": ["CWE-538"]},
+                    "affected": [{"url": "https://example.test/.git/config", "host": "example.test", "path": "/.git/config"}],
+                    "evidence": "root config returned",
+                    "severity": "high",
+                },
+                "http_paths",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+            runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "git-config-two",
+                    "class": "web.exposure.git_config",
+                    "title": "Exposed Git repository configuration",
+                    "target_scope": {"kind": "web_origin", "value": "https://example.test"},
+                    "target": {"url": "https://example.test/app/.git/config", "host": "example.test", "path": "/app/.git/config"},
+                    "identifiers": {"cwe": ["CWE-538"]},
+                    "affected": [{"url": "https://example.test/app/.git/config", "host": "example.test", "path": "/app/.git/config"}],
+                    "evidence": "app config returned",
+                    "severity": "high",
+                },
+                "repo_exposure",
+                pipeline_id="pipeline-a",
+                command_run_id="run-b",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("finding_dedupe -s | report detail 1 pipeline=pipeline-a")
+                process_framework_requests(runner, ShellState())
+
+            text = output.getvalue()
+            self.assertIn("Report scope: pipeline=pipeline-a (1 finding group, 1 event)", text)
+            self.assertIn("Affected: https://example.test/.git/config; https://example.test/app/.git/config", text)
+            self.assertIn("Sources: http_paths:finding.candidate; repo_exposure:finding.candidate", text)
+            self.assertIn("Provenance: events=", text)
 
     def test_report_splits_same_cve_when_target_scope_is_route_specific(self):
         with tempfile.TemporaryDirectory() as tmp:

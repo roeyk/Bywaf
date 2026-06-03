@@ -18,6 +18,7 @@ from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet, option
 from bywaf.plugins._args import key_value_to_long_options
 from bywaf.plugins.analysis.finding_dedupe import FINDING_INPUT_TOPICS, normalize_event
+from bywaf.plugins.analysis.finding_display import affected_values, compact_table_text
 from bywaf.rendering import Column, Table, render_table
 from bywaf.utils import complete_path
 
@@ -191,16 +192,11 @@ def row_from_payload(payload: Mapping[str, Any]) -> dict[str, str]:
     return {
         "finding_name": title,
         "description": description,
-        "hosts_affected": host_from_target(payload.get("target")),
+        "hosts_affected": "; ".join(affected_values([payload])) or host_from_target(payload.get("target")),
         "cve": cve_values(identifiers),
         "severity": str(payload.get("severity") or "unknown"),
         "recommendation": compact_table_text(recommendation_for(finding_class, dict(payload))),
     }
-
-
-def compact_table_text(value: object) -> str:
-    """Return single-line text for compact report tables."""
-    return " ".join(str(value).split())
 
 
 def candidate_payload(payload: Mapping[str, Any]) -> Mapping[str, Any]:

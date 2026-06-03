@@ -41,6 +41,9 @@ impact label and sorted from highest to lowest operator/developer impact:
 - [medium] Updated `finding_dedupe` canonical findings to preserve normalized
   target scope, grouping keys, affected resources, identifiers, subjects, and
   source metadata from merged candidate findings.
+- [medium] Aligned report detail, compact report tables, and `finding_report`
+  table rows on the same affected-resource display logic so canonical dedupe
+  output does not lose multi-affected finding context.
 - [medium] Added report resume focus summaries and expanded wrapper diagnostics
   so Kismet and traceroute failures link retained process-output artifacts.
 - [medium] Added structured `tool.error` diagnostics and plugin-level fixture

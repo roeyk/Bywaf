@@ -124,6 +124,12 @@ Details
   Latest update: 2026-05-27T12:00:00+00:00
 ```
 
+Detail views and table/export rows prefer the normalized `affected` list when
+it is present, and fall back to the primary `target` only when a finding has no
+affected-resource entries. This keeps canonical `finding.new` output from
+`finding_dedupe` readable when one grouped finding represents multiple URLs,
+paths, or service instances.
+
 Report detail intentionally references artifact rows instead of embedding file
 bodies. Use the printed `artifact list ...` command to browse the evidence set,
 or `artifact show <id>` to inspect one artifact's provenance, hash, and export
