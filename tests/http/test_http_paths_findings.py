@@ -317,6 +317,64 @@ class HttpPathFindingTests(unittest.TestCase):
             self.assertFalse(path["interesting"])
             self.assertEqual(db.events_for_topic("finding.candidate"), [])
 
+    def test_sensitive_config_path_with_secret_markers_becomes_candidate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="http_paths",
+                metadata={"capabilities": http_paths.spec.capabilities},
+            )
+            with patch(
+                "bywaf.plugins.http.http_paths.probe_path",
+                return_value={
+                    "status": 200,
+                    "content_type": "text/plain",
+                    "length": 96,
+                    "sample": "//registry.npmjs.org/:_authToken=npm_secret_token",
+                },
+            ):
+                list(http_paths.run(context, ["paths=/.npmrc", "https://example.test/app"], []))
+
+            path = db.events_for_topic("http.path")[0].payload
+            finding = db.events_for_topic("finding.candidate")[0].payload
+
+            self.assertTrue(path["interesting"])
+            self.assertEqual(finding["class"], "web.exposure.sensitive_config")
+            self.assertEqual(finding["severity"], "high")
+            self.assertEqual(finding["target_scope"], {"kind": "web_origin", "value": "https://example.test"})
+            self.assertEqual(finding["identifiers"], {"cwe": ["CWE-538"]})
+            self.assertEqual(
+                finding["group_key"],
+                "web.exposure.sensitive_config|web_origin:https://example.test|cwe:CWE-538",
+            )
+            self.assertIn("rotate", finding["recommendation"])
+
+    def test_sensitive_config_named_html_page_is_not_a_finding_without_markers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="http_paths",
+                metadata={"capabilities": http_paths.spec.capabilities},
+            )
+            with patch(
+                "bywaf.plugins.http.http_paths.probe_path",
+                return_value={
+                    "status": 200,
+                    "content_type": "text/html",
+                    "length": 80,
+                    "title": "Config",
+                    "sample": "<p>Configuration help page</p>",
+                },
+            ):
+                list(http_paths.run(context, ["paths=/wp-config.php", "https://example.test"], []))
+
+            path = db.events_for_topic("http.path")[0].payload
+
+            self.assertFalse(path["interesting"])
+            self.assertEqual(db.events_for_topic("finding.candidate"), [])
+
 
 if __name__ == "__main__":
     unittest.main()

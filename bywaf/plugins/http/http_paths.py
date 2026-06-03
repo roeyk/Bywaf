@@ -53,6 +53,28 @@ DEPENDENCY_MANIFEST_MARKERS = {
     "/yarn.lock": (("# yarn lockfile", "__metadata:"),),
     "/pnpm-lock.yaml": (("lockfileversion:",), ("packages:",)),
 }
+SENSITIVE_CONFIG_PATHS = frozenset(
+    {
+        "/.npmrc",
+        "/.pypirc",
+        "/config.php",
+        "/config.yml",
+        "/settings.py",
+        "/wp-config.php",
+    }
+)
+SENSITIVE_CONFIG_MARKERS = (
+    "_authtoken",
+    "api_key",
+    "api-key",
+    "auth_token",
+    "database_url",
+    "db_password",
+    "secret_key",
+    "password =",
+    "password:",
+    "password=",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,6 +100,9 @@ SOURCE_MAP_RECOMMENDATION = (
 )
 DEPENDENCY_METADATA_RECOMMENDATION = (
     "Remove dependency manifests and lockfiles from deployed web roots, or restrict access to build metadata."
+)
+SENSITIVE_CONFIG_RECOMMENDATION = (
+    "Remove sensitive configuration files from deployed web roots and rotate any exposed credentials."
 )
 
 
@@ -219,6 +244,7 @@ def is_interesting_path(path: str, result: dict[str, object]) -> bool:
         or looks_like_source_map(lowered, sample)
         or looks_like_vcs_metadata(lowered, sample)
         or looks_like_dependency_manifest(lowered, sample)
+        or looks_like_sensitive_config(lowered, sample)
         or "repositoryformatversion" in sample
         or "spring.cloud" in sample
         or "database_url" in sample
@@ -263,6 +289,11 @@ def looks_like_dependency_manifest(path: str, sample: str) -> bool:
     """Return whether response text looks like exposed dependency metadata."""
     marker_groups = DEPENDENCY_MANIFEST_MARKERS.get(path)
     return bool(marker_groups) and all(any(marker in sample for marker in group) for group in marker_groups)
+
+
+def looks_like_sensitive_config(path: str, sample: str) -> bool:
+    """Return whether response text looks like an exposed sensitive config file."""
+    return path in SENSITIVE_CONFIG_PATHS and any(marker in sample for marker in SENSITIVE_CONFIG_MARKERS)
 
 
 def is_backup_archive_path(path: str) -> bool:
@@ -368,6 +399,15 @@ def artifact_path_finding_details(
             origin_scope,
             cwe_538,
             DEPENDENCY_METADATA_RECOMMENDATION,
+        )
+    if path in SENSITIVE_CONFIG_PATHS:
+        return PathFindingDetails(
+            "Exposed sensitive configuration file",
+            "web.exposure.sensitive_config",
+            "high",
+            origin_scope,
+            cwe_538,
+            SENSITIVE_CONFIG_RECOMMENDATION,
         )
     return None
 
