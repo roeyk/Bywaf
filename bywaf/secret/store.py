@@ -175,18 +175,15 @@ def redact_explicit_vars_secret(tokens: list[str], *, key: bytes) -> RedactionRe
     """Redact explicit `set --secret name=value` command text."""
     if not has_explicit_secret_marker(tokens):
         return None
-    result = redact_secret_flag_assignment(tokens, key=key)
+    result = redact_trailing_secret_flag_assignment(tokens, key=key)
     if result is not None:
         return result
-    return redact_secret_equals_assignment(tokens, key=key)
+    return redact_secret_flag_assignment(tokens, key=key)
 
 
 def has_explicit_secret_marker(tokens: list[str]) -> bool:
     """Return whether variable tokens contain an explicit secret marker."""
-    return len(tokens) >= 2 and (
-        "--secret" in tokens[1:]
-        or any(token.startswith("--secret=") for token in tokens[1:])
-    )
+    return len(tokens) >= 2 and "--secret" in tokens[1:]
 
 
 def redact_secret_flag_assignment(tokens: list[str], *, key: bytes) -> RedactionResult | None:
@@ -203,16 +200,16 @@ def redact_secret_flag_assignment(tokens: list[str], *, key: bytes) -> Redaction
     return None
 
 
-def redact_secret_equals_assignment(tokens: list[str], *, key: bytes) -> RedactionResult | None:
-    """Redact `set name --secret=value` style command text."""
+def redact_trailing_secret_flag_assignment(tokens: list[str], *, key: bytes) -> RedactionResult | None:
+    """Redact `set name=value --secret` style command text."""
     for index, token in enumerate(tokens[1:], start=1):
-        if not token.startswith("--secret="):
+        if token != "--secret" or index == 1:
             continue
-        if index == 1:
+        assignment = tokens[index - 1]
+        if "=" not in assignment:
             return None
-        name = tokens[index - 1]
-        value = token.split("=", 1)[1]
-        redacted = tokens[: index - 1] + [f"{name} --secret={REDACTED_VALUE}"] + tokens[index + 1 :]
+        name, value = assignment.split("=", 1)
+        redacted = tokens[: index - 1] + [f"{name}={REDACTED_VALUE}", "--secret"] + tokens[index + 1 :]
         return RedactionResult(
             " ".join(quote_redacted_token(item) for item in redacted),
             explicit_secret_records(name, value, key=key),

@@ -413,17 +413,19 @@ def prompt_secret_output(state: PromptSecretInputState):
 
 def open_secret_assignment_name(text_before_cursor: str) -> str | None:
     """Return the variable name for an explicit empty secret assignment."""
-    if not text_before_cursor.endswith("="):
-        return None
-    left = text_before_cursor[:-1]
     try:
-        tokens = shlex.split(left)
+        tokens = shlex.split(text_before_cursor)
     except ValueError:
         return None
     if not tokens or tokens[0] not in VARIABLE_COMMANDS:
         return None
     if len(tokens) >= 3 and tokens[-2] == "--secret":
-        return tokens[-1]
-    if len(tokens) >= 3 and tokens[-1] == "--secret":
-        return tokens[-2]
-    return None
+        assignment = tokens[-1]
+    elif len(tokens) >= 3 and tokens[-1] == "--secret":
+        assignment = tokens[-2]
+    else:
+        return None
+    if not assignment.endswith("="):
+        return None
+    name = assignment[:-1]
+    return name or None

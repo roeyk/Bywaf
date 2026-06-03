@@ -142,7 +142,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("supersecret", text)
             self.assertIn("session.ticket=[REDACTED#", text)
 
-    def test_vars_secret_flag_before_equals_marks_assignment_secret(self):
+    def test_vars_trailing_secret_flag_marks_assignment_secret(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -151,7 +151,7 @@ class AppDispatchTests(unittest.TestCase):
                 patch("bywaf.repl.command.vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
                 contextlib.redirect_stdout(output),
             ):
-                dispatch_repl_line(runner, "set session.ticket --secret=supersecret", state)
+                dispatch_repl_line(runner, "set session.ticket=supersecret --secret", state)
                 dispatch_repl_line(runner, "set session.ticket", state)
             text = output.getvalue()
             stored = runner.registry.varstore.get("session.ticket")
@@ -161,6 +161,15 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(runner.registry.secrets.get(stored), "supersecret")
             self.assertNotIn("supersecret", text)
             self.assertIn("session.ticket=[REDACTED#", text)
+
+    def test_vars_secret_equals_flag_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "set session.ticket --secret=supersecret", ShellState())
+            self.assertIsNone(runner.registry.varstore.get("session.ticket"))
+            self.assertIn("usage: set [--secret] name=value", output.getvalue())
 
     def test_vars_empty_explicit_secret_prompts_and_redacts(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -277,7 +286,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("block-secret", text)
             self.assertIn("pw=[REDACTED#", text)
 
-    def test_vars_empty_secret_flag_before_equals_prompts_and_redacts(self):
+    def test_vars_empty_trailing_secret_flag_prompts_and_redacts(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -288,7 +297,7 @@ class AppDispatchTests(unittest.TestCase):
                 patch("bywaf.repl.command.vars.getpass.getpass", return_value="prompted-secret") as getpass,
                 contextlib.redirect_stdout(output),
             ):
-                dispatch_repl_line(runner, "set session.ticket --secret=", state)
+                dispatch_repl_line(runner, "set session.ticket= --secret", state)
                 dispatch_repl_line(runner, "set session.ticket", state)
             text = output.getvalue()
             getpass.assert_called_once_with("Secret for session.ticket: ")

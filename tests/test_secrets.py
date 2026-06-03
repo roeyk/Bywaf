@@ -76,10 +76,15 @@ class SecretTests(unittest.TestCase):
         self.assertEqual(result.command, f"set --secret session.ticket={REDACTED_VALUE} timeout=1")
         self.assertEqual(result.secrets[0].name, "session.ticket")
 
-    def test_redact_command_text_redacts_secret_flag_before_equals(self):
-        result = redact_command_text("set session.ticket --secret=abc timeout=1", key=b"k" * 32)
-        self.assertEqual(result.command, f"set session.ticket --secret={REDACTED_VALUE} timeout=1")
+    def test_redact_command_text_redacts_trailing_secret_flag(self):
+        result = redact_command_text("set session.ticket=abc --secret timeout=1", key=b"k" * 32)
+        self.assertEqual(result.command, f"set session.ticket={REDACTED_VALUE} --secret timeout=1")
         self.assertEqual(result.secrets[0].name, "session.ticket")
+
+    def test_redact_command_text_does_not_treat_secret_equals_as_flag(self):
+        result = redact_command_text("set session.ticket --secret=abc timeout=1", key=b"k" * 32)
+        self.assertEqual(result.command, "set session.ticket --secret=abc timeout=1")
+        self.assertEqual(result.secrets, ())
 
     def test_redact_command_text_redacts_empty_explicit_secret_marker(self):
         result = redact_command_text("set --secret pw=", key=b"k" * 32)

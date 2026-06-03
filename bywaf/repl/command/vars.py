@@ -196,6 +196,12 @@ def clean_var_value(value: str) -> str:
 def parse_var_assignment_flags(assignment: str) -> tuple[str, bool]:
     """Return assignment text and whether it requested explicit secret storage."""
     stripped = assignment.strip()
+    try:
+        tokens = shlex.split(stripped)
+    except ValueError:
+        tokens = []
+    if any(token.startswith("--secret=") for token in tokens):
+        raise ValueError(f"usage: {SET_COMMAND} [--secret] name=value")
     left, separator, right = stripped.partition("=")
     if separator:
         left_tokens = shlex.split(left)

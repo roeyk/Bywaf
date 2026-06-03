@@ -254,7 +254,7 @@ class BuiltinCompletionMixin:
 
 def secret_option_candidates(args: list[str]) -> list[str]:
     """Return the secret option candidate when it has not already been used."""
-    return [] if any(arg == "--secret" or arg.startswith("--secret=") for arg in args) else ["--secret"]
+    return [] if "--secret" in args else ["--secret"]
 
 
 def is_qualified_variable_prefix(prefix: str) -> bool:

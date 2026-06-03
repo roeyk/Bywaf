@@ -90,9 +90,10 @@ class RegistryCompletionCoreTests(unittest.TestCase):
 
     def test_secret_input_block_opens_only_for_var_secret_assignments(self):
         self.assertEqual(open_secret_assignment_name("set --secret ssh_probe.password="), "ssh_probe.password")
-        self.assertEqual(open_secret_assignment_name("set ssh_probe.password --secret="), "ssh_probe.password")
+        self.assertEqual(open_secret_assignment_name("set ssh_probe.password= --secret"), "ssh_probe.password")
         self.assertIsNone(open_secret_assignment_name("vars --secret ssh_probe.password="))
         self.assertIsNone(open_secret_assignment_name("set password="))
+        self.assertIsNone(open_secret_assignment_name("set ssh_probe.password --secret="))
 
     def test_secret_input_block_drops_when_assignment_prefix_is_edited(self):
         text = f"set --secret pw={SECRET_BLOCK_VALUE}"
