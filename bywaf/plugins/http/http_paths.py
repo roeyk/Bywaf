@@ -6,6 +6,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Iterable
+from dataclasses import dataclass
 from typing import cast
 
 from bywaf.event.schema_objects import HttpEndpoint, HttpPathObserved
@@ -32,6 +33,52 @@ ARCHIVE_CONTENT_TYPES = (
 SQL_DUMP_MARKERS = ("create table", "insert into", "dump completed", "mysqldump", "postgresql database dump")
 VCS_METADATA_PATHS = frozenset({"/.svn/entries", "/.hg/hgrc", "/.bzr/branch/branch.conf"})
 SOURCE_MAP_SUFFIX = ".map"
+DEPENDENCY_MANIFEST_PATHS = frozenset(
+    {
+        "/composer.lock",
+        "/gemfile.lock",
+        "/package-lock.json",
+        "/pipfile.lock",
+        "/pnpm-lock.yaml",
+        "/poetry.lock",
+        "/yarn.lock",
+    }
+)
+DEPENDENCY_MANIFEST_MARKERS = {
+    "/package-lock.json": (('"lockfileversion"',), ('"packages"', '"dependencies"')),
+    "/composer.lock": (('"content-hash"',), ('"packages"',)),
+    "/poetry.lock": (("[[package]]",), ("name =",), ("version =",)),
+    "/pipfile.lock": (('"_meta"',), ('"default"',)),
+    "/gemfile.lock": (("gem\n",), ("dependencies\n",)),
+    "/yarn.lock": (("# yarn lockfile", "__metadata:"),),
+    "/pnpm-lock.yaml": (("lockfileversion:",), ("packages:",)),
+}
+
+
+@dataclass(frozen=True, slots=True)
+class PathFindingDetails:
+    """Static normalized finding fields for one HTTP path observation."""
+
+    title: str
+    finding_class: str
+    severity: str
+    target_scope: dict[str, str] | None = None
+    identifiers: dict[str, list[str]] | None = None
+    recommendation: str = ""
+
+
+GIT_CONFIG_RECOMMENDATION = (
+    "Remove the .git directory from deployed web roots and block access to source-control metadata paths."
+)
+SOURCE_CONTROL_METADATA_RECOMMENDATION = (
+    "Remove source-control metadata from deployed web roots and block access to revision-control metadata paths."
+)
+SOURCE_MAP_RECOMMENDATION = (
+    "Publish production assets without source maps, or restrict source-map access to authorized debugging workflows."
+)
+DEPENDENCY_METADATA_RECOMMENDATION = (
+    "Remove dependency manifests and lockfiles from deployed web roots, or restrict access to build metadata."
+)
 
 
 @commandlet
@@ -171,6 +218,7 @@ def is_interesting_path(path: str, result: dict[str, object]) -> bool:
         or looks_like_exposed_backup_artifact(lowered, content_type, sample)
         or looks_like_source_map(lowered, sample)
         or looks_like_vcs_metadata(lowered, sample)
+        or looks_like_dependency_manifest(lowered, sample)
         or "repositoryformatversion" in sample
         or "spring.cloud" in sample
         or "database_url" in sample
@@ -211,6 +259,12 @@ def looks_like_vcs_metadata(path: str, sample: str) -> bool:
     return False
 
 
+def looks_like_dependency_manifest(path: str, sample: str) -> bool:
+    """Return whether response text looks like exposed dependency metadata."""
+    marker_groups = DEPENDENCY_MANIFEST_MARKERS.get(path)
+    return bool(marker_groups) and all(any(marker in sample for marker in group) for group in marker_groups)
+
+
 def is_backup_archive_path(path: str) -> bool:
     """Return whether the path name looks like a backup/archive artifact."""
     return path.endswith(BACKUP_ARCHIVE_SUFFIXES)
@@ -226,78 +280,96 @@ def finding_for_path(observed: HttpPathObserved) -> dict[str, object] | None:
     if not observed.interesting:
         return None
     path = observed.path.casefold()
-    finding_scope = ""
-    target_scope = {"kind": "web_route", "value": observed.url}
-    identifiers: dict[str, list[str]] | None = None
-    recommendation = ""
-    if observed.path == "/.git/config":
-        title = "Exposed Git repository configuration"
-        finding_class = "web.exposure.git_config"
-        severity = "high"
-        target_scope = {"kind": "web_origin", "value": origin_for_observed_path(observed)}
-        identifiers = {"cwe": ["CWE-538"]}
-        recommendation = (
-            "Remove the .git directory from deployed web roots and block access to source-control metadata paths."
-        )
-    elif path in VCS_METADATA_PATHS:
-        title = "Exposed source-control metadata"
-        finding_class = "web.exposure.source_control_metadata"
-        severity = "high"
-        target_scope = {"kind": "web_origin", "value": origin_for_observed_path(observed)}
-        identifiers = {"cwe": ["CWE-538"]}
-        recommendation = (
-            "Remove source-control metadata from deployed web roots and block access to revision-control metadata paths."
-        )
-    elif observed.path == "/server-status":
-        title = "Exposed Apache server-status endpoint"
-        finding_class = "web.server_status.exposed"
-        severity = "medium"
-    elif observed.path == "/.env":
-        title = "Exposed environment configuration file"
-        finding_class = "web.config.env_exposed"
-        severity = "high"
-    elif observed.path == "/actuator/env":
-        title = "Exposed Spring Boot environment endpoint"
-        finding_class = "web.spring.actuator_env_exposed"
-        severity = "high"
-    elif path in ADMIN_PATHS:
-        title = "Exposed administrative login surface"
-        finding_class = "web.admin_interface.exposed"
-        severity = "low"
-    elif is_database_dump_path(path):
-        title = "Exposed database dump artifact"
-        finding_class = "web.backup.database_dump_exposed"
-        severity = "high"
-    elif is_backup_archive_path(path):
-        title = "Exposed backup or source archive"
-        finding_class = "web.backup.archive_exposed"
-        severity = "medium"
-    elif path.endswith(SOURCE_MAP_SUFFIX):
-        title = "Exposed JavaScript source map"
-        finding_class = "web.exposure.source_map"
-        severity = "medium"
-        target_scope = {"kind": "web_origin", "value": origin_for_observed_path(observed)}
-        identifiers = {"cwe": ["CWE-538"]}
-        recommendation = (
-            "Publish production assets without source maps, or restrict source-map access to authorized debugging workflows."
-        )
-    else:
-        title = f"Interesting HTTP path exposed: {observed.path}"
-        finding_class = "web.path.interesting"
-        severity = "low"
+    details = path_finding_details(path, observed)
     return candidate_payload(
-        title=title,
-        finding_class=finding_class,
-        severity=severity,
+        title=details.title,
+        finding_class=details.finding_class,
+        severity=details.severity,
         target={"url": observed.url, "host": observed.host, "path": observed.path},
-        target_scope=target_scope,
+        target_scope=details.target_scope or {"kind": "web_route", "value": observed.url},
         affected=[{"url": observed.url, "host": observed.host, "path": observed.path}],
-        identifiers=identifiers,
+        identifiers=details.identifiers,
         evidence=path_evidence(observed),
-        recommendation=recommendation,
+        recommendation=details.recommendation,
         source={"tool": "http_paths", "topic": "http.path"},
-        finding_scope=finding_scope,
+        finding_scope="",
     )
+
+
+def path_finding_details(path: str, observed: HttpPathObserved) -> PathFindingDetails:
+    """Return normalized finding details for one interesting path."""
+    origin_scope = {"kind": "web_origin", "value": origin_for_observed_path(observed)}
+    cwe_538 = {"cwe": ["CWE-538"]}
+    if observed.path == "/.git/config":
+        return PathFindingDetails(
+            "Exposed Git repository configuration",
+            "web.exposure.git_config",
+            "high",
+            origin_scope,
+            cwe_538,
+            GIT_CONFIG_RECOMMENDATION,
+        )
+    if path in VCS_METADATA_PATHS:
+        return PathFindingDetails(
+            "Exposed source-control metadata",
+            "web.exposure.source_control_metadata",
+            "high",
+            origin_scope,
+            cwe_538,
+            SOURCE_CONTROL_METADATA_RECOMMENDATION,
+        )
+    exact_details = exact_path_finding_details(observed.path)
+    if exact_details:
+        return exact_details
+    artifact_details = artifact_path_finding_details(path, origin_scope, cwe_538)
+    if artifact_details:
+        return artifact_details
+    return PathFindingDetails(f"Interesting HTTP path exposed: {observed.path}", "web.path.interesting", "low")
+
+
+def exact_path_finding_details(path: str) -> PathFindingDetails | None:
+    """Return normalized finding details for exact known risky paths."""
+    exact_paths = {
+        "/server-status": PathFindingDetails("Exposed Apache server-status endpoint", "web.server_status.exposed", "medium"),
+        "/.env": PathFindingDetails("Exposed environment configuration file", "web.config.env_exposed", "high"),
+        "/actuator/env": PathFindingDetails("Exposed Spring Boot environment endpoint", "web.spring.actuator_env_exposed", "high"),
+    }
+    if path in exact_paths:
+        return exact_paths[path]
+    if path.casefold() in ADMIN_PATHS:
+        return PathFindingDetails("Exposed administrative login surface", "web.admin_interface.exposed", "low")
+    return None
+
+
+def artifact_path_finding_details(
+    path: str,
+    origin_scope: dict[str, str],
+    cwe_538: dict[str, list[str]],
+) -> PathFindingDetails | None:
+    """Return normalized finding details for artifact-like paths."""
+    if is_database_dump_path(path):
+        return PathFindingDetails("Exposed database dump artifact", "web.backup.database_dump_exposed", "high")
+    if is_backup_archive_path(path):
+        return PathFindingDetails("Exposed backup or source archive", "web.backup.archive_exposed", "medium")
+    if path.endswith(SOURCE_MAP_SUFFIX):
+        return PathFindingDetails(
+            "Exposed JavaScript source map",
+            "web.exposure.source_map",
+            "medium",
+            origin_scope,
+            cwe_538,
+            SOURCE_MAP_RECOMMENDATION,
+        )
+    if path in DEPENDENCY_MANIFEST_PATHS:
+        return PathFindingDetails(
+            "Exposed dependency metadata",
+            "web.exposure.dependency_metadata",
+            "medium",
+            origin_scope,
+            cwe_538,
+            DEPENDENCY_METADATA_RECOMMENDATION,
+        )
+    return None
 
 
 def origin_for_observed_path(observed: HttpPathObserved) -> str:

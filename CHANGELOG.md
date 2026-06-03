@@ -46,6 +46,9 @@ impact label and sorted from highest to lowest operator/developer impact:
   output does not lose multi-affected finding context.
 - [medium] Added end-to-end acceptance coverage for `report accept`,
   `report defer`, and `report reject` over canonical deduped findings.
+- [medium] Promoted explicitly requested `http_paths` dependency manifest and
+  lockfile exposures into normalized finding candidates when response evidence
+  has recognizable dependency metadata markers.
 - [medium] Promoted explicitly requested `http_paths` source map and legacy
   source-control metadata exposures into normalized finding candidates when
   response evidence has recognizable artifact markers.

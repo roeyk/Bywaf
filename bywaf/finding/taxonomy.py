@@ -58,6 +58,11 @@ STARTER_FINDING_CLASSES: dict[str, FindingClassInfo] = {
         "Exposed JavaScript source map.",
         {"cwe": ("CWE-538",), "owasp": ("A05:2021",)},
     ),
+    "web.exposure.dependency_metadata": FindingClassInfo(
+        "web.exposure.dependency_metadata",
+        "Exposed dependency manifest or lockfile metadata.",
+        {"cwe": ("CWE-538",), "owasp": ("A05:2021",)},
+    ),
     "web.exposure.directory_listing": FindingClassInfo(
         "web.exposure.directory_listing",
         "Directory listing exposes application content.",

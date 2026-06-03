@@ -259,6 +259,64 @@ class HttpPathFindingTests(unittest.TestCase):
             )
             self.assertEqual(finding["identifiers"], {"cwe": ["CWE-538"]})
 
+    def test_dependency_lockfile_path_with_markers_becomes_candidate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="http_paths",
+                metadata={"capabilities": http_paths.spec.capabilities},
+            )
+            with patch(
+                "bywaf.plugins.http.http_paths.probe_path",
+                return_value={
+                    "status": 200,
+                    "content_type": "application/json",
+                    "length": 180,
+                    "sample": '{"lockfileVersion":3,"packages":{"":{"dependencies":{"vite":"5.0.0"}}}}',
+                },
+            ):
+                list(http_paths.run(context, ["paths=/package-lock.json", "https://example.test/app"], []))
+
+            path = db.events_for_topic("http.path")[0].payload
+            finding = db.events_for_topic("finding.candidate")[0].payload
+
+            self.assertTrue(path["interesting"])
+            self.assertEqual(finding["class"], "web.exposure.dependency_metadata")
+            self.assertEqual(finding["severity"], "medium")
+            self.assertEqual(finding["target_scope"], {"kind": "web_origin", "value": "https://example.test"})
+            self.assertEqual(finding["identifiers"], {"cwe": ["CWE-538"]})
+            self.assertEqual(
+                finding["group_key"],
+                "web.exposure.dependency_metadata|web_origin:https://example.test|cwe:CWE-538",
+            )
+            self.assertIn("dependency manifests", finding["recommendation"])
+
+    def test_dependency_lockfile_named_html_page_is_not_a_finding_without_markers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="http_paths",
+                metadata={"capabilities": http_paths.spec.capabilities},
+            )
+            with patch(
+                "bywaf.plugins.http.http_paths.probe_path",
+                return_value={
+                    "status": 200,
+                    "content_type": "text/html",
+                    "length": 80,
+                    "title": "Package lock",
+                    "sample": "<p>Dependency policy page</p>",
+                },
+            ):
+                list(http_paths.run(context, ["paths=/package-lock.json", "https://example.test"], []))
+
+            path = db.events_for_topic("http.path")[0].payload
+
+            self.assertFalse(path["interesting"])
+            self.assertEqual(db.events_for_topic("finding.candidate"), [])
+
 
 if __name__ == "__main__":
     unittest.main()
