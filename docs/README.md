@@ -40,6 +40,9 @@ offensive frameworks, do not look for Veil-style modules, Metasploit-style
 - [Shared Event Schemas](plugin_author/event-schemas.md): normalized
   plugin result topics such as `host.found`, `port.open`, and `http.endpoint`;
   inspect the active schema catalog in the REPL with `schemas`.
+- [Bundled Plugin Manual](BUNDLED_PLUGIN_MANUAL.md): operator-facing catalog of
+  bundled plugin commandlets, intended uses, example usage strings, outputs,
+  findings, and artifacts.
 - [Finding And Report Model](FINDING_MODEL.md): facts, finding candidates,
   normalized finding payloads, deduplication, and the `report` inbox.
 - [Reporting](REPORTING.md): operator workflow for `report`, grouping,

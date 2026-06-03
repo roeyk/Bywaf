@@ -1753,6 +1753,10 @@ bywaf> script load file=scan.bywaf
 
 # Bundled Commandlets
 
+For a table-oriented operator manual of bundled plugin families, examples,
+outputs, findings, and artifact behavior, see
+[docs/BUNDLED_PLUGIN_MANUAL.md](docs/BUNDLED_PLUGIN_MANUAL.md).
+
 ## os
 
 `ls` lists local files:

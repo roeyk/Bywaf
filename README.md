@@ -220,6 +220,7 @@ python3 scripts/plugin_check.py --all
 - [docs/REPORTING.md](docs/REPORTING.md): `report` usage, grouping, and review state.
 - [docs/SAVE_EXPORT_MODEL.md](docs/SAVE_EXPORT_MODEL.md): load/save/export/archive semantics.
 - [docs/MANIFEST_SPECIFICATION.md](docs/MANIFEST_SPECIFICATION.md): plugin sidecar TOML schema.
+- [docs/BUNDLED_PLUGIN_MANUAL.md](docs/BUNDLED_PLUGIN_MANUAL.md): bundled plugin families, examples, outputs, findings, and artifacts.
 - [docs/FRAMEWORK_SURFACE.md](docs/FRAMEWORK_SURFACE.md): capabilities, topics, and bundled commandlets.
 - [docs/TESTING.md](docs/TESTING.md): plugin, framework, package, metrics, and manual testing map.
 - [docs/plugin_author/README.md](docs/plugin_author/README.md): plugin developer guide.
