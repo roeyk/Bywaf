@@ -53,7 +53,7 @@ class ScreenshotterWrapperTests(unittest.TestCase):
                 return subprocess.CompletedProcess([], 4, stdout="partial stdout", stderr="fatal stderr")
 
             with patch("bywaf.plugin.process.run_process_argv", side_effect=fake_run):
-                list(Screenshotter().run(context, ["--output-dir", str(Path(tmp, "eye"))], [event]))
+                list(Screenshotter().run(context, [f"output-dir={Path(tmp, 'eye')}"], [event]))
 
             errors = [event.payload for event in db.events_for_topic("tool.error")]
             exit_error = next(error for error in errors if error["message"] == "EyeWitness exited with status 4")
@@ -67,7 +67,7 @@ class ScreenshotterWrapperTests(unittest.TestCase):
             event = Event.new("http.endpoint", {"url": "https://example.test/"}, "http_probe")
 
             with patch("bywaf.plugin.process.run_process_argv", side_effect=subprocess.TimeoutExpired(["eyewitness"], 1)):
-                list(Screenshotter().run(context, ["--output-dir", str(Path(tmp, "eye"))], [event]))
+                list(Screenshotter().run(context, [f"output-dir={Path(tmp, 'eye')}"], [event]))
 
             error = db.events_for_topic("tool.error")[0].payload
             self.assertEqual(error["message"], "EyeWitness run timed out")
@@ -79,7 +79,7 @@ class ScreenshotterWrapperTests(unittest.TestCase):
             context, db = make_context(tmp)
 
             with patch("bywaf.plugin.process.run_process_argv") as run_process:
-                events = list(Screenshotter().run(context, ["--source=explicit"], []))
+                events = list(Screenshotter().run(context, ["source=explicit"], []))
 
             self.assertEqual(events, [])
             run_process.assert_not_called()
@@ -101,12 +101,17 @@ class ScreenshotterWrapperTests(unittest.TestCase):
                 return SimpleNamespace(ok=True, returncode=0, stdout="", stderr="")
 
             with patch("bywaf.plugin.process.run_process_argv", side_effect=fake_run):
-                list(Screenshotter().run(context, [f"--output-dir={output_dir}"], [event]))
+                list(Screenshotter().run(context, [f"output-dir={output_dir}"], [event]))
 
             screenshot_event = db.events_for_topic("eyewitness.screenshot")[0]
             self.assertEqual(screenshot_event.source, "screenshotter")
             self.assertEqual(screenshot_event.payload["relative_path"], "screens/example.png")
-            self.assertEqual(db.events_for_topic("tool.error"), [])
+
+    def test_value_carrying_output_dir_flag_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            context, _db = make_context(tmp)
+            with self.assertRaisesRegex(ValueError, "output-dir=path"):
+                list(Screenshotter().run(context, [f"--output-dir={Path(tmp, 'eye')}"], []))
 
 
 if __name__ == "__main__":

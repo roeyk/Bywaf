@@ -27,6 +27,7 @@ from bywaf.event.schema_objects import ScreenshottedHost
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
 from bywaf.plugin.process_artifacts import process_output_artifact_payload
+from bywaf.plugins._args import key_value_to_long_options, reject_long_option_values
 from bywaf.plugins.http.nikto import (
     dedupe_targets,
     filter_http_payloads_by_policy,
@@ -43,6 +44,7 @@ DEFAULTS = {
 }
 
 SCREENSHOT_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
+VALUE_OPTION_KEYS = {"binary", "output-dir", "source", "timeout"}
 
 
 @commandlet(
@@ -74,7 +76,12 @@ class EyeWitness(CommandletBase):
         parser.add_argument("--output-dir", default=self.var_default(context, "output-dir", ""))
         parser.add_argument("--source", choices=("all", "explicit"), default=self.var_default(context, "source", "all"))
         parser.add_argument("--timeout", type=float, default=self.var_default(context, "timeout", 600, cast=float))
-        parsed = parser.parse_args(args)
+        reject_long_option_values(
+            args,
+            VALUE_OPTION_KEYS,
+            usage="usage: eyewitness [binary=path] [output-dir=path] [source=all|explicit] [timeout=seconds] [--silent] [target ...]",
+        )
+        parsed = parser.parse_args(key_value_to_long_options(args, VALUE_OPTION_KEYS))
 
         targets = filter_http_payloads_by_policy(
             context,

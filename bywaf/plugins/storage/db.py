@@ -20,6 +20,7 @@ from bywaf.config import Settings
 from bywaf.db import EventStore, database_appears_encrypted, export_encrypted_database, export_plaintext_database
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
+from bywaf.plugins._args import reject_long_option_values
 from bywaf.utils import complete_path
 
 from .db_paths import database_related_paths
@@ -220,7 +221,8 @@ def print_database_status(context: CommandContext) -> None:
 
 
 def normalize_db_args(args: list[str]) -> list[str]:
-    """Accept selector-style `file=...` beside argparse-style `--file=...`."""
+    """Convert Bywaf `file=...` syntax into the internal argparse option."""
+    reject_long_option_values(args, {"file"}, usage="usage: db <action> [file=path] [--encrypt] [--force]")
     normalized: list[str] = []
     for arg in args:
         if arg.startswith("file="):

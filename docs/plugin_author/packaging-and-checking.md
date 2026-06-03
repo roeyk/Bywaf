@@ -54,11 +54,11 @@ declared path and cannot be silently remapped by plugin code.
 
 Add `--use` to switch the interactive variable context to the loaded commandlet
 when the plugin exposes one commandlet. If it exposes multiple commandlets, use
-`--use=<commandlet>` so Bywaf does not guess:
+`use=<commandlet>` so Bywaf does not guess:
 
 ```text
 bywaf> pload ./scratch/file_info --force --use
-bywaf> plugin load=./scratch/repo_tools --force --use=git_expose_check
+bywaf> plugin load=./scratch/repo_tools --force use=git_expose_check
 ```
 
 Filesystem plugin packages must include `plugin.py` and `bywaf.plugin.toml`.

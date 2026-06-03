@@ -65,7 +65,7 @@ class EyeWitnessTests(unittest.TestCase):
                 return subprocess.CompletedProcess(argv, 0, stdout="", stderr="")
 
             with patch("bywaf.plugin.process.run_process_argv", side_effect=fake_run):
-                list(EyeWitness().run(context, [f"--output-dir={output_dir}"], [event]))
+                list(EyeWitness().run(context, [f"output-dir={output_dir}"], [event]))
 
             screenshot = db.events_for_topic("eyewitness.screenshot")[0].payload
             self.assertEqual(screenshot["relative_path"], "screens/example.png")
@@ -106,7 +106,7 @@ class EyeWitnessTests(unittest.TestCase):
                 return subprocess.CompletedProcess([], 3, stdout="partial stdout", stderr="fatal stderr")
 
             with patch("bywaf.plugin.process.run_process_argv", side_effect=fake_run):
-                list(EyeWitness().run(context, ["--output-dir", str(Path(tmp, "eye"))], [event]))
+                list(EyeWitness().run(context, [f"output-dir={Path(tmp, 'eye')}"], [event]))
 
             errors = [event.payload for event in db.events_for_topic("tool.error")]
             exit_error = next(error for error in errors if error["message"] == "EyeWitness exited with status 3")
@@ -125,11 +125,21 @@ class EyeWitnessTests(unittest.TestCase):
             event = Event.new("http.endpoint", {"url": "https://example.test/"}, "test")
 
             with patch("bywaf.plugin.process.run_process_argv", side_effect=subprocess.TimeoutExpired(["eyewitness"], 1)):
-                list(EyeWitness().run(context, ["--output-dir", str(Path(tmp, "eye"))], [event]))
+                list(EyeWitness().run(context, [f"output-dir={Path(tmp, 'eye')}"], [event]))
 
             error = db.events_for_topic("tool.error")[0].payload
             self.assertEqual(error["message"], "EyeWitness run timed out")
             self.assertEqual(db.events_for_topic("eyewitness.screenshot"), [])
+
+    def test_eyewitness_value_carrying_output_dir_flag_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            context = CommandContext(
+                db=EventStore(Path(tmp, "bywaf.sqlite3")),
+                source="eyewitness",
+                metadata={"command_run_id": "run-1", "capabilities": EyeWitness().spec.capabilities},
+            )
+            with self.assertRaisesRegex(ValueError, "output-dir=path"):
+                list(EyeWitness().run(context, [f"--output-dir={Path(tmp, 'eye')}"], []))
 
 
 class WifiScanTests(unittest.TestCase):

@@ -143,12 +143,12 @@ class BuiltinCompletionMixin:
         if prefix.startswith("load="):
             value = prefix.split("=", 1)[1]
             return [f"load={candidate}" for candidate in complete_resource_value("plugin", value)]
-        return resource_candidates(prefix, ("--force", "--use", "--use=", "load=", "path="))
+        return resource_candidates(prefix, ("--force", "--use", "load=", "path=", "use="))
 
     def pload_candidates(self, prefix: str) -> list[str]:
         """Complete short-form plugin load paths."""
         if prefix.startswith("-"):
-            return self.option_candidates(prefix, ("--force", "--use", "--use="))
+            return self.option_candidates(prefix, ("--force", "--use", "use="))
         if prefix.startswith("path="):
             return [f"path={candidate}" for candidate in self.catalog_path_candidates(prefix.split("=", 1)[1])]
         return complete_resource_value("plugin", prefix)

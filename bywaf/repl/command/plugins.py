@@ -27,7 +27,7 @@ def handle_plugin_command(runner: Runner, state: ShellState, rest: str | None, l
     """Load filesystem plugins."""
     del line
     if rest is None:
-        print("usage: plugin load=<path> [path=<catalog/path>] [--force] [--use[=<commandlet>]]")
+        print("usage: plugin load=<path> [path=<catalog/path>] [--force] [--use|use=<commandlet>]")
         return None
     tokens = shlex.split(rest)
     forced = "--force" in tokens
@@ -35,6 +35,8 @@ def handle_plugin_command(runner: Runner, state: ShellState, rest: str | None, l
     catalog_path: str | None = None
     use_target: str | None = None
     for token in tokens:
+        if token.startswith("--use="):
+            raise ValueError("usage: plugin load=<path> [path=<catalog/path>] [--force] [--use|use=<commandlet>]")
         # `plugin load=` is the explicit form. path= optionally remaps the local
         # filesystem plugin into a catalog path for development/testing.
         key, value = parse_resource_assignment(token)
@@ -42,12 +44,12 @@ def handle_plugin_command(runner: Runner, state: ShellState, rest: str | None, l
             plugin_value = value
         elif key == "path":
             catalog_path = value
-        elif key == "--use":
+        elif key == "use":
             use_target = value or ""
         elif token == "--use":
             use_target = ""
     if not plugin_value:
-        print("usage: plugin load=<path> [path=<catalog/path>] [--force] [--use[=<commandlet>]]")
+        print("usage: plugin load=<path> [path=<catalog/path>] [--force] [--use|use=<commandlet>]")
         return None
     commandlets = load_plugin_resource(runner, state, plugin_value, forced, catalog_path=catalog_path)
     print_loaded_plugin_vars(runner, commandlets)
@@ -59,7 +61,7 @@ def handle_pload_command(runner: Runner, state: ShellState, rest: str | None, li
     """Short alias for loading filesystem plugins."""
     del line
     if rest is None:
-        print("usage: pload <path> [path=<catalog/path>] [--force] [--use[=<commandlet>]]")
+        print("usage: pload <path> [path=<catalog/path>] [--force] [--use|use=<commandlet>]")
         return None
     tokens = shlex.split(rest)
     forced = "--force" in tokens
@@ -67,15 +69,17 @@ def handle_pload_command(runner: Runner, state: ShellState, rest: str | None, li
     use_target: str | None = None
     paths: list[str] = []
     for token in tokens:
+        if token.startswith("--use="):
+            raise ValueError("usage: pload <path> [path=<catalog/path>] [--force] [--use|use=<commandlet>]")
         # pload keeps the common path short: the sole positional token is the
-        # plugin path, while path=/--use/--force retain the same meanings.
+        # plugin path, while path=/use=/--use/--force retain the same meanings.
         key, value = parse_resource_assignment(token)
         if token == "--force":
             continue
         if token == "--use":
             use_target = ""
             continue
-        if key == "--use":
+        if key == "use":
             use_target = value or ""
             continue
         if key == "path":
@@ -83,7 +87,7 @@ def handle_pload_command(runner: Runner, state: ShellState, rest: str | None, li
             continue
         paths.append(token)
     if len(paths) != 1:
-        print("usage: pload <path> [path=<catalog/path>] [--force] [--use[=<commandlet>]]")
+        print("usage: pload <path> [path=<catalog/path>] [--force] [--use|use=<commandlet>]")
         return None
     commandlets = load_plugin_resource(runner, state, paths[0], forced, catalog_path=catalog_path)
     print_loaded_plugin_vars(runner, commandlets)
@@ -158,4 +162,4 @@ def maybe_use_loaded_commandlet(
     print("loaded plugin exposes multiple commandlets; choose one:")
     for commandlet in commandlets:
         print(f"  use {commandlet}")
-    print("or reload with --use=<commandlet>")
+    print("or reload with use=<commandlet>")

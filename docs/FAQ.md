@@ -631,7 +631,7 @@ commandlet:
 bywaf> pload ./my_plugin --force --use
 ```
 
-If a plugin exposes multiple commandlets, use `--use=<commandlet>` or select one
+If a plugin exposes multiple commandlets, use `use=<commandlet>` or select one
 after loading with `use <commandlet>`.
 
 ## How do I check a plugin manifest?

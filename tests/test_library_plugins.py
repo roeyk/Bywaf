@@ -437,7 +437,7 @@ class LibraryPluginTests(unittest.TestCase):
                 return SimpleNamespace(ok=True, returncode=0, stdout="warning: no reachable targets", stderr="")
 
             with patch("bywaf.plugin.process.run_process_argv", side_effect=fake_run):
-                list(Screenshotter().run(context, [f"--output-dir={output_dir}", "http://127.0.0.1/"], []))
+                list(Screenshotter().run(context, [f"output-dir={output_dir}", "http://127.0.0.1/"], []))
 
             error = db.events_for_topic("tool.error")[0].payload
             self.assertEqual(error["message"], "EyeWitness produced no screenshot files")

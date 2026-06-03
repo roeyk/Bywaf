@@ -24,3 +24,12 @@ def key_value_to_long_options(args: list[str], keys: set[str]) -> list[str]:
         else:
             normalized.append(arg)
     return normalized
+
+
+def reject_long_option_values(args: list[str], keys: set[str], *, usage: str) -> None:
+    """Reject value-carrying `--option=value` forms for Bywaf-owned options."""
+    flags = {f"--{key}" for key in keys}
+    for arg in args:
+        key, separator, _value = arg.partition("=")
+        if separator and key in flags:
+            raise ValueError(usage)

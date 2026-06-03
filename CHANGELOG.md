@@ -1110,7 +1110,7 @@ Initial testing release for the rewritten Bywaf framework.
 - Added `CommandletBase` for shared argparse parser setup in commandlets.
 - Added `db encrypt`, `db decrypt`, and `db rekey` for active database
   encryption management.
-- Added `db new`, `db new --file=<path>`, `db new --encrypt`, and
+- Added `db new`, `db new file=<path>`, `db new --encrypt`, and
   `db new --force` for creating and switching to fresh databases.
 - Added `db.encryption=sqlcipher` as a default preference for encrypted
   databases created with `db new`.

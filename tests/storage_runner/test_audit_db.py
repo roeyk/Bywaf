@@ -145,7 +145,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             runner = make_runner(first)
             runner.db.publish("topic", {"value": 1}, "test")
             with contextlib.redirect_stdout(io.StringIO()):
-                runner.execute(f"db new --file={second}")
+                runner.execute(f"db new file={second}")
             self.assertEqual(runner.db.path, second)
             self.assertGreaterEqual(runner.db.table_counts()["events"], 2)
             self.assertEqual(runner.db.events_for_topic("framework.console.output.requested")[0].source, "db")
@@ -158,9 +158,18 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             EventStore(second).publish("topic", {"value": 1}, "test")
             runner = make_runner(first)
             with self.assertRaisesRegex(ValueError, "already exists"):
-                runner.execute(f"db new --file={second}")
+                runner.execute(f"db new file={second}")
             self.assertEqual(runner.db.path, first)
             self.assertEqual(EventStore(second).table_counts()["events"], 1)
+
+    def test_db_new_rejects_value_carrying_file_flag(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            first = Path(tmp, "first.sqlite3")
+            second = Path(tmp, "second.sqlite3")
+            runner = make_runner(first)
+            with self.assertRaisesRegex(ValueError, "file=path"):
+                runner.execute(f"db new --file={second}")
+            self.assertEqual(runner.db.path, first)
 
     def test_db_new_force_backs_up_existing_file(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -169,7 +178,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             EventStore(second).publish("topic", {"value": 1}, "test")
             runner = make_runner(first)
             with contextlib.redirect_stdout(io.StringIO()):
-                runner.execute(f"db new --force --file={second}")
+                runner.execute(f"db new --force file={second}")
             self.assertEqual(runner.db.path, second)
             self.assertGreaterEqual(runner.db.table_counts()["events"], 2)
             self.assertEqual(runner.db.events_for_topic("framework.console.output.requested")[0].source, "db")
@@ -246,7 +255,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             runner = make_runner(first)
             with patch("getpass.getpass", side_effect=["secret", "secret"]):
                 with contextlib.redirect_stdout(io.StringIO()):
-                    runner.execute(f"db new --encrypt --file={second}")
+                    runner.execute(f"db new --encrypt file={second}")
             self.assertTrue(runner.db.encrypted)
             self.assertTrue(database_appears_encrypted(second))
 
@@ -259,7 +268,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             runner.registry.varstore.set("db.encryption", "sqlcipher")
             with patch("getpass.getpass", side_effect=["secret", "secret"]):
                 with contextlib.redirect_stdout(io.StringIO()):
-                    runner.execute(f"db new --file={second}")
+                    runner.execute(f"db new file={second}")
             self.assertTrue(runner.db.encrypted)
 
     @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")

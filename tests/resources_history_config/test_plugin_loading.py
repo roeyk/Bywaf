@@ -115,8 +115,19 @@ class ResourcesHistoryPluginLoadingTests(unittest.TestCase):
             state = ShellState()
             plugin_dir = write_multi_external_plugin(Path(tmp))
             with contextlib.redirect_stdout(io.StringIO()):
-                dispatch_repl_line(runner, f"plugin load={plugin_dir} --force --use=second", state)
+                dispatch_repl_line(runner, f"plugin load={plugin_dir} --force use=second", state)
             self.assertEqual(state.active_context, "multi/second")
+
+    def test_plugin_load_rejects_value_carrying_use_flag(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            plugin_dir = write_multi_external_plugin(Path(tmp))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, f"plugin load={plugin_dir} --force --use=second", state)
+            self.assertIsNone(state.active_context)
+            self.assertIn("usage: plugin load=<path>", output.getvalue())
 
     def test_plugin_load_path_places_provider_in_catalog(self):
         with tempfile.TemporaryDirectory() as tmp:

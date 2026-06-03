@@ -264,7 +264,7 @@ class MvpPluginSuiteTests(unittest.TestCase):
                 process_framework_requests(runner, ShellState())
                 runner.execute(
                     f"screenshotter --from pipeline={pipeline_id} topic=http.endpoint "
-                    f"--output-dir={screenshot_output} --silent"
+                    f"output-dir={screenshot_output} --silent"
                 )
                 process_framework_requests(runner, ShellState())
                 screenshot_pipeline_id = runner.db.events_for_topic("eyewitness.screenshot")[0].pipeline_id
