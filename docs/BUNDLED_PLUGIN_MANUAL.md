@@ -19,7 +19,7 @@ A **provider** is the Python implementation object or module that registers or r
 
 <div class="plugin-toc">
 <details class="plugin-toc-family">
-<summary id="toc-analysis"><span class="toc-count">5</span><span class="toc-name">Analysis</span></summary>
+<summary id="toc-analysis"><span class="toc-count">5</span><span class="toc-arrow" aria-hidden="true">▸</span><span class="toc-name">Analysis</span></summary>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#analysisfinding">analysis.finding</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#analysisfinding_dedupe">analysis.finding_dedupe</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#analysisfinding_report">analysis.finding_report</a></span></div>
@@ -27,11 +27,11 @@ A **provider** is the Python implementation object or module that registers or r
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#analysisyara_scan">analysis.yara_scan</a></span></div>
 </details>
 <details class="plugin-toc-family">
-<summary id="toc-discovery"><span class="toc-count">1</span><span class="toc-name">Discovery</span></summary>
+<summary id="toc-discovery"><span class="toc-count">1</span><span class="toc-arrow" aria-hidden="true">▸</span><span class="toc-name">Discovery</span></summary>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#discoveryhostscanner">discovery.hostscanner</a></span></div>
 </details>
 <details class="plugin-toc-family">
-<summary id="toc-http"><span class="toc-count">10</span><span class="toc-name">HTTP</span></summary>
+<summary id="toc-http"><span class="toc-count">10</span><span class="toc-arrow" aria-hidden="true">▸</span><span class="toc-name">HTTP</span></summary>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httpeyewitness">http.eyewitness</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_headers">http.http_headers</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_paths">http.http_paths</a></span></div>
@@ -44,12 +44,12 @@ A **provider** is the Python implementation object or module that registers or r
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httpwebfin">http.webfin</a></span></div>
 </details>
 <details class="plugin-toc-family">
-<summary id="toc-identity"><span class="toc-count">2</span><span class="toc-name">Identity</span></summary>
+<summary id="toc-identity"><span class="toc-count">2</span><span class="toc-arrow" aria-hidden="true">▸</span><span class="toc-name">Identity</span></summary>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#identityldap_probe">identity.ldap_probe</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#identitysmb_probe">identity.smb_probe</a></span></div>
 </details>
 <details class="plugin-toc-family">
-<summary id="toc-network"><span class="toc-count">7</span><span class="toc-name">Network</span></summary>
+<summary id="toc-network"><span class="toc-count">7</span><span class="toc-arrow" aria-hidden="true">▸</span><span class="toc-name">Network</span></summary>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#networkmanagement_exposure">network.management_exposure</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">2</span><span class="toc-name"><a href="#networkportscanner">network.portscanner</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#networkservice_probe">network.service_probe</a></span></div>
@@ -59,19 +59,19 @@ A **provider** is the Python implementation object or module that registers or r
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#networktraceroute">network.traceroute</a></span></div>
 </details>
 <details class="plugin-toc-family">
-<summary id="toc-os"><span class="toc-count">3</span><span class="toc-name">OS</span></summary>
+<summary id="toc-os"><span class="toc-count">3</span><span class="toc-arrow" aria-hidden="true">▸</span><span class="toc-name">OS</span></summary>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#oscat">os.cat</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#osless">os.less</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#osls">os.ls</a></span></div>
 </details>
 <details class="plugin-toc-family">
-<summary id="toc-recon"><span class="toc-count">3</span><span class="toc-name">Recon</span></summary>
+<summary id="toc-recon"><span class="toc-count">3</span><span class="toc-arrow" aria-hidden="true">▸</span><span class="toc-name">Recon</span></summary>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#recondns_enum">recon.dns_enum</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#recondns_lookup">recon.dns_lookup</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#reconshodan_lookup">recon.shodan_lookup</a></span></div>
 </details>
 <details class="plugin-toc-family">
-<summary id="toc-runtime"><span class="toc-count">14</span><span class="toc-name">Runtime</span></summary>
+<summary id="toc-runtime"><span class="toc-count">14</span><span class="toc-arrow" aria-hidden="true">▸</span><span class="toc-name">Runtime</span></summary>
 <div class="toc-entry"><span class="toc-count toc-child-count">2</span><span class="toc-name"><a href="#runtimeartifact">runtime.artifact</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#runtimeaudit">runtime.audit</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#runtimebundle">runtime.bundle</a></span></div>
@@ -88,11 +88,11 @@ A **provider** is the Python implementation object or module that registers or r
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#runtimewatchdog">runtime.watchdog</a></span></div>
 </details>
 <details class="plugin-toc-family">
-<summary id="toc-storage"><span class="toc-count">1</span><span class="toc-name">Storage</span></summary>
+<summary id="toc-storage"><span class="toc-count">1</span><span class="toc-arrow" aria-hidden="true">▸</span><span class="toc-name">Storage</span></summary>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#storagedb">storage.db</a></span></div>
 </details>
 <details class="plugin-toc-family">
-<summary id="toc-wireless"><span class="toc-count">1</span><span class="toc-name">Wireless</span></summary>
+<summary id="toc-wireless"><span class="toc-count">1</span><span class="toc-arrow" aria-hidden="true">▸</span><span class="toc-name">Wireless</span></summary>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#wirelesswifi_scan">wireless.wifi_scan</a></span></div>
 </details>
 </div>
@@ -149,11 +149,9 @@ A **provider** is the Python implementation object or module that registers or r
 | Runtime | `runtime.watchdog` | `watchdog` | Monitor runtime health and stalled work. | `watchdog --session-service` | [runtime.watchdog](#runtimewatchdog) |
 | Storage | `storage.db` | `db` | Manage the active event/artifact databases. | `db status` | [storage.db](#storagedb) |
 
-## Plugin Families
+## OS
 
-### OS
-
-#### OS Plugin TOC
+### OS Plugin TOC
 
 - [os.cat](#oscat)
 - [os.less](#osless)
@@ -162,7 +160,7 @@ A **provider** is the Python implementation object or module that registers or r
 
 <a id="osls"></a>
 
-#### `os.ls`
+### `os.ls`
 
 Lists local files from inside the Bywaf interpreter.
 
@@ -177,7 +175,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/os/ls.py bywaf/plugins/os/ls.plugin.toml` |
 
-##### Commandlet: `ls`
+#### Commandlet: `ls`
 
 Example usage: `ls bywaf/plugins`
 
@@ -193,7 +191,7 @@ Example usage: `ls bywaf/plugins`
 
 <a id="oscat"></a>
 
-#### `os.cat`
+### `os.cat`
 
 Prints a local text file.
 
@@ -208,7 +206,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/os/cat.py bywaf/plugins/os/cat.plugin.toml` |
 
-##### Commandlet: `cat`
+#### Commandlet: `cat`
 
 Example usage: `cat README.md`
 
@@ -224,7 +222,7 @@ Example usage: `cat README.md`
 
 <a id="osless"></a>
 
-#### `os.less`
+### `os.less`
 
 Opens the system pager for a local file when interactive.
 
@@ -239,7 +237,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/os/less.py bywaf/plugins/os/less.plugin.toml` |
 
-##### Commandlet: `less`
+#### Commandlet: `less`
 
 Example usage: `less README.md`
 
@@ -253,15 +251,15 @@ Example usage: `less README.md`
 
 [Back to OS plugin TOC](#os-plugin-toc) | [Back to document OS TOC entry](#toc-os)
 
-### Discovery
+## Discovery
 
-#### Discovery Plugin TOC
+### Discovery Plugin TOC
 
 - [discovery.hostscanner](#discoveryhostscanner)
 
 <a id="discoveryhostscanner"></a>
 
-#### `discovery.hostscanner`
+### `discovery.hostscanner`
 
 Discovers live hosts with nmap and publishes reusable host facts.
 
@@ -276,7 +274,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/discovery/hostscanner.py bywaf/plugins/discovery/hostscanner.plugin.toml` |
 
-##### Commandlet: `hostscanner`
+#### Commandlet: `hostscanner`
 
 Example usage: `hostscanner 192.0.2.0/24`
 
@@ -297,9 +295,9 @@ Example usage: `hostscanner 192.0.2.0/24`
 
 [Back to Discovery plugin TOC](#discovery-plugin-toc) | [Back to document Discovery TOC entry](#toc-discovery)
 
-### Network
+## Network
 
-#### Network Plugin TOC
+### Network Plugin TOC
 
 - [network.management_exposure](#networkmanagement_exposure)
 - [network.portscanner](#networkportscanner)
@@ -311,7 +309,7 @@ Example usage: `hostscanner 192.0.2.0/24`
 
 <a id="networkportscanner"></a>
 
-#### `network.portscanner`
+### `network.portscanner`
 
 Scans targets for open ports and renders stored open-port results.
 
@@ -326,7 +324,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/network/portscanner bywaf/plugins/network/portscanner.plugin.toml` |
 
-##### Commandlet: `portscanner`
+#### Commandlet: `portscanner`
 
 Example usage: `portscanner port=22,80,443 host=192.0.2.10`
 
@@ -350,7 +348,7 @@ Example usage: `portscanner port=22,80,443 host=192.0.2.10`
 - Emits: `port.open`, selected `finding.candidate` events.
 - External dependency: `nmap`.
 
-##### Commandlet: `ports`
+#### Commandlet: `ports`
 
 Example usage: `ports pipeline=1 --page`
 
@@ -375,7 +373,7 @@ Example usage: `ports pipeline=1 --page`
 
 <a id="networkservice_probe"></a>
 
-#### `network.service_probe`
+### `network.service_probe`
 
 Classifies services from existing open-port, banner, HTTP, or TLS facts.
 
@@ -390,7 +388,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/network/service_probe.py bywaf/plugins/network/service_probe.plugin.toml` |
 
-##### Commandlet: `service_probe`
+#### Commandlet: `service_probe`
 
 Example usage: `portscanner host=192.0.2.10 | service_probe`
 
@@ -406,7 +404,7 @@ Example usage: `portscanner host=192.0.2.10 | service_probe`
 
 <a id="networktcp_banner"></a>
 
-#### `network.tcp_banner`
+### `network.tcp_banner`
 
 Connects to TCP services and records short banners.
 
@@ -421,7 +419,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/network/tcp_banner.py bywaf/plugins/network/tcp_banner.plugin.toml` |
 
-##### Commandlet: `tcp_banner`
+#### Commandlet: `tcp_banner`
 
 Example usage: `tcp_banner mode=http-head 192.0.2.10:8080`
 
@@ -442,7 +440,7 @@ Example usage: `tcp_banner mode=http-head 192.0.2.10:8080`
 
 <a id="networkmanagement_exposure"></a>
 
-#### `network.management_exposure`
+### `network.management_exposure`
 
 Promotes existing port, service, banner, endpoint, and fingerprint facts into
 finding candidates for exposed management surfaces.
@@ -458,7 +456,7 @@ Plugin metadata:
 | Last updated | `2026-06-03` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/network/management_exposure.py bywaf/plugins/network/management_exposure.plugin.toml` |
 
-##### Commandlet: `management_exposure`
+#### Commandlet: `management_exposure`
 
 Example usage: `portscanner host=192.0.2.10 | service_probe | management_exposure`
 
@@ -478,7 +476,7 @@ Example usage: `portscanner host=192.0.2.10 | service_probe | management_exposur
 
 <a id="networkssh_probe"></a>
 
-#### `network.ssh_probe`
+### `network.ssh_probe`
 
 Probes SSH service metadata and optional credential behavior.
 
@@ -493,7 +491,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/network/ssh_probe.py bywaf/plugins/network/ssh_probe.plugin.toml` |
 
-##### Commandlet: `ssh_probe`
+#### Commandlet: `ssh_probe`
 
 Example usage: `ssh_probe username=test password=test 192.0.2.10`
 
@@ -515,7 +513,7 @@ Example usage: `ssh_probe username=test password=test 192.0.2.10`
 
 <a id="networksnmp_get"></a>
 
-#### `network.snmp_get`
+### `network.snmp_get`
 
 Reads one SNMP OID from a target.
 
@@ -530,7 +528,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/network/snmp_get.py bywaf/plugins/network/snmp_get.plugin.toml` |
 
-##### Commandlet: `snmp_get`
+#### Commandlet: `snmp_get`
 
 Example usage: `snmp_get community=public oid=1.3.6.1.2.1.1.1.0 192.0.2.10`
 
@@ -550,7 +548,7 @@ Example usage: `snmp_get community=public oid=1.3.6.1.2.1.1.1.0 192.0.2.10`
 
 <a id="networktraceroute"></a>
 
-#### `network.traceroute`
+### `network.traceroute`
 
 Records route hops to a target.
 
@@ -565,7 +563,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/network/traceroute.py bywaf/plugins/network/traceroute.plugin.toml` |
 
-##### Commandlet: `traceroute`
+#### Commandlet: `traceroute`
 
 Example usage: `traceroute 192.0.2.10`
 
@@ -583,9 +581,9 @@ Example usage: `traceroute 192.0.2.10`
 
 [Back to Network plugin TOC](#network-plugin-toc) | [Back to document Network TOC entry](#toc-network)
 
-### Recon
+## Recon
 
-#### Recon Plugin TOC
+### Recon Plugin TOC
 
 - [recon.dns_enum](#recondns_enum)
 - [recon.dns_lookup](#recondns_lookup)
@@ -593,7 +591,7 @@ Example usage: `traceroute 192.0.2.10`
 
 <a id="recondns_lookup"></a>
 
-#### `recon.dns_lookup`
+### `recon.dns_lookup`
 
 Resolves DNS records with dnspython.
 
@@ -608,7 +606,7 @@ Plugin metadata:
 | Last updated | `2026-06-01` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/recon/dns_lookup.py bywaf/plugins/recon/dns_lookup.plugin.toml` |
 
-##### Commandlet: `dns_lookup`
+#### Commandlet: `dns_lookup`
 
 Example usage: `dns_lookup record-type=MX example.com`
 
@@ -627,7 +625,7 @@ Example usage: `dns_lookup record-type=MX example.com`
 
 <a id="recondns_enum"></a>
 
-#### `recon.dns_enum`
+### `recon.dns_enum`
 
 Resolves explicit names or generated subdomains into host facts.
 
@@ -642,7 +640,7 @@ Plugin metadata:
 | Last updated | `2026-06-01` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/recon/dns_enum.py bywaf/plugins/recon/dns_enum.plugin.toml` |
 
-##### Commandlet: `dns_enum`
+#### Commandlet: `dns_enum`
 
 Example usage: `dns_enum domain=example.com words=www,api`
 
@@ -660,7 +658,7 @@ Example usage: `dns_enum domain=example.com words=www,api`
 
 <a id="reconshodan_lookup"></a>
 
-#### `recon.shodan_lookup`
+### `recon.shodan_lookup`
 
 Queries Shodan by IP or search query.
 
@@ -675,7 +673,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/recon/shodan_lookup.py bywaf/plugins/recon/shodan_lookup.plugin.toml` |
 
-##### Commandlet: `shodan_lookup`
+#### Commandlet: `shodan_lookup`
 
 Example usage: `shodan_lookup mode=search apache country:US`
 
@@ -692,16 +690,16 @@ Example usage: `shodan_lookup mode=search apache country:US`
 
 [Back to Recon plugin TOC](#recon-plugin-toc) | [Back to document Recon TOC entry](#toc-recon)
 
-### Identity
+## Identity
 
-#### Identity Plugin TOC
+### Identity Plugin TOC
 
 - [identity.ldap_probe](#identityldap_probe)
 - [identity.smb_probe](#identitysmb_probe)
 
 <a id="identityldap_probe"></a>
 
-#### `identity.ldap_probe`
+### `identity.ldap_probe`
 
 Probes LDAP server metadata.
 
@@ -716,7 +714,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/identity/ldap_probe.py bywaf/plugins/identity/ldap_probe.plugin.toml` |
 
-##### Commandlet: `ldap_probe`
+#### Commandlet: `ldap_probe`
 
 Example usage: `ldap_probe username=user password=secret dc.example.test`
 
@@ -738,7 +736,7 @@ Example usage: `ldap_probe username=user password=secret dc.example.test`
 
 <a id="identitysmb_probe"></a>
 
-#### `identity.smb_probe`
+### `identity.smb_probe`
 
 Probes SMB server metadata.
 
@@ -753,7 +751,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/identity/smb_probe.py bywaf/plugins/identity/smb_probe.plugin.toml` |
 
-##### Commandlet: `smb_probe`
+#### Commandlet: `smb_probe`
 
 Example usage: `smb_probe domain=EXAMPLE username=user password=secret dc.example.test`
 
@@ -772,9 +770,9 @@ Example usage: `smb_probe domain=EXAMPLE username=user password=secret dc.exampl
 
 [Back to Identity plugin TOC](#identity-plugin-toc) | [Back to document Identity TOC entry](#toc-identity)
 
-### HTTP
+## HTTP
 
-#### HTTP Plugin TOC
+### HTTP Plugin TOC
 
 - [http.eyewitness](#httpeyewitness)
 - [http.http_headers](#httphttp_headers)
@@ -789,7 +787,7 @@ Example usage: `smb_probe domain=EXAMPLE username=user password=secret dc.exampl
 
 <a id="httphttp_headers"></a>
 
-#### `http.http_headers`
+### `http.http_headers`
 
 Collects HTTP response headers and promotes missing high-value security headers.
 
@@ -804,7 +802,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/http_headers bywaf/plugins/http/http_headers/bywaf.plugin.toml` |
 
-##### Commandlet: `http_headers`
+#### Commandlet: `http_headers`
 
 Example usage: `http_headers ssl=true example.com`
 
@@ -824,7 +822,7 @@ Example usage: `http_headers ssl=true example.com`
 
 <a id="httphttp_probe"></a>
 
-#### `http.http_probe`
+### `http.http_probe`
 
 Probes HTTP endpoints and publishes reusable endpoint facts.
 
@@ -839,7 +837,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/http_probe.py bywaf/plugins/http/http_probe.plugin.toml` |
 
-##### Commandlet: `http_probe`
+#### Commandlet: `http_probe`
 
 Example usage: `http_probe https://example.com/`
 
@@ -864,7 +862,7 @@ Example usage: `http_probe https://example.com/`
 
 <a id="httphttp_paths"></a>
 
-#### `http.http_paths`
+### `http.http_paths`
 
 Checks common or explicitly supplied HTTP paths.
 
@@ -879,7 +877,7 @@ Plugin metadata:
 | Last updated | `2026-06-03` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/http_paths.py bywaf/plugins/http/http_path_findings.py bywaf/plugins/http/http_paths.plugin.toml` |
 
-##### Commandlet: `http_paths`
+#### Commandlet: `http_paths`
 
 Example usage: `http_paths paths=/.git/config,/.env https://example.com/`
 
@@ -903,7 +901,7 @@ Example usage: `http_paths paths=/.git/config,/.env https://example.com/`
 
 <a id="httprepo_exposure"></a>
 
-#### `http.repo_exposure`
+### `http.repo_exposure`
 
 Checks HTTP endpoints for exposed repository metadata.
 
@@ -918,7 +916,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/repo_exposure bywaf/plugins/http/repo_exposure/bywaf.plugin.toml` |
 
-##### Commandlets: `repo_exposure`, `git_expose_check`
+#### Commandlets: `repo_exposure`, `git_expose_check`
 
 Example usage: `http_probe https://example.com/ | repo_exposure`
 
@@ -939,7 +937,7 @@ Example usage: `http_probe https://example.com/ | repo_exposure`
 
 <a id="httpwebfin"></a>
 
-#### `http.webfin`
+### `http.webfin`
 
 Fingerprints web technologies from HTTP endpoints.
 
@@ -954,7 +952,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/webfin.py bywaf/plugins/http/webfin.plugin.toml` |
 
-##### Commandlet: `webfin`
+#### Commandlet: `webfin`
 
 Example usage: `http_probe https://example.com/ | webfin`
 
@@ -973,7 +971,7 @@ Example usage: `http_probe https://example.com/ | webfin`
 
 <a id="httptls_probe"></a>
 
-#### `http.tls_probe`
+### `http.tls_probe`
 
 Collects TLS certificate and hygiene facts.
 
@@ -988,7 +986,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/tls_probe.py bywaf/plugins/http/tls_probe.plugin.toml` |
 
-##### Commandlet: `tls_probe`
+#### Commandlet: `tls_probe`
 
 Example usage: `tls_probe https://example.com/`
 
@@ -1009,7 +1007,7 @@ Example usage: `tls_probe https://example.com/`
 
 <a id="httpwaf_detect"></a>
 
-#### `http.waf_detect`
+### `http.waf_detect`
 
 Detects likely web application firewall or CDN response signals.
 
@@ -1024,7 +1022,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/waf_detect.py bywaf/plugins/http/waf_detect.plugin.toml` |
 
-##### Commandlet: `waf_detect`
+#### Commandlet: `waf_detect`
 
 Example usage: `waf_detect https://example.com/`
 
@@ -1043,7 +1041,7 @@ Example usage: `waf_detect https://example.com/`
 
 <a id="httpnikto"></a>
 
-#### `http.nikto`
+### `http.nikto`
 
 Runs Nikto through the framework process API and normalizes selected output.
 
@@ -1058,7 +1056,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/nikto.py bywaf/plugins/http/nikto_findings.py bywaf/plugins/http/nikto.plugin.toml` |
 
-##### Commandlet: `nikto`
+#### Commandlet: `nikto`
 
 Example usage: `http_probe https://example.com/ | nikto`
 
@@ -1083,7 +1081,7 @@ Example usage: `http_probe https://example.com/ | nikto`
 
 <a id="httpeyewitness"></a>
 
-#### `http.eyewitness`
+### `http.eyewitness`
 
 Wraps EyeWitness to capture web screenshots.
 
@@ -1098,7 +1096,7 @@ Plugin metadata:
 | Last updated | `2026-06-03` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/eyewitness.py bywaf/plugins/http/eyewitness.plugin.toml` |
 
-##### Commandlet: `eyewitness`
+#### Commandlet: `eyewitness`
 
 Example usage: `http_probe https://example.com/ | eyewitness`
 
@@ -1122,7 +1120,7 @@ Example usage: `http_probe https://example.com/ | eyewitness`
 
 <a id="httpscreenshotter"></a>
 
-#### `http.screenshotter`
+### `http.screenshotter`
 
 Friendly Bywaf commandlet name for the same EyeWitness screenshot workflow.
 
@@ -1137,7 +1135,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/screenshotter.py bywaf/plugins/http/screenshotter.plugin.toml` |
 
-##### Commandlet: `screenshotter`
+#### Commandlet: `screenshotter`
 
 Example usage: `http_probe https://example.com/ | screenshotter`
 
@@ -1159,15 +1157,15 @@ Example usage: `http_probe https://example.com/ | screenshotter`
 
 [Back to HTTP plugin TOC](#http-plugin-toc) | [Back to document HTTP TOC entry](#toc-http)
 
-### Wireless
+## Wireless
 
-#### Wireless Plugin TOC
+### Wireless Plugin TOC
 
 - [wireless.wifi_scan](#wirelesswifi_scan)
 
 <a id="wirelesswifi_scan"></a>
 
-#### `wireless.wifi_scan`
+### `wireless.wifi_scan`
 
 Wraps Kismet-style wireless scanning and stores produced logs.
 
@@ -1182,7 +1180,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/wireless/wifi_scan.py bywaf/plugins/wireless/wifi_scan.plugin.toml` |
 
-##### Commandlet: `wifi_scan`
+#### Commandlet: `wifi_scan`
 
 Example usage: `wifi_scan interface=wlan0mon duration=60`
 
@@ -1202,9 +1200,9 @@ Example usage: `wifi_scan interface=wlan0mon duration=60`
 
 [Back to Wireless plugin TOC](#wireless-plugin-toc) | [Back to document Wireless TOC entry](#toc-wireless)
 
-### Analysis
+## Analysis
 
-#### Analysis Plugin TOC
+### Analysis Plugin TOC
 
 - [analysis.finding](#analysisfinding)
 - [analysis.finding_dedupe](#analysisfinding_dedupe)
@@ -1214,7 +1212,7 @@ Example usage: `wifi_scan interface=wlan0mon duration=60`
 
 <a id="analysisfinding_dedupe"></a>
 
-#### `analysis.finding_dedupe`
+### `analysis.finding_dedupe`
 
 Normalizes and deduplicates raw finding streams.
 
@@ -1229,7 +1227,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/analysis/finding_dedupe.py bywaf/plugins/analysis/finding_dedupe.plugin.toml` |
 
-##### Commandlet: `finding_dedupe`
+#### Commandlet: `finding_dedupe`
 
 Example usage: `nikto https://example.com/ | finding_dedupe`
 
@@ -1252,7 +1250,7 @@ Example usage: `nikto https://example.com/ | finding_dedupe`
 
 <a id="analysisfinding_report"></a>
 
-#### `analysis.finding_report`
+### `analysis.finding_report`
 
 Renders finding tables and exports report artifacts.
 
@@ -1267,7 +1265,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/analysis/finding_report.py bywaf/plugins/analysis/finding_report.plugin.toml` |
 
-##### Commandlet: `finding_report`
+#### Commandlet: `finding_report`
 
 Example usage: `finding_report export=findings.md`
 
@@ -1289,7 +1287,7 @@ Example usage: `finding_report export=findings.md`
 
 <a id="analysisreport"></a>
 
-#### `analysis.report`
+### `analysis.report`
 
 Operator finding inbox for reviewing and scoping report findings.
 
@@ -1304,7 +1302,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/analysis/report bywaf/plugins/analysis/report.plugin.toml` |
 
-##### Commandlet: `report`
+#### Commandlet: `report`
 
 Example usage: `report accept 1-3 pipeline=1`
 
@@ -1335,7 +1333,7 @@ Example usage: `report accept 1-3 pipeline=1`
 
 <a id="analysisfinding"></a>
 
-#### `analysis.finding`
+### `analysis.finding`
 
 Lower-level commandlet for confirming or unconfirming finding rows.
 
@@ -1350,7 +1348,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/analysis/finding.py bywaf/plugins/analysis/finding.plugin.toml` |
 
-##### Commandlet: `finding`
+#### Commandlet: `finding`
 
 Example usage: `finding confirm 1-3 pipeline=1`
 
@@ -1374,7 +1372,7 @@ Example usage: `finding confirm 1-3 pipeline=1`
 
 <a id="analysisyara_scan"></a>
 
-#### `analysis.yara_scan`
+### `analysis.yara_scan`
 
 Scans files with YARA rules.
 
@@ -1389,7 +1387,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/analysis/yara_scan.py bywaf/plugins/analysis/yara_scan.plugin.toml` |
 
-##### Commandlet: `yara_scan`
+#### Commandlet: `yara_scan`
 
 Example usage: `yara_scan rule=webshells.yar shell.php`
 
@@ -1405,9 +1403,9 @@ Example usage: `yara_scan rule=webshells.yar shell.php`
 
 [Back to Analysis plugin TOC](#analysis-plugin-toc) | [Back to document Analysis TOC entry](#toc-analysis)
 
-### Runtime
+## Runtime
 
-#### Runtime Plugin TOC
+### Runtime Plugin TOC
 
 - [runtime.artifact](#runtimeartifact)
 - [runtime.audit](#runtimeaudit)
@@ -1426,7 +1424,7 @@ Example usage: `yara_scan rule=webshells.yar shell.php`
 
 <a id="runtimeartifact"></a>
 
-#### `runtime.artifact`
+### `runtime.artifact`
 
 Manages evidence artifacts in the paired artifact database.
 
@@ -1441,7 +1439,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/artifact bywaf/plugins/runtime/artifact.plugin.toml` |
 
-##### Commandlet: `artifact`
+#### Commandlet: `artifact`
 
 Example usage: `artifact list step=12`
 
@@ -1462,7 +1460,7 @@ Example usage: `artifact list step=12`
 | `encoding=` | No | Encoding for `cat`. | `utf-8` | Encoding for `cat`. |
 | `--page` | No | Binary flag; page list or cat output. | `--page` | Binary flag; page list or cat output. |
 
-##### Commandlet: `search`
+#### Commandlet: `search`
 
 Example usage: `search filename=evidence.txt`
 
@@ -1490,7 +1488,7 @@ Example usage: `search filename=evidence.txt`
 
 <a id="runtimebundle"></a>
 
-#### `runtime.bundle`
+### `runtime.bundle`
 
 Builds evidence/report bundles for handoff.
 
@@ -1505,7 +1503,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/bundle.py bywaf/plugins/runtime/bundle.plugin.toml` |
 
-##### Commandlet: `bundle`
+#### Commandlet: `bundle`
 
 Example usage: `bundle add name=client-a evidence commandlet=nikto,webfin`
 
@@ -1535,7 +1533,7 @@ Example usage: `bundle add name=client-a evidence commandlet=nikto,webfin`
 
 <a id="runtimeaudit"></a>
 
-#### `runtime.audit`
+### `runtime.audit`
 
 Inspects or exports audit records.
 
@@ -1550,7 +1548,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/audit bywaf/plugins/runtime/audit.plugin.toml` |
 
-##### Commandlet: `audit`
+#### Commandlet: `audit`
 
 Example usage: `audit export file=audit.jsonl`
 
@@ -1575,7 +1573,7 @@ Example usage: `audit export file=audit.jsonl`
 
 <a id="runtimeinventory"></a>
 
-#### `runtime.inventory`
+### `runtime.inventory`
 
 Provides compact domain-specific inventory views over stored facts.
 
@@ -1590,7 +1588,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/inventory.py bywaf/plugins/runtime/inventory.plugin.toml bywaf/plugins/runtime/inventory_views` |
 
-##### Commandlets: `hosts`, `services`, `web`, `wafs`, `shares`, `routes`, `certs`, `banners`, `paths`, `screenshots`
+#### Commandlets: `hosts`, `services`, `web`, `wafs`, `shares`, `routes`, `certs`, `banners`, `paths`, `screenshots`
 
 Example usage: `web pipeline=1 --page`
 
@@ -1613,7 +1611,7 @@ Example usage: `web pipeline=1 --page`
 
 <a id="runtimejob"></a>
 
-#### `runtime.job`
+### `runtime.job`
 
 Inspects and controls background jobs.
 
@@ -1628,7 +1626,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/job.py bywaf/plugins/runtime/job.plugin.toml` |
 
-##### Commandlet: `job`
+#### Commandlet: `job`
 
 Example usage: `job --all`
 
@@ -1652,7 +1650,7 @@ Example usage: `job --all`
 
 <a id="runtimepipeline"></a>
 
-#### `runtime.pipeline`
+### `runtime.pipeline`
 
 Inspects and controls pipelines.
 
@@ -1667,7 +1665,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/pipeline.py bywaf/plugins/runtime/pipeline.plugin.toml` |
 
-##### Commandlet: `pipeline`
+#### Commandlet: `pipeline`
 
 Example usage: `pipeline attach 1 portscanner step=1`
 
@@ -1693,7 +1691,7 @@ Example usage: `pipeline attach 1 portscanner step=1`
 
 <a id="runtimestep"></a>
 
-#### `runtime.step`
+### `runtime.step`
 
 Inspects pipeline steps.
 
@@ -1708,7 +1706,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/step.py bywaf/plugins/runtime/step.plugin.toml` |
 
-##### Commandlet: `step`
+#### Commandlet: `step`
 
 Example usage: `step --new`
 
@@ -1728,7 +1726,7 @@ Example usage: `step --new`
 
 <a id="runtimeresults"></a>
 
-#### `runtime.results`
+### `runtime.results`
 
 Shows what the latest or selected scan found.
 
@@ -1743,7 +1741,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/results bywaf/plugins/runtime/results.plugin.toml` |
 
-##### Commandlets: `results`, `result`
+#### Commandlets: `results`, `result`
 
 Example usage: `results job=latest`
 
@@ -1766,7 +1764,7 @@ Example usage: `results job=latest`
 
 <a id="runtimecontrol"></a>
 
-#### `runtime.control`
+### `runtime.control`
 
 Requests or applies runtime control actions.
 
@@ -1781,7 +1779,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/control bywaf/plugins/runtime/control.plugin.toml` |
 
-##### Commandlets: `signal`, `end`, `kill`, `cancel`, `pause`, `resume`, `stop`
+#### Commandlets: `signal`, `end`, `kill`, `cancel`, `pause`, `resume`, `stop`
 
 Example usage: `pause job=7`
 
@@ -1801,7 +1799,7 @@ Example usage: `pause job=7`
 
 <a id="runtimenote"></a>
 
-#### `runtime.note`
+### `runtime.note`
 
 Shows or saves notes attached to jobs, pipelines, and pipeline steps.
 
@@ -1816,7 +1814,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/note.py bywaf/plugins/runtime/note.plugin.toml` |
 
-##### Commandlet: `note`
+#### Commandlet: `note`
 
 Example usage: `note add step=12 text=validated manually`
 
@@ -1837,7 +1835,7 @@ Example usage: `note add step=12 text=validated manually`
 
 <a id="runtimename"></a>
 
-#### `runtime.name`
+### `runtime.name`
 
 Shows or assigns human-readable names to jobs, pipelines, and pipeline steps.
 
@@ -1852,7 +1850,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/name.py bywaf/plugins/runtime/name.plugin.toml` |
 
-##### Commandlet: `name`
+#### Commandlet: `name`
 
 Example usage: `name pipeline=1 client subnet scan`
 
@@ -1871,7 +1869,7 @@ Example usage: `name pipeline=1 client subnet scan`
 
 <a id="runtimekey"></a>
 
-#### `runtime.key`
+### `runtime.key`
 
 Manages signing keys for plugin and catalog trust workflows.
 
@@ -1886,7 +1884,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/key.py bywaf/plugins/runtime/key.plugin.toml` |
 
-##### Commandlet: `key`
+#### Commandlet: `key`
 
 Example usage: `key generate name=firm-evidence`
 
@@ -1906,7 +1904,7 @@ Example usage: `key generate name=firm-evidence`
 
 <a id="runtimeschemas"></a>
 
-#### `runtime.schemas`
+### `runtime.schemas`
 
 Inspects the active event schema catalog.
 
@@ -1921,7 +1919,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/schemas.py bywaf/plugins/runtime/schemas.plugin.toml` |
 
-##### Commandlet: `schemas`
+#### Commandlet: `schemas`
 
 Example usage: `schemas owner=plugin`
 
@@ -1940,7 +1938,7 @@ Example usage: `schemas owner=plugin`
 
 <a id="runtimewatchdog"></a>
 
-#### `runtime.watchdog`
+### `runtime.watchdog`
 
 Monitors runtime health, stalls, and error rates.
 
@@ -1955,7 +1953,7 @@ Plugin metadata:
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/watchdog.py bywaf/plugins/runtime/watchdog.plugin.toml` |
 
-##### Commandlet: `watchdog`
+#### Commandlet: `watchdog`
 
 Example usage: `watchdog --session-service`
 
@@ -1975,15 +1973,15 @@ Example usage: `watchdog --session-service`
 
 [Back to Runtime plugin TOC](#runtime-plugin-toc) | [Back to document Runtime TOC entry](#toc-runtime)
 
-### Storage
+## Storage
 
-#### Storage Plugin TOC
+### Storage Plugin TOC
 
 - [storage.db](#storagedb)
 
 <a id="storagedb"></a>
 
-#### `storage.db`
+### `storage.db`
 
 Manages the active event database and paired artifact database.
 
@@ -1998,7 +1996,7 @@ Plugin metadata:
 | Last updated | `2026-06-03` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/storage/db.py bywaf/plugins/storage/db.plugin.toml` |
 
-##### Commandlet: `db`
+#### Commandlet: `db`
 
 Example usage: `db status`
 
