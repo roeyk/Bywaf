@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 
 from bywaf.finding import severity_class
 from bywaf.plugin import CommandContext
-from bywaf.plugins.analysis.finding_report import finding_rows
+from bywaf.plugins.analysis.finding_report import compact_table_text, finding_rows
 from bywaf.rendering import Column, Table, align_text, table_values
 from bywaf.runtime_display import shrink_table_widths, terminal_table_width, truncate_cell
 
@@ -28,6 +28,7 @@ def indexed_findings_table(
             "index": index,
             **row,
             "finding_name": finding_display_name(row, group),
+            "hosts_affected": finding_affected_summary(row, group),
             "review": review_status(group, decisions),
         }
         for index, (group, row) in enumerate(zip(groups, finding_rows(representatives, include_candidates=True), strict=True), start=1)
@@ -61,7 +62,7 @@ def indexed_hosts_table(
         row = {**row, "finding_name": finding_display_name(row, group)}
         review = review_status(group, decisions)
         summary = finding_host_summary(row, review)
-        hosts = affected_hosts_from_row(row)
+        hosts = finding_affected_values(group) or affected_hosts_from_row(row)
         for host in hosts:
             if host not in rows_by_host:
                 rows_by_host[host] = []
@@ -109,6 +110,69 @@ def group_has_confirmed_event(group: FindingGroup) -> bool:
         or str(effective_finding_payload(event).get("status") or "").casefold() == "confirmed"
         for event in group.events
     )
+
+
+def finding_affected_summary(row: Mapping[str, object], group: FindingGroup) -> str:
+    """Return a compact affected-resource summary for one finding table row."""
+    values = finding_affected_values(group)
+    if not values:
+        return str(row.get("hosts_affected") or "")
+    if len(values) == 1:
+        return values[0]
+    shown = values[:2]
+    suffix = f"; +{len(values) - len(shown)} more" if len(values) > len(shown) else ""
+    return f"{len(values)} affected: {'; '.join(shown)}{suffix}"
+
+
+def finding_affected_values(group: FindingGroup) -> list[str]:
+    """Return unique affected resources represented by one finding group."""
+    values: list[str] = []
+    for event in group.events:
+        payload = effective_finding_payload(event)
+        values.extend(values_from_affected(payload.get("affected")))
+        target_value = compact_target_value(payload.get("target"))
+        if target_value:
+            values.append(target_value)
+    return unique_compact_values(values)
+
+
+def values_from_affected(raw: object) -> list[str]:
+    """Return display strings from a normalized affected list."""
+    if not isinstance(raw, list):
+        return []
+    return [value for item in raw if (value := compact_target_value(item))]
+
+
+def compact_target_value(raw: object) -> str:
+    """Return one compact target/affected resource string."""
+    if not isinstance(raw, Mapping):
+        return str(raw) if raw else ""
+    url = raw.get("url")
+    if url:
+        return str(url)
+    host = str(raw.get("host") or raw.get("ip") or "")
+    port = str(raw.get("port") or "")
+    protocol = str(raw.get("protocol") or "")
+    path = str(raw.get("path") or "")
+    scheme = str(raw.get("scheme") or "")
+    if host:
+        authority = f"{host}:{port}" if port else host
+        if protocol:
+            authority = f"{authority}/{protocol}"
+        return f"{scheme}://{authority}{path}" if scheme else f"{authority}{path}"
+    return compact_table_text(raw)
+
+
+def unique_compact_values(values: Iterable[object]) -> list[str]:
+    """Return stable unique non-empty compact strings."""
+    unique: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        text = compact_table_text(value)
+        if text and text not in seen:
+            unique.append(text)
+            seen.add(text)
+    return unique
 
 
 def affected_hosts_from_row(row: Mapping[str, object]) -> list[str]:

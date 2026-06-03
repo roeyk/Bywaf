@@ -252,6 +252,58 @@ class ReportGroupingTests(unittest.TestCase):
             )
             self.assertEqual(rendered.payload["rows"], 1)
 
+    def test_report_inbox_summarizes_grouped_affected_resources(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            first = runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "git-config-one",
+                    "class": "web.exposure.git_config",
+                    "title": "Exposed Git repository configuration",
+                    "target_scope": {"kind": "web_origin", "value": "https://example.test"},
+                    "target": {"url": "https://example.test/.git/config", "host": "example.test", "path": "/.git/config"},
+                    "identifiers": {"cwe": ["CWE-538"]},
+                    "affected": [{"url": "https://example.test/.git/config", "host": "example.test", "path": "/.git/config"}],
+                    "severity": "high",
+                },
+                "http_paths",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+            second = runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "git-config-two",
+                    "class": "web.exposure.git_config",
+                    "title": "Exposed Git repository configuration",
+                    "target_scope": {"kind": "web_origin", "value": "https://example.test"},
+                    "target": {"url": "https://example.test/app/.git/config", "host": "example.test", "path": "/app/.git/config"},
+                    "identifiers": {"cwe": ["CWE-538"]},
+                    "affected": [{"url": "https://example.test/app/.git/config", "host": "example.test", "path": "/app/.git/config"}],
+                    "severity": "high",
+                },
+                "repo_exposure",
+                pipeline_id="pipeline-a",
+                command_run_id="run-b",
+            )
+
+            output = io.StringIO()
+            with (
+                patch("bywaf.runtime_display.shutil.get_terminal_size", return_value=os.terminal_size((180, 24))),
+                contextlib.redirect_stdout(output),
+            ):
+                runner.execute("report pipeline=pipeline-a")
+                process_framework_requests(runner, ShellState())
+
+            text = output.getvalue()
+            self.assertIn("Report scope: pipeline=pipeline-a (1 finding group, 2 events)", text)
+            self.assertIn("2 affected: https://example.test/.git/config; https://example.test/app/.git/config", text)
+            rendered = runner.db.events_for_topic("report.rendered")[0]
+            self.assertEqual(rendered.payload["events"], [first.id, second.id])
+            self.assertEqual(rendered.payload["groups"], ["web.exposure.git_config|web_origin:https://example.test|cwe:CWE-538"])
+            self.assertEqual(rendered.payload["rows"], 1)
+
     def test_report_splits_same_cve_when_target_scope_is_route_specific(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))

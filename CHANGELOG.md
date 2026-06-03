@@ -35,6 +35,9 @@ impact label and sorted from highest to lowest operator/developer impact:
 - [high] Made `report` default to a compact finding inbox and added
   `report <#>` / `report detail <#>` drill-down for evidence, artifacts,
   provenance, and latest-update details.
+- [medium] Improved compact report inbox rows so grouped findings summarize
+  all affected resources represented by the group, instead of only the newest
+  representative event.
 - [medium] Added report resume focus summaries and expanded wrapper diagnostics
   so Kismet and traceroute failures link retained process-output artifacts.
 - [medium] Added structured `tool.error` diagnostics and plugin-level fixture

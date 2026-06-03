@@ -60,6 +60,13 @@ Findings
 Use `report <#>` or `report detail <#>` for evidence, artifacts, and provenance.
 ```
 
+When multiple events group into one logical finding, the compact inbox
+summarizes the affected resources represented by the group. For example, a
+web-origin finding observed on two URLs can render as `2 affected:
+https://example/.git/config; https://example/app/.git/config` in the
+`Affected` column, while `report <#>` shows the full affected/evidence/source
+detail.
+
 By default, `report` shows open findings: unreviewed findings plus confirmed
 findings that should stay visible during field work. Use `status=all`,
 `status=accepted`, `status=confirmed`, `status=deferred`, `status=rejected`, or
