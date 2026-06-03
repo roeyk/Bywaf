@@ -101,6 +101,10 @@ security are separate layers.
 - Prefer small, testable batches. Complete each batch through implementation,
   focused validation, metrics when relevant, and documentation/tracker updates
   when behavior or conventions change.
+- End-of-batch reports should include the next suggested plan of action. When
+  the likely next step has material choices or questions, include the
+  assistant's suggested answers/defaults so the user can quickly approve,
+  adjust, or reject them.
 - Use existing package boundaries and helper APIs before adding abstractions.
   Split only when the new module has a clear responsibility and reduces future
   friction.
