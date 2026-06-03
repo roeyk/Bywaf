@@ -1815,12 +1815,12 @@ ready to export.
 
 ### `runtime.audit`
 
-Inspects or exports audit records.
+Inspects, reports, or exports audit records.
 
 
-Use this to inspect or export the event trail behind a run. Audit output is most useful
-when you need to explain what happened, preserve provenance, or produce a
-machine-readable activity record.
+Use this to inspect, summarize, or export the event trail behind a run. Audit output is
+most useful when you need to explain what happened, preserve provenance, review
+policy decisions, or produce a machine-readable activity record.
 
 Plugin metadata:
 
@@ -1834,26 +1834,38 @@ Plugin metadata:
 
 #### Commandlet: `audit`
 
-Example usage: `audit export file=audit.jsonl`
+Example usage: `audit list policy decision=warn`
 
 Use `audit` to view or export the event trail for a scope. Exported audit files are
-useful for handoff, troubleshooting, and proving how a finding or artifact was produced.
+useful for handoff, troubleshooting, and proving how a finding or artifact was
+produced. The `audit list policy` view answers operator questions about scope
+enforcement: which commandlet tried to act on a target, what targets policy kept
+or removed, whether the decision was allowed or warned/blocked, which warning or
+repair explains the decision, and which step or job created the evidence. It
+reports existing `policy.evaluated` events; it does not run a scanner or duplicate
+policy enforcement.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
-| `<action>` | Yes | Audit action such as `show`, `list`, or `export`. | `export` | Audit action such as `show`, `list`, or `export`. |
+| `<action>` | Yes | Audit action such as `show`, `list`, or `export`. | `list` | Audit action such as `show`, `list`, or `export`. |
+| `<list-target>` | For `list` | `capabilities` or `policy`. | `policy` | Selects an audit inventory/report view. |
 | `file=` | For export | Export file path. | `audit.jsonl` | Export file path. |
 | `topic=` | No | Topic selector. | `finding.new` | Topic selector. |
 | `step=` | No | Step selector. | `12` | Step selector. |
 | `pipeline=` | No | Pipeline selector. | `1` | Pipeline selector. |
 | `job=` | No | Job id or serial selector. | `7` | Job id or serial selector. |
 | `serial=` | No | Runtime serial selector. | `run-abc123` | Runtime serial selector. |
+| `since=` | No | Compact time or scoped bound such as `step:<id>`. | `20260601` | Lower audit window bound. |
+| `until=` | No | Compact time or scoped bound such as `job:<id>`. | `20260602` | Upper audit window bound. |
+| `plugin=` | No | Commandlet name for `list` views. | `hostscanner` | Filters capability or policy reports to one commandlet. |
+| `decision=` | No | Policy decision for `list policy`. | `warn` | Filters policy decisions by outcome. |
+| `target=` | No | Target text for `list policy`. | `198.51.100.10` | Filters policy decisions whose before/after target list contains the text. |
 | `format=` | No | Export format or `auto`. | `auto` | Export format or `auto`. |
 | `limit=` | No | Maximum events to show or export. | `1000` | Maximum events to show or export. |
 | `--encrypt` | No | Binary flag; encrypt supported exports. | `--encrypt` | Binary flag; encrypt supported exports. |
 
-- Visible output: prints selected audit records or export summaries; encrypted
-  exports may prompt for a passphrase.
+- Visible output: prints selected audit records, inventory tables, policy decision
+  tables, or export summaries; encrypted exports may prompt for a passphrase.
 - Emits: export artifacts when applicable.
 
 [Back to Runtime plugin TOC](#runtime-plugin-toc) | [Back to document Runtime TOC entry](#toc-runtime)

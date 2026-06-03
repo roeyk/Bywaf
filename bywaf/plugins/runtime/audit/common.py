@@ -15,9 +15,9 @@ from argparse import Namespace
 from bywaf.plugin import CommandContext
 
 AUDIT_ACTIONS = ("export", "list", "show")
-AUDIT_LIST_TARGETS = ("capabilities",)
+AUDIT_LIST_TARGETS = ("capabilities", "policy")
 AUDIT_FORMATS = ("json", "jsonl", "pdf", "sqlite")
 AUDIT_SELECTORS = {"file", "topic", "step", "pipeline", "job", "serial", "since", "until"}
-AUDIT_LIST_SELECTORS = {"plugin"}
+AUDIT_LIST_SELECTORS = {"decision", "job", "pipeline", "plugin", "serial", "since", "step", "target", "until"}
 
 AuditActionHandler = Callable[[CommandContext, Namespace, dict[str, str]], None]

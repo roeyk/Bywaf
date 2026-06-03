@@ -161,7 +161,12 @@ Audit evidence is stored as events:
 ```text
 bywaf> event plugin.capability.used
 bywaf> audit list capabilities
+bywaf> audit list policy decision=warn
 ```
+
+Use `audit list policy` to review scope and policy decisions after a run: which
+commandlet tried to act on a target, what policy kept or removed, and what
+warning or repair explains the decision.
 
 Artifacts are tracked separately but linked back to runtime provenance:
 

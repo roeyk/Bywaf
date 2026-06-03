@@ -464,6 +464,7 @@ Audit logs are stored as SQLite events, but `audit` has a different job than
 | Runtime/provenance debugging | `event <id>` or `event <selector>` | Shows event-bus records and nearby job/step context. |
 | Evidence review | `audit show ...` | Shows selected records as an assessment audit trail. |
 | Capability inventory | `audit list capabilities` | Compares declared capabilities with observed runtime behavior. |
+| Scope/policy review | `audit list policy` | Shows what the framework allowed, warned about, or blocked during policy evaluation. |
 | Handoff/export | `audit export ...` | Writes portable JSONL, PDF, or SQLite output. |
 
 The short rule is: `event` explains the bus; `audit` explains the assessment.
@@ -472,10 +473,21 @@ The short rule is: `event` explains the bus; `audit` explains the assessment.
 bywaf> audit show topic=console.alert since=20260517 until=20260518
 bywaf> audit list capabilities
 bywaf> audit list capabilities plugin=nikto
+bywaf> audit list policy
+bywaf> audit list policy decision=warn
+bywaf> audit list policy plugin=hostscanner target=198.51.100.10
 bywaf> audit export file=audit.pdf since=step:<step-id>
 bywaf> audit export --encrypt file=audit.sqlite3
 bywaf> audit export --encrypt file=audit.pdf
 ```
+
+Use `audit list policy` when you need to answer operator questions about the
+scope boundary instead of raw event storage: which commandlet tried to act on a
+target, what targets were evaluated before and after policy filtering, whether
+the decision was allowed or warned/blocked, what warning or repair explained the
+decision, and which step or job created the evidence. It reports existing
+`policy.evaluated` audit events; it does not run a scanner or duplicate policy
+enforcement logic.
 
 Unqualified `since=` and `until=` audit bounds default to `time:`. Encrypted
 SQLite audit exports use SQLCipher. Encrypted PDF export uses `pikepdf` when

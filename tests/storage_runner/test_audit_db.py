@@ -68,6 +68,67 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             self.assertEqual(row["Capability"], "db.write:host.found")
             self.assertEqual(row["Code"], "C102.224929")
 
+    def test_audit_list_policy_prints_policy_decisions(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish(
+                "policy.evaluated",
+                {
+                    "commandlet": "hostscanner",
+                    "decision": "warn",
+                    "warnings": ["198.51.100.10 is outside allowed network scope"],
+                    "before": {"targets": ["192.0.2.10", "198.51.100.10"]},
+                    "after": {"targets": ["192.0.2.10"]},
+                    "job_id": None,
+                    "pipeline_id": None,
+                    "command_run_id": "step-1",
+                },
+                "framework",
+                command_run_id="step-1",
+            )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("audit list policy decision=warn target=198.51.100.10")
+                process_framework_requests(runner, ShellState())
+            text = output.getvalue()
+            self.assertIn("Decision", text)
+            self.assertIn("Commandlet", text)
+            self.assertIn("hostscanner", text)
+            self.assertIn("warn", text)
+            self.assertIn("198.51.100.10", text)
+            self.assertIn("outside allowed network scope", text)
+
+    def test_audit_list_policy_filters_plugin(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish(
+                "policy.evaluated",
+                {"commandlet": "hostscanner", "decision": "warn", "before": {"targets": ["198.51.100.10"]}, "after": {"targets": []}},
+                "framework",
+            )
+            runner.db.publish(
+                "policy.evaluated",
+                {"commandlet": "http_probe", "decision": "warn", "before": {"targets": ["203.0.113.5"]}, "after": {"targets": []}},
+                "framework",
+            )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("audit list policy plugin=http_probe")
+                process_framework_requests(runner, ShellState())
+            text = output.getvalue()
+            self.assertIn("http_probe", text)
+            self.assertIn("203.0.113.5", text)
+            self.assertNotIn("hostscanner", text)
+
+    def test_audit_list_policy_reports_no_matches(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("audit list policy")
+                process_framework_requests(runner, ShellState())
+            self.assertIn("No policy decisions matched.", output.getvalue())
+
     def test_audit_show_filters_since_until_time(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

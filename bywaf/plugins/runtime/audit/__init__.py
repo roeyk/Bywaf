@@ -32,6 +32,7 @@ from . import export as audit_export_module
 from .common import AUDIT_ACTIONS, AUDIT_FORMATS, AUDIT_LIST_TARGETS, AuditActionHandler
 from .export import event_record, export_events
 from .inventory import capability_inventory_rows, format_capability_inventory
+from .policy_report import format_policy_decisions, policy_decision_rows
 from .selectors import (
     parse_compact_time as parse_compact_time,
     parse_list_selectors,
@@ -53,6 +54,9 @@ shutil = audit_export_module.shutil
     examples=(
         "audit list capabilities",
         "audit list capabilities plugin=nikto",
+        "audit list policy",
+        "audit list policy decision=warn",
+        "audit list policy plugin=hostscanner target=198.51.100.10",
         "audit show topic=plugin.capability.used",
         "audit show step=1",
         "audit show serial=hostscanner-...",
@@ -97,7 +101,7 @@ class Audit(CommandletBase):
         if args and args[0] == "list":
             if len(args) == 1:
                 return list(AUDIT_LIST_TARGETS)
-            return ["plugin="]
+            return ["plugin=", "decision=", "target=", "step=", "pipeline=", "job=", "serial=", "since=", "until="]
         if prefix.startswith("file="):
             return [f"file={candidate}" for candidate in complete_path(prefix.removeprefix("file="))]
         return ["file=", "topic=", "step=", "pipeline=", "job=", "serial=", "since=", "until="]
@@ -135,10 +139,17 @@ def list_audit_action(context: CommandContext, parsed: Namespace, selectors: dic
     """Print audit inventory reports."""
     del parsed
     target = selectors.pop("_target", "")
-    if target != "capabilities":
-        raise ValueError("audit list supports: capabilities")
-    rows = capability_inventory_rows(context, plugin_filter=selectors.get("plugin"))
-    context.output(format_capability_inventory(rows))
+    if target == "capabilities":
+        unsupported = set(selectors) - {"plugin"}
+        if unsupported:
+            raise ValueError(f"unsupported audit capability selector: {sorted(unsupported)[0]}")
+        rows = capability_inventory_rows(context, plugin_filter=selectors.get("plugin"))
+        context.output(format_capability_inventory(rows))
+        return
+    if target == "policy":
+        context.output(format_policy_decisions(policy_decision_rows(context, selectors)))
+        return
+    raise ValueError("audit list supports: capabilities, policy")
 
 
 def plugin() -> Commandlet:
