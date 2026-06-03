@@ -18,6 +18,7 @@ from bywaf.time_format import format_operator_timestamp
 from .selectors import selected_events
 
 POLICY_SELECTOR_KEYS = {"decision", "job", "pipeline", "plugin", "serial", "since", "step", "target", "until"}
+POLICY_DECISIONS = ("allow", "warn", "deny", "block")
 
 
 def policy_decision_rows(context: CommandContext, selectors: dict[str, str]) -> list[dict[str, str]]:
@@ -31,8 +32,72 @@ def policy_decision_rows(context: CommandContext, selectors: dict[str, str]) -> 
     return [policy_decision_row(event) for event in events if policy_event_matches(event, selectors)]
 
 
+def policy_selector_completion_candidates(context: object, prefix: str) -> list[str]:
+    """Return `audit list policy` selector value completions."""
+    db = getattr(context, "db", None)
+    if db is None:
+        return []
+    key, separator, value_prefix = prefix.partition("=")
+    if separator != "=":
+        return [f"{candidate}=" for candidate in sorted(POLICY_SELECTOR_KEYS) if f"{candidate}=".startswith(prefix)]
+    values = policy_selector_values(db, key)
+    return [f"{key}={value}" for value in values if value.startswith(value_prefix)]
+
+
+def policy_selector_values(db: object, key: str) -> list[str]:
+    """Return value candidates for one policy report selector."""
+    if key == "decision":
+        return sorted({*POLICY_DECISIONS, *policy_decision_values(db)})
+    if key == "plugin":
+        return policy_plugin_values(db)
+    if key == "target":
+        return policy_target_completion_values(db)
+    if key == "step":
+        return list(getattr(db, "run_aliases")().values())
+    if key == "pipeline":
+        return list(getattr(db, "pipeline_aliases")().values())
+    if key == "job":
+        return [str(row["id"]) for row in getattr(db, "jobs")()]
+    if key == "serial":
+        return list(getattr(db, "serials")())
+    return []
+
+
+def policy_decision_values(db: object) -> list[str]:
+    """Return observed policy decision labels."""
+    return sorted(
+        {
+            str(event.payload.get("decision"))
+            for event in getattr(db, "events_for_topic")("policy.evaluated", limit=100000)
+            if event.payload.get("decision")
+        }
+    )
+
+
+def policy_plugin_values(db: object) -> list[str]:
+    """Return observed commandlet names from policy decisions."""
+    return sorted(
+        {
+            policy_commandlet(event)
+            for event in getattr(db, "events_for_topic")("policy.evaluated", limit=100000)
+            if policy_commandlet(event) != "-"
+        }
+    )
+
+
+def policy_target_completion_values(db: object) -> list[str]:
+    """Return observed before/after targets from policy decisions."""
+    return sorted(
+        {
+            target
+            for event in getattr(db, "events_for_topic")("policy.evaluated", limit=100000)
+            for target in policy_target_values(event)
+        }
+    )
+
+
 def policy_event_matches(event: Event, selectors: dict[str, str]) -> bool:
-    """Return whether a policy event matches operator report filters."""
+    """Return whether a policy event matches operator report selectors."""
     if (decision := selectors.get("decision")) and str(event.payload.get("decision", "")) != decision:
         return False
     if (plugin := selectors.get("plugin")) and policy_commandlet(event) != plugin:

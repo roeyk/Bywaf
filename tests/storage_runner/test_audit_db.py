@@ -98,7 +98,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             self.assertIn("198.51.100.10", text)
             self.assertIn("outside allowed network scope", text)
 
-    def test_audit_list_policy_filters_plugin(self):
+    def test_audit_list_policy_selects_plugin(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.publish(

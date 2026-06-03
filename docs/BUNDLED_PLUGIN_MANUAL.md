@@ -1857,9 +1857,9 @@ policy enforcement.
 | `serial=` | No | Runtime serial selector. | `run-abc123` | Runtime serial selector. |
 | `since=` | No | Compact time or scoped bound such as `step:<id>`. | `20260601` | Lower audit window bound. |
 | `until=` | No | Compact time or scoped bound such as `job:<id>`. | `20260602` | Upper audit window bound. |
-| `plugin=` | No | Commandlet name for `list` views. | `hostscanner` | Filters capability or policy reports to one commandlet. |
-| `decision=` | No | Policy decision for `list policy`. | `warn` | Filters policy decisions by outcome. |
-| `target=` | No | Target text for `list policy`. | `198.51.100.10` | Filters policy decisions whose before/after target list contains the text. |
+| `plugin=` | No | Commandlet name for `list` views. | `hostscanner` | Selects capability or policy report rows for one commandlet. |
+| `decision=` | No | Policy decision for `list policy`. | `warn` | Selects policy decisions by outcome. |
+| `target=` | No | Target text for `list policy`. | `198.51.100.10` | Selects policy decisions whose before/after target list contains the text. |
 | `format=` | No | Export format or `auto`. | `auto` | Export format or `auto`. |
 | `limit=` | No | Maximum events to show or export. | `1000` | Maximum events to show or export. |
 | `--encrypt` | No | Binary flag; encrypt supported exports. | `--encrypt` | Binary flag; encrypt supported exports. |

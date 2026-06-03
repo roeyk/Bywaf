@@ -32,7 +32,7 @@ from . import export as audit_export_module
 from .common import AUDIT_ACTIONS, AUDIT_FORMATS, AUDIT_LIST_TARGETS, AuditActionHandler
 from .export import event_record, export_events
 from .inventory import capability_inventory_rows, format_capability_inventory
-from .policy_report import format_policy_decisions, policy_decision_rows
+from .policy_report import format_policy_decisions, policy_decision_rows, policy_selector_completion_candidates
 from .selectors import (
     parse_compact_time as parse_compact_time,
     parse_list_selectors,
@@ -93,7 +93,6 @@ class Audit(CommandletBase):
 
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
         """Complete audit actions, list targets, selectors, and filesystem paths."""
-        del context
         if not args:
             return list(AUDIT_ACTIONS)
         if len(args) == 1 and args[0] not in AUDIT_ACTIONS:
@@ -101,6 +100,8 @@ class Audit(CommandletBase):
         if args and args[0] == "list":
             if len(args) == 1:
                 return list(AUDIT_LIST_TARGETS)
+            if len(args) >= 2 and args[1] == "policy":
+                return policy_selector_completion_candidates(context, prefix)
             return ["plugin=", "decision=", "target=", "step=", "pipeline=", "job=", "serial=", "since=", "until="]
         if prefix.startswith("file="):
             return [f"file={candidate}" for candidate in complete_path(prefix.removeprefix("file="))]

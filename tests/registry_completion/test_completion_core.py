@@ -248,6 +248,39 @@ class RegistryCompletionCoreTests(unittest.TestCase):
             self.assertEqual(completer.candidates("event job="), [f"job={job_id}"])
             self.assertIn("topic=host.found", completer.candidates("event topic="))
 
+    def test_audit_policy_completes_selector_values(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "db.sqlite3"))
+            db.publish(
+                "policy.evaluated",
+                {
+                    "commandlet": "hostscanner",
+                    "decision": "warn",
+                    "warnings": ["198.51.100.10 is outside allowed network scope"],
+                    "before": {"targets": ["192.0.2.10", "198.51.100.10"]},
+                    "after": {"targets": ["192.0.2.10"]},
+                    "job_id": None,
+                    "pipeline_id": "pipeline-1",
+                    "command_run_id": "run-1",
+                },
+                "framework",
+                pipeline_id="pipeline-1",
+                command_run_id="run-1",
+            )
+            job_id = db.record_job("hostscanner 198.51.100.10", 123, "done")
+            completer = Completer(self.registry, db)
+
+            self.assertEqual(completer.candidates("audit list policy d"), ["decision="])
+            self.assertIn("decision=warn", completer.candidates("audit list policy decision="))
+            self.assertIn("decision=allow", completer.candidates("audit list policy decision="))
+            self.assertEqual(completer.candidates("audit list policy plugin=host"), ["plugin=hostscanner"])
+            self.assertEqual(completer.candidates("audit list policy target=198"), ["target=198.51.100.10"])
+            self.assertEqual(completer.candidates("audit list policy step="), ["step=1"])
+            self.assertEqual(completer.candidates("audit list policy pipeline="), ["pipeline=1"])
+            self.assertEqual(completer.candidates("audit list policy job="), [f"job={job_id}"])
+            self.assertIn("serial=run-1", completer.candidates("audit list policy serial="))
+            self.assertIn("serial=pipeline-1", completer.candidates("audit list policy serial="))
+
     def test_runtime_completion_metadata_includes_artifact_counts(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))
