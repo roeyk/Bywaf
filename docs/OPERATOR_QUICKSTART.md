@@ -17,6 +17,19 @@ From an installed package:
 bywaf
 ```
 
+For a durable local workspace, run setup once:
+
+```bash
+bywaf --setup
+bywaf project=default
+```
+
+Setup creates `~/.bywaf/config.toml` and
+`~/.bywaf/projects/default/`, including the default project database, project
+config, and project history file. If no user configuration exists, an
+interactive Bywaf startup prints a friendly setup notice; scripted and
+non-interactive runs do not prompt or print that notice.
+
 Create a fresh project database when you want a clean run:
 
 ```text

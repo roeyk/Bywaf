@@ -9,14 +9,19 @@ Used by:
 
 import contextlib
 import io
+from pathlib import Path
+import tempfile
 import unittest
+from unittest.mock import patch
 
 from bywaf.app import (
     build_parser,
     format_event,
     command_from_remainder,
+    main,
     parse_load_spec,
 )
+from bywaf.db import EventStore
 from bywaf.cli_trust import plugin_trust_policy_from_args
 from bywaf.event import Event
 
@@ -58,6 +63,83 @@ class AppDispatchTests(unittest.TestCase):
         parser = build_parser()
         self.assertTrue(parser.parse_args(["--force-plugins"]).force_plugins)
         self.assertTrue(parser.parse_args(["--allow-untrusted-plugins"]).allow_untrusted_plugins)
+
+    def test_build_parser_accepts_setup_and_quiet(self):
+        parser = build_parser()
+        args = parser.parse_args(["--setup", "--quiet"])
+        self.assertTrue(args.setup)
+        self.assertTrue(args.quiet)
+
+    def test_setup_creates_user_config_default_project_and_audit_event(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.dict("os.environ", {"HOME": tmp}):
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(main(["--setup"]), 0)
+
+                config = Path(tmp, ".bywaf", "config.toml")
+                project = Path(tmp, ".bywaf", "projects", "default")
+                database = project / "bywaf.sqlite3"
+                self.assertTrue(config.exists())
+                self.assertTrue((project / "config.toml").exists())
+                self.assertTrue((project / "history.bywaf").exists())
+                self.assertTrue(database.exists())
+                text = output.getvalue()
+                self.assertIn("Bywaf configuration created", text)
+                self.assertIn("Default project created", text)
+
+                events = EventStore(database).events_for_topic("setup.completed")
+                self.assertEqual(len(events), 1)
+                self.assertEqual(events[0].payload["project"], "default")
+
+    def test_quiet_setup_suppresses_summary_but_creates_state(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.dict("os.environ", {"HOME": tmp}):
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(main(["--setup", "--quiet"]), 0)
+                self.assertEqual(output.getvalue(), "")
+                self.assertTrue(Path(tmp, ".bywaf", "config.toml").exists())
+
+    def test_interactive_repl_startup_shows_first_run_notice(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.dict("os.environ", {"HOME": tmp}):
+                output = io.StringIO()
+                with (
+                    contextlib.redirect_stdout(output),
+                    patch("sys.stdin.isatty", return_value=True),
+                    patch("sys.stdout.isatty", return_value=True),
+                    patch("bywaf.app.repl", return_value=None),
+                ):
+                    self.assertEqual(main(["repl"]), 0)
+                self.assertIn("No Bywaf configuration found.", output.getvalue())
+                self.assertIn("Run `bywaf --setup` to create one, or continue with defaults.", output.getvalue())
+
+    def test_quiet_repl_startup_suppresses_first_run_notice(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.dict("os.environ", {"HOME": tmp}):
+                output = io.StringIO()
+                with (
+                    contextlib.redirect_stdout(output),
+                    patch("sys.stdin.isatty", return_value=True),
+                    patch("sys.stdout.isatty", return_value=True),
+                    patch("bywaf.app.repl", return_value=None),
+                ):
+                    self.assertEqual(main(["--quiet", "repl"]), 0)
+                self.assertNotIn("No Bywaf configuration found.", output.getvalue())
+
+    def test_non_interactive_repl_startup_suppresses_first_run_notice(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.dict("os.environ", {"HOME": tmp}):
+                output = io.StringIO()
+                with (
+                    contextlib.redirect_stdout(output),
+                    patch("sys.stdin.isatty", return_value=False),
+                    patch("sys.stdout.isatty", return_value=False),
+                    patch("bywaf.app.repl", return_value=None),
+                ):
+                    self.assertEqual(main(["repl"]), 0)
+                self.assertNotIn("No Bywaf configuration found.", output.getvalue())
 
     def test_build_parser_accepts_plugin_trust_bypasses(self):
         parser = build_parser()

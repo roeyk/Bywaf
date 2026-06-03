@@ -267,6 +267,28 @@ python3 -m pip install -e '.[sqlcipher]'
 
 # Starting Bywaf
 
+Run setup once when you want durable user configuration and a default project:
+
+```bash
+bywaf --setup
+bywaf project=default
+```
+
+`bywaf --setup` creates `~/.bywaf/config.toml` and the default project at
+`~/.bywaf/projects/default/`. The project contains its own database,
+`config.toml`, and `history.bywaf`. If no user configuration exists,
+interactive startup prints:
+
+```text
+No Bywaf configuration found.
+Run `bywaf --setup` to create one, or continue with defaults.
+```
+
+Non-interactive/scripted invocations do not prompt or print the friendly setup
+notice. Use `--quiet` to suppress friendly startup notices in interactive
+sessions too. Setup is optional; without it, ad hoc sessions still use the
+current working directory's `.bywaf/` defaults.
+
 Start the interactive shell:
 
 ```bash
@@ -1346,6 +1368,8 @@ Start in an existing project, or create one before startup:
 bywaf project=client-a
 bywaf --new project=client-b
 bywaf --new --encrypt project=client-c
+bywaf --setup
+bywaf project=default
 ```
 
 Manage projects from the REPL:

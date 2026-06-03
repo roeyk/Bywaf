@@ -61,6 +61,7 @@ from .repl.resources import (
 )
 from .repl.scripts import run_script, script_commands, strip_inline_comment
 from .runner import Runner, add_runner_arguments
+from .setup import first_run_notice_needed, print_first_run_notice, run_setup
 
 # Compatibility export list for code that imports helpers from `bywaf.app`.
 # The implementation has been split across REPL/resource/runner modules, but
@@ -111,6 +112,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="bywaf")
     parser.add_argument("--database", default=str(DEFAULT_DATABASE), help="SQLite database path")
     parser.add_argument("--new", action="store_true", help="create a named project before starting")
+    parser.add_argument("--setup", action="store_true", help="create user configuration and a default project")
+    parser.add_argument("--quiet", action="store_true", help="suppress friendly startup notices")
     parser.add_argument("--encrypt", action="store_true", help="open or create the database with SQLCipher encryption")
     parser.add_argument("--encrypted", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--plugin-root", help="directory containing filesystem plugins")
@@ -209,6 +212,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.version:
         print(__version__)
         return 0
+    setup_result = handle_setup_startup(args)
+    if setup_result is not None:
+        return setup_result
     try:
         project = startup_project(project_name, create=args.new)
     except (FileExistsError, FileNotFoundError, ValueError) as exc:
@@ -247,6 +253,16 @@ def main(argv: list[str] | None = None) -> int:
         return handler(runner, args)
     finally:
         shutdown_runner(runner)
+
+
+def handle_setup_startup(args: argparse.Namespace) -> int | None:
+    """Handle explicit setup or the optional interactive first-run notice."""
+    if args.setup:
+        run_setup(output=not args.quiet)
+        return 0
+    if args.subcommand in ("repl", None) and first_run_notice_needed(quiet=args.quiet):
+        print_first_run_notice()
+    return None
 
 
 CliSubcommandHandler = Callable[[Runner, argparse.Namespace], int]
