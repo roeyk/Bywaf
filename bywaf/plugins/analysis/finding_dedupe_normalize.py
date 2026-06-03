@@ -9,6 +9,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from bywaf.event import Event
+from bywaf.finding.grouping import finding_group_key, normalized_target_scope
 from bywaf.plugins.analysis.finding_dedupe_model import (
     NormalizedFinding,
     TargetIdentity,
@@ -37,6 +38,8 @@ def normalize_event(event: Event) -> NormalizedFinding:
     target = normalize_target(payload)
     identifiers = normalize_identifiers(payload)
     finding_class = str(payload.get("class") or payload.get("kind") or infer_finding_class(title, payload))
+    source = source_payload(event, payload)
+    target_scope = normalize_target_scope(payload)
     return NormalizedFinding(
         source_event_id=event.id,
         source_topic=event.topic,
@@ -48,8 +51,14 @@ def normalize_event(event: Event) -> NormalizedFinding:
         confidence=str(payload.get("confidence") or "medium"),
         severity=str(payload.get("severity") or "unknown"),
         target=target,
+        target_scope=target_scope,
         identifiers=identifiers,
+        affected=normalize_affected(payload),
         evidence=first_text(payload, "evidence", "proof", "details", "data") or "",
+        recommendation=first_text(payload, "recommendation", "remediation") or "",
+        group_key=str(payload.get("group_key") or finding_group_key({"class": finding_class, "target_scope": target_scope, "identifiers": identifiers}, fallback="")),
+        subjects=dict(payload.get("subjects") or {}) if isinstance(payload.get("subjects"), dict) else {},
+        sources=normalize_sources(payload, source),
         raw=payload,
     )
 
@@ -106,6 +115,60 @@ def normalize_identifiers(payload: dict[str, Any]) -> dict[str, list[str]]:
     # payloads that use the `identifiers` object.
     add_embedded_identifiers(identifiers, payload)
     return canonical_identifiers(identifiers)
+
+
+def normalize_target_scope(payload: dict[str, Any]) -> dict[str, str]:
+    """Return normalized target_scope fields for canonical finding payloads."""
+    scope = normalized_target_scope(payload)
+    return scope or {}
+
+
+def normalize_affected(payload: dict[str, Any]) -> list[Any]:
+    """Return normalized affected entries from finding payloads."""
+    affected = payload.get("affected")
+    if isinstance(affected, list):
+        return [item for item in affected if item not in ("", None, {}, [])]
+    return []
+
+
+def normalize_sources(payload: dict[str, Any], fallback: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return source entries from payload plus event provenance fallback."""
+    values: list[dict[str, Any]] = []
+    raw_sources = payload.get("sources")
+    if isinstance(raw_sources, list):
+        values.extend(item for item in raw_sources if isinstance(item, dict))
+    values.append(fallback)
+    return unique_sources(values)
+
+
+def source_payload(event: Event, payload: dict[str, Any]) -> dict[str, Any]:
+    """Return compact source metadata for one normalized event."""
+    return compact_source(
+        {
+            "tool": payload.get("tool") or payload.get("scanner") or event.source,
+            "topic": event.topic,
+            "event_id": event.id,
+            "step": event.command_run_id,
+        }
+    )
+
+
+def unique_sources(values: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return source dictionaries without duplicates."""
+    unique: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for value in values:
+        source = compact_source(value)
+        key = json.dumps(source, sort_keys=True, default=str, separators=(",", ":"))
+        if source and key not in seen:
+            seen.add(key)
+            unique.append(source)
+    return unique
+
+
+def compact_source(value: dict[str, Any]) -> dict[str, Any]:
+    """Drop empty source metadata fields."""
+    return {str(key): item for key, item in value.items() if item not in ("", None, {}, [])}
 
 
 def explicit_identifiers(raw: Any) -> dict[str, list[str]]:

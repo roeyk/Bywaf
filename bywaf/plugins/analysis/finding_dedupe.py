@@ -136,11 +136,13 @@ def dedupe_findings(findings: Iterable[NormalizedFinding], *, fuzzy_threshold: f
             )
             continue
 
-        existing.add_source(finding)
         if status_rank(finding.status) > status_rank(existing.finding.status):
             # A later source can upgrade the canonical record, for example from
             # potential to confirmed. The original source trail remains attached.
             previous = existing.finding
+            existing.source_event_ids.append(finding.source_event_id)
+            previous.merge_from(finding)
+            finding.merge_from(previous)
             existing.finding = finding
             decisions.append(
                 {
@@ -151,6 +153,7 @@ def dedupe_findings(findings: Iterable[NormalizedFinding], *, fuzzy_threshold: f
                 }
             )
         else:
+            existing.add_source(finding)
             decisions.append(
                 {
                     "decision": "duplicate",
@@ -173,7 +176,7 @@ def best_fuzzy_candidate(
     """Return a fuzzy merge candidate when target and class already match."""
     best: tuple[CanonicalFinding, float] | None = None
     for candidate in canonical:
-        if candidate.finding.target.key() != finding.target.key():
+        if candidate.finding.target_identity_key() != finding.target_identity_key():
             continue
         if candidate.finding.finding_class != finding.finding_class:
             continue

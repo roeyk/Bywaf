@@ -253,6 +253,13 @@ identifiers, target identity, and evidence fingerprints. Exact identifiers such
 as CVE/CWE/GHSA/vendor IDs are preferred. Fuzzy text matching is limited to
 low-confidence merge candidates.
 
+When candidates provide `target_scope`, dedupe uses that semantic scope as the
+target identity for exact matching. This lets plugins model one origin-level
+finding observed at multiple URLs: the canonical `finding.new` keeps the
+representative title/status/severity while preserving merged `affected`,
+`identifiers`, `sources`, `subjects`, `target_scope`, and `group_key` fields
+for report grouping and drill-down.
+
 The first implementation uses these normalized topics:
 
 - `finding.candidate`

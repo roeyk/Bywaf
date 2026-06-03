@@ -38,6 +38,9 @@ impact label and sorted from highest to lowest operator/developer impact:
 - [medium] Improved compact report inbox rows so grouped findings summarize
   all affected resources represented by the group, instead of only the newest
   representative event.
+- [medium] Updated `finding_dedupe` canonical findings to preserve normalized
+  target scope, grouping keys, affected resources, identifiers, subjects, and
+  source metadata from merged candidate findings.
 - [medium] Added report resume focus summaries and expanded wrapper diagnostics
   so Kismet and traceroute failures link retained process-output artifacts.
 - [medium] Added structured `tool.error` diagnostics and plugin-level fixture

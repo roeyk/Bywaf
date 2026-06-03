@@ -56,6 +56,59 @@ class FindingDedupeTests(unittest.TestCase):
             self.assertEqual(duplicate["duplicate_of"], duplicate["finding_id"])
             self.assertIn("identifier", duplicate["matched_on"])
 
+    def test_target_scope_dedupes_and_preserves_affected_resources(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            first = db.publish(
+                "finding.candidate",
+                {
+                    "title": "Exposed Git repository configuration",
+                    "class": "web.exposure.git_config",
+                    "target_scope": {"kind": "web_origin", "value": "https://example.test"},
+                    "target": {"scheme": "https", "host": "example.test", "path": "/.git/config"},
+                    "identifiers": {"cwe": ["CWE-538"]},
+                    "affected": [{"url": "https://example.test/.git/config", "path": "/.git/config"}],
+                    "evidence": "root git config returned",
+                    "sources": [{"tool": "http_paths", "topic": "http.path"}],
+                },
+                "http_paths",
+            )
+            second = db.publish(
+                "finding.candidate",
+                {
+                    "title": "Exposed Git repository configuration",
+                    "class": "web.exposure.git_config",
+                    "target_scope": {"kind": "web_origin", "value": "https://example.test"},
+                    "target": {"scheme": "https", "host": "example.test", "path": "/app/.git/config"},
+                    "identifiers": {"cwe": ["CWE-538"]},
+                    "affected": [{"url": "https://example.test/app/.git/config", "path": "/app/.git/config"}],
+                    "evidence": "app git config returned",
+                    "sources": [{"tool": "repo_exposure", "topic": "repo.git_config.checked"}],
+                },
+                "repo_exposure",
+            )
+
+            list(FindingDedupe().run(context_for(db), ["-s"], [first, second]))
+
+            self.assertEqual(len(db.events_for_topic("finding.new")), 1)
+            self.assertEqual(len(db.events_for_topic("finding.duplicate")), 1)
+            finding = db.events_for_topic("finding.new")[0].payload
+            self.assertEqual(finding["target_scope"], {"kind": "web_origin", "value": "https://example.test"})
+            self.assertEqual(finding["identifiers"], {"cwe": ["CWE-538"]})
+            self.assertEqual(
+                finding["affected"],
+                [
+                    {"url": "https://example.test/.git/config", "path": "/.git/config"},
+                    {"url": "https://example.test/app/.git/config", "path": "/app/.git/config"},
+                ],
+            )
+            self.assertEqual(
+                finding["group_key"],
+                "web.exposure.git_config|web_origin:https://example.test|cwe:CWE-538",
+            )
+            self.assertIn({"tool": "http_paths", "topic": "http.path"}, finding["sources"])
+            self.assertIn({"tool": "repo_exposure", "topic": "repo.git_config.checked"}, finding["sources"])
+
     def test_status_upgrade_publishes_updated(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
@@ -65,6 +118,7 @@ class FindingDedupeTests(unittest.TestCase):
                     "title": "Default credentials on admin panel",
                     "url": "https://example.test/admin",
                     "identifiers": {"cwe": ["CWE-798"]},
+                    "affected": [{"url": "https://example.test/admin"}],
                     "verification": "potential",
                 },
                 "scanner-a",
@@ -75,11 +129,17 @@ class FindingDedupeTests(unittest.TestCase):
                     "title": "Default credentials confirmed on admin panel",
                     "url": "https://example.test/admin",
                     "identifiers": {"cwe": ["CWE-798"]},
+                    "affected": [{"url": "https://example.test/login"}],
                     "verification": "confirmed",
                 },
                 "scanner-b",
             )
             list(FindingDedupe().run(context_for(db), ["-s"], [potential, confirmed]))
+            finding = db.events_for_topic("finding.new")[0].payload
+            self.assertEqual(
+                finding["affected"],
+                [{"url": "https://example.test/admin"}, {"url": "https://example.test/login"}],
+            )
             updated = db.events_for_topic("finding.updated")[0].payload
             self.assertEqual(updated["previous_status"], "potential")
             self.assertEqual(updated["new_status"], "confirmed")

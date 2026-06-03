@@ -65,16 +65,28 @@ class NormalizedFinding:
     confidence: str
     severity: str
     target: TargetIdentity
+    target_scope: dict[str, str]
     identifiers: dict[str, list[str]]
+    affected: list[Any] = field(default_factory=list)
     evidence: str = ""
+    recommendation: str = ""
+    group_key: str = ""
+    subjects: dict[str, Any] = field(default_factory=dict)
+    sources: list[dict[str, Any]] = field(default_factory=list)
     raw: dict[str, Any] = field(default_factory=dict)
 
     def exact_key(self) -> str:
         """Return the strongest available dedupe key for this finding."""
         identifier = best_identifier(self.identifiers)
         if identifier:
-            return "|".join(("id", self.target.key(), identifier))
-        return "|".join(("fingerprint", self.target.key(), self.finding_class, evidence_fingerprint(self)))
+            return "|".join(("id", self.target_identity_key(), identifier))
+        return "|".join(("fingerprint", self.target_identity_key(), self.finding_class, evidence_fingerprint(self)))
+
+    def target_identity_key(self) -> str:
+        """Return the target identity used for dedupe matching."""
+        if self.target_scope:
+            return f"{self.target_scope.get('kind', '')}:{self.target_scope.get('value', '')}"
+        return self.target.key()
 
     def fuzzy_basis(self) -> str:
         """Return normalized text used for last-resort fuzzy candidate checks."""
@@ -89,18 +101,29 @@ class NormalizedFinding:
             "severity": self.severity,
             "class": self.finding_class,
             "title": self.title,
+            "target_scope": self.target_scope,
             "target": self.target.as_payload(),
             "identifiers": self.identifiers,
+            "affected": self.affected,
             "evidence": self.evidence,
-            "sources": [
-                {
-                    "tool": self.source_tool,
-                    "topic": self.source_topic,
-                    "event_id": self.source_event_id,
-                    "step": self.source_step,
-                }
-            ],
+            "recommendation": self.recommendation,
+            "group_key": self.group_key,
+            "subjects": self.subjects,
+            "sources": self.sources,
         }
+
+    def merge_from(self, finding: NormalizedFinding) -> None:
+        """Merge non-conflicting finding-model fields from another source."""
+        self.identifiers = merge_identifier_values(self.identifiers, finding.identifiers)
+        self.affected = unique_json_values([*self.affected, *finding.affected])
+        self.sources = unique_json_values([*self.sources, *finding.sources])
+        self.subjects = {**finding.subjects, **self.subjects}
+        if not self.target_scope and finding.target_scope:
+            self.target_scope = finding.target_scope
+        if not self.group_key and finding.group_key:
+            self.group_key = finding.group_key
+        if not self.recommendation and finding.recommendation:
+            self.recommendation = finding.recommendation
 
 
 @dataclass(slots=True)
@@ -114,6 +137,31 @@ class CanonicalFinding:
     def add_source(self, finding: NormalizedFinding) -> None:
         """Remember the source event that contributed to this finding."""
         self.source_event_ids.append(finding.source_event_id)
+        self.finding.merge_from(finding)
+
+
+def merge_identifier_values(
+    first: dict[str, list[str]],
+    second: dict[str, list[str]],
+) -> dict[str, list[str]]:
+    """Return identifier values merged by identifier family."""
+    merged = {key: list(values) for key, values in first.items()}
+    for key, values in second.items():
+        merged.setdefault(key, [])
+        merged[key].extend(values)
+    return {key: sorted(set(values)) for key, values in merged.items() if values}
+
+
+def unique_json_values(values: list[Any]) -> list[Any]:
+    """Return values with stable JSON-equivalent duplicates removed."""
+    unique: list[Any] = []
+    seen: set[str] = set()
+    for value in values:
+        key = json.dumps(value, sort_keys=True, default=str, separators=(",", ":"))
+        if key not in seen:
+            seen.add(key)
+            unique.append(value)
+    return unique
 
 
 def best_identifier(identifiers: dict[str, list[str]]) -> str:
