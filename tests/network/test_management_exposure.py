@@ -23,7 +23,12 @@ class ManagementExposureTests(unittest.TestCase):
 
         self.assertEqual(finding["class"], "service.management.redis_exposed")
         self.assertEqual(finding["finding_scope"], "service")
+        self.assertEqual(finding["target_scope"], {"kind": "service", "value": "192.0.2.10:6379/tcp"})
+        self.assertEqual(finding["group_key"], "service.management.redis_exposed|service:192.0.2.10:6379/tcp|class")
         self.assertEqual(target["host"], "192.0.2.10")
+        self.assertIn("192.0.2.10:6379/tcp matched redis", finding["evidence"])
+        self.assertIn("source=port.open", finding["evidence"])
+        self.assertIn("Bind Redis", finding["recommendation"])
 
     def test_grafana_web_fingerprint_becomes_web_origin_finding(self):
         event = Event.new(
@@ -45,7 +50,32 @@ class ManagementExposureTests(unittest.TestCase):
 
         self.assertEqual(finding["class"], "service.management.grafana_exposed")
         self.assertEqual(finding["finding_scope"], "web_origin")
+        self.assertEqual(finding["target_scope"], {"kind": "web_origin", "value": "https://grafana.example.test:3000"})
+        self.assertEqual(
+            finding["group_key"],
+            "service.management.grafana_exposed|web_origin:https://grafana.example.test:3000|class",
+        )
         self.assertEqual(affected[0]["url"], "https://grafana.example.test:3000/login")
+        self.assertIn("https://grafana.example.test:3000/login matched grafana", finding["evidence"])
+        self.assertIn("source=web.fingerprint", finding["evidence"])
+
+    def test_grafana_port_without_web_evidence_is_not_promoted(self):
+        event = Event.new("port.open", {"host": "192.0.2.10", "port": 3000, "protocol": "tcp"}, "test")
+
+        self.assertEqual(findings_from_event(event), [])
+
+    def test_grafana_service_label_is_promoted_without_port_match(self):
+        event = Event.new(
+            "service.detected",
+            {"host": "192.0.2.10", "port": 8443, "protocol": "tcp", "service": "grafana"},
+            "test",
+        )
+
+        findings = findings_from_event(event)
+        finding = cast(dict[str, Any], findings[0])
+
+        self.assertEqual(finding["class"], "service.management.grafana_exposed")
+        self.assertIn("observed=grafana", finding["evidence"])
 
     def test_commandlet_dedupes_equivalent_service_findings(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -50,6 +50,7 @@ class ExposureRule:
     services: frozenset[str]
     keywords: tuple[str, ...]
     recommendation: str
+    port_only: bool
 
 
 RULES = (
@@ -62,6 +63,7 @@ RULES = (
         frozenset({"docker", "docker-api"}),
         ("docker api", "docker engine"),
         "Restrict Docker API access to trusted hosts, require TLS client authentication, and avoid internet exposure.",
+        True,
     ),
     ExposureRule(
         "kubernetes",
@@ -72,6 +74,7 @@ RULES = (
         frozenset({"kubernetes", "kubelet", "kubernetes-api"}),
         ("kubernetes", "kubelet"),
         "Restrict Kubernetes control-plane and kubelet endpoints to trusted networks and require strong authentication.",
+        True,
     ),
     ExposureRule(
         "redis",
@@ -82,6 +85,7 @@ RULES = (
         frozenset({"redis"}),
         ("redis_version", "redis"),
         "Bind Redis to trusted interfaces, require authentication, and restrict access with network policy.",
+        True,
     ),
     ExposureRule(
         "memcached",
@@ -92,6 +96,7 @@ RULES = (
         frozenset({"memcached"}),
         ("memcached",),
         "Restrict Memcached to trusted application hosts and avoid public network exposure.",
+        True,
     ),
     ExposureRule(
         "elasticsearch",
@@ -102,6 +107,7 @@ RULES = (
         frozenset({"elasticsearch", "opensearch"}),
         ("elasticsearch", "opensearch"),
         "Restrict search cluster APIs to trusted networks and enforce authentication.",
+        True,
     ),
     ExposureRule(
         "mongodb",
@@ -112,6 +118,7 @@ RULES = (
         frozenset({"mongodb", "mongo"}),
         ("mongodb", "mongo"),
         "Restrict MongoDB to trusted networks and require authenticated access.",
+        True,
     ),
     ExposureRule(
         "grafana",
@@ -122,6 +129,7 @@ RULES = (
         frozenset({"grafana"}),
         ("grafana",),
         "Review whether Grafana should be reachable from this scope and enforce SSO or strong authentication.",
+        False,
     ),
     ExposureRule(
         "jenkins",
@@ -132,6 +140,7 @@ RULES = (
         frozenset({"jenkins"}),
         ("jenkins",),
         "Restrict Jenkins to trusted networks and enforce strong authentication for administrative users.",
+        False,
     ),
     ExposureRule(
         "kibana",
@@ -142,6 +151,7 @@ RULES = (
         frozenset({"kibana"}),
         ("kibana",),
         "Restrict Kibana to trusted networks and require authenticated access.",
+        False,
     ),
     ExposureRule(
         "prometheus",
@@ -152,6 +162,7 @@ RULES = (
         frozenset({"prometheus"}),
         ("prometheus",),
         "Restrict Prometheus interfaces to trusted networks and avoid exposing operational metrics publicly.",
+        False,
     ),
     ExposureRule(
         "rdp",
@@ -162,6 +173,7 @@ RULES = (
         frozenset({"rdp", "ms-wbt-server"}),
         ("remote desktop", "rdp"),
         "Restrict RDP to VPN or bastion access and require strong authentication.",
+        True,
     ),
     ExposureRule(
         "winrm",
@@ -172,6 +184,7 @@ RULES = (
         frozenset({"winrm"}),
         ("winrm",),
         "Restrict WinRM to administrative networks and enforce encrypted authenticated sessions.",
+        True,
     ),
 )
 
@@ -222,7 +235,10 @@ def matching_rules(port: int, evidence: str) -> list[ExposureRule]:
     lowered = evidence.casefold()
     matches: list[ExposureRule] = []
     for rule in RULES:
-        if port in rule.ports or any(service in lowered for service in rule.services) or any(keyword in lowered for keyword in rule.keywords):
+        port_match = rule.port_only and port in rule.ports
+        service_match = any(service in lowered for service in rule.services)
+        keyword_match = any(keyword in lowered for keyword in rule.keywords)
+        if port_match or service_match or keyword_match:
             matches.append(rule)
     return matches
 
@@ -265,6 +281,7 @@ def exposure_candidate(
 ) -> dict[str, object]:
     """Return a service-scope exposure finding candidate."""
     endpoint = f"{host}:{port}/{protocol}"
+    finding_evidence = service_finding_evidence(rule, endpoint=endpoint, source_topic=source_topic, evidence=evidence)
     return candidate_payload(
         title=rule.title,
         finding_class=rule.finding_class,
@@ -273,7 +290,7 @@ def exposure_candidate(
         finding_scope="service",
         target={"host": host, "port": str(port), "protocol": protocol},
         affected=[{"endpoint": endpoint}],
-        evidence=evidence or f"{endpoint} matched {rule.name} management exposure rule.",
+        evidence=finding_evidence,
         recommendation=rule.recommendation,
         source={"tool": "management_exposure", "topic": source_topic},
     )
@@ -291,6 +308,7 @@ def web_exposure_candidate(
 ) -> dict[str, object]:
     """Return a web-origin exposure finding candidate."""
     display_url = url or f"{scheme}://{host}:{port}/"
+    finding_evidence = web_finding_evidence(rule, url=display_url, source_topic=source_topic, evidence=evidence)
     return candidate_payload(
         title=rule.title,
         finding_class=rule.finding_class,
@@ -299,10 +317,26 @@ def web_exposure_candidate(
         finding_scope="web_origin",
         target={"scheme": scheme, "host": host, "port": str(port), "path": "/"},
         affected=[{"url": display_url}],
-        evidence=evidence or f"{display_url} matched {rule.name} management exposure rule.",
+        evidence=finding_evidence,
         recommendation=rule.recommendation,
         source={"tool": "management_exposure", "topic": source_topic},
     )
+
+
+def service_finding_evidence(rule: ExposureRule, *, endpoint: str, source_topic: str, evidence: str) -> str:
+    """Return operator-facing evidence for one service exposure finding."""
+    details = [f"{endpoint} matched {rule.name} management exposure rule", f"source={source_topic}"]
+    if evidence:
+        details.append(f"observed={evidence}")
+    return "; ".join(details)
+
+
+def web_finding_evidence(rule: ExposureRule, *, url: str, source_topic: str, evidence: str) -> str:
+    """Return operator-facing evidence for one web exposure finding."""
+    details = [f"{url} matched {rule.name} management exposure rule", f"source={source_topic}"]
+    if evidence:
+        details.append(f"observed={evidence}")
+    return "; ".join(details)
 
 
 def int_value(value: object) -> int | None:
