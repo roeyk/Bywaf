@@ -39,6 +39,7 @@ from bywaf.registry import (
     load_filesystem_plugin_package,
     load_package_manifest,
     load_plugin,
+    parse_package_plugin_aliases,
     parse_package_plugin_config,
     parse_plugin_config,
     parse_plugin_manifest,

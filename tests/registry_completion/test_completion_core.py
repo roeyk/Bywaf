@@ -13,6 +13,7 @@ class RegistryCompletionCoreTests(unittest.TestCase):
         self.assertIn("history", completer.candidates("hist"))
         self.assertIn("ls", completer.candidates("l"))
         self.assertIn("plugins", completer.candidates("plu"))
+        self.assertIn("web_fingerprint", completer.candidates("web_f"))
         self.assertNotIn("repl", completer.candidates("re"))
         self.assertEqual(
             completer.candidates("hostscanner 127.0.0.1& | por"),

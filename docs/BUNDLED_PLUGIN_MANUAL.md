@@ -122,7 +122,7 @@ A **provider** is the Python implementation object or module that registers or r
 | HTTP | `http.http_probe` | `http_probe` | Publish reusable HTTP endpoint facts. | `http_probe https://example.com/` | [http.http_probe](#httphttp_probe) |
 | HTTP | `http.http_paths` | `http_paths` | Check explicit or common web paths. | `http_paths paths=/.git/config,/.env https://example.com/` | [http.http_paths](#httphttp_paths) |
 | HTTP | `http.repo_exposure` | `repo_exposure`, `git_expose_check` | Check for exposed repository metadata. | `http_probe https://example.com/ \| repo_exposure` | [http.repo_exposure](#httprepo_exposure) |
-| HTTP | `http.webfin` | `webfin` | Fingerprint web technologies. | `http_probe https://example.com/ \| webfin` | [http.webfin](#httpwebfin) |
+| HTTP | `http.webfin` | `webfin` (`web_fingerprint`) | Fingerprint web technologies. | `http_probe https://example.com/ \| webfin` | [http.webfin](#httpwebfin) |
 | HTTP | `http.tls_probe` | `tls_probe` | Collect TLS certificate and hygiene facts. | `tls_probe https://example.com/` | [http.tls_probe](#httptls_probe) |
 | HTTP | `http.waf_detect` | `waf_detect` | Detect likely WAF/CDN signals. | `waf_detect https://example.com/` | [http.waf_detect](#httpwaf_detect) |
 | HTTP | `http.nikto` | `nikto` | Wrap Nikto and normalize findings. | `http_probe https://example.com/ \| nikto` | [http.nikto](#httpnikto) |
@@ -1118,6 +1118,7 @@ Plugin metadata:
 | Family | HTTP |
 | Plugin | `http.webfin` |
 | Commandlets | `webfin` |
+| Aliases | `web_fingerprint` |
 | Last updated | `2026-06-02` from source history |
 | Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/webfin.py bywaf/plugins/http/webfin.plugin.toml` |
 
@@ -1127,7 +1128,8 @@ Example usage: `http_probe https://example.com/ | webfin`
 
 Use `webfin` after `http_probe` to identify likely web stacks from response behavior.
 The fingerprints help prioritize later checks and provide context in inventory and
-reports.
+reports. `web_fingerprint` is a descriptive alias for the same commandlet; runtime
+and audit records use the canonical `webfin` name.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |

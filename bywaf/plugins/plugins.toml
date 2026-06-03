@@ -47,3 +47,6 @@ default_plugins = [
   "os.cat",
   "os.less",
 ]
+
+[commandlet_aliases]
+web_fingerprint = "webfin"

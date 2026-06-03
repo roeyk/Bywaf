@@ -111,6 +111,10 @@ class RegistryBundledPluginTests(unittest.TestCase):
             with self.subTest(entry=entry):
                 self.assertIsNotNone(load_package_manifest("bywaf.plugins", entry))
 
+    def test_bundled_commandlet_aliases_are_loaded_from_config(self):
+        aliases = parse_package_plugin_aliases("bywaf.plugins", "plugins.toml")
+        self.assertEqual(aliases["web_fingerprint"], "webfin")
+
     def test_bundled_sidecar_manifest_traits(self):
         manifest = load_package_manifest("bywaf.plugins", "http.nikto")
         self.assertIsNotNone(manifest)
@@ -265,6 +269,13 @@ class RegistryBundledPluginTests(unittest.TestCase):
         self.assertIn("http/http_probe", self.registry.commandlet_aliases())
         self.assertIs(self.registry.get("http/http_probe"), self.registry.get("http_probe"))
         self.assertEqual(self.registry.resolve_commandlet_name("http/http_probe"), "http_probe")
+
+    def test_web_fingerprint_alias_resolves_to_webfin(self):
+        self.assertIn("web_fingerprint", self.registry.commandlet_aliases())
+        self.assertIs(self.registry.get("web_fingerprint"), self.registry.get("webfin"))
+        self.assertEqual(self.registry.resolve_commandlet_name("web_fingerprint"), "webfin")
+        self.assertEqual(self.registry.commandlet_aliases_for("webfin", include_provider=False), ["web_fingerprint"])
+        self.assertEqual(self.registry.variable_scope("web_fingerprint"), "http/webfin")
 
     def test_loads_package_defaults_into_varstore(self):
         self.assertEqual(self.registry.varstore.get("network/portscanner.port"), "")

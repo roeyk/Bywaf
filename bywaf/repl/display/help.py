@@ -103,8 +103,8 @@ def print_help(runner: Runner, command: str | None = None) -> None:
 
 def print_command_help(runner: Runner, command: str) -> None:
     """Show help for either a plugin commandlet or shell built-in."""
-    plugin = runner.registry.plugins.get(command)
-    if plugin:
+    if runner.registry.has_commandlet(command):
+        plugin = runner.registry.get(command)
         print_plugin_argparse_help(runner, plugin)
         return
     entry = find_help_entry(command)

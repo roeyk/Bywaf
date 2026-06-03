@@ -606,7 +606,7 @@ http
   git_expose_check
   nikto
   repo_exposure
-  webfin
+  webfin  web_fingerprint
 network
   portscanner
 os
@@ -1950,11 +1950,14 @@ bywaf> repo_exposure target=https://example.com/
 bywaf> http_probe https://example.com/ | repo_exposure
 ```
 
-`webfin` fingerprints HTTP endpoints and emits `web.fingerprint` events:
+`webfin` fingerprints HTTP endpoints and emits `web.fingerprint` events.
+`web_fingerprint` is a descriptive alias for the same commandlet; runtime and
+audit records use the canonical `webfin` name.
 
 ```text
 bywaf> http_probe https://example.com/ | webfin
 bywaf> webfin https://example.com/
+bywaf> web_fingerprint https://example.com/
 ```
 
 `nikto` wraps the Nikto web scanner through the framework process API, attaches

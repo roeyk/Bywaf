@@ -131,6 +131,7 @@ def render_commandlets(runner: Runner) -> list[str]:
                 {
                     "provider": provider,
                     "commandlet": commandlet,
+                    "aliases": ", ".join(runner.registry.commandlet_aliases_for(commandlet, include_provider=False)),
                     "description": plugin.spec.description,
                 }
             )
@@ -142,6 +143,7 @@ def render_commandlets(runner: Runner) -> list[str]:
                 (
                     Column("provider", "PLUGIN"),
                     Column("commandlet", "COMMANDLET"),
+                    Column("aliases", "ALIASES"),
                     Column("description", "WHAT IT DOES"),
                 ),
                 tuple(rows),

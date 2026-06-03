@@ -22,6 +22,7 @@ from .config import (
     load_defaults_file,
     load_module_defaults,
     normalize_catalog_path,
+    parse_package_plugin_aliases,
     parse_package_plugin_config,
     parse_plugin_config,
     provider_name,
@@ -79,6 +80,7 @@ class PluginRegistry:
         registry = cls({}, store)
         for entry in entries:
             registry.load_package_entry(package_name, entry)
+        registry.add_aliases(parse_package_plugin_aliases(package_name, config_name))
         return registry
 
     @classmethod
@@ -229,10 +231,17 @@ class PluginRegistry:
         """Register one user-facing commandlet alias."""
         if alias == commandlet:
             return
+        if commandlet not in self.plugins:
+            raise ValueError(f"alias target is not loaded: {commandlet}")
         existing = self.aliases.get(alias)
         if existing is not None and existing != commandlet:
             raise ValueError(f"ambiguous commandlet alias {alias}: {existing}, {commandlet}")
         self.aliases[alias] = commandlet
+
+    def add_aliases(self, aliases: dict[str, str]) -> None:
+        """Register several user-facing commandlet aliases."""
+        for alias, commandlet in aliases.items():
+            self.add_alias(alias, commandlet)
 
     def resolve_commandlet_name(self, name: str) -> str:
         """Return the canonical commandlet name for a flat name or alias."""
@@ -293,8 +302,18 @@ class PluginRegistry:
         return sorted(self.plugins)
 
     def commandlet_aliases(self) -> list[str]:
-        """Return provider-qualified commandlet aliases for completion."""
+        """Return user-facing commandlet aliases for completion."""
         return sorted(self.aliases)
+
+    def commandlet_aliases_for(self, name: str, *, include_provider: bool = True) -> list[str]:
+        """Return aliases that resolve to one canonical commandlet."""
+        canonical_name = self.resolve_commandlet_name(name)
+        aliases = [
+            alias
+            for alias, commandlet in self.aliases.items()
+            if commandlet == canonical_name and (include_provider or "/" not in alias)
+        ]
+        return sorted(aliases)
 
     def provider_names(self) -> list[str]:
         """Return provider names for the `plugins` command."""

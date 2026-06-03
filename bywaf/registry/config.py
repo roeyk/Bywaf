@@ -77,10 +77,26 @@ def parse_plugin_config(path: Path) -> list[str]:
 
 def parse_package_plugin_config(package_name: str, config_name: str) -> list[str]:
     """Read the bundled plugin config from package resources."""
+    data = load_package_plugin_config(package_name, config_name)
+    return list(data.get("default_plugins", []))
+
+
+def parse_package_plugin_aliases(package_name: str, config_name: str) -> dict[str, str]:
+    """Read bundled commandlet aliases from package resources."""
+    aliases = load_package_plugin_config(package_name, config_name).get("commandlet_aliases", {})
+    if not isinstance(aliases, dict):
+        raise ValueError("commandlet_aliases must be a table")
+    return {str(alias): str(commandlet) for alias, commandlet in aliases.items()}
+
+
+def load_package_plugin_config(package_name: str, config_name: str) -> dict[str, Any]:
+    """Return bundled plugin config data from package resources."""
     config = resources.files(package_name).joinpath(config_name)
     text = config.read_text(encoding="utf-8")
     data: Any = tomllib.loads(text) if config_name.endswith(".toml") else json.loads(text)
-    return list(data.get("default_plugins", []))
+    if not isinstance(data, dict):
+        raise ValueError(f"{config_name} must contain a table/object")
+    return data
 
 
 def provider_name(entry: str) -> str:

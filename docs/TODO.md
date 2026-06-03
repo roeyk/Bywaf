@@ -318,9 +318,8 @@ Planning dates are release planning markers, not compatibility commitments.
   scanning.
 - Treat the table rendering provider as the helper/provider example: it is
   framework-native and mainly exists for other commandlets to use.
-- Treat `webfin` as the user-facing native pentesting example, and keep
-  `web_fingerprint` plus `scope_audit` as naming/design candidates for future
-  commandlets if they become separate behaviors.
+- Treat `webfin` as the user-facing native pentesting example. The descriptive
+  `web_fingerprint` spelling is an alias, not a separate behavior.
 - Keep the Nikto wrapper plugin as the external-tool wrapper example: it
   invokes Nikto through the framework-mediated process API, parses JSON output
   into structured finding and vulnerability events, and consumes upstream HTTP

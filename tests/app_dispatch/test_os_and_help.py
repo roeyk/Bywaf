@@ -145,6 +145,40 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("--maxhops", text)
             self.assertNotIn("--timeout", text)
 
+    def test_commandlet_alias_help_uses_canonical_commandlet(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "help web_fingerprint")
+            text = output.getvalue()
+            self.assertIn("usage: webfin", text)
+            self.assertIn("--timeout", text)
+            self.assertIn("--user-agent", text)
+
+    def test_cmds_lists_web_fingerprint_alias(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "cmds")
+            text = output.getvalue()
+            self.assertIn("ALIASES", text)
+            self.assertIn("webfin", text)
+            self.assertIn("web_fingerprint", text)
+
+    def test_web_fingerprint_alias_dispatch_keeps_canonical_audit_identity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute("web_fingerprint")
+            argument_events = runner.db.events_for_topic("command.run.arguments")
+            self.assertEqual(argument_events[-1].payload["commandlet"], "webfin")
+            started_events = runner.db.events_for_topic("command.run.started")
+            self.assertEqual(started_events[-1].payload["commandlet"], "webfin")
+            job_events = runner.db.events_for_topic("job.requested")
+            self.assertEqual(job_events[-1].payload["command"], "web_fingerprint")
+
     def test_signal_help_and_missing_args_show_usage(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
