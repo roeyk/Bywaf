@@ -166,6 +166,10 @@ A **provider** is the Python implementation object or module that registers or r
 Lists local files from inside the Bywaf interpreter.
 
 
+Use this when you need quick local filesystem context without leaving the Bywaf
+interpreter. It is intentionally read-only and console-oriented: it helps you inspect
+paths before choosing plugins, manifests, output files, or artifacts to examine next.
+
 Plugin metadata:
 
 | Field | Value |
@@ -179,6 +183,10 @@ Plugin metadata:
 #### Commandlet: `ls`
 
 Example usage: `ls bywaf/plugins`
+
+Use `ls` to inspect local directories before opening files, importing artifacts, or
+checking plugin paths. It prints a filesystem listing only; it does not create evidence
+events or modify runtime state.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -197,6 +205,10 @@ Example usage: `ls bywaf/plugins`
 Prints a local text file.
 
 
+Use this for short text files where immediate inline output is more useful than opening
+a pager. It is best for README snippets, manifests, small logs, and generated notes that
+you want to inspect while staying in command flow.
+
 Plugin metadata:
 
 | Field | Value |
@@ -210,6 +222,9 @@ Plugin metadata:
 #### Commandlet: `cat`
 
 Example usage: `cat README.md`
+
+Use `cat` when you want the full contents of a small text file inline in the console.
+For large files, prefer `less` so the output stays navigable.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -228,6 +243,10 @@ Example usage: `cat README.md`
 Opens the system pager for a local file when interactive.
 
 
+Use this for longer local files where paging, searching, and scrolling are more
+comfortable than dumping the whole file into the console. In non-interactive contexts it
+produces a framework file-page request rather than pretending to emit scan evidence.
+
 Plugin metadata:
 
 | Field | Value |
@@ -241,6 +260,10 @@ Plugin metadata:
 #### Commandlet: `less`
 
 Example usage: `less README.md`
+
+Use `less` when the file is long enough that scrolling and search matter. It delegates
+to the configured pager in interactive sessions and keeps the interpreter workflow
+intact.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -265,6 +288,10 @@ Example usage: `less README.md`
 Discovers live hosts with nmap and publishes reusable host facts.
 
 
+Use this near the start of a network workflow to turn explicit ranges into stored host
+facts. Those facts can feed later commandlets, which keeps pipelines reproducible and
+avoids manually retyping target lists.
+
 Plugin metadata:
 
 | Field | Value |
@@ -278,6 +305,10 @@ Plugin metadata:
 #### Commandlet: `hostscanner`
 
 Example usage: `hostscanner 192.0.2.0/24`
+
+Use `hostscanner` to discover live hosts from explicit hosts, ranges, or CIDR blocks. It
+emits host and name facts that downstream commandlets can consume, and `--silent` is
+useful when the event stream matters more than console alerts.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -315,6 +346,10 @@ Example usage: `hostscanner 192.0.2.0/24`
 Scans targets for open ports and renders stored open-port results.
 
 
+Use this after targets are known to identify reachable TCP services and make the results
+available to downstream network, HTTP, and reporting plugins. The plugin also provides a
+read-side inventory view so operators can review open ports without rerunning scans.
+
 Plugin metadata:
 
 | Field | Value |
@@ -328,6 +363,10 @@ Plugin metadata:
 #### Commandlet: `portscanner`
 
 Example usage: `portscanner port=22,80,443 host=192.0.2.10`
+
+Use `portscanner` to turn host facts or explicit targets into `port.open` events. It can
+run once over supplied targets or listen for upstream hosts, making it suitable for both
+direct scans and discovery-driven pipelines.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -352,6 +391,10 @@ Example usage: `portscanner port=22,80,443 host=192.0.2.10`
 #### Commandlet: `ports`
 
 Example usage: `ports pipeline=1 --page`
+
+Use `ports` to review stored open-port facts without scanning again. Selectors such as
+`pipeline=`, `job=`, `host=`, and `port=` narrow the table to the part of the run you
+care about.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -379,6 +422,10 @@ Example usage: `ports pipeline=1 --page`
 Classifies services from existing open-port, banner, HTTP, or TLS facts.
 
 
+Use this after port, banner, HTTP, or TLS facts exist and you want a normalized service
+view. It is a passive classifier over existing facts, so it is useful between raw
+discovery and higher-level exposure checks.
+
 Plugin metadata:
 
 | Field | Value |
@@ -392,6 +439,10 @@ Plugin metadata:
 #### Commandlet: `service_probe`
 
 Example usage: `portscanner host=192.0.2.10 | service_probe`
+
+Use `service_probe` after port or protocol facts exist to publish normalized service
+labels. It is a lightweight classification pass that makes later exposure checks and
+inventory views easier to read.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -410,6 +461,10 @@ Example usage: `portscanner host=192.0.2.10 | service_probe`
 Connects to TCP services and records short banners.
 
 
+Use this when the port number alone is not enough to identify what is listening. It
+records small banners or HTTP HEAD responses as reusable facts that service
+classification and exposure logic can consume later.
+
 Plugin metadata:
 
 | Field | Value |
@@ -423,6 +478,10 @@ Plugin metadata:
 #### Commandlet: `tcp_banner`
 
 Example usage: `tcp_banner mode=http-head 192.0.2.10:8080`
+
+Use `tcp_banner` to collect a small protocol clue from a service. `mode=banner` reads a
+basic banner, while `mode=http-head` asks HTTP-like services for headers without running
+a full web workflow.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -447,6 +506,11 @@ Promotes existing port, service, banner, endpoint, and fingerprint facts into
 finding candidates for exposed management surfaces.
 
 
+Use this when you already have network and web facts and want operator-facing finding
+candidates for exposed administration or management surfaces. It does not authenticate,
+brute force, exploit, or add new probes; it promotes existing evidence into reviewable
+findings.
+
 Plugin metadata:
 
 | Field | Value |
@@ -460,6 +524,11 @@ Plugin metadata:
 #### Commandlet: `management_exposure`
 
 Example usage: `portscanner host=192.0.2.10 | service_probe | management_exposure`
+
+Use `management_exposure` after discovery, service probing, banners, or web
+fingerprinting to create candidate findings for admin and management surfaces. It reads
+existing evidence only, so its output is a review queue item rather than proof of
+exploitation.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -482,6 +551,10 @@ Example usage: `portscanner host=192.0.2.10 | service_probe | management_exposur
 Probes SSH service metadata and optional credential behavior.
 
 
+Use this to record SSH service details and, when explicitly supplied, limited credential
+behavior. Password input is declared secret-capable, so it should be handled through
+Bywaf secret-aware paths rather than copied into notes or reports.
+
 Plugin metadata:
 
 | Field | Value |
@@ -495,6 +568,10 @@ Plugin metadata:
 #### Commandlet: `ssh_probe`
 
 Example usage: `ssh_probe username=test password=test 192.0.2.10`
+
+Use `ssh_probe` to record whether SSH is reachable and what authentication behavior is
+observed from explicitly supplied credentials. Keep `password=` secret-aware, and use
+timeouts to avoid blocking on unreachable hosts.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -519,6 +596,10 @@ Example usage: `ssh_probe username=test password=test 192.0.2.10`
 Reads one SNMP OID from a target.
 
 
+Use this for a targeted SNMP read when you know the host, community, and OID you want to
+test. It is a focused probe, not a broad SNMP enumerator, and its value is in recording
+one precise response or failure.
+
 Plugin metadata:
 
 | Field | Value |
@@ -532,6 +613,10 @@ Plugin metadata:
 #### Commandlet: `snmp_get`
 
 Example usage: `snmp_get community=public oid=1.3.6.1.2.1.1.1.0 192.0.2.10`
+
+Use `snmp_get` for one precise SNMP question against a target. Successful reads become
+`snmp.value` facts, while failures are retained as tool errors so the absence of a
+response is still documented.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -554,6 +639,10 @@ Example usage: `snmp_get community=public oid=1.3.6.1.2.1.1.1.0 192.0.2.10`
 Records route hops to a target.
 
 
+Use this to preserve route-hop context around a target or host discovered earlier in a
+run. The emitted route facts can help explain network reachability, segmentation, and
+where later scan results came from.
+
 Plugin metadata:
 
 | Field | Value |
@@ -567,6 +656,10 @@ Plugin metadata:
 #### Commandlet: `traceroute`
 
 Example usage: `traceroute 192.0.2.10`
+
+Use `traceroute` to record hop paths for explicit targets or discovered hosts. The
+results are useful context for segmentation, reachability, and explaining where scan
+traffic traveled.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -597,6 +690,10 @@ Example usage: `traceroute 192.0.2.10`
 Resolves DNS records with dnspython.
 
 
+Use this for a direct DNS question such as A, AAAA, MX, TXT, or NS resolution. It
+records both successful records and DNS errors, making name-resolution assumptions
+visible in the evidence stream.
+
 Plugin metadata:
 
 | Field | Value |
@@ -610,6 +707,9 @@ Plugin metadata:
 #### Commandlet: `dns_lookup`
 
 Example usage: `dns_lookup record-type=MX example.com`
+
+Use `dns_lookup` for direct record resolution and optional resolver selection. It is the
+right commandlet when you already know the name and record type you want to verify.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -631,6 +731,10 @@ Example usage: `dns_lookup record-type=MX example.com`
 Resolves explicit names or generated subdomains into host facts.
 
 
+Use this to expand a base domain and a small word list into resolved names and host
+facts. It is meant for lightweight starter enumeration that feeds network and HTTP
+workflows rather than exhaustive DNS brute forcing.
+
 Plugin metadata:
 
 | Field | Value |
@@ -644,6 +748,10 @@ Plugin metadata:
 #### Commandlet: `dns_enum`
 
 Example usage: `dns_enum domain=example.com words=www,api`
+
+Use `dns_enum` to resolve explicit names or generated subdomains from `domain=` plus
+`words=`. It emits both name and host facts so follow-on scanners can continue from
+resolved addresses.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -664,6 +772,10 @@ Example usage: `dns_enum domain=example.com words=www,api`
 Queries Shodan by IP or search query.
 
 
+Use this to enrich an IP or search query with Shodan data when an API key is available.
+Treat it as third-party reconnaissance evidence: useful for context, but still something
+to corroborate with direct Bywaf observations.
+
 Plugin metadata:
 
 | Field | Value |
@@ -677,6 +789,10 @@ Plugin metadata:
 #### Commandlet: `shodan_lookup`
 
 Example usage: `shodan_lookup mode=search apache country:US`
+
+Use `shodan_lookup` in `host` mode for one IP or `search` mode for broader Shodan
+queries. Supply the API key through the secret-capable option or environment and treat
+results as enrichment to validate later.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -705,6 +821,10 @@ Example usage: `shodan_lookup mode=search apache country:US`
 Probes LDAP server metadata.
 
 
+Use this to capture LDAP server metadata and basic bind behavior for identity
+infrastructure. It is appropriate when domain controllers or directory services are in
+scope and you need structured facts for later review.
+
 Plugin metadata:
 
 | Field | Value |
@@ -718,6 +838,10 @@ Plugin metadata:
 #### Commandlet: `ldap_probe`
 
 Example usage: `ldap_probe username=user password=secret dc.example.test`
+
+Use `ldap_probe` to capture LDAP server metadata and optional bind results. The
+commandlet is useful for directory-service context, and `password=` is secret-capable
+for credentialed probes.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -742,6 +866,10 @@ Example usage: `ldap_probe username=user password=secret dc.example.test`
 Probes SMB server metadata.
 
 
+Use this to record SMB server metadata and basic authentication behavior. It helps
+distinguish Windows file-sharing and domain services from generic open ports while
+preserving errors as tool facts.
+
 Plugin metadata:
 
 | Field | Value |
@@ -755,6 +883,10 @@ Plugin metadata:
 #### Commandlet: `smb_probe`
 
 Example usage: `smb_probe domain=EXAMPLE username=user password=secret dc.example.test`
+
+Use `smb_probe` to capture SMB metadata and optional authentication behavior. Domain,
+username, and password arguments let you distinguish anonymous, guest, and
+supplied-credential outcomes when they are in scope.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -793,6 +925,10 @@ Example usage: `smb_probe domain=EXAMPLE username=user password=secret dc.exampl
 Collects HTTP response headers and promotes missing high-value security headers.
 
 
+Use this when header posture matters: it records response headers and promotes missing
+high-value security headers into finding candidates. It is a small HTTP probe that pairs
+well with `http_probe` and report review.
+
 Plugin metadata:
 
 | Field | Value |
@@ -806,6 +942,10 @@ Plugin metadata:
 #### Commandlet: `http_headers`
 
 Example usage: `http_headers ssl=true example.com`
+
+Use `http_headers` to collect response headers and promote missing security-header
+findings. It can use explicit targets or upstream open ports, and successful findings
+are reviewed through `report` or `finding_report`.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -828,6 +968,10 @@ Example usage: `http_headers ssl=true example.com`
 Probes HTTP endpoints and publishes reusable endpoint facts.
 
 
+Use this to establish canonical HTTP endpoint facts before running web fingerprinting,
+path checks, screenshots, Nikto, or WAF detection. It normalizes URLs, schemes, status
+codes, and redirect behavior into facts that downstream plugins share.
+
 Plugin metadata:
 
 | Field | Value |
@@ -841,6 +985,10 @@ Plugin metadata:
 #### Commandlet: `http_probe`
 
 Example usage: `http_probe https://example.com/`
+
+Use `http_probe` to create normalized endpoint facts from URLs, hosts, or upstream
+ports. Downstream web commandlets rely on these facts, so this is often the first HTTP
+step in a pipeline.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -868,6 +1016,10 @@ Example usage: `http_probe https://example.com/`
 Checks common or explicitly supplied HTTP paths.
 
 
+Use this to check a focused list of sensitive paths or Bywaf's built-in common paths
+against known HTTP endpoints. It records each checked path and promotes only
+operator-relevant exposures into finding candidates.
+
 Plugin metadata:
 
 | Field | Value |
@@ -881,6 +1033,10 @@ Plugin metadata:
 #### Commandlet: `http_paths`
 
 Example usage: `http_paths paths=/.git/config,/.env https://example.com/`
+
+Use `http_paths` to check explicit paths or default sensitive paths against known
+endpoints. It records every path check and promotes exposed config, repository, backup,
+admin, and environment surfaces into reviewable findings.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -907,6 +1063,10 @@ Example usage: `http_paths paths=/.git/config,/.env https://example.com/`
 Checks HTTP endpoints for exposed repository metadata.
 
 
+Use this when repository metadata exposure is the specific question. It is narrower than
+`http_paths`, focused on exposed Git configuration, and exists for pipelines that want
+that check and finding type explicitly.
+
 Plugin metadata:
 
 | Field | Value |
@@ -920,6 +1080,10 @@ Plugin metadata:
 #### Commandlets: `repo_exposure`, `git_expose_check`
 
 Example usage: `http_probe https://example.com/ | repo_exposure`
+
+Use `repo_exposure` or `git_expose_check` when exposed Git metadata is the specific
+concern. The commandlet checks endpoint-derived or explicit URLs and emits both
+checked-path evidence and `web.exposure.git_config` finding candidates.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -943,6 +1107,10 @@ Example usage: `http_probe https://example.com/ | repo_exposure`
 Fingerprints web technologies from HTTP endpoints.
 
 
+Use this to fingerprint web technologies from endpoint responses. The resulting web
+facts help operators understand likely frameworks and can steer later checks such as
+Nikto source selection or management exposure review.
+
 Plugin metadata:
 
 | Field | Value |
@@ -956,6 +1124,10 @@ Plugin metadata:
 #### Commandlet: `webfin`
 
 Example usage: `http_probe https://example.com/ | webfin`
+
+Use `webfin` after `http_probe` to identify likely web stacks from response behavior.
+The fingerprints help prioritize later checks and provide context in inventory and
+reports.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -977,6 +1149,10 @@ Example usage: `http_probe https://example.com/ | webfin`
 Collects TLS certificate and hygiene facts.
 
 
+Use this to capture certificate details and TLS hygiene signals for HTTPS services. It
+turns certificate state into facts and findings, which makes expired or mismatched
+certificates visible in normal report workflows.
+
 Plugin metadata:
 
 | Field | Value |
@@ -990,6 +1166,10 @@ Plugin metadata:
 #### Commandlet: `tls_probe`
 
 Example usage: `tls_probe https://example.com/`
+
+Use `tls_probe` to record certificate details for HTTPS targets and upstream TLS-capable
+endpoints. It promotes expired certificates and hostname mismatches into findings while
+retaining certificate facts for inventory.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1013,6 +1193,10 @@ Example usage: `tls_probe https://example.com/`
 Detects likely web application firewall or CDN response signals.
 
 
+Use this to identify likely WAF, CDN, or protective gateway signals from HTTP responses.
+The output is contextual rather than a vulnerability by itself, and it helps explain
+later scan behavior or filtering.
+
 Plugin metadata:
 
 | Field | Value |
@@ -1026,6 +1210,10 @@ Plugin metadata:
 #### Commandlet: `waf_detect`
 
 Example usage: `waf_detect https://example.com/`
+
+Use `waf_detect` to capture WAF or CDN indicators from HTTP responses. Its output helps
+interpret blocked scans, unusual status codes, and protected paths without treating
+protection itself as a vulnerability.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1047,6 +1235,10 @@ Example usage: `waf_detect https://example.com/`
 Runs Nikto through the framework process API and normalizes selected output.
 
 
+Use this to run Nikto through Bywaf while preserving raw tool output and normalizing
+selected issues into findings. It is useful when you want a familiar external scanner
+but still need Bywaf provenance, artifacts, and report integration.
+
 Plugin metadata:
 
 | Field | Value |
@@ -1060,6 +1252,10 @@ Plugin metadata:
 #### Commandlet: `nikto`
 
 Example usage: `http_probe https://example.com/ | nikto`
+
+Use `nikto` when you want Nikto coverage but need Bywaf artifacts, events, and finding
+normalization. It can consume endpoint facts, attach raw output, and emit vulnerability
+and finding topics for later dedupe and review.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1087,6 +1283,10 @@ Example usage: `http_probe https://example.com/ | nikto`
 Wraps EyeWitness to capture web screenshots.
 
 
+Use this when visual evidence matters, especially for validating live web applications
+and documenting exposed login pages or consoles. It wraps EyeWitness while attaching
+screenshots and raw tool output as artifacts.
+
 Plugin metadata:
 
 | Field | Value |
@@ -1100,6 +1300,10 @@ Plugin metadata:
 #### Commandlet: `eyewitness`
 
 Example usage: `http_probe https://example.com/ | eyewitness`
+
+Use `eyewitness` to capture screenshots from explicit or endpoint-derived web targets.
+It writes visual evidence and raw tool output as artifacts, making screenshots available
+for reports and handoff bundles.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1126,6 +1330,10 @@ Example usage: `http_probe https://example.com/ | eyewitness`
 Friendly Bywaf commandlet name for the same EyeWitness screenshot workflow.
 
 
+Use this as the friendly Bywaf-facing screenshot command for the EyeWitness workflow. It
+is aimed at operators who want screenshots and attached artifacts without remembering
+the external tool name.
+
 Plugin metadata:
 
 | Field | Value |
@@ -1139,6 +1347,10 @@ Plugin metadata:
 #### Commandlet: `screenshotter`
 
 Example usage: `http_probe https://example.com/ | screenshotter`
+
+Use `screenshotter` for the same screenshot workflow through a Bywaf-native name. It is
+convenient in operator pipelines where the intent is visual capture rather than invoking
+EyeWitness by name.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1171,6 +1383,10 @@ Example usage: `http_probe https://example.com/ | screenshotter`
 Wraps Kismet-style wireless scanning and stores produced logs.
 
 
+Use this for in-scope wireless collection through Kismet-compatible tooling. The plugin
+stores discovered network facts and attaches produced logs so wireless evidence can
+travel with the rest of the assessment record.
+
 Plugin metadata:
 
 | Field | Value |
@@ -1184,6 +1400,10 @@ Plugin metadata:
 #### Commandlet: `wifi_scan`
 
 Example usage: `wifi_scan interface=wlan0mon duration=60`
+
+Use `wifi_scan` to run a bounded Kismet-compatible capture on a specific interface. The
+duration, log types, and output directory determine what evidence is produced and
+attached.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1218,6 +1438,10 @@ Example usage: `wifi_scan interface=wlan0mon duration=60`
 Normalizes and deduplicates raw finding streams.
 
 
+Use this after scanners or finding-producing plugins have emitted raw candidates and you
+want a cleaner inbox. It normalizes titles and identities, collapses duplicates, and
+flags merge candidates for operator review.
+
 Plugin metadata:
 
 | Field | Value |
@@ -1231,6 +1455,10 @@ Plugin metadata:
 #### Commandlet: `finding_dedupe`
 
 Example usage: `nikto https://example.com/ | finding_dedupe`
+
+Use `finding_dedupe` to clean up finding streams before review or export. It emits new,
+duplicate, updated, and merge-candidate lifecycle events so the report inbox can focus
+on distinct issues.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1256,6 +1484,10 @@ Example usage: `nikto https://example.com/ | finding_dedupe`
 Renders finding tables and exports report artifacts.
 
 
+Use this when you need a rendered finding table or exported report artifact from stored
+findings. It is a report-generation commandlet rather than an inbox: use `report` when
+you need to accept, defer, or reject rows interactively.
+
 Plugin metadata:
 
 | Field | Value |
@@ -1269,6 +1501,10 @@ Plugin metadata:
 #### Commandlet: `finding_report`
 
 Example usage: `finding_report export=findings.md`
+
+Use `finding_report` to render findings as a table or export them to a file artifact. It
+is best after dedupe or review when you need a shareable snapshot rather than an
+interactive inbox.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1293,6 +1529,10 @@ Example usage: `finding_report export=findings.md`
 Operator finding inbox for reviewing and scoping report findings.
 
 
+Use this as the main operator-facing finding inbox. It supports scoped review, compact
+summaries, detailed rows, and lifecycle decisions such as accept, defer, reject,
+confirm, or unconfirm.
+
 Plugin metadata:
 
 | Field | Value |
@@ -1306,6 +1546,10 @@ Plugin metadata:
 #### Commandlet: `report`
 
 Example usage: `report accept 1-3 pipeline=1`
+
+Use `report` to view scoped findings and make review decisions. Actions such as
+`accept`, `defer`, and `reject` create review events, while `network`, `show`, and
+`detail` help inspect context before deciding.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1339,6 +1583,10 @@ Example usage: `report accept 1-3 pipeline=1`
 Lower-level commandlet for confirming or unconfirming finding rows.
 
 
+Use this lower-level command when you only need to mark finding rows confirmed or
+unconfirmed. Most day-to-day review should use `report`; this commandlet remains useful
+for direct lifecycle edits and compatibility.
+
 Plugin metadata:
 
 | Field | Value |
@@ -1352,6 +1600,10 @@ Plugin metadata:
 #### Commandlet: `finding`
 
 Example usage: `finding confirm 1-3 pipeline=1`
+
+Use `finding` for direct confirm or unconfirm operations against numbered rows. It
+shares row-selection behavior with report views but intentionally exposes only the
+narrow confirmation workflow.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1378,6 +1630,10 @@ Example usage: `finding confirm 1-3 pipeline=1`
 Scans files with YARA rules.
 
 
+Use this to scan specific files with YARA rules and store any matches as evidence. It is
+file-oriented and depends on local rules, so it fits malware, webshell, and suspicious
+artifact review workflows.
+
 Plugin metadata:
 
 | Field | Value |
@@ -1391,6 +1647,9 @@ Plugin metadata:
 #### Commandlet: `yara_scan`
 
 Example usage: `yara_scan rule=webshells.yar shell.php`
+
+Use `yara_scan` when you have a rule file and one or more files to inspect. Matches are
+stored as `yara.match` events, while rule or scan failures are surfaced as tool errors.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1430,6 +1689,10 @@ Example usage: `yara_scan rule=webshells.yar shell.php`
 Manages evidence artifacts in the paired artifact database.
 
 
+Use this to manage evidence stored in Bywaf's artifact database rather than loose files.
+Artifacts keep provenance, scope, names, notes, and verification metadata together with
+the bytes they describe.
+
 Plugin metadata:
 
 | Field | Value |
@@ -1443,6 +1706,10 @@ Plugin metadata:
 #### Commandlet: `artifact`
 
 Example usage: `artifact list step=12`
+
+Use `artifact` for the full artifact lifecycle: import, attach, inspect, export,
+replace, remove, search, and verify. Prefer it when evidence should remain tied to Bywaf
+provenance instead of living as an unmanaged local file.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1464,6 +1731,10 @@ Example usage: `artifact list step=12`
 #### Commandlet: `search`
 
 Example usage: `search filename=evidence.txt`
+
+Use `search` when you need to find artifacts by name, filename, note, content, scope, or
+time window. Regular-expression mode is available for precise investigations, while
+normal search is better for quick lookups.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1494,6 +1765,10 @@ Example usage: `search filename=evidence.txt`
 Builds evidence/report bundles for handoff.
 
 
+Use this to assemble evidence, audit records, and reports into a handoff bundle. Bundle
+actions are useful near the end of an assessment when you need a scoped export with
+optional sealing and signing.
+
 Plugin metadata:
 
 | Field | Value |
@@ -1507,6 +1782,10 @@ Plugin metadata:
 #### Commandlet: `bundle`
 
 Example usage: `bundle add name=client-a evidence commandlet=nikto,webfin`
+
+Use `bundle` to collect selected evidence, audit entries, and reports into a named
+handoff unit. Sealing and signing actions help preserve integrity once the bundle is
+ready to export.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1539,6 +1818,10 @@ Example usage: `bundle add name=client-a evidence commandlet=nikto,webfin`
 Inspects or exports audit records.
 
 
+Use this to inspect or export the event trail behind a run. Audit output is most useful
+when you need to explain what happened, preserve provenance, or produce a
+machine-readable activity record.
+
 Plugin metadata:
 
 | Field | Value |
@@ -1552,6 +1835,9 @@ Plugin metadata:
 #### Commandlet: `audit`
 
 Example usage: `audit export file=audit.jsonl`
+
+Use `audit` to view or export the event trail for a scope. Exported audit files are
+useful for handoff, troubleshooting, and proving how a finding or artifact was produced.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1579,6 +1865,10 @@ Example usage: `audit export file=audit.jsonl`
 Provides compact domain-specific inventory views over stored facts.
 
 
+Use these views to inspect stored facts by domain rather than by raw event topic. They
+are read-side tools for answering questions like what hosts, web endpoints,
+certificates, banners, paths, or screenshots are currently known.
+
 Plugin metadata:
 
 | Field | Value |
@@ -1592,6 +1882,10 @@ Plugin metadata:
 #### Commandlets: `hosts`, `services`, `web`, `wafs`, `shares`, `routes`, `certs`, `banners`, `paths`, `screenshots`
 
 Example usage: `web pipeline=1 --page`
+
+Use these inventory commandlets to inspect stored facts in domain-specific tables. Each
+command name selects the view, and shared selectors such as `pipeline=`, `job=`,
+`step=`, `--last`, and `--new` control the scope.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1617,6 +1911,10 @@ Example usage: `web pipeline=1 --page`
 Inspects and controls background jobs.
 
 
+Use this to inspect and control background jobs. It is the job-level operational view
+for long-running commandlets, including lists, detail views, and cooperative or hard
+stop actions where supported.
+
 Plugin metadata:
 
 | Field | Value |
@@ -1630,6 +1928,10 @@ Plugin metadata:
 #### Commandlet: `job`
 
 Example usage: `job --all`
+
+Use `job` to list, inspect, or control background work at job granularity. It is useful
+for checking progress, finding stuck work, and issuing cooperative or hard control
+actions when appropriate.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1656,6 +1958,10 @@ Example usage: `job --all`
 Inspects and controls pipelines.
 
 
+Use this to inspect or control multi-step pipelines and attach additional commandlets to
+existing pipeline context. It is the right view when scope and data flow matter more
+than a single background process.
+
 Plugin metadata:
 
 | Field | Value |
@@ -1669,6 +1975,10 @@ Plugin metadata:
 #### Commandlet: `pipeline`
 
 Example usage: `pipeline attach 1 portscanner step=1`
+
+Use `pipeline` to inspect pipeline state, attach new commandlets to an existing
+pipeline, or control the pipeline as a unit. The attach form keeps downstream work tied
+to the same provenance and scope.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1697,6 +2007,10 @@ Example usage: `pipeline attach 1 portscanner step=1`
 Inspects pipeline steps.
 
 
+Use this to inspect individual pipeline steps and their status. It is helpful when a
+pipeline is large and you need to isolate the step that produced a fact, artifact,
+error, or runtime state.
+
 Plugin metadata:
 
 | Field | Value |
@@ -1710,6 +2024,10 @@ Plugin metadata:
 #### Commandlet: `step`
 
 Example usage: `step --new`
+
+Use `step` to review individual pipeline steps and isolate where specific facts,
+artifacts, or errors came from. `--new` helps focus on activity since the last viewed
+cursor.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1732,6 +2050,9 @@ Example usage: `step --new`
 Shows what the latest or selected scan found.
 
 
+Use this for a quick operator summary of what a selected scan, job, or pipeline found.
+It reads stored events and renders current results without producing new evidence.
+
 Plugin metadata:
 
 | Field | Value |
@@ -1745,6 +2066,10 @@ Plugin metadata:
 #### Commandlets: `results`, `result`
 
 Example usage: `results job=latest`
+
+Use `results` or `result` for a quick rendered summary of selected scan output. Follow
+mode is useful while a job is still producing results; paged mode is better for longer
+completed runs.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1770,6 +2095,10 @@ Example usage: `results job=latest`
 Requests or applies runtime control actions.
 
 
+Use this for direct control commands over running or paused work. It is intentionally
+explicit about targets so operators can pause, resume, cancel, stop, end, kill, or
+signal the intended job, pipeline, or step.
+
 Plugin metadata:
 
 | Field | Value |
@@ -1783,6 +2112,10 @@ Plugin metadata:
 #### Commandlets: `signal`, `end`, `kill`, `cancel`, `pause`, `resume`, `stop`
 
 Example usage: `pause job=7`
+
+Use these control commandlets when work needs to pause, resume, stop, cancel, end, kill,
+or receive a signal. Always provide an explicit target selector so the control action
+lands on the intended runtime object.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1805,6 +2138,10 @@ Example usage: `pause job=7`
 Shows or saves notes attached to jobs, pipelines, and pipeline steps.
 
 
+Use this to attach operator context to runtime objects without changing scan evidence.
+Notes are useful for manual validation, triage comments, handoff context, and explaining
+why a later decision was made.
+
 Plugin metadata:
 
 | Field | Value |
@@ -1818,6 +2155,10 @@ Plugin metadata:
 #### Commandlet: `note`
 
 Example usage: `note add step=12 text=validated manually`
+
+Use `note` to show or add operator notes on a job, pipeline, or step. `text=` consumes
+the rest of the line, which makes it suitable for natural review comments without extra
+quoting.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1841,6 +2182,9 @@ Example usage: `note add step=12 text=validated manually`
 Shows or assigns human-readable names to jobs, pipelines, and pipeline steps.
 
 
+Use this to give jobs, pipelines, and steps human-readable labels. Names improve
+navigation and report scoping when numeric identifiers alone are too hard to remember.
+
 Plugin metadata:
 
 | Field | Value |
@@ -1854,6 +2198,9 @@ Plugin metadata:
 #### Commandlet: `name`
 
 Example usage: `name pipeline=1 client subnet scan`
+
+Use `name` to show or assign a readable label to runtime objects. Natural trailing text
+and `text=` both support names that consume the rest of the command line.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1875,6 +2222,10 @@ Example usage: `name pipeline=1 client subnet scan`
 Manages signing keys for plugin and catalog trust workflows.
 
 
+Use this to manage keys used by plugin/catalog trust and signed bundle workflows. It is
+operational key management, so import/export and passphrase prompts should be handled
+carefully.
+
 Plugin metadata:
 
 | Field | Value |
@@ -1888,6 +2239,10 @@ Plugin metadata:
 #### Commandlet: `key`
 
 Example usage: `key generate name=firm-evidence`
+
+Use `key` to list, generate, import, export, remove, or test trust keys. Some actions
+may prompt for passphrases, and private key material should be handled as sensitive
+operational data.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1910,6 +2265,10 @@ Example usage: `key generate name=firm-evidence`
 Inspects the active event schema catalog.
 
 
+Use this when you need to understand the active event topics and fields that plugins and
+framework components produce. It is especially useful for plugin authors,
+troubleshooting, and confirming what downstream tools can consume.
+
 Plugin metadata:
 
 | Field | Value |
@@ -1923,6 +2282,9 @@ Plugin metadata:
 #### Commandlet: `schemas`
 
 Example usage: `schemas owner=plugin`
+
+Use `schemas` to inspect event topics and fields by owner, topic prefix, detail level,
+or usage. It is the quickest way to understand what facts a plugin can emit or consume.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1944,6 +2306,10 @@ Example usage: `schemas owner=plugin`
 Monitors runtime health, stalls, and error rates.
 
 
+Use this to monitor runtime health, long-running jobs, stalls, and repeated errors. In
+session-service mode it acts as a background observer that emits watchdog events for
+later review.
+
 Plugin metadata:
 
 | Field | Value |
@@ -1957,6 +2323,10 @@ Plugin metadata:
 #### Commandlet: `watchdog`
 
 Example usage: `watchdog --session-service`
+
+Use `watchdog` once for an immediate health check or as a session service for continuous
+monitoring. It emits timeout, stall, and error-rate events that help diagnose
+long-running sessions.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1987,6 +2357,10 @@ Example usage: `watchdog --session-service`
 Manages the active event database and paired artifact database.
 
 
+Use this to inspect, switch, maintain, encrypt, decrypt, export, or rekey the active
+event database and paired artifact database. It is the operator entry point for storage
+lifecycle work, not a scanner.
+
 Plugin metadata:
 
 | Field | Value |
@@ -2000,6 +2374,10 @@ Plugin metadata:
 #### Commandlet: `db`
 
 Example usage: `db status`
+
+Use `db` for database status, path, maintenance, load/export, encryption, decryption,
+and rekey operations. Encryption actions protect both the event database and paired
+artifact database when enabled.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
