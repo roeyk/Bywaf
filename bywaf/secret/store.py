@@ -173,8 +173,27 @@ def redact_command_text(command: str, *, key: bytes, secret_names: set[str] | fr
 
 def redact_explicit_vars_secret(tokens: list[str], *, key: bytes) -> RedactionResult | None:
     """Redact explicit `set --secret name=value` command text."""
-    if len(tokens) < 2 or ("--secret" not in tokens[1:] and not any(token.startswith("--secret=") for token in tokens[1:])):
+    if not has_explicit_secret_marker(tokens):
         return None
+    result = redact_secret_flag_assignment(tokens, key=key)
+    if result is not None:
+        return result
+    result = redact_secret_equals_assignment(tokens, key=key)
+    if result is not None:
+        return result
+    return redact_compact_secret_assignment(tokens, key=key)
+
+
+def has_explicit_secret_marker(tokens: list[str]) -> bool:
+    """Return whether variable tokens contain an explicit secret marker."""
+    return len(tokens) >= 2 and (
+        "--secret" in tokens[1:]
+        or any(token.startswith("--secret=") or " --secret" in token for token in tokens[1:])
+    )
+
+
+def redact_secret_flag_assignment(tokens: list[str], *, key: bytes) -> RedactionResult | None:
+    """Redact `set --secret name=value` style command text."""
     if "--secret" in tokens[1:]:
         secret_index = tokens.index("--secret", 1)
         if secret_index + 1 < len(tokens) and "=" in tokens[secret_index + 1]:
@@ -184,6 +203,11 @@ def redact_explicit_vars_secret(tokens: list[str], *, key: bytes) -> RedactionRe
                 " ".join(quote_redacted_token(token) for token in redacted),
                 explicit_secret_records(name, value, key=key),
             )
+    return None
+
+
+def redact_secret_equals_assignment(tokens: list[str], *, key: bytes) -> RedactionResult | None:
+    """Redact `set name --secret=value` style command text."""
     for index, token in enumerate(tokens[1:], start=1):
         if not token.startswith("--secret="):
             continue
@@ -196,22 +220,33 @@ def redact_explicit_vars_secret(tokens: list[str], *, key: bytes) -> RedactionRe
             " ".join(quote_redacted_token(item) for item in redacted),
             explicit_secret_records(name, value, key=key),
         )
+    return None
+
+
+def redact_compact_secret_assignment(tokens: list[str], *, key: bytes) -> RedactionResult | None:
+    """Redact compact tokens such as `set "name --secret=value"`."""
     for index, token in enumerate(tokens[1:], start=1):
         if "=" not in token:
             continue
         left, value = token.split("=", 1)
-        left_tokens = left.split()
-        if "--secret" not in left_tokens:
+        name = compact_secret_name(left)
+        if name is None:
             continue
-        key_tokens = [item for item in left_tokens if item != "--secret"]
-        if len(key_tokens) != 1:
-            return None
-        redacted = tokens[:index] + [f"{key_tokens[0]} --secret={REDACTED_VALUE}"] + tokens[index + 1 :]
+        redacted = tokens[:index] + [f"{name} --secret={REDACTED_VALUE}"] + tokens[index + 1 :]
         return RedactionResult(
             " ".join(quote_redacted_token(token) for token in redacted),
-            explicit_secret_records(key_tokens[0], value, key=key),
+            explicit_secret_records(name, value, key=key),
         )
     return None
+
+
+def compact_secret_name(left: str) -> str | None:
+    """Return the secret name from compact `name --secret` text."""
+    left_tokens = left.split()
+    if "--secret" not in left_tokens:
+        return None
+    key_tokens = [item for item in left_tokens if item != "--secret"]
+    return key_tokens[0] if len(key_tokens) == 1 else None
 
 
 def explicit_secret_records(name: str, value: str, *, key: bytes) -> tuple[RedactedSecret, ...]:
