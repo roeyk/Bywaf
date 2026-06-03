@@ -138,6 +138,19 @@ class ProcessChunk:
 
 
 @dataclass(frozen=True, slots=True)
+class StreamProcessState:
+    """State needed while streaming one framework-mediated process."""
+
+    normalized_argv: tuple[str, ...]
+    audit_argv: tuple[str, ...]
+    cwd: str | None
+    env: Mapping[str, str] | None
+    request_event_id: int | None
+    timeout_value: float | None
+    deadline: float | None
+
+
+@dataclass(frozen=True, slots=True)
 class ContextProcess:
     """Framework-mediated process API exposed to commandlets.
 
@@ -209,13 +222,55 @@ class ContextProcess:
         env: Mapping[str, str] | None = None,
     ) -> Iterable[ProcessChunk]:
         """Stream stdout/stderr line chunks while recording process events."""
+        state = self.prepare_stream_process(argv, cwd=cwd, timeout=timeout, env=env)
+        self.publish_started(state.audit_argv, state.request_event_id)
+        process = popen_process_argv(state.normalized_argv, cwd=state.cwd, env=state.env)
+        selector = process_output_selector(process)
+        try:
+            yield from self.stream_process_chunks(process, selector, state)
+            returncode = process.wait(timeout=1)
+        finally:
+            close_stream_process(process, selector)
+        self.publish_exit(state.audit_argv, returncode, state.request_event_id)
+
+    def prepare_stream_process(
+        self,
+        argv: Sequence[str],
+        *,
+        cwd: str | Path | None,
+        timeout: float | None,
+        env: Mapping[str, str] | None,
+    ) -> StreamProcessState:
+        """Publish stream request metadata and return normalized stream state."""
         normalized = normalize_argv(argv)
         check_process_argv_for_secrets(self.context, normalized)
         audit_argv = redact_process_argv(self.context, normalized)
-        audit_env = audit_process_env(self.context, env)
+        cwd_text = str(Path(cwd).expanduser()) if cwd is not None else None
+        payload = self.stream_request_payload(audit_argv, cwd_text, timeout, env)
+        request = self.context.request("framework.process.stream.requested", payload)
+        timeout_value = float(timeout) if timeout is not None else None
+        deadline = None if timeout_value is None else timeout_deadline(timeout_value)
+        return StreamProcessState(
+            normalized_argv=normalized,
+            audit_argv=audit_argv,
+            cwd=cwd_text,
+            env=env,
+            request_event_id=request.id if request is not None else None,
+            timeout_value=timeout_value,
+            deadline=deadline,
+        )
+
+    def stream_request_payload(
+        self,
+        audit_argv: tuple[str, ...],
+        cwd: str | None,
+        timeout: float | None,
+        env: Mapping[str, str] | None,
+    ) -> dict[str, Any]:
+        """Return audit payload for one streamed process request."""
         payload: dict[str, Any] = {
             "argv": list(audit_argv),
-            "cwd": str(Path(cwd).expanduser()) if cwd is not None else None,
+            "cwd": cwd,
             "timeout": timeout,
             "source": self.context.source,
             "command_run_id": self.context.command_run_id,
@@ -224,54 +279,28 @@ class ContextProcess:
             "handled": True,
             "mode": "stream",
         }
+        audit_env = audit_process_env(self.context, env)
         if audit_env is not None:
             payload.update(audit_env)
-        request = self.context.request("framework.process.stream.requested", payload)
-        request_id = request.id if request is not None else None
-        self.publish_started(audit_argv, request_id)
-        process = popen_process_argv(normalized, cwd=payload["cwd"], env=env)
-        selector = selectors.DefaultSelector()
-        # Use selectors so stdout and stderr can be streamed without blocking on
-        # one pipe while the child is writing to the other.
-        if process.stdout is not None:
-            selector.register(process.stdout, selectors.EVENT_READ, "stdout")
-        if process.stderr is not None:
-            selector.register(process.stderr, selectors.EVENT_READ, "stderr")
-        timeout_value = float(timeout) if timeout is not None else None
-        deadline = None if timeout_value is None else timeout_deadline(timeout_value)
-        try:
-            while selector.get_map():
-                self.context.raise_if_cancelled()
-                if deadline is not None and timeout_expired(deadline):
-                    if timeout_value is None:
-                        raise RuntimeError("process timeout deadline set without timeout value")
-                    process.kill()
-                    raise subprocess.TimeoutExpired(list(normalized), timeout_value)
-                for key, _mask in selector.select(timeout=0.1):
-                    pipe = cast(Any, key.fileobj)
-                    line = pipe.readline()
-                    if line:
-                        # Publish chunks as they arrive so long-running wrapper
-                        # plugins can expose progress/output before process exit.
-                        stream = str(key.data)
-                        chunk = ProcessChunk(audit_argv, stream, line, request_id)
-                        self.publish_chunk(chunk)
-                        yield chunk
-                    else:
-                        selector.unregister(key.fileobj)
-            returncode = process.wait(timeout=1)
-        finally:
-            # Always close pipes and the selector.  If the generator consumer
-            # stops early, terminate the child so process wrappers do not leak
-            # background subprocesses.
-            for pipe in (process.stdout, process.stderr):
-                if pipe is not None and not pipe.closed:
-                    pipe.close()
-            selector.close()
-            if process.poll() is None:
-                process.terminate()
-                process.wait(timeout=5)
-        self.publish_exit(audit_argv, returncode, request_id)
+        return payload
+
+    def stream_process_chunks(
+        self,
+        process: subprocess.Popen[str],
+        selector: selectors.BaseSelector,
+        state: StreamProcessState,
+    ) -> Iterable[ProcessChunk]:
+        """Yield streamed process chunks until all registered pipes close."""
+        while selector.get_map():
+            self.context.raise_if_cancelled()
+            raise_if_stream_timeout(process, state)
+            for key, _mask in selector.select(timeout=0.1):
+                chunk = read_stream_chunk(key, state.audit_argv, state.request_event_id)
+                if chunk is None:
+                    selector.unregister(key.fileobj)
+                    continue
+                self.publish_chunk(chunk)
+                yield chunk
 
     def attach_output_artifact(self, result: ProcessResult) -> dict[str, Any]:
         """Attach one redacted stdout/stderr transcript artifact for a process run."""
@@ -447,6 +476,56 @@ def popen_process_argv(
         bufsize=1,
         shell=False,
     )
+
+
+def process_output_selector(process: subprocess.Popen[str]) -> selectors.BaseSelector:
+    """Return a selector registered for one process stdout/stderr pair."""
+    selector = selectors.DefaultSelector()
+    # Use selectors so stdout and stderr can be streamed without blocking on
+    # one pipe while the child is writing to the other.
+    if process.stdout is not None:
+        selector.register(process.stdout, selectors.EVENT_READ, "stdout")
+    if process.stderr is not None:
+        selector.register(process.stderr, selectors.EVENT_READ, "stderr")
+    return selector
+
+
+def raise_if_stream_timeout(process: subprocess.Popen[str], state: StreamProcessState) -> None:
+    """Kill a streaming process and raise when its timeout has expired."""
+    if state.deadline is None or not timeout_expired(state.deadline):
+        return
+    if state.timeout_value is None:
+        raise RuntimeError("process timeout deadline set without timeout value")
+    process.kill()
+    raise subprocess.TimeoutExpired(list(state.normalized_argv), state.timeout_value)
+
+
+def read_stream_chunk(
+    key: selectors.SelectorKey,
+    audit_argv: tuple[str, ...],
+    request_event_id: int | None,
+) -> ProcessChunk | None:
+    """Return one streamed chunk, or None when the pipe reached EOF."""
+    pipe = cast(Any, key.fileobj)
+    line = pipe.readline()
+    if not line:
+        return None
+    # Publish chunks as they arrive so long-running wrapper plugins can expose
+    # progress/output before process exit.
+    return ProcessChunk(audit_argv, str(key.data), line, request_event_id)
+
+
+def close_stream_process(process: subprocess.Popen[str], selector: selectors.BaseSelector) -> None:
+    """Close stream resources and terminate abandoned child processes."""
+    # Always close pipes and the selector. If the generator consumer stops
+    # early, terminate the child so process wrappers do not leak subprocesses.
+    for pipe in (process.stdout, process.stderr):
+        if pipe is not None and not pipe.closed:
+            pipe.close()
+    selector.close()
+    if process.poll() is None:
+        process.terminate()
+        process.wait(timeout=5)
 
 
 def timeout_deadline(timeout: float) -> float:
