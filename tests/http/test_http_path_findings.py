@@ -66,6 +66,28 @@ class HttpPathFindingHelperTests(unittest.TestCase):
             )
         )
 
+    def test_is_interesting_path_requires_cloud_app_config_markers(self):
+        self.assertTrue(
+            is_interesting_path(
+                "/.aws/credentials",
+                {
+                    "status": 200,
+                    "content_type": "text/plain",
+                    "sample": "[default]\naws_access_key_id = AKIAEXAMPLE\naws_secret_access_key = secret",
+                },
+            )
+        )
+        self.assertFalse(
+            is_interesting_path(
+                "/.aws/credentials",
+                {
+                    "status": 200,
+                    "content_type": "text/html",
+                    "sample": "<p>AWS credential rotation policy</p>",
+                },
+            )
+        )
+
     def test_finding_for_path_preserves_origin_scope_and_group_key(self):
         observed = HttpPathObserved(
             url="https://example.test/app/.git/config",
@@ -93,6 +115,35 @@ class HttpPathFindingHelperTests(unittest.TestCase):
         )
         evidence = cast(str, finding["evidence"])
         self.assertIn("content-type=text/plain", evidence)
+
+    def test_finding_for_cloud_app_config_uses_metadata_only_evidence(self):
+        observed = HttpPathObserved(
+            url="https://example.test/.aws/credentials",
+            host="example.test",
+            port=443,
+            path="/.aws/credentials",
+            status=200,
+            content_type="text/plain",
+            length=128,
+            interesting=True,
+        )
+
+        finding = finding_for_path(observed)
+
+        self.assertIsNotNone(finding)
+        assert finding is not None
+        self.assertEqual(finding["class"], "web.exposure.cloud_app_config")
+        self.assertEqual(finding["severity"], "high")
+        self.assertEqual(finding["target_scope"], {"kind": "web_origin", "value": "https://example.test"})
+        self.assertEqual(
+            finding["group_key"],
+            "web.exposure.cloud_app_config|web_origin:https://example.test|cwe:CWE-538",
+        )
+        self.assertEqual(finding["identifiers"], {"cwe": ["CWE-538"]})
+        evidence = cast(str, finding["evidence"])
+        self.assertIn("https://example.test/.aws/credentials returned HTTP 200", evidence)
+        self.assertNotIn("aws_secret_access_key", evidence)
+        self.assertIn("rotate", cast(str, finding["recommendation"]))
 
     def test_finding_for_path_returns_none_when_observation_is_not_interesting(self):
         observed = HttpPathObserved(

@@ -67,6 +67,22 @@ SENSITIVE_CONFIG_MARKERS = (
     "password:",
     "password=",
 )
+CLOUD_APP_CONFIG_PATHS = frozenset(
+    {
+        "/.aws/credentials",
+        "/application.yaml",
+        "/application.yml",
+        "/appsettings.json",
+        "/firebase.json",
+    }
+)
+CLOUD_APP_CONFIG_MARKER_GROUPS = {
+    "/.aws/credentials": (("[default]", "[profile "), ("aws_access_key_id",), ("aws_secret_access_key",)),
+    "/application.yaml": (("spring:", "server:", "datasource:", "database:"), ("password:", "url:", "username:")),
+    "/application.yml": (("spring:", "server:", "datasource:", "database:"), ("password:", "url:", "username:")),
+    "/appsettings.json": (('"connectionstrings"', '"logging"', '"allowedhosts"'), ('"password"', '"defaultconnection"', '"apikey"')),
+    "/firebase.json": (('"hosting"', '"firestore"', '"functions"'), ('"public"', '"rules"', '"source"')),
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,6 +112,9 @@ DEPENDENCY_METADATA_RECOMMENDATION = (
 SENSITIVE_CONFIG_RECOMMENDATION = (
     "Remove sensitive configuration files from deployed web roots and rotate any exposed credentials."
 )
+CLOUD_APP_CONFIG_RECOMMENDATION = (
+    "Remove cloud or application configuration files from deployed web roots and rotate any exposed credentials."
+)
 
 
 def is_interesting_path(path: str, result: dict[str, object]) -> bool:
@@ -115,6 +134,7 @@ def is_interesting_path(path: str, result: dict[str, object]) -> bool:
         or looks_like_vcs_metadata(lowered, sample)
         or looks_like_dependency_manifest(lowered, sample)
         or looks_like_sensitive_config(lowered, sample)
+        or looks_like_cloud_app_config(lowered, sample)
         or "repositoryformatversion" in sample
         or "spring.cloud" in sample
         or "database_url" in sample
@@ -164,6 +184,12 @@ def looks_like_dependency_manifest(path: str, sample: str) -> bool:
 def looks_like_sensitive_config(path: str, sample: str) -> bool:
     """Return whether response text looks like an exposed sensitive config file."""
     return path in SENSITIVE_CONFIG_PATHS and any(marker in sample for marker in SENSITIVE_CONFIG_MARKERS)
+
+
+def looks_like_cloud_app_config(path: str, sample: str) -> bool:
+    """Return whether response text looks like exposed cloud or app config."""
+    marker_groups = CLOUD_APP_CONFIG_MARKER_GROUPS.get(path)
+    return bool(marker_groups) and all(any(marker in sample for marker in group) for group in marker_groups)
 
 
 def is_backup_archive_path(path: str) -> bool:
@@ -278,6 +304,15 @@ def artifact_path_finding_details(
             origin_scope,
             cwe_538,
             SENSITIVE_CONFIG_RECOMMENDATION,
+        )
+    if path in CLOUD_APP_CONFIG_PATHS:
+        return PathFindingDetails(
+            "Exposed cloud or application configuration file",
+            "web.exposure.cloud_app_config",
+            "high",
+            origin_scope,
+            cwe_538,
+            CLOUD_APP_CONFIG_RECOMMENDATION,
         )
     return None
 

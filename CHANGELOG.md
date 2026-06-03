@@ -46,6 +46,9 @@ impact label and sorted from highest to lowest operator/developer impact:
   output does not lose multi-affected finding context.
 - [medium] Added end-to-end acceptance coverage for `report accept`,
   `report defer`, and `report reject` over canonical deduped findings.
+- [medium] Promoted explicitly requested `http_paths` cloud and application
+  configuration files into normalized metadata-only finding candidates when
+  bounded response samples contain recognizable configuration markers.
 - [medium] Promoted explicitly requested `http_paths` sensitive configuration
   files into normalized finding candidates when response evidence contains
   credential or configuration markers.
