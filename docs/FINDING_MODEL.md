@@ -138,6 +138,8 @@ Starter examples:
 | `web.header.missing_hsts` | `CWE-319`, OWASP `A02:2021` |
 | `web.header.missing_x_content_type_options` | `CWE-693`, OWASP `A05:2021` |
 | `web.exposure.git_config` | `CWE-538`, OWASP `A05:2021` |
+| `web.exposure.source_control_metadata` | `CWE-538`, OWASP `A05:2021` |
+| `web.exposure.source_map` | `CWE-538`, OWASP `A05:2021` |
 | `web.xss.reflected` | `CWE-79`, OWASP `A03:2021` |
 | `service.telnet.exposed` | `CWE-319`, OWASP `A02:2021` |
 | `service.tls.weak_protocol` | `CWE-327`, OWASP `A02:2021` |

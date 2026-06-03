@@ -212,9 +212,9 @@ Planning dates are release planning markers, not compatibility commitments.
 - Build a small family of repository-exposure plugins for HTTP-accessible
   source-control metadata and repository artifacts, starting with
   `git_expose_check` for exposed `.git/config`.
-- Consider follow-up checks for exposed `.svn/`, `.hg/`, `.bzr/`, source maps,
-  repository archives, backup trees, and cloud-hosted revision-control metadata
-  where safe passive probes can confirm exposure.
+- Consider follow-up checks for repository archives, backup trees, and
+  cloud-hosted revision-control metadata where safe passive probes can confirm
+  exposure.
 - Build a separate cloud-exposure family for misconfigured cloud assets such as
   public object buckets, default or absent access controls, overly broad
   anonymous permissions, and exposed cloud metadata or configuration endpoints.

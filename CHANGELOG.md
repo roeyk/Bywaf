@@ -46,6 +46,9 @@ impact label and sorted from highest to lowest operator/developer impact:
   output does not lose multi-affected finding context.
 - [medium] Added end-to-end acceptance coverage for `report accept`,
   `report defer`, and `report reject` over canonical deduped findings.
+- [medium] Promoted explicitly requested `http_paths` source map and legacy
+  source-control metadata exposures into normalized finding candidates when
+  response evidence has recognizable artifact markers.
 - [medium] Added report resume focus summaries and expanded wrapper diagnostics
   so Kismet and traceroute failures link retained process-output artifacts.
 - [medium] Added structured `tool.error` diagnostics and plugin-level fixture

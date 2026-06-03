@@ -30,6 +30,8 @@ ARCHIVE_CONTENT_TYPES = (
     "application/zip",
 )
 SQL_DUMP_MARKERS = ("create table", "insert into", "dump completed", "mysqldump", "postgresql database dump")
+VCS_METADATA_PATHS = frozenset({"/.svn/entries", "/.hg/hgrc", "/.bzr/branch/branch.conf"})
+SOURCE_MAP_SUFFIX = ".map"
 
 
 @commandlet
@@ -167,6 +169,8 @@ def is_interesting_path(path: str, result: dict[str, object]) -> bool:
         lowered in {"/.git/config", "/server-status", "/.env", "/actuator/env"}
         or (lowered in ADMIN_PATHS and looks_like_admin_surface(title, sample))
         or looks_like_exposed_backup_artifact(lowered, content_type, sample)
+        or looks_like_source_map(lowered, sample)
+        or looks_like_vcs_metadata(lowered, sample)
         or "repositoryformatversion" in sample
         or "spring.cloud" in sample
         or "database_url" in sample
@@ -184,6 +188,27 @@ def looks_like_exposed_backup_artifact(path: str, content_type: str, sample: str
     return (
         is_backup_archive_path(path) and any(content_type.startswith(item) for item in ARCHIVE_CONTENT_TYPES)
     ) or (is_database_dump_path(path) and any(marker in sample for marker in SQL_DUMP_MARKERS))
+
+
+def looks_like_source_map(path: str, sample: str) -> bool:
+    """Return whether response text looks like an exposed JavaScript source map."""
+    return (
+        path.endswith(SOURCE_MAP_SUFFIX)
+        and '"version"' in sample
+        and '"sources"' in sample
+        and '"mappings"' in sample
+    )
+
+
+def looks_like_vcs_metadata(path: str, sample: str) -> bool:
+    """Return whether response text looks like legacy source-control metadata."""
+    if path == "/.svn/entries":
+        return "wc-entries" in sample or "\ndir\n" in sample or "committed-rev" in sample
+    if path == "/.hg/hgrc":
+        return "[paths]" in sample or "[ui]" in sample
+    if path == "/.bzr/branch/branch.conf":
+        return "[branch]" in sample
+    return False
 
 
 def is_backup_archive_path(path: str) -> bool:
@@ -211,7 +236,18 @@ def finding_for_path(observed: HttpPathObserved) -> dict[str, object] | None:
         severity = "high"
         target_scope = {"kind": "web_origin", "value": origin_for_observed_path(observed)}
         identifiers = {"cwe": ["CWE-538"]}
-        recommendation = "Remove the .git directory from deployed web roots and block access to source-control metadata paths."
+        recommendation = (
+            "Remove the .git directory from deployed web roots and block access to source-control metadata paths."
+        )
+    elif path in VCS_METADATA_PATHS:
+        title = "Exposed source-control metadata"
+        finding_class = "web.exposure.source_control_metadata"
+        severity = "high"
+        target_scope = {"kind": "web_origin", "value": origin_for_observed_path(observed)}
+        identifiers = {"cwe": ["CWE-538"]}
+        recommendation = (
+            "Remove source-control metadata from deployed web roots and block access to revision-control metadata paths."
+        )
     elif observed.path == "/server-status":
         title = "Exposed Apache server-status endpoint"
         finding_class = "web.server_status.exposed"
@@ -236,6 +272,15 @@ def finding_for_path(observed: HttpPathObserved) -> dict[str, object] | None:
         title = "Exposed backup or source archive"
         finding_class = "web.backup.archive_exposed"
         severity = "medium"
+    elif path.endswith(SOURCE_MAP_SUFFIX):
+        title = "Exposed JavaScript source map"
+        finding_class = "web.exposure.source_map"
+        severity = "medium"
+        target_scope = {"kind": "web_origin", "value": origin_for_observed_path(observed)}
+        identifiers = {"cwe": ["CWE-538"]}
+        recommendation = (
+            "Publish production assets without source maps, or restrict source-map access to authorized debugging workflows."
+        )
     else:
         title = f"Interesting HTTP path exposed: {observed.path}"
         finding_class = "web.path.interesting"

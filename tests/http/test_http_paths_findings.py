@@ -173,6 +173,92 @@ class HttpPathFindingTests(unittest.TestCase):
             self.assertFalse(path["interesting"])
             self.assertEqual(db.events_for_topic("finding.candidate"), [])
 
+    def test_source_map_path_with_map_markers_becomes_candidate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="http_paths",
+                metadata={"capabilities": http_paths.spec.capabilities},
+            )
+            with patch(
+                "bywaf.plugins.http.http_paths.probe_path",
+                return_value={
+                    "status": 200,
+                    "content_type": "application/json",
+                    "length": 160,
+                    "sample": '{"version":3,"sources":["src/app.ts"],"mappings":"AAAA"}',
+                },
+            ):
+                list(http_paths.run(context, ["paths=/static/app.js.map", "https://example.test"], []))
+
+            path = db.events_for_topic("http.path")[0].payload
+            finding = db.events_for_topic("finding.candidate")[0].payload
+
+            self.assertTrue(path["interesting"])
+            self.assertEqual(finding["class"], "web.exposure.source_map")
+            self.assertEqual(finding["severity"], "medium")
+            self.assertEqual(finding["target_scope"], {"kind": "web_origin", "value": "https://example.test"})
+            self.assertEqual(finding["identifiers"], {"cwe": ["CWE-538"]})
+            self.assertIn("source-map access", finding["recommendation"])
+
+    def test_source_map_named_html_page_is_not_a_finding_without_map_markers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="http_paths",
+                metadata={"capabilities": http_paths.spec.capabilities},
+            )
+            with patch(
+                "bywaf.plugins.http.http_paths.probe_path",
+                return_value={
+                    "status": 200,
+                    "content_type": "text/html",
+                    "length": 80,
+                    "title": "Map",
+                    "sample": "<p>Public map page</p>",
+                },
+            ):
+                list(http_paths.run(context, ["paths=/static/app.js.map", "https://example.test"], []))
+
+            path = db.events_for_topic("http.path")[0].payload
+
+            self.assertFalse(path["interesting"])
+            self.assertEqual(db.events_for_topic("finding.candidate"), [])
+
+    def test_legacy_vcs_metadata_path_becomes_origin_scoped_candidate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="http_paths",
+                metadata={"capabilities": http_paths.spec.capabilities},
+            )
+            with patch(
+                "bywaf.plugins.http.http_paths.probe_path",
+                return_value={
+                    "status": 200,
+                    "content_type": "text/plain",
+                    "length": 64,
+                    "sample": "[paths]\ndefault = https://hg.example.test/project\n",
+                },
+            ):
+                list(http_paths.run(context, ["paths=/.hg/hgrc", "https://example.test/app"], []))
+
+            path = db.events_for_topic("http.path")[0].payload
+            finding = db.events_for_topic("finding.candidate")[0].payload
+
+            self.assertTrue(path["interesting"])
+            self.assertEqual(finding["class"], "web.exposure.source_control_metadata")
+            self.assertEqual(finding["severity"], "high")
+            self.assertEqual(finding["target_scope"], {"kind": "web_origin", "value": "https://example.test"})
+            self.assertEqual(
+                finding["group_key"],
+                "web.exposure.source_control_metadata|web_origin:https://example.test|cwe:CWE-538",
+            )
+            self.assertEqual(finding["identifiers"], {"cwe": ["CWE-538"]})
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -48,6 +48,16 @@ STARTER_FINDING_CLASSES: dict[str, FindingClassInfo] = {
         "Exposed Git repository configuration metadata.",
         {"cwe": ("CWE-538",), "owasp": ("A05:2021",)},
     ),
+    "web.exposure.source_control_metadata": FindingClassInfo(
+        "web.exposure.source_control_metadata",
+        "Exposed source-control metadata.",
+        {"cwe": ("CWE-538",), "owasp": ("A05:2021",)},
+    ),
+    "web.exposure.source_map": FindingClassInfo(
+        "web.exposure.source_map",
+        "Exposed JavaScript source map.",
+        {"cwe": ("CWE-538",), "owasp": ("A05:2021",)},
+    ),
     "web.exposure.directory_listing": FindingClassInfo(
         "web.exposure.directory_listing",
         "Directory listing exposes application content.",
