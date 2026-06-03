@@ -47,12 +47,17 @@ metrics locally before and after larger refactors:
 python scripts/architecture_metrics.py --top 12
 python scripts/architecture_metrics.py --top 12 --churn
 python scripts/architecture_metrics.py --doc-impact docs/REPORTING.md
+python scripts/bundled_plugin_manual_check.py
 ```
 
 The metrics report includes both Python code pressure and documentation
 pressure. Documentation metrics are cohesion/coupling hints: they flag oversized
 pages, heavily linked pages, stale terms, repeated headings, audience mixing,
 and likely related pages to inspect after a documentation change.
+
+The bundled plugin manual drift check compares bundled plugin manifests with
+`docs/BUNDLED_PLUGIN_MANUAL.md`. It catches stale plugin lists, family counts,
+commandlet counts, and commandlet headings after bundled plugin changes.
 
 ## Choosing The Right Layer
 

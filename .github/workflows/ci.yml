@@ -53,6 +53,9 @@ jobs:
       - name: Architecture metrics
         run: python scripts/architecture_metrics.py --top 12
 
+      - name: Bundled plugin manual drift check
+        run: python scripts/bundled_plugin_manual_check.py
+
       - name: Bandit
         run: bandit -r bywaf -ll
 
