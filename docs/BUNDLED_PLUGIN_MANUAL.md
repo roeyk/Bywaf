@@ -18,6 +18,7 @@ A **provider** is the Python implementation object or module that registers or r
 ## Table Of Contents
 
 <div class="plugin-toc">
+<div class="toc-header"><span class="toc-count">Plugins (Commandlets)</span><span class="toc-name">Name</span></div>
 <details class="plugin-toc-family">
 <summary id="toc-analysis"><span class="toc-count">5</span><span class="toc-arrow" aria-hidden="true">▸</span><span class="toc-name">Analysis</span></summary>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#analysisfinding">analysis.finding</a></span></div>
