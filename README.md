@@ -90,7 +90,7 @@ Optional external tools used by bundled wrapper commandlets include `nmap`,
 For a fuller first-ten-minutes operator path, see
 [docs/OPERATOR_QUICKSTART.md](docs/OPERATOR_QUICKSTART.md).
 
-Start the REPL:
+Start the Bywaf interpreter:
 
 ```bash
 bywaf
