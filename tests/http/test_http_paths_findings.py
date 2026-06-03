@@ -40,6 +40,35 @@ class HttpPathFindingTests(unittest.TestCase):
             self.assertEqual(finding["class"], "web.admin_interface.exposed")
             self.assertEqual(finding["severity"], "low")
             self.assertEqual(finding["target"]["path"], "/admin/")
+            self.assertIn("content-type=text/html", finding["evidence"])
+
+    def test_git_config_path_uses_repo_exposure_finding_class_and_origin_scope(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="http_paths",
+                metadata={"capabilities": http_paths.spec.capabilities},
+            )
+            with patch(
+                "bywaf.plugins.http.http_paths.probe_path",
+                return_value={
+                    "status": 200,
+                    "content_type": "text/plain",
+                    "length": 42,
+                    "sample": "[core]\n\trepositoryformatversion = 0\n",
+                },
+            ):
+                list(http_paths.run(context, ["paths=/.git/config", "https://example.test/app"], []))
+
+            finding = db.events_for_topic("finding.candidate")[0].payload
+
+            self.assertEqual(finding["class"], "web.exposure.git_config")
+            self.assertEqual(finding["target_scope"], {"kind": "web_origin", "value": "https://example.test"})
+            self.assertEqual(finding["group_key"], "web.exposure.git_config|web_origin:https://example.test|cwe:CWE-538")
+            self.assertEqual(finding["identifiers"], {"cwe": ["CWE-538"]})
+            self.assertEqual(finding["affected"], [{"url": "https://example.test/.git/config", "host": "example.test", "path": "/.git/config"}])
+            self.assertIn("content-type=text/plain", finding["evidence"])
 
     def test_plain_login_path_without_admin_signal_is_not_a_finding(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -91,6 +120,7 @@ class HttpPathFindingTests(unittest.TestCase):
             self.assertTrue(path["interesting"])
             self.assertEqual(finding["class"], "web.backup.archive_exposed")
             self.assertEqual(finding["severity"], "medium")
+            self.assertIn("length=2048", finding["evidence"])
 
     def test_database_dump_path_with_sql_markers_becomes_candidate(self):
         with tempfile.TemporaryDirectory() as tmp:

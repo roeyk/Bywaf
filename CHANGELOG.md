@@ -45,6 +45,9 @@ impact label and sorted from highest to lowest operator/developer impact:
 - [medium] Added fixture-backed `http_paths` promotion for explicit backup
   archive and database dump paths when response metadata strongly indicates an
   exposed artifact.
+- [medium] Aligned exposed `.git/config` finding classes and evidence details
+  across `repo_exposure` and `http_paths` so reports group the same issue
+  consistently.
 - [medium] Added explicit screenshotter wrapper fixture coverage for missing
   binary, nonzero exit, timeout, empty selection, and successful screenshot
   evidence paths.

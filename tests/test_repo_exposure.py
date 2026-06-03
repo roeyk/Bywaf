@@ -84,6 +84,9 @@ class RepoExposureTests(unittest.TestCase):
         self.assertEqual(candidate["group_key"], "web.exposure.git_config|web_origin:https://example.test|cwe:CWE-538")
         self.assertEqual(candidate["identifiers"], {"cwe": ["CWE-538"]})
         self.assertEqual(candidate["target"]["path"], "/.git/config")
+        self.assertEqual(candidate["affected"], [{"url": "https://example.test/.git/config", "host": "example.test", "path": "/.git/config"}])
+        self.assertIn("http_status=200", candidate["evidence"])
+        self.assertIn("sample=[core]", candidate["evidence"])
 
     def test_run_publishes_candidate_for_exposed_git_config(self):
         with tempfile.TemporaryDirectory() as tmp:

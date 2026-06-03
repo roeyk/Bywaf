@@ -217,8 +217,11 @@ class LibraryPluginTests(unittest.TestCase):
             ):
                 list(http_paths.run(context, ["paths=/.git/config", "http://127.0.0.1:8080"], []))
             path = db.events_for_topic("http.path")[0].payload
+            finding = db.events_for_topic("finding.candidate")[0].payload
             self.assertTrue(path["interesting"])
-            self.assertEqual(db.events_for_topic("finding.candidate")[0].payload["class"], "web.repo.git_config_exposed")
+            self.assertEqual(finding["class"], "web.exposure.git_config")
+            self.assertEqual(finding["target_scope"], {"kind": "web_origin", "value": "http://127.0.0.1:8080"})
+            self.assertEqual(finding["group_key"], "web.exposure.git_config|web_origin:http://127.0.0.1:8080|cwe:CWE-538")
 
     def test_waf_detect_publishes_cloudflare_signal(self):
         with tempfile.TemporaryDirectory() as tmp:

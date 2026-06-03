@@ -56,8 +56,20 @@ def candidate_from_detection(result: GitConfigProbeResult, *, source_tool: str =
             "url": result.checked_url,
         },
         identifiers={"cwe": ["CWE-538"]},
-        affected=[{"url": result.checked_url}],
-        evidence=f"{result.checked_url} returned Git configuration content: {result.evidence[:200]}",
+        affected=[{"url": result.checked_url, "host": result.host, "path": "/.git/config"}],
+        evidence=git_config_evidence(result),
         recommendation="Remove the .git directory from deployed web roots and block access to source-control metadata paths.",
         source={"tool": source_tool, "topic": "repo.git_config.checked"},
     )
+
+
+def git_config_evidence(result: GitConfigProbeResult) -> str:
+    """Return operator-facing evidence for an exposed Git config response."""
+    details = [f"{result.checked_url} returned Git configuration content"]
+    if result.http_status is not None:
+        details.append(f"http_status={result.http_status}")
+    if result.final_url and result.final_url != result.checked_url:
+        details.append(f"final_url={result.final_url}")
+    if result.evidence:
+        details.append(f"sample={result.evidence[:200]}")
+    return "; ".join(details)

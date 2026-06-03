@@ -197,14 +197,21 @@ def is_database_dump_path(path: str) -> bool:
 
 
 def finding_for_path(observed: HttpPathObserved) -> dict[str, object] | None:
-    """Promote clearly risky HTTP path observations to finding candidates."""
+    """Return a finding candidate for clearly risky HTTP path observations."""
     if not observed.interesting:
         return None
     path = observed.path.casefold()
+    finding_scope = ""
+    target_scope = {"kind": "web_route", "value": observed.url}
+    identifiers: dict[str, list[str]] | None = None
+    recommendation = ""
     if observed.path == "/.git/config":
         title = "Exposed Git repository configuration"
-        finding_class = "web.repo.git_config_exposed"
+        finding_class = "web.exposure.git_config"
         severity = "high"
+        target_scope = {"kind": "web_origin", "value": origin_for_observed_path(observed)}
+        identifiers = {"cwe": ["CWE-538"]}
+        recommendation = "Remove the .git directory from deployed web roots and block access to source-control metadata paths."
     elif observed.path == "/server-status":
         title = "Exposed Apache server-status endpoint"
         finding_class = "web.server_status.exposed"
@@ -238,11 +245,32 @@ def finding_for_path(observed: HttpPathObserved) -> dict[str, object] | None:
         finding_class=finding_class,
         severity=severity,
         target={"url": observed.url, "host": observed.host, "path": observed.path},
-        target_scope={"kind": "web_route", "value": observed.url},
-        affected=[{"url": observed.url, "host": observed.host}],
-        evidence=f"{observed.url} returned HTTP {observed.status}",
+        target_scope=target_scope,
+        affected=[{"url": observed.url, "host": observed.host, "path": observed.path}],
+        identifiers=identifiers,
+        evidence=path_evidence(observed),
+        recommendation=recommendation,
         source={"tool": "http_paths", "topic": "http.path"},
+        finding_scope=finding_scope,
     )
+
+
+def origin_for_observed_path(observed: HttpPathObserved) -> str:
+    """Return the web origin for an observed HTTP path."""
+    parsed = urllib.parse.urlparse(observed.url)
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+def path_evidence(observed: HttpPathObserved) -> str:
+    """Return operator-facing evidence for one interesting HTTP path."""
+    details = [f"{observed.url} returned HTTP {observed.status}"]
+    if observed.content_type:
+        details.append(f"content-type={observed.content_type}")
+    if observed.length is not None:
+        details.append(f"length={observed.length}")
+    if observed.title:
+        details.append(f"title={observed.title}")
+    return "; ".join(details)
 
 
 def plugin() -> Commandlet:
