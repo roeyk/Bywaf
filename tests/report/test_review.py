@@ -316,6 +316,73 @@ class ReportReviewTests(unittest.TestCase):
             self.assertEqual(review.payload["decision"], "deferred")
             self.assertEqual(review.payload["note"], "needs manual validation")
 
+    def test_report_accept_defer_reject_flow_uses_deduped_findings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            for index, (title, host) in enumerate(
+                (
+                    ("Accepted issue", "accepted.test"),
+                    ("Deferred issue", "deferred.test"),
+                    ("Rejected issue", "rejected.test"),
+                ),
+                start=1,
+            ):
+                runner.db.publish(
+                    "finding.candidate",
+                    {
+                        "finding_id": f"candidate-{index}",
+                        "title": title,
+                        "class": "web.exposure.git_config",
+                        "target": {"scheme": "https", "host": host, "path": "/.git/config"},
+                        "affected": [{"url": f"https://{host}/.git/config"}],
+                        "identifiers": {"cwe": ["CWE-538"]},
+                        "severity": "high",
+                    },
+                    "scanner",
+                    pipeline_id="pipeline-a",
+                    command_run_id="step-a",
+                )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("finding_dedupe -s")
+                process_framework_requests(runner, ShellState())
+                runner.execute("report accept 1 pipeline=pipeline-a note=validated")
+                process_framework_requests(runner, ShellState())
+                runner.execute("report defer 1 pipeline=pipeline-a note=owner follow-up")
+                process_framework_requests(runner, ShellState())
+                runner.execute("report reject 1 pipeline=pipeline-a note=false positive")
+                process_framework_requests(runner, ShellState())
+
+            text = output.getvalue()
+            self.assertIn("accepted 1 finding", text)
+            self.assertIn("deferred 1 finding", text)
+            self.assertIn("rejected 1 finding", text)
+            reviews = runner.db.events_for_topic("finding.reviewed")
+            self.assertEqual([event.payload["decision"] for event in reviews], ["accepted", "deferred", "rejected"])
+            self.assertEqual([event.payload["note"] for event in reviews], ["validated", "owner follow-up", "false positive"])
+            self.assertTrue(all(event.payload["source"] == "report" for event in reviews))
+            self.assertEqual(len(runner.db.events_for_topic("finding.new")), 3)
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report pipeline=pipeline-a")
+                process_framework_requests(runner, ShellState())
+
+            open_text = output.getvalue()
+            self.assertIn("Review: 1 accepted, 0 confirmed, 1 deferred, 1 rejected, 0 unreviewed", open_text)
+            self.assertIn("no open findings", open_text)
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report pipeline=pipeline-a status=all")
+                process_framework_requests(runner, ShellState())
+
+            all_text = output.getvalue()
+            self.assertIn("Accepted issue", all_text)
+            self.assertIn("Deferred issue", all_text)
+            self.assertIn("Rejected issue", all_text)
+
     def test_report_latest_review_decision_wins(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))

@@ -44,6 +44,8 @@ impact label and sorted from highest to lowest operator/developer impact:
 - [medium] Aligned report detail, compact report tables, and `finding_report`
   table rows on the same affected-resource display logic so canonical dedupe
   output does not lose multi-affected finding context.
+- [medium] Added end-to-end acceptance coverage for `report accept`,
+  `report defer`, and `report reject` over canonical deduped findings.
 - [medium] Added report resume focus summaries and expanded wrapper diagnostics
   so Kismet and traceroute failures link retained process-output artifacts.
 - [medium] Added structured `tool.error` diagnostics and plugin-level fixture
