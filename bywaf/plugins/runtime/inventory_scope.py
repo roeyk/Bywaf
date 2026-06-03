@@ -25,22 +25,44 @@ def parse_inventory_selectors(
     scope: dict[str, str] = {}
     sort = sort_keys[0] if sort_keys else ""
     for token in tokens:
-        if token.startswith("--"):
-            raise ValueError(f"inventory views use selector syntax; use key=value, not {token}")
-        key, separator, value = token.partition("=")
-        if not separator or not key or not value:
-            raise ValueError("inventory selectors must be key=value")
+        key, value = parse_inventory_selector_token(token)
         if key == "sort":
-            descending = value.startswith("-")
-            sort_name = value[1:] if descending else value
-            if sort_name not in sort_keys:
-                raise ValueError(f"inventory sort= must be one of: {', '.join(sort_keys)}")
-            sort = value
+            sort = parse_inventory_sort(value, sort_keys)
             continue
-        if key not in SCOPE_KEYS:
-            allowed = ", ".join((*sorted(SCOPE_KEYS), "sort"))
-            raise ValueError(f"inventory selectors must be one of: {allowed}")
+        require_inventory_scope_key(key)
         scope[key] = value
+    validate_inventory_scope(scope, last=last, new=new)
+    return Namespace(scope=scope, last=last, new=new, sort=sort)
+
+
+def parse_inventory_selector_token(token: str) -> tuple[str, str]:
+    """Return the key/value pair for one inventory selector token."""
+    if token.startswith("--"):
+        raise ValueError(f"inventory views use selector syntax; use key=value, not {token}")
+    key, separator, value = token.partition("=")
+    if not separator or not key or not value:
+        raise ValueError("inventory selectors must be key=value")
+    return key, value
+
+
+def parse_inventory_sort(value: str, sort_keys: tuple[str, ...]) -> str:
+    """Validate and return one inventory sort selector."""
+    descending = value.startswith("-")
+    sort_name = value[1:] if descending else value
+    if sort_name not in sort_keys:
+        raise ValueError(f"inventory sort= must be one of: {', '.join(sort_keys)}")
+    return value
+
+
+def require_inventory_scope_key(key: str) -> None:
+    """Validate that an inventory selector key is supported."""
+    if key not in SCOPE_KEYS:
+        allowed = ", ".join((*sorted(SCOPE_KEYS), "sort"))
+        raise ValueError(f"inventory selectors must be one of: {allowed}")
+
+
+def validate_inventory_scope(scope: dict[str, str], *, last: bool, new: bool) -> None:
+    """Validate combined inventory scope selectors."""
     all_value = scope.get("all", "true")
     if all_value not in {"true", "false"}:
         raise ValueError("inventory all= must be true or false")
@@ -53,7 +75,6 @@ def parse_inventory_selectors(
         raise ValueError("inventory accepts only one of --last or --new")
     if (last or new) and scope.get("all") == "true":
         raise ValueError("inventory all=true cannot be combined with --last or --new")
-    return Namespace(scope=scope, last=last, new=new, sort=sort)
 
 
 def select_inventory_events(
@@ -63,35 +84,61 @@ def select_inventory_events(
     identity: InventoryIdentity,
 ) -> list[Event]:
     """Return matching inventory events for the selected scope."""
-    scope = selectors.scope
     if selectors.new:
-        scoped = latest_inventory_scope_events(context, topics) if not scope else select_inventory_scope_events(context, topics, selectors)
-        return events_new_to_scope(context, topics, scoped, identity)
+        return select_new_inventory_events(context, topics, selectors, identity)
     if selectors.last:
         return latest_inventory_scope_events(context, topics)
     return select_inventory_scope_events(context, topics, selectors)
 
 
+def select_new_inventory_events(
+    context: CommandContext,
+    topics: tuple[str, ...],
+    selectors: Namespace,
+    identity: InventoryIdentity,
+) -> list[Event]:
+    """Return facts from the selected scope that did not exist before it."""
+    scoped = latest_inventory_scope_events(context, topics)
+    if selectors.scope:
+        scoped = select_inventory_scope_events(context, topics, selectors)
+    return events_new_to_scope(context, topics, scoped, identity)
+
+
 def select_inventory_scope_events(context: CommandContext, topics: tuple[str, ...], selectors: Namespace) -> list[Event]:
     """Return inventory events for an explicit scope or all project facts."""
-    events = context.event_store("inventory")
-    runtime = context.runtime_store("inventory")
     scope = selectors.scope
     if "job" in scope:
-        if scope["job"] == "latest":
-            return latest_inventory_scope_events(context, topics)
-        row = require_job(context, scope["job"])
-        return [event for event in events.events_for_job(row["id"], limit=10000) if event.topic in topics]
+        return events_for_job_scope(context, topics, scope["job"])
     if "pipeline" in scope:
-        pipeline_id = runtime.resolve_pipeline_serial(scope["pipeline"])
-        return [event for event in events.events_matching(pipeline_id=pipeline_id, limit=10000) if event.topic in topics]
+        return events_for_pipeline_scope(context, topics, scope["pipeline"])
     if "step" in scope:
-        run_id = runtime.resolve_run_serial(scope["step"])
-        return [event for event in events.events_matching(command_run_id=run_id, limit=10000) if event.topic in topics]
-    rows: list[Event] = []
-    for topic in topics:
-        rows.extend(events.events_matching(topic=topic, limit=10000))
-    return sorted(rows, key=lambda event: event.id or 0)
+        return events_for_step_scope(context, topics, scope["step"])
+    return events_matching_topics(context, topics, limit=10000)
+
+
+def events_for_job_scope(context: CommandContext, topics: tuple[str, ...], job: str) -> list[Event]:
+    """Return inventory events from one job scope."""
+    if job == "latest":
+        return latest_inventory_scope_events(context, topics)
+    events = context.event_store("inventory")
+    row = require_job(context, job)
+    return [event for event in events.events_for_job(row["id"], limit=10000) if event.topic in topics]
+
+
+def events_for_pipeline_scope(context: CommandContext, topics: tuple[str, ...], pipeline: str) -> list[Event]:
+    """Return inventory events from one pipeline scope."""
+    events = context.event_store("inventory")
+    runtime = context.runtime_store("inventory")
+    pipeline_id = runtime.resolve_pipeline_serial(pipeline)
+    return [event for event in events.events_matching(pipeline_id=pipeline_id, limit=10000) if event.topic in topics]
+
+
+def events_for_step_scope(context: CommandContext, topics: tuple[str, ...], step: str) -> list[Event]:
+    """Return inventory events from one command-run scope."""
+    events = context.event_store("inventory")
+    runtime = context.runtime_store("inventory")
+    run_id = runtime.resolve_run_serial(step)
+    return [event for event in events.events_matching(command_run_id=run_id, limit=10000) if event.topic in topics]
 
 
 def latest_inventory_scope_events(context: CommandContext, topics: tuple[str, ...]) -> list[Event]:
