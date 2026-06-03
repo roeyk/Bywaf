@@ -17,112 +17,180 @@ A **provider** is the Python implementation object or module that registers or r
 
 ## Table Of Contents
 
-<details>
-<summary id="toc-analysis">Analysis</summary>
-
-- [analysis.finding](#analysisfinding)
-- [analysis.finding_dedupe](#analysisfinding_dedupe)
-- [analysis.finding_report](#analysisfinding_report)
-- [analysis.report](#analysisreport)
-- [analysis.yara_scan](#analysisyara_scan)
-
+<table>
+<thead>
+<tr><th align="right">Plugins</th><th>Family</th></tr>
+</thead>
+<tbody>
+<tr>
+<td align="right">5</td>
+<td>
+<details><summary id="toc-analysis">Analysis</summary>
+<table>
+<thead><tr><th align="right">Commandlets</th><th>Plugin</th></tr></thead>
+<tbody>
+<tr><td align="right">1</td><td><a href="#analysisfinding">analysis.finding</a></td></tr>
+<tr><td align="right">1</td><td><a href="#analysisfinding_dedupe">analysis.finding_dedupe</a></td></tr>
+<tr><td align="right">1</td><td><a href="#analysisfinding_report">analysis.finding_report</a></td></tr>
+<tr><td align="right">1</td><td><a href="#analysisreport">analysis.report</a></td></tr>
+<tr><td align="right">1</td><td><a href="#analysisyara_scan">analysis.yara_scan</a></td></tr>
+</tbody>
+</table>
 </details>
-
-<details>
-<summary id="toc-discovery">Discovery</summary>
-
-- [discovery.hostscanner](#discoveryhostscanner)
-
+</td>
+</tr>
+<tr>
+<td align="right">1</td>
+<td>
+<details><summary id="toc-discovery">Discovery</summary>
+<table>
+<thead><tr><th align="right">Commandlets</th><th>Plugin</th></tr></thead>
+<tbody>
+<tr><td align="right">1</td><td><a href="#discoveryhostscanner">discovery.hostscanner</a></td></tr>
+</tbody>
+</table>
 </details>
-
-<details>
-<summary id="toc-http">HTTP</summary>
-
-- [http.eyewitness](#httpeyewitness)
-- [http.http_headers](#httphttp_headers)
-- [http.http_paths](#httphttp_paths)
-- [http.http_probe](#httphttp_probe)
-- [http.nikto](#httpnikto)
-- [http.repo_exposure](#httprepo_exposure)
-- [http.screenshotter](#httpscreenshotter)
-- [http.tls_probe](#httptls_probe)
-- [http.waf_detect](#httpwaf_detect)
-- [http.webfin](#httpwebfin)
-
+</td>
+</tr>
+<tr>
+<td align="right">10</td>
+<td>
+<details><summary id="toc-http">HTTP</summary>
+<table>
+<thead><tr><th align="right">Commandlets</th><th>Plugin</th></tr></thead>
+<tbody>
+<tr><td align="right">1</td><td><a href="#httpeyewitness">http.eyewitness</a></td></tr>
+<tr><td align="right">1</td><td><a href="#httphttp_headers">http.http_headers</a></td></tr>
+<tr><td align="right">1</td><td><a href="#httphttp_paths">http.http_paths</a></td></tr>
+<tr><td align="right">1</td><td><a href="#httphttp_probe">http.http_probe</a></td></tr>
+<tr><td align="right">1</td><td><a href="#httpnikto">http.nikto</a></td></tr>
+<tr><td align="right">2</td><td><a href="#httprepo_exposure">http.repo_exposure</a></td></tr>
+<tr><td align="right">1</td><td><a href="#httpscreenshotter">http.screenshotter</a></td></tr>
+<tr><td align="right">1</td><td><a href="#httptls_probe">http.tls_probe</a></td></tr>
+<tr><td align="right">1</td><td><a href="#httpwaf_detect">http.waf_detect</a></td></tr>
+<tr><td align="right">1</td><td><a href="#httpwebfin">http.webfin</a></td></tr>
+</tbody>
+</table>
 </details>
-
-<details>
-<summary id="toc-identity">Identity</summary>
-
-- [identity.ldap_probe](#identityldap_probe)
-- [identity.smb_probe](#identitysmb_probe)
-
+</td>
+</tr>
+<tr>
+<td align="right">2</td>
+<td>
+<details><summary id="toc-identity">Identity</summary>
+<table>
+<thead><tr><th align="right">Commandlets</th><th>Plugin</th></tr></thead>
+<tbody>
+<tr><td align="right">1</td><td><a href="#identityldap_probe">identity.ldap_probe</a></td></tr>
+<tr><td align="right">1</td><td><a href="#identitysmb_probe">identity.smb_probe</a></td></tr>
+</tbody>
+</table>
 </details>
-
-<details>
-<summary id="toc-network">Network</summary>
-
-- [network.management_exposure](#networkmanagement_exposure)
-- [network.portscanner](#networkportscanner)
-- [network.service_probe](#networkservice_probe)
-- [network.snmp_get](#networksnmp_get)
-- [network.ssh_probe](#networkssh_probe)
-- [network.tcp_banner](#networktcp_banner)
-- [network.traceroute](#networktraceroute)
-
+</td>
+</tr>
+<tr>
+<td align="right">7</td>
+<td>
+<details><summary id="toc-network">Network</summary>
+<table>
+<thead><tr><th align="right">Commandlets</th><th>Plugin</th></tr></thead>
+<tbody>
+<tr><td align="right">1</td><td><a href="#networkmanagement_exposure">network.management_exposure</a></td></tr>
+<tr><td align="right">2</td><td><a href="#networkportscanner">network.portscanner</a></td></tr>
+<tr><td align="right">1</td><td><a href="#networkservice_probe">network.service_probe</a></td></tr>
+<tr><td align="right">1</td><td><a href="#networksnmp_get">network.snmp_get</a></td></tr>
+<tr><td align="right">1</td><td><a href="#networkssh_probe">network.ssh_probe</a></td></tr>
+<tr><td align="right">1</td><td><a href="#networktcp_banner">network.tcp_banner</a></td></tr>
+<tr><td align="right">1</td><td><a href="#networktraceroute">network.traceroute</a></td></tr>
+</tbody>
+</table>
 </details>
-
-<details>
-<summary id="toc-os">OS</summary>
-
-- [os.cat](#oscat)
-- [os.less](#osless)
-- [os.ls](#osls)
-
+</td>
+</tr>
+<tr>
+<td align="right">3</td>
+<td>
+<details><summary id="toc-os">OS</summary>
+<table>
+<thead><tr><th align="right">Commandlets</th><th>Plugin</th></tr></thead>
+<tbody>
+<tr><td align="right">1</td><td><a href="#oscat">os.cat</a></td></tr>
+<tr><td align="right">1</td><td><a href="#osless">os.less</a></td></tr>
+<tr><td align="right">1</td><td><a href="#osls">os.ls</a></td></tr>
+</tbody>
+</table>
 </details>
-
-<details>
-<summary id="toc-recon">Recon</summary>
-
-- [recon.dns_enum](#recondns_enum)
-- [recon.dns_lookup](#recondns_lookup)
-- [recon.shodan_lookup](#reconshodan_lookup)
-
+</td>
+</tr>
+<tr>
+<td align="right">3</td>
+<td>
+<details><summary id="toc-recon">Recon</summary>
+<table>
+<thead><tr><th align="right">Commandlets</th><th>Plugin</th></tr></thead>
+<tbody>
+<tr><td align="right">1</td><td><a href="#recondns_enum">recon.dns_enum</a></td></tr>
+<tr><td align="right">1</td><td><a href="#recondns_lookup">recon.dns_lookup</a></td></tr>
+<tr><td align="right">1</td><td><a href="#reconshodan_lookup">recon.shodan_lookup</a></td></tr>
+</tbody>
+</table>
 </details>
-
-<details>
-<summary id="toc-runtime">Runtime</summary>
-
-- [runtime.artifact](#runtimeartifact)
-- [runtime.audit](#runtimeaudit)
-- [runtime.bundle](#runtimebundle)
-- [runtime.control](#runtimecontrol)
-- [runtime.inventory](#runtimeinventory)
-- [runtime.job](#runtimejob)
-- [runtime.key](#runtimekey)
-- [runtime.name](#runtimename)
-- [runtime.note](#runtimenote)
-- [runtime.pipeline](#runtimepipeline)
-- [runtime.results](#runtimeresults)
-- [runtime.schemas](#runtimeschemas)
-- [runtime.step](#runtimestep)
-- [runtime.watchdog](#runtimewatchdog)
-
+</td>
+</tr>
+<tr>
+<td align="right">14</td>
+<td>
+<details><summary id="toc-runtime">Runtime</summary>
+<table>
+<thead><tr><th align="right">Commandlets</th><th>Plugin</th></tr></thead>
+<tbody>
+<tr><td align="right">2</td><td><a href="#runtimeartifact">runtime.artifact</a></td></tr>
+<tr><td align="right">1</td><td><a href="#runtimeaudit">runtime.audit</a></td></tr>
+<tr><td align="right">1</td><td><a href="#runtimebundle">runtime.bundle</a></td></tr>
+<tr><td align="right">7</td><td><a href="#runtimecontrol">runtime.control</a></td></tr>
+<tr><td align="right">10</td><td><a href="#runtimeinventory">runtime.inventory</a></td></tr>
+<tr><td align="right">1</td><td><a href="#runtimejob">runtime.job</a></td></tr>
+<tr><td align="right">1</td><td><a href="#runtimekey">runtime.key</a></td></tr>
+<tr><td align="right">1</td><td><a href="#runtimename">runtime.name</a></td></tr>
+<tr><td align="right">1</td><td><a href="#runtimenote">runtime.note</a></td></tr>
+<tr><td align="right">1</td><td><a href="#runtimepipeline">runtime.pipeline</a></td></tr>
+<tr><td align="right">2</td><td><a href="#runtimeresults">runtime.results</a></td></tr>
+<tr><td align="right">1</td><td><a href="#runtimeschemas">runtime.schemas</a></td></tr>
+<tr><td align="right">1</td><td><a href="#runtimestep">runtime.step</a></td></tr>
+<tr><td align="right">1</td><td><a href="#runtimewatchdog">runtime.watchdog</a></td></tr>
+</tbody>
+</table>
 </details>
-
-<details>
-<summary id="toc-storage">Storage</summary>
-
-- [storage.db](#storagedb)
-
+</td>
+</tr>
+<tr>
+<td align="right">1</td>
+<td>
+<details><summary id="toc-storage">Storage</summary>
+<table>
+<thead><tr><th align="right">Commandlets</th><th>Plugin</th></tr></thead>
+<tbody>
+<tr><td align="right">1</td><td><a href="#storagedb">storage.db</a></td></tr>
+</tbody>
+</table>
 </details>
-
-<details>
-<summary id="toc-wireless">Wireless</summary>
-
-- [wireless.wifi_scan](#wirelesswifi_scan)
-
+</td>
+</tr>
+<tr>
+<td align="right">1</td>
+<td>
+<details><summary id="toc-wireless">Wireless</summary>
+<table>
+<thead><tr><th align="right">Commandlets</th><th>Plugin</th></tr></thead>
+<tbody>
+<tr><td align="right">1</td><td><a href="#wirelesswifi_scan">wireless.wifi_scan</a></td></tr>
+</tbody>
+</table>
 </details>
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Quick Reference
 
@@ -187,6 +255,8 @@ A **provider** is the Python implementation object or module that registers or r
 - [os.ls](#osls)
 
 
+<a id="osls"></a>
+
 #### `os.ls`
 
 Lists local files from inside the Bywaf interpreter.
@@ -214,6 +284,8 @@ Commandlet: `ls`
 
 [Back to OS plugin TOC](#os-plugin-toc) | [Back to document OS TOC entry](#toc-os)
 
+<a id="oscat"></a>
+
 #### `os.cat`
 
 Prints a local text file.
@@ -240,6 +312,8 @@ Commandlet: `cat`
 - Intended use: quick text inspection.
 
 [Back to OS plugin TOC](#os-plugin-toc) | [Back to document OS TOC entry](#toc-os)
+
+<a id="osless"></a>
 
 #### `os.less`
 
@@ -273,6 +347,8 @@ Commandlet: `less`
 - [discovery.hostscanner](#discoveryhostscanner)
 
 [Back to OS plugin TOC](#os-plugin-toc) | [Back to document OS TOC entry](#toc-os)
+
+<a id="discoveryhostscanner"></a>
 
 #### `discovery.hostscanner`
 
@@ -319,6 +395,8 @@ Commandlet: `hostscanner`
 - [network.traceroute](#networktraceroute)
 
 [Back to Discovery plugin TOC](#discovery-plugin-toc) | [Back to document Discovery TOC entry](#toc-discovery)
+
+<a id="networkportscanner"></a>
 
 #### `network.portscanner`
 
@@ -378,6 +456,8 @@ Commandlet: `ports`
 
 [Back to Network plugin TOC](#network-plugin-toc) | [Back to document Network TOC entry](#toc-network)
 
+<a id="networkservice_probe"></a>
+
 #### `network.service_probe`
 
 Classifies services from existing open-port, banner, HTTP, or TLS facts.
@@ -404,6 +484,8 @@ Commandlet: `service_probe`
 - Emits: `service.detected`.
 
 [Back to Network plugin TOC](#network-plugin-toc) | [Back to document Network TOC entry](#toc-network)
+
+<a id="networktcp_banner"></a>
 
 #### `network.tcp_banner`
 
@@ -437,6 +519,8 @@ Commandlet: `tcp_banner`
 
 [Back to Network plugin TOC](#network-plugin-toc) | [Back to document Network TOC entry](#toc-network)
 
+<a id="networkmanagement_exposure"></a>
+
 #### `network.management_exposure`
 
 Promotes existing port, service, banner, endpoint, and fingerprint facts into
@@ -468,6 +552,8 @@ Commandlet: `management_exposure`
   added active probing.
 
 [Back to Network plugin TOC](#network-plugin-toc) | [Back to document Network TOC entry](#toc-network)
+
+<a id="networkssh_probe"></a>
 
 #### `network.ssh_probe`
 
@@ -502,6 +588,8 @@ Commandlet: `ssh_probe`
 
 [Back to Network plugin TOC](#network-plugin-toc) | [Back to document Network TOC entry](#toc-network)
 
+<a id="networksnmp_get"></a>
+
 #### `network.snmp_get`
 
 Reads one SNMP OID from a target.
@@ -532,6 +620,8 @@ Commandlet: `snmp_get`
 - Emits: `snmp.value`, `tool.error`.
 
 [Back to Network plugin TOC](#network-plugin-toc) | [Back to document Network TOC entry](#toc-network)
+
+<a id="networktraceroute"></a>
 
 #### `network.traceroute`
 
@@ -572,6 +662,8 @@ Commandlet: `traceroute`
 
 [Back to Network plugin TOC](#network-plugin-toc) | [Back to document Network TOC entry](#toc-network)
 
+<a id="recondns_lookup"></a>
+
 #### `recon.dns_lookup`
 
 Resolves DNS records with dnspython.
@@ -602,6 +694,8 @@ Commandlet: `dns_lookup`
 
 [Back to Recon plugin TOC](#recon-plugin-toc) | [Back to document Recon TOC entry](#toc-recon)
 
+<a id="recondns_enum"></a>
+
 #### `recon.dns_enum`
 
 Resolves explicit names or generated subdomains into host facts.
@@ -630,6 +724,8 @@ Commandlet: `dns_enum`
 - Emits: `name.resolved`, `host.found`, `dns.error`.
 
 [Back to Recon plugin TOC](#recon-plugin-toc) | [Back to document Recon TOC entry](#toc-recon)
+
+<a id="reconshodan_lookup"></a>
 
 #### `recon.shodan_lookup`
 
@@ -668,6 +764,8 @@ Commandlet: `shodan_lookup`
 
 [Back to Recon plugin TOC](#recon-plugin-toc) | [Back to document Recon TOC entry](#toc-recon)
 
+<a id="identityldap_probe"></a>
+
 #### `identity.ldap_probe`
 
 Probes LDAP server metadata.
@@ -700,6 +798,8 @@ Commandlet: `ldap_probe`
 - Emits: `ldap.server`, `tool.error`.
 
 [Back to Identity plugin TOC](#identity-plugin-toc) | [Back to document Identity TOC entry](#toc-identity)
+
+<a id="identitysmb_probe"></a>
 
 #### `identity.smb_probe`
 
@@ -748,6 +848,8 @@ Commandlet: `smb_probe`
 
 [Back to Identity plugin TOC](#identity-plugin-toc) | [Back to document Identity TOC entry](#toc-identity)
 
+<a id="httphttp_headers"></a>
+
 #### `http.http_headers`
 
 Collects HTTP response headers and promotes missing high-value security headers.
@@ -778,6 +880,8 @@ Commandlet: `http_headers`
 - Emits: `http.headers`, `finding.candidate`.
 
 [Back to HTTP plugin TOC](#http-plugin-toc) | [Back to document HTTP TOC entry](#toc-http)
+
+<a id="httphttp_probe"></a>
 
 #### `http.http_probe`
 
@@ -815,6 +919,8 @@ Commandlet: `http_probe`
 
 [Back to HTTP plugin TOC](#http-plugin-toc) | [Back to document HTTP TOC entry](#toc-http)
 
+<a id="httphttp_paths"></a>
+
 #### `http.http_paths`
 
 Checks common or explicitly supplied HTTP paths.
@@ -850,6 +956,8 @@ Commandlet: `http_paths`
 
 [Back to HTTP plugin TOC](#http-plugin-toc) | [Back to document HTTP TOC entry](#toc-http)
 
+<a id="httprepo_exposure"></a>
+
 #### `http.repo_exposure`
 
 Checks HTTP endpoints for exposed repository metadata.
@@ -882,6 +990,8 @@ Commandlets: `repo_exposure`, `git_expose_check`
 
 [Back to HTTP plugin TOC](#http-plugin-toc) | [Back to document HTTP TOC entry](#toc-http)
 
+<a id="httpwebfin"></a>
+
 #### `http.webfin`
 
 Fingerprints web technologies from HTTP endpoints.
@@ -911,6 +1021,8 @@ Commandlet: `webfin`
 - Emits: `web.fingerprint`.
 
 [Back to HTTP plugin TOC](#http-plugin-toc) | [Back to document HTTP TOC entry](#toc-http)
+
+<a id="httptls_probe"></a>
 
 #### `http.tls_probe`
 
@@ -944,6 +1056,8 @@ Commandlet: `tls_probe`
 
 [Back to HTTP plugin TOC](#http-plugin-toc) | [Back to document HTTP TOC entry](#toc-http)
 
+<a id="httpwaf_detect"></a>
+
 #### `http.waf_detect`
 
 Detects likely web application firewall or CDN response signals.
@@ -973,6 +1087,8 @@ Commandlet: `waf_detect`
 - Emits: `web.waf.detected`.
 
 [Back to HTTP plugin TOC](#http-plugin-toc) | [Back to document HTTP TOC entry](#toc-http)
+
+<a id="httpnikto"></a>
 
 #### `http.nikto`
 
@@ -1010,6 +1126,8 @@ Commandlet: `nikto`
 
 [Back to HTTP plugin TOC](#http-plugin-toc) | [Back to document HTTP TOC entry](#toc-http)
 
+<a id="httpeyewitness"></a>
+
 #### `http.eyewitness`
 
 Wraps EyeWitness to capture web screenshots.
@@ -1044,6 +1162,8 @@ Commandlet: `eyewitness`
 - External dependency: EyeWitness.
 
 [Back to HTTP plugin TOC](#http-plugin-toc) | [Back to document HTTP TOC entry](#toc-http)
+
+<a id="httpscreenshotter"></a>
 
 #### `http.screenshotter`
 
@@ -1085,6 +1205,8 @@ Commandlet: `screenshotter`
 - [wireless.wifi_scan](#wirelesswifi_scan)
 
 [Back to HTTP plugin TOC](#http-plugin-toc) | [Back to document HTTP TOC entry](#toc-http)
+
+<a id="wirelesswifi_scan"></a>
 
 #### `wireless.wifi_scan`
 
@@ -1129,6 +1251,8 @@ Commandlet: `wifi_scan`
 
 [Back to Wireless plugin TOC](#wireless-plugin-toc) | [Back to document Wireless TOC entry](#toc-wireless)
 
+<a id="analysisfinding_dedupe"></a>
+
 #### `analysis.finding_dedupe`
 
 Normalizes and deduplicates raw finding streams.
@@ -1163,6 +1287,8 @@ Commandlet: `finding_dedupe`
 
 [Back to Analysis plugin TOC](#analysis-plugin-toc) | [Back to document Analysis TOC entry](#toc-analysis)
 
+<a id="analysisfinding_report"></a>
+
 #### `analysis.finding_report`
 
 Renders finding tables and exports report artifacts.
@@ -1195,6 +1321,8 @@ Commandlet: `finding_report`
 - Emits: table render requests and report artifacts when exported.
 
 [Back to Analysis plugin TOC](#analysis-plugin-toc) | [Back to document Analysis TOC entry](#toc-analysis)
+
+<a id="analysisreport"></a>
 
 #### `analysis.report`
 
@@ -1238,6 +1366,8 @@ Commandlet: `report`
 
 [Back to Analysis plugin TOC](#analysis-plugin-toc) | [Back to document Analysis TOC entry](#toc-analysis)
 
+<a id="analysisfinding"></a>
+
 #### `analysis.finding`
 
 Lower-level commandlet for confirming or unconfirming finding rows.
@@ -1272,6 +1402,8 @@ Commandlet: `finding`
 - Emits: `finding.reviewed`.
 
 [Back to Analysis plugin TOC](#analysis-plugin-toc) | [Back to document Analysis TOC entry](#toc-analysis)
+
+<a id="analysisyara_scan"></a>
 
 #### `analysis.yara_scan`
 
@@ -1320,6 +1452,8 @@ Commandlet: `yara_scan`
 - [runtime.watchdog](#runtimewatchdog)
 
 [Back to Analysis plugin TOC](#analysis-plugin-toc) | [Back to document Analysis TOC entry](#toc-analysis)
+
+<a id="runtimeartifact"></a>
 
 #### `runtime.artifact`
 
@@ -1379,6 +1513,8 @@ Commandlet: `search`
 
 [Back to Runtime plugin TOC](#runtime-plugin-toc) | [Back to document Runtime TOC entry](#toc-runtime)
 
+<a id="runtimebundle"></a>
+
 #### `runtime.bundle`
 
 Builds evidence/report bundles for handoff.
@@ -1420,6 +1556,8 @@ Commandlet: `bundle`
 
 [Back to Runtime plugin TOC](#runtime-plugin-toc) | [Back to document Runtime TOC entry](#toc-runtime)
 
+<a id="runtimeaudit"></a>
+
 #### `runtime.audit`
 
 Inspects or exports audit records.
@@ -1456,6 +1594,8 @@ Commandlet: `audit`
 
 [Back to Runtime plugin TOC](#runtime-plugin-toc) | [Back to document Runtime TOC entry](#toc-runtime)
 
+<a id="runtimeinventory"></a>
+
 #### `runtime.inventory`
 
 Provides compact domain-specific inventory views over stored facts.
@@ -1491,6 +1631,8 @@ Commandlets: `hosts`, `services`, `web`, `wafs`, `shares`, `routes`, `certs`,
 
 [Back to Runtime plugin TOC](#runtime-plugin-toc) | [Back to document Runtime TOC entry](#toc-runtime)
 
+<a id="runtimejob"></a>
+
 #### `runtime.job`
 
 Inspects and controls background jobs.
@@ -1525,6 +1667,8 @@ Commandlet: `job`
 - Emits: console or paged output and framework control effects.
 
 [Back to Runtime plugin TOC](#runtime-plugin-toc) | [Back to document Runtime TOC entry](#toc-runtime)
+
+<a id="runtimepipeline"></a>
 
 #### `runtime.pipeline`
 
@@ -1563,6 +1707,8 @@ Commandlet: `pipeline`
 
 [Back to Runtime plugin TOC](#runtime-plugin-toc) | [Back to document Runtime TOC entry](#toc-runtime)
 
+<a id="runtimestep"></a>
+
 #### `runtime.step`
 
 Inspects pipeline steps.
@@ -1593,6 +1739,8 @@ Commandlet: `step`
 - Emits: no event records; console output only.
 
 [Back to Runtime plugin TOC](#runtime-plugin-toc) | [Back to document Runtime TOC entry](#toc-runtime)
+
+<a id="runtimeresults"></a>
 
 #### `runtime.results`
 
@@ -1628,6 +1776,8 @@ Commandlets: `results`, `result`
 
 [Back to Runtime plugin TOC](#runtime-plugin-toc) | [Back to document Runtime TOC entry](#toc-runtime)
 
+<a id="runtimecontrol"></a>
+
 #### `runtime.control`
 
 Requests or applies runtime control actions.
@@ -1658,6 +1808,8 @@ Commandlets: `signal`, `end`, `kill`, `cancel`, `pause`, `resume`, `stop`
 - Emits: runtime control lifecycle events.
 
 [Back to Runtime plugin TOC](#runtime-plugin-toc) | [Back to document Runtime TOC entry](#toc-runtime)
+
+<a id="runtimenote"></a>
 
 #### `runtime.note`
 
@@ -1691,6 +1843,8 @@ Commandlet: `note`
 
 [Back to Runtime plugin TOC](#runtime-plugin-toc) | [Back to document Runtime TOC entry](#toc-runtime)
 
+<a id="runtimename"></a>
+
 #### `runtime.name`
 
 Shows or assigns human-readable names to jobs, pipelines, and pipeline steps.
@@ -1720,6 +1874,8 @@ Commandlet: `name`
 - Emits: `runtime.name.assigned`.
 
 [Back to Runtime plugin TOC](#runtime-plugin-toc) | [Back to document Runtime TOC entry](#toc-runtime)
+
+<a id="runtimekey"></a>
 
 #### `runtime.key`
 
@@ -1752,6 +1908,8 @@ Commandlet: `key`
 
 [Back to Runtime plugin TOC](#runtime-plugin-toc) | [Back to document Runtime TOC entry](#toc-runtime)
 
+<a id="runtimeschemas"></a>
+
 #### `runtime.schemas`
 
 Inspects the active event schema catalog.
@@ -1781,6 +1939,8 @@ Commandlet: `schemas`
 - Emits: no event records; console or paged output only.
 
 [Back to Runtime plugin TOC](#runtime-plugin-toc) | [Back to document Runtime TOC entry](#toc-runtime)
+
+<a id="runtimewatchdog"></a>
 
 #### `runtime.watchdog`
 
@@ -1820,6 +1980,8 @@ Commandlet: `watchdog`
 - [storage.db](#storagedb)
 
 [Back to Runtime plugin TOC](#runtime-plugin-toc) | [Back to document Runtime TOC entry](#toc-runtime)
+
+<a id="storagedb"></a>
 
 #### `storage.db`
 
