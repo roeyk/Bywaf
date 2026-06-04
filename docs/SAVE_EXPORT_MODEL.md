@@ -12,6 +12,7 @@ handoff behavior.
 - [Project Export Versus Audit Export](#project-export-versus-audit-export)
 - [Project Import Versus Project Use](#project-import-versus-project-use)
 - [Artifact Export Versus Bundle Export](#artifact-export-versus-bundle-export)
+- [Retention And Compaction](#retention-and-compaction)
 
 ## Verb Rules
 
@@ -99,3 +100,14 @@ this file."
 
 `bundle export` writes a curated evidence set with bundle metadata. It answers:
 "Package these selected evidence items for handoff."
+
+## Retention And Compaction
+
+Retention is governed by the evidence lifecycle policy in
+[Retention And Compaction](RETENTION_AND_COMPACTION.md). The short version is:
+preserve by default, split unrelated projects, and export or archive before any
+future destructive compaction.
+
+`db checkpoint` and `db vacuum` are maintenance commands. They do not decide
+what evidence should be kept. `artifact remove` and `artifact replace` are
+explicit artifact mutations and retain provenance events describing the change.

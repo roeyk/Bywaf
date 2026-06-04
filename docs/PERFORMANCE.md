@@ -191,5 +191,7 @@ Known watch points:
   change event durability boundaries. Keep one-event durable writes unless a
   measured plugin workload proves batching is needed.
 - Retention/compaction remains a policy problem, not just a SQLite operation.
-  Add it as separate work once Bywaf has clear operator rules for what history
-  may be removed or archived.
+  The current policy is documented in
+  [Retention And Compaction](RETENTION_AND_COMPACTION.md): preserve by
+  default, split unrelated projects, and require explicit export/archive before
+  any future destructive compaction.

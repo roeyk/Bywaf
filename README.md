@@ -225,6 +225,7 @@ python3 scripts/plugin_check.py --all
 - [docs/FINDING_MODEL.md](docs/FINDING_MODEL.md): normalized finding payloads, grouping, and reporting.
 - [docs/REPORTING.md](docs/REPORTING.md): `report` usage, grouping, and review state.
 - [docs/SAVE_EXPORT_MODEL.md](docs/SAVE_EXPORT_MODEL.md): load/save/export/archive semantics.
+- [docs/RETENTION_AND_COMPACTION.md](docs/RETENTION_AND_COMPACTION.md): evidence retention and compaction policy.
 - [docs/MANIFEST_SPECIFICATION.md](docs/MANIFEST_SPECIFICATION.md): plugin sidecar TOML schema.
 - [docs/BUNDLED_PLUGIN_MANUAL.md](docs/BUNDLED_PLUGIN_MANUAL.md): bundled plugin families, examples, outputs, findings, and artifacts.
 - [docs/FRAMEWORK_SURFACE.md](docs/FRAMEWORK_SURFACE.md): capabilities, topics, and bundled commandlets.

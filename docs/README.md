@@ -51,6 +51,8 @@ offensive frameworks, do not look for Veil-style modules, Metasploit-style
   maintenance, and variable store contracts.
 - [Save/Export Model](SAVE_EXPORT_MODEL.md): when commands use `save`,
   `load`, `export`, `import`, or `archive`.
+- [Retention And Compaction](RETENTION_AND_COMPACTION.md): current evidence
+  lifecycle policy, preservation classes, and why pruning is not automatic.
 - [Install Guide](../INSTALL.md): OS dependency blocks, venv setup, package
   installation, optional plugin dependencies, and release package builds.
 - [Capability Model](CAPABILITY_MODEL.md): capability auditing, trust
@@ -104,6 +106,9 @@ offensive frameworks, do not look for Veil-style modules, Metasploit-style
 - [Save/Export Model](SAVE_EXPORT_MODEL.md): operator-facing file verb
   semantics across config, history, scripts, DBs, artifacts, bundles, keys, and
   projects.
+- [Retention And Compaction](RETENTION_AND_COMPACTION.md): operator-facing
+  rules for archive-before-delete, project splitting, artifacts, and future
+  compaction commands.
 - [FAQ](FAQ.md): common task examples and operational answers.
 - [Goals](GOALS.md): project direction and non-goals.
 
