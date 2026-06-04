@@ -27,6 +27,8 @@ DEFAULT_PROJECT_NAME = "default"
 DEFAULT_SECRET_INPUT_MODE = "auto"
 SETUP_SIGNING_KEYS = (
     "bundle-signing",
+)
+PLUGIN_SIGNING_KEYS = (
     "plugin-manifest-signing",
     "plugin-catalog-signing",
 )
@@ -90,7 +92,12 @@ def print_first_run_notice() -> None:
     print("Run `bywaf --setup` to create one, or continue with defaults.")
 
 
-def run_setup(*, project_name: str = DEFAULT_PROJECT_NAME, output: bool = True) -> SetupResult:
+def run_setup(
+    *,
+    project_name: str = DEFAULT_PROJECT_NAME,
+    output: bool = True,
+    include_plugin_signing_keys: bool = False,
+) -> SetupResult:
     """Create durable user setup files and a default project if needed."""
     interactive = interactive_stdio()
     if interactive:
@@ -106,8 +113,15 @@ def run_setup(*, project_name: str = DEFAULT_PROJECT_NAME, output: bool = True) 
         passphrase = prompt_setup_passphrase(database, mode=secret_input_mode)
     generated_keys: tuple[KeyRecord, ...] = ()
     existing_keys: tuple[str, ...] = ()
-    if interactive and confirm("Create local signing keys for bundles and plugin trust?", default=False):
+    if interactive and confirm("Create local signing key for evidence bundles?", default=False):
         generated_keys, existing_keys = generate_setup_signing_keys(mode=secret_input_mode)
+    if interactive and include_plugin_signing_keys and confirm("Create plugin manifest/catalog signing keys?", default=False):
+        plugin_generated, plugin_existing = generate_setup_signing_keys(
+            mode=secret_input_mode,
+            key_names=PLUGIN_SIGNING_KEYS,
+        )
+        generated_keys = (*generated_keys, *plugin_generated)
+        existing_keys = (*existing_keys, *plugin_existing)
     root = user_state_root()
     config = user_config_path()
     root.mkdir(parents=True, exist_ok=True)
@@ -230,7 +244,11 @@ def prompt_setup_passphrase(path: Path, *, mode: str) -> str:
     return first
 
 
-def generate_setup_signing_keys(*, mode: str) -> tuple[tuple[KeyRecord, ...], tuple[str, ...]]:
+def generate_setup_signing_keys(
+    *,
+    mode: str,
+    key_names: tuple[str, ...] = SETUP_SIGNING_KEYS,
+) -> tuple[tuple[KeyRecord, ...], tuple[str, ...]]:
     """Generate the optional setup signing keys without overwriting existing keys."""
     print("Signing keys are encrypted private keys used later for bundle integrity and plugin trust.")
     print(f"They will be stored under {default_key_paths().root}.")
@@ -241,7 +259,7 @@ def generate_setup_signing_keys(*, mode: str) -> tuple[tuple[KeyRecord, ...], tu
     )
     generated: list[KeyRecord] = []
     existing: list[str] = []
-    for name in SETUP_SIGNING_KEYS:
+    for name in key_names:
         try:
             generated.append(generate_key(name, passphrase, scope="user"))
         except FileExistsError:

@@ -32,11 +32,10 @@ default project name is `default`; the default storage choice is plaintext
 SQLite so first setup stays fast. Scripted and non-interactive setup does not
 prompt and uses those defaults.
 
-Interactive setup also offers to create local signing keys for later bundle
-integrity and plugin trust work. That prompt defaults to no. If accepted, Bywaf
-creates encrypted private keys named `bundle-signing`,
-`plugin-manifest-signing`, and `plugin-catalog-signing` under
-`~/.bywaf/keys`.
+Interactive setup also offers to create a local `bundle-signing` key for later
+evidence-bundle integrity work. That prompt defaults to no. Plugin manifest and
+catalog signing keys are maintainer/plugin-publisher material and are not part
+of the normal operator setup path.
 
 If no user configuration exists, an interactive Bywaf startup prints a friendly
 setup notice; scripted and non-interactive runs do not prompt or print that

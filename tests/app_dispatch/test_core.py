@@ -102,6 +102,32 @@ class AppDispatchTests(unittest.TestCase):
                 self.assertEqual(output.getvalue(), "")
                 self.assertTrue(Path(tmp, ".bywaf", "config.toml").exists())
 
+    def test_interactive_setup_keyboard_interrupt_cancels_without_traceback(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.dict("os.environ", {"HOME": tmp}):
+                output = io.StringIO()
+                with (
+                    contextlib.redirect_stdout(output),
+                    patch("bywaf.setup.interactive_stdio", return_value=True),
+                    patch("builtins.input", side_effect=KeyboardInterrupt),
+                ):
+                    self.assertEqual(main(["--setup"]), 1)
+                self.assertIn("setup cancelled", output.getvalue())
+                self.assertFalse(Path(tmp, ".bywaf", "projects", "default", "bywaf.sqlite3").exists())
+
+    def test_interactive_setup_eof_cancels_without_traceback(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.dict("os.environ", {"HOME": tmp}):
+                output = io.StringIO()
+                with (
+                    contextlib.redirect_stdout(output),
+                    patch("bywaf.setup.interactive_stdio", return_value=True),
+                    patch("builtins.input", side_effect=EOFError),
+                ):
+                    self.assertEqual(main(["--setup"]), 1)
+                self.assertIn("setup cancelled", output.getvalue())
+                self.assertFalse(Path(tmp, ".bywaf", "config.toml").exists())
+
     def test_interactive_setup_accepts_project_name_and_declines_encryption(self):
         with tempfile.TemporaryDirectory() as tmp:
             with patch.dict("os.environ", {"HOME": tmp}):
@@ -118,6 +144,7 @@ class AppDispatchTests(unittest.TestCase):
                 self.assertIn("Use `bywaf project=client-a`", output.getvalue())
                 events = EventStore(project / "bywaf.sqlite3").events_for_topic("setup.completed")
                 self.assertFalse(events[-1].payload["encrypted"])
+                self.assertEqual(events[-1].payload["generated_keys"], [])
 
     def test_interactive_setup_can_request_encrypted_project_database(self):
         calls: list[tuple[Path, str | None]] = []
@@ -181,16 +208,37 @@ class AppDispatchTests(unittest.TestCase):
                 ):
                     self.assertEqual(main(["--setup"]), 0)
 
-                self.assertEqual(generated_names, ["bundle-signing", "plugin-manifest-signing", "plugin-catalog-signing"])
-                self.assertIn("Generated signing keys: bundle-signing, plugin-manifest-signing, plugin-catalog-signing", output.getvalue())
+                self.assertEqual(generated_names, ["bundle-signing"])
+                self.assertIn("Generated signing keys: bundle-signing", output.getvalue())
                 events = EventStore(Path(tmp, ".bywaf", "projects", "client-keys", "bywaf.sqlite3")).events_for_topic(
                     "setup.keys_configured"
                 )
                 self.assertEqual(len(events), 1)
                 self.assertEqual(
                     [record["name"] for record in events[0].payload["generated_keys"]],
-                    ["bundle-signing", "plugin-manifest-signing", "plugin-catalog-signing"],
+                    ["bundle-signing"],
                 )
+
+    def test_interactive_setup_key_generation_failure_does_not_publish_setup_event(self):
+        def fail_generate_key(name: str, passphrase: str, *, scope: str = "user"):
+            del name, passphrase, scope
+            raise RuntimeError("key backend unavailable")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.dict("os.environ", {"HOME": tmp, "BYWAF_KEY_ROOT": str(Path(tmp, "keys"))}):
+                output = io.StringIO()
+                with (
+                    contextlib.redirect_stdout(output),
+                    patch("bywaf.setup.interactive_stdio", return_value=True),
+                    patch("builtins.input", side_effect=["client-fail", "n", "y"]),
+                    patch("bywaf.setup.getpass.getpass", side_effect=["key-passphrase", "key-passphrase"]),
+                    patch("bywaf.setup.generate_key", side_effect=fail_generate_key),
+                ):
+                    self.assertEqual(main(["--setup"]), 1)
+
+                self.assertIn("error: key backend unavailable", output.getvalue())
+                database = Path(tmp, ".bywaf", "projects", "client-fail", "bywaf.sqlite3")
+                self.assertFalse(database.exists())
 
     def test_interactive_setup_refuses_to_encrypt_existing_project_database(self):
         with tempfile.TemporaryDirectory() as tmp:

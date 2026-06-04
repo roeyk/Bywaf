@@ -113,6 +113,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--database", default=str(DEFAULT_DATABASE), help="SQLite database path")
     parser.add_argument("--new", action="store_true", help="create a named project before starting")
     parser.add_argument("--setup", action="store_true", help="create user configuration and a default project")
+    parser.add_argument("--setup-plugin-signing-keys", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--quiet", action="store_true", help="suppress friendly startup notices")
     parser.add_argument("--encrypt", action="store_true", help="open or create the database with SQLCipher encryption")
     parser.add_argument("--encrypted", action="store_true", help=argparse.SUPPRESS)
@@ -259,7 +260,10 @@ def handle_setup_startup(args: argparse.Namespace) -> int | None:
     """Handle explicit setup or the optional interactive first-run notice."""
     if args.setup:
         try:
-            run_setup(output=not args.quiet)
+            run_setup(output=not args.quiet, include_plugin_signing_keys=args.setup_plugin_signing_keys)
+        except (KeyboardInterrupt, EOFError):
+            print("setup cancelled")
+            return 1
         except (RuntimeError, ValueError) as exc:
             print(f"error: {exc}")
             return 1
