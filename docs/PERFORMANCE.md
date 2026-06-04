@@ -119,3 +119,77 @@ Use `--database path/to/bywaf.sqlite3` to run the query suite against an
 existing project or benchmark database. Keep JSON captures from large local
 runs with hardware/context notes so future storage changes can be compared
 against the same workload shape.
+
+## Current SQLite Scale Guidance
+
+The current local benchmark baseline supports keeping SQLite as Bywaf's
+local-first default for single-operator projects. On the current development
+machine, synthetic report-like databases up to 1,000,000 events showed bounded
+interactive reads and report topic-group queries below 100 ms p95:
+
+| Workload | Measured scale | p95 result |
+|---|---:|---:|
+| Direct concurrent writes | 24 writers, 480,000 events | 8.370 ms write latency |
+| Plugin-shaped concurrent writes | 24 writers, 480,000 `port.open` events | 8.586 ms write latency |
+| Recent event listing | 1,000,000 events, `recent_1000` | 3.231 ms |
+| Topic query | 1,000,000 events, `topic_port_open_10000` | 41.523 ms |
+| Scoped pipeline query | 1,000,000 events, `scoped_pipeline_port_open_1000` | 61.295 ms |
+| Report context query group | 1,000,000 events, `report_context_topics_1000` | 39.211 ms |
+| Capped JSONL-style audit scan | 1,000,000-event DB, 100,000 serialized events | 632.443 ms |
+| Plain SQLite export copy | 500,000-event DB, 207,712,256 bytes copied | 53.262 ms |
+| Vacuum | 500,000-event DB | 313.716 ms |
+
+These numbers are not product limits. They are the current regression baseline
+for local maintainer decisions. If a project reaches multi-million event
+volume, sustained background pipelines, or repeated report/export operations
+that feel slow to an operator, capture a fresh benchmark on that database
+before changing storage architecture.
+
+For ordinary local projects:
+
+- keep emitting normalized, operator-meaningful events rather than noisy
+  internal retry/packet/debug events;
+- use `db checkpoint` before copying database files outside Bywaf;
+- use `db vacuum` after large deletions or retention/compaction work, not as a
+  routine per-scan step;
+- split unrelated client assessments into separate project databases when the
+  event log is no longer useful as one audit history;
+- consider optional backend work only after a measured workload shows lock
+  failures, sustained query latency, or maintenance/export costs that are
+  operator-visible.
+
+## SQLite Settings Review
+
+The main event database and artifact database both use short-lived SQLite
+connections with WAL enabled and a 30-second busy timeout:
+
+- connection timeout: `30` seconds;
+- `PRAGMA journal_mode=WAL`;
+- `PRAGMA busy_timeout=30000`;
+- autocommit connections, with each event publish inserted as one durable
+  statement;
+- explicit checkpoint support through `db checkpoint`;
+- explicit `VACUUM` support through `db vacuum`.
+
+Current decision: leave these settings unchanged.
+
+Measured 24-writer direct and plugin-shaped contention runs produced zero
+write failures and zero `database is locked` failures. Query benchmarks through
+1,000,000 synthetic events kept bounded reads comfortably below 100 ms p95, and
+500,000-event maintenance operations were sub-second on the current machine.
+That does not justify a single-writer queue, transaction batching layer,
+different busy timeout, or automatic checkpoint/vacuum schedule yet.
+
+Known watch points:
+
+- `topics` uses `SELECT DISTINCT topic FROM events ORDER BY topic`; it is
+  total-table-size dependent, reaching 25.816 ms p95 at 1,000,000 synthetic
+  events. Keep it as-is unless real projects make topic listing visibly slow.
+- Audit JSON/JSONL scans are linear in exported row count. This is expected;
+  use selectors or SQLite export for large preservation-oriented exports.
+- Transaction batching would improve synthetic bulk insertion but would also
+  change event durability boundaries. Keep one-event durable writes unless a
+  measured plugin workload proves batching is needed.
+- Retention/compaction remains a policy problem, not just a SQLite operation.
+  Add it as separate work once Bywaf has clear operator rules for what history
+  may be removed or archived.
