@@ -69,6 +69,8 @@ offensive frameworks, do not look for Veil-style modules, Metasploit-style
   flow, common change paths, and focused development checks.
 - [Testing](TESTING.md): project-level test map for plugins, framework code,
   package builds, metrics, and manual validation.
+- [Performance Benchmarks](PERFORMANCE.md): repeatable maintainer benchmarks
+  for SQLite contention and future storage/runtime scaling checks.
 - [Architecture Metrics](ARCHITECTURE_METRICS.md): dependency, size, fan-in,
   fan-out, and cycle checks for refactoring decisions.
 - [Output Subjects And Theme Styles](plugin_author/output-subjects-and-styles.md):

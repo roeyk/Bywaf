@@ -1,0 +1,310 @@
+"""SQLite event-store contention benchmark.
+
+Provides a repeatable benchmark for Bywaf's current direct-write event-store
+behavior under multiple process writers.
+
+Used by:
+- scripts/sqlite_contention_benchmark.py: source-checkout command wrapper.
+- maintainers: collect DBQ-001/PERF-001 measurements before storage changes.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import multiprocessing as mp
+import time
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from typing import Any
+
+from ..db import EventStore
+
+
+BENCHMARK_TOPIC = "benchmark.event"
+
+
+@dataclass(frozen=True, slots=True)
+class WorkerResult:
+    """Measurements from one writer process."""
+
+    writer: int
+    attempted: int
+    published: int
+    failures: int
+    locked_failures: int
+    elapsed_seconds: float
+    write_latencies_ms: tuple[float, ...]
+    read_latencies_ms: tuple[float, ...]
+    errors: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class BenchmarkResult:
+    """Aggregated benchmark measurements."""
+
+    database: str
+    writers: int
+    events_per_writer: int
+    payload_bytes: int
+    read_every: int
+    attempted: int
+    published: int
+    failures: int
+    locked_failures: int
+    elapsed_seconds: float
+    throughput_events_per_second: float
+    write_latency_ms: dict[str, float]
+    read_latency_ms: dict[str, float]
+    workers: tuple[WorkerResult, ...]
+
+
+def run_benchmark(
+    database: Path,
+    *,
+    writers: int,
+    events_per_writer: int,
+    payload_bytes: int,
+    read_every: int = 0,
+) -> BenchmarkResult:
+    """Run a multi-process EventStore write contention benchmark."""
+    if writers < 1:
+        raise ValueError("writers must be at least 1")
+    if events_per_writer < 1:
+        raise ValueError("events-per-writer must be at least 1")
+    if payload_bytes < 0:
+        raise ValueError("payload-bytes must be non-negative")
+    if read_every < 0:
+        raise ValueError("read-every must be non-negative")
+    database.parent.mkdir(parents=True, exist_ok=True)
+    EventStore(database).checkpoint()
+    started = time.perf_counter()
+    with ProcessPoolExecutor(max_workers=writers, mp_context=benchmark_multiprocessing_context()) as executor:
+        futures = [
+            executor.submit(
+                run_writer,
+                str(database),
+                writer,
+                events_per_writer,
+                payload_bytes,
+                read_every,
+            )
+            for writer in range(writers)
+        ]
+        results = tuple(sorted((future.result() for future in as_completed(futures)), key=lambda item: item.writer))
+    elapsed = time.perf_counter() - started
+    return aggregate_results(
+        database,
+        results,
+        writers=writers,
+        events_per_writer=events_per_writer,
+        payload_bytes=payload_bytes,
+        read_every=read_every,
+        elapsed_seconds=elapsed,
+    )
+
+
+def run_writer(
+    database: str,
+    writer: int,
+    events_per_writer: int,
+    payload_bytes: int,
+    read_every: int,
+) -> WorkerResult:
+    """Publish benchmark events from one process."""
+    db = EventStore(Path(database))
+    payload_data = "x" * payload_bytes
+    write_latencies: list[float] = []
+    read_latencies: list[float] = []
+    errors: list[str] = []
+    published = 0
+    locked_failures = 0
+    started = time.perf_counter()
+    for sequence in range(events_per_writer):
+        before = time.perf_counter()
+        try:
+            db.publish(
+                BENCHMARK_TOPIC,
+                {
+                    "writer": writer,
+                    "sequence": sequence,
+                    "payload": payload_data,
+                },
+                "sqlite_contention_benchmark",
+            )
+            published += 1
+            write_latencies.append((time.perf_counter() - before) * 1000)
+        except Exception as exc:  # pragma: no cover - failure shape is environment-dependent.
+            message = str(exc)
+            errors.append(message)
+            if "database is locked" in message.casefold():
+                locked_failures += 1
+        if read_every and (sequence + 1) % read_every == 0:
+            read_before = time.perf_counter()
+            try:
+                db.recent_events(10)
+                read_latencies.append((time.perf_counter() - read_before) * 1000)
+            except Exception as exc:  # pragma: no cover - failure shape is environment-dependent.
+                errors.append(str(exc))
+    elapsed = time.perf_counter() - started
+    failures = events_per_writer - published
+    return WorkerResult(
+        writer=writer,
+        attempted=events_per_writer,
+        published=published,
+        failures=failures,
+        locked_failures=locked_failures,
+        elapsed_seconds=elapsed,
+        write_latencies_ms=tuple(write_latencies),
+        read_latencies_ms=tuple(read_latencies),
+        errors=tuple(errors[:5]),
+    )
+
+
+def benchmark_multiprocessing_context() -> Any | None:
+    """Return a multiprocessing context suitable for local contention benchmarks."""
+    try:
+        return mp.get_context("fork")
+    except ValueError:  # pragma: no cover - fork is unavailable on some platforms.
+        return None
+
+
+def aggregate_results(
+    database: Path,
+    results: tuple[WorkerResult, ...],
+    *,
+    writers: int,
+    events_per_writer: int,
+    payload_bytes: int,
+    read_every: int,
+    elapsed_seconds: float,
+) -> BenchmarkResult:
+    """Aggregate per-worker benchmark results."""
+    attempted = sum(result.attempted for result in results)
+    published = sum(result.published for result in results)
+    failures = sum(result.failures for result in results)
+    locked_failures = sum(result.locked_failures for result in results)
+    write_latencies = tuple(latency for result in results for latency in result.write_latencies_ms)
+    read_latencies = tuple(latency for result in results for latency in result.read_latencies_ms)
+    throughput = published / elapsed_seconds if elapsed_seconds > 0 else 0
+    return BenchmarkResult(
+        database=str(database),
+        writers=writers,
+        events_per_writer=events_per_writer,
+        payload_bytes=payload_bytes,
+        read_every=read_every,
+        attempted=attempted,
+        published=published,
+        failures=failures,
+        locked_failures=locked_failures,
+        elapsed_seconds=elapsed_seconds,
+        throughput_events_per_second=throughput,
+        write_latency_ms=latency_summary(write_latencies),
+        read_latency_ms=latency_summary(read_latencies),
+        workers=results,
+    )
+
+
+def latency_summary(values: tuple[float, ...]) -> dict[str, float]:
+    """Return simple latency percentiles in milliseconds."""
+    if not values:
+        return {"count": 0, "min": 0, "p50": 0, "p95": 0, "max": 0}
+    ordered = tuple(sorted(values))
+    return {
+        "count": float(len(ordered)),
+        "min": ordered[0],
+        "p50": percentile(ordered, 50),
+        "p95": percentile(ordered, 95),
+        "max": ordered[-1],
+    }
+
+
+def percentile(ordered_values: tuple[float, ...], percentile_value: float) -> float:
+    """Return the nearest-rank percentile from pre-sorted values."""
+    if not ordered_values:
+        return 0
+    rank = max(1, round((percentile_value / 100) * len(ordered_values)))
+    return ordered_values[min(rank, len(ordered_values)) - 1]
+
+
+def result_dict(result: BenchmarkResult) -> dict[str, Any]:
+    """Return a JSON-serializable benchmark result."""
+    return asdict(result)
+
+
+def format_result(result: BenchmarkResult) -> str:
+    """Return a compact human-readable benchmark report."""
+    lines = [
+        "SQLite contention benchmark",
+        f"database={result.database}",
+        f"writers={result.writers} events_per_writer={result.events_per_writer} payload_bytes={result.payload_bytes}",
+        f"attempted={result.attempted} published={result.published} failures={result.failures} locked_failures={result.locked_failures}",
+        f"elapsed_seconds={result.elapsed_seconds:.3f} throughput_events_per_second={result.throughput_events_per_second:.1f}",
+        format_latency("write_latency_ms", result.write_latency_ms),
+    ]
+    if result.read_every:
+        lines.append(format_latency("read_latency_ms", result.read_latency_ms))
+    for worker in result.workers:
+        if worker.errors:
+            lines.append(f"worker={worker.writer} sample_errors={list(worker.errors)}")
+    return "\n".join(lines)
+
+
+def format_latency(label: str, summary: dict[str, float]) -> str:
+    """Format one latency summary."""
+    return (
+        f"{label}: count={int(summary['count'])} min={summary['min']:.3f} "
+        f"p50={summary['p50']:.3f} p95={summary['p95']:.3f} max={summary['max']:.3f}"
+    )
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Build the benchmark CLI parser."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--database", type=Path, help="database path; defaults to a temporary file")
+    parser.add_argument("--writers", type=int, default=4, help="number of concurrent writer processes")
+    parser.add_argument("--events-per-writer", type=int, default=1000, help="events each writer publishes")
+    parser.add_argument("--payload-bytes", type=int, default=128, help="payload bytes in each event")
+    parser.add_argument("--read-every", type=int, default=0, help="each writer performs one read every N writes")
+    parser.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Run the benchmark CLI."""
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if args.database is None:
+        with TemporaryDirectory() as tmp:
+            result = run_benchmark(
+                Path(tmp, "contention.sqlite3"),
+                writers=args.writers,
+                events_per_writer=args.events_per_writer,
+                payload_bytes=args.payload_bytes,
+                read_every=args.read_every,
+            )
+            print_result(result, as_json=args.json)
+            return 0
+    result = run_benchmark(
+        args.database,
+        writers=args.writers,
+        events_per_writer=args.events_per_writer,
+        payload_bytes=args.payload_bytes,
+        read_every=args.read_every,
+    )
+    print_result(result, as_json=args.json)
+    return 0
+
+
+def print_result(result: BenchmarkResult, *, as_json: bool) -> None:
+    """Print benchmark output."""
+    if as_json:
+        print(json.dumps(result_dict(result), indent=2, sort_keys=True))
+    else:
+        print(format_result(result))
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
