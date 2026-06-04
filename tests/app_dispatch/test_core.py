@@ -24,6 +24,7 @@ from bywaf.app import (
 from bywaf.db import EventStore
 from bywaf.cli_trust import plugin_trust_policy_from_args
 from bywaf.event import Event
+from bywaf.keyring import KeyRecord
 
 
 
@@ -108,7 +109,7 @@ class AppDispatchTests(unittest.TestCase):
                 with (
                     contextlib.redirect_stdout(output),
                     patch("bywaf.setup.interactive_stdio", return_value=True),
-                    patch("builtins.input", side_effect=["client-a", "n"]),
+                    patch("builtins.input", side_effect=["client-a", "n", "n"]),
                 ):
                     self.assertEqual(main(["--setup"]), 0)
 
@@ -138,7 +139,7 @@ class AppDispatchTests(unittest.TestCase):
             with patch.dict("os.environ", {"HOME": tmp}):
                 with (
                     patch("bywaf.setup.interactive_stdio", return_value=True),
-                    patch("builtins.input", side_effect=["client-sec", "y"]),
+                    patch("builtins.input", side_effect=["client-sec", "y", "n"]),
                     patch("bywaf.setup.sqlcipher_available", return_value=True),
                     patch("bywaf.setup.getpass.getpass", side_effect=["secret-passphrase", "secret-passphrase"]),
                     patch("bywaf.setup.EventStore", FakeStore),
@@ -151,6 +152,45 @@ class AppDispatchTests(unittest.TestCase):
         self.assertEqual(published[-1]["project"], "client-sec")
         self.assertTrue(published[-1]["encrypted"])
         self.assertIn("encrypted SQLCipher", output.getvalue())
+
+    def test_interactive_setup_can_generate_signing_keys(self):
+        generated_names: list[str] = []
+
+        def fake_generate_key(name: str, passphrase: str, *, scope: str = "user"):
+            generated_names.append(name)
+            self.assertEqual(passphrase, "key-passphrase")
+            self.assertEqual(scope, "user")
+            return KeyRecord(
+                name=name,
+                scope=scope,
+                algorithm="ed25519",
+                fingerprint=f"SHA256:{name}",
+                public_path=Path("/tmp/keys/public") / f"{name}.pub.pem",
+                private_path=Path("/tmp/keys/private") / f"{name}.pem",
+            )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.dict("os.environ", {"HOME": tmp, "BYWAF_KEY_ROOT": str(Path(tmp, "keys"))}):
+                output = io.StringIO()
+                with (
+                    contextlib.redirect_stdout(output),
+                    patch("bywaf.setup.interactive_stdio", return_value=True),
+                    patch("builtins.input", side_effect=["client-keys", "n", "y"]),
+                    patch("bywaf.setup.getpass.getpass", side_effect=["key-passphrase", "key-passphrase"]),
+                    patch("bywaf.setup.generate_key", side_effect=fake_generate_key),
+                ):
+                    self.assertEqual(main(["--setup"]), 0)
+
+                self.assertEqual(generated_names, ["bundle-signing", "plugin-manifest-signing", "plugin-catalog-signing"])
+                self.assertIn("Generated signing keys: bundle-signing, plugin-manifest-signing, plugin-catalog-signing", output.getvalue())
+                events = EventStore(Path(tmp, ".bywaf", "projects", "client-keys", "bywaf.sqlite3")).events_for_topic(
+                    "setup.keys_configured"
+                )
+                self.assertEqual(len(events), 1)
+                self.assertEqual(
+                    [record["name"] for record in events[0].payload["generated_keys"]],
+                    ["bundle-signing", "plugin-manifest-signing", "plugin-catalog-signing"],
+                )
 
     def test_interactive_setup_refuses_to_encrypt_existing_project_database(self):
         with tempfile.TemporaryDirectory() as tmp:

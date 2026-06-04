@@ -292,6 +292,14 @@ Scripted and non-interactive `bywaf --setup` does not prompt. It creates the
 `default` plaintext project unless a future explicit setup selector changes
 that behavior.
 
+Interactive setup also offers local signing keys for bundle integrity and
+plugin trust workflows. The prompt defaults to no. If accepted, Bywaf creates
+separate encrypted Ed25519 keys named `bundle-signing`,
+`plugin-manifest-signing`, and `plugin-catalog-signing` under
+`~/.bywaf/keys`. These keys are purpose-named so later commands can refer to a
+specific trust workflow without reusing one generic private key. Existing key
+files are left unchanged.
+
 If no user configuration exists, interactive startup prints:
 
 ```text
