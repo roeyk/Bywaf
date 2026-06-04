@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sqlite3
 import time
 from dataclasses import asdict, dataclass
@@ -58,6 +59,7 @@ class QueryBenchmarkResult:
     populate_seconds: float
     database_bytes: int
     measurements: tuple[QueryMeasurement, ...]
+    maintenance_measurements: tuple[QueryMeasurement, ...]
 
 
 def run_query_benchmark(
@@ -66,6 +68,7 @@ def run_query_benchmark(
     events: int,
     repetitions: int,
     payload_bytes: int = 128,
+    maintenance: bool = False,
 ) -> QueryBenchmarkResult:
     """Populate a benchmark DB if needed and measure common read paths."""
     if events < 1:
@@ -78,6 +81,7 @@ def run_query_benchmark(
     populate_seconds = populate_database(database, events=events, payload_bytes=payload_bytes)
     store = EventStore(database)
     measurements = tuple(measure_query_paths(store, repetitions=repetitions, export_limit=min(events, 100_000)))
+    maintenance_measurements = tuple(measure_maintenance_paths(store, repetitions=repetitions)) if maintenance else ()
     return QueryBenchmarkResult(
         database=str(database),
         events=store.latest_event_id(),
@@ -85,6 +89,7 @@ def run_query_benchmark(
         populate_seconds=populate_seconds,
         database_bytes=database_size(database),
         measurements=measurements,
+        maintenance_measurements=maintenance_measurements,
     )
 
 
@@ -184,6 +189,38 @@ def measure_query_paths(store: EventStore, *, repetitions: int, export_limit: in
     return [measure_operation(name, operation, repetitions=repetitions) for name, operation in operations]
 
 
+def measure_maintenance_paths(store: EventStore, *, repetitions: int) -> list[QueryMeasurement]:
+    """Measure explicit maintenance operations that may mutate the DB file."""
+    operations: tuple[tuple[str, Callable[[], int]], ...] = (
+        ("table_counts", lambda: len(store.table_counts())),
+        ("checkpoint", lambda: maintenance_checkpoint(store)),
+        ("sqlite_export_copy", lambda: sqlite_export_copy(store)),
+        ("vacuum", lambda: maintenance_vacuum(store)),
+    )
+    return [measure_operation(name, operation, repetitions=repetitions) for name, operation in operations]
+
+
+def maintenance_checkpoint(store: EventStore) -> int:
+    """Measure WAL checkpoint/truncation."""
+    store.checkpoint()
+    return 1
+
+
+def maintenance_vacuum(store: EventStore) -> int:
+    """Measure VACUUM rebuild cost."""
+    store.vacuum()
+    return 1
+
+
+def sqlite_export_copy(store: EventStore) -> int:
+    """Measure plaintext SQLite audit export copy cost."""
+    store.checkpoint()
+    with TemporaryDirectory() as tmp:
+        output = Path(tmp, "audit.sqlite3")
+        shutil.copy2(store.path, output)
+        return output.stat().st_size
+
+
 def open_store(store: EventStore) -> int:
     """Measure EventStore construction and schema check cost."""
     EventStore(Path(store.path))
@@ -262,12 +299,21 @@ def format_result(result: QueryBenchmarkResult) -> str:
         f"populate_seconds={result.populate_seconds:.3f}",
     ]
     for measurement in result.measurements:
-        latency = measurement.latency_ms
-        lines.append(
-            f"{measurement.name}: rows={measurement.rows} "
-            f"p50={latency['p50']:.3f}ms p95={latency['p95']:.3f}ms max={latency['max']:.3f}ms"
-        )
+        lines.append(format_measurement(measurement))
+    if result.maintenance_measurements:
+        lines.append("maintenance:")
+        for measurement in result.maintenance_measurements:
+            lines.append(format_measurement(measurement))
     return "\n".join(lines)
+
+
+def format_measurement(measurement: QueryMeasurement) -> str:
+    """Format one benchmark measurement."""
+    latency = measurement.latency_ms
+    return (
+        f"{measurement.name}: rows={measurement.rows} "
+        f"p50={latency['p50']:.3f}ms p95={latency['p95']:.3f}ms max={latency['max']:.3f}ms"
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -277,6 +323,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--events", type=int, default=100_000, help="minimum synthetic events to populate")
     parser.add_argument("--repetitions", type=int, default=5, help="query repetitions per measured path")
     parser.add_argument("--payload-bytes", type=int, default=128, help="payload bytes in each synthetic event")
+    parser.add_argument(
+        "--maintenance",
+        action="store_true",
+        help="also time checkpoint, plaintext SQLite export copy, and VACUUM operations",
+    )
     parser.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     return parser
 
@@ -292,6 +343,7 @@ def main(argv: list[str] | None = None) -> int:
                 events=args.events,
                 repetitions=args.repetitions,
                 payload_bytes=args.payload_bytes,
+                maintenance=args.maintenance,
             )
             print_result(result, as_json=args.json)
             return 0
@@ -300,6 +352,7 @@ def main(argv: list[str] | None = None) -> int:
         events=args.events,
         repetitions=args.repetitions,
         payload_bytes=args.payload_bytes,
+        maintenance=args.maintenance,
     )
     print_result(result, as_json=args.json)
     return 0

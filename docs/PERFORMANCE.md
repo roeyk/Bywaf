@@ -100,6 +100,21 @@ database has fewer than `--events` rows, then measures:
 - report-context topic group queries;
 - JSONL audit-export-style scans.
 
+To include maintenance timing, add `--maintenance`:
+
+```bash
+PYTHONPATH=. python3 scripts/sqlite_query_benchmark.py \
+  --events 100000 \
+  --repetitions 5 \
+  --payload-bytes 128 \
+  --maintenance
+```
+
+Maintenance timing covers table counts, WAL checkpoint/truncation, plaintext
+SQLite export copy, and `VACUUM`. These operations mutate the target database
+file, so use `--maintenance` intentionally when benchmarking an existing
+project database.
+
 Use `--database path/to/bywaf.sqlite3` to run the query suite against an
 existing project or benchmark database. Keep JSON captures from large local
 runs with hardware/context notes so future storage changes can be compared

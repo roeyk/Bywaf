@@ -33,6 +33,18 @@ class SQLiteQueryBenchmarkTests(unittest.TestCase):
         self.assertEqual(first.events, 10)
         self.assertEqual(second.events, 10)
         self.assertEqual(second.populate_seconds, 0)
+        self.assertEqual(second.maintenance_measurements, ())
+
+    def test_benchmark_can_measure_maintenance_paths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            database = Path(tmp, "query.sqlite3")
+            result = run_query_benchmark(database, events=10, repetitions=1, payload_bytes=4, maintenance=True)
+
+        measurements = {measurement.name for measurement in result.maintenance_measurements}
+        self.assertEqual(
+            measurements,
+            {"table_counts", "checkpoint", "sqlite_export_copy", "vacuum"},
+        )
 
     def test_database_size_includes_database_file(self):
         with tempfile.TemporaryDirectory() as tmp:
