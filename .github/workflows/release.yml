@@ -45,6 +45,9 @@ jobs:
       - name: Smoke-test pip artifacts
         run: tests/scripts/smoke_pip_package.sh
 
+      - name: Smoke-test Debian artifacts
+        run: tests/scripts/smoke_deb_package.sh
+
       - name: Smoke-test RPM artifacts
         run: tests/scripts/smoke_rpm_package.sh
 
