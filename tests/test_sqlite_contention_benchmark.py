@@ -5,6 +5,7 @@ import tempfile
 import unittest
 
 from bywaf.tools.sqlite_contention_benchmark import (
+    PLUGIN_WORKLOAD,
     WorkerResult,
     aggregate_results,
     run_benchmark,
@@ -27,6 +28,7 @@ class SQLiteContentionBenchmarkTests(unittest.TestCase):
         )
 
         self.assertEqual(result.attempted, 4)
+        self.assertEqual(result.workload, "direct")
         self.assertEqual(result.published, 3)
         self.assertEqual(result.failures, 1)
         self.assertEqual(result.locked_failures, 1)
@@ -49,6 +51,24 @@ class SQLiteContentionBenchmarkTests(unittest.TestCase):
         self.assertEqual(result.failures, 0)
         self.assertEqual(result.write_latency_ms["count"], 3)
         self.assertEqual(result.read_latency_ms["count"], 3)
+
+    def test_tiny_plugin_workload_exercises_context_event_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            database = Path(tmp, "bench.sqlite3")
+            result = run_benchmark(
+                database,
+                writers=1,
+                events_per_writer=3,
+                payload_bytes=8,
+                read_every=1,
+                workload=PLUGIN_WORKLOAD,
+            )
+
+        self.assertEqual(result.workload, PLUGIN_WORKLOAD)
+        self.assertEqual(result.attempted, 3)
+        self.assertEqual(result.published, 3)
+        self.assertEqual(result.failures, 0)
+        self.assertEqual(result.write_latency_ms["count"], 3)
 
 
 if __name__ == "__main__":

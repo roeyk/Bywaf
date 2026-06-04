@@ -21,9 +21,13 @@ from tempfile import TemporaryDirectory
 from typing import Any
 
 from ..db import EventStore
+from ..plugin import CommandContext
 
 
 BENCHMARK_TOPIC = "benchmark.event"
+DIRECT_WORKLOAD = "direct"
+PLUGIN_WORKLOAD = "plugin"
+WORKLOADS = (DIRECT_WORKLOAD, PLUGIN_WORKLOAD)
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,6 +50,7 @@ class BenchmarkResult:
     """Aggregated benchmark measurements."""
 
     database: str
+    workload: str
     writers: int
     events_per_writer: int
     payload_bytes: int
@@ -68,6 +73,7 @@ def run_benchmark(
     events_per_writer: int,
     payload_bytes: int,
     read_every: int = 0,
+    workload: str = DIRECT_WORKLOAD,
 ) -> BenchmarkResult:
     """Run a multi-process EventStore write contention benchmark."""
     if writers < 1:
@@ -78,6 +84,8 @@ def run_benchmark(
         raise ValueError("payload-bytes must be non-negative")
     if read_every < 0:
         raise ValueError("read-every must be non-negative")
+    if workload not in WORKLOADS:
+        raise ValueError(f"workload must be one of: {', '.join(WORKLOADS)}")
     database.parent.mkdir(parents=True, exist_ok=True)
     EventStore(database).checkpoint()
     started = time.perf_counter()
@@ -90,6 +98,7 @@ def run_benchmark(
                 events_per_writer,
                 payload_bytes,
                 read_every,
+                workload,
             )
             for writer in range(writers)
         ]
@@ -102,6 +111,7 @@ def run_benchmark(
         events_per_writer=events_per_writer,
         payload_bytes=payload_bytes,
         read_every=read_every,
+        workload=workload,
         elapsed_seconds=elapsed,
     )
 
@@ -112,9 +122,11 @@ def run_writer(
     events_per_writer: int,
     payload_bytes: int,
     read_every: int,
+    workload: str,
 ) -> WorkerResult:
     """Publish benchmark events from one process."""
     db = EventStore(Path(database))
+    emitter = build_emitter(db, writer, payload_bytes, workload)
     payload_data = "x" * payload_bytes
     write_latencies: list[float] = []
     read_latencies: list[float] = []
@@ -125,15 +137,7 @@ def run_writer(
     for sequence in range(events_per_writer):
         before = time.perf_counter()
         try:
-            db.publish(
-                BENCHMARK_TOPIC,
-                {
-                    "writer": writer,
-                    "sequence": sequence,
-                    "payload": payload_data,
-                },
-                "sqlite_contention_benchmark",
-            )
+            emitter(sequence, payload_data)
             published += 1
             write_latencies.append((time.perf_counter() - before) * 1000)
         except Exception as exc:  # pragma: no cover - failure shape is environment-dependent.
@@ -163,6 +167,55 @@ def run_writer(
     )
 
 
+def build_emitter(db: EventStore, writer: int, payload_bytes: int, workload: str):
+    """Return the write path for one benchmark worker."""
+    if workload == PLUGIN_WORKLOAD:
+        context = CommandContext(
+            db=db,
+            source="benchmark_portscanner",
+            metadata={
+                "capabilities": ("db.write:port.open",),
+                "command_run_id": f"benchmark-writer-{writer}",
+                "pipeline_id": "sqlite-contention-benchmark",
+            },
+        )
+        return SyntheticPortScannerEmitter(context, writer, payload_bytes).publish
+    return lambda sequence, payload: db.publish(
+        BENCHMARK_TOPIC,
+        {
+            "writer": writer,
+            "sequence": sequence,
+            "payload": payload,
+        },
+        "sqlite_contention_benchmark",
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class SyntheticPortScannerEmitter:
+    """Commandlet-shaped high-volume event emitter for plugin workload tests."""
+
+    context: CommandContext
+    writer: int
+    payload_bytes: int
+
+    def publish(self, sequence: int, payload: str) -> None:
+        """Publish one schema-valid open-port event through the plugin event API."""
+        self.context.events.publish(
+            "port.open",
+            {
+                "host": f"192.0.2.{(self.writer % 250) + 1}",
+                "port": 1024 + (sequence % 40000),
+                "protocol": "tcp",
+                "state": "open",
+                "service": "synthetic",
+                "reason": "benchmark",
+                "scanner": "synthetic-portscanner",
+                "banner": payload if self.payload_bytes else "",
+            },
+        )
+
+
 def benchmark_multiprocessing_context() -> Any | None:
     """Return a multiprocessing context suitable for local contention benchmarks."""
     try:
@@ -180,6 +233,7 @@ def aggregate_results(
     payload_bytes: int,
     read_every: int,
     elapsed_seconds: float,
+    workload: str = DIRECT_WORKLOAD,
 ) -> BenchmarkResult:
     """Aggregate per-worker benchmark results."""
     attempted = sum(result.attempted for result in results)
@@ -191,6 +245,7 @@ def aggregate_results(
     throughput = published / elapsed_seconds if elapsed_seconds > 0 else 0
     return BenchmarkResult(
         database=str(database),
+        workload=workload,
         writers=writers,
         events_per_writer=events_per_writer,
         payload_bytes=payload_bytes,
@@ -239,6 +294,7 @@ def format_result(result: BenchmarkResult) -> str:
     lines = [
         "SQLite contention benchmark",
         f"database={result.database}",
+        f"workload={result.workload}",
         f"writers={result.writers} events_per_writer={result.events_per_writer} payload_bytes={result.payload_bytes}",
         f"attempted={result.attempted} published={result.published} failures={result.failures} locked_failures={result.locked_failures}",
         f"elapsed_seconds={result.elapsed_seconds:.3f} throughput_events_per_second={result.throughput_events_per_second:.1f}",
@@ -268,6 +324,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--events-per-writer", type=int, default=1000, help="events each writer publishes")
     parser.add_argument("--payload-bytes", type=int, default=128, help="payload bytes in each event")
     parser.add_argument("--read-every", type=int, default=0, help="each writer performs one read every N writes")
+    parser.add_argument(
+        "--workload",
+        choices=WORKLOADS,
+        default=DIRECT_WORKLOAD,
+        help="write path to benchmark: direct EventStore.publish or plugin-style context.events.publish",
+    )
     parser.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     return parser
 
@@ -284,6 +346,7 @@ def main(argv: list[str] | None = None) -> int:
                 events_per_writer=args.events_per_writer,
                 payload_bytes=args.payload_bytes,
                 read_every=args.read_every,
+                workload=args.workload,
             )
             print_result(result, as_json=args.json)
             return 0
@@ -293,6 +356,7 @@ def main(argv: list[str] | None = None) -> int:
         events_per_writer=args.events_per_writer,
         payload_bytes=args.payload_bytes,
         read_every=args.read_every,
+        workload=args.workload,
     )
     print_result(result, as_json=args.json)
     return 0

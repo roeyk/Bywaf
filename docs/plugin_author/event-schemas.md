@@ -13,6 +13,7 @@ without knowing the original scanner.
 - [Inspect Registered Schemas](#inspect-registered-schemas)
 - [Declare Consumes And Emits](#declare-consumes-and-emits)
 - [Keep Raw Tool Detail Separate](#keep-raw-tool-detail-separate)
+- [High-Volume Event Emission](#high-volume-event-emission)
 - [Examples](#examples)
 - [Checking](#checking)
 
@@ -279,6 +280,26 @@ finding.candidate      reportable risky condition, if one exists
 
 This lets `results`, `report`, future GUI views, and follow-up plugins work from
 the normalized facts while the raw detail remains available for evidence.
+
+## High-Volume Event Emission
+
+High-volume plugins should publish normalized facts through
+`context.events.publish(...)` or `context.events.publish_object(...)`, not raw
+database handles. The mediated event API adds provenance, schema validation,
+and capability audit records while keeping the storage path consistent with the
+rest of Bywaf.
+
+For scanners that may emit thousands of results, prefer one durable event per
+operator-meaningful fact. For example, a port scanner should publish one
+`port.open` event per open port and use progress events around scan phases,
+instead of writing every packet, retry, socket attempt, or parser-internal
+state transition into the shared event log.
+
+Before introducing a plugin that can emit very large result volumes, run the
+maintainer benchmark in [Performance Benchmarks](../PERFORMANCE.md#sqlite-contention)
+with `--workload plugin`. That workload publishes schema-valid `port.open`
+events through the plugin-facing event API from multiple writer processes, so
+it is the relevant storage check for high-volume native plugins.
 
 ## Examples
 

@@ -27,8 +27,33 @@ PYTHONPATH=. python3 scripts/sqlite_contention_benchmark.py \
   --json
 ```
 
-The benchmark writes through `EventStore.publish()` from multiple processes,
-which exercises the same SQLite/WAL path used by Bywaf workers. It reports:
+The default workload writes through `EventStore.publish()` from multiple
+processes, which exercises the same SQLite/WAL path used by Bywaf workers:
+
+```bash
+PYTHONPATH=. python3 scripts/sqlite_contention_benchmark.py \
+  --workload direct \
+  --writers 4 \
+  --events-per-writer 1000 \
+  --payload-bytes 128 \
+  --read-every 100
+```
+
+For plugin-shaped event pressure, use `--workload plugin`. This creates a
+commandlet-style `CommandContext` in each writer process and publishes
+schema-valid `port.open` events through `context.events.publish(...)`, including
+normal provenance and capability-audit behavior:
+
+```bash
+PYTHONPATH=. python3 scripts/sqlite_contention_benchmark.py \
+  --workload plugin \
+  --writers 4 \
+  --events-per-writer 1000 \
+  --payload-bytes 128 \
+  --read-every 100
+```
+
+The benchmark reports:
 
 - attempted and published event counts;
 - total failures and `database is locked` failures;
