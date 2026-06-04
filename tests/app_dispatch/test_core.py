@@ -101,6 +101,72 @@ class AppDispatchTests(unittest.TestCase):
                 self.assertEqual(output.getvalue(), "")
                 self.assertTrue(Path(tmp, ".bywaf", "config.toml").exists())
 
+    def test_interactive_setup_accepts_project_name_and_declines_encryption(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.dict("os.environ", {"HOME": tmp}):
+                output = io.StringIO()
+                with (
+                    contextlib.redirect_stdout(output),
+                    patch("bywaf.setup.interactive_stdio", return_value=True),
+                    patch("builtins.input", side_effect=["client-a", "n"]),
+                ):
+                    self.assertEqual(main(["--setup"]), 0)
+
+                project = Path(tmp, ".bywaf", "projects", "client-a")
+                self.assertTrue(project.exists())
+                self.assertIn("Use `bywaf project=client-a`", output.getvalue())
+                events = EventStore(project / "bywaf.sqlite3").events_for_topic("setup.completed")
+                self.assertFalse(events[-1].payload["encrypted"])
+
+    def test_interactive_setup_can_request_encrypted_project_database(self):
+        calls: list[tuple[Path, str | None]] = []
+        published: list[dict[str, object]] = []
+        outer = self
+
+        class FakeStore:
+            def __init__(self, path: Path, *, passphrase: str | None = None):
+                calls.append((path, passphrase))
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.touch()
+
+            def publish(self, topic: str, payload: dict[str, object], source: str):
+                outer.assertEqual(topic, "setup.completed")
+                outer.assertEqual(source, "framework")
+                published.append(payload)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.dict("os.environ", {"HOME": tmp}):
+                with (
+                    patch("bywaf.setup.interactive_stdio", return_value=True),
+                    patch("builtins.input", side_effect=["client-sec", "y"]),
+                    patch("bywaf.setup.sqlcipher_available", return_value=True),
+                    patch("bywaf.setup.getpass.getpass", side_effect=["secret-passphrase", "secret-passphrase"]),
+                    patch("bywaf.setup.EventStore", FakeStore),
+                ):
+                    output = io.StringIO()
+                    with contextlib.redirect_stdout(output):
+                        self.assertEqual(main(["--setup"]), 0)
+
+        self.assertEqual(calls[-1][1], "secret-passphrase")
+        self.assertEqual(published[-1]["project"], "client-sec")
+        self.assertTrue(published[-1]["encrypted"])
+        self.assertIn("encrypted SQLCipher", output.getvalue())
+
+    def test_interactive_setup_refuses_to_encrypt_existing_project_database(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp, ".bywaf", "projects", "default")
+            project.mkdir(parents=True)
+            (project / "bywaf.sqlite3").write_text("existing", encoding="utf-8")
+            with patch.dict("os.environ", {"HOME": tmp}):
+                output = io.StringIO()
+                with (
+                    contextlib.redirect_stdout(output),
+                    patch("bywaf.setup.interactive_stdio", return_value=True),
+                    patch("builtins.input", side_effect=["", "y"]),
+                ):
+                    self.assertEqual(main(["--setup"]), 1)
+                self.assertIn("cannot enable encryption during setup because project database already exists", output.getvalue())
+
     def test_interactive_repl_startup_shows_first_run_notice(self):
         with tempfile.TemporaryDirectory() as tmp:
             with patch.dict("os.environ", {"HOME": tmp}):

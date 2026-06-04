@@ -26,9 +26,15 @@ bywaf project=default
 
 Setup creates `~/.bywaf/config.toml` and
 `~/.bywaf/projects/default/`, including the default project database, project
-config, and project history file. If no user configuration exists, an
-interactive Bywaf startup prints a friendly setup notice; scripted and
-non-interactive runs do not prompt or print that notice.
+config, and project history file. In an interactive terminal, setup asks for a
+project name and whether to create an encrypted SQLCipher project database. The
+default project name is `default`; the default storage choice is plaintext
+SQLite so first setup stays fast. Scripted and non-interactive setup does not
+prompt and uses those defaults.
+
+If no user configuration exists, an interactive Bywaf startup prints a friendly
+setup notice; scripted and non-interactive runs do not prompt or print that
+notice.
 
 Create a fresh project database when you want a clean run:
 

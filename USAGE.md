@@ -276,8 +276,23 @@ bywaf project=default
 
 `bywaf --setup` creates `~/.bywaf/config.toml` and the default project at
 `~/.bywaf/projects/default/`. The project contains its own database,
-`config.toml`, and `history.bywaf`. If no user configuration exists,
-interactive startup prints:
+`config.toml`, and `history.bywaf`.
+
+In an interactive terminal, setup asks for a project name and whether to create
+an encrypted SQLCipher project database. Press Enter to accept the default
+project name, `default`. The encrypted database prompt defaults to no so first
+setup remains fast. If encryption is selected, Bywaf collects and confirms the
+passphrase through the configured secret-input mode without echoing plaintext
+to the terminal. `askpass` is used when available, and prompt-toolkit `block`
+mode falls back to `getpass` because setup runs before the Bywaf interpreter is
+active. Passphrases are kept in process memory only and are not written to
+config, history, or audit events.
+
+Scripted and non-interactive `bywaf --setup` does not prompt. It creates the
+`default` plaintext project unless a future explicit setup selector changes
+that behavior.
+
+If no user configuration exists, interactive startup prints:
 
 ```text
 No Bywaf configuration found.

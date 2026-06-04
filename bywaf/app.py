@@ -258,7 +258,11 @@ def main(argv: list[str] | None = None) -> int:
 def handle_setup_startup(args: argparse.Namespace) -> int | None:
     """Handle explicit setup or the optional interactive first-run notice."""
     if args.setup:
-        run_setup(output=not args.quiet)
+        try:
+            run_setup(output=not args.quiet)
+        except (RuntimeError, ValueError) as exc:
+            print(f"error: {exc}")
+            return 1
         return 0
     if args.subcommand in ("repl", None) and first_run_notice_needed(quiet=args.quiet):
         print_first_run_notice()
