@@ -143,8 +143,32 @@ scripts/build_release_packages.sh
 Smoke-test release packages where practical:
 
 ```bash
+tests/scripts/smoke_pip_package.sh
+tests/scripts/smoke_deb_package.sh
 tests/scripts/smoke_rpm_package.sh
 ```
+
+Use this package matrix before tagging a release or after changing packaging,
+entry points, install paths, package data, bundled manifests, release metadata,
+or package dependencies:
+
+| Artifact | Local validation | What it verifies | Required local tools |
+| --- | --- | --- | --- |
+| Source and wheel | `tests/scripts/smoke_pip_package.sh` | Builds sdist/wheel, installs into a temporary venv, runs installed-user smoke, and checks bundled plugin config loading. | Python build tooling and venv support. |
+| Debian package | `tests/scripts/smoke_deb_package.sh` | Builds or finds the `.deb`, verifies package metadata, installs it with apt, runs `/usr/bin/bywaf` through installed-user smoke, and removes the package on exit. | `dpkg-deb`, `sudo`, Debian package build tools. |
+| RPM package | `tests/scripts/smoke_rpm_package.sh` | Builds source and binary RPMs, extracts the RPM payload, verifies the extracted command and package tree, and runs installed-user smoke against the extracted install root. | `rpmbuild`, `rpm2cpio`, `cpio`, Python build tooling. |
+
+The GitHub `Release packages` workflow is the release gate for the full package
+matrix. It runs on `v*` tags and can also be run manually with:
+
+```bash
+gh workflow run "Release packages" --ref main
+```
+
+Before closing a package-matrix issue or tagging a release, confirm that the
+workflow reaches `success` and uploads `bywaf-release-artifacts`. Normal push CI
+does not run the release package workflow, so a green push alone does not prove
+the wheel, Debian, and RPM package matrix.
 
 Version alignment is covered by `tests/test_packaging_install_paths.py`: the
 Python package version, `bywaf.__version__`, Debian changelog, RPM spec, and
