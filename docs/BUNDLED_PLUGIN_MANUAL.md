@@ -1661,9 +1661,10 @@ Plugin metadata:
 Example usage: `http_probe https://example.test/ | webfin | technology_indicators`
 
 Use `technology_indicators` to promote selected passive version and fingerprint signals
-into normalized candidate findings. Current starter rules cover Apache httpd 2.4.49 and
-2.4.50 indicators from server headers, banners, service evidence, or web fingerprints.
-The output is intentionally a candidate with `confidence_basis` set to
+into normalized candidate findings. Current starter rules cover Apache httpd 2.4.49
+and 2.4.50, nginx 1.3.9-1.4.0, Microsoft IIS 6.0, and OpenSSL 1.0.1-1.0.1f
+indicators from server headers, banners, service evidence, or web fingerprints. The
+output is intentionally a candidate with `confidence_basis` set to
 `version_indicator` or `fingerprint_indicator`, not a confirmed vulnerability.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |

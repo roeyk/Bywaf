@@ -74,7 +74,7 @@ class VersionIndicatorRule:
 
     name: str
     product: str
-    version: str
+    versions: tuple[str, ...]
     finding_class: str
     title: str
     severity: str
@@ -86,7 +86,7 @@ RULES = (
     VersionIndicatorRule(
         name="apache-httpd-2.4.49",
         product="apache httpd",
-        version="2.4.49",
+        versions=("2.4.49",),
         finding_class="technology.version.apache_httpd_2_4_49_indicator",
         title="Apache httpd 2.4.49 version indicator observed",
         severity="high",
@@ -99,7 +99,7 @@ RULES = (
     VersionIndicatorRule(
         name="apache-httpd-2.4.50",
         product="apache httpd",
-        version="2.4.50",
+        versions=("2.4.50",),
         finding_class="technology.version.apache_httpd_2_4_50_indicator",
         title="Apache httpd 2.4.50 version indicator observed",
         severity="high",
@@ -109,9 +109,57 @@ RULES = (
             "then upgrade to a fixed vendor-supported release if applicable."
         ),
     ),
+    VersionIndicatorRule(
+        name="nginx-1.3.9-to-1.4.0",
+        product="nginx",
+        versions=("1.3.9", "1.3.10", "1.3.11", "1.3.12", "1.3.13", "1.3.14", "1.3.15", "1.3.16", "1.4.0"),
+        finding_class="technology.version.nginx_1_3_9_to_1_4_0_indicator",
+        title="nginx 1.3.9-1.4.0 version indicator observed",
+        severity="high",
+        identifiers={"cve": ["CVE-2013-2028"]},
+        recommendation=(
+            "Confirm the nginx build and patch level with asset owners, "
+            "then upgrade to a fixed vendor-supported release if applicable."
+        ),
+    ),
+    VersionIndicatorRule(
+        name="microsoft-iis-6.0",
+        product="microsoft iis",
+        versions=("6.0",),
+        finding_class="technology.version.microsoft_iis_6_0_indicator",
+        title="Microsoft IIS 6.0 version indicator observed",
+        severity="critical",
+        identifiers={"cve": ["CVE-2017-7269"]},
+        recommendation=(
+            "Confirm the IIS version, Windows Server release, and WebDAV exposure "
+            "with asset owners, then retire or isolate the service if applicable."
+        ),
+    ),
+    VersionIndicatorRule(
+        name="openssl-1.0.1-to-1.0.1f",
+        product="openssl",
+        versions=("1.0.1", "1.0.1a", "1.0.1b", "1.0.1c", "1.0.1d", "1.0.1e", "1.0.1f"),
+        finding_class="technology.version.openssl_1_0_1_to_1_0_1f_indicator",
+        title="OpenSSL 1.0.1-1.0.1f version indicator observed",
+        severity="high",
+        identifiers={"cve": ["CVE-2014-0160"]},
+        recommendation=(
+            "Confirm the OpenSSL build options and patch level with asset owners, "
+            "then upgrade to a fixed vendor-supported release if applicable."
+        ),
+    ),
 )
 
 APACHE_VERSION_RE = re.compile(r"\b(?:apache(?:\s+httpd)?|httpd|apache)/(?P<version>\d+\.\d+\.\d+)\b", re.IGNORECASE)
+NGINX_VERSION_RE = re.compile(r"\bnginx/(?P<version>\d+\.\d+\.\d+)\b", re.IGNORECASE)
+IIS_VERSION_RE = re.compile(r"\b(?:microsoft-)?iis/(?P<version>\d+\.\d+)\b", re.IGNORECASE)
+OPENSSL_VERSION_RE = re.compile(r"\bopenssl/(?P<version>\d+\.\d+\.\d+[a-z]?)\b", re.IGNORECASE)
+VERSION_PATTERNS = {
+    "apache httpd": APACHE_VERSION_RE,
+    "nginx": NGINX_VERSION_RE,
+    "microsoft iis": IIS_VERSION_RE,
+    "openssl": OPENSSL_VERSION_RE,
+}
 
 
 def findings_from_event(event: Event) -> list[dict[str, object]]:
@@ -125,8 +173,15 @@ def findings_from_event(event: Event) -> list[dict[str, object]]:
 
 def matching_rules(evidence: str) -> list[VersionIndicatorRule]:
     """Return rules matching passive evidence text."""
-    versions = {match.group("version") for match in APACHE_VERSION_RE.finditer(evidence)}
-    return [rule for rule in RULES if rule.product == "apache httpd" and rule.version in versions]
+    observed_versions = {
+        product: {match.group("version").lower() for match in pattern.finditer(evidence)}
+        for product, pattern in VERSION_PATTERNS.items()
+    }
+    return [
+        rule
+        for rule in RULES
+        if any(version.lower() in observed_versions.get(rule.product, set()) for version in rule.versions)
+    ]
 
 
 def candidate_for_rule(

@@ -81,6 +81,63 @@ class TechnologyIndicatorsTests(unittest.TestCase):
 
         self.assertEqual(findings_from_event(event), [])
 
+    def test_nginx_140_server_header_becomes_version_indicator(self):
+        event = Event.new(
+            "http.endpoint",
+            {"host": "example.test", "port": 80, "scheme": "http", "server": "nginx/1.4.0"},
+            "test",
+        )
+
+        finding = cast(dict[str, Any], findings_from_event(event)[0])
+
+        self.assertEqual(finding["class"], "technology.version.nginx_1_3_9_to_1_4_0_indicator")
+        self.assertEqual(finding["identifiers"], {"cve": ["CVE-2013-2028"]})
+        self.assertEqual(finding["confidence_basis"], "version_indicator")
+
+    def test_nginx_unlisted_version_is_not_promoted(self):
+        event = Event.new(
+            "http.endpoint",
+            {"host": "example.test", "port": 80, "scheme": "http", "server": "nginx/1.4.1"},
+            "test",
+        )
+
+        self.assertEqual(findings_from_event(event), [])
+
+    def test_iis_60_server_header_becomes_version_indicator(self):
+        event = Event.new(
+            "http.endpoint",
+            {"host": "legacy.example.test", "port": 80, "scheme": "http", "server": "Microsoft-IIS/6.0"},
+            "test",
+        )
+
+        finding = cast(dict[str, Any], findings_from_event(event)[0])
+
+        self.assertEqual(finding["class"], "technology.version.microsoft_iis_6_0_indicator")
+        self.assertEqual(finding["severity"], "critical")
+        self.assertEqual(finding["identifiers"], {"cve": ["CVE-2017-7269"]})
+
+    def test_openssl_101f_banner_becomes_version_indicator(self):
+        event = Event.new(
+            "tcp.banner",
+            {"host": "192.0.2.10", "port": 443, "protocol": "tcp", "banner": "OpenSSL/1.0.1f"},
+            "test",
+        )
+
+        finding = cast(dict[str, Any], findings_from_event(event)[0])
+
+        self.assertEqual(finding["class"], "technology.version.openssl_1_0_1_to_1_0_1f_indicator")
+        self.assertEqual(finding["identifiers"], {"cve": ["CVE-2014-0160"]})
+        self.assertEqual(finding["target_scope"], {"kind": "service", "value": "192.0.2.10:443/tcp"})
+
+    def test_openssl_fixed_version_is_not_promoted(self):
+        event = Event.new(
+            "tcp.banner",
+            {"host": "192.0.2.10", "port": 443, "protocol": "tcp", "banner": "OpenSSL/1.0.1g"},
+            "test",
+        )
+
+        self.assertEqual(findings_from_event(event), [])
+
     def test_commandlet_dedupes_same_class_and_target(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
@@ -242,6 +299,32 @@ class TechnologyIndicatorsTests(unittest.TestCase):
             rendered = runner.db.events_for_topic("report.rendered")
             self.assertEqual(rendered[0].payload["rows"], 1)
             self.assertEqual(rendered[1].payload["rows"], 1)
+
+    def test_webfin_report_synthesizes_nginx_indicator(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            endpoint = runner.db.publish(
+                "http.endpoint",
+                {
+                    "url": "https://example.test/",
+                    "host": "example.test",
+                    "port": 443,
+                    "scheme": "https",
+                    "server": "nginx/1.4.0",
+                    "headers": {"Server": "nginx/1.4.0"},
+                    "status": 200,
+                },
+                "http_probe",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+
+            runner.execute(f"webfin --from pipeline={endpoint.pipeline_id} topic=http.endpoint | report status=all")
+
+            deduped = runner.db.events_for_topic("finding.new")
+            self.assertEqual(len(deduped), 1)
+            self.assertEqual(deduped[0].payload["class"], "technology.version.nginx_1_3_9_to_1_4_0_indicator")
+            self.assertEqual(deduped[0].payload["identifiers"], {"cve": ["CVE-2013-2028"]})
 
 
 if __name__ == "__main__":
