@@ -146,6 +146,7 @@ class StorageRunnerPortscannerCoreTests(unittest.TestCase):
             self.assertEqual(candidates[0].payload["title"], "Telnet service exposed")
             self.assertEqual(candidates[0].payload["target"]["port"], "23")
             self.assertEqual(candidates[0].payload["confidence"], "high")
+            self.assertEqual(candidates[0].payload["confidence_basis"], "service_indicator")
 
     def test_portscanner_promotes_telnet_on_nonstandard_port_from_service_detection(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -169,6 +170,7 @@ class StorageRunnerPortscannerCoreTests(unittest.TestCase):
             self.assertEqual(len(candidates), 1)
             self.assertEqual(candidates[0].payload["target"]["port"], "2323")
             self.assertEqual(candidates[0].payload["confidence"], "high")
+            self.assertEqual(candidates[0].payload["confidence_basis"], "service_indicator")
 
     def test_portscanner_default_telnet_port_without_service_detection_is_medium_confidence(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -191,6 +193,7 @@ class StorageRunnerPortscannerCoreTests(unittest.TestCase):
             candidates = runner.db.events_for_topic("finding.candidate")
             self.assertEqual(len(candidates), 1)
             self.assertEqual(candidates[0].payload["confidence"], "medium")
+            self.assertEqual(candidates[0].payload["confidence_basis"], "port_indicator")
             self.assertIn("confirm service identity", candidates[0].payload["evidence"])
 
     def test_commandlet_can_use_events_from_prior_run(self):

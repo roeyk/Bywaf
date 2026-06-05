@@ -212,6 +212,7 @@ def finding_for_path(observed: HttpPathObserved) -> dict[str, object] | None:
         title=details.title,
         finding_class=details.finding_class,
         severity=details.severity,
+        confidence_basis="content_indicator",
         target={"url": observed.url, "host": observed.host, "path": observed.path},
         target_scope=details.target_scope or {"kind": "web_route", "value": observed.url},
         affected=[{"url": observed.url, "host": observed.host, "path": observed.path}],

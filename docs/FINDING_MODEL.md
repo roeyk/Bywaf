@@ -48,7 +48,8 @@ The current normalized finding payload is intentionally small:
 | --- | --- |
 | `finding_id` | Stable id for the normalized finding. |
 | `status` | Current state such as `new`, `updated`, or future review states. |
-| `confidence` | Numeric confidence score when known. |
+| `confidence` | Confidence label such as `low`, `medium`, or `high`. |
+| `confidence_basis` | Why that confidence was assigned, such as `safe_probe`, `content_indicator`, `service_indicator`, `fingerprint_indicator`, `version_indicator`, or `port_indicator`. |
 | `severity` | Severity label such as `info`, `low`, `medium`, `high`, or `critical`. |
 | `class` | Bywaf finding class used for reporting and grouping, such as `web.header.missing_hsts`. |
 | `title` | Operator-facing finding title. |
@@ -64,6 +65,15 @@ The current normalized finding payload is intentionally small:
 
 Commandlets may emit richer fact payloads. The normalized finding layer keeps a
 stable subset so reporting does not depend on every tool's native schema.
+
+`confidence` and `confidence_basis` answer different questions. Confidence
+states how strongly the detector trusts the finding. Confidence basis states
+why: a safe direct probe, observed response content, service/banner evidence, a
+web fingerprint, version metadata, or only a default-port indicator. CVE- or
+version-adjacent plugins should not claim confirmation from version or
+fingerprint evidence alone. Use a basis such as `version_indicator` or
+`fingerprint_indicator` for suspected findings, and reserve `safe_probe` or
+`finding.confirmed` for non-destructive proof.
 
 Reports derive a broad operational severity class from `severity`; plugins do
 not need to emit a separate field:

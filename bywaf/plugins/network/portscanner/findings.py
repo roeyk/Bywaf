@@ -26,17 +26,20 @@ def telnet_open_candidate(port_payload: dict[str, Any]) -> dict[str, Any] | None
     protocol = str(port_payload.get("protocol") or "tcp")
     if service_detected:
         confidence = "high"
+        confidence_basis = "service_indicator"
         evidence = f"{host}:{port}/{protocol} was identified as Telnet."
     else:
         # Port 23 alone is weaker than banner/service detection. Keep it as a
         # candidate so operators can triage or confirm it later.
         confidence = "medium"
+        confidence_basis = "port_indicator"
         evidence = f"{host}:{port}/{protocol} is open on the default Telnet port; confirm service identity."
     return candidate_payload(
         title="Telnet service exposed",
         finding_class="service.telnet.exposed",
         severity="medium",
         confidence=confidence,
+        confidence_basis=confidence_basis,
         finding_scope="host_port",
         target={"host": host, "port": port, "protocol": protocol, "service": service or "telnet"},
         identifiers={},

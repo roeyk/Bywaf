@@ -63,6 +63,7 @@ class NormalizedFinding:
     finding_class: str
     status: str
     confidence: str
+    confidence_basis: str
     severity: str
     target: TargetIdentity
     target_scope: dict[str, str]
@@ -98,6 +99,7 @@ class NormalizedFinding:
             "finding_id": finding_id,
             "status": self.status,
             "confidence": self.confidence,
+            "confidence_basis": self.confidence_basis,
             "severity": self.severity,
             "class": self.finding_class,
             "title": self.title,
@@ -124,6 +126,8 @@ class NormalizedFinding:
             self.group_key = finding.group_key
         if not self.recommendation and finding.recommendation:
             self.recommendation = finding.recommendation
+        if not self.confidence_basis and finding.confidence_basis:
+            self.confidence_basis = finding.confidence_basis
 
 
 @dataclass(slots=True)

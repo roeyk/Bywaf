@@ -22,6 +22,7 @@ class ManagementExposureTests(unittest.TestCase):
         target = cast(dict[str, Any], finding["target"])
 
         self.assertEqual(finding["class"], "service.management.redis_exposed")
+        self.assertEqual(finding["confidence_basis"], "port_indicator")
         self.assertEqual(finding["finding_scope"], "service")
         self.assertEqual(finding["target_scope"], {"kind": "service", "value": "192.0.2.10:6379/tcp"})
         self.assertEqual(finding["group_key"], "service.management.redis_exposed|service:192.0.2.10:6379/tcp|class")
@@ -49,6 +50,7 @@ class ManagementExposureTests(unittest.TestCase):
         affected = cast(list[dict[str, Any]], finding["affected"])
 
         self.assertEqual(finding["class"], "service.management.grafana_exposed")
+        self.assertEqual(finding["confidence_basis"], "fingerprint_indicator")
         self.assertEqual(finding["finding_scope"], "web_origin")
         self.assertEqual(finding["target_scope"], {"kind": "web_origin", "value": "https://grafana.example.test:3000"})
         self.assertEqual(
@@ -75,6 +77,7 @@ class ManagementExposureTests(unittest.TestCase):
         finding = cast(dict[str, Any], findings[0])
 
         self.assertEqual(finding["class"], "service.management.grafana_exposed")
+        self.assertEqual(finding["confidence_basis"], "service_indicator")
         self.assertIn("observed=grafana", finding["evidence"])
 
     def test_commandlet_dedupes_equivalent_service_findings(self):

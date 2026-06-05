@@ -38,6 +38,13 @@ are declared in the plugin manifest so Bywaf can validate their event payloads
 without importing plugin code. Plugin-private topics are still allowed for
 scanner-specific detail.
 
+For finding candidates, emit both a confidence label and, when known, a
+`confidence_basis` such as `safe_probe`, `content_indicator`,
+`service_indicator`, `fingerprint_indicator`, `version_indicator`, or
+`port_indicator`. This keeps CVE- or version-adjacent checks honest: a version
+or fingerprint match should remain a candidate with an explicit indicator basis
+unless the plugin also performs a documented safe confirmation probe.
+
 ## Why Schemas Instead Of Plugin Classes
 
 Shared events are the durable interchange format, not the plugin's internal

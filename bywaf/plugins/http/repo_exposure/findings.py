@@ -47,6 +47,7 @@ def candidate_from_detection(result: GitConfigProbeResult, *, source_tool: str =
         finding_class="web.exposure.git_config",
         severity="high",
         confidence="high",
+        confidence_basis="safe_probe",
         finding_scope="web_origin",
         target={
             "scheme": result.scheme,

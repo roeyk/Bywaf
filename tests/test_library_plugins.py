@@ -28,7 +28,7 @@ from bywaf.plugins.network.service_probe import service_probe
 from bywaf.plugins.network.tcp_banner import banner_targets, probe_bytes, target_from_text, tcp_banner
 from bywaf.plugins.network.traceroute import parse_traceroute_output, trace_targets, traceroute
 from bywaf.plugins.http.http_paths import http_paths
-from bywaf.plugins.http.tls_probe import tls_probe
+from bywaf.plugins.http.tls_probe import tls_certificate_findings, tls_probe
 from bywaf.plugins.http.waf_detect import waf_detect
 from bywaf.plugins.recon.dns_enum import dns_enum
 from bywaf.plugins.recon.dns_lookup import dns_lookup, optional_module
@@ -207,6 +207,19 @@ class LibraryPluginTests(unittest.TestCase):
 
         self.assertEqual(fake_context.minimum_version, tls_probe_module.ssl.TLSVersion.TLSv1_2)
 
+    def test_tls_certificate_findings_label_safe_probe_basis(self):
+        findings = tls_certificate_findings(
+            {
+                "host": "expired.example.test",
+                "port": 443,
+                "not_after": "Jan 01 00:00:00 2020 GMT",
+                "san": ["expired.example.test"],
+            }
+        )
+
+        self.assertEqual(findings[0]["class"], "service.tls.certificate_expired")
+        self.assertEqual(findings[0]["confidence_basis"], "safe_probe")
+
     def test_http_paths_publishes_path_and_finding_candidate(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
@@ -220,6 +233,7 @@ class LibraryPluginTests(unittest.TestCase):
             finding = db.events_for_topic("finding.candidate")[0].payload
             self.assertTrue(path["interesting"])
             self.assertEqual(finding["class"], "web.exposure.git_config")
+            self.assertEqual(finding["confidence_basis"], "content_indicator")
             self.assertEqual(finding["target_scope"], {"kind": "web_origin", "value": "http://127.0.0.1:8080"})
             self.assertEqual(finding["group_key"], "web.exposure.git_config|web_origin:http://127.0.0.1:8080|cwe:CWE-538")
 
@@ -257,6 +271,7 @@ class LibraryPluginTests(unittest.TestCase):
             finding = db.events_for_topic("finding.candidate")[0].payload
             self.assertEqual(finding["class"], "web.config.env_exposed")
             self.assertEqual(finding["severity"], "high")
+            self.assertEqual(finding["confidence_basis"], "content_indicator")
 
     def test_http_paths_promotes_management_exposure_paths(self):
         cases = [

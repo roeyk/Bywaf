@@ -79,6 +79,7 @@ class RepoExposureTests(unittest.TestCase):
         self.assertEqual(candidate["status"], "potential")
         self.assertEqual(candidate["severity"], "high")
         self.assertEqual(candidate["confidence"], "high")
+        self.assertEqual(candidate["confidence_basis"], "safe_probe")
         self.assertEqual(candidate["class"], "web.exposure.git_config")
         self.assertEqual(candidate["target_scope"], {"kind": "web_origin", "value": "https://example.test"})
         self.assertEqual(candidate["group_key"], "web.exposure.git_config|web_origin:https://example.test|cwe:CWE-538")

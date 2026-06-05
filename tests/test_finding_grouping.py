@@ -55,6 +55,7 @@ class FindingGroupingTests(unittest.TestCase):
             finding_class="web.header.missing_hsts",
             severity="medium",
             confidence="medium",
+            confidence_basis="configuration_indicator",
             finding_scope="web_origin",
             target={"scheme": "https", "host": "example.test", "port": "443", "path": "/"},
             identifiers={"cwe": ["CWE-319"]},
@@ -63,6 +64,7 @@ class FindingGroupingTests(unittest.TestCase):
         )
 
         self.assertEqual(payload["target_scope"], {"kind": "web_origin", "value": "https://example.test"})
+        self.assertEqual(payload["confidence_basis"], "configuration_indicator")
         self.assertEqual(payload["group_key"], "web.header.missing_hsts|web_origin:https://example.test|cwe:CWE-319")
         self.assertEqual(payload["subjects"]["title"], "finding.title")
         self.assertEqual(payload["subjects"]["target.host"], "host")
@@ -94,11 +96,13 @@ class FindingGroupingTests(unittest.TestCase):
             finding_class="web.exposure.git_config",
             severity="high",
             target={"host": "example.test", "path": "/.git/config"},
+            confidence_basis="safe_probe",
             evidence="Git config content was returned.",
         )
 
         self.assertEqual(payload["status"], "confirmed")
         self.assertEqual(payload["confidence"], "high")
+        self.assertEqual(payload["confidence_basis"], "safe_probe")
         self.assertEqual(payload["subjects"]["title"], "finding.title")
 
     def test_normalized_target_scope_supports_host_port(self):

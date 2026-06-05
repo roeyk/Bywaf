@@ -68,6 +68,7 @@ class FindingDedupeTests(unittest.TestCase):
                     "target": {"scheme": "https", "host": "example.test", "path": "/.git/config"},
                     "identifiers": {"cwe": ["CWE-538"]},
                     "affected": [{"url": "https://example.test/.git/config", "path": "/.git/config"}],
+                    "confidence_basis": "content_indicator",
                     "evidence": "root git config returned",
                     "sources": [{"tool": "http_paths", "topic": "http.path"}],
                 },
@@ -95,6 +96,7 @@ class FindingDedupeTests(unittest.TestCase):
             finding = db.events_for_topic("finding.new")[0].payload
             self.assertEqual(finding["target_scope"], {"kind": "web_origin", "value": "https://example.test"})
             self.assertEqual(finding["identifiers"], {"cwe": ["CWE-538"]})
+            self.assertEqual(finding["confidence_basis"], "content_indicator")
             self.assertEqual(
                 finding["affected"],
                 [

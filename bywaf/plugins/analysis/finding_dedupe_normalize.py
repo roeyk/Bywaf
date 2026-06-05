@@ -49,6 +49,7 @@ def normalize_event(event: Event) -> NormalizedFinding:
         finding_class=finding_class,
         status=normalize_status(str(payload.get("status") or payload.get("verification") or status_from_topic(event.topic))),
         confidence=str(payload.get("confidence") or "medium"),
+        confidence_basis=str(payload.get("confidence_basis") or ""),
         severity=str(payload.get("severity") or "unknown"),
         target=target,
         target_scope=target_scope,
