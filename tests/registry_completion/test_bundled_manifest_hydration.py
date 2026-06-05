@@ -266,6 +266,12 @@ class BundledManifestHydrationTests(unittest.TestCase):
         self.assertIn("network.connect", self.registry.get("ssh_probe").spec.capabilities)
         self.assertEqual(self.registry.get("ssh_probe").spec.consumes, ("port.open",))
         self.assertEqual(self.registry.get("ssh_probe").spec.emits, ("ssh.service",))
+        self.assertEqual(
+            self.registry.get("technology_indicators").spec.consumes,
+            ("service.detected", "tcp.banner", "http.endpoint", "web.fingerprint"),
+        )
+        self.assertEqual(self.registry.get("technology_indicators").spec.emits, ("finding.candidate",))
+        self.assertIn("db.write:finding.candidate", self.registry.get("technology_indicators").spec.capabilities)
         self.assertIn("framework.console.output", self.registry.get("step").spec.capabilities)
         self.assertEqual(self.registry.get("step").spec.database_actions, ("view",))
         self.assertIn("network.connect", self.registry.get("webfin").spec.capabilities)

@@ -20,11 +20,12 @@ A **provider** is the Python implementation object or module that registers or r
 <div class="plugin-toc">
 <div class="toc-header"><span class="toc-count">Plugins (Commandlets)</span><span class="toc-name">Name</span></div>
 <details class="plugin-toc-family">
-<summary id="toc-analysis"><span class="toc-count">5</span><span class="toc-arrow" aria-hidden="true">▸</span><span class="toc-name">Analysis</span></summary>
+<summary id="toc-analysis"><span class="toc-count">6</span><span class="toc-arrow" aria-hidden="true">▸</span><span class="toc-name">Analysis</span></summary>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#analysisfinding">analysis.finding</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#analysisfinding_dedupe">analysis.finding_dedupe</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#analysisfinding_report">analysis.finding_report</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#analysisreport">analysis.report</a></span></div>
+<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#analysistechnology_indicators">analysis.technology_indicators</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#analysisyara_scan">analysis.yara_scan</a></span></div>
 </details>
 <details class="plugin-toc-family">
@@ -133,6 +134,7 @@ A **provider** is the Python implementation object or module that registers or r
 | Analysis | `analysis.finding_report` | `finding_report` | Render finding tables and report artifacts. | `finding_report export=findings.md` | [analysis.finding_report](#analysisfinding_report) |
 | Analysis | `analysis.report` | `report` | Review, accept, confirm, defer, or reject findings. | `report accept 1-3 pipeline=1` | [analysis.report](#analysisreport) |
 | Analysis | `analysis.finding` | `finding` | Lower-level finding review actions. | `finding confirm 1-3 pipeline=1` | [analysis.finding](#analysisfinding) |
+| Analysis | `analysis.technology_indicators` | `technology_indicators` | Promote passive vulnerable-version indicators. | `http_probe https://example.test/ \| webfin \| technology_indicators` | [analysis.technology_indicators](#analysistechnology_indicators) |
 | Analysis | `analysis.yara_scan` | `yara_scan` | Scan files with YARA rules. | `yara_scan rule=webshells.yar shell.php` | [analysis.yara_scan](#analysisyara_scan) |
 | Runtime | `runtime.artifact` | `artifact`, `search` | Manage evidence artifacts. | `artifact list step=12` | [runtime.artifact](#runtimeartifact) |
 | Runtime | `runtime.bundle` | `bundle` | Build evidence/report bundles. | `bundle add name=client-a evidence commandlet=nikto,webfin` | [runtime.bundle](#runtimebundle) |
@@ -1431,6 +1433,7 @@ attached.
 - [analysis.finding_dedupe](#analysisfinding_dedupe)
 - [analysis.finding_report](#analysisfinding_report)
 - [analysis.report](#analysisreport)
+- [analysis.technology_indicators](#analysistechnology_indicators)
 - [analysis.yara_scan](#analysisyara_scan)
 
 <a id="analysisfinding_dedupe"></a>
@@ -1622,6 +1625,52 @@ narrow confirmation workflow.
 - Consumes: finding lifecycle topics.
 - Visible output: prints review action results or errors.
 - Emits: `finding.reviewed`.
+
+[Back to Analysis plugin TOC](#analysis-plugin-toc) | [Back to document Analysis TOC entry](#toc-analysis)
+
+<a id="analysistechnology_indicators"></a>
+
+### `analysis.technology_indicators`
+
+Promotes passive technology and version evidence into finding candidates.
+
+
+Use this after service probing, banner capture, HTTP probing, or web fingerprinting when
+you want suspected vulnerable-version indicators to enter the normal finding review
+workflow. It reads existing facts only and does not perform exploit probes,
+authentication attempts, or additional network discovery.
+
+Plugin metadata:
+
+| Field | Value |
+| --- | --- |
+| Family | Analysis |
+| Plugin | `analysis.technology_indicators` |
+| Commandlets | `technology_indicators` |
+| Last updated | `2026-06-04` from source history |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/analysis/technology_indicators.py bywaf/plugins/analysis/technology_indicators.plugin.toml` |
+
+#### Commandlet: `technology_indicators`
+
+Example usage: `http_probe https://example.test/ | webfin | technology_indicators`
+
+Use `technology_indicators` to promote selected passive version and fingerprint signals
+into normalized candidate findings. Current starter rules cover Apache httpd 2.4.49 and
+2.4.50 indicators from server headers, banners, service evidence, or web fingerprints.
+The output is intentionally a candidate with `confidence_basis` set to
+`version_indicator` or `fingerprint_indicator`, not a confirmed vulnerability.
+
+| Argument / option | Required? | Type / accepted values | Sample value | Meaning |
+| --- | --- | --- | --- | --- |
+| `--silent` | No | Binary flag; suppress technology indicator alerts. | `--silent` | Binary flag; suppress technology indicator alerts. |
+
+- Consumes: `service.detected`, `tcp.banner`, `http.endpoint`,
+  `web.fingerprint`.
+- Visible output: prints finding alerts for promoted technology indicators
+  unless `--silent` is set.
+- Emits: `finding.candidate`.
+- Safety boundary: passive only; no exploit probes, credential checks,
+  brute force, or added scan breadth.
 
 [Back to Analysis plugin TOC](#analysis-plugin-toc) | [Back to document Analysis TOC entry](#toc-analysis)
 

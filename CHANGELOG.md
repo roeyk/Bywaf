@@ -35,6 +35,10 @@ impact label and sorted from highest to lowest operator/developer impact:
 - [high] Made `report` default to a compact finding inbox and added
   `report <#>` / `report detail <#>` drill-down for evidence, artifacts,
   provenance, and latest-update details.
+- [medium] Added the passive `technology_indicators` commandlet to promote
+  selected vulnerable-version signals, starting with Apache httpd 2.4.49 and
+  2.4.50 indicators, into normalized candidate findings without exploit
+  probes or added scan breadth.
 - [medium] Improved compact report inbox rows so grouped findings summarize
   all affected resources represented by the group, instead of only the newest
   representative event.

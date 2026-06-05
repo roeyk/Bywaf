@@ -42,7 +42,14 @@ class RegistryCompletionCoreTests(unittest.TestCase):
         self.assertNotIn("analysis/report/report", top_level)
         self.assertEqual(
             completer.candidates("use analysis/"),
-            ["analysis/finding", "analysis/finding_dedupe", "analysis/finding_report", "analysis/report", "analysis/yara_scan"],
+            [
+                "analysis/finding",
+                "analysis/finding_dedupe",
+                "analysis/finding_report",
+                "analysis/report",
+                "analysis/technology_indicators",
+                "analysis/yara_scan",
+            ],
         )
         self.assertEqual(completer.candidates("use glo"), ["global"])
         self.assertEqual(completer.candidates("use host"), ["hosts", "hostscanner"])

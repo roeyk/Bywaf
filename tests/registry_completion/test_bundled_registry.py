@@ -63,6 +63,7 @@ class RegistryBundledPluginTests(unittest.TestCase):
                 "analysis.finding_dedupe",
                 "analysis.finding_report",
                 "analysis.report",
+                "analysis.technology_indicators",
                 "analysis.yara_scan",
                 "identity.ldap_probe",
                 "identity.smb_probe",
@@ -218,7 +219,10 @@ class RegistryBundledPluginTests(unittest.TestCase):
         self.assertEqual(report_manifest.commandlet_database_actions["report"], ("view", "write"))
 
     def test_registry_tracks_provider_groups(self):
-        self.assertEqual(self.registry.grouped_names()["analysis"], ["finding", "finding_dedupe", "finding_report", "report", "yara_scan"])
+        self.assertEqual(
+            self.registry.grouped_names()["analysis"],
+            ["finding", "finding_dedupe", "finding_report", "report", "technology_indicators", "yara_scan"],
+        )
         self.assertEqual(self.registry.grouped_names()["identity"], ["ldap_probe", "smb_probe"])
         self.assertEqual(
             self.registry.grouped_names()["network"],

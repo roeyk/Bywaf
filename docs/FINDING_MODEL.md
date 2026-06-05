@@ -289,9 +289,11 @@ review-worthy rule. For example, `portscanner` promotes exposed Telnet, and
 `http_headers` promotes missing high-value HTTP security headers, weak cookie
 attributes, implementation-revealing `Server` headers, and HTTPS-to-HTTP
 redirects.
-`git_expose_check` promotes exposed `.git/config` repository metadata. Commandlets
-emit `finding.confirmed` only when they have direct proof strong enough to mark
-the risk confirmed while still allowing operator review.
+`git_expose_check` promotes exposed `.git/config` repository metadata, and
+`technology_indicators` promotes selected passive version/fingerprint evidence
+into suspected vulnerable-version candidates. Commandlets emit
+`finding.confirmed` only when they have direct proof strong enough to mark the
+risk confirmed while still allowing operator review.
 
 ## Report Command
 

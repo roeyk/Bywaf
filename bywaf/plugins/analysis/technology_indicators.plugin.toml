@@ -1,0 +1,33 @@
+[plugin]
+version = "0.12.2"
+native = true
+service = false
+
+[[commandlets]]
+name = "technology_indicators"
+description = "Promote passive technology/version evidence into vulnerable-version finding candidates."
+usage = "technology_indicators [silent=true]"
+examples = [
+  "http_probe https://example.test/ | webfin | technology_indicators",
+  "portscanner 192.0.2.10 | tcp_banner | technology_indicators",
+]
+consumes = [
+  "service.detected",
+  "tcp.banner",
+  "http.endpoint",
+  "web.fingerprint",
+]
+emits = [
+  "finding.candidate",
+]
+capabilities = [
+  "db.write:finding.candidate",
+  "framework.console.alert",
+]
+module = "bywaf.plugins.analysis.technology_indicators"
+
+[[commandlets.options]]
+name = "silent"
+description = "suppress technology indicator alerts"
+type = "bool"
+default = "false"
