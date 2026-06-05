@@ -48,6 +48,10 @@ selected context facts before it renders. The initial synthesis bundle reuses
 the technology-indicator analyzer, deduplicates only the fresh candidates, and
 keeps the result as candidate evidence. Review actions such as `report accept`
 and `report reject` operate on already selected rows and do not run synthesis.
+When visible findings include `confidence_basis`, compact report tables include
+a `Basis` column and detail views include `Confidence basis`. Values such as
+`version indicator` and `fingerprint indicator` explain why a candidate exists;
+they do not make the finding confirmed.
 
 ## Default View
 
@@ -68,8 +72,8 @@ Review: 3 accepted, 2 confirmed, 1 deferred, 0 rejected, 6 unreviewed
 
 Open findings:
 Findings
-#  Finding                               Affected                      CVE      Severity
-1  Exposed Git repository configuration  https://example/.git/config   CWE-538  high
+#  Finding                               Affected                      CVE      Severity  Review
+1  Exposed Git repository configuration  https://example/.git/config   CWE-538  high      unreviewed
 
 Use `report <#>` or `report detail <#>` for evidence, artifacts, and provenance.
 ```

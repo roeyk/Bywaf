@@ -30,6 +30,7 @@ def indexed_findings_table(
             **row,
             "finding_name": finding_display_name(row, group),
             "hosts_affected": finding_affected_summary(row, group),
+            "basis": finding_basis_summary(group),
             "review": review_status(group, decisions),
         }
         for index, (group, row) in enumerate(zip(groups, finding_rows(representatives, include_candidates=True), strict=True), start=1)
@@ -41,6 +42,8 @@ def indexed_findings_table(
         Column("cve", "CVE"),
         Column("severity", "Severity"),
     ]
+    if any(row.get("basis") for row in rows):
+        columns.append(Column("basis", "Basis"))
     if show_review_status:
         columns.append(Column("review", "Review"))
     return Table.from_rows(
@@ -102,6 +105,16 @@ def finding_display_name(row: Mapping[str, object], group: FindingGroup) -> str:
     if group_has_confirmed_event(group) and "confirmed" not in title.casefold():
         return f"{title} (confirmed)"
     return title
+
+
+def finding_basis_summary(group: FindingGroup) -> str:
+    """Return compact confidence-basis labels represented by one group."""
+    values = []
+    for event in group.events:
+        value = str(effective_finding_payload(event).get("confidence_basis") or "").strip()
+        if value:
+            values.append(value.replace("_", " "))
+    return ", ".join(dict.fromkeys(values))
 
 
 def group_has_confirmed_event(group: FindingGroup) -> bool:

@@ -106,6 +106,40 @@ class ReportRenderingTests(unittest.TestCase):
             self.assertIn("Review", text)
             self.assertIn("unreviewed", text)
 
+    def test_report_marks_confidence_basis_for_indicator_findings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "finding.candidate",
+                {
+                    "finding_id": "indicator-1",
+                    "title": "Apache httpd 2.4.49 version indicator observed",
+                    "target": {"scheme": "https", "host": "example.test", "port": "443", "path": "/"},
+                    "severity": "high",
+                    "confidence": "medium",
+                    "confidence_basis": "version_indicator",
+                },
+                "technology_indicators",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report pipeline=pipeline-a")
+                process_framework_requests(runner, ShellState())
+
+            text = output.getvalue()
+            self.assertIn("Basis", text)
+            self.assertIn("version indicator", text)
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report detail 1 pipeline=pipeline-a")
+                process_framework_requests(runner, ShellState())
+
+            self.assertIn("Confidence basis: version indicator", output.getvalue())
+
     def test_report_compacts_multiline_evidence_in_table_rows(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))

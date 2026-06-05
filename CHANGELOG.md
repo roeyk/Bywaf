@@ -28,6 +28,9 @@ impact label and sorted from highest to lowest operator/developer impact:
   already-collected service, banner, HTTP endpoint, and web fingerprint facts
   before rendering, with `report analyze=off` available for pure snapshot
   views.
+- [high] Added report `Basis` labels and detail output for finding
+  `confidence_basis` values, making passive version/fingerprint indicators
+  visibly distinct from confirmed findings.
 - [high] Added the native `management_exposure` commandlet to promote exposed
   management-surface facts into normalized finding candidates for services such
   as Redis, Docker API, Kubernetes, Grafana, Jenkins, Kibana, Prometheus, RDP,

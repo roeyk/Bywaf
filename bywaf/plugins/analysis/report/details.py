@@ -30,6 +30,7 @@ def render_group_details(context: CommandContext, groups: list[FindingGroup]) ->
         title = str(representative.get("title") or representative.get("class") or group.finding_id)
         lines.append(f"{report_text(context, 'index', f'{index}.')} {finding_text(context, 'title', title)}")
         append_detail_line(context, lines, "Finding status", finding_status_values(group))
+        append_detail_line(context, lines, "Confidence basis", confidence_basis_values(payloads))
         append_detail_line(context, lines, "Affected", affected_values(payloads))
         append_detail_line(context, lines, "Evidence", evidence_values(payloads), limit=3)
         append_detail_line(context, lines, "Sources", source_values(group))
@@ -51,6 +52,14 @@ def finding_status_values(group: FindingGroup) -> list[str]:
         for event in group.events
     ]
     return unique_compact_values(values)
+
+
+def confidence_basis_values(payloads: list[Mapping[str, Any]]) -> list[str]:
+    """Return human-readable confidence basis labels from finding payloads."""
+    return unique_compact_values(
+        str(payload.get("confidence_basis") or "").replace("_", " ")
+        for payload in payloads
+    )
 
 
 def append_detail_line(

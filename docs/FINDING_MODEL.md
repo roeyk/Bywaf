@@ -74,6 +74,9 @@ version-adjacent plugins should not claim confirmation from version or
 fingerprint evidence alone. Use a basis such as `version_indicator` or
 `fingerprint_indicator` for suspected findings, and reserve `safe_probe` or
 `finding.confirmed` for non-destructive proof.
+`report` renders `confidence_basis` as a compact `Basis` column and a
+`Confidence basis` detail line when present, so operators can distinguish
+passive indicators from confirmed findings during review.
 
 Reports derive a broad operational severity class from `severity`; plugins do
 not need to emit a separate field:
