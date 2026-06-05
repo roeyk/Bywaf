@@ -292,8 +292,8 @@ redirects.
 `git_expose_check` promotes exposed `.git/config` repository metadata, and
 `technology_indicators` promotes selected passive version/fingerprint evidence
 into suspected vulnerable-version candidates for a small curated catalog that
-currently includes Apache httpd, nginx, Microsoft IIS, and OpenSSL indicators.
-Commandlets emit
+currently includes Apache httpd, nginx, Microsoft IIS, OpenSSL, vsftpd, and
+UnrealIRCd indicators. Commandlets emit
 `finding.confirmed` only when they have direct proof strong enough to mark the
 risk confirmed while still allowing operator review.
 

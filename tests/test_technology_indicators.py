@@ -138,6 +138,33 @@ class TechnologyIndicatorsTests(unittest.TestCase):
 
         self.assertEqual(findings_from_event(event), [])
 
+    def test_vsftpd_234_banner_becomes_backdoor_indicator(self):
+        event = Event.new(
+            "tcp.banner",
+            {"host": "192.0.2.21", "port": 21, "protocol": "tcp", "banner": "220 (vsFTPd 2.3.4)"},
+            "test",
+        )
+
+        finding = cast(dict[str, Any], findings_from_event(event)[0])
+
+        self.assertEqual(finding["class"], "technology.version.vsftpd_2_3_4_indicator")
+        self.assertEqual(finding["severity"], "critical")
+        self.assertEqual(finding["identifiers"], {"cve": ["CVE-2011-2523"]})
+        self.assertEqual(finding["target_scope"], {"kind": "service", "value": "192.0.2.21:21/tcp"})
+
+    def test_unrealircd_3281_banner_becomes_backdoor_indicator(self):
+        event = Event.new(
+            "tcp.banner",
+            {"host": "192.0.2.66", "port": 6667, "protocol": "tcp", "banner": ":irc.example.test 004 user UnrealIRCd-3.2.8.1 iowghraAsORTVSxNCWqBzvdHtGp"},
+            "test",
+        )
+
+        finding = cast(dict[str, Any], findings_from_event(event)[0])
+
+        self.assertEqual(finding["class"], "technology.version.unrealircd_3_2_8_1_indicator")
+        self.assertEqual(finding["severity"], "critical")
+        self.assertEqual(finding["identifiers"], {"cve": ["CVE-2010-2075"]})
+
     def test_commandlet_dedupes_same_class_and_target(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
@@ -325,6 +352,24 @@ class TechnologyIndicatorsTests(unittest.TestCase):
             self.assertEqual(len(deduped), 1)
             self.assertEqual(deduped[0].payload["class"], "technology.version.nginx_1_3_9_to_1_4_0_indicator")
             self.assertEqual(deduped[0].payload["identifiers"], {"cve": ["CVE-2013-2028"]})
+
+    def test_report_synthesizes_vsftpd_banner_indicator(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "tcp.banner",
+                {"host": "192.0.2.21", "port": 21, "protocol": "tcp", "banner": "220 (vsFTPd 2.3.4)"},
+                "tcp_banner",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+
+            runner.execute("report pipeline=pipeline-a status=all")
+
+            deduped = runner.db.events_for_topic("finding.new")
+            self.assertEqual(len(deduped), 1)
+            self.assertEqual(deduped[0].payload["class"], "technology.version.vsftpd_2_3_4_indicator")
+            self.assertEqual(deduped[0].payload["identifiers"], {"cve": ["CVE-2011-2523"]})
 
 
 if __name__ == "__main__":

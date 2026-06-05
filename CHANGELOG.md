@@ -42,9 +42,10 @@ impact label and sorted from highest to lowest operator/developer impact:
 - [medium] Expanded passive `technology_indicators` coverage for selected
   vulnerable-version signals, including Apache httpd 2.4.49 and 2.4.50, nginx
   1.3.9-1.4.0, Microsoft IIS 6.0, and OpenSSL 1.0.1-1.0.1f indicators, into
-  normalized candidate findings without exploit probes or added scan breadth,
-  plus `tech_review` as a shorter chain that promotes and deduplicates those
-  fresh candidates before `report`.
+  normalized candidate findings, plus exact vsftpd 2.3.4 and UnrealIRCd
+  3.2.8.1 backdoor/trojaned-distribution indicators, without exploit probes or
+  added scan breadth. `tech_review` remains the shorter chain that promotes and
+  deduplicates those fresh candidates before `report`.
 - [medium] Improved compact report inbox rows so grouped findings summarize
   all affected resources represented by the group, instead of only the newest
   representative event.

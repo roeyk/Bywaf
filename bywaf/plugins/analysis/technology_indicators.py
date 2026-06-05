@@ -148,17 +148,47 @@ RULES = (
             "then upgrade to a fixed vendor-supported release if applicable."
         ),
     ),
+    VersionIndicatorRule(
+        name="vsftpd-2.3.4",
+        product="vsftpd",
+        versions=("2.3.4",),
+        finding_class="technology.version.vsftpd_2_3_4_indicator",
+        title="vsftpd 2.3.4 version indicator observed",
+        severity="critical",
+        identifiers={"cve": ["CVE-2011-2523"]},
+        recommendation=(
+            "Confirm the vsftpd package source and deployment date with asset owners, "
+            "then replace the service with a trusted fixed build if applicable."
+        ),
+    ),
+    VersionIndicatorRule(
+        name="unrealircd-3.2.8.1",
+        product="unrealircd",
+        versions=("3.2.8.1",),
+        finding_class="technology.version.unrealircd_3_2_8_1_indicator",
+        title="UnrealIRCd 3.2.8.1 version indicator observed",
+        severity="critical",
+        identifiers={"cve": ["CVE-2010-2075"]},
+        recommendation=(
+            "Confirm the UnrealIRCd package source and build provenance with asset owners, "
+            "then replace the service with a trusted fixed build if applicable."
+        ),
+    ),
 )
 
 APACHE_VERSION_RE = re.compile(r"\b(?:apache(?:\s+httpd)?|httpd|apache)/(?P<version>\d+\.\d+\.\d+)\b", re.IGNORECASE)
 NGINX_VERSION_RE = re.compile(r"\bnginx/(?P<version>\d+\.\d+\.\d+)\b", re.IGNORECASE)
 IIS_VERSION_RE = re.compile(r"\b(?:microsoft-)?iis/(?P<version>\d+\.\d+)\b", re.IGNORECASE)
 OPENSSL_VERSION_RE = re.compile(r"\bopenssl/(?P<version>\d+\.\d+\.\d+[a-z]?)\b", re.IGNORECASE)
+VSFTPD_VERSION_RE = re.compile(r"\bvsftpd\s+(?P<version>\d+\.\d+\.\d+)\b", re.IGNORECASE)
+UNREALIRCD_VERSION_RE = re.compile(r"\bunrealircd[-\s/]?(?P<version>\d+\.\d+\.\d+\.\d+)\b", re.IGNORECASE)
 VERSION_PATTERNS = {
     "apache httpd": APACHE_VERSION_RE,
     "nginx": NGINX_VERSION_RE,
     "microsoft iis": IIS_VERSION_RE,
     "openssl": OPENSSL_VERSION_RE,
+    "vsftpd": VSFTPD_VERSION_RE,
+    "unrealircd": UNREALIRCD_VERSION_RE,
 }
 
 
