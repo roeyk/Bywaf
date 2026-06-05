@@ -24,6 +24,10 @@ impact label and sorted from highest to lowest operator/developer impact:
 
 ### Changed
 
+- [high] Made `report` run the default safe passive synthesis bundle over
+  already-collected service, banner, HTTP endpoint, and web fingerprint facts
+  before rendering, with `report analyze=off` available for pure snapshot
+  views.
 - [high] Added the native `management_exposure` commandlet to promote exposed
   management-surface facts into normalized finding candidates for services such
   as Redis, Docker API, Kubernetes, Grafana, Jenkins, Kibana, Prometheus, RDP,

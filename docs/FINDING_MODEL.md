@@ -302,6 +302,16 @@ indicator promotion with deduplication of those fresh candidates:
 http_probe https://example.test/ | webfin | tech_review | report
 ```
 
+The high-level `report` command also runs the default safe passive synthesis
+bundle over selected facts before rendering, so the common chain can be shorter:
+
+```text
+http_probe https://example.test/ | webfin | report
+```
+
+Use `report analyze=off` when you want a pure snapshot of findings that already
+exist in the event store.
+
 The resulting report row remains an indicator candidate, not a confirmed
 vulnerability.
 

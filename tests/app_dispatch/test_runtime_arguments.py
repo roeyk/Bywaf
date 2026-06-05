@@ -48,7 +48,8 @@ class AppDispatchTests(unittest.TestCase):
         from bywaf.runner.stages import effective_database_actions
 
         cases = [
-            (Report(), ["status=all"], ("view",)),
+            (Report(), ["status=all"], ("write",)),
+            (Report(), ["status=all", "analyze=off"], ("view",)),
             (Report(), ["accept", "all"], ("write",)),
             (Report(), ["pipeline=1", "confirm", "1"], ("write",)),
             (ArtifactCommand(), ["list"], ("view",)),

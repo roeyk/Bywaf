@@ -160,6 +160,89 @@ class TechnologyIndicatorsTests(unittest.TestCase):
             self.assertEqual(deduped[0].payload["target_scope"], {"kind": "web_origin", "value": "https://example.test"})
             self.assertEqual(rendered[0].payload["rows"], 1)
 
+    def test_webfin_report_runs_passive_technology_synthesis(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            endpoint = runner.db.publish(
+                "http.endpoint",
+                {
+                    "url": "https://example.test/",
+                    "host": "example.test",
+                    "port": 443,
+                    "scheme": "https",
+                    "server": "Apache/2.4.49",
+                    "headers": {"Server": "Apache/2.4.49"},
+                    "status": 200,
+                },
+                "http_probe",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+
+            runner.execute(f"webfin --from pipeline={endpoint.pipeline_id} topic=http.endpoint | report status=all")
+
+            candidates = runner.db.events_for_topic("finding.candidate")
+            deduped = runner.db.events_for_topic("finding.new")
+            rendered = runner.db.events_for_topic("report.rendered")
+            self.assertEqual(len(candidates), 1)
+            self.assertEqual(len(deduped), 1)
+            self.assertEqual(deduped[0].payload["class"], "technology.version.apache_httpd_2_4_49_indicator")
+            self.assertEqual(deduped[0].payload["identifiers"], {"cve": ["CVE-2021-41773"]})
+            self.assertEqual(rendered[0].payload["rows"], 1)
+
+    def test_report_analyze_off_does_not_run_passive_technology_synthesis(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            endpoint = runner.db.publish(
+                "http.endpoint",
+                {
+                    "url": "https://example.test/",
+                    "host": "example.test",
+                    "port": 443,
+                    "scheme": "https",
+                    "server": "Apache/2.4.49",
+                    "headers": {"Server": "Apache/2.4.49"},
+                    "status": 200,
+                },
+                "http_probe",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+
+            runner.execute(f"webfin --from pipeline={endpoint.pipeline_id} topic=http.endpoint | report status=all analyze=off")
+
+            self.assertEqual(runner.db.events_for_topic("finding.candidate"), [])
+            self.assertEqual(runner.db.events_for_topic("finding.new"), [])
+            self.assertEqual(runner.db.events_for_topic("report.rendered")[0].payload["rows"], 0)
+
+    def test_report_passive_synthesis_reuses_existing_finding(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "http.endpoint",
+                {
+                    "url": "https://example.test/",
+                    "host": "example.test",
+                    "port": 443,
+                    "scheme": "https",
+                    "server": "Apache/2.4.49",
+                    "headers": {"Server": "Apache/2.4.49"},
+                    "status": 200,
+                },
+                "http_probe",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+
+            runner.execute("report pipeline=pipeline-a status=all")
+            runner.execute("report pipeline=pipeline-a status=all")
+
+            self.assertEqual(len(runner.db.events_for_topic("finding.candidate")), 1)
+            self.assertEqual(len(runner.db.events_for_topic("finding.new")), 1)
+            rendered = runner.db.events_for_topic("report.rendered")
+            self.assertEqual(rendered[0].payload["rows"], 1)
+            self.assertEqual(rendered[1].payload["rows"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

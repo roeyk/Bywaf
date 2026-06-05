@@ -246,9 +246,16 @@ class BundledManifestHydrationTests(unittest.TestCase):
         )
         self.assertIn("framework.file.page", self.registry.get("result").spec.capabilities)
         self.assertIn("framework.file.page", self.registry.get("report").spec.capabilities)
-        self.assertEqual(self.registry.get("report").spec.consumes, REPORT_FINDING_TOPICS)
-        self.assertEqual(self.registry.get("report").spec.emits, ("report.rendered",))
+        self.assertEqual(
+            self.registry.get("report").spec.consumes,
+            (*REPORT_FINDING_TOPICS, "service.detected", "tcp.banner", "http.endpoint", "web.fingerprint"),
+        )
+        self.assertEqual(
+            self.registry.get("report").spec.emits,
+            ("finding.candidate", "finding.new", "finding.duplicate", "finding.updated", "finding.merge_candidate", "report.rendered"),
+        )
         self.assertEqual(self.registry.get("report").spec.database_actions, ("view", "write"))
+        self.assertIn("db.write:finding.new", self.registry.get("report").spec.capabilities)
         self.assertEqual(self.registry.get("results").spec.database_actions, ("view",))
         self.assertIn("framework.pipeline.control", self.registry.get("signal").spec.capabilities)
         self.assertIn("framework.file.page", self.registry.get("schemas").spec.capabilities)

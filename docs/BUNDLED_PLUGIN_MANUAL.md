@@ -132,7 +132,7 @@ A **provider** is the Python implementation object or module that registers or r
 | Wireless | `wireless.wifi_scan` | `wifi_scan` | Wrap Kismet-style wireless scans. | `wifi_scan interface=wlan0mon duration=60` | [wireless.wifi_scan](#wirelesswifi_scan) |
 | Analysis | `analysis.finding_dedupe` | `finding_dedupe` | Normalize and deduplicate findings. | `nikto https://example.com/ \| finding_dedupe` | [analysis.finding_dedupe](#analysisfinding_dedupe) |
 | Analysis | `analysis.finding_report` | `finding_report` | Render finding tables and report artifacts. | `finding_report export=findings.md` | [analysis.finding_report](#analysisfinding_report) |
-| Analysis | `analysis.report` | `report` | Review, accept, confirm, defer, or reject findings. | `report accept 1-3 pipeline=1` | [analysis.report](#analysisreport) |
+| Analysis | `analysis.report` | `report` | Review, synthesize, accept, confirm, defer, or reject findings. | `http_probe https://example.test/ \| webfin \| report` | [analysis.report](#analysisreport) |
 | Analysis | `analysis.finding` | `finding` | Lower-level finding review actions. | `finding confirm 1-3 pipeline=1` | [analysis.finding](#analysisfinding) |
 | Analysis | `analysis.technology_indicators` | `technology_indicators`, `tech_review` | Promote passive vulnerable-version indicators. | `http_probe https://example.test/ \| webfin \| tech_review \| report` | [analysis.technology_indicators](#analysistechnology_indicators) |
 | Analysis | `analysis.yara_scan` | `yara_scan` | Scan files with YARA rules. | `yara_scan rule=webshells.yar shell.php` | [analysis.yara_scan](#analysisyara_scan) |
@@ -1534,9 +1534,9 @@ interactive inbox.
 Operator finding inbox for reviewing and scoping report findings.
 
 
-Use this as the main operator-facing finding inbox. It supports scoped review, compact
-summaries, detailed rows, and lifecycle decisions such as accept, defer, reject,
-confirm, or unconfirm.
+Use this as the main operator-facing finding inbox. It supports scoped review,
+safe passive synthesis over existing facts, compact summaries, detailed rows,
+and lifecycle decisions such as accept, defer, reject, confirm, or unconfirm.
 
 Plugin metadata:
 
@@ -1550,11 +1550,13 @@ Plugin metadata:
 
 #### Commandlet: `report`
 
-Example usage: `report accept 1-3 pipeline=1`
+Example usage: `http_probe https://example.test/ | webfin | report`
 
 Use `report` to view scoped findings and make review decisions. Actions such as
 `accept`, `defer`, and `reject` create review events, while `network`, `show`, and
-`detail` help inspect context before deciding.
+`detail` help inspect context before deciding. By default, normal report renders
+run safe passive analysis over already-collected service, banner, endpoint, and
+fingerprint facts before rendering; use `analyze=off` for a pure snapshot.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
@@ -1566,6 +1568,7 @@ Use `report` to view scoped findings and make review decisions. Actions such as
 | `name=` | No | Saved report scope name. | `quarterly` | Saved report scope name. |
 | `limit=` | No | Maximum events to inspect. | `1000` | Maximum events to inspect. |
 | `note=` | No | Operator review note; consumes the rest of the line. | `validated manually` | Operator review note; consumes the rest of the line. |
+| `analyze=` | No | Passive synthesis mode: `passive` or `off`. | `passive` | Run safe passive analysis over selected facts before rendering. |
 | `page=` | No | Page rendered report output: `true` or `false`. | `false` | Page rendered report output: `true` or `false`. |
 | `sort=` | No | Group report rows by `finding` or `host`. | `host` | Group report rows by `finding` or `host`. |
 | `status=` | No | Review status filter. | `open` | Review status filter. |
@@ -1574,10 +1577,13 @@ Use `report` to view scoped findings and make review decisions. Actions such as
 | `--accepted-first` | No | Binary flag; show accepted findings before other states. | `--accepted-first` | Binary flag; show accepted findings before other states. |
 | `--candidates-first` | No | Binary flag; show candidate or potential findings first. | `--candidates-first` | Binary flag; show candidate or potential findings first. |
 
-- Consumes: finding lifecycle topics plus report context facts.
+- Consumes: finding lifecycle topics plus report context facts, including
+  service, banner, HTTP endpoint, and web fingerprint facts used for passive
+  synthesis.
 - Visible output: renders a compact finding inbox, detailed finding views, or
   network summary tables; review actions print action results/errors.
-- Emits: `report.rendered`, `report.scope.saved`, `finding.reviewed`.
+- Emits: `report.rendered`, `report.scope.saved`, `finding.reviewed`, and
+  synthesized finding candidate/dedupe events when `analyze=passive`.
 
 [Back to Analysis plugin TOC](#analysis-plugin-toc) | [Back to document Analysis TOC entry](#toc-analysis)
 

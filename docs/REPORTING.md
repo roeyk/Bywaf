@@ -7,6 +7,13 @@ without manually querying raw event topics.
 Reports are views over existing project data. They do not copy or own finding
 payloads, raw facts, artifacts, notes, or audit history.
 
+By default, `report` also runs the standard safe passive synthesis bundle over
+already-collected facts in the selected scope before rendering. This can turn
+facts such as web fingerprints or service banners into reviewable indicator
+findings without starting probes, confirming vulnerabilities, or broadening scan
+scope. Use `analyze=off` when you want a pure snapshot of findings that already
+exist.
+
 ## Contents
 
 - [What Becomes Reportable](#what-becomes-reportable)
@@ -36,12 +43,19 @@ The reporting layer expects normalized fields such as `finding_id`, `class`,
 `severity`, `confidence`, `target_scope`, `target`, `identifiers`, `affected`,
 `evidence`, and `sources`.
 
+For normal render actions, `report` can synthesize passive findings from
+selected context facts before it renders. The initial synthesis bundle reuses
+the technology-indicator analyzer, deduplicates only the fresh candidates, and
+keeps the result as candidate evidence. Review actions such as `report accept`
+and `report reject` operate on already selected rows and do not run synthesis.
+
 ## Default View
 
 Run `report` with no selector during field work:
 
 ```text
 bywaf> report
+bywaf> report analyze=off
 ```
 
 The default view chooses the latest scope that produced finding events, usually

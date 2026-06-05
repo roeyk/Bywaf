@@ -29,11 +29,12 @@ from .events import select_report_context_events, select_report_new_context_even
 from .render import render_finding_report, render_network_report
 from .review import REVIEW_DECISIONS, review_report_groups
 from .saved import apply_saved_report_scope, save_report_scope
+from .synthesis import REPORT_ANALYZE_CHOICES, synthesize_report_findings
 
 REPORT_ACTIONS = ("accept", "confirm", "defer", "reject", "unconfirm", "create", "detail", "network", "show", "update")
 REPORT_REVIEW_ACTIONS = tuple(REVIEW_DECISIONS)
 REPORT_SAVE_ACTIONS = ("create", "update")
-REPORT_OPTION_KEYS = {"job", "pipeline", "step", "limit", "name", "note", "page", "sort", "status"}
+REPORT_OPTION_KEYS = {"analyze", "job", "pipeline", "step", "limit", "name", "note", "page", "sort", "status"}
 REPORT_STATUS_CHOICES = ("all", "accepted", "confirmed", "deferred", "open", "rejected", "unreviewed")
 REPORT_SORT_CHOICES = ("finding", "host")
 
@@ -43,12 +44,13 @@ REPORT_SORT_CHOICES = ("finding", "host")
     description="Show grouped finding reports for recent, step, job, or pipeline scopes.",
     usage=(
         "report [--last|--new|network|<index-range>|detail <index-range>|accept|confirm|defer|reject|unconfirm <index-range|all>] "
-        "[pipeline=<ids>] [job=<ids>] [step=<ids>] [status=<filter>]"
+        "[pipeline=<ids>] [job=<ids>] [step=<ids>] [status=<filter>] [analyze=passive|off]"
     ),
     examples=(
         "report",
         "report --last",
         "report --new",
+        "http_probe https://example.test/ | webfin | report",
         "report network",
         "report 1",
         "report detail 1-3",
@@ -65,6 +67,7 @@ REPORT_SORT_CHOICES = ("finding", "host")
         "report --candidates-first status=all",
         "report sort=host",
         "report sort=finding",
+        "report analyze=off",
         "report pipeline=1,2,3",
         "report job=7",
         "report step=12",
@@ -75,6 +78,7 @@ REPORT_SORT_CHOICES = ("finding", "host")
 @option("step", "step id or comma-separated step ids", completion="step")
 @option("name", "saved report scope name")
 @option("limit", "maximum events to inspect", "1000")
+@option("analyze", "run passive report synthesis before rendering", "passive", REPORT_ANALYZE_CHOICES)
 @option("page", "page rendered report output", "true", ("true", "false"))
 @option("sort", "group report rows by finding or host", "finding", REPORT_SORT_CHOICES)
 @option("status", "finding review status filter", "open", REPORT_STATUS_CHOICES)
@@ -85,7 +89,11 @@ class Report(CommandletBase):
         """Classify report moderation separately from read-only report views."""
         normalized = normalize_report_args(args)
         action = next((arg for arg in normalized if arg in (*REPORT_REVIEW_ACTIONS, *REPORT_SAVE_ACTIONS)), "")
-        return ("write",) if action else ("view",)
+        if action:
+            return ("write",)
+        if "network" in normalized or report_analyze_mode(normalized) == "off":
+            return ("view",)
+        return ("write",)
 
     def run(
         self,
@@ -112,6 +120,7 @@ class Report(CommandletBase):
         parser.add_argument("--name", default="", help="saved report scope name")
         parser.add_argument("--limit", type=int, default=1000)
         parser.add_argument("--note", default="")
+        parser.add_argument("--analyze", choices=REPORT_ANALYZE_CHOICES, default="passive")
         parser.add_argument("--page", choices=("true", "false"), default="false")
         parser.add_argument("--sort", choices=REPORT_SORT_CHOICES, default="finding")
         parser.add_argument("--status", choices=REPORT_STATUS_CHOICES, default="open")
@@ -140,6 +149,7 @@ class Report(CommandletBase):
         if parsed.action == "network":
             render_network_report(context, context_events, events, parsed)
             return ()
+        events = [*events, *synthesize_report_findings(context, context_events, parsed)]
         render_finding_report(context, events, parsed, context_events=context_events)
         return ()
 
@@ -153,6 +163,9 @@ class Report(CommandletBase):
             "--accepted-first",
             "--candidates-first",
             "all",
+            "analyze=",
+            "analyze=off",
+            "analyze=passive",
             "detail",
             "pipeline=",
             "job=",
@@ -206,6 +219,15 @@ def normalize_report_action(parsed) -> None:
     parsed.selection = parsed.action if parsed.selection is None else f"{parsed.action},{parsed.selection}"
     parsed.action = "detail"
 
+
+def report_analyze_mode(normalized_args: list[str]) -> str:
+    """Return the requested report analysis mode from normalized args."""
+    for index, token in enumerate(normalized_args):
+        if token == "--analyze" and index + 1 < len(normalized_args):
+            return normalized_args[index + 1]
+        if token.startswith("--analyze="):
+            return token.split("=", 1)[1]
+    return "passive"
 
 
 def plugin() -> Commandlet:

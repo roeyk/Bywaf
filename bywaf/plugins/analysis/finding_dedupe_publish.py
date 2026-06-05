@@ -7,6 +7,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.plugins.analysis.finding_dedupe_model import NormalizedFinding
 from bywaf.plugins.analysis.finding_dedupe_normalize import stable_finding_id
@@ -14,16 +15,18 @@ from bywaf.plugins.analysis.finding_dedupe_normalize import stable_finding_id
 DecisionPayloadBuilder = Callable[[dict[str, Any], str], dict[str, Any]]
 AlertTextBuilder = Callable[[dict[str, Any]], str]
 
-def publish_dedupe_result(context: CommandContext, result: dict[str, Any], *, threshold: float, silent: bool) -> None:
+def publish_dedupe_result(context: CommandContext, result: dict[str, Any], *, threshold: float, silent: bool) -> list[Event]:
     """Publish one structured event for every dedupe decision."""
     del threshold
+    published = []
     for decision in result["decisions"]:
         kind = str(decision["decision"])
         topic = f"finding.{kind}"
         payload = decision_payload(decision)
-        context.events.publish(topic, payload)
+        published.append(context.events.publish(topic, payload))
         if not silent:
             context.alert(alert_text(kind, payload), level="finding", silent=False)
+    return published
 
 
 def decision_payload(decision: dict[str, Any]) -> dict[str, Any]:

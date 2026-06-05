@@ -42,12 +42,16 @@ base installation commandlets that declare or use each capability.
 | `db.read:finding.merge_candidate` | `finding`, `finding_report`, `report` |
 | `db.read:finding.new` | `finding`, `finding_report`, `report` |
 | `db.read:finding.reviewed` | `finding`, `report` |
+| `db.read:http.endpoint` | `report` |
 | `db.read:nikto.finding` | `finding_dedupe`, `finding_report` |
+| `db.read:service.detected` | `report` |
+| `db.read:tcp.banner` | `report` |
 | `db.read:vulnerability.confirmed` | `finding_dedupe`, `finding_report` |
 | `db.read:vulnerability.false_positive` | `finding_dedupe`, `finding_report` |
 | `db.read:vulnerability.found` | `finding_dedupe`, `finding_report` |
 | `db.read:vulnerability.potential` | `finding_dedupe`, `finding_report` |
 | `db.read:vulnerability.speculative` | `finding_dedupe`, `finding_report` |
+| `db.read:web.fingerprint` | `report` |
 | `db.write:bundle.created` | `bundle` |
 | `db.write:bundle.exported` | `bundle` |
 | `db.write:bundle.item.added` | `bundle` |
@@ -55,12 +59,12 @@ base installation commandlets that declare or use each capability.
 | `db.write:dns.error` | `dns_lookup` |
 | `db.write:dns.record` | `dns_lookup` |
 | `db.write:eyewitness.screenshot` | `eyewitness`, `screenshotter` |
-| `db.write:finding.candidate` | `git_expose_check`, `http_headers`, `http_paths`, `management_exposure`, `portscanner`, `tech_review`, `technology_indicators`, `tls_probe` |
-| `db.write:finding.duplicate` | `finding_dedupe`, `tech_review` |
-| `db.write:finding.merge_candidate` | `finding_dedupe`, `tech_review` |
-| `db.write:finding.new` | `finding_dedupe`, `tech_review` |
+| `db.write:finding.candidate` | `git_expose_check`, `http_headers`, `http_paths`, `management_exposure`, `portscanner`, `report`, `tech_review`, `technology_indicators`, `tls_probe` |
+| `db.write:finding.duplicate` | `finding_dedupe`, `report`, `tech_review` |
+| `db.write:finding.merge_candidate` | `finding_dedupe`, `report`, `tech_review` |
+| `db.write:finding.new` | `finding_dedupe`, `report`, `tech_review` |
 | `db.write:finding.reviewed` | `finding`, `report` |
-| `db.write:finding.updated` | `finding_dedupe`, `tech_review` |
+| `db.write:finding.updated` | `finding_dedupe`, `report`, `tech_review` |
 | `db.write:http.headers` | `http_headers` |
 | `db.write:key.generated` | `key` |
 | `db.write:key.imported` | `key` |
@@ -140,7 +144,7 @@ the association and `Consumes` is the normal consumer side.
 | `management_exposure` | `port.open`, `service.detected`, `http.endpoint`, `web.fingerprint`, `tcp.banner` | `finding.candidate` |
 | `nikto` | `http.endpoint`, `web.fingerprint` | `nikto.finding`, `vulnerability.found`, `vulnerability.potential` |
 | `portscanner` | `host.found` | `port.open`, `finding.candidate` |
-| `report` | `finding.candidate`, `finding.confirmed`, `finding.new`, `finding.merge_candidate` | `report.rendered` |
+| `report` | `finding.candidate`, `finding.confirmed`, `finding.new`, `finding.merge_candidate`, `service.detected`, `tcp.banner`, `http.endpoint`, `web.fingerprint` | `finding.candidate`, `finding.new`, `finding.duplicate`, `finding.updated`, `finding.merge_candidate`, `report.rendered` |
 | `repo_exposure` | `http.endpoint` | `repo.git_config.checked`, `finding.candidate` |
 | `shodan_lookup` | none | `shodan.host`, `shodan.result` |
 | `smb_probe` | none | `smb.server` |
