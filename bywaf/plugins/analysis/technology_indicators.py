@@ -14,13 +14,48 @@ from urllib.parse import urlparse
 
 from bywaf.event import Event
 from bywaf.finding import candidate_payload
-from bywaf.plugin import CommandContext, Commandlet, RunConfig, commandlet
+from bywaf.plugin import CommandContext, Commandlet, ManifestCommandlet, RunConfig
+from bywaf.plugins.analysis.finding_dedupe import dedupe_findings
+from bywaf.plugins.analysis.finding_dedupe_normalize import normalize_event
+from bywaf.plugins.analysis.finding_dedupe_publish import publish_dedupe_result, summary_line
 
 
-@commandlet
-def technology_indicators(context: CommandContext, cfg: RunConfig, input_events: Iterable[Event]):
+class TechnologyIndicators(ManifestCommandlet):
     """Emit candidate findings for passive vulnerable-version indicators."""
-    cfg = cast(TechnologyIndicatorsConfig, cfg)
+
+    manifest_name = "technology_indicators"
+
+    def handle(self, context: CommandContext, cfg: RunConfig, input_events: Iterable[Event]):
+        """Emit candidate findings for passive vulnerable-version indicators."""
+        cfg = cast(TechnologyIndicatorsConfig, cfg)
+        publish_indicator_candidates(context, input_events, silent=cfg.silent)
+        return ()
+
+
+class TechReview(ManifestCommandlet):
+    """Emit and deduplicate passive technology/version indicator findings."""
+
+    manifest_name = "tech_review"
+
+    def handle(self, context: CommandContext, cfg: RunConfig, input_events: Iterable[Event]):
+        """Emit and deduplicate passive technology/version indicator findings."""
+        cfg = cast(TechnologyIndicatorsConfig, cfg)
+        candidate_events = publish_indicator_candidates(context, input_events, silent=cfg.silent)
+        result = dedupe_findings((normalize_event(event) for event in candidate_events), fuzzy_threshold=0.82)
+        publish_dedupe_result(context, result, threshold=0.82, silent=cfg.silent)
+        context.output("tech_review: " + summary_line(result).removeprefix("finding_dedupe: "))
+        return ()
+
+
+class TechnologyIndicatorsConfig(RunConfig):
+    """Typed effective config for technology indicator commandlets."""
+
+    silent: bool
+
+
+def publish_indicator_candidates(context: CommandContext, input_events: Iterable[Event], *, silent: bool) -> list[Event]:
+    """Publish deduped indicator candidates from upstream passive facts."""
+    published: list[Event] = []
     seen: set[tuple[str, str]] = set()
     for event in input_events:
         for finding in findings_from_event(event):
@@ -28,15 +63,9 @@ def technology_indicators(context: CommandContext, cfg: RunConfig, input_events:
             if marker in seen:
                 continue
             seen.add(marker)
-            context.events.publish("finding.candidate", finding)
-            context.alert(str(finding["title"]), level="finding", silent=cfg.silent)
-    return ()
-
-
-class TechnologyIndicatorsConfig(RunConfig):
-    """Typed effective config for technology_indicators."""
-
-    silent: bool
+            published.append(context.events.publish("finding.candidate", finding))
+            context.alert(str(finding["title"]), level="finding", silent=silent)
+    return published
 
 
 @dataclass(frozen=True, slots=True)
@@ -229,3 +258,12 @@ def default_url_port(url: str) -> int | None:
 def plugin() -> Commandlet:
     """Factory used by PluginRegistry."""
     return technology_indicators
+
+
+def plugins() -> tuple[Commandlet, ...]:
+    """Return technology indicator commandlets."""
+    return technology_indicators, tech_review
+
+
+technology_indicators = TechnologyIndicators()
+tech_review = TechReview()

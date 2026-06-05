@@ -7,10 +7,11 @@ import unittest
 from pathlib import Path
 from typing import Any, cast
 
+from bywaf.app import make_runner
 from bywaf.db import EventStore
 from bywaf.event import Event
 from bywaf.plugin import CommandContext
-from bywaf.plugins.analysis.technology_indicators import findings_from_event, technology_indicators
+from bywaf.plugins.analysis.technology_indicators import findings_from_event, tech_review, technology_indicators
 
 
 class TechnologyIndicatorsTests(unittest.TestCase):
@@ -96,6 +97,68 @@ class TechnologyIndicatorsTests(unittest.TestCase):
             list(technology_indicators.run(context, ["silent=true"], events))
 
             self.assertEqual(len(db.events_for_topic("finding.candidate")), 1)
+
+    def test_tech_review_promotes_and_dedupes_candidates(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(
+                db=db,
+                source="tech_review",
+                metadata={"capabilities": tech_review.spec.capabilities},
+            )
+            event = Event.new(
+                "web.fingerprint",
+                {
+                    "url": "https://example.test/",
+                    "host": "example.test",
+                    "port": 443,
+                    "scheme": "https",
+                    "server": "Apache/2.4.49",
+                    "technologies": ["apache"],
+                },
+                "test",
+            )
+
+            list(tech_review.run(context, ["silent=true"], [event]))
+
+            candidates = db.events_for_topic("finding.candidate")
+            deduped = db.events_for_topic("finding.new")
+            self.assertEqual(len(candidates), 1)
+            self.assertEqual(len(deduped), 1)
+            self.assertEqual(deduped[0].payload["class"], "technology.version.apache_httpd_2_4_49_indicator")
+            self.assertEqual(deduped[0].payload["identifiers"], {"cve": ["CVE-2021-41773"]})
+            self.assertEqual(deduped[0].payload["confidence_basis"], "fingerprint_indicator")
+            self.assertEqual(deduped[0].payload["target_scope"], {"kind": "web_origin", "value": "https://example.test"})
+
+    def test_webfin_tech_review_report_chain_groups_indicator(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            endpoint = runner.db.publish(
+                "http.endpoint",
+                {
+                    "url": "https://example.test/",
+                    "host": "example.test",
+                    "port": 443,
+                    "scheme": "https",
+                    "server": "Apache/2.4.49",
+                    "headers": {"Server": "Apache/2.4.49"},
+                    "status": 200,
+                },
+                "http_probe",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+            runner.execute(f"webfin --from pipeline={endpoint.pipeline_id} topic=http.endpoint | tech_review | report status=all")
+
+            candidates = runner.db.events_for_topic("finding.candidate")
+            deduped = runner.db.events_for_topic("finding.new")
+            rendered = runner.db.events_for_topic("report.rendered")
+            self.assertEqual(len(candidates), 1)
+            self.assertEqual(len(deduped), 1)
+            self.assertEqual(deduped[0].payload["identifiers"], {"cve": ["CVE-2021-41773"]})
+            self.assertEqual(deduped[0].payload["confidence_basis"], "fingerprint_indicator")
+            self.assertEqual(deduped[0].payload["target_scope"], {"kind": "web_origin", "value": "https://example.test"})
+            self.assertEqual(rendered[0].payload["rows"], 1)
 
 
 if __name__ == "__main__":

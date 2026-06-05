@@ -55,12 +55,12 @@ base installation commandlets that declare or use each capability.
 | `db.write:dns.error` | `dns_lookup` |
 | `db.write:dns.record` | `dns_lookup` |
 | `db.write:eyewitness.screenshot` | `eyewitness`, `screenshotter` |
-| `db.write:finding.candidate` | `git_expose_check`, `http_headers`, `http_paths`, `management_exposure`, `portscanner`, `technology_indicators`, `tls_probe` |
-| `db.write:finding.duplicate` | `finding_dedupe` |
-| `db.write:finding.merge_candidate` | `finding_dedupe` |
-| `db.write:finding.new` | `finding_dedupe` |
+| `db.write:finding.candidate` | `git_expose_check`, `http_headers`, `http_paths`, `management_exposure`, `portscanner`, `tech_review`, `technology_indicators`, `tls_probe` |
+| `db.write:finding.duplicate` | `finding_dedupe`, `tech_review` |
+| `db.write:finding.merge_candidate` | `finding_dedupe`, `tech_review` |
+| `db.write:finding.new` | `finding_dedupe`, `tech_review` |
 | `db.write:finding.reviewed` | `finding`, `report` |
-| `db.write:finding.updated` | `finding_dedupe` |
+| `db.write:finding.updated` | `finding_dedupe`, `tech_review` |
 | `db.write:http.headers` | `http_headers` |
 | `db.write:key.generated` | `key` |
 | `db.write:key.imported` | `key` |
@@ -93,8 +93,8 @@ base installation commandlets that declare or use each capability.
 | `db.write:yara.match` | `yara_scan` |
 | `filesystem.read` | `artifact`, `cat`, `db`, `eyewitness`, `finding_dedupe`, `finding_report`, `http_probe`, `key`, `less`, `ls`, `nikto`, `note`, `screenshotter`, `wifi_scan`, `yara_scan` |
 | `filesystem.write` | `artifact`, `audit`, `bundle`, `db`, `eyewitness`, `finding_dedupe`, `finding_report`, `key`, `nikto`, `note`, `screenshotter`, `wifi_scan` |
-| `framework.console.alert` | `eyewitness`, `git_expose_check`, `hostscanner`, `http_paths`, `http_probe`, `management_exposure`, `nikto`, `portscanner`, `screenshotter`, `tcp_banner`, `technology_indicators`, `traceroute`, `watchdog`, `webfin`, `wifi_scan` |
-| `framework.console.output` | `artifact`, `audit`, `bundle`, `cancel`, `cat`, `db`, `end`, `finding_dedupe`, `job`, `key`, `kill`, `ls`, `name`, `note`, `pause`, `pipeline`, `report`, `resume`, `search`, `signal`, `stop`, `traceroute` |
+| `framework.console.alert` | `eyewitness`, `git_expose_check`, `hostscanner`, `http_paths`, `http_probe`, `management_exposure`, `nikto`, `portscanner`, `screenshotter`, `tcp_banner`, `tech_review`, `technology_indicators`, `traceroute`, `watchdog`, `webfin`, `wifi_scan` |
+| `framework.console.output` | `artifact`, `audit`, `bundle`, `cancel`, `cat`, `db`, `end`, `finding_dedupe`, `job`, `key`, `kill`, `ls`, `name`, `note`, `pause`, `pipeline`, `report`, `resume`, `search`, `signal`, `stop`, `tech_review`, `traceroute` |
 | `framework.file.page` | `less` |
 | `framework.job.control` | `cancel`, `end`, `job`, `kill`, `pause`, `pipeline`, `resume`, `signal`, `stop` |
 | `framework.pipeline.control` | `cancel`, `end`, `kill`, `pause`, `pipeline`, `resume`, `signal`, `stop` |
@@ -146,6 +146,7 @@ the association and `Consumes` is the normal consumer side.
 | `smb_probe` | none | `smb.server` |
 | `snmp_get` | none | `snmp.value` |
 | `ssh_probe` | `port.open` | `ssh.service` |
+| `tech_review` | `service.detected`, `tcp.banner`, `http.endpoint`, `web.fingerprint` | `finding.candidate`, `finding.new`, `finding.duplicate`, `finding.updated`, `finding.merge_candidate` |
 | `technology_indicators` | `service.detected`, `tcp.banner`, `http.endpoint`, `web.fingerprint` | `finding.candidate` |
 | `tls_probe` | `http.endpoint`, `port.open` | `tls.certificate`, `tls.probe.error`, `finding.candidate` |
 | `traceroute` | `host.found` | `host.found`, `network.route.hop` |

@@ -272,6 +272,15 @@ class BundledManifestHydrationTests(unittest.TestCase):
         )
         self.assertEqual(self.registry.get("technology_indicators").spec.emits, ("finding.candidate",))
         self.assertIn("db.write:finding.candidate", self.registry.get("technology_indicators").spec.capabilities)
+        self.assertEqual(
+            self.registry.get("tech_review").spec.consumes,
+            ("service.detected", "tcp.banner", "http.endpoint", "web.fingerprint"),
+        )
+        self.assertEqual(
+            self.registry.get("tech_review").spec.emits,
+            ("finding.candidate", "finding.new", "finding.duplicate", "finding.updated", "finding.merge_candidate"),
+        )
+        self.assertIn("db.write:finding.new", self.registry.get("tech_review").spec.capabilities)
         self.assertIn("framework.console.output", self.registry.get("step").spec.capabilities)
         self.assertEqual(self.registry.get("step").spec.database_actions, ("view",))
         self.assertIn("network.connect", self.registry.get("webfin").spec.capabilities)

@@ -31,3 +31,41 @@ name = "silent"
 description = "suppress technology indicator alerts"
 type = "bool"
 default = "false"
+
+[[commandlets]]
+name = "tech_review"
+description = "Promote and deduplicate passive technology/version indicator findings."
+usage = "tech_review [silent=true]"
+examples = [
+  "http_probe https://example.test/ | webfin | tech_review | report",
+  "portscanner 192.0.2.10 | tcp_banner | tech_review | report",
+]
+consumes = [
+  "service.detected",
+  "tcp.banner",
+  "http.endpoint",
+  "web.fingerprint",
+]
+emits = [
+  "finding.candidate",
+  "finding.new",
+  "finding.duplicate",
+  "finding.updated",
+  "finding.merge_candidate",
+]
+capabilities = [
+  "db.write:finding.candidate",
+  "db.write:finding.new",
+  "db.write:finding.duplicate",
+  "db.write:finding.updated",
+  "db.write:finding.merge_candidate",
+  "framework.console.alert",
+  "framework.console.output",
+]
+module = "bywaf.plugins.analysis.technology_indicators"
+
+[[commandlets.options]]
+name = "silent"
+description = "suppress technology review alerts"
+type = "bool"
+default = "false"

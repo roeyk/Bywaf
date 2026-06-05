@@ -221,7 +221,7 @@ class RegistryBundledPluginTests(unittest.TestCase):
     def test_registry_tracks_provider_groups(self):
         self.assertEqual(
             self.registry.grouped_names()["analysis"],
-            ["finding", "finding_dedupe", "finding_report", "report", "technology_indicators", "yara_scan"],
+            ["finding", "finding_dedupe", "finding_report", "report", "tech_review", "technology_indicators", "yara_scan"],
         )
         self.assertEqual(self.registry.grouped_names()["identity"], ["ldap_probe", "smb_probe"])
         self.assertEqual(
@@ -273,6 +273,9 @@ class RegistryBundledPluginTests(unittest.TestCase):
         self.assertIn("http/http_probe", self.registry.commandlet_aliases())
         self.assertIs(self.registry.get("http/http_probe"), self.registry.get("http_probe"))
         self.assertEqual(self.registry.resolve_commandlet_name("http/http_probe"), "http_probe")
+        self.assertIn("analysis/technology_indicators/tech_review", self.registry.commandlet_aliases())
+        self.assertIs(self.registry.get("analysis/technology_indicators/tech_review"), self.registry.get("tech_review"))
+        self.assertEqual(self.registry.resolve_commandlet_name("analysis/technology_indicators/tech_review"), "tech_review")
 
     def test_web_fingerprint_alias_resolves_to_webfin(self):
         self.assertIn("web_fingerprint", self.registry.commandlet_aliases())

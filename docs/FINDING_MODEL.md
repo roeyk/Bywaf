@@ -295,6 +295,16 @@ into suspected vulnerable-version candidates. Commandlets emit
 `finding.confirmed` only when they have direct proof strong enough to mark the
 risk confirmed while still allowing operator review.
 
+For a shorter operator chain, `tech_review` combines passive technology
+indicator promotion with deduplication of those fresh candidates:
+
+```text
+http_probe https://example.test/ | webfin | tech_review | report
+```
+
+The resulting report row remains an indicator candidate, not a confirmed
+vulnerability.
+
 ## Report Command
 
 `report` is the operator inbox and scoped finding viewer.
