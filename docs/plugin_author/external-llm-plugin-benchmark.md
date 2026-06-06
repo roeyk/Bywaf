@@ -103,6 +103,34 @@ The exact implementation may vary, but the reviewer should see:
 - tests that patch the HTTP connection or local fetch helper instead of calling
   the public internet.
 
+## Single-Shot Checklist
+
+Before submitting the plugin, check these common failure points:
+
+- Use current imports from `bywaf.plugin`, such as `CommandContext`,
+  `Commandlet`, `CommandletBase`, `@commandlet`, and `@argument`; do not import
+  from `bywaf.framework`.
+- Return `def plugin() -> Commandlet`, not `Commandlet(name=..., handler=...)`.
+- In `bywaf.plugin.toml`, use `capabilities = [...]` inside the matching
+  `[[commandlets]]` row; do not create a separate `[capabilities]` table.
+- Use manifest event-schema field types exactly as documented: `str`, `int`,
+  `bool`, `dict`, `list`, `number`, or `any`; do not use `string` or
+  `integer`.
+- Do not put `required = true`, `positional = true`, or `type = "string"`
+  under `[[commandlets.arguments]]`. Requiredness is inferred from `nargs`;
+  with no `nargs`, the positional argument is required.
+- Keep manifest commandlet metadata aligned with Python metadata. For
+  class-based commandlets, the `[[commandlets.arguments]] description` should
+  match the `@argument(...)` description.
+- Declare `framework.console.output` or `framework.console.alert` only if the
+  plugin actually calls `context.output()` or `context.alert()`.
+- If tests use fake connection classes, make the fake response configurable or
+  use a `Mock` connection object. Do not set `.return_value` on a normal fake
+  method.
+- Tests should import from the scratch plugin layout the same way the checker
+  sees it, for example `from plugin import HttpTitle` when `plugin.py` is at
+  the package root used in `PYTHONPATH`.
+
 ## Pass Criteria
 
 The draft passes the benchmark only when all of these are true:
@@ -115,6 +143,16 @@ The draft passes the benchmark only when all of these are true:
    primary interface.
 5. Error paths emit bounded, JSON-serializable payloads and do not hide
    unexpected network failures behind vague success messages.
+
+Expected checker notes:
+
+- Direct standard-library network use, such as `http.client.HTTPConnection`,
+  may be reported as a review note when `network.connect` is declared. That is
+  acceptable for this benchmark.
+- Unused capability notes are not acceptable in the final draft. Remove unused
+  declarations instead of keeping broad capabilities.
+- Manifest parse errors, metadata mismatch errors, unsupported schema field
+  types, and invented API imports are benchmark failures.
 
 Warnings about an unregistered plugin-owned topic are acceptable for this
 benchmark if the topic is intentionally local to the plugin and no shared
