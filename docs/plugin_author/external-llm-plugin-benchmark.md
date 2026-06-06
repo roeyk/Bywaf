@@ -31,6 +31,9 @@ Ask an outside assistant to create a small `http_title` filesystem plugin. The
 plugin should fetch a single HTTP or HTTPS URL, extract the page title, and
 emit one structured event.
 
+Treat `http.title` as a plugin-owned event topic for this benchmark unless the
+current documentation defines a shared framework topic for HTTP titles.
+
 The point is not title extraction sophistication. The point is whether the
 assistant can follow the documented Bywaf plugin contract:
 
@@ -52,16 +55,20 @@ filesystem plugin directory named http_title.
 
 The plugin must:
 - provide one commandlet named http_title;
-- accept one required URL argument;
+- accept one required positional URL argument;
 - use the current Bywaf commandlet API only;
 - fetch http:// or https:// URLs using the Python standard library;
 - use a bounded timeout;
 - extract the HTML <title> text when present;
 - emit one JSON-serializable event on topic http.title;
+- treat http.title as a plugin-owned event topic for this benchmark unless the
+  documentation defines a shared framework topic for HTTP titles;
 - declare the matching capabilities, emitted topic, argument, plugin-owned
   event schema, and database action policy in bywaf.plugin.toml;
 - include focused tests that do not require external network access;
 - include the exact plugin_check command that should pass.
+- do not use console output as the primary result channel; the structured event
+  is the result.
 
 Do not use BaseCommandlet, info dictionaries, modules/ layouts, Metasploit
 module patterns, exploit/run entrypoints, or undeclared framework APIs.
