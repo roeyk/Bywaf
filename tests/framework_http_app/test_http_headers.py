@@ -8,6 +8,8 @@ from unittest.mock import patch
 from bywaf.app import make_runner
 from bywaf.event import Event
 from bywaf.plugins.http.http_headers import HttpHeaders
+from bywaf.plugins.http.http_headers.findings import missing_security_header_candidates
+from bywaf.plugins.http.http_headers.models import HeaderProbeResult, HeaderTarget
 
 
 class TestHttpHeadersTests(unittest.TestCase):
@@ -30,7 +32,11 @@ class TestHttpHeadersTests(unittest.TestCase):
             titles = {event.payload["title"] for event in candidates}
             self.assertEqual(
                 titles,
-                {"Missing HTTP Strict Transport Security", "Missing X-Content-Type-Options"},
+                {
+                    "Missing HTTP Strict Transport Security",
+                    "Missing X-Content-Type-Options",
+                    "Missing browser framing protection",
+                },
             )
             self.assertTrue(all(event.pipeline_id for event in candidates))
 
@@ -49,6 +55,47 @@ class TestHttpHeadersTests(unittest.TestCase):
             self.assertIn("web.cookie.missing_samesite", classes)
             self.assertIn("web.header.server_disclosure", classes)
             self.assertIn("web.redirect.https_to_http", classes)
+
+    def test_http_headers_promotes_missing_framing_policy(self):
+        result = HeaderProbeResult(
+            target=HeaderTarget("example.test", 443, True),
+            status=200,
+            headers={"Strict-Transport-Security": "max-age=31536000", "X-Content-Type-Options": "nosniff"},
+        )
+
+        classes = {candidate["class"] for candidate in missing_security_header_candidates(result)}
+
+        self.assertIn("web.header.missing_framing_policy", classes)
+
+    def test_http_headers_accepts_csp_frame_ancestors_as_framing_policy(self):
+        result = HeaderProbeResult(
+            target=HeaderTarget("example.test", 443, True),
+            status=200,
+            headers={
+                "Strict-Transport-Security": "max-age=31536000",
+                "X-Content-Type-Options": "nosniff",
+                "Content-Security-Policy": "default-src 'self'; frame-ancestors 'none'",
+            },
+        )
+
+        classes = {candidate["class"] for candidate in missing_security_header_candidates(result)}
+
+        self.assertNotIn("web.header.missing_framing_policy", classes)
+
+    def test_http_headers_accepts_x_frame_options_as_framing_policy(self):
+        result = HeaderProbeResult(
+            target=HeaderTarget("example.test", 443, True),
+            status=200,
+            headers={
+                "Strict-Transport-Security": "max-age=31536000",
+                "X-Content-Type-Options": "nosniff",
+                "X-Frame-Options": "DENY",
+            },
+        )
+
+        classes = {candidate["class"] for candidate in missing_security_header_candidates(result)}
+
+        self.assertNotIn("web.header.missing_framing_policy", classes)
 
 
 if __name__ == "__main__":

@@ -150,6 +150,7 @@ Starter examples:
 | --- | --- |
 | `web.header.missing_hsts` | `CWE-319`, OWASP `A02:2021` |
 | `web.header.missing_x_content_type_options` | `CWE-693`, OWASP `A05:2021` |
+| `web.header.missing_framing_policy` | `CWE-1021`, OWASP `A05:2021` |
 | `web.exposure.git_config` | `CWE-538`, OWASP `A05:2021` |
 | `web.exposure.source_control_metadata` | `CWE-538`, OWASP `A05:2021` |
 | `web.exposure.source_map` | `CWE-538`, OWASP `A05:2021` |

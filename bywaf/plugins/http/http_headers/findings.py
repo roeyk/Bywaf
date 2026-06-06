@@ -57,6 +57,22 @@ def missing_security_header_candidates(result: HeaderProbeResult) -> list[dict[s
                 source={"tool": "http_headers", "topic": "http.headers"},
             )
         )
+    if missing_framing_policy(headers):
+        candidates.append(
+            candidate_payload(
+                title="Missing browser framing protection",
+                finding_class="web.header.missing_framing_policy",
+                severity="low",
+                confidence="medium",
+                finding_scope="web_origin",
+                target={"scheme": scheme, "host": target.host, "port": str(target.port), "path": "/"},
+                identifiers={"cwe": ["CWE-1021"], "owasp": ["A05:2021"]},
+                affected=[{"url": url}],
+                evidence=f"{url} did not return X-Frame-Options or a Content-Security-Policy frame-ancestors directive.",
+                recommendation="Set Content-Security-Policy frame-ancestors, or X-Frame-Options for legacy browser coverage.",
+                source={"tool": "http_headers", "topic": "http.headers"},
+            )
+        )
     cookie_findings = weak_cookie_candidates(headers, url, scheme, target.host, target.port)
     candidates.extend(cookie_findings)
     if server := exposed_server_header(headers):
@@ -120,6 +136,13 @@ def weak_cookie_candidates(
 def cookie_attribute_tokens(raw_cookie: str) -> set[str]:
     """Return normalized Set-Cookie attribute tokens."""
     return {part.strip().split("=", 1)[0].casefold() for part in raw_cookie.split(";") if part.strip()}
+
+
+def missing_framing_policy(headers: dict[str, str]) -> bool:
+    """Return whether headers lack common browser framing controls."""
+    if "x-frame-options" in headers:
+        return False
+    return "frame-ancestors" not in str(headers.get("content-security-policy") or "").casefold()
 
 
 def exposed_server_header(headers: dict[str, str]) -> str:

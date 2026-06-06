@@ -49,6 +49,9 @@ impact label and sorted from highest to lowest operator/developer impact:
   3.2.8.1 backdoor/trojaned-distribution indicators, without exploit probes or
   added scan breadth. `tech_review` remains the shorter chain that promotes and
   deduplicates those fresh candidates before `report`.
+- [medium] Expanded `http_headers` finding coverage to promote missing browser
+  framing protection when responses lack both `X-Frame-Options` and a
+  `Content-Security-Policy` `frame-ancestors` directive.
 - [medium] Improved compact report inbox rows so grouped findings summarize
   all affected resources represented by the group, instead of only the newest
   representative event.
