@@ -15,6 +15,9 @@ each other.
 
 The public GitHub repository contains the Bywaf source code, tests, public
 documentation, plugin skeletons, and project-facing development guides.
+External contributors do not need access to the private support files; public
+issues, tests, documentation, plugin skeletons, and normal pull-request review
+are enough to contribute.
 
 The maintainer workflow also uses private/local support material that lives
 outside the public GitHub repository. That support material includes handoff
