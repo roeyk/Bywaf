@@ -5,6 +5,11 @@ roles. They are shorter than the full documentation index and are meant to help
 readers reach a useful working understanding without reading every document in
 the repository.
 
+The paths are ordered by authority: start with documented project intent,
+architecture, workflow, and public contracts before relying on examples or
+source-code inference. Source code is still the implementation truth, but these
+paths show where the intended abstractions and constraints are documented.
+
 **Audience**
 
 This document is for readers choosing where to start: new users, authorized

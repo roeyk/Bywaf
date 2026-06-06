@@ -48,6 +48,9 @@ The common development loop is:
 This loop keeps work aligned with the existing framework instead of relying on
 large speculative rewrites.
 
+Use [Documentation Paths](DOCUMENTATION_PATHS.md) to find the authoritative
+docs for the role and task before inferring design intent from source code.
+
 ## Quality And Refactoring Loop
 
 The collaboration includes routine engineering hygiene, not only feature

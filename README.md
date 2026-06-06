@@ -216,6 +216,9 @@ python3 scripts/plugin_check.py --all
 
 ## Documentation
 
+- [docs/DOCUMENTATION_PATHS.md](docs/DOCUMENTATION_PATHS.md): role-based
+  reading sequences for users, operators, plugin developers, framework
+  developers, security reviewers, packagers, and documentation maintainers.
 - [USAGE.md](USAGE.md): full user manual and command examples.
 - [docs/README.md](docs/README.md): documentation index.
 - [docs/FAQ.md](docs/FAQ.md): common tasks and recipes.
