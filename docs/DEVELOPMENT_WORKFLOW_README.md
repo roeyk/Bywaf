@@ -29,6 +29,10 @@ The public repo documents the development pattern so contributors can understand
 how decisions are made. The private support files preserve detailed continuity
 for ongoing maintainer and assistant sessions.
 
+The private support files also reduce context drift, session loss, and
+hallucinated continuity. A restarted assistant should re-read durable project
+state instead of relying on an expired or reconstructed chat transcript.
+
 ## The Basic Loop
 
 The common development loop is:
@@ -151,6 +155,10 @@ Codex acts as a persistent engineering agent:
 
 Codex may challenge unclear or risky design ideas when needed, but the project
 owner sets priorities and makes final product decisions.
+
+Outside AI tools may be used for critique, alternate drafts, or independent
+review. Their suggestions are treated as input to the same inspection,
+validation, and maintainer approval loop, not as project authority.
 
 ## What The Project Owner Does
 
