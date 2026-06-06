@@ -85,11 +85,11 @@ def framework_trigger_fired(runner: Runner, trigger: TriggerSpec) -> bool:
         # launching many copies of the same trigger action at once.
         break
 
-    # Persist the cursor whether or not a trigger fired.  Otherwise a non-match
-    # would be rechecked forever, and service triggers watching high-volume
-    # topics could spend most of their time rereading old rows.
+    # Persist the cursor when it moved.  Otherwise an idle REPL prompt would
+    # write trigger state on every Enter even though no event history changed.
     runner.trigger_event_cursors[trigger_id] = latest_seen
-    runner.db.update_trigger_state(trigger_id, enabled=True, last_event_id=latest_seen)
+    if not fired and latest_seen != after_id:
+        runner.db.update_trigger_state(trigger_id, enabled=True, last_event_id=latest_seen)
     return fired
 
 

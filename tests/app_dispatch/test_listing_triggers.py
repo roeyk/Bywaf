@@ -141,6 +141,16 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(runner.session_service_job_ids, set())
             self.assertEqual(len(runner.db.events_for_topic("framework.trigger.enabled")), 1)
 
+    def test_start_default_services_does_not_rewrite_idle_trigger_state(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            start_default_services(runner)
+
+            with patch.object(runner.db, "update_trigger_state", wraps=runner.db.update_trigger_state) as update:
+                start_default_services(runner)
+
+            update.assert_not_called()
+
     def test_start_default_services_ignores_inactive_network_capability_event(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

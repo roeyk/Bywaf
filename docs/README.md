@@ -11,6 +11,9 @@ offensive frameworks, do not look for Veil-style modules, Metasploit-style
 
 ## Quick Paths
 
+For fuller role-based reading sequences, see
+[Documentation Paths](DOCUMENTATION_PATHS.md).
+
 - **New user:** [README](../README.md) -> [Install Guide](../INSTALL.md) ->
   [Operator Quickstart](OPERATOR_QUICKSTART.md) -> [Usage Guide](../USAGE.md) ->
   [FAQ](FAQ.md)
@@ -75,8 +78,11 @@ offensive frameworks, do not look for Veil-style modules, Metasploit-style
   loop.
 - [Testing](TESTING.md): project-level test map for plugins, framework code,
   package builds, metrics, and manual validation.
-- [Performance Benchmarks](PERFORMANCE.md): repeatable maintainer benchmarks
-  for SQLite contention and future storage/runtime scaling checks.
+- [Documentation Paths](DOCUMENTATION_PATHS.md): role-based reading sequences
+  for users, operators, plugin developers, framework developers, security
+  reviewers, packagers, and documentation maintainers.
+- [Performance](PERFORMANCE.md): performance measurement, optimization
+  approach, runtime guidance, architecture options, and repeatable benchmarks.
 - [Architecture Metrics](ARCHITECTURE_METRICS.md): dependency, size, fan-in,
   fan-out, and cycle checks for refactoring decisions.
 - [Output Subjects And Theme Styles](plugin_author/output-subjects-and-styles.md):

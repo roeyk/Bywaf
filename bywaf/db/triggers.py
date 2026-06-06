@@ -37,8 +37,7 @@ class EventStoreTriggerMixin:
     ) -> None:
         """Persist trigger lifecycle/cursor state."""
         now = datetime.now(timezone.utc).isoformat()
-        current = self.trigger_cursor(name)
-        next_last = current if last_event_id is None else last_event_id
+        next_last = self.trigger_cursor(name) if last_event_id is None else last_event_id
         with self.connect() as conn:
             # last_event_id is the replay cursor. last_fired_event_id is only a
             # diagnostic pointer to the event that most recently matched.
