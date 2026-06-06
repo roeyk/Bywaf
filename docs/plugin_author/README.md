@@ -136,6 +136,7 @@ operator action is visible and auditable.
 | Finding payload helpers | [Vulnerability Plugin Guide](vulnerability-plugins.md#findingspy) |
 | Loading, packaging, and checker | [Plugin Packaging And Checking](packaging-and-checking.md) |
 | LLM-assisted plugin loop | [LLM-Assisted Plugin Authoring](llm-assisted-authoring.md) |
+| External LLM plugin benchmark | [External LLM Plugin Benchmark](external-llm-plugin-benchmark.md) |
 | Testing expectations | [Plugin Testing And Guidelines](testing-and-guidelines.md) |
 | External-tool wrapper expectations | [Wrapper Robustness](wrapper-robustness.md) |
 | Copyable skeletons | [Plugin Skeletons](../plugin_skeletons/README.md) |

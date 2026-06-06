@@ -417,11 +417,61 @@ roles = ["command-provider"]
 
 [[commandlets]]
 name = "http_header_check"
+description = "Check common HTTP security headers on a target URL."
+usage = "http_header_check <url>"
+examples = [
+  "http_header_check https://example.com",
+  "http_header_check https://app.example.test",
+]
 capabilities = [
   "network.connect",
   "framework.console.output",
   "framework.console.alert",
 ]
+emits = ["http.headers.checked"]
+database.actions.view = false
+database.actions.write = true
+database.actions.manage = false
+
+[[commandlets.arguments]]
+name = "url"
+description = "Target URL to check"
+
+[[event_schemas]]
+topic = "http.headers.checked"
+version = "1"
+summary = "HTTP security header check result."
+
+[[event_schemas.fields]]
+name = "url"
+type = "str"
+required = true
+description = "URL that was checked."
+
+[[event_schemas.fields]]
+name = "status_code"
+type = "int"
+description = "HTTP status code returned by the server."
+
+[[event_schemas.fields]]
+name = "headers"
+type = "dict"
+description = "Security header names mapped to observed values or null."
+
+[[event_schemas.fields]]
+name = "missing_headers"
+type = "list"
+description = "Security headers not present in the response."
+
+[[event_schemas.fields]]
+name = "security_score"
+type = "int"
+description = "Simple example score derived from missing header count."
+
+[[event_schemas.fields]]
+name = "error"
+type = "str"
+description = "Request error text when the check failed."
 ```
 
 Put this in `.bywaf/plugins/http_header_check/plugin.py`:
@@ -455,6 +505,7 @@ from bywaf.plugin import (
         "framework.console.output",
         "framework.console.alert",
     ),
+    database_actions=("write",),
 )
 @argument("url", "Target URL to check", required=True)
 class HttpHeaderCheck(CommandletBase):
@@ -544,6 +595,68 @@ def plugin() -> Commandlet:
     return HttpHeaderCheck()
 ```
 
+Test the commandlet without making a real network connection by replacing the
+connection object in the plugin module:
+
+```python
+from pathlib import Path
+import tempfile
+import unittest
+from unittest import mock
+
+from bywaf.db import EventStore
+from bywaf.plugin import CommandContext
+from plugin import HttpHeaderCheck
+
+
+class FakeResponse:
+    status = 200
+
+    def getheader(self, name):
+        headers = {
+            "strict-transport-security": "max-age=31536000",
+            "x-frame-options": "DENY",
+        }
+        return headers.get(name)
+
+
+class FakeConnection:
+    def __init__(self, host, port=None, timeout=10):
+        self.host = host
+        self.port = port
+        self.timeout = timeout
+
+    def request(self, method, path):
+        self.method = method
+        self.path = path
+
+    def getresponse(self):
+        return FakeResponse()
+
+    def close(self):
+        pass
+
+
+class HttpHeaderCheckTests(unittest.TestCase):
+    def test_emits_checked_headers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(db, source="http_header_check")
+
+            with mock.patch("plugin.http.client.HTTPSConnection", FakeConnection):
+                events = list(
+                    HttpHeaderCheck().run(
+                        context,
+                        ["https://example.com/login"],
+                        [],
+                    )
+                )
+
+            self.assertEqual(events[0]["url"], "https://example.com/login")
+            self.assertEqual(events[0]["status_code"], 200)
+            self.assertIn("missing_headers", events[0])
+```
+
 Load it, run it, and inspect emitted events:
 
 ```text
@@ -551,3 +664,21 @@ bywaf> plugin load=http_header_check --force
 bywaf> http_header_check https://example.com
 bywaf> event http.headers.checked
 ```
+
+Run the checker before loading or packaging the plugin:
+
+```bash
+python3 scripts/plugin_check.py ~/.bywaf/plugins/http_header_check --strict-inference --llm-feedback
+```
+
+This example intentionally shows all major plugin surfaces together:
+
+- `bywaf.plugin.toml` declares the package, commandlet, argument, emitted topic,
+  plugin-owned event schema, capabilities, and database action policy.
+- `@commandlet` and `@argument` keep Python metadata synchronized with the
+  manifest.
+- The commandlet emits one JSON-serializable event payload.
+- The test exercises the commandlet behavior without relying on external
+  network availability.
+- `plugin_check` verifies manifest/code consistency before the plugin is
+  loaded.

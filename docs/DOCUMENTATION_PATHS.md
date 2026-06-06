@@ -112,6 +112,8 @@ Optional deep dives:
 
 - [Plugin Author Workflow](plugin_author/workflow.md)
 - [Vulnerability Plugin Guide](plugin_author/vulnerability-plugins.md)
+- [LLM-Assisted Plugin Authoring](plugin_author/llm-assisted-authoring.md)
+- [External LLM Plugin Benchmark](plugin_author/external-llm-plugin-benchmark.md)
 - [Plugin Skeletons](plugin_skeletons/README.md)
 
 After this path, you should be able to create a plugin, define commandlets,

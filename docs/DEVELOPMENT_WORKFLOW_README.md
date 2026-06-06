@@ -51,6 +51,26 @@ large speculative rewrites.
 Use [Documentation Paths](DOCUMENTATION_PATHS.md) to find the authoritative
 docs for the role and task before inferring design intent from source code.
 
+## Authoritative Public Docs
+
+For public-repo work, start from the smallest relevant public-doc path instead
+of scanning the repository randomly:
+
+- [Documentation Paths](DOCUMENTATION_PATHS.md): role-based reading sequences
+  for users, operators, plugin developers, framework developers, reviewers,
+  packagers, and documentation maintainers.
+- [Documentation Roadmap](README.md): full documentation index.
+- [Framework Development](FRAMEWORK_DEVELOPMENT.md): maintainer-oriented
+  framework map.
+- [Plugin Author Guide](plugin_author/README.md): plugin author entry point.
+- [Testing](TESTING.md): local validation expectations.
+- [Performance](PERFORMANCE.md): measurement, optimization, and runtime
+  performance guidance.
+
+This list is intentionally short. Use Documentation Paths for the complete
+role-specific sequence, then inspect tests and source code after the relevant
+contracts are clear.
+
 ## Quality And Refactoring Loop
 
 The collaboration includes routine engineering hygiene, not only feature
@@ -110,6 +130,9 @@ were made, what was tried, what was accepted, and what should not be repeated.
 The private handoff files make the collaboration restartable. They tell a fresh
 assistant how to get oriented, which files to read, what repository boundaries
 matter, what shell/tooling notes apply, and what validation matrix is expected.
+For public repository context, the handoff should point fresh sessions to
+[Documentation Paths](DOCUMENTATION_PATHS.md) before asking them to infer API or
+architecture intent from implementation details.
 
 The action log records concrete work from recent sessions: what changed, what
 was validated, what was committed and pushed, and what immediate follow-up state
