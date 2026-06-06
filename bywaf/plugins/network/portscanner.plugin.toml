@@ -13,6 +13,8 @@ consumes = [
 emits = [
   "port.open",
   "finding.candidate",
+  "name.resolved",
+  "tool.error",
 ]
 capabilities = [
   "db.read:host.found",

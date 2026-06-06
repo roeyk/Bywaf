@@ -21,6 +21,8 @@ emits = [
   "finding.duplicate",
   "finding.updated",
   "finding.merge_candidate",
+  "finding.reviewed",
+  "report.scope.saved",
   "report.rendered",
 ]
 capabilities = [

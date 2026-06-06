@@ -9,6 +9,7 @@ name = "hostscanner"
 emits = [
   "host.found",
   "name.resolved",
+  "tool.error",
 ]
 capabilities = [
   "artifact.write",

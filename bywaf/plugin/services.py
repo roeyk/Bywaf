@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 from ..artifacts import artifact_store_for_event_store
 from ..db import EventStore, Subscription
-from ..event.schemas import EventSchemaObject, schema_objects, validate_event_payload
+from ..event.schemas import EventSchemaObject, event_schema, schema_objects, validate_event_payload
 from ..event import Event
 from .. import policy as network_policy
 from ..rendering import Table, render_console_table
@@ -244,11 +244,65 @@ class ContextEvents:
     def publish(self, topic: str, payload: dict[str, Any]) -> Event:
         """Publish one event in the current commandlet scope."""
         db = self.require_event_store(f"{self.context.source} event publish")
+        self.enforce_topic_contract(topic)
         self.validate_payload(topic, payload)
         self.context.audit_capability(f"db.write:{topic}")
         return db.publish(
             topic,
             payload,
+            self.context.source,
+            pipeline_id=self.context.pipeline_id,
+            command_run_id=self.context.command_run_id,
+            parent_command_run_id=self.context.parent_command_run_id,
+        )
+
+    def enforce_topic_contract(self, topic: str) -> None:
+        """Apply commandlet topic declaration and schema-registration policy."""
+        declared = self.context.declared_emits
+        if declared is not None and topic not in declared:
+            self.handle_topic_policy(
+                topic,
+                mode=self.context.topic_contract_mode,
+                reason="undeclared",
+                message=f"{self.context.source} published undeclared topic: {topic}",
+            )
+        if event_schema(topic) is None:
+            self.handle_topic_policy(
+                topic,
+                mode=self.context.unregistered_topic_mode,
+                reason="unregistered",
+                message=f"{self.context.source} published topic without a registered schema: {topic}",
+            )
+
+    def handle_topic_policy(self, topic: str, *, mode: str, reason: str, message: str) -> None:
+        """Audit, warn, or reject one topic-contract policy event."""
+        if mode == "off":
+            return
+        self.publish_topic_policy_event(topic, reason=reason, decision=mode, message=message)
+        if mode == "enforce":
+            raise PermissionError(message)
+
+    def publish_topic_policy_event(self, topic: str, *, reason: str, decision: str, message: str) -> None:
+        """Persist one deduplicated topic-contract policy decision."""
+        db = self.require_event_store(f"{self.context.source} topic policy")
+        audited = self.context.metadata.setdefault("_audited_topic_policy", set())
+        audit_key = (self.context.source, self.context.command_run_id, topic, reason, decision)
+        if audit_key in audited:
+            return
+        audited.add(audit_key)
+        db.publish(
+            "plugin.topic.policy",
+            {
+                "commandlet": self.context.source,
+                "topic": topic,
+                "reason": reason,
+                "decision": decision,
+                "message": message,
+                "job_id": self.context.job_id,
+                "pipeline_id": self.context.pipeline_id,
+                "command_run_id": self.context.command_run_id,
+                "parent_command_run_id": self.context.parent_command_run_id,
+            },
             self.context.source,
             pipeline_id=self.context.pipeline_id,
             command_run_id=self.context.command_run_id,

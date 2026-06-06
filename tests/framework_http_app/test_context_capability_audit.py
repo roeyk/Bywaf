@@ -43,6 +43,7 @@ class TestContextCapabilityAuditTests(unittest.TestCase):
                     "pipeline_id": "pipeline-1",
                     "command_run_id": "run-1",
                     "capabilities": ("db.write:test.topic",),
+                    "emits": ("test.topic",),
                 },
             )
             event = context.events.publish("test.topic", {"ok": True})
@@ -61,6 +62,106 @@ class TestContextCapabilityAuditTests(unittest.TestCase):
                 context.events.publish("port.open", {"host": "127.0.0.1", "port": "80", "protocol": "tcp"})
 
             self.assertEqual(runner.db.events_for_topic("port.open"), [])
+
+    def test_context_events_publish_enforces_declared_emits(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            context = CommandContext(
+                runner.db,
+                source="plugin",
+                metadata={
+                    "emits": ("expected.topic",),
+                    "topic_contract_mode": "enforce",
+                },
+            )
+
+            with self.assertRaisesRegex(PermissionError, "undeclared topic: other.topic"):
+                context.events.publish("other.topic", {"ok": True})
+
+            policy = runner.db.events_for_topic("plugin.topic.policy")[0]
+            self.assertEqual(policy.payload["topic"], "other.topic")
+            self.assertEqual(policy.payload["reason"], "undeclared")
+            self.assertEqual(policy.payload["decision"], "enforce")
+            self.assertEqual(runner.db.events_for_topic("other.topic"), [])
+
+    def test_context_events_publish_can_audit_undeclared_topic(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            context = CommandContext(
+                runner.db,
+                source="plugin",
+                metadata={
+                    "emits": ("expected.topic",),
+                    "topic_contract_mode": "audit",
+                },
+            )
+
+            event = context.events.publish("other.topic", {"ok": True})
+
+            self.assertEqual(event.topic, "other.topic")
+            policy = runner.db.events_for_topic("plugin.topic.policy")[0]
+            self.assertEqual(policy.payload["reason"], "undeclared")
+            self.assertEqual(policy.payload["decision"], "audit")
+
+    def test_context_events_publish_can_warn_on_undeclared_topic(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            context = CommandContext(
+                runner.db,
+                source="plugin",
+                metadata={
+                    "emits": ("expected.topic",),
+                    "topic_contract_mode": "warn",
+                },
+            )
+
+            event = context.events.publish("other.topic", {"ok": True})
+
+            self.assertEqual(event.topic, "other.topic")
+            policy = runner.db.events_for_topic("plugin.topic.policy")[0]
+            self.assertEqual(policy.payload["reason"], "undeclared")
+            self.assertEqual(policy.payload["decision"], "warn")
+            self.assertEqual(runner.db.events_for_topic("framework.console.alert.requested"), [])
+
+    def test_context_events_publish_audits_declared_unregistered_topic(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            context = CommandContext(
+                runner.db,
+                source="plugin",
+                metadata={
+                    "emits": ("test.topic",),
+                    "unregistered_topic_mode": "audit",
+                },
+            )
+
+            event = context.events.publish("test.topic", {"ok": True})
+
+            self.assertEqual(event.topic, "test.topic")
+            policy = runner.db.events_for_topic("plugin.topic.policy")[0]
+            self.assertEqual(policy.payload["topic"], "test.topic")
+            self.assertEqual(policy.payload["reason"], "unregistered")
+            self.assertEqual(policy.payload["decision"], "audit")
+
+    def test_context_events_publish_can_enforce_unregistered_topic_policy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            context = CommandContext(
+                runner.db,
+                source="plugin",
+                metadata={
+                    "emits": ("test.topic",),
+                    "unregistered_topic_mode": "enforce",
+                },
+            )
+
+            with self.assertRaisesRegex(PermissionError, "without a registered schema: test.topic"):
+                context.events.publish("test.topic", {"ok": True})
+
+            policy = runner.db.events_for_topic("plugin.topic.policy")[0]
+            self.assertEqual(policy.payload["reason"], "unregistered")
+            self.assertEqual(policy.payload["decision"], "enforce")
+            self.assertEqual(runner.db.events_for_topic("test.topic"), [])
 
     def test_context_events_publish_schema_validation_can_be_disabled(self):
         with tempfile.TemporaryDirectory() as tmp:

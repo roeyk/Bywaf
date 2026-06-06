@@ -243,6 +243,16 @@ framework work, start with
 refactor targets. For test selection, package smoke checks, and manual
 validation flows, see [docs/TESTING.md](docs/TESTING.md).
 
+Bywaf is intentionally friendly to LLM-assisted development, but the guardrails
+live in the framework rather than in assistant trust. Plugin skeletons use
+small, explicit files; manifests are data-only contracts; event schemas,
+capabilities, variables, and emitted topics are inspectable before plugin code
+runs; and `plugin_check` provides machine-readable feedback that can be pasted
+back into an assistant. For core framework work, the development docs, tracker
+conventions, architecture metrics, and focused test map make it easier for an
+assistant or human maintainer to make narrow, reviewable changes instead of
+large speculative rewrites.
+
 Run the focused test suite while working:
 
 ```bash

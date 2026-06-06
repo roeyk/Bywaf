@@ -296,6 +296,14 @@ database handles. The mediated event API adds provenance, schema validation,
 and capability audit records while keeping the storage path consistent with the
 rest of Bywaf.
 
+Commandlets must declare the topics they may publish in `emits`. Runtime
+contexts built by the runner enforce that `context.events.publish(...)` uses a
+declared topic; publishing an undeclared topic fails by default. Schema
+resolution remains runtime-based: if the topic has a registered schema, Bywaf
+validates the payload before insertion. If a declared topic has no registered
+schema, Bywaf records a topic-policy event and allows it by default unless the
+operator changes `global.topic.unregistered.mode`.
+
 For scanners that may emit thousands of results, prefer one durable event per
 operator-meaningful fact. For example, a port scanner should publish one
 `port.open` event per open port and use progress events around scan phases,

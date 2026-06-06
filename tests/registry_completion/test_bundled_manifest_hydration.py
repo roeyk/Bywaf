@@ -204,7 +204,7 @@ class BundledManifestHydrationTests(unittest.TestCase):
             ("repo.git_config.checked", "finding.candidate"),
         )
         self.assertIn("network.connect", self.registry.get("hostscanner").spec.capabilities)
-        self.assertEqual(self.registry.get("hostscanner").spec.emits, ("host.found", "name.resolved"))
+        self.assertEqual(self.registry.get("hostscanner").spec.emits, ("host.found", "name.resolved", "tool.error"))
         self.assertIn("network.connect", self.registry.get("http_headers").spec.capabilities)
         self.assertEqual(self.registry.get("http_headers").spec.consumes, ("port.open",))
         self.assertEqual(self.registry.get("http_headers").spec.emits, ("http.headers", "finding.candidate"))
@@ -235,7 +235,10 @@ class BundledManifestHydrationTests(unittest.TestCase):
         self.assertEqual(self.registry.get("pipeline").spec.database_actions, ("view", "write"))
         self.assertIn("network.connect", self.registry.get("portscanner").spec.capabilities)
         self.assertEqual(self.registry.get("portscanner").spec.consumes, ("host.found", "network.route.hop"))
-        self.assertEqual(self.registry.get("portscanner").spec.emits, ("port.open", "finding.candidate"))
+        self.assertEqual(
+            self.registry.get("portscanner").spec.emits,
+            ("port.open", "finding.candidate", "name.resolved", "tool.error"),
+        )
         self.assertEqual(self.registry.get("ports").spec.consumes, ("port.open",))
         self.assertEqual(self.registry.get("ports").spec.database_actions, ("view",))
         self.assertIn("network.connect", self.registry.get("repo_exposure").spec.capabilities)
@@ -252,7 +255,16 @@ class BundledManifestHydrationTests(unittest.TestCase):
         )
         self.assertEqual(
             self.registry.get("report").spec.emits,
-            ("finding.candidate", "finding.new", "finding.duplicate", "finding.updated", "finding.merge_candidate", "report.rendered"),
+            (
+                "finding.candidate",
+                "finding.new",
+                "finding.duplicate",
+                "finding.updated",
+                "finding.merge_candidate",
+                "finding.reviewed",
+                "report.scope.saved",
+                "report.rendered",
+            ),
         )
         self.assertEqual(self.registry.get("report").spec.database_actions, ("view", "write"))
         self.assertIn("db.write:finding.new", self.registry.get("report").spec.capabilities)

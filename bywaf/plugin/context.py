@@ -347,6 +347,30 @@ class CommandContext(ContextOutputMixin):
             return "off"
         return "strict"
 
+    @property
+    def declared_emits(self) -> tuple[str, ...] | None:
+        """Return declared emitted topics, or None when no contract is known."""
+        if "emits" not in self.metadata:
+            return None
+        value = self.metadata.get("emits", ())
+        return tuple(str(topic) for topic in value)
+
+    @property
+    def topic_contract_mode(self) -> str:
+        """Return policy mode for publishing topics outside declared emits."""
+        configured = self.vars.get_global("topic.contract.mode")
+        fallback = str(self.metadata.get("topic_contract_mode") or "audit")
+        mode = (configured or fallback).strip().lower()
+        return mode if mode in {"off", "audit", "warn", "enforce"} else "audit"
+
+    @property
+    def unregistered_topic_mode(self) -> str:
+        """Return policy mode for declared topics without registered schemas."""
+        configured = self.vars.get_global("topic.unregistered.mode")
+        fallback = str(self.metadata.get("unregistered_topic_mode") or "audit")
+        mode = (configured or fallback).strip().lower()
+        return mode if mode in {"off", "audit", "warn", "enforce"} else "audit"
+
     def enforce_database_action_policy(self, capability: str) -> None:
         """Reject DB capabilities outside this commandlet's action policy."""
         required = database_action_for_capability(capability)

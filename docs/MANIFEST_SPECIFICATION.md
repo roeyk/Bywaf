@@ -343,8 +343,14 @@ uses them to validate literal `context.events.publish(...)` payloads and to
 require matching `emits` declarations for schema-backed topics.
 At runtime, schema-backed payloads published through the plugin event API are
 strictly validated by default. Operators can disable this during development
-with `global.schema.validation=off`; private topics without registered schemas
-remain free-form.
+with `global.schema.validation=off`.
+
+Runtime topic-contract policy is separate from payload validation. Commandlets
+declare the topics they may publish with `emits`; runner-built contexts enforce
+that `context.events.publish(...)` uses one of those declared topics. The
+default policy rejects undeclared topics. Declared topics that do not currently
+have a registered schema are allowed by default and audited as topic-policy
+events; operators can adjust that with `global.topic.unregistered.mode`.
 
 Operators and plugin authors can inspect registered schemas from a loaded
 project with `schemas`, for example `schemas owner=plugin` or
