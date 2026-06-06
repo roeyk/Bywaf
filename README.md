@@ -232,6 +232,7 @@ python3 scripts/plugin_check.py --all
 - [docs/TESTING.md](docs/TESTING.md): plugin, framework, package, metrics, and manual testing map.
 - [docs/plugin_author/README.md](docs/plugin_author/README.md): plugin developer guide.
 - [docs/FRAMEWORK_DEVELOPMENT.md](docs/FRAMEWORK_DEVELOPMENT.md): core framework contributor guide.
+- [docs/DEVELOPMENT_WORKFLOW_README.md](docs/DEVELOPMENT_WORKFLOW_README.md): maintainer human-plus-LLM workflow and private tracker/handoff boundaries.
 
 ## Development
 
@@ -242,6 +243,8 @@ framework work, start with
 [docs/ARCHITECTURE_METRICS.md](docs/ARCHITECTURE_METRICS.md) to pick and check
 refactor targets. For test selection, package smoke checks, and manual
 validation flows, see [docs/TESTING.md](docs/TESTING.md).
+For the maintainer collaboration model used with LLM coding agents, see
+[docs/DEVELOPMENT_WORKFLOW_README.md](docs/DEVELOPMENT_WORKFLOW_README.md).
 
 Bywaf is intentionally friendly to LLM-assisted development, but the guardrails
 live in the framework rather than in assistant trust. Plugin skeletons use

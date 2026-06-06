@@ -131,6 +131,7 @@ def check_bundled_plugin(entry: str, *, strict_inference: bool = False) -> dict[
         if manifest is None:
             report["errors"].append("bundled plugin manifest is required")
             return report
+        register_event_schemas(manifest.event_schemas)
         report["plugin_version"] = manifest.version
         report["requires_bywaf"] = manifest.requires_bywaf
         module = importlib.import_module(f"bywaf.plugins.{entry}")
