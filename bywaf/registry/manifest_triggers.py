@@ -6,7 +6,7 @@ from typing import Any
 
 from bywaf.specs import TriggerSpec
 
-from .manifest_fields import bool_field, optional_string_field, string_field, string_list_field
+from .manifest_fields import bool_field, optional_string_field, require_known_keys, string_field, string_list_field
 
 
 def parse_trigger_rows(value: Any, source: str) -> tuple[TriggerSpec, ...]:
@@ -25,13 +25,31 @@ def parse_trigger_rows(value: Any, source: str) -> tuple[TriggerSpec, ...]:
     for index, row in enumerate(value, start=1):
         if not isinstance(row, dict):
             raise ValueError(f"{source} triggers entry {index} must be a table")
-        name = string_field(row, "name", source, f"triggers entry {index}")
+        context = f"triggers entry {index}"
+        require_known_keys(
+            row,
+            {
+                "name",
+                "topic",
+                "action_command",
+                "description",
+                "action_mode",
+                "capability",
+                "payload_equals",
+                "active_job",
+                "exclude_commandlets",
+                "suppress_self_trigger",
+            },
+            source,
+            context,
+        )
+        name = string_field(row, "name", source, context)
         if name in names:
             raise ValueError(f"{source} duplicate trigger: {name}")
         names.add(name)
-        topic = string_field(row, "topic", source, f"triggers entry {index}")
-        action_command = string_field(row, "action_command", source, f"triggers entry {index}")
-        action_mode = optional_string_field(row, "action_mode", source, f"triggers entry {index}", default="service")
+        topic = string_field(row, "topic", source, context)
+        action_command = string_field(row, "action_command", source, context)
+        action_mode = optional_string_field(row, "action_mode", source, context, default="service")
         assert action_mode is not None
         if action_mode not in {"foreground", "background", "service"}:
             raise ValueError(f"{source} triggers entry {index} action_mode must be foreground, background, or service")
@@ -49,8 +67,8 @@ def parse_trigger_rows(value: Any, source: str) -> tuple[TriggerSpec, ...]:
         suppress_self_trigger = row.get("suppress_self_trigger", True)
         if not isinstance(suppress_self_trigger, bool):
             raise ValueError(f"{source} triggers entry {index} suppress_self_trigger must be true or false")
-        description = optional_string_field(row, "description", source, f"triggers entry {index}", default="")
-        capability = optional_string_field(row, "capability", source, f"triggers entry {index}")
+        description = optional_string_field(row, "description", source, context, default="")
+        capability = optional_string_field(row, "capability", source, context)
         triggers.append(
             TriggerSpec(
                 name=name,
@@ -60,8 +78,8 @@ def parse_trigger_rows(value: Any, source: str) -> tuple[TriggerSpec, ...]:
                 action_mode=action_mode,
                 capability=capability,
                 payload_equals=tuple(sorted(payload_equals.items())),
-                active_job=bool_field(row, "active_job", source, f"triggers entry {index}"),
-                exclude_commandlets=string_list_field(row, "exclude_commandlets", source, f"triggers entry {index}"),
+                active_job=bool_field(row, "active_job", source, context),
+                exclude_commandlets=string_list_field(row, "exclude_commandlets", source, context),
                 suppress_self_trigger=suppress_self_trigger,
             )
         )

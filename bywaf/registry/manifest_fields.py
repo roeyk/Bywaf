@@ -12,6 +12,15 @@ from .compat import REQUIREMENT_RE
 SEMVERISH_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
 
 
+def require_known_keys(data: dict[str, Any], allowed: set[str], source: str, context: str) -> None:
+    """Reject unsupported manifest keys in one parsed TOML table."""
+    unknown = sorted(str(key) for key in data.keys() if key not in allowed)
+    if unknown:
+        allowed_text = ", ".join(sorted(allowed))
+        unknown_text = ", ".join(unknown)
+        raise ValueError(f"{source} {context} has unknown key(s): {unknown_text}; allowed keys: {allowed_text}")
+
+
 def validate_version_string(value: str, source: str, context: str) -> None:
     """Validate a SemVer-like plugin version string."""
     if not SEMVERISH_RE.match(value):
@@ -35,6 +44,7 @@ def option_row_field(row: Any, source: str, context: str) -> OptionSpec:
     """Parse one manifest commandlet option row."""
     if not isinstance(row, dict):
         raise ValueError(f"{source} {context} must be a table")
+    require_known_keys(row, {"name", "description", "default", "choices", "completion", "secret", "type"}, source, context)
     value_type = optional_string_field(row, "type", source, context, default="str") or "str"
     if value_type not in {"str", "int", "optional-int", "float", "bool"}:
         raise ValueError(f"{source} {context}.type must be one of: str, int, optional-int, float, bool")
@@ -62,6 +72,7 @@ def argument_row_field(row: Any, source: str, context: str) -> ArgumentSpec:
     """Parse one manifest commandlet argument row."""
     if not isinstance(row, dict):
         raise ValueError(f"{source} {context} must be a table")
+    require_known_keys(row, {"name", "description", "nargs", "completion"}, source, context)
     nargs = optional_string_field(row, "nargs", source, context, default="") or ""
     completion = optional_string_field(row, "completion", source, context)
     return ArgumentSpec(

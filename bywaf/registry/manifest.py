@@ -27,6 +27,7 @@ from .manifest_fields import (
     list_field as list_field,
     option_rows_field,
     optional_string_field,
+    require_known_keys,
     string_field as string_field,
     string_list_field,
     table_value,
@@ -106,6 +107,22 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
     plugins.
     """
     plugin_data = table_value(data, "plugin", source)
+    require_known_keys(data, {"plugin", "commandlets", "event_schemas", "triggers", "bywaf_signature"}, source, "manifest")
+    require_known_keys(
+        plugin_data,
+        {
+            "version",
+            "requires_bywaf",
+            "native",
+            "library_backed",
+            "process_wrapped",
+            "service",
+            "roles",
+            "default_commandlet",
+        },
+        source,
+        "plugin",
+    )
     version = optional_string_field(plugin_data, "version", source, "plugin", default="0.0.0") or "0.0.0"
     validate_version_string(version, source, "plugin.version")
     requires_bywaf = optional_string_field(plugin_data, "requires_bywaf", source, "plugin")
@@ -130,6 +147,28 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
         # CommandSpec produced by decorators or explicit plugin code.
         if not isinstance(row, dict):
             raise ValueError(f"{source} commandlets entry {index} must be a table")
+        require_known_keys(
+            row,
+            {
+                "name",
+                "module",
+                "description",
+                "usage",
+                "examples",
+                "capabilities",
+                "consumes",
+                "emits",
+                "database",
+                "database_actions",
+                "options",
+                "arguments",
+                "secret_options",
+                "provider_variables",
+                "secret_provider_variables",
+            },
+            source,
+            f"commandlets entry {index}",
+        )
         name = row.get("name")
         if not isinstance(name, str) or not name:
             raise ValueError(f"{source} commandlets entry {index} requires name")

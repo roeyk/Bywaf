@@ -12,6 +12,10 @@ The manifest records the plugin traits, commandlets, capabilities, options,
 arguments, provider variables, event schemas, and trigger rules that Bywaf
 should trust before or while loading plugin code.
 
+Manifests are strict. Unknown keys in manifest tables fail validation instead
+of being ignored. This is intentional: misspelled or invented fields should be
+caught before a plugin is loaded or submitted for review.
+
 The manifest exists so plugin contracts can be enforced and inspected before
 arbitrary Python code is imported. It lets Bywaf reject undeclared capabilities,
 build static catalog views, accept pre-load catalog variables, and give
@@ -162,6 +166,7 @@ views, pre-load variable completion, and manifest-backed commandlet config.
 | Key | Type | Required | Meaning |
 | --- | --- | --- | --- |
 | `name` | string | yes | Must match the Python `CommandSpec.name` exactly. |
+| `module` | string | no | Bundled-plugin catalog metadata for the Python module path. External filesystem plugins should not need this field. |
 | `description` | string | no | Operator-facing commandlet summary. `ManifestCommandlet` uses this to build `CommandSpec`. |
 | `usage` | string | no | Usage string for help/catalog output. |
 | `examples` | list of strings | no | Example invocations for help/catalog output. |
@@ -304,6 +309,10 @@ completion = "host"
 Use positional arguments for natural command syntax, and use options for values
 that the operator may want to persist with `set` or override by name.
 
+Do not add `required`, `positional`, or `type` fields to argument rows.
+Requiredness comes from `nargs`: with no `nargs`, the argument is required;
+`nargs = "?"` or `nargs = "*"` makes it optional.
+
 # Event Schema Entries
 
 `[[event_schemas]]` entries declare plugin-owned normalized event topics. They
@@ -401,13 +410,14 @@ Bywaf validates manifest fields using strict TOML types for the fields it
 understands. Strings must be strings, booleans must be booleans, and list fields
 must contain strings.
 
-Unknown keys are not a public extension mechanism. They may be tolerated by the
-current parser, but Bywaf does not use them for commandlet registration,
-completion, emitted topics, argument parsing, or help output. Keep commandlet
-metadata in Python unless this specification lists the field.
+Unknown keys are not a public extension mechanism. Bywaf rejects unknown keys
+in the manifest, `[plugin]`, `[[commandlets]]`, commandlet option and argument
+rows, `[[event_schemas]]`, event-schema field rows, and `[[triggers]]`.
+Keep commandlet metadata in Python unless this specification lists the field.
 
 The loader enforces these consistency checks:
 
+- unknown manifest keys are rejected;
 - every manifest commandlet exists in Python code;
 - manifest `capabilities` match Python `CommandSpec.capabilities`;
 - manifest `[[commandlets.options]]` match Python `CommandSpec.options` when

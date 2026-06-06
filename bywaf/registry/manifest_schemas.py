@@ -6,7 +6,7 @@ from typing import Any
 
 from bywaf.event.schemas import EVENT_SCHEMAS, FIELD_TYPES, EventSchema, FieldSchema
 
-from .manifest_fields import bool_field, optional_string_field, string_field, string_list_field
+from .manifest_fields import bool_field, optional_string_field, require_known_keys, string_field, string_list_field
 
 
 def parse_event_schema_rows(value: Any, source: str) -> tuple[EventSchema, ...]:
@@ -21,6 +21,7 @@ def parse_event_schema_rows(value: Any, source: str) -> tuple[EventSchema, ...]:
         if not isinstance(row, dict):
             raise ValueError(f"{source} event_schemas entry {index} must be a table")
         context = f"event_schemas entry {index}"
+        require_known_keys(row, {"topic", "version", "summary", "notes", "fields"}, source, context)
         topic = string_field(row, "topic", source, context)
         if topic in EVENT_SCHEMAS:
             raise ValueError(f"{source} {context}.topic is framework-owned: {topic}")
@@ -52,6 +53,7 @@ def event_schema_fields(value: Any, source: str, context: str) -> tuple[FieldSch
         field_context = f"{context}.fields entry {index}"
         if not isinstance(row, dict):
             raise ValueError(f"{source} {field_context} must be a table")
+        require_known_keys(row, {"name", "type", "required", "description", "allowed"}, source, field_context)
         name = string_field(row, "name", source, field_context)
         if name in names:
             raise ValueError(f"{source} {context}.fields duplicate field: {name}")

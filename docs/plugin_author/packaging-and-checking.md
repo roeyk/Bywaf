@@ -221,6 +221,7 @@ python3 scripts/plugin_check.py --all --strict-inference
 checks intentionally fail plugins whose Python metadata, manifest, and common
 runtime patterns disagree. In particular, it checks:
 
+- unknown or invented manifest keys
 - decorator metadata and runtime parser alignment
 - manifest/decorator capability synchronization
 - manifest/decorator database action policy synchronization

@@ -33,6 +33,105 @@ class TestManifestBasicsTests(unittest.TestCase):
             self.assertFalse(report["ok"])
             self.assertIn("manifest [plugin].version is required", report["errors"])
 
+    def test_check_plugin_rejects_unknown_top_level_manifest_table(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(Path(tmp), capabilities=())
+            manifest = plugin_dir.joinpath("bywaf.plugin.toml")
+            manifest.write_text(manifest.read_text() + "\n[capabilities]\nnetwork = { connect = true }\n")
+
+            report = check_plugin(plugin_dir)
+
+            self.assertFalse(report["ok"])
+            self.assertIn("manifest has unknown key(s): capabilities", report["errors"][0])
+
+    def test_check_plugin_rejects_unknown_plugin_keys(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(Path(tmp), capabilities=())
+            manifest = plugin_dir.joinpath("bywaf.plugin.toml")
+            manifest.write_text(manifest.read_text().replace("[plugin]\n", '[plugin]\nname = "example"\nauthor = "alice"\n'))
+
+            report = check_plugin(plugin_dir)
+
+            self.assertFalse(report["ok"])
+            self.assertIn("plugin has unknown key(s): author, name", report["errors"][0])
+
+    def test_check_plugin_rejects_unknown_argument_keys(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(
+                Path(tmp),
+                capabilities=(),
+                manifest_extra=(
+                    "\n[[commandlets.arguments]]\n"
+                    'name = "url"\n'
+                    'description = "target URL"\n'
+                    "required = true\n"
+                    "positional = true\n"
+                ),
+            )
+
+            report = check_plugin(plugin_dir)
+
+            self.assertFalse(report["ok"])
+            self.assertIn("arguments entry 1 has unknown key(s): positional, required", report["errors"][0])
+
+    def test_check_plugin_rejects_unknown_option_keys(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(
+                Path(tmp),
+                capabilities=(),
+                manifest_extra=(
+                    "\n[[commandlets.options]]\n"
+                    'name = "timeout"\n'
+                    'description = "timeout seconds"\n'
+                    'type = "float"\n'
+                    "required = true\n"
+                ),
+            )
+
+            report = check_plugin(plugin_dir)
+
+            self.assertFalse(report["ok"])
+            self.assertIn("options entry 1 has unknown key(s): required", report["errors"][0])
+
+    def test_check_plugin_rejects_unknown_event_schema_keys(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(
+                Path(tmp),
+                capabilities=(),
+                manifest_extra=(
+                    "\n[[event_schemas]]\n"
+                    'topic = "example.event"\n'
+                    'description = "not a supported key"\n'
+                    "\n[[event_schemas.fields]]\n"
+                    'name = "url"\n'
+                ),
+            )
+
+            report = check_plugin(plugin_dir)
+
+            self.assertFalse(report["ok"])
+            self.assertIn("event_schemas entry 1 has unknown key(s): description", report["errors"][0])
+
+    def test_check_plugin_rejects_invalid_event_schema_type_names(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(
+                Path(tmp),
+                capabilities=(),
+                manifest_extra=(
+                    "\n[[event_schemas]]\n"
+                    'topic = "example.event"\n'
+                    'summary = "example event"\n'
+                    "\n[[event_schemas.fields]]\n"
+                    'name = "url"\n'
+                    'type = "string"\n'
+                ),
+            )
+
+            report = check_plugin(plugin_dir)
+
+            self.assertFalse(report["ok"])
+            self.assertIn("type must be one of: any, bool, dict, int, list, number, str", report["errors"][0])
+
     def test_llm_feedback_gives_manifest_version_fix(self):
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(Path(tmp), capabilities=("network.connect",))
