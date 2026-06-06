@@ -112,12 +112,27 @@ The action log records concrete work from recent sessions: what changed, what
 was validated, what was committed and pushed, and what immediate follow-up state
 remains.
 
-The lessons-learned archive stores durable takeaways that should outlive a
-single implementation slice.
-
 Together, these files reduce dependency on chat transcript memory. A restarted
 assistant can re-read them, inspect the repository, and continue from the actual
 project state.
+
+## Lessons Learned
+
+The lessons-learned archive stores reusable process and design takeaways that
+should outlive a single implementation slice. It is for guidance that should
+shape future sessions, not for tracking the status of one feature or bug.
+
+Lessons learned are separate from tracker items. Tracker items record specific
+questions, decisions, priorities, implementation state, and validation for one
+topic. Lessons learned capture broader patterns, such as workflow conventions,
+refactoring judgment, documentation practices, or how to reason about a class
+of design tradeoffs.
+
+Each lesson is stored as a numbered document with a short descriptive title.
+Lessons include created and updated timestamps, and the archive has an index
+that lists lesson filenames and dates. When a new lesson is added or revised,
+the index should be updated at the same time so fresh sessions can discover
+the relevant takeaways quickly.
 
 ## Why The Workflow Is Iterative
 
