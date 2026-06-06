@@ -129,6 +129,44 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
                 process_framework_requests(runner, ShellState())
             self.assertIn("No policy decisions matched.", output.getvalue())
 
+    def test_audit_list_topics_prints_topic_policy_decisions(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.publish(
+                "plugin.topic.policy",
+                {
+                    "commandlet": "webfin",
+                    "topic": "web.fingerprint",
+                    "reason": "unregistered",
+                    "decision": "audit",
+                    "message": "webfin published topic without a registered schema: web.fingerprint",
+                    "job_id": None,
+                    "pipeline_id": None,
+                    "command_run_id": "step-1",
+                },
+                "webfin",
+                command_run_id="step-1",
+            )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("audit list topics decision=audit reason=unregistered topic=web.fingerprint")
+                process_framework_requests(runner, ShellState())
+            text = output.getvalue()
+            self.assertIn("Decision", text)
+            self.assertIn("Reason", text)
+            self.assertIn("webfin", text)
+            self.assertIn("web.fingerprint", text)
+            self.assertIn("unregistered", text)
+
+    def test_audit_list_topics_reports_no_matches(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("audit list topics")
+                process_framework_requests(runner, ShellState())
+            self.assertIn("No topic policy decisions matched.", output.getvalue())
+
     def test_audit_show_filters_since_until_time(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

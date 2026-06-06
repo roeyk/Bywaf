@@ -289,6 +289,39 @@ class RegistryCompletionCoreTests(unittest.TestCase):
             self.assertIn("serial=run-1", completer.candidates("audit list policy serial="))
             self.assertIn("serial=pipeline-1", completer.candidates("audit list policy serial="))
 
+    def test_audit_topic_policy_completes_selector_values(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "db.sqlite3"))
+            db.publish(
+                "plugin.topic.policy",
+                {
+                    "commandlet": "webfin",
+                    "topic": "web.fingerprint",
+                    "reason": "unregistered",
+                    "decision": "audit",
+                    "message": "webfin published topic without a registered schema: web.fingerprint",
+                    "pipeline_id": "pipeline-1",
+                    "command_run_id": "run-1",
+                },
+                "webfin",
+                pipeline_id="pipeline-1",
+                command_run_id="run-1",
+            )
+            job_id = db.record_job("webfin", 123, "done")
+            completer = Completer(self.registry, db)
+
+            self.assertEqual(completer.candidates("audit list topics r"), ["reason="])
+            self.assertIn("decision=audit", completer.candidates("audit list topics decision="))
+            self.assertIn("decision=enforce", completer.candidates("audit list topics decision="))
+            self.assertIn("reason=unregistered", completer.candidates("audit list topics reason="))
+            self.assertEqual(completer.candidates("audit list topics plugin=web"), ["plugin=webfin"])
+            self.assertEqual(completer.candidates("audit list topics topic=web"), ["topic=web.fingerprint"])
+            self.assertEqual(completer.candidates("audit list topics step="), ["step=1"])
+            self.assertEqual(completer.candidates("audit list topics pipeline="), ["pipeline=1"])
+            self.assertEqual(completer.candidates("audit list topics job="), [f"job={job_id}"])
+            self.assertIn("serial=run-1", completer.candidates("audit list topics serial="))
+            self.assertIn("serial=pipeline-1", completer.candidates("audit list topics serial="))
+
     def test_runtime_completion_metadata_includes_artifact_counts(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))

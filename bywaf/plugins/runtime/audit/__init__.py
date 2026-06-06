@@ -33,6 +33,7 @@ from .common import AUDIT_ACTIONS, AUDIT_FORMATS, AUDIT_LIST_TARGETS, AuditActio
 from .export import event_record, export_events
 from .inventory import capability_inventory_rows, format_capability_inventory
 from .policy_report import format_policy_decisions, policy_decision_rows, policy_selector_completion_candidates
+from .topic_report import format_topic_policy_rows, topic_policy_rows, topic_policy_selector_completion_candidates
 from .selectors import (
     parse_compact_time as parse_compact_time,
     parse_list_selectors,
@@ -57,6 +58,7 @@ shutil = audit_export_module.shutil
         "audit list policy",
         "audit list policy decision=warn",
         "audit list policy plugin=hostscanner target=198.51.100.10",
+        "audit list topics decision=audit reason=unregistered",
         "audit show topic=plugin.capability.used",
         "audit show step=1",
         "audit show serial=hostscanner-...",
@@ -102,7 +104,9 @@ class Audit(CommandletBase):
                 return list(AUDIT_LIST_TARGETS)
             if len(args) >= 2 and args[1] == "policy":
                 return policy_selector_completion_candidates(context, prefix)
-            return ["plugin=", "decision=", "target=", "step=", "pipeline=", "job=", "serial=", "since=", "until="]
+            if len(args) >= 2 and args[1] == "topics":
+                return topic_policy_selector_completion_candidates(context, prefix)
+            return ["plugin=", "decision=", "target=", "topic=", "reason=", "step=", "pipeline=", "job=", "serial=", "since=", "until="]
         if prefix.startswith("file="):
             return [f"file={candidate}" for candidate in complete_path(prefix.removeprefix("file="))]
         return ["file=", "topic=", "step=", "pipeline=", "job=", "serial=", "since=", "until="]
@@ -150,7 +154,10 @@ def list_audit_action(context: CommandContext, parsed: Namespace, selectors: dic
     if target == "policy":
         context.output(format_policy_decisions(policy_decision_rows(context, selectors)))
         return
-    raise ValueError("audit list supports: capabilities, policy")
+    if target == "topics":
+        context.output(format_topic_policy_rows(topic_policy_rows(context, selectors)))
+        return
+    raise ValueError("audit list supports: capabilities, policy, topics")
 
 
 def plugin() -> Commandlet:

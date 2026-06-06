@@ -34,6 +34,7 @@ def render_single_plugin_text(report: dict[str, Any]) -> str:
     errors = report.get("errors") or []
     missing_capabilities = report.get("missing_capabilities") or []
     missing_shared_emits = report.get("missing_shared_emits") or []
+    unregistered_declared_emits = report.get("unregistered_declared_emits") or []
     unused_capabilities = report.get("unused_capabilities") or []
     inferred_capabilities = report.get("inferred_capabilities") or []
     inferred_emits = report.get("inferred_emits") or []
@@ -51,6 +52,7 @@ def render_single_plugin_text(report: dict[str, Any]) -> str:
         inferred_emits=inferred_emits,
         missing_capabilities=missing_capabilities,
         missing_shared_emits=missing_shared_emits,
+        unregistered_declared_emits=unregistered_declared_emits,
         unused_capabilities=unused_capabilities,
     )
     lines.extend(format_text_warning(warning) for warning in warnings)
@@ -70,6 +72,7 @@ def append_optional_text_rows(
     inferred_emits: list[str],
     missing_capabilities: list[str],
     missing_shared_emits: list[str],
+    unregistered_declared_emits: list[str],
     unused_capabilities: list[str],
 ) -> None:
     """Append optional single-plugin text sections."""
@@ -87,6 +90,7 @@ def append_optional_text_rows(
         ("inferred emits", inferred_emits, comma_join),
         ("missing inferred capabilities", missing_capabilities, comma_join),
         ("missing shared event emits declarations", missing_shared_emits, comma_join),
+        ("unregistered declared emits", unregistered_declared_emits, comma_join),
         ("unused declared capabilities", unused_capabilities, comma_join),
     )
     for label, values, formatter in sequence_rows:
@@ -126,9 +130,18 @@ def render_llm_feedback(report: dict[str, Any]) -> str:
     warnings = report.get("warnings") or []
     missing_capabilities = report.get("missing_capabilities") or []
     missing_shared_emits = report.get("missing_shared_emits") or []
+    unregistered_declared_emits = report.get("unregistered_declared_emits") or []
     unused_capabilities = report.get("unused_capabilities") or []
     capability_codes = report.get("capability_codes") or {}
-    if not diagnostics and not errors and not warnings and not missing_capabilities and not missing_shared_emits and not unused_capabilities:
+    if not has_llm_feedback(
+        diagnostics,
+        errors,
+        warnings,
+        missing_capabilities,
+        missing_shared_emits,
+        unregistered_declared_emits,
+        unused_capabilities,
+    ):
         lines.append("No checker feedback.")
         return "\n".join(lines)
     lines.append("")
@@ -142,11 +155,17 @@ def render_llm_feedback(report: dict[str, Any]) -> str:
         missing_capabilities=missing_capabilities,
         warnings=warnings,
         missing_shared_emits=missing_shared_emits,
+        unregistered_declared_emits=unregistered_declared_emits,
         unused_capabilities=unused_capabilities,
         errors=errors,
         capability_codes=capability_codes,
     )
     return "\n".join(lines)
+
+
+def has_llm_feedback(*items: object) -> bool:
+    """Return whether a checker report has any LLM feedback item."""
+    return any(bool(item) for item in items)
 
 
 def extend_llm_feedback_items(
@@ -156,6 +175,7 @@ def extend_llm_feedback_items(
     missing_capabilities: list[str],
     warnings: list[dict[str, Any]],
     missing_shared_emits: list[str],
+    unregistered_declared_emits: list[str],
     unused_capabilities: list[str],
     errors: list[object],
     capability_codes: dict[str, Any],
@@ -173,6 +193,9 @@ def extend_llm_feedback_items(
         item_number += 1
     for topic in missing_shared_emits:
         lines.extend(llm_missing_shared_emit_feedback(item_number, topic))
+        item_number += 1
+    for topic in unregistered_declared_emits:
+        lines.extend(llm_unregistered_declared_emit_feedback(item_number, topic))
         item_number += 1
     for capability in unused_capabilities:
         lines.extend(llm_unused_capability_feedback(item_number, capability, capability_codes))
@@ -225,6 +248,16 @@ def llm_missing_shared_emit_feedback(item_number: int, topic: str) -> list[str]:
         f"{item_number}. Missing shared event declaration: {topic}",
         "   Problem: source analysis saw this shared Bywaf event topic being published, but the manifest does not declare it.",
         "   Fix: add the topic to the matching bywaf.plugin.toml [[commandlets]] emits list.",
+    ]
+
+
+def llm_unregistered_declared_emit_feedback(item_number: int, topic: str) -> list[str]:
+    """Return LLM feedback lines for one declared topic without a registered schema."""
+    return [
+        f"{item_number}. Unregistered declared event topic: {topic}",
+        "   Problem: the manifest declares this topic in emits, but no framework or plugin-owned schema is currently registered for it.",
+        "   Fix: add or coordinate a [[event_schemas]] definition when the topic is intended for structured interoperability. "
+        "Otherwise keep the declaration and rely on global.topic.unregistered.mode for runtime audit/warn/enforce behavior.",
     ]
 
 

@@ -60,6 +60,7 @@ def check_plugin(
         "inferred_emits": [],
         "missing_capabilities": [],
         "missing_shared_emits": [],
+        "unregistered_declared_emits": [],
         "unused_capabilities": [],
         "evidence": [],
         "warnings": [],
@@ -117,6 +118,7 @@ def check_bundled_plugin(entry: str, *, strict_inference: bool = False) -> dict[
         "inferred_emits": [],
         "missing_capabilities": [],
         "missing_shared_emits": [],
+        "unregistered_declared_emits": [],
         "unused_capabilities": [],
         "evidence": [],
         "warnings": [],
@@ -281,6 +283,9 @@ def finalize_inference_report(
         if event_schema(topic) is not None and topic not in declared_emits
     )
     report["missing_shared_emits"] = missing_shared_emits
+    report["unregistered_declared_emits"] = sorted(
+        topic for topic in declared_emits if event_schema(topic) is None
+    )
     if strict_inference and missing_capabilities:
         report["errors"].append("missing inferred capabilities: " + ", ".join(missing_capabilities))
     if missing_shared_emits:

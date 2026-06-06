@@ -186,11 +186,15 @@ Audit evidence is stored as events:
 bywaf> event plugin.capability.used
 bywaf> audit list capabilities
 bywaf> audit list policy decision=warn
+bywaf> audit list topics reason=unregistered
 ```
 
 Use `audit list policy` to review scope and policy decisions after a run: which
 commandlet tried to act on a target, what policy kept or removed, and what
 warning or repair explains the decision.
+
+Use `audit list topics` to review topic-contract warnings such as unregistered
+declared topics or undeclared-topic enforcement decisions.
 
 Artifacts are tracked separately but linked back to runtime provenance:
 

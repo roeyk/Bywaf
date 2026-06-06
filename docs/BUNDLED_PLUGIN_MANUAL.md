@@ -1924,14 +1924,16 @@ useful for handoff, troubleshooting, and proving how a finding or artifact was
 produced. The `audit list policy` view answers operator questions about scope
 enforcement: which commandlet tried to act on a target, what targets policy kept
 or removed, whether the decision was allowed or warned/blocked, which warning or
-repair explains the decision, and which step or job created the evidence. It
-reports existing `policy.evaluated` events; it does not run a scanner or duplicate
-policy enforcement.
+repair explains the decision, and which step or job created the evidence. The
+`audit list topics` view summarizes topic-contract policy events such as
+undeclared-topic attempts and declared topics that had no registered schema at
+publish time. These list views report existing audit events; they do not run
+scanners or duplicate enforcement.
 
 | Argument / option | Required? | Type / accepted values | Sample value | Meaning |
 | --- | --- | --- | --- | --- |
 | `<action>` | Yes | Audit action such as `show`, `list`, or `export`. | `list` | Audit action such as `show`, `list`, or `export`. |
-| `<list-target>` | For `list` | `capabilities` or `policy`. | `policy` | Selects an audit inventory/report view. |
+| `<list-target>` | For `list` | `capabilities`, `policy`, or `topics`. | `policy` | Selects an audit inventory/report view. |
 | `file=` | For export | Export file path. | `audit.jsonl` | Export file path. |
 | `topic=` | No | Topic selector. | `finding.new` | Topic selector. |
 | `step=` | No | Step selector. | `12` | Step selector. |
@@ -1941,7 +1943,8 @@ policy enforcement.
 | `since=` | No | Compact time or scoped bound such as `step:<id>`. | `20260601` | Lower audit window bound. |
 | `until=` | No | Compact time or scoped bound such as `job:<id>`. | `20260602` | Upper audit window bound. |
 | `plugin=` | No | Commandlet name for `list` views. | `hostscanner` | Selects capability or policy report rows for one commandlet. |
-| `decision=` | No | Policy decision for `list policy`. | `warn` | Selects policy decisions by outcome. |
+| `decision=` | No | Policy or topic-contract decision for `list policy` / `list topics`. | `warn` | Selects policy decisions by outcome. |
+| `reason=` | No | Topic-contract reason for `list topics`. | `unregistered` | Selects topic-contract rows by reason. |
 | `target=` | No | Target text for `list policy`. | `198.51.100.10` | Selects policy decisions whose before/after target list contains the text. |
 | `format=` | No | Export format or `auto`. | `auto` | Export format or `auto`. |
 | `limit=` | No | Maximum events to show or export. | `1000` | Maximum events to show or export. |

@@ -4,7 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from scripts.plugin_check import check_plugin, render_llm_feedback
+from scripts.plugin_check import check_plugin, render_llm_feedback, render_text
 from tests.plugin_check_fixtures import (
     write_decorated_factory_fixture,
     write_parser_mismatch_fixture,
@@ -86,6 +86,25 @@ class TestDiagnosticsTests(unittest.TestCase):
             self.assertEqual(report["missing_shared_emits"], ["host.found"])
             feedback = render_llm_feedback(report)
             self.assertIn("Missing shared event declaration: host.found", feedback)
+
+    def test_check_plugin_warns_about_declared_emit_without_registered_schema(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(
+                Path(tmp),
+                capabilities=("db.write:example.unregistered",),
+                emits=("example.unregistered",),
+                manifest_emits=("example.unregistered",),
+                run_body='        context.events.publish("example.unregistered", {"ok": True})\n',
+            )
+
+            report = check_plugin(plugin_dir)
+
+            self.assertTrue(report["ok"])
+            self.assertEqual(report["unregistered_declared_emits"], ["example.unregistered"])
+            self.assertIn("unregistered declared emits: example.unregistered", render_text(report))
+            feedback = render_llm_feedback(report)
+            self.assertIn("Unregistered declared event topic: example.unregistered", feedback)
+            self.assertIn("global.topic.unregistered.mode", feedback)
 
     def test_check_plugin_validates_literal_shared_event_payload(self):
         with tempfile.TemporaryDirectory() as tmp:
