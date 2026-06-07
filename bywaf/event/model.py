@@ -12,8 +12,10 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
+
+from ..time_format import bywaf_now
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,13 +42,13 @@ class Event:
         command_run_id: str | None = None,
         parent_command_run_id: str | None = None,
     ) -> "Event":
-        """Create a new unsaved event with a UTC timestamp."""
+        """Create a new unsaved event with an operator-local timestamp."""
         return cls(
             None,
             topic,
             payload,
             source,
-            datetime.now(timezone.utc),
+            bywaf_now(),
             pipeline_id,
             command_run_id,
             parent_command_run_id,

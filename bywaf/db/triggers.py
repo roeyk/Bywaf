@@ -10,9 +10,9 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
 from typing import Any
 
+from ..time_format import bywaf_now_iso
 from .backends import DatabaseConnection
 
 class EventStoreTriggerMixin:
@@ -36,7 +36,7 @@ class EventStoreTriggerMixin:
         last_fired_event_id: int | None = None,
     ) -> None:
         """Persist trigger lifecycle/cursor state."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = bywaf_now_iso()
         next_last = self.trigger_cursor(name) if last_event_id is None else last_event_id
         with self.connect() as conn:
             # last_event_id is the replay cursor. last_fired_event_id is only a

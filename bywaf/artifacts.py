@@ -16,11 +16,11 @@ import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from .db import EventStore, new_serial, set_sqlcipher_key, sqlcipher
+from .time_format import bywaf_now_iso
 
 
 ARTIFACT_SCHEMA = """
@@ -181,7 +181,7 @@ class ArtifactStore:
         """Store one in-memory artifact body and return its row."""
         artifact_id = self._allocate_artifact_id()
         digest = hashlib.sha256(data).hexdigest()
-        created_at = datetime.now(timezone.utc).isoformat()
+        created_at = bywaf_now_iso()
         # Store the artifact body and provenance together.  The main event DB
         # gets a separate `artifact.attached` event, but the artifact DB must be
         # useful on its own during archive/recovery workflows.
@@ -335,7 +335,7 @@ class ArtifactStore:
         data = source_path.read_bytes()
         content_type = mimetypes.guess_type(source_path.name)[0] or "application/octet-stream"
         digest = hashlib.sha256(data).hexdigest()
-        created_at = datetime.now(timezone.utc).isoformat()
+        created_at = bywaf_now_iso()
         # Keep `artifact_id` stable so report/bundle references remain valid,
         # but update integrity fields to describe the new body.
         with self.connect() as conn:

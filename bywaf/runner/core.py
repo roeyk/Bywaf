@@ -77,6 +77,7 @@ class Runner:
             command_resolver=self.registry.resolve_commandlet_name,
             command_scope_resolver=self.registry.variable_scope,
         )
+        self.validate_pipeline_commands(pipeline)
         match pipeline:
             case Pipeline(background=True):
                 return [self.start_background(command_line, pipeline=pipeline)]
@@ -84,6 +85,12 @@ class Runner:
                 if is_management_pipeline(commands):
                     return self.run_pipeline(commands, pipeline_name=display_name)
                 return self.execute_foreground_job(command_line, commands, pipeline_name=display_name)
+
+    def validate_pipeline_commands(self, pipeline: Pipeline) -> None:
+        """Fail unknown commandlets before creating job lifecycle rows."""
+        for invocation in pipeline.commands:
+            if not self.registry.has_commandlet(invocation.name):
+                raise KeyError(f"unknown commandlet: {invocation.name}")
 
     def execute_foreground_job(
         self,
@@ -251,6 +258,7 @@ class Runner:
             command_resolver=self.registry.resolve_commandlet_name,
             command_scope_resolver=self.registry.variable_scope,
         )
+        self.validate_pipeline_commands(pipeline)
         pipeline_id = new_run_id("pipeline")
         if pipeline.display_name:
             publish_runtime_name(self.db, "pipeline", pipeline_id, pipeline.display_name, pipeline_id=pipeline_id)

@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
 
+from ..time_format import bywaf_now_iso
 from .backends import DatabaseConnection
 from ..secret.store import SecretFingerprint, SecretRef
 
@@ -25,7 +25,7 @@ class EventStoreSecretMixin:
 
     def store_secret(self, secret_ref: SecretRef, value: str) -> None:
         """Persist a secret value in the active database."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = bywaf_now_iso()
         with self.connect() as conn:
             # Secret refs are stable handles; updates replace the encrypted or
             # plaintext backing value while preserving the user-facing ref.

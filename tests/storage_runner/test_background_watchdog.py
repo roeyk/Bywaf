@@ -1,6 +1,8 @@
 # ruff: noqa: F403,F405
 """Storage runner tests split by responsibility."""
 
+from datetime import datetime
+
 from tests.storage_runner.support import *  # noqa: F403,F405
 
 
@@ -76,6 +78,23 @@ class StorageRunnerBackgroundWatchdogTests(unittest.TestCase):
             self.assertEqual(failure.payload["job_id"], job_id)
             self.assertEqual(failure.payload["command"], "missing")
             self.assertIn("started_at", failure.payload)
+
+    def test_runner_rejects_unknown_command_without_recording_job(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            with self.assertRaisesRegex(KeyError, "unknown commandlet: missing"):
+                runner.execute("missing")
+            self.assertEqual(runner.db.jobs(), [])
+
+    def test_job_timestamps_use_operator_local_timezone(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "db.sqlite3"))
+            job_id = db.record_job("hostscanner 127.0.0.1", None, "queued")
+            job = db.job(job_id)
+            self.assertIsNotNone(job)
+            assert job is not None
+            started_at = datetime.fromisoformat(str(job["started_at"]))
+            self.assertEqual(started_at.utcoffset(), datetime.now().astimezone().utcoffset())
 
     def test_watchdog_emits_timeout_and_stall_warnings(self):
         with tempfile.TemporaryDirectory() as tmp:

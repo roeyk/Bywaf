@@ -12,7 +12,7 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from ..time_format import bywaf_now_iso
 from .backends import DatabaseConnection
 from .support import ACTIVE_JOB_STATUSES, resolve_serial_match
 
@@ -38,7 +38,7 @@ class EventStoreRuntimeMixin:
 
     def request_cancellation(self, target_type: str, target_id: str, reason: str | None = None) -> None:
         """Record a soft-cancellation request for a job, pipeline, or run."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = bywaf_now_iso()
         with self.connect() as conn:
             conn.execute(
                 """
@@ -94,7 +94,7 @@ class EventStoreRuntimeMixin:
         variables a commandlet saw when it launched and give background
         processes a stable snapshot to reconstruct from.
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = bywaf_now_iso()
         rows = [
             (job_id, pipeline_id, command_run_id, commandlet, RUN_ASSOCIATION_NAME, "", "association", now),
             *(
@@ -316,7 +316,7 @@ class EventStoreRuntimeMixin:
         immediate transaction so concurrent processes do not allocate the same
         local selector.
         """
-        created = created_at or datetime.now(timezone.utc).isoformat()
+        created = created_at or bywaf_now_iso()
         with self.connect() as conn:
             row = conn.execute(
                 "SELECT local_id FROM runtime_entities WHERE entity_type = ? AND serial = ?",

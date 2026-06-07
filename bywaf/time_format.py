@@ -22,13 +22,24 @@ def format_operator_timestamp(value: datetime) -> str:
     return value.astimezone().strftime(OPERATOR_TIMESTAMP_FORMAT)
 
 
+def bywaf_now() -> datetime:
+    """Return the current Bywaf operator-local timestamp."""
+    return datetime.now().astimezone()
+
+
+def bywaf_now_iso() -> str:
+    """Return the current Bywaf operator-local timestamp as ISO text."""
+    return bywaf_now().isoformat()
+
+
 def format_compact_runtime_timestamp(value: str | None) -> str:
-    """Render an ISO timestamp compactly for runtime listings."""
+    """Render an ISO timestamp compactly in the operator's local timezone."""
     if not value:
         return "unknown"
     parsed = parse_iso_timestamp(value)
     if parsed is None:
         return value
+    parsed = parsed.astimezone()
     timezone = parsed.tzname()
     suffix = f" {timezone}" if timezone else ""
     return f"{parsed.strftime(COMPACT_RUNTIME_TIMESTAMP_FORMAT)}{suffix}"

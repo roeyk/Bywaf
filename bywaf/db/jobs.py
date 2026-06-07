@@ -12,9 +12,9 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
 from typing import overload
 
+from ..time_format import bywaf_now_iso
 from .backends import DatabaseConnection
 from .support import ACTIVE_JOB_STATUSES, new_serial, process_exists, resolve_serial_match
 
@@ -27,7 +27,7 @@ class EventStoreJobMixin:
 
     def record_job(self, command_line: str, pid: int | None, status: str) -> int:
         """Record a background job owned by the runner."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = bywaf_now_iso()
         with self.connect() as conn:
             for _ in range(5):
                 serial = new_serial("job")
@@ -67,7 +67,7 @@ class EventStoreJobMixin:
 
     def finish_job(self, job_id: int, status: str) -> None:
         """Mark a recorded background job as finished or failed."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = bywaf_now_iso()
         with self.connect() as conn:
             conn.execute(
                 "UPDATE jobs SET status = ?, finished_at = ? WHERE id = ?",
@@ -110,7 +110,7 @@ class EventStoreJobMixin:
                 # recorded process no longer exists.
                 if pid is None or not process_exists(int(pid)):
                     stale_ids.append(int(row["id"]))
-            now = datetime.now(timezone.utc).isoformat()
+            now = bywaf_now_iso()
             for job_id in stale_ids:
                 conn.execute(
                     "UPDATE jobs SET status = ?, finished_at = ? WHERE id = ?",

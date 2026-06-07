@@ -20,11 +20,11 @@ import tempfile
 import zipfile
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from .. import __version__
+from ..time_format import bywaf_now_iso
 from ..artifacts import artifact_db_path
 from ..projects import ProjectPaths
 from ..runner import Runner
@@ -136,7 +136,7 @@ def archive_manifest(
         "schema": ARCHIVE_SCHEMA,
         "bywaf_version": __version__,
         "project": project.name,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": bywaf_now_iso(),
         "encrypted": encrypted,
         "files": files,
     }

@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import base64
 import shutil
-from datetime import datetime, timezone
 from pathlib import Path
 
 from .crypto import (
@@ -29,6 +28,7 @@ from .models import SUPPORTED_ALGORITHM, KeyPaths, KeyRecord
 from .permissions import write_private_file, write_private_permissions, write_public_file
 from .state import signing_state_for_record
 from .storage import ensure_key_dirs, key_by_name, key_filename, load_key_records, upsert_key, validate_key_name
+from ..time_format import bywaf_now_iso
 
 
 def generate_key(name: str, passphrase: str, *, scope: str = "user", paths: KeyPaths | None = None) -> KeyRecord:
@@ -210,4 +210,4 @@ def verification_key_names(paths: KeyPaths | None = None) -> list[str]:
 
 def now_iso() -> str:
     """Return a timezone-aware timestamp."""
-    return datetime.now(timezone.utc).isoformat()
+    return bywaf_now_iso()
