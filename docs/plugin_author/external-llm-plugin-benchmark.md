@@ -31,6 +31,11 @@ Ask an outside assistant to create a small `http_title` filesystem plugin. The
 plugin should fetch a single HTTP or HTTPS URL, extract the page title, and
 emit one structured event.
 
+This benchmark fits the current scaffold scope: small external native plugin,
+one commandlet, one input, and one plugin-owned topic. The assistant should use
+`scripts/plugin_new.py` to create the initial directory, then edit the generated
+files rather than inventing the layout from scratch.
+
 Treat `http.title` as a plugin-owned event topic for this benchmark unless the
 current documentation defines a shared framework topic for HTTP titles.
 
@@ -52,6 +57,10 @@ assistant can follow the documented Bywaf plugin contract:
 Read the Bywaf Plugin Developer path in docs/DOCUMENTATION_PATHS.md, then read
 the referenced plugin author docs needed for this task. Create a complete
 filesystem plugin directory named http_title.
+
+Start by using scripts/plugin_new.py to generate the initial http_title
+scaffold in a scratch directory. Then modify only what is necessary to implement
+the behavior below. Do not write the plugin layout from scratch.
 
 The plugin must:
 - provide one commandlet named http_title;

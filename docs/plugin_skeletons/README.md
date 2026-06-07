@@ -16,6 +16,11 @@ For the smallest native one-commandlet plugin, prefer the scaffold command:
 python3 scripts/plugin_new.py my_probe --output /tmp/my_probe
 ```
 
+That scaffold is for external filesystem plugins. It is not yet a replacement
+for skeletons that model bundled package layout, vulnerability finding
+packaging, library-backed integrations, wrapped binaries, or service/provider
+behavior.
+
 Use these skeleton directories when the plugin needs a richer shape, such as
 vulnerability finding packaging, a third-party library, an external process, or
 a provider-owned service trigger.
@@ -105,6 +110,10 @@ Use the smallest skeleton that fits:
 | `process_wrapped` | The plugin invokes an external binary/tool and parses its output. |
 | `process_wrapped_vulnerability` | A vulnerability or CVE plugin wraps an external tool and promotes parsed results into findings. |
 | `service_trigger_provider` | The plugin provides a long-running service started by provider-owned triggers. |
+
+If the task fits the scaffold scope, use `scripts/plugin_new.py` before copying
+`native_minimal`. Keep `native_minimal` as the copyable teaching reference and
+as the fallback when the scaffold does not yet cover the needed layout.
 
 The split is guidance, not a loader requirement. Bywaf still loads any valid
 plugin package with `plugin.py`, `plugin()`, and a matching `bywaf.plugin.toml`.

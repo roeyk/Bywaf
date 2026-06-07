@@ -17,14 +17,21 @@ checker.
 
 Use this loop for AI-generated plugins:
 
-1. Start from the closest checked-in skeleton under `../plugin_skeletons/`.
-2. Ask the assistant to fill in the skeleton, not invent a new layout.
-3. Require a complete plugin directory, including `plugin.py`,
+1. Decide whether the task fits the scaffold scope. Use
+   `scripts/plugin_new.py` for a small external native plugin with one
+   commandlet, one main input, one plugin-owned event topic, no third-party
+   Python dependency, no wrapped binary, no background service, and no complex
+   finding-packaging split.
+2. If the task does not fit that scope, start from the closest checked-in
+   skeleton under `../plugin_skeletons/`.
+3. Ask the assistant to fill in the scaffold or skeleton, not invent a new
+   layout.
+4. Require a complete plugin directory, including `plugin.py`,
    `bywaf.plugin.toml`, and any split files such as `command.py`, `detect.py`,
    `findings.py`, and `models.py`.
-4. Put the generated plugin in a scratch directory outside the repository, for
+5. Put the generated plugin in a scratch directory outside the repository, for
    example `/tmp/bywaf-llm-plugins/git_expose_check`.
-5. Run the post-generation validation gate:
+6. Run the post-generation validation gate:
 
    ```bash
    python3 scripts/plugin_check.py /tmp/bywaf-llm-plugins/git_expose_check.zip \
@@ -33,10 +40,10 @@ Use this loop for AI-generated plugins:
      --strict-inference --llm-feedback
    ```
 
-6. Paste the full checker output back into the assistant and ask it to
+7. Paste the full checker output back into the assistant and ask it to
    regenerate the complete plugin directory.
-7. Repeat until the checker passes.
-8. Review the detection logic manually, add focused tests, and only then copy
+8. Repeat until the checker passes.
+9. Review the detection logic manually, add focused tests, and only then copy
    the plugin into a real plugin root.
 
 This is a conformance loop, not a conversation about confidence. If the
@@ -68,15 +75,18 @@ Do not trust assistant output without the checker for:
 Use a prompt like this:
 
 ```text
-Read the current Bywaf plugin author docs and the closest plugin skeleton.
+Read the current Bywaf plugin author docs. If this task fits scaffold scope,
+use scripts/plugin_new.py to create the initial plugin directory and then edit
+only what is necessary. Otherwise, use the closest plugin skeleton and explain
+why the scaffold does not fit.
 Use only the current commandlet API. Do not use Veil modules, Metasploit
 modules, info dictionaries, modules/ layout, or run/exploit entrypoints.
 Create a complete filesystem plugin directory for <plugin-name>.
 
 Rules:
-- Start from the documented skeleton; do not invent a new layout.
+- Start from the scaffold or documented skeleton; do not invent a new layout.
 - Include plugin.py, bywaf.plugin.toml, and any split files required by the
-  skeleton.
+  scaffold or skeleton.
 - For small commandlets, prefer a manifest-backed @commandlet function in
   plugin.py that receives (context, cfg, input_events), not decorators on
   plugin().

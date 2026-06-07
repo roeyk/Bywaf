@@ -82,6 +82,21 @@ not following the current Bywaf plugin schema.
 
 ## Choose A Starting Point
 
+Use the scaffold when the plugin is the simplest native shape: one external
+filesystem plugin directory, one commandlet, one main input, one plugin-owned
+event topic, no third-party Python dependency, no wrapped binary, no
+long-running service, and no complex finding-packaging split.
+
+Use a skeleton when the plugin needs a richer architecture: vulnerability
+finding helpers, a third-party library, an external process, service/provider
+behavior, multiple files, multiple commandlets, artifacts, or bundled-framework
+integration.
+
+The scaffold does not currently generate bundled plugins under
+`bywaf/plugins/...`. Small bundled-native plugins are a good future scaffold
+mode, but today they still need manual adaptation plus updates to
+`bywaf/plugins/plugins.toml`, the bundled plugin manual, tests, and changelog.
+
 | Goal | Start with | Then read |
 | --- | --- | --- |
 | Small one-file commandlet | `python3 scripts/plugin_new.py my_probe --output /tmp/my_probe` | [Plugin Fundamentals](fundamentals.md) |
