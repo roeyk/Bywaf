@@ -55,6 +55,9 @@ impact label and sorted from highest to lowest operator/developer impact:
 - [medium] Added bundled `http_methods` OPTIONS probing to record advertised
   HTTP methods and promote TRACE or write-capable methods into candidate
   findings.
+- [medium] Added bundled `http_auth` challenge probing to record HTTP
+  authentication posture and promote Basic-over-cleartext,
+  administrative-path challenge, and missing-realm candidates.
 - [medium] Improved compact report inbox rows so grouped findings summarize
   all affected resources represented by the group, instead of only the newest
   representative event.

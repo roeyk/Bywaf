@@ -78,6 +78,21 @@ STARTER_FINDING_CLASSES: dict[str, FindingClassInfo] = {
         "Default credentials accepted by an application.",
         {"cwe": ("CWE-798",), "owasp": ("A07:2021",)},
     ),
+    "web.auth.basic_over_cleartext": FindingClassInfo(
+        "web.auth.basic_over_cleartext",
+        "HTTP Basic authentication offered without TLS.",
+        {"cwe": ("CWE-319",), "owasp": ("A02:2021",)},
+    ),
+    "web.auth.admin_challenge_observed": FindingClassInfo(
+        "web.auth.admin_challenge_observed",
+        "Authentication challenge observed on an administrative-looking web path.",
+        {"owasp": ("A01:2021",)},
+    ),
+    "web.auth.basic_missing_realm": FindingClassInfo(
+        "web.auth.basic_missing_realm",
+        "HTTP Basic authentication challenge has no realm.",
+        {"cwe": ("CWE-16",), "owasp": ("A05:2021",)},
+    ),
     "service.telnet.exposed": FindingClassInfo(
         "service.telnet.exposed",
         "Telnet service exposed on a target.",

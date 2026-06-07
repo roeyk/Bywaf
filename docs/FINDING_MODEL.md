@@ -153,6 +153,9 @@ Starter examples:
 | `web.header.missing_framing_policy` | `CWE-1021`, OWASP `A05:2021` |
 | `web.header.missing_content_security_policy` | `CWE-693`, OWASP `A05:2021` |
 | `web.header.missing_referrer_policy` |  |
+| `web.auth.basic_over_cleartext` | `CWE-319`, OWASP `A02:2021` |
+| `web.auth.admin_challenge_observed` | OWASP `A01:2021` |
+| `web.auth.basic_missing_realm` | `CWE-16`, OWASP `A05:2021` |
 | `web.method.trace_enabled` | `CWE-16`, OWASP `A05:2021` |
 | `web.method.write_methods_enabled` | `CWE-650`, OWASP `A01:2021` |
 | `web.exposure.git_config` | `CWE-538`, OWASP `A05:2021` |

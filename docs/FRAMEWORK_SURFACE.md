@@ -59,12 +59,13 @@ base installation commandlets that declare or use each capability.
 | `db.write:dns.error` | `dns_lookup` |
 | `db.write:dns.record` | `dns_lookup` |
 | `db.write:eyewitness.screenshot` | `eyewitness`, `screenshotter` |
-| `db.write:finding.candidate` | `git_expose_check`, `http_headers`, `http_methods`, `http_paths`, `management_exposure`, `portscanner`, `report`, `tech_review`, `technology_indicators`, `tls_probe` |
+| `db.write:finding.candidate` | `git_expose_check`, `http_auth`, `http_headers`, `http_methods`, `http_paths`, `management_exposure`, `portscanner`, `report`, `tech_review`, `technology_indicators`, `tls_probe` |
 | `db.write:finding.duplicate` | `finding_dedupe`, `report`, `tech_review` |
 | `db.write:finding.merge_candidate` | `finding_dedupe`, `report`, `tech_review` |
 | `db.write:finding.new` | `finding_dedupe`, `report`, `tech_review` |
 | `db.write:finding.reviewed` | `finding`, `report` |
 | `db.write:finding.updated` | `finding_dedupe`, `report`, `tech_review` |
+| `db.write:http.auth` | `http_auth` |
 | `db.write:http.headers` | `http_headers` |
 | `db.write:http.methods` | `http_methods` |
 | `db.write:key.generated` | `key` |
@@ -106,7 +107,7 @@ base installation commandlets that declare or use each capability.
 | `framework.process.run` | `eyewitness`, `nikto`, `screenshotter`, `traceroute`, `wifi_scan` |
 | `framework.render.table` | `finding_report` |
 | `framework.secret.resolve` | `ldap_probe`, `shodan_lookup`, `smb_probe`, `ssh_probe` |
-| `network.connect` | `dns_lookup`, `eyewitness`, `git_expose_check`, `hostscanner`, `http_headers`, `http_methods`, `http_paths`, `http_probe`, `ldap_probe`, `nikto`, `portscanner`, `screenshotter`, `shodan_lookup`, `smb_probe`, `snmp_get`, `ssh_probe`, `tcp_banner`, `webfin` |
+| `network.connect` | `dns_lookup`, `eyewitness`, `git_expose_check`, `hostscanner`, `http_auth`, `http_headers`, `http_methods`, `http_paths`, `http_probe`, `ldap_probe`, `nikto`, `portscanner`, `screenshotter`, `shodan_lookup`, `smb_probe`, `snmp_get`, `ssh_probe`, `tcp_banner`, `webfin` |
 | `network.listen` | `wifi_scan` |
 
 ## Trigger Rules
@@ -137,6 +138,7 @@ the association and `Consumes` is the normal consumer side.
 | `finding_report` | `finding.candidate`, `finding.confirmed`, `finding.new`, `finding.merge_candidate`, `nikto.finding`, `vulnerability.found`, `vulnerability.potential`, `vulnerability.confirmed`, `vulnerability.speculative`, `vulnerability.false_positive` | `framework.render.table.requested`, `artifact.attached` |
 | `git_expose_check` | `http.endpoint` | `repo.git_config.checked`, `finding.candidate` |
 | `hostscanner` | none | `name.resolved`, `host.found` |
+| `http_auth` | `port.open` | `http.auth`, `finding.candidate` |
 | `http_headers` | `port.open` | `http.headers`, `finding.candidate` |
 | `http_methods` | `port.open` | `http.methods`, `finding.candidate` |
 | `http_probe` | `port.open` | `http.endpoint` |

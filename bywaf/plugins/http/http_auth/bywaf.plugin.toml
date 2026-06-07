@@ -1,0 +1,144 @@
+[plugin]
+version = "0.12.2"
+native = true
+library_backed = false
+process_wrapped = false
+service = false
+roles = ["command-provider"]
+
+[[commandlets]]
+name = "http_auth"
+description = "Probe HTTP auth challenges and report passive auth posture findings."
+usage = "http_auth [options] [target ...]"
+examples = [
+  "http_auth https://example.test/admin",
+  "hostscanner 127.0.0.1 | portscanner port=80,443 | http_auth path=/admin",
+]
+consumes = [
+  "port.open",
+]
+emits = [
+  "http.auth",
+  "finding.candidate",
+]
+capabilities = [
+  "db.write:finding.candidate",
+  "db.write:http.auth",
+  "network.connect",
+]
+module = "bywaf.plugins.http.http_auth"
+database.actions.view = false
+database.actions.write = true
+database.actions.manage = false
+
+[[commandlets.arguments]]
+name = "targets"
+description = "explicit URLs, hosts, or host:port targets"
+nargs = "*"
+
+[[commandlets.options]]
+name = "path"
+description = "request path"
+type = "str"
+default = "/"
+
+[[commandlets.options]]
+name = "scheme"
+description = "scheme override"
+type = "str"
+default = "auto"
+choices = ["auto", "http", "https"]
+
+[[commandlets.options]]
+name = "method"
+description = "HTTP method"
+type = "str"
+default = "HEAD"
+choices = ["HEAD", "GET"]
+
+[[commandlets.options]]
+name = "timeout"
+description = "request timeout seconds"
+type = "float"
+default = "5"
+
+[[event_schemas]]
+topic = "http.auth"
+version = "1"
+summary = "HTTP authentication challenge posture observed from one response."
+notes = [
+  "This is a plugin-owned fact emitted by http_auth; use finding.candidate for reportable auth-posture issues.",
+]
+
+[[event_schemas.fields]]
+name = "url"
+type = "str"
+required = true
+description = "HTTP URL that was probed."
+
+[[event_schemas.fields]]
+name = "host"
+type = "str"
+required = true
+description = "HTTP target host."
+
+[[event_schemas.fields]]
+name = "port"
+type = "int"
+required = true
+description = "HTTP target port."
+
+[[event_schemas.fields]]
+name = "scheme"
+type = "str"
+required = true
+description = "HTTP target scheme."
+
+[[event_schemas.fields]]
+name = "path"
+type = "str"
+required = true
+description = "Request path used for the auth probe."
+
+[[event_schemas.fields]]
+name = "method"
+type = "str"
+required = true
+description = "HTTP method used for the probe."
+
+[[event_schemas.fields]]
+name = "status"
+type = "int"
+description = "HTTP response status code."
+
+[[event_schemas.fields]]
+name = "auth_present"
+type = "bool"
+required = true
+description = "Whether an authentication challenge header was observed."
+
+[[event_schemas.fields]]
+name = "schemes"
+type = "list"
+required = true
+description = "Authentication schemes parsed from WWW-Authenticate and Proxy-Authenticate headers."
+
+[[event_schemas.fields]]
+name = "realms"
+type = "list"
+description = "Realm values parsed from authentication challenge headers."
+
+[[event_schemas.fields]]
+name = "www_authenticate"
+type = "list"
+description = "Raw WWW-Authenticate response headers."
+
+[[event_schemas.fields]]
+name = "proxy_authenticate"
+type = "list"
+description = "Raw Proxy-Authenticate response headers."
+
+[[event_schemas.fields]]
+name = "error"
+type = "str"
+description = "Connection or protocol error, if the probe failed."

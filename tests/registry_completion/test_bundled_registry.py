@@ -18,6 +18,7 @@ class RegistryBundledPluginTests(unittest.TestCase):
         self.assertIn("ssh_probe", self.registry.names())
         self.assertIn("traceroute", self.registry.names())
         self.assertIn("eyewitness", self.registry.names())
+        self.assertIn("http_auth", self.registry.names())
         self.assertIn("http_headers", self.registry.names())
         self.assertIn("http_methods", self.registry.names())
         self.assertIn("http_probe", self.registry.names())
@@ -80,6 +81,7 @@ class RegistryBundledPluginTests(unittest.TestCase):
                 "recon.shodan_lookup",
                 "http.http_headers",
                 "http.eyewitness",
+                "http.http_auth",
                 "http.http_methods",
                 "http.http_paths",
                 "http.http_probe",

@@ -33,8 +33,9 @@ A **provider** is the Python implementation object or module that registers or r
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#discoveryhostscanner">discovery.hostscanner</a></span></div>
 </details>
 <details class="plugin-toc-family">
-<summary id="toc-http"><span class="toc-count">11</span><span class="toc-arrow" aria-hidden="true">▸</span><span class="toc-name">HTTP</span></summary>
+<summary id="toc-http"><span class="toc-count">12</span><span class="toc-arrow" aria-hidden="true">▸</span><span class="toc-name">HTTP</span></summary>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httpeyewitness">http.eyewitness</a></span></div>
+<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_auth">http.http_auth</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_headers">http.http_headers</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_methods">http.http_methods</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_paths">http.http_paths</a></span></div>
@@ -120,6 +121,7 @@ A **provider** is the Python implementation object or module that registers or r
 | Recon | `recon.shodan_lookup` | `shodan_lookup` | Query Shodan by IP or search text. | `shodan_lookup mode=search apache country:US` | [recon.shodan_lookup](#reconshodan_lookup) |
 | Identity | `identity.ldap_probe` | `ldap_probe` | Probe LDAP server metadata. | `ldap_probe username=user password=secret dc.example.test` | [identity.ldap_probe](#identityldap_probe) |
 | Identity | `identity.smb_probe` | `smb_probe` | Probe SMB server metadata. | `smb_probe domain=EXAMPLE username=user password=secret dc.example.test` | [identity.smb_probe](#identitysmb_probe) |
+| HTTP | `http.http_auth` | `http_auth` | Probe HTTP auth challenges and passive auth posture findings. | `http_auth https://example.com/admin` | [http.http_auth](#httphttp_auth) |
 | HTTP | `http.http_headers` | `http_headers` | Collect HTTP headers and header findings. | `http_headers ssl=true example.com` | [http.http_headers](#httphttp_headers) |
 | HTTP | `http.http_methods` | `http_methods` | Probe allowed HTTP methods and risky method findings. | `http_methods https://example.com/` | [http.http_methods](#httphttp_methods) |
 | HTTP | `http.http_probe` | `http_probe` | Publish reusable HTTP endpoint facts. | `http_probe https://example.com/` | [http.http_probe](#httphttp_probe) |
@@ -912,6 +914,7 @@ supplied-credential outcomes when they are in scope.
 ### HTTP Plugin TOC
 
 - [http.eyewitness](#httpeyewitness)
+- [http.http_auth](#httphttp_auth)
 - [http.http_headers](#httphttp_headers)
 - [http.http_methods](#httphttp_methods)
 - [http.http_paths](#httphttp_paths)
@@ -967,6 +970,55 @@ are reviewed through `report` or `finding_report`.
 - Visible output: usually quiet on success; reportable missing-header issues are
   visible through `report` or `finding_report`.
 - Emits: `http.headers`, `finding.candidate`.
+
+[Back to HTTP plugin TOC](#http-plugin-toc) | [Back to document HTTP TOC entry](#toc-http)
+
+<a id="httphttp_auth"></a>
+
+### `http.http_auth`
+
+Probes HTTP authentication challenges and reports passive auth posture findings.
+
+
+Use this when authentication exposure matters: it records WWW-Authenticate and
+Proxy-Authenticate challenge metadata and promotes conservative posture findings.
+It is a small passive HTTP probe that pairs well with `http_probe`,
+`http_headers`, `http_methods`, and report review.
+Current finding coverage includes Basic authentication offered over cleartext
+HTTP, authentication challenges on administrative-looking paths, and Basic
+authentication challenges with no realm value.
+
+Plugin metadata:
+
+| Field | Value |
+| --- | --- |
+| Family | HTTP |
+| Plugin | `http.http_auth` |
+| Commandlets | `http_auth` |
+| Last updated | `2026-06-06` from source history |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/http_auth` |
+
+#### Commandlet: `http_auth`
+
+Example usage: `http_auth https://example.com/admin`
+
+Use `http_auth` to collect HTTP authentication challenge posture and promote
+safe auth-posture findings. It can use explicit URLs, hosts, host:port targets,
+or upstream open ports, and successful findings are reviewed through `report`
+or `finding_report`.
+
+| Argument / option | Required? | Type / accepted values | Sample value | Meaning |
+| --- | --- | --- | --- | --- |
+| `<target>` | No | URL, host, host:port, or upstream `port.open` target. | `https://example.com/admin` | URL, host, host:port, or upstream `port.open` target. |
+| `path=` | No | Request path. | `/admin` | Request path. |
+| `scheme=` | No | Scheme override: `auto`, `http`, or `https`. | `https` | Scheme override: `auto`, `http`, or `https`. |
+| `method=` | No | HTTP method: `HEAD` or `GET`. | `HEAD` | HTTP method. |
+| `timeout=` | No | Request timeout seconds. | `5` | Request timeout seconds. |
+
+- Consumes: `port.open`.
+- Visible output: usually quiet on success; reportable auth-posture issues are
+  visible through `report` or `finding_report`.
+- Emits: `http.auth`, `finding.candidate`.
 
 [Back to HTTP plugin TOC](#http-plugin-toc) | [Back to document HTTP TOC entry](#toc-http)
 
