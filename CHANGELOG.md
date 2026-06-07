@@ -52,6 +52,9 @@ impact label and sorted from highest to lowest operator/developer impact:
 - [medium] Expanded `http_headers` finding coverage to promote missing browser
   framing protection, missing Content-Security-Policy, and missing
   Referrer-Policy from already-collected response headers.
+- [medium] Added bundled `http_methods` OPTIONS probing to record advertised
+  HTTP methods and promote TRACE or write-capable methods into candidate
+  findings.
 - [medium] Improved compact report inbox rows so grouped findings summarize
   all affected resources represented by the group, instead of only the newest
   representative event.

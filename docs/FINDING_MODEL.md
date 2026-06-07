@@ -153,6 +153,8 @@ Starter examples:
 | `web.header.missing_framing_policy` | `CWE-1021`, OWASP `A05:2021` |
 | `web.header.missing_content_security_policy` | `CWE-693`, OWASP `A05:2021` |
 | `web.header.missing_referrer_policy` |  |
+| `web.method.trace_enabled` | `CWE-16`, OWASP `A05:2021` |
+| `web.method.write_methods_enabled` | `CWE-650`, OWASP `A01:2021` |
 | `web.exposure.git_config` | `CWE-538`, OWASP `A05:2021` |
 | `web.exposure.source_control_metadata` | `CWE-538`, OWASP `A05:2021` |
 | `web.exposure.source_map` | `CWE-538`, OWASP `A05:2021` |
@@ -295,6 +297,8 @@ review-worthy rule. For example, `portscanner` promotes exposed Telnet, and
 `http_headers` promotes missing high-value HTTP security headers, weak cookie
 attributes, implementation-revealing `Server` headers, and HTTPS-to-HTTP
 redirects.
+`http_methods` promotes enabled TRACE and write-capable HTTP methods from
+OPTIONS response metadata.
 `git_expose_check` promotes exposed `.git/config` repository metadata, and
 `technology_indicators` promotes selected passive version/fingerprint evidence
 into suspected vulnerable-version candidates for a small curated catalog that

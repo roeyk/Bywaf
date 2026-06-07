@@ -17,6 +17,7 @@ class BundledManifestHydrationTests(unittest.TestCase):
         from bywaf.plugins.discovery.hostscanner import HostScanner
         from bywaf.plugins.http.eyewitness import EyeWitness
         from bywaf.plugins.http.http_headers import HttpHeaders
+        from bywaf.plugins.http.http_methods import HttpMethods
         from bywaf.plugins.http.http_probe import HttpProbe
         from bywaf.plugins.http.nikto import Nikto
         from bywaf.plugins.http.repo_exposure import GitExposeCheck, RepoExposure
@@ -77,6 +78,7 @@ class BundledManifestHydrationTests(unittest.TestCase):
             GitExposeCheck,
             HostScanner,
             HttpHeaders,
+            HttpMethods,
             HttpProbe,
             Job,
             Key,
@@ -209,6 +211,10 @@ class BundledManifestHydrationTests(unittest.TestCase):
         self.assertEqual(self.registry.get("http_headers").spec.consumes, ("port.open",))
         self.assertEqual(self.registry.get("http_headers").spec.emits, ("http.headers", "finding.candidate"))
         self.assertEqual(self.registry.get("http_headers").spec.database_actions, ("write",))
+        self.assertIn("network.connect", self.registry.get("http_methods").spec.capabilities)
+        self.assertEqual(self.registry.get("http_methods").spec.consumes, ("port.open",))
+        self.assertEqual(self.registry.get("http_methods").spec.emits, ("http.methods", "finding.candidate"))
+        self.assertEqual(self.registry.get("http_methods").spec.database_actions, ("write",))
         self.assertIn("network.connect", self.registry.get("http_probe").spec.capabilities)
         self.assertEqual(self.registry.get("http_probe").spec.consumes, ("port.open",))
         self.assertEqual(self.registry.get("http_probe").spec.emits, ("http.endpoint",))

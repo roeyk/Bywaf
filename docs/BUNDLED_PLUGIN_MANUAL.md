@@ -33,9 +33,10 @@ A **provider** is the Python implementation object or module that registers or r
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#discoveryhostscanner">discovery.hostscanner</a></span></div>
 </details>
 <details class="plugin-toc-family">
-<summary id="toc-http"><span class="toc-count">10</span><span class="toc-arrow" aria-hidden="true">▸</span><span class="toc-name">HTTP</span></summary>
+<summary id="toc-http"><span class="toc-count">11</span><span class="toc-arrow" aria-hidden="true">▸</span><span class="toc-name">HTTP</span></summary>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httpeyewitness">http.eyewitness</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_headers">http.http_headers</a></span></div>
+<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_methods">http.http_methods</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_paths">http.http_paths</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_probe">http.http_probe</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httpnikto">http.nikto</a></span></div>
@@ -120,6 +121,7 @@ A **provider** is the Python implementation object or module that registers or r
 | Identity | `identity.ldap_probe` | `ldap_probe` | Probe LDAP server metadata. | `ldap_probe username=user password=secret dc.example.test` | [identity.ldap_probe](#identityldap_probe) |
 | Identity | `identity.smb_probe` | `smb_probe` | Probe SMB server metadata. | `smb_probe domain=EXAMPLE username=user password=secret dc.example.test` | [identity.smb_probe](#identitysmb_probe) |
 | HTTP | `http.http_headers` | `http_headers` | Collect HTTP headers and header findings. | `http_headers ssl=true example.com` | [http.http_headers](#httphttp_headers) |
+| HTTP | `http.http_methods` | `http_methods` | Probe allowed HTTP methods and risky method findings. | `http_methods https://example.com/` | [http.http_methods](#httphttp_methods) |
 | HTTP | `http.http_probe` | `http_probe` | Publish reusable HTTP endpoint facts. | `http_probe https://example.com/` | [http.http_probe](#httphttp_probe) |
 | HTTP | `http.http_paths` | `http_paths` | Check explicit or common web paths. | `http_paths paths=/.git/config,/.env https://example.com/` | [http.http_paths](#httphttp_paths) |
 | HTTP | `http.repo_exposure` | `repo_exposure`, `git_expose_check` | Check for exposed repository metadata. | `http_probe https://example.com/ \| repo_exposure` | [http.repo_exposure](#httprepo_exposure) |
@@ -911,6 +913,7 @@ supplied-credential outcomes when they are in scope.
 
 - [http.eyewitness](#httpeyewitness)
 - [http.http_headers](#httphttp_headers)
+- [http.http_methods](#httphttp_methods)
 - [http.http_paths](#httphttp_paths)
 - [http.http_probe](#httphttp_probe)
 - [http.nikto](#httpnikto)
@@ -964,6 +967,54 @@ are reviewed through `report` or `finding_report`.
 - Visible output: usually quiet on success; reportable missing-header issues are
   visible through `report` or `finding_report`.
 - Emits: `http.headers`, `finding.candidate`.
+
+[Back to HTTP plugin TOC](#http-plugin-toc) | [Back to document HTTP TOC entry](#toc-http)
+
+<a id="httphttp_methods"></a>
+
+### `http.http_methods`
+
+Probes HTTP OPTIONS and reports risky allowed methods.
+
+
+Use this when method posture matters: it records the methods advertised by
+`Allow` or `Public` response headers and promotes risky methods into finding
+candidates. It is a small HTTP probe that pairs well with `http_probe`,
+`http_headers`, and report review.
+Current finding coverage includes enabled TRACE and write-capable methods such
+as PUT, PATCH, and DELETE.
+
+Plugin metadata:
+
+| Field | Value |
+| --- | --- |
+| Family | HTTP |
+| Plugin | `http.http_methods` |
+| Commandlets | `http_methods` |
+| Last updated | `2026-06-06` from source history |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/http_methods` |
+
+#### Commandlet: `http_methods`
+
+Example usage: `http_methods https://example.com/`
+
+Use `http_methods` to collect HTTP method posture and promote risky method
+findings. It can use explicit URLs, hosts, host:port targets, or upstream open
+ports, and successful findings are reviewed through `report` or
+`finding_report`.
+
+| Argument / option | Required? | Type / accepted values | Sample value | Meaning |
+| --- | --- | --- | --- | --- |
+| `<target>` | No | URL, host, host:port, or upstream `port.open` target. | `https://example.com/` | URL, host, host:port, or upstream `port.open` target. |
+| `path=` | No | Request path. | `/admin` | Request path. |
+| `scheme=` | No | Scheme override: `auto`, `http`, or `https`. | `https` | Scheme override: `auto`, `http`, or `https`. |
+| `timeout=` | No | Request timeout seconds. | `5` | Request timeout seconds. |
+| `--silent` | No | Binary flag; suppress method alerts. | `--silent` | Binary flag; suppress method alerts. |
+
+- Consumes: `port.open`.
+- Visible output: prints method alerts unless `--silent` is set; reportable
+  risky-method issues are visible through `report` or `finding_report`.
+- Emits: `http.methods`, `finding.candidate`.
 
 [Back to HTTP plugin TOC](#http-plugin-toc) | [Back to document HTTP TOC entry](#toc-http)
 

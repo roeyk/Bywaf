@@ -1,0 +1,127 @@
+[plugin]
+version = "0.12.2"
+native = true
+library_backed = false
+process_wrapped = false
+service = false
+roles = ["command-provider"]
+
+[[commandlets]]
+name = "http_methods"
+description = "Probe HTTP OPTIONS and report risky allowed methods."
+usage = "http_methods [options] [target ...]"
+examples = [
+  "http_methods https://example.test/",
+  "hostscanner 127.0.0.1 | portscanner port=80,443 | http_methods",
+]
+consumes = [
+  "port.open",
+]
+emits = [
+  "http.methods",
+  "finding.candidate",
+]
+capabilities = [
+  "db.write:finding.candidate",
+  "db.write:http.methods",
+  "framework.console.alert",
+  "network.connect",
+]
+module = "bywaf.plugins.http.http_methods"
+database.actions.view = false
+database.actions.write = true
+database.actions.manage = false
+
+[[commandlets.arguments]]
+name = "targets"
+description = "explicit URLs, hosts, or host:port targets"
+nargs = "*"
+
+[[commandlets.options]]
+name = "path"
+description = "request path"
+type = "str"
+default = "/"
+
+[[commandlets.options]]
+name = "scheme"
+description = "scheme override"
+type = "str"
+default = "auto"
+choices = ["auto", "http", "https"]
+
+[[commandlets.options]]
+name = "silent"
+description = "suppress method alerts"
+type = "bool"
+default = "false"
+
+[[commandlets.options]]
+name = "timeout"
+description = "request timeout seconds"
+type = "float"
+default = "5"
+
+[[event_schemas]]
+topic = "http.methods"
+version = "1"
+summary = "HTTP methods observed from one OPTIONS response."
+notes = [
+  "This is a plugin-owned fact emitted by http_methods; use finding.candidate for reportable risky-method issues.",
+]
+
+[[event_schemas.fields]]
+name = "url"
+type = "str"
+required = true
+description = "HTTP URL that was probed."
+
+[[event_schemas.fields]]
+name = "host"
+type = "str"
+required = true
+description = "HTTP target host."
+
+[[event_schemas.fields]]
+name = "port"
+type = "int"
+required = true
+description = "HTTP target port."
+
+[[event_schemas.fields]]
+name = "scheme"
+type = "str"
+required = true
+description = "HTTP target scheme."
+
+[[event_schemas.fields]]
+name = "path"
+type = "str"
+required = true
+description = "Request path used for the OPTIONS probe."
+
+[[event_schemas.fields]]
+name = "status"
+type = "int"
+description = "HTTP response status code."
+
+[[event_schemas.fields]]
+name = "methods"
+type = "list"
+required = true
+description = "Allowed methods parsed from Allow or Public response headers."
+
+[[event_schemas.fields]]
+name = "allow"
+type = "str"
+description = "Raw Allow response header."
+
+[[event_schemas.fields]]
+name = "public"
+type = "str"
+description = "Raw Public response header."
+
+[[event_schemas.fields]]
+name = "error"
+type = "str"
+description = "Connection or protocol error, if the probe failed."

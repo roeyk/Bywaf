@@ -19,6 +19,7 @@ class RegistryBundledPluginTests(unittest.TestCase):
         self.assertIn("traceroute", self.registry.names())
         self.assertIn("eyewitness", self.registry.names())
         self.assertIn("http_headers", self.registry.names())
+        self.assertIn("http_methods", self.registry.names())
         self.assertIn("http_probe", self.registry.names())
         self.assertIn("nikto", self.registry.names())
         self.assertIn("git_expose_check", self.registry.names())
@@ -79,6 +80,7 @@ class RegistryBundledPluginTests(unittest.TestCase):
                 "recon.shodan_lookup",
                 "http.http_headers",
                 "http.eyewitness",
+                "http.http_methods",
                 "http.http_paths",
                 "http.http_probe",
                 "http.nikto",
