@@ -185,6 +185,13 @@ variables, secrets, traits, roles, and `requires_bywaf`. It is an inspection
 and recommendation surface today; hard dependency resolution will be added only
 after explicit dependency fields are supported.
 
+Use `python3 scripts/plugin_check.py path/to/plugin --graph` to include graph
+context in a filesystem plugin validation report. Use
+`python3 scripts/plugin_graph.py --topic <topic>` or
+`python3 scripts/plugin_graph.py --provider <provider>` to inspect bundled
+manifest relationships directly. These commands read manifest metadata and do
+not infer hard dependencies from topic names.
+
 Reserve exact plugin dependencies for non-schema provider coupling, such as a
 specific commandlet, artifact producer, service, listener, exporter, provider
 variable/default, normalization behavior, or external tool wrapper. See

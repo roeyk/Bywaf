@@ -44,6 +44,14 @@ class ExternalPluginCliSmokeTests(unittest.TestCase):
             self.assertTrue(report["ok"])
             self.assertEqual(report["commandlets"], ["smokeprobe"])
 
+    def test_plugin_graph_script_reports_bundled_topic_relationships(self):
+        result = run_python_script("scripts/plugin_graph.py", "--topic", "port.open")
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("topic: port.open", result.stdout)
+        self.assertIn("producers: network.portscanner", result.stdout)
+        self.assertIn("consumers:", result.stdout)
+
     def test_plugin_catalog_build_script_accepts_single_segment_external_plugin(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)

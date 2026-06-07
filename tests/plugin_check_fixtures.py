@@ -12,6 +12,8 @@ def write_plugin_fixture(
     *,
     capabilities: tuple[str, ...],
     manifest_capabilities: tuple[str, ...] | None = None,
+    consumes: tuple[str, ...] = (),
+    manifest_consumes: tuple[str, ...] | None = None,
     emits: tuple[str, ...] = (),
     manifest_emits: tuple[str, ...] | None = None,
     imports: str = "",
@@ -23,13 +25,14 @@ def write_plugin_fixture(
     plugin_dir = root / "example"
     plugin_dir.mkdir(parents=True)
     capability_text = repr(capabilities)
+    consumes_text = repr(consumes)
     emits_text = repr(emits)
     plugin_dir.joinpath("plugin.py").write_text(
         imports +
         parser_import +
         decorators +
         "class Example:\n"
-        f"    spec = CommandSpec('example', 'example plugin', emits={emits_text}, capabilities={capability_text})\n"
+        f"    spec = CommandSpec('example', 'example plugin', consumes={consumes_text}, emits={emits_text}, capabilities={capability_text})\n"
         "    def run(self, context, args, input_events):\n"
         f"{run_body}"
         "def plugin():\n"
@@ -38,6 +41,8 @@ def write_plugin_fixture(
     declared = capabilities if manifest_capabilities is None else manifest_capabilities
     manifest_capability_lines = "".join(f'  "{item}",\n' for item in declared)
     declared_emits = emits if manifest_emits is None else manifest_emits
+    declared_consumes = consumes if manifest_consumes is None else manifest_consumes
+    manifest_consumes_text = "consumes = [" + ", ".join(f'"{item}"' for item in declared_consumes) + "]\n" if declared_consumes else ""
     manifest_emits_text = "emits = [" + ", ".join(f'"{item}"' for item in declared_emits) + "]\n" if declared_emits else ""
     plugin_dir.joinpath("bywaf.plugin.toml").write_text(
         "[plugin]\n"
@@ -47,6 +52,7 @@ def write_plugin_fixture(
         "capabilities = [\n"
         f"{manifest_capability_lines}"
         "]\n"
+        f"{manifest_consumes_text}"
         f"{manifest_emits_text}"
         f"{manifest_extra}"
     )

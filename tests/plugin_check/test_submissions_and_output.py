@@ -104,6 +104,46 @@ class TestSubmissionsAndOutputTests(unittest.TestCase):
         self.assertIn("failed plugin=/tmp/missing", text)
         self.assertIn("error: missing", text)
 
+    def test_check_plugin_graph_json_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(
+                Path(tmp),
+                capabilities=("db.write:example.topic",),
+                emits=("example.topic",),
+                manifest_extra=(
+                    "\n[[event_schemas]]\n"
+                    'topic = "example.topic"\n'
+                    'version = "1"\n'
+                    'summary = "Example topic."\n'
+                    "\n[[event_schemas.fields]]\n"
+                    'name = "ok"\n'
+                    'type = "bool"\n'
+                ),
+            )
+
+            output = capture_stdout(lambda: main([str(plugin_dir), "--graph", "--json"]))
+
+            data = json.loads(output)
+            graph = data["relationship_graph"]
+            self.assertEqual(graph["provider"], "filesystem:example")
+            self.assertEqual(graph["emits"][0]["topic"], "example.topic")
+            self.assertEqual(graph["emits"][0]["schema_status"], "plugin-owned")
+            self.assertEqual(graph["database_writes"], ["example.topic"])
+
+    def test_check_plugin_graph_text_output_shows_known_producers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(
+                Path(tmp),
+                capabilities=(),
+                consumes=("port.open",),
+            )
+
+            output = capture_stdout(lambda: main([str(plugin_dir), "--graph"]))
+
+            self.assertIn("relationship graph: provider=filesystem:example", output)
+            self.assertIn("consumes: port.open", output)
+            self.assertIn("producers=network.portscanner", output)
+
 
 if __name__ == "__main__":
     unittest.main()

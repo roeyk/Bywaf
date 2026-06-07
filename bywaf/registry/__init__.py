@@ -27,6 +27,7 @@ from .graph import (
     ManifestRelationshipGraph,
     build_manifest_graph,
     build_package_manifest_graph,
+    relationship_report_for_provider,
 )
 from .loading import (
     load_module_path,
@@ -126,6 +127,7 @@ __all__ = [
     "parse_trigger_rows",
     "plugin_manifest_digest",
     "plugin_manifest_signature_block",
+    "relationship_report_for_provider",
     "provider_name",
     "sha256_file",
     "string_field",

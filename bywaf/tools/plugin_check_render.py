@@ -17,6 +17,8 @@ def render_plugin_collection_text(report: dict[str, Any]) -> str:
     """Return human-readable validation output for a plugin collection."""
     failed = [item for item in report["plugins"] if not item["ok"]]
     lines = [f"{'ok' if report['ok'] else 'failed'} plugin={report['plugin']} checked={report['checked']} failed={len(failed)}"]
+    if report.get("relationship_graph"):
+        lines.extend(format_collection_graph_summary(report["relationship_graph"]))
     for item in report["plugins"]:
         status = "ok" if item["ok"] else "failed"
         commandlets = ", ".join(str(commandlet) for commandlet in item.get("commandlets", ()))
@@ -41,6 +43,7 @@ def render_single_plugin_text(report: dict[str, Any]) -> str:
     capability_codes = report.get("capability_codes") or {}
     warnings = report.get("warnings") or []
     diagnostics = report.get("diagnostics") or []
+    relationship_graph = report.get("relationship_graph") or {}
     if commandlets:
         lines.append("commandlets: " + ", ".join(str(item) for item in commandlets))
     append_optional_text_rows(
@@ -57,6 +60,8 @@ def render_single_plugin_text(report: dict[str, Any]) -> str:
     )
     lines.extend(format_text_warning(warning) for warning in warnings)
     lines.extend(format_text_diagnostic(diagnostic) for diagnostic in diagnostics)
+    if relationship_graph:
+        lines.extend(format_single_graph_summary(relationship_graph))
     for error in errors:
         lines.append(f"error: {error}")
     return "\n".join(lines)
@@ -103,6 +108,52 @@ def comma_join(values: Sequence[object]) -> str:
     return ", ".join(str(item) for item in values)
 
 
+def format_collection_graph_summary(graph: dict[str, Any]) -> list[str]:
+    """Return compact graph lines for a plugin collection."""
+    providers = graph.get("providers") or {}
+    edges = graph.get("edges") or []
+    schema_providers = graph.get("schema_providers") or {}
+    topic_producers = graph.get("topic_producers") or {}
+    return [
+        f"relationship graph: providers={len(providers)} edges={len(edges)} "
+        f"schemas={len(schema_providers)} produced_topics={len(topic_producers)}",
+    ]
+
+
+def format_single_graph_summary(graph: dict[str, Any]) -> list[str]:
+    """Return compact graph lines for one plugin."""
+    lines = [f"relationship graph: provider={graph.get('provider', '')}"]
+    simple_rows = (
+        ("schemas", graph.get("schemas") or ()),
+        ("capabilities", graph.get("capabilities") or ()),
+        ("database reads", graph.get("database_reads") or ()),
+        ("database writes", graph.get("database_writes") or ()),
+    )
+    for label, values in simple_rows:
+        if values:
+            lines.append(f"  {label}: {comma_join(values)}")
+    for item in graph.get("consumes") or ():
+        lines.append("  consumes: " + format_topic_context(item, include_consumers=False))
+    for item in graph.get("emits") or ():
+        lines.append("  emits: " + format_topic_context(item, include_consumers=True))
+    return lines
+
+
+def format_topic_context(item: dict[str, Any], *, include_consumers: bool) -> str:
+    """Return one compact topic relationship line."""
+    parts = [str(item.get("topic", "")), f"schema={item.get('schema_status', '')}"]
+    schema_providers = item.get("schema_providers") or ()
+    producers = item.get("known_producers") or ()
+    consumers = item.get("known_consumers") or ()
+    if schema_providers:
+        parts.append("schema_providers=" + comma_join(schema_providers))
+    if producers:
+        parts.append("producers=" + comma_join(producers))
+    if include_consumers and consumers:
+        parts.append("consumers=" + comma_join(consumers))
+    return " ".join(parts)
+
+
 def format_text_warning(warning: dict[str, Any]) -> str:
     """Return one plain-text checker warning row."""
     return (
@@ -132,6 +183,7 @@ def render_llm_feedback(report: dict[str, Any]) -> str:
     missing_shared_emits = report.get("missing_shared_emits") or []
     unregistered_declared_emits = report.get("unregistered_declared_emits") or []
     unused_capabilities = report.get("unused_capabilities") or []
+    relationship_graph = report.get("relationship_graph") or {}
     capability_codes = report.get("capability_codes") or {}
     if not has_llm_feedback(
         diagnostics,
@@ -143,6 +195,8 @@ def render_llm_feedback(report: dict[str, Any]) -> str:
         unused_capabilities,
     ):
         lines.append("No checker feedback.")
+        if relationship_graph:
+            lines.extend(llm_relationship_feedback(relationship_graph))
         return "\n".join(lines)
     lines.append("")
     if report["ok"]:
@@ -160,7 +214,22 @@ def render_llm_feedback(report: dict[str, Any]) -> str:
         errors=errors,
         capability_codes=capability_codes,
     )
+    if relationship_graph:
+        lines.extend(llm_relationship_feedback(relationship_graph))
     return "\n".join(lines)
+
+
+def llm_relationship_feedback(graph: dict[str, Any]) -> list[str]:
+    """Return LLM-oriented relationship context."""
+    lines = ["", "Manifest relationship context:"]
+    for item in graph.get("consumes") or ():
+        lines.append(f"- consumes {format_topic_context(item, include_consumers=False)}")
+    for item in graph.get("emits") or ():
+        lines.append(f"- emits {format_topic_context(item, include_consumers=True)}")
+    if not (graph.get("consumes") or graph.get("emits")):
+        lines.append("- no manifest consumes/emits relationships declared")
+    lines.append("Use this as advisory context; consumes does not automatically load dependency plugins.")
+    return lines
 
 
 def has_llm_feedback(*items: object) -> bool:

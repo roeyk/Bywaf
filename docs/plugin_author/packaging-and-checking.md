@@ -210,11 +210,15 @@ bypasses:
 python3 scripts/plugin_check.py path/to/plugin-dir
 python3 scripts/plugin_check.py path/to/plugin-dir --strict-inference
 python3 scripts/plugin_check.py path/to/plugin-dir --strict-inference --llm-feedback
+python3 scripts/plugin_check.py path/to/plugin-dir --graph
 python3 scripts/plugin_check.py path/to/plugin-dir --manifest-key manifest-signing.pub.pem --verify
 python3 scripts/plugin_check.py path/to/plugin-dir --json
 python3 scripts/plugin_check.py path/to/plugin.zip --temp-checkout --strict-inference --llm-feedback
 python3 scripts/plugin_check.py --all
 python3 scripts/plugin_check.py --all --strict-inference
+python3 scripts/plugin_check.py --all --graph
+python3 scripts/plugin_graph.py --topic port.open
+python3 scripts/plugin_graph.py --provider http.http_probe
 ```
 
 `plugin_check` is a schema verifier, not just a style linter. Its strict
@@ -235,6 +239,16 @@ runtime patterns disagree. In particular, it checks:
 - JSON-serializable yielded event payloads
 - obvious direct network/process/filesystem APIs that should be declared or
   mediated by the framework
+
+Use `--graph` when you need relationship context rather than only pass/fail
+validation. For a filesystem plugin, `plugin_check --graph` reports the
+plugin's declared schemas, consumed topics, emitted topics, database topic
+access, and known bundled producers or consumers for those topics. This is
+advisory context: declaring `consumes = ["port.open"]` means the plugin can
+consume that topic when events are available; it does not automatically load a
+producer plugin. For bundled provider inspection, `scripts/plugin_graph.py`
+prints the pre-import manifest graph directly, for example known producers and
+consumers of `port.open` or the relationships for `http.http_probe`.
 
 The checker does not make plugin code sandboxed or inherently safe. Native and
 library-backed plugins are still Python code. Treat a passing check as

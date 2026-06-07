@@ -58,6 +58,13 @@ impact label and sorted from highest to lowest operator/developer impact:
 - [medium] Added bundled `http_auth` challenge probing to record HTTP
   authentication posture and promote Basic-over-cleartext,
   administrative-path challenge, and missing-realm candidates.
+- [medium] Added bundled `http_cors` CORS posture probing to record CORS
+  response headers and promote arbitrary-Origin reflection, arbitrary-Origin
+  reflection with credentials, and wildcard-with-credentials candidates.
+- [medium] Added manifest relationship graph output for plugin authors and
+  maintainers through `plugin_check --graph` and `scripts/plugin_graph.py`,
+  showing pre-import schema, topic producer/consumer, capability, and database
+  topic relationships without treating topic names as implicit dependencies.
 - [medium] Improved compact report inbox rows so grouped findings summarize
   all affected resources represented by the group, instead of only the newest
   representative event.

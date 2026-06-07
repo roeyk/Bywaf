@@ -211,7 +211,9 @@ Before loading or sharing a plugin, run the checker:
 ```bash
 python3 scripts/plugin_check.py path/to/plugin_dir
 python3 scripts/plugin_check.py path/to/plugin.zip --temp-checkout --strict-inference --llm-feedback
+python3 scripts/plugin_check.py path/to/plugin_dir --graph
 python3 scripts/plugin_check.py --all
+python3 scripts/plugin_graph.py --topic port.open
 ```
 
 ## Documentation

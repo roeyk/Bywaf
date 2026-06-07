@@ -93,6 +93,7 @@ def check_plugin_in_temp_checkout(
     manifest_key: Path | None = None,
     verify_manifest: bool = False,
     strict_inference: bool = False,
+    include_graph: bool = False,
 ) -> dict[str, Any]:
     """Apply a plugin submission to a copied Bywaf checkout and validate it there."""
     submission = submission.resolve()
@@ -113,6 +114,7 @@ def check_plugin_in_temp_checkout(
             manifest_key=manifest_key,
             verify_manifest=verify_manifest,
             strict_inference=strict_inference,
+            include_graph=include_graph,
         )
         report["submission"] = str(submission)
         report["plugin"] = str(submission)
@@ -128,6 +130,7 @@ def run_checkout_plugin_check(
     manifest_key: Path | None,
     verify_manifest: bool,
     strict_inference: bool,
+    include_graph: bool,
 ) -> dict[str, Any]:
     """Run the copied checkout's checker and return its JSON report."""
     command = [
@@ -143,6 +146,8 @@ def run_checkout_plugin_check(
         command.append("--verify")
     if strict_inference:
         command.append("--strict-inference")
+    if include_graph:
+        command.append("--graph")
     env = os.environ.copy()
     env["PYTHONPATH"] = str(checkout) + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
     result = subprocess.run(command, cwd=checkout, env=env, text=True, capture_output=True, check=False)

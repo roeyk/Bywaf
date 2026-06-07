@@ -33,9 +33,10 @@ A **provider** is the Python implementation object or module that registers or r
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#discoveryhostscanner">discovery.hostscanner</a></span></div>
 </details>
 <details class="plugin-toc-family">
-<summary id="toc-http"><span class="toc-count">12</span><span class="toc-arrow" aria-hidden="true">▸</span><span class="toc-name">HTTP</span></summary>
+<summary id="toc-http"><span class="toc-count">13</span><span class="toc-arrow" aria-hidden="true">▸</span><span class="toc-name">HTTP</span></summary>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httpeyewitness">http.eyewitness</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_auth">http.http_auth</a></span></div>
+<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_cors">http.http_cors</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_headers">http.http_headers</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_methods">http.http_methods</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_paths">http.http_paths</a></span></div>
@@ -915,6 +916,7 @@ supplied-credential outcomes when they are in scope.
 
 - [http.eyewitness](#httpeyewitness)
 - [http.http_auth](#httphttp_auth)
+- [http.http_cors](#httphttp_cors)
 - [http.http_headers](#httphttp_headers)
 - [http.http_methods](#httphttp_methods)
 - [http.http_paths](#httphttp_paths)
@@ -1019,6 +1021,55 @@ or `finding_report`.
 - Visible output: usually quiet on success; reportable auth-posture issues are
   visible through `report` or `finding_report`.
 - Emits: `http.auth`, `finding.candidate`.
+
+[Back to HTTP plugin TOC](#http-plugin-toc) | [Back to document HTTP TOC entry](#toc-http)
+
+<a id="httphttp_cors"></a>
+
+### `http.http_cors`
+
+Probes HTTP CORS posture and reports unsafe cross-origin policy candidates.
+
+
+Use this when browser cross-origin policy matters: it sends one bounded
+preflight-style request with a synthetic `Origin` header, records CORS response
+headers, and promotes only clear unsafe posture candidates. It pairs well with
+`http_probe`, `http_headers`, `http_methods`, and report review.
+Current finding coverage includes arbitrary Origin reflection, arbitrary Origin
+reflection with credentials, and wildcard Origin with credentials.
+
+Plugin metadata:
+
+| Field | Value |
+| --- | --- |
+| Family | HTTP |
+| Plugin | `http.http_cors` |
+| Commandlets | `http_cors` |
+| Last updated | `2026-06-07` from source history |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/http_cors` |
+
+#### Commandlet: `http_cors`
+
+Example usage: `http_cors https://example.com/api origin=https://evil.example`
+
+Use `http_cors` to collect CORS response posture and promote safe
+CORS-posture findings. It can use explicit URLs, hosts, host:port targets, or
+upstream open ports, and successful findings are reviewed through `report` or
+`finding_report`.
+
+| Argument / option | Required? | Type / accepted values | Sample value | Meaning |
+| --- | --- | --- | --- | --- |
+| `<target>` | No | URL, host, host:port, or upstream `port.open` target. | `https://example.com/api` | URL, host, host:port, or upstream `port.open` target. |
+| `origin=` | No | Origin header value. | `https://evil.example` | Origin header value. |
+| `path=` | No | Request path. | `/api` | Request path. |
+| `request-method=` | No | CORS requested method: `GET`, `POST`, `PUT`, `DELETE`, or `PATCH`. | `GET` | Access-Control-Request-Method value. |
+| `scheme=` | No | Scheme override: `auto`, `http`, or `https`. | `https` | Scheme override: `auto`, `http`, or `https`. |
+| `timeout=` | No | Request timeout seconds. | `5` | Request timeout seconds. |
+
+- Consumes: `port.open`.
+- Visible output: usually quiet on success; reportable CORS-posture issues are
+  visible through `report` or `finding_report`.
+- Emits: `http.cors`, `finding.candidate`.
 
 [Back to HTTP plugin TOC](#http-plugin-toc) | [Back to document HTTP TOC entry](#toc-http)
 

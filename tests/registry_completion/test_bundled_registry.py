@@ -82,6 +82,7 @@ class RegistryBundledPluginTests(unittest.TestCase):
                 "http.http_headers",
                 "http.eyewitness",
                 "http.http_auth",
+                "http.http_cors",
                 "http.http_methods",
                 "http.http_paths",
                 "http.http_probe",

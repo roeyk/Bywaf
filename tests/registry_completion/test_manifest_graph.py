@@ -1,5 +1,7 @@
 """Tests for manifest-derived plugin relationship graphs."""
 
+from typing import Any, cast
+
 from bywaf.registry import (
     ManifestRelationship,
     build_package_manifest_graph,
@@ -44,3 +46,15 @@ def test_bundled_manifest_graph_marks_requires_bywaf_as_hard_edge():
     hard_edges = [edge for edge in graph.edges if edge.kind == "requires_bywaf"]
 
     assert all(edge.hard for edge in hard_edges)
+
+
+def test_bundled_manifest_graph_serializes_for_reports():
+    graph = build_package_manifest_graph("bywaf.plugins", "plugins.toml")
+    data = graph.to_dict()
+    providers = cast(dict[str, dict[str, Any]], data["providers"])
+    topic_consumers = cast(dict[str, tuple[str, ...]], data["topic_consumers"])
+    topic_producers = cast(dict[str, tuple[str, ...]], data["topic_producers"])
+
+    assert providers["http.http_auth"]["schemas"] == ("http.auth",)
+    assert "http.http_auth" in topic_consumers["port.open"]
+    assert "network.portscanner" in topic_producers["port.open"]

@@ -95,6 +95,17 @@ class ManifestRelationshipGraph:
         """Return all relationships with the provider as source."""
         return tuple(edge for edge in self.edges if edge.source == provider)
 
+    def to_dict(self) -> dict[str, object]:
+        """Return a stable JSON-serializable representation."""
+        return {
+            "providers": {provider: node_to_dict(node) for provider, node in sorted(self.nodes.items())},
+            "edges": [edge_to_dict(edge) for edge in self.edges],
+            "schema_providers": self.schema_providers,
+            "topic_producers": self.topic_producers,
+            "topic_consumers": self.topic_consumers,
+            "commandlet_providers": self.commandlet_providers,
+        }
+
 
 def build_package_manifest_graph(
     package_name: str = "bywaf.plugins",
@@ -116,6 +127,108 @@ def build_manifest_graph(manifests: dict[str, PluginManifest]) -> ManifestRelati
     for provider, node in nodes.items():
         edges.extend(relationships_from_node(provider, node))
     return ManifestRelationshipGraph(nodes=nodes, edges=tuple(sorted(edges, key=edge_key)))
+
+
+def relationship_report_for_provider(
+    graph: ManifestRelationshipGraph,
+    provider: str,
+    *,
+    registered_schemas: Iterable[str] = (),
+) -> dict[str, object]:
+    """Return compact relationship context for one provider."""
+    node = graph.nodes[provider]
+    registered = set(registered_schemas)
+    return {
+        "provider": provider,
+        "commandlets": node.commandlets,
+        "schemas": node.schemas,
+        "consumes": tuple(
+            topic_context(
+                topic,
+                producers=graph.producers_for_topic(topic),
+                consumers=(),
+                schema_providers=graph.providers_for_schema(topic),
+                registered=topic in registered,
+            )
+            for topic in node.consumes
+        ),
+        "emits": tuple(
+            topic_context(
+                topic,
+                producers=graph.producers_for_topic(topic),
+                consumers=graph.consumers_for_topic(topic),
+                schema_providers=graph.providers_for_schema(topic),
+                registered=topic in registered,
+            )
+            for topic in node.emits
+        ),
+        "capabilities": node.capabilities,
+        "database_reads": node.database_reads,
+        "database_writes": node.database_writes,
+        "relationships": tuple(edge_to_dict(edge) for edge in graph.relationships_for(provider)),
+    }
+
+
+def topic_context(
+    topic: str,
+    *,
+    producers: Iterable[str],
+    consumers: Iterable[str],
+    schema_providers: Iterable[str],
+    registered: bool,
+) -> dict[str, object]:
+    """Return producer/consumer/schema context for one topic."""
+    provider_tuple = tuple(sorted(schema_providers))
+    return {
+        "topic": topic,
+        "schema_status": schema_status(provider_tuple, registered=registered),
+        "schema_providers": provider_tuple,
+        "known_producers": tuple(sorted(producers)),
+        "known_consumers": tuple(sorted(consumers)),
+    }
+
+
+def schema_status(schema_providers: tuple[str, ...], *, registered: bool) -> str:
+    """Return a compact schema registration label for graph output."""
+    if schema_providers:
+        return "plugin-owned"
+    if registered:
+        return "framework-registered"
+    return "unregistered"
+
+
+def node_to_dict(node: ManifestGraphNode) -> dict[str, object]:
+    """Return a JSON-serializable node mapping."""
+    return {
+        "provider": node.provider,
+        "commandlets": node.commandlets,
+        "requires_bywaf": node.requires_bywaf,
+        "schemas": node.schemas,
+        "consumes": node.consumes,
+        "emits": node.emits,
+        "capabilities": node.capabilities,
+        "database_reads": node.database_reads,
+        "database_writes": node.database_writes,
+        "triggers": node.triggers,
+        "trigger_topics": node.trigger_topics,
+        "trigger_actions": node.trigger_actions,
+        "provider_variables": node.provider_variables,
+        "secret_provider_variables": node.secret_provider_variables,
+        "secret_options": node.secret_options,
+        "traits": node.traits,
+        "roles": node.roles,
+    }
+
+
+def edge_to_dict(edge: ManifestRelationship) -> dict[str, object]:
+    """Return a JSON-serializable edge mapping."""
+    return {
+        "source": edge.source,
+        "kind": edge.kind,
+        "target": edge.target,
+        "hard": edge.hard,
+        "detail": edge.detail,
+    }
 
 
 def node_from_manifest(provider: str, manifest: PluginManifest) -> ManifestGraphNode:

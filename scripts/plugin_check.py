@@ -29,7 +29,7 @@ from bywaf.plugin.capabilities import capability_code_label, capability_declared
 from bywaf.registry.config import parse_package_plugin_config  # noqa: E402
 from bywaf.registry.loading import load_plugins, load_trigger_specs  # noqa: E402
 from bywaf.registry.compat import satisfies_bywaf_requirement  # noqa: E402
-from bywaf.registry import PluginManifestTrust, verify_plugin_manifest_signature_data, load_filesystem_plugin_package, parse_plugin_manifest_data, load_package_manifest, enforce_plugin_manifest, enforce_trigger_manifest  # noqa: E402
+from bywaf.registry import PluginManifest, PluginManifestTrust, build_manifest_graph, build_package_manifest_graph, relationship_report_for_provider, verify_plugin_manifest_signature_data, load_filesystem_plugin_package, parse_plugin_manifest_data, load_package_manifest, enforce_plugin_manifest, enforce_trigger_manifest  # noqa: E402
 from bywaf.toml_support import load_data_file  # noqa: E402
 from bywaf.tools.plugin_check import analyze_plugin_source  # noqa: E402
 from bywaf.tools.plugin_parser_contract import parser_contract_diagnostics  # noqa: E402
@@ -43,6 +43,7 @@ def check_plugin(
     manifest_key: Path | None = None,
     verify_manifest: bool = False,
     strict_inference: bool = False,
+    include_graph: bool = False,
 ) -> dict[str, Any]:
     """Return a validation report for one filesystem plugin directory."""
     original_plugin = plugin_dir
@@ -75,6 +76,7 @@ def check_plugin(
                 manifest_key=manifest_key,
                 verify_manifest=verify_manifest,
                 strict_inference=strict_inference,
+                include_graph=include_graph,
                 report=report,
             )
             materialized_report["plugin"] = str(original_plugin)
@@ -86,19 +88,22 @@ def check_plugin(
         return report
 
 
-def check_bundled_plugins(*, strict_inference: bool = False) -> dict[str, Any]:
+def check_bundled_plugins(*, strict_inference: bool = False, include_graph: bool = False) -> dict[str, Any]:
     """Return validation results for every bundled plugin config entry."""
     reports = [
         check_bundled_plugin(entry, strict_inference=strict_inference)
         for entry in parse_package_plugin_config("bywaf.plugins", "plugins.toml")
     ]
-    return {
+    report: dict[str, Any] = {
         "ok": all(report["ok"] for report in reports),
         "plugin": "bywaf.plugins",
         "checked": len(reports),
         "plugins": reports,
         "errors": [f"{report['entry']}: {error}" for report in reports for error in report.get("errors", [])],
     }
+    if include_graph:
+        report["relationship_graph"] = build_package_manifest_graph("bywaf.plugins", "plugins.toml").to_dict()
+    return report
 
 
 def check_bundled_plugin(entry: str, *, strict_inference: bool = False) -> dict[str, Any]:
@@ -173,6 +178,7 @@ def check_materialized_plugin(
     manifest_key: Path | None,
     verify_manifest: bool,
     strict_inference: bool,
+    include_graph: bool,
     report: dict[str, Any],
 ) -> dict[str, Any]:
     """Validate an already-unpacked filesystem plugin directory."""
@@ -190,6 +196,11 @@ def check_materialized_plugin(
         register_event_schemas(pre_import_manifest.event_schemas)
         report["plugin_version"] = pre_import_manifest.version
         report["requires_bywaf"] = pre_import_manifest.requires_bywaf
+        if include_graph:
+            report["relationship_graph"] = filesystem_plugin_relationship_report(
+                plugin_dir.name,
+                pre_import_manifest,
+            )
         if not satisfies_bywaf_requirement(BYWAF_VERSION, pre_import_manifest.requires_bywaf):
             report["errors"].append(
                 f"requires Bywaf {pre_import_manifest.requires_bywaf}, current Bywaf is {BYWAF_VERSION}"
@@ -237,6 +248,36 @@ def check_materialized_plugin(
     finalize_inference_report(report, declared_capabilities, declared_emits, strict_inference=strict_inference)
     report["ok"] = not report["errors"]
     return report
+
+
+def filesystem_plugin_relationship_report(provider: str, manifest: PluginManifest) -> dict[str, object]:
+    """Return relationship context for one filesystem plugin plus bundled manifests."""
+    graph = build_manifest_graph({**bundled_manifest_map(), f"filesystem:{provider}": manifest})
+    return relationship_report_for_provider(
+        graph,
+        f"filesystem:{provider}",
+        registered_schemas=registered_topics_for_graph(graph),
+    )
+
+
+def bundled_manifest_map() -> dict[str, PluginManifest]:
+    """Return bundled manifests keyed by provider without importing plugin code."""
+    manifests = {}
+    for entry in parse_package_plugin_config("bywaf.plugins", "plugins.toml"):
+        manifest = load_package_manifest("bywaf.plugins", entry)
+        if manifest is not None:
+            manifests[entry] = manifest
+    return manifests
+
+
+def registered_topics_for_graph(graph: Any) -> tuple[str, ...]:
+    """Return graph topics with framework/runtime registered schemas."""
+    topics = {
+        topic
+        for node in graph.nodes.values()
+        for topic in (*node.schemas, *node.consumes, *node.emits)
+    }
+    return tuple(sorted(topic for topic in topics if event_schema(topic) is not None))
 
 
 def finalize_inference_report(
@@ -318,6 +359,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--json", action="store_true", help="emit a machine-readable validation report")
     parser.add_argument("--llm-feedback", action="store_true", help="emit concise feedback suitable for pasting into an LLM chat")
+    parser.add_argument("--graph", action="store_true", help="include manifest relationship graph context")
     return parser
 
 
@@ -325,7 +367,7 @@ def main(argv: list[str] | None = None) -> int:
     """Run plugin package validation."""
     args = build_parser().parse_args(argv)
     if args.all:
-        report = check_bundled_plugins(strict_inference=args.strict_inference)
+        report = check_bundled_plugins(strict_inference=args.strict_inference, include_graph=args.graph)
     elif args.plugin is None:
         raise SystemExit("plugin path is required unless --all is used")
     elif args.temp_checkout and not args.no_temp_checkout:
@@ -335,6 +377,7 @@ def main(argv: list[str] | None = None) -> int:
             manifest_key=args.manifest_key,
             verify_manifest=args.verify,
             strict_inference=args.strict_inference,
+            include_graph=args.graph,
         )
     else:
         report = check_plugin(
@@ -342,6 +385,7 @@ def main(argv: list[str] | None = None) -> int:
             manifest_key=args.manifest_key,
             verify_manifest=args.verify,
             strict_inference=args.strict_inference,
+            include_graph=args.graph,
         )
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))

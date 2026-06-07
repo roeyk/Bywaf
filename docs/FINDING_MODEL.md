@@ -156,6 +156,9 @@ Starter examples:
 | `web.auth.basic_over_cleartext` | `CWE-319`, OWASP `A02:2021` |
 | `web.auth.admin_challenge_observed` | OWASP `A01:2021` |
 | `web.auth.basic_missing_realm` | `CWE-16`, OWASP `A05:2021` |
+| `web.cors.arbitrary_origin_reflected` | `CWE-942`, OWASP `A05:2021` |
+| `web.cors.arbitrary_origin_with_credentials` | `CWE-942`, OWASP `A05:2021` |
+| `web.cors.wildcard_with_credentials` | `CWE-942`, OWASP `A05:2021` |
 | `web.method.trace_enabled` | `CWE-16`, OWASP `A05:2021` |
 | `web.method.write_methods_enabled` | `CWE-650`, OWASP `A01:2021` |
 | `web.exposure.git_config` | `CWE-538`, OWASP `A05:2021` |
@@ -302,6 +305,8 @@ attributes, implementation-revealing `Server` headers, and HTTPS-to-HTTP
 redirects.
 `http_methods` promotes enabled TRACE and write-capable HTTP methods from
 OPTIONS response metadata.
+`http_cors` promotes arbitrary Origin reflection and credentialed wildcard or
+reflected CORS posture from bounded preflight-style response metadata.
 `git_expose_check` promotes exposed `.git/config` repository metadata, and
 `technology_indicators` promotes selected passive version/fingerprint evidence
 into suspected vulnerable-version candidates for a small curated catalog that
