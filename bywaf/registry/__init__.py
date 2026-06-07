@@ -21,6 +21,13 @@ from .config import (
     provider_name,
 )
 from .core import PluginRegistry
+from .graph import (
+    ManifestGraphNode,
+    ManifestRelationship,
+    ManifestRelationshipGraph,
+    build_manifest_graph,
+    build_package_manifest_graph,
+)
 from .loading import (
     load_module_path,
     load_plugin,
@@ -74,6 +81,9 @@ from .trust import (
 # stay free to move as the registry implementation is refined.
 __all__ = [
     "MANIFEST_SIGNATURE_SCHEMA",
+    "ManifestGraphNode",
+    "ManifestRelationship",
+    "ManifestRelationshipGraph",
     "PluginManifest",
     "PluginManifestTrust",
     "PluginRegistry",
@@ -81,6 +91,8 @@ __all__ = [
     "PluginTrustPolicy",
     "VerifiedPluginCatalog",
     "bool_field",
+    "build_manifest_graph",
+    "build_package_manifest_graph",
     "canonical_catalog_bytes",
     "canonical_manifest_bytes",
     "cryptography_primitives",

@@ -178,6 +178,13 @@ should normally declare `consumes = ["http.endpoint"]`; that does not require
 loading `http.http_probe`, because equivalent events may already exist in the
 database or may be produced by another compatible plugin.
 
+Bywaf can already build a read-only manifest relationship graph before plugin
+import. That graph indexes commandlets, plugin-owned schemas, consumed topics,
+emitted topics, capabilities, database topic access, triggers, provider
+variables, secrets, traits, roles, and `requires_bywaf`. It is an inspection
+and recommendation surface today; hard dependency resolution will be added only
+after explicit dependency fields are supported.
+
 Reserve exact plugin dependencies for non-schema provider coupling, such as a
 specific commandlet, artifact producer, service, listener, exporter, provider
 variable/default, normalization behavior, or external tool wrapper. See
