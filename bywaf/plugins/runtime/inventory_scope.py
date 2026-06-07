@@ -122,33 +122,30 @@ def events_for_job_scope(context: CommandContext, topics: tuple[str, ...], job: 
         return latest_inventory_scope_events(context, topics)
     events = context.event_store("inventory")
     row = require_job(context, job)
-    return [event for event in events.events_for_job(row["id"], limit=10000) if event.topic in topics]
+    return events.events_for_job_topics(row["id"], topics, limit=10000)
 
 
 def events_for_pipeline_scope(context: CommandContext, topics: tuple[str, ...], pipeline: str) -> list[Event]:
     """Return inventory events from one pipeline scope."""
-    events = context.event_store("inventory")
     runtime = context.runtime_store("inventory")
     pipeline_id = runtime.resolve_pipeline_serial(pipeline)
-    return [event for event in events.events_matching(pipeline_id=pipeline_id, limit=10000) if event.topic in topics]
+    return events_matching_topics(context, topics, pipeline=pipeline_id, limit=10000)
 
 
 def events_for_step_scope(context: CommandContext, topics: tuple[str, ...], step: str) -> list[Event]:
     """Return inventory events from one command-run scope."""
-    events = context.event_store("inventory")
     runtime = context.runtime_store("inventory")
     run_id = runtime.resolve_run_serial(step)
-    return [event for event in events.events_matching(command_run_id=run_id, limit=10000) if event.topic in topics]
+    return events_matching_topics(context, topics, step=run_id, limit=10000)
 
 
 def latest_inventory_scope_events(context: CommandContext, topics: tuple[str, ...]) -> list[Event]:
     """Return events from the newest productive step for these inventory topics."""
-    events = context.event_store("inventory latest")
     for event in reversed(events_matching_topics(context, topics, limit=10000)):
         if event.command_run_id:
-            return [row for row in events.events_matching(command_run_id=event.command_run_id, limit=10000) if row.topic in topics]
+            return events_matching_topics(context, topics, step=event.command_run_id, limit=10000)
         if event.pipeline_id:
-            return [row for row in events.events_matching(pipeline_id=event.pipeline_id, limit=10000) if row.topic in topics]
+            return events_matching_topics(context, topics, pipeline=event.pipeline_id, limit=10000)
     return []
 
 
@@ -178,12 +175,19 @@ def events_new_to_scope(
     return result
 
 
-def events_matching_topics(context: CommandContext, topics: tuple[str, ...], *, limit: int) -> list[Event]:
+def events_matching_topics(
+    context: CommandContext,
+    topics: tuple[str, ...],
+    *,
+    step: str | None = None,
+    pipeline: str | None = None,
+    limit: int,
+) -> list[Event]:
     """Return events for multiple topics in event order."""
     store = context.event_store("inventory topics")
     rows: list[Event] = []
     for topic in topics:
-        rows.extend(store.events_matching(topic=topic, limit=limit))
+        rows.extend(store.events_matching(topic=topic, command_run_id=step, pipeline_id=pipeline, limit=limit))
     return sorted(rows, key=lambda event: event.id or 0)
 
 

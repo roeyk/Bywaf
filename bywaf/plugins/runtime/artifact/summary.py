@@ -34,8 +34,8 @@ def artifact_events_for_pipeline(context: CommandContext, pipeline_id: str) -> l
 
 def artifact_events_for_job(context: CommandContext, job_id: int | str) -> list[Event]:
     """Return artifact attachment events for one job."""
-    events = context.event_store("artifact summary").events_for_job(int(job_id), limit=10000)
-    return unique_artifact_events(event for event in events if event.topic == "artifact.attached")
+    events = context.event_store("artifact summary").events_for_job_topic(int(job_id), "artifact.attached", limit=10000)
+    return unique_artifact_events(events)
 
 
 def unique_artifact_events(events: Iterable[Event]) -> list[Event]:
@@ -93,4 +93,3 @@ def render_artifact_summary(
     label = styled_subject_text(style_getter, "report.label", "inspect artifacts with")
     lines.append(f"{label}: {command}")
     return "\n".join(lines)
-

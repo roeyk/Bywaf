@@ -99,9 +99,15 @@ def follow_events(runner: Runner, query: EventFollowQuery) -> None:
     try:
         while True:
             if job_id is not None:
-                events = runner.events.events_for_job(job_id, after_id=after_id, limit=max(query.limit * 20, 100))
                 if query.topic is not None:
-                    events = [event for event in events if event.topic == query.topic]
+                    events = runner.events.events_for_job_topic(
+                        job_id,
+                        query.topic,
+                        after_id=after_id,
+                        limit=max(query.limit * 20, 100),
+                    )
+                else:
+                    events = runner.events.events_for_job(job_id, after_id=after_id, limit=max(query.limit * 20, 100))
             else:
                 events = runner.events.events_after(
                     after_id,

@@ -111,16 +111,7 @@ def events_for_jobs_by_topics(
             if resolved is None:
                 raise ValueError(f"unknown job: {job_id}") from None
             numeric_id = int(resolved)
-        job_events = event_store.events_for_job(numeric_id, limit=limit)
-        for event in job_events:
-            if event.topic in topics:
-                events.append(event)
-        pipelines = {event.pipeline_id for event in job_events if event.pipeline_id}
-        runs = {event.command_run_id for event in job_events if event.command_run_id}
-        for pipeline_id in pipelines:
-            events.extend(events_for_topics(context, topics, pipeline=pipeline_id, limit=limit))
-        for run_id in runs:
-            events.extend(events_for_topics(context, topics, step=run_id, limit=limit))
+        events.extend(event_store.events_for_job_topics(numeric_id, topics, limit=limit))
     return sort_unique_events(events)
 
 

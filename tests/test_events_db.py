@@ -111,6 +111,41 @@ class EventDbTests(unittest.TestCase):
             self.assertEqual(db.job_id_for_serial(short_serial), str(job_id))
             self.assertEqual(db.events_for_serial(short_serial)[0].payload["job_id"], job_id)
 
+    def test_events_for_job_topic_matches_scoped_and_payload_job_events(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "events.sqlite3"))
+            job_id = db.record_job("network/portscanner", 123, "finished")
+            other_job_id = db.record_job("network/portscanner", 456, "finished")
+            db.record_command_run_vars(
+                job_id=job_id,
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+                commandlet="network/portscanner",
+                values={"marker": "target"},
+            )
+            db.record_command_run_vars(
+                job_id=other_job_id,
+                pipeline_id="pipeline-b",
+                command_run_id="run-b",
+                commandlet="network/portscanner",
+                values={"marker": "other"},
+            )
+            db.publish("artifact.attached", {"artifact_id": "scoped"}, "framework", pipeline_id="pipeline-a", command_run_id="run-a")
+            db.publish("artifact.attached", {"artifact_id": "payload", "job_id": job_id}, "framework")
+            db.publish("artifact.attached", {"artifact_id": "other"}, "framework", pipeline_id="pipeline-b", command_run_id="run-b")
+            db.publish("host.found", {"host": "192.0.2.10"}, "framework", pipeline_id="pipeline-a", command_run_id="run-a")
+
+            events = db.events_for_job_topics(job_id, ("artifact.attached", "host.found"))
+
+            self.assertEqual(
+                [(event.topic, event.payload.get("artifact_id") or event.payload.get("host")) for event in events],
+                [
+                    ("artifact.attached", "scoped"),
+                    ("artifact.attached", "payload"),
+                    ("host.found", "192.0.2.10"),
+                ],
+            )
+
     def test_new_serial_uses_crockford_base32(self):
         serial = new_serial("job")
         prefix, body = serial.split("-", 1)

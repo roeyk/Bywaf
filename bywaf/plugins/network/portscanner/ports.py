@@ -174,7 +174,7 @@ def select_port_scope_events(context: CommandContext, selectors: Namespace) -> l
             latest = latest_portscanner_scope(context)
             return latest.events if latest is not None else []
         row = require_job(context, scope["job"])
-        return [event for event in events.events_for_job(row["id"], limit=10000) if event.topic == "port.open"]
+        return events.events_for_job_topic(row["id"], "port.open", limit=10000)
     if "pipeline" in scope:
         pipeline_id = runtime.resolve_pipeline_serial(scope["pipeline"])
         return events.events_matching(topic="port.open", pipeline_id=pipeline_id, limit=10000)

@@ -335,8 +335,11 @@ def format_job(
 
 def latest_job_args(context: CommandContext, job_id: int | str) -> list[str]:
     """Return the newest recorded commandlet arguments for a job, if present."""
-    events = context.event_store("job show arguments").events_for_job(int(job_id), limit=10000)
-    argument_events = [event for event in events if event.topic == "command.run.arguments"]
+    argument_events = context.event_store("job show arguments").events_for_job_topic(
+        int(job_id),
+        "command.run.arguments",
+        limit=10000,
+    )
     if not argument_events:
         return []
     payload_args = max(argument_events, key=lambda event: event.id or 0).payload.get("args")

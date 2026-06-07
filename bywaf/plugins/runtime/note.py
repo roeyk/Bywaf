@@ -167,7 +167,7 @@ def select_note_events(context: CommandContext, selectors: dict[str, str]) -> li
     selectors = resolve_note_selectors(context, selectors)
     if "job" in selectors:
         job_id = int(selectors["job"])
-        return [event for event in events.events_for_job(job_id) if event.topic == "note.attached"]
+        return events.events_for_job_topic(job_id, "note.attached")
     return events.events_matching(
         topic="note.attached",
         command_run_id=selectors.get("step"),

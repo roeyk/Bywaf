@@ -113,6 +113,28 @@ class EventStoreProtocol(Protocol):
         """Return events associated with one local job id."""
         ...
 
+    def events_for_job_topic(
+        self,
+        job_id: int,
+        topic: str,
+        *,
+        after_id: int = 0,
+        limit: int = 1000,
+    ) -> list[Event]:
+        """Return events associated with one local job id and topic."""
+        ...
+
+    def events_for_job_topics(
+        self,
+        job_id: int,
+        topics: tuple[str, ...],
+        *,
+        after_id: int = 0,
+        limit: int = 1000,
+    ) -> list[Event]:
+        """Return events associated with one local job id and topics."""
+        ...
+
     def job_ids_matching_payload_filters(self, filters: dict[str, str], *, limit: int = 100000) -> set[int]:
         """Return job ids with at least one associated event matching filters."""
         ...

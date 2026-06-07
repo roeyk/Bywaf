@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS events (
 );
 CREATE INDEX IF NOT EXISTS idx_events_topic_id ON events(topic, id);
 CREATE INDEX IF NOT EXISTS idx_events_scope ON events(topic, pipeline_id, command_run_id, id);
+CREATE INDEX IF NOT EXISTS idx_events_topic_command_run ON events(topic, command_run_id, id);
+CREATE INDEX IF NOT EXISTS idx_events_topic_pipeline ON events(topic, pipeline_id, id);
 
 CREATE TABLE IF NOT EXISTS jobs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -60,6 +62,8 @@ CREATE TABLE IF NOT EXISTS command_run_vars (
     UNIQUE(command_run_id, name)
 );
 CREATE INDEX IF NOT EXISTS idx_command_run_vars_run ON command_run_vars(command_run_id, name);
+CREATE INDEX IF NOT EXISTS idx_command_run_vars_job_run ON command_run_vars(job_id, command_run_id);
+CREATE INDEX IF NOT EXISTS idx_command_run_vars_job_pipeline ON command_run_vars(job_id, pipeline_id);
 
 CREATE TABLE IF NOT EXISTS runtime_entities (
     entity_type TEXT NOT NULL,
@@ -137,6 +141,10 @@ def ensure_event_columns(conn: sqlite3.Connection | Any) -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_command_run_vars_run
             ON command_run_vars(command_run_id, name);
+            CREATE INDEX IF NOT EXISTS idx_command_run_vars_job_run
+            ON command_run_vars(job_id, command_run_id);
+            CREATE INDEX IF NOT EXISTS idx_command_run_vars_job_pipeline
+            ON command_run_vars(job_id, pipeline_id);
             """
         )
     if "runtime_entities" not in tables:

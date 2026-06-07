@@ -283,6 +283,60 @@ class EventStoreEventMixin:
             )
             return [Event.from_row(row) for row in rows]
 
+    def events_for_job_topic(
+        self,
+        job_id: int,
+        topic: str,
+        *,
+        after_id: int = 0,
+        limit: int = 1000,
+    ) -> list[Event]:
+        """Return events for one job narrowed to one topic.
+
+        Detail views often need only one operational topic, such as artifact
+        attachments or recorded command arguments.  Keep those paths indexed and
+        avoid broad job-timeline joins on larger project databases.
+        """
+        return self.events_for_job_topics(job_id, (topic,), after_id=after_id, limit=limit)
+
+    def events_for_job_topics(
+        self,
+        job_id: int,
+        topics: tuple[str, ...],
+        *,
+        after_id: int = 0,
+        limit: int = 1000,
+    ) -> list[Event]:
+        """Return events for one job narrowed to a set of topics."""
+        if not topics:
+            return []
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT DISTINCT events.*
+                FROM events
+                WHERE events.id > ?
+                  AND events.topic IN (SELECT value FROM json_each(?))
+                  AND (
+                    events.command_run_id IN (
+                      SELECT command_run_id
+                      FROM command_run_vars
+                      WHERE job_id = ?
+                    )
+                    OR events.pipeline_id IN (
+                      SELECT pipeline_id
+                      FROM command_run_vars
+                      WHERE job_id = ?
+                    )
+                    OR json_extract(events.payload_json, '$.job_id') = ?
+                  )
+                ORDER BY events.id ASC
+                LIMIT ?
+                """,
+                (after_id, json.dumps(topics), job_id, job_id, job_id, limit),
+            )
+            return [Event.from_row(row) for row in rows]
+
     def job_ids_matching_payload_filters(self, filters: dict[str, str], *, limit: int = 100000) -> set[int]:
         """Return job ids whose associated events match payload filters.
 
