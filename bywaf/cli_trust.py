@@ -55,66 +55,112 @@ def load_filesystem_registry(
     varstore: VarStore,
 ) -> PluginRegistry:
     """Load filesystem plugins and audit catalog trust decisions."""
-    catalog = None
-    if plugin_catalog is not None:
-        try:
-            # Catalog verification happens before loading individual plugin
-            # modules so trust decisions do not execute plugin code first.
-            catalog = load_verified_plugin_catalog(
-                plugin_catalog,
-                plugin_catalog_key,
-                trust_policy=plugin_trust_policy,
-            )
-        except PluginTrustError as exc:
-            db.publish(
-                "plugin.catalog.rejected",
-                plugin_catalog_payload(plugin_catalog, plugin_catalog_key, reason=str(exc)),
-                "framework",
-            )
-            raise
-        db.publish(
-            "plugin.catalog.verified",
-            plugin_catalog_payload(
-                plugin_catalog,
-                plugin_catalog_key,
-                verified_signature=catalog.verified_signature,
-                entries=len(catalog.plugins),
-            ),
-            "framework",
-        )
+    catalog = load_catalog_with_audit(db, plugin_catalog, plugin_catalog_key, plugin_trust_policy)
     registry = PluginRegistry({}, varstore)
     policy = PluginTrustPolicy.developer_bypass() if forced_plugins else plugin_trust_policy
     requested_entries = parse_plugin_config(plugin_config)
-    entries = requested_entries
-    entries, filesystem_manifests = filesystem_manifest_dependency_closure(plugin_root, entries)
+    entries, filesystem_manifests = filesystem_manifest_dependency_closure(plugin_root, requested_entries)
+    audit_auto_loaded_dependencies(db, plugin_root, requested_entries, entries)
+    verify_catalog_entries_with_audit(db, plugin_root, entries, catalog)
+    registry.manifests.update(filesystem_manifests)
+    load_entries_with_manifest_audit(db, registry, plugin_root, entries, policy, catalog, plugin_manifest_key)
+    return registry
+
+
+def load_catalog_with_audit(
+    db: EventStore,
+    plugin_catalog: Path | None,
+    plugin_catalog_key: Path | None,
+    plugin_trust_policy: PluginTrustPolicy | None,
+):
+    """Load a signed plugin catalog and publish catalog-level audit events."""
+    if plugin_catalog is None:
+        return None
+    try:
+        # Catalog verification happens before loading individual plugin modules
+        # so trust decisions do not execute plugin code first.
+        catalog = load_verified_plugin_catalog(
+            plugin_catalog,
+            plugin_catalog_key,
+            trust_policy=plugin_trust_policy,
+        )
+    except PluginTrustError as exc:
+        db.publish(
+            "plugin.catalog.rejected",
+            plugin_catalog_payload(plugin_catalog, plugin_catalog_key, reason=str(exc)),
+            "framework",
+        )
+        raise
+    db.publish(
+        "plugin.catalog.verified",
+        plugin_catalog_payload(
+            plugin_catalog,
+            plugin_catalog_key,
+            verified_signature=catalog.verified_signature,
+            entries=len(catalog.plugins),
+        ),
+        "framework",
+    )
+    return catalog
+
+
+def audit_auto_loaded_dependencies(
+    db: EventStore,
+    plugin_root: Path,
+    requested_entries: list[str],
+    entries: list[str],
+) -> None:
+    """Publish audit events for dependency providers added to the load set."""
     requested_providers = {entry.replace(".", "/") for entry in requested_entries}
     for entry in entries:
         provider = entry.replace(".", "/")
-        if provider not in requested_providers:
-            db.publish(
-                "plugin.dependency.auto_loaded",
-                {"plugin": provider, "reason": "requires_plugins", "plugin_root": str(plugin_root)},
-                "framework",
-            )
+        if provider in requested_providers:
+            continue
+        db.publish(
+            "plugin.dependency.auto_loaded",
+            {"plugin": provider, "reason": "requires_plugins", "plugin_root": str(plugin_root)},
+            "framework",
+        )
+
+
+def verify_catalog_entries_with_audit(
+    db: EventStore,
+    plugin_root: Path,
+    entries: list[str],
+    catalog,
+) -> None:
+    """Verify configured catalog entries and publish per-entry audit events."""
+    if catalog is None:
+        return
     for entry in entries:
         plugin_dir = plugin_root / entry
-        if catalog is not None:
-            # A signed catalog binds entry name to plugin directory contents.
-            # Manual path overrides are intentionally outside this path.
-            if catalog.verifies_entry(plugin_dir, entry):
-                db.publish(
-                    "plugin.catalog.entry.verified",
-                    plugin_catalog_entry_payload(catalog.path, plugin_dir, entry),
-                    "framework",
-                )
-            else:
-                db.publish(
-                    "plugin.catalog.entry.rejected",
-                    plugin_catalog_entry_payload(catalog.path, plugin_dir, entry, reason="catalog entry missing or hash mismatch"),
-                    "framework",
-                )
-                raise PluginTrustError(f"warning: refusing external plugin {plugin_dir}; catalog entry missing or hash mismatch")
-    registry.manifests.update(filesystem_manifests)
+        # A signed catalog binds entry name to plugin directory contents.
+        # Manual path overrides are intentionally outside this path.
+        if catalog.verifies_entry(plugin_dir, entry):
+            db.publish(
+                "plugin.catalog.entry.verified",
+                plugin_catalog_entry_payload(catalog.path, plugin_dir, entry),
+                "framework",
+            )
+            continue
+        db.publish(
+            "plugin.catalog.entry.rejected",
+            plugin_catalog_entry_payload(catalog.path, plugin_dir, entry, reason="catalog entry missing or hash mismatch"),
+            "framework",
+        )
+        raise PluginTrustError(f"warning: refusing external plugin {plugin_dir}; catalog entry missing or hash mismatch")
+
+
+def load_entries_with_manifest_audit(
+    db: EventStore,
+    registry: PluginRegistry,
+    plugin_root: Path,
+    entries: list[str],
+    policy: PluginTrustPolicy | None,
+    catalog,
+    plugin_manifest_key: Path | None,
+) -> None:
+    """Load filesystem entries and publish manifest-level audit events."""
     for entry in entries:
         plugin_dir = plugin_root / entry
         catalog_entry_verified = catalog is not None and catalog.verifies_entry(plugin_dir, entry)
@@ -130,13 +176,23 @@ def load_filesystem_registry(
                     "framework",
                 )
             raise
-        if plugin_manifest_key is not None and not catalog_entry_verified and not (policy and policy.allow_unsigned_plugin_manifests):
+        if should_audit_manifest_verified(plugin_manifest_key, catalog_entry_verified, policy):
             db.publish(
                 "plugin.manifest.verified",
                 plugin_manifest_payload(plugin_dir / "bywaf.plugin.toml", plugin_manifest_key, entry),
                 "framework",
             )
-    return registry
+
+
+def should_audit_manifest_verified(
+    plugin_manifest_key: Path | None,
+    catalog_entry_verified: bool,
+    policy: PluginTrustPolicy | None,
+) -> bool:
+    """Return whether a manifest verification success audit event is needed."""
+    if plugin_manifest_key is None or catalog_entry_verified:
+        return False
+    return not (policy and policy.allow_unsigned_plugin_manifests)
 
 
 def merge_filesystem_registry(registry: PluginRegistry, filesystem: PluginRegistry) -> None:
