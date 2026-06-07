@@ -197,7 +197,7 @@ def dependency_errors(
     for dependency in manifest.requires_plugins:
         if dependency == provider:
             errors.append(f"requires_plugins self-dependency: {dependency}")
-        elif dependency not in graph.nodes:
+        elif not provider_in_graph(graph, dependency):
             errors.append(f"missing required plugin: {dependency}")
     for topic in manifest.requires_schemas:
         providers = graph.providers_for_schema(topic)
@@ -208,6 +208,11 @@ def dependency_errors(
         elif len(providers) > 1:
             errors.append(f"ambiguous required schema {topic}: providers {', '.join(providers)}")
     return errors
+
+
+def provider_in_graph(graph: ManifestRelationshipGraph, provider: str) -> bool:
+    """Return whether a provider exists, accepting dotted or slash notation."""
+    return provider in graph.nodes or provider.replace("/", ".") in graph.nodes or provider.replace(".", "/") in graph.nodes
 
 
 def validate_manifest_dependencies(

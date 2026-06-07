@@ -20,7 +20,7 @@ from .config import (
     parse_plugin_config,
     provider_name,
 )
-from .core import PluginRegistry
+from .core import PluginRegistry, filesystem_manifest_dependency_closure
 from .graph import (
     ManifestGraphNode,
     ManifestRelationship,
@@ -29,6 +29,7 @@ from .graph import (
     build_package_manifest_graph,
     bundled_manifest_map,
     dependency_errors,
+    provider_in_graph,
     registered_topics_for_graph,
     relationship_report_for_provider,
     validate_manifest_dependencies,
@@ -109,6 +110,7 @@ __all__ = [
     "enforce_plugin_manifest_signature",
     "enforce_trigger_manifest",
     "first_existing",
+    "filesystem_manifest_dependency_closure",
     "list_field",
     "load_defaults_file",
     "load_filesystem_plugin_package",
@@ -133,6 +135,7 @@ __all__ = [
     "parse_trigger_rows",
     "plugin_manifest_digest",
     "plugin_manifest_signature_block",
+    "provider_in_graph",
     "registered_topics_for_graph",
     "relationship_report_for_provider",
     "provider_name",

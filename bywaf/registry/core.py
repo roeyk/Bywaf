@@ -27,7 +27,7 @@ from .config import (
     parse_plugin_config,
     provider_name,
 )
-from .graph import build_manifest_graph, bundled_manifest_map, validate_manifest_dependencies
+from .graph import build_manifest_graph, bundled_manifest_map, provider_in_graph, validate_manifest_dependencies
 from .loading import load_plugins, load_trigger_specs
 from .manifest import (
     PluginManifest,
@@ -102,15 +102,9 @@ class PluginRegistry:
     ) -> "PluginRegistry":
         """Load plugins from an explicit filesystem config file."""
         registry = cls({}, varstore or VarStore())
-        policy = PluginTrustPolicy.developer_bypass() if forced else trust_policy
         entries = parse_plugin_config(Path(config_file))
         plugin_root = Path(plugin_root)
-        filesystem_manifests = registry.parse_filesystem_manifest_set(
-            plugin_root,
-            entries,
-            policy=policy,
-            catalog=catalog,
-        )
+        entries, filesystem_manifests = filesystem_manifest_dependency_closure(plugin_root, entries)
         graph = build_manifest_graph({**bundled_manifest_map(), **filesystem_manifests})
         validate_manifest_dependencies(
             filesystem_manifests,
@@ -121,7 +115,7 @@ class PluginRegistry:
             registry.load_filesystem_entry(
                 plugin_root,
                 entry,
-                trust_policy=policy,
+                trust_policy=PluginTrustPolicy.developer_bypass() if forced else trust_policy,
                 catalog=catalog,
             )
         return registry
@@ -384,3 +378,84 @@ class PluginRegistry:
         if provider is None:
             return trigger.name
         return f"{provider}.{trigger.name}"
+
+
+def filesystem_manifest_dependency_closure(
+    plugin_root: Path,
+    entries: list[str],
+    *,
+    base_manifests: dict[str, PluginManifest] | None = None,
+) -> tuple[list[str], dict[str, PluginManifest]]:
+    """Return configured filesystem entries plus available local dependencies.
+
+    The closure phase reads only `bywaf.plugin.toml` metadata. It does not
+    import plugin Python. Missing dependencies are left to dependency validation
+    so callers receive the same hard-error diagnostics as plugin_check.
+    """
+    base_manifests = base_manifests or bundled_manifest_map()
+    base_graph = build_manifest_graph(base_manifests)
+    queue = list(entries)
+    manifests: dict[str, PluginManifest] = {}
+    provider_entries: dict[str, str] = {}
+    while queue:
+        entry = queue.pop(0)
+        provider = normalize_catalog_path(entry)
+        if provider in manifests:
+            continue
+        manifest_path = plugin_root / provider / "bywaf.plugin.toml"
+        if not manifest_path.exists():
+            manifest_path = plugin_root / entry / "bywaf.plugin.toml"
+        provider_entries[provider] = provider
+        if not manifest_path.exists():
+            continue
+        manifest = parse_plugin_manifest(manifest_path)
+        manifests[provider] = manifest
+        queued_providers = {normalize_catalog_path(item) for item in queue}
+        for dependency in manifest.requires_plugins:
+            dependency_provider = normalize_catalog_path(dependency)
+            if dependency_provider in manifests or dependency_provider in queued_providers:
+                continue
+            if provider_in_graph(base_graph, dependency_provider):
+                continue
+            dependency_manifest = plugin_root / dependency_provider / "bywaf.plugin.toml"
+            if dependency_manifest.exists():
+                queue.append(dependency_provider)
+    graph = build_manifest_graph({**base_manifests, **manifests})
+    validate_manifest_dependencies(manifests, graph=graph, providers=manifests)
+    return topological_filesystem_entries(entries, manifests, provider_entries), manifests
+
+
+def topological_filesystem_entries(
+    requested_entries: list[str],
+    manifests: dict[str, PluginManifest],
+    provider_entries: dict[str, str],
+) -> list[str]:
+    """Order filesystem entries so required plugins load before dependents."""
+    ordered: list[str] = []
+    visited: set[str] = set()
+    visiting: set[str] = set()
+
+    def visit(provider: str) -> None:
+        if provider in visited:
+            return
+        if provider in visiting:
+            raise ValueError(f"requires_plugins cycle includes: {provider}")
+        visiting.add(provider)
+        manifest = manifests[provider]
+        for dependency in manifest.requires_plugins:
+            dependency_provider = normalize_catalog_path(dependency)
+            if dependency_provider in manifests:
+                visit(dependency_provider)
+        visiting.remove(provider)
+        visited.add(provider)
+        ordered.append(provider_entries[provider])
+
+    for entry in requested_entries:
+        provider = normalize_catalog_path(entry)
+        if provider in manifests:
+            visit(provider)
+        elif provider in provider_entries:
+            ordered.append(provider_entries[provider])
+    for provider in sorted(manifests):
+        visit(provider)
+    return ordered

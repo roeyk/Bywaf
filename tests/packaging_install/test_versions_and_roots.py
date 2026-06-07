@@ -84,6 +84,31 @@ class PackagingInstallVersionAndRootTests(unittest.TestCase):
             self.assertIn("consumer", runner.registry.names())
             self.assertIn("provider", runner.registry.names())
 
+    def test_filesystem_config_auto_loads_available_declared_plugin_dependencies(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp, "home", "alice", ".bywaf", "plugins")
+            write_plugin(root, "local/provider", "provider", "provider")
+            consumer = write_plugin(root, "local/consumer", "consumer", "consumer")
+            consumer_manifest = consumer / "bywaf.plugin.toml"
+            consumer_manifest.write_text(
+                consumer_manifest.read_text(encoding="utf-8").replace(
+                    'version = "0.1.0"\n',
+                    'version = "0.1.0"\nrequires_plugins = ["local/provider"]\n',
+                ),
+                encoding="utf-8",
+            )
+            config = root / "plugins.toml"
+            config.write_text('default_plugins = ["local/consumer"]\n')
+            db_path = Path(tmp, "db.sqlite3")
+
+            runner = make_runner(db_path, plugin_root=root, plugin_config=config, forced_plugins=True)
+
+            self.assertIn("consumer", runner.registry.names())
+            self.assertIn("provider", runner.registry.names())
+            self.assertEqual(runner.registry.provider_commandlet_names("local/provider"), ["provider"])
+            events = EventStore(db_path).events_for_topic("plugin.dependency.auto_loaded")
+            self.assertEqual(events[-1].payload["plugin"], "local/provider")
+
     def test_filesystem_config_rejects_missing_declared_plugin_dependency_before_import(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "home", "alice", ".bywaf", "plugins")

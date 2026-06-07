@@ -18,12 +18,9 @@ from .registry import (
     PluginRegistry,
     PluginTrustError,
     PluginTrustPolicy,
-    build_manifest_graph,
-    bundled_manifest_map,
+    filesystem_manifest_dependency_closure,
     load_verified_plugin_catalog,
-    parse_plugin_manifest,
     parse_plugin_config,
-    validate_manifest_dependencies,
 )
 from .triggers import trigger_action_name
 from .varstore import VarStore
@@ -87,7 +84,18 @@ def load_filesystem_registry(
         )
     registry = PluginRegistry({}, varstore)
     policy = PluginTrustPolicy.developer_bypass() if forced_plugins else plugin_trust_policy
-    entries = parse_plugin_config(plugin_config)
+    requested_entries = parse_plugin_config(plugin_config)
+    entries = requested_entries
+    entries, filesystem_manifests = filesystem_manifest_dependency_closure(plugin_root, entries)
+    requested_providers = {entry.replace(".", "/") for entry in requested_entries}
+    for entry in entries:
+        provider = entry.replace(".", "/")
+        if provider not in requested_providers:
+            db.publish(
+                "plugin.dependency.auto_loaded",
+                {"plugin": provider, "reason": "requires_plugins", "plugin_root": str(plugin_root)},
+                "framework",
+            )
     for entry in entries:
         plugin_dir = plugin_root / entry
         if catalog is not None:
@@ -106,16 +114,6 @@ def load_filesystem_registry(
                     "framework",
                 )
                 raise PluginTrustError(f"warning: refusing external plugin {plugin_dir}; catalog entry missing or hash mismatch")
-    filesystem_manifests = {
-        entry.replace(".", "/"): parse_plugin_manifest(plugin_root / entry / "bywaf.plugin.toml")
-        for entry in entries
-    }
-    graph = build_manifest_graph({**bundled_manifest_map(), **filesystem_manifests})
-    validate_manifest_dependencies(
-        filesystem_manifests,
-        graph=graph,
-        providers=filesystem_manifests,
-    )
     registry.manifests.update(filesystem_manifests)
     for entry in entries:
         plugin_dir = plugin_root / entry
@@ -144,10 +142,18 @@ def load_filesystem_registry(
 def merge_filesystem_registry(registry: PluginRegistry, filesystem: PluginRegistry) -> None:
     """Merge loaded filesystem plugin providers and triggers into a registry."""
     registry.plugins.update(filesystem.plugins)
+    registry.aliases.update(filesystem.aliases)
+    registry.primary_aliases.update(filesystem.primary_aliases)
+    registry.provider_defaults.update(filesystem.provider_defaults)
+    registry.commandlet_origins.update(filesystem.commandlet_origins)
+    registry.commandlet_plugin_versions.update(filesystem.commandlet_plugin_versions)
+    registry.commandlet_bywaf_requirements.update(filesystem.commandlet_bywaf_requirements)
     for provider, commandlets in filesystem.providers.items():
         # Providers can expose multiple commandlets; merge by provider path
         # instead of overwriting the bundled registry's provider table.
         registry.providers.setdefault(provider, []).extend(commandlets)
+    for provider_path, commandlets in filesystem.provider_commandlets.items():
+        registry.provider_commandlets.setdefault(provider_path, []).extend(commandlets)
     for trigger in filesystem.triggers:
         provider = filesystem.trigger_provider(trigger) or trigger_action_name(trigger)
         registry.add_triggers(provider, (trigger,))
