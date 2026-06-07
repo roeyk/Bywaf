@@ -65,7 +65,7 @@ def registered_topics_for_graph(graph: Any) -> tuple[str, ...]:
     topics = {
         topic
         for node in graph.nodes.values()
-        for topic in (*node.schemas, *node.consumes, *node.emits)
+        for topic in (*node.schemas, *node.consumes, *node.emits, *node.requires_schemas)
     }
     return tuple(sorted(topic for topic in topics if event_schema(topic) is not None))
 
@@ -96,7 +96,15 @@ def render_graph_report(report: dict[str, Any]) -> str:
 def provider_report_lines(report: dict[str, Any]) -> list[str]:
     """Return text lines for one provider relationship report."""
     lines = [f"provider: {report['provider']}"]
-    for label in ("commandlets", "schemas", "capabilities", "database_reads", "database_writes"):
+    for label in (
+        "commandlets",
+        "requires_schemas",
+        "requires_plugins",
+        "schemas",
+        "capabilities",
+        "database_reads",
+        "database_writes",
+    ):
         values = report.get(label) or ()
         if values:
             lines.append(f"{label.replace('_', ' ')}: {comma_join(values)}")

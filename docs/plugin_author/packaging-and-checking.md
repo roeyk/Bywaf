@@ -230,6 +230,7 @@ runtime patterns disagree. In particular, it checks:
 - manifest/decorator capability synchronization
 - manifest/decorator database action policy synchronization
 - manifest/decorator `consumes` and `emits` metadata when declared
+- plugin-level `requires_schemas` and `requires_plugins` dependency metadata
 - shared event topic declarations for framework-owned and plugin-owned schemas
 - literal shared event payloads when static analysis can read them
 - secret option declarations

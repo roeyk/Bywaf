@@ -65,6 +65,10 @@ impact label and sorted from highest to lowest operator/developer impact:
   maintainers through `plugin_check --graph` and `scripts/plugin_graph.py`,
   showing pre-import schema, topic producer/consumer, capability, and database
   topic relationships without treating topic names as implicit dependencies.
+- [medium] Added accepted manifest dependency metadata
+  `requires_schemas` and `requires_plugins`, plus `plugin_check` diagnostics
+  for missing plugins, missing schemas, and ambiguous plugin-owned schema
+  providers.
 - [medium] Improved compact report inbox rows so grouped findings summarize
   all affected resources represented by the group, instead of only the newest
   representative event.

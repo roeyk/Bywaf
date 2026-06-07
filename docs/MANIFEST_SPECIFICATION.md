@@ -67,6 +67,8 @@ A manifest contains one `[plugin]` table, one or more
 [plugin]
 version = "0.12.2"
 requires_bywaf = ">=0.12.2"
+requires_schemas = ["http.endpoint"]
+requires_plugins = []
 native = true
 library_backed = false
 process_wrapped = false
@@ -148,6 +150,8 @@ The `[plugin]` table describes plugin-level traits.
 | --- | --- | --- | --- |
 | `version` | string | required | Plugin manifest version string. Filesystem plugins must include this field in `[plugin]`; skeletons use the current Bywaf release version as a starter value. |
 | `requires_bywaf` | string | none | Optional version requirement checked before import, such as `>=0.12.2`. Use this when the plugin depends on a minimum Bywaf API version. |
+| `requires_schemas` | list of strings | `[]` | Data contracts that must be registered, such as `http.endpoint`, regardless of which provider plugin owns them. `plugin_check` validates missing or ambiguous required schemas before import. |
+| `requires_plugins` | list of strings | `[]` | Exact plugin dependencies, used only when a plugin depends on provider behavior beyond a schema. `plugin_check` validates missing provider names before import. |
 | `native` | boolean | `true` when neither `library_backed` nor `process_wrapped` is true | In-process Python plugin written against the Bywaf framework API. |
 | `library_backed` | boolean | `false` | Uses third-party Python libraries or non-Bywaf Python packages. |
 | `process_wrapped` | boolean | `false` | Runs an external executable through the framework process API. |
@@ -160,15 +164,11 @@ The `[plugin]` table describes plugin-level traits.
 
 # Dependency Metadata
 
-Current manifests support `requires_bywaf` for framework-version compatibility.
-They do not yet support plugin dependency fields. Because manifests are strict,
-do not add unsupported keys such as `requires_plugins` or `requires_schemas`
-until the registry implements them.
+Current manifests support three plugin-level dependency fields:
 
-The intended future split is:
-
-| Future key | Meaning |
+| Key | Meaning |
 | --- | --- |
+| `requires_bywaf` | Framework-version compatibility, such as `>=0.12.2`. |
 | `requires_schemas` | Data contracts that must be registered, such as `http.endpoint`, regardless of which provider plugin owns them. |
 | `requires_plugins` | Exact plugin dependencies, used only when a plugin depends on provider behavior beyond a schema. |
 
@@ -182,15 +182,18 @@ Bywaf can already build a read-only manifest relationship graph before plugin
 import. That graph indexes commandlets, plugin-owned schemas, consumed topics,
 emitted topics, capabilities, database topic access, triggers, provider
 variables, secrets, traits, roles, and `requires_bywaf`. It is an inspection
-and recommendation surface today; hard dependency resolution will be added only
-after explicit dependency fields are supported.
+and recommendation surface today; `requires_schemas` and `requires_plugins`
+are hard graph edges. Automatic dependency closure and loader ordering remain
+future runtime behavior.
 
 Use `python3 scripts/plugin_check.py path/to/plugin --graph` to include graph
 context in a filesystem plugin validation report. Use
 `python3 scripts/plugin_graph.py --topic <topic>` or
 `python3 scripts/plugin_graph.py --provider <provider>` to inspect bundled
 manifest relationships directly. These commands read manifest metadata and do
-not infer hard dependencies from topic names.
+not infer hard dependencies from topic names. `plugin_check` fails missing
+required plugins, missing required schemas, and ambiguous plugin-owned schema
+providers.
 
 Reserve exact plugin dependencies for non-schema provider coupling, such as a
 specific commandlet, artifact producer, service, listener, exporter, provider

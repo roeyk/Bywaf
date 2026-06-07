@@ -241,13 +241,11 @@ may come from an earlier pipeline step, stored project history, imported
 evidence, a bundled plugin, or a third-party plugin that publishes the same
 schema-backed contract.
 
-When a future manifest dependency system is implemented, use schema
-dependencies for data contracts and plugin dependencies for exact provider
-behavior:
+Use schema dependencies for data contracts and plugin dependencies for exact
+provider behavior:
 
 ```toml
 [plugin]
-# Planned fields; do not add these to strict manifests until supported.
 requires_schemas = ["http.endpoint"]
 requires_plugins = ["http.http_probe"]
 ```
@@ -267,10 +265,10 @@ schema, such as:
   field names;
 - external tool or library management that the other plugin owns.
 
-Dependency resolution should remain manifest-first. Bywaf should be able to
-scan manifests, build a dependency graph, report the dependency closure to the
-operator, and order schema providers before dependents without importing plugin
-Python just to discover metadata.
+Dependency checks are manifest-first. `plugin_check` scans manifests before
+plugin import and reports missing required schemas, ambiguous plugin-owned
+schema providers, and missing required plugins. Runtime auto-loading and
+topological ordering of dependency closures remain future loader behavior.
 
 ## Inspect Registered Schemas
 

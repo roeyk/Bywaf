@@ -157,6 +157,64 @@ class TestManifestBasicsTests(unittest.TestCase):
             self.assertFalse(report["ok"])
             self.assertIn("requires Bywaf >99.0.0", report["errors"][0])
 
+    def test_check_plugin_accepts_explicit_schema_and_plugin_dependencies(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(
+                Path(tmp),
+                capabilities=(),
+                manifest_extra=(
+                    "\n[[event_schemas]]\n"
+                    'topic = "example.event"\n'
+                    'summary = "example event"\n'
+                    "\n[[event_schemas.fields]]\n"
+                    'name = "url"\n'
+                    'type = "str"\n'
+                ),
+            )
+            manifest = plugin_dir.joinpath("bywaf.plugin.toml")
+            manifest.write_text(
+                manifest.read_text().replace(
+                    'version = "0.1.0"\n',
+                    'version = "0.1.0"\nrequires_schemas = ["example.event"]\nrequires_plugins = ["http.http_probe"]\n',
+                )
+            )
+
+            report = check_plugin(plugin_dir)
+
+            self.assertTrue(report["ok"], report["errors"])
+
+    def test_check_plugin_rejects_missing_required_plugin(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(Path(tmp), capabilities=())
+            manifest = plugin_dir.joinpath("bywaf.plugin.toml")
+            manifest.write_text(
+                manifest.read_text().replace(
+                    'version = "0.1.0"\n',
+                    'version = "0.1.0"\nrequires_plugins = ["missing.provider"]\n',
+                )
+            )
+
+            report = check_plugin(plugin_dir)
+
+            self.assertFalse(report["ok"])
+            self.assertIn("missing required plugin: missing.provider", report["errors"])
+
+    def test_check_plugin_rejects_missing_required_schema(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = write_plugin_fixture(Path(tmp), capabilities=())
+            manifest = plugin_dir.joinpath("bywaf.plugin.toml")
+            manifest.write_text(
+                manifest.read_text().replace(
+                    'version = "0.1.0"\n',
+                    'version = "0.1.0"\nrequires_schemas = ["missing.schema"]\n',
+                )
+            )
+
+            report = check_plugin(plugin_dir)
+
+            self.assertFalse(report["ok"])
+            self.assertIn("missing required schema: missing.schema", report["errors"])
+
     def test_check_plugin_accepts_multifile_relative_imports(self):
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_multifile_plugin_fixture(Path(tmp))

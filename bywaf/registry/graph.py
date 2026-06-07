@@ -26,6 +26,8 @@ class ManifestGraphNode:
     provider: str
     commandlets: tuple[str, ...]
     requires_bywaf: str | None
+    requires_schemas: tuple[str, ...]
+    requires_plugins: tuple[str, ...]
     schemas: tuple[str, ...]
     consumes: tuple[str, ...]
     emits: tuple[str, ...]
@@ -142,6 +144,8 @@ def relationship_report_for_provider(
         "provider": provider,
         "commandlets": node.commandlets,
         "schemas": node.schemas,
+        "requires_schemas": node.requires_schemas,
+        "requires_plugins": node.requires_plugins,
         "consumes": tuple(
             topic_context(
                 topic,
@@ -203,6 +207,8 @@ def node_to_dict(node: ManifestGraphNode) -> dict[str, object]:
         "provider": node.provider,
         "commandlets": node.commandlets,
         "requires_bywaf": node.requires_bywaf,
+        "requires_schemas": node.requires_schemas,
+        "requires_plugins": node.requires_plugins,
         "schemas": node.schemas,
         "consumes": node.consumes,
         "emits": node.emits,
@@ -238,6 +244,8 @@ def node_from_manifest(provider: str, manifest: PluginManifest) -> ManifestGraph
         provider=provider,
         commandlets=tuple(sorted(manifest.commandlets)),
         requires_bywaf=manifest.requires_bywaf,
+        requires_schemas=tuple(sorted(manifest.requires_schemas)),
+        requires_plugins=tuple(sorted(manifest.requires_plugins)),
         schemas=tuple(sorted(schema.topic for schema in manifest.event_schemas)),
         consumes=tuple(sorted_set(flatten(manifest.commandlet_consumes.values()))),
         emits=tuple(sorted_set(flatten(manifest.commandlet_emits.values()))),
@@ -260,6 +268,8 @@ def relationships_from_node(provider: str, node: ManifestGraphNode) -> list[Mani
     edges: list[ManifestRelationship] = []
     if node.requires_bywaf is not None:
         edges.append(ManifestRelationship(provider, "requires_bywaf", node.requires_bywaf, hard=True))
+    edges.extend(ManifestRelationship(provider, "requires_schema", topic, hard=True) for topic in node.requires_schemas)
+    edges.extend(ManifestRelationship(provider, "requires_plugin", dependency, hard=True) for dependency in node.requires_plugins)
     for kind, values in relationship_groups(node):
         edges.extend(ManifestRelationship(provider, kind, value) for value in values)
     return edges

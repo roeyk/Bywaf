@@ -139,6 +139,7 @@ def check_bundled_plugin(entry: str, *, strict_inference: bool = False) -> dict[
         register_event_schemas(manifest.event_schemas)
         report["plugin_version"] = manifest.version
         report["requires_bywaf"] = manifest.requires_bywaf
+        report["errors"].extend(dependency_errors(entry, manifest, bundled_graph()))
         module = importlib.import_module(f"bywaf.plugins.{entry}")
         plugins = enforce_plugin_manifest(
             manifest,
@@ -201,6 +202,7 @@ def check_materialized_plugin(
                 plugin_dir.name,
                 pre_import_manifest,
             )
+        report["errors"].extend(filesystem_dependency_errors(plugin_dir.name, pre_import_manifest))
         if not satisfies_bywaf_requirement(BYWAF_VERSION, pre_import_manifest.requires_bywaf):
             report["errors"].append(
                 f"requires Bywaf {pre_import_manifest.requires_bywaf}, current Bywaf is {BYWAF_VERSION}"
@@ -260,6 +262,36 @@ def filesystem_plugin_relationship_report(provider: str, manifest: PluginManifes
     )
 
 
+def filesystem_dependency_errors(provider: str, manifest: PluginManifest) -> list[str]:
+    """Return dependency diagnostics for one filesystem plugin."""
+    graph = build_manifest_graph({**bundled_manifest_map(), f"filesystem:{provider}": manifest})
+    return dependency_errors(f"filesystem:{provider}", manifest, graph)
+
+
+def dependency_errors(provider: str, manifest: PluginManifest, graph: Any) -> list[str]:
+    """Return manifest hard-dependency diagnostics for one provider."""
+    errors = []
+    for dependency in manifest.requires_plugins:
+        if dependency == provider:
+            errors.append(f"requires_plugins self-dependency: {dependency}")
+        elif dependency not in graph.nodes:
+            errors.append(f"missing required plugin: {dependency}")
+    for topic in manifest.requires_schemas:
+        providers = graph.providers_for_schema(topic)
+        if event_schema(topic) is not None:
+            continue
+        if not providers:
+            errors.append(f"missing required schema: {topic}")
+        elif len(providers) > 1:
+            errors.append(f"ambiguous required schema {topic}: providers {', '.join(providers)}")
+    return errors
+
+
+def bundled_graph() -> Any:
+    """Return the current bundled manifest graph."""
+    return build_package_manifest_graph("bywaf.plugins", "plugins.toml")
+
+
 def bundled_manifest_map() -> dict[str, PluginManifest]:
     """Return bundled manifests keyed by provider without importing plugin code."""
     manifests = {}
@@ -275,7 +307,7 @@ def registered_topics_for_graph(graph: Any) -> tuple[str, ...]:
     topics = {
         topic
         for node in graph.nodes.values()
-        for topic in (*node.schemas, *node.consumes, *node.emits)
+        for topic in (*node.schemas, *node.consumes, *node.emits, *node.requires_schemas)
     }
     return tuple(sorted(topic for topic in topics if event_schema(topic) is not None))
 

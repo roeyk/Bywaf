@@ -50,6 +50,8 @@ class PluginManifest:
     commandlets: frozenset[str]
     version: str
     requires_bywaf: str | None = None
+    requires_schemas: tuple[str, ...] = ()
+    requires_plugins: tuple[str, ...] = ()
     triggers: tuple[TriggerSpec, ...] = ()
     commandlet_capabilities: dict[str, tuple[str, ...]] = field(default_factory=dict)
     commandlet_database_actions: dict[str, tuple[str, ...]] = field(default_factory=dict)
@@ -113,6 +115,8 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
         {
             "version",
             "requires_bywaf",
+            "requires_schemas",
+            "requires_plugins",
             "native",
             "library_backed",
             "process_wrapped",
@@ -128,6 +132,8 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
     requires_bywaf = optional_string_field(plugin_data, "requires_bywaf", source, "plugin")
     if requires_bywaf is not None:
         validate_requires_bywaf(requires_bywaf, source, "plugin.requires_bywaf")
+    requires_schemas = string_list_field(plugin_data, "requires_schemas", source, "plugin")
+    requires_plugins = string_list_field(plugin_data, "requires_plugins", source, "plugin")
     commandlet_rows = data.get("commandlets")
     if not isinstance(commandlet_rows, list) or not commandlet_rows:
         raise ValueError(f"{source} must declare at least one [[commandlets]] entry")
@@ -202,6 +208,8 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
         commandlets=frozenset(commandlets),
         version=version,
         requires_bywaf=requires_bywaf,
+        requires_schemas=requires_schemas,
+        requires_plugins=requires_plugins,
         triggers=triggers,
         commandlet_capabilities=commandlet_capabilities,
         commandlet_database_actions=commandlet_database_actions,

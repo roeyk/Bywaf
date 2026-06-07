@@ -2,10 +2,14 @@
 
 from typing import Any, cast
 
+from bywaf.event.schemas import EventSchema, FieldSchema
 from bywaf.registry import (
     ManifestRelationship,
+    PluginManifest,
+    build_manifest_graph,
     build_package_manifest_graph,
 )
+from scripts.plugin_check import dependency_errors
 
 
 def test_bundled_manifest_graph_indexes_schema_providers_without_importing_plugins():
@@ -58,3 +62,56 @@ def test_bundled_manifest_graph_serializes_for_reports():
     assert providers["http.http_auth"]["schemas"] == ("http.auth",)
     assert "http.http_auth" in topic_consumers["port.open"]
     assert "network.portscanner" in topic_producers["port.open"]
+
+
+def test_manifest_graph_records_explicit_dependency_edges():
+    manifest = PluginManifest(
+        commandlets=frozenset({"consumer"}),
+        version="0.1.0",
+        requires_schemas=("shared.topic",),
+        requires_plugins=("provider.plugin",),
+    )
+    graph = build_manifest_graph({"consumer.plugin": manifest})
+    relationships = set(graph.relationships_for("consumer.plugin"))
+    data = graph.to_dict()
+    providers = cast(dict[str, dict[str, Any]], data["providers"])
+
+    assert ManifestRelationship("consumer.plugin", "requires_schema", "shared.topic", hard=True) in relationships
+    assert ManifestRelationship("consumer.plugin", "requires_plugin", "provider.plugin", hard=True) in relationships
+    assert providers["consumer.plugin"]["requires_schemas"] == ("shared.topic",)
+
+
+def test_dependency_errors_report_ambiguous_schema_providers():
+    consumer = PluginManifest(
+        commandlets=frozenset({"consumer"}),
+        version="0.1.0",
+        requires_schemas=("shared.topic",),
+    )
+    provider_a = schema_provider_manifest("a")
+    provider_b = schema_provider_manifest("b")
+    graph = build_manifest_graph(
+        {
+            "consumer.plugin": consumer,
+            "provider.a": provider_a,
+            "provider.b": provider_b,
+        }
+    )
+
+    errors = dependency_errors("consumer.plugin", consumer, graph)
+
+    assert errors == ["ambiguous required schema shared.topic: providers provider.a, provider.b"]
+
+
+def schema_provider_manifest(commandlet: str) -> PluginManifest:
+    """Return a manifest that owns the test shared schema."""
+    return PluginManifest(
+        commandlets=frozenset({commandlet}),
+        version="0.1.0",
+        event_schemas=(
+            EventSchema(
+                topic="shared.topic",
+                summary="shared test topic",
+                fields=(FieldSchema("value", "str"),),
+            ),
+        ),
+    )
