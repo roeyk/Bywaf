@@ -186,7 +186,9 @@ and recommendation surface today; `requires_schemas` and `requires_plugins`
 are hard graph edges. Bywaf scans filesystem plugin manifests before importing
 plugin code, auto-adds available local `requires_plugins` dependencies from the
 same plugin root, orders those dependencies before dependents, and fails if a
-required plugin or schema is missing or ambiguous. Automatic downloading or
+required plugin or schema is missing or ambiguous. The dependency closure is
+all-or-nothing: if plugin A requires plugin B and plugin B requires missing
+plugin C, Bywaf fails before importing either A or B. Automatic downloading or
 installation of missing dependencies remains future behavior.
 
 Use `python3 scripts/plugin_check.py path/to/plugin --graph` to include graph

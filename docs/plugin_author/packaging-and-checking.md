@@ -251,12 +251,14 @@ advisory context: declaring `consumes = ["port.open"]` means the plugin can
 consume that topic when events are available; it does not automatically load a
 producer plugin. Explicit `requires_plugins` dependencies are different: when
 a required filesystem plugin is present under the same plugin root, Bywaf
-auto-adds it to the load set and orders it before the dependent. For bundled
-provider inspection, `scripts/plugin_graph.py` prints the pre-import manifest
-graph directly, for example known producers and consumers of `port.open` or
-the relationships for `http.http_probe`. For the runtime registry view, use
-`bywaf plugins graph`; it includes bundled plugins and any configured or
-auto-loaded filesystem plugins that passed dependency validation.
+auto-adds it to the load set and orders it before the dependent. The whole
+dependency chain must be available and valid before loading starts; if A
+requires B and B requires missing C, Bywaf fails before importing A or B. For
+bundled provider inspection, `scripts/plugin_graph.py` prints the pre-import
+manifest graph directly, for example known producers and consumers of
+`port.open` or the relationships for `http.http_probe`. For the runtime
+registry view, use `bywaf plugins graph`; it includes bundled plugins and any
+configured or auto-loaded filesystem plugins that passed dependency validation.
 
 The checker does not make plugin code sandboxed or inherently safe. Native and
 library-backed plugins are still Python code. Treat a passing check as

@@ -109,6 +109,53 @@ class PackagingInstallVersionAndRootTests(unittest.TestCase):
             events = EventStore(db_path).events_for_topic("plugin.dependency.auto_loaded")
             self.assertEqual(events[-1].payload["plugin"], "local/provider")
 
+    def test_filesystem_config_rejects_dependency_chain_when_nested_dependency_is_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp, "home", "alice", ".bywaf", "plugins")
+            provider = write_plugin(root, "local/provider", "provider", "provider")
+            provider_marker = Path(tmp, "provider-imported")
+            provider_plugin = provider / "plugin.py"
+            provider_plugin.write_text(
+                f"from pathlib import Path\nPath({str(provider_marker)!r}).touch()\n"
+                + provider_plugin.read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+            provider_manifest = provider / "bywaf.plugin.toml"
+            provider_manifest.write_text(
+                provider_manifest.read_text(encoding="utf-8").replace(
+                    'version = "0.1.0"\n',
+                    'version = "0.1.0"\nrequires_plugins = ["local/missing"]\n',
+                ),
+                encoding="utf-8",
+            )
+            consumer = write_plugin(root, "local/consumer", "consumer", "consumer")
+            consumer_marker = Path(tmp, "consumer-imported")
+            consumer_plugin = consumer / "plugin.py"
+            consumer_plugin.write_text(
+                f"from pathlib import Path\nPath({str(consumer_marker)!r}).touch()\n"
+                + consumer_plugin.read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+            consumer_manifest = consumer / "bywaf.plugin.toml"
+            consumer_manifest.write_text(
+                consumer_manifest.read_text(encoding="utf-8").replace(
+                    'version = "0.1.0"\n',
+                    'version = "0.1.0"\nrequires_plugins = ["local/provider"]\n',
+                ),
+                encoding="utf-8",
+            )
+            config = root / "plugins.toml"
+            config.write_text('default_plugins = ["local/consumer"]\n')
+            db_path = Path(tmp, "db.sqlite3")
+
+            with self.assertRaisesRegex(ValueError, "local/provider: missing required plugin: local/missing"):
+                make_runner(db_path, plugin_root=root, plugin_config=config, forced_plugins=True)
+
+            events = EventStore(db_path).events_for_topic("plugin.dependency.auto_loaded")
+            self.assertEqual(events, [])
+            self.assertFalse(provider_marker.exists())
+            self.assertFalse(consumer_marker.exists())
+
     def test_filesystem_config_rejects_missing_declared_plugin_dependency_before_import(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "home", "alice", ".bywaf", "plugins")
