@@ -70,6 +70,9 @@ target-version = "py311"
 [tool.coverage.run]
 source = ["bywaf"]
 branch = true
+omit = [
+    "bywaf/plugins/scaffoldtest/*",
+]
 
 [tool.coverage.report]
 show_missing = true
