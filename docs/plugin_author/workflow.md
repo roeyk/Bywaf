@@ -13,10 +13,16 @@ python3 scripts/plugin_new.py my_probe --output /tmp/my_probe
 It creates `plugin.py`, `bywaf.plugin.toml`, a focused test stub, and a short
 README using the current manifest-backed `@commandlet` pattern.
 
-The scaffold is currently for external filesystem plugins only. It is the right
-starting point when the plugin is native Python, has one commandlet, and can
-emit one plugin-owned fact topic without a third-party library, wrapped binary,
-background service, or complex finding-packaging layout.
+The scaffold is the right starting point when the plugin is native Python, has
+one commandlet, and can emit one plugin-owned fact topic without a third-party
+library, wrapped binary, background service, or complex finding-packaging
+layout.
+
+For a small bundled-native plugin that ships under `bywaf/plugins/...`, use:
+
+```bash
+python3 scripts/plugin_new.py my_probe --bundled http
+```
 
 For more complex plugin shapes, pick the closest skeleton instead of inventing
 a layout:
@@ -30,10 +36,9 @@ a layout:
 Copy it into a scratch plugin directory and keep the sidecar
 `bywaf.plugin.toml`.
 
-Bundled plugins that ship under `bywaf/plugins/...` can still be small and
-native, but the scaffold does not yet generate their package layout. For now,
-create bundled plugins manually or adapt the scaffold output deliberately, then
-update the bundled registry, bundled manual, tests, and changelog.
+Bundled scaffold output creates the package layout and manifest `module = ...`
+entry, but it does not finish the whole bundled-plugin workflow. After using
+`--bundled`, update the bundled registry, bundled manual, tests, and changelog.
 
 ## 2. Declare The Manifest First
 

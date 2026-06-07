@@ -82,24 +82,29 @@ not following the current Bywaf plugin schema.
 
 ## Choose A Starting Point
 
-Use the scaffold when the plugin is the simplest native shape: one external
-filesystem plugin directory, one commandlet, one main input, one plugin-owned
-event topic, no third-party Python dependency, no wrapped binary, no
-long-running service, and no complex finding-packaging split.
+Use the scaffold when the plugin is the simplest native shape: one commandlet,
+one main input, one plugin-owned event topic, no third-party Python dependency,
+no wrapped binary, no long-running service, and no complex finding-packaging
+split. It can generate either an external filesystem plugin or a small bundled
+native package:
+
+```bash
+python3 scripts/plugin_new.py my_probe --output /tmp/my_probe
+python3 scripts/plugin_new.py my_probe --bundled http
+```
 
 Use a skeleton when the plugin needs a richer architecture: vulnerability
 finding helpers, a third-party library, an external process, service/provider
 behavior, multiple files, multiple commandlets, artifacts, or bundled-framework
 integration.
 
-The scaffold does not currently generate bundled plugins under
-`bywaf/plugins/...`. Small bundled-native plugins are a good future scaffold
-mode, but today they still need manual adaptation plus updates to
+Bundled scaffold output still needs the normal bundled follow-up work:
 `bywaf/plugins/plugins.toml`, the bundled plugin manual, tests, and changelog.
 
 | Goal | Start with | Then read |
 | --- | --- | --- |
 | Small one-file commandlet | `python3 scripts/plugin_new.py my_probe --output /tmp/my_probe` | [Plugin Fundamentals](fundamentals.md) |
+| Small bundled native commandlet | `python3 scripts/plugin_new.py my_probe --bundled <family>` | [Plugin Author Workflow](workflow.md) |
 | Third-party Python library plugin | `library_backed` skeleton | [Plugin Fundamentals](fundamentals.md) |
 | External binary wrapper | `process_wrapped` skeleton | [Commandlet API Reference](commandlet-api.md#framework-requests-and-audit-events) |
 | Vulnerability or CVE detector | `native_vulnerability`, `library_backed_vulnerability`, or `process_wrapped_vulnerability` | [Vulnerability Plugin Guide](vulnerability-plugins.md) |

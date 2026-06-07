@@ -16,10 +16,16 @@ For the smallest native one-commandlet plugin, prefer the scaffold command:
 python3 scripts/plugin_new.py my_probe --output /tmp/my_probe
 ```
 
-That scaffold is for external filesystem plugins. It is not yet a replacement
-for skeletons that model bundled package layout, vulnerability finding
-packaging, library-backed integrations, wrapped binaries, or service/provider
-behavior.
+Use `--bundled <family>` when the same small native commandlet should ship
+under `bywaf/plugins/...`:
+
+```bash
+python3 scripts/plugin_new.py my_probe --bundled http
+```
+
+The scaffold is not a replacement for skeletons that model vulnerability
+finding packaging, library-backed integrations, wrapped binaries, or
+service/provider behavior.
 
 Use these skeleton directories when the plugin needs a richer shape, such as
 vulnerability finding packaging, a third-party library, an external process, or
@@ -113,7 +119,7 @@ Use the smallest skeleton that fits:
 
 If the task fits the scaffold scope, use `scripts/plugin_new.py` before copying
 `native_minimal`. Keep `native_minimal` as the copyable teaching reference and
-as the fallback when the scaffold does not yet cover the needed layout.
+as the fallback when the scaffold does not cover the needed layout.
 
 The split is guidance, not a loader requirement. Bywaf still loads any valid
 plugin package with `plugin.py`, `plugin()`, and a matching `bywaf.plugin.toml`.

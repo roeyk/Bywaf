@@ -18,10 +18,11 @@ checker.
 Use this loop for AI-generated plugins:
 
 1. Decide whether the task fits the scaffold scope. Use
-   `scripts/plugin_new.py` for a small external native plugin with one
-   commandlet, one main input, one plugin-owned event topic, no third-party
-   Python dependency, no wrapped binary, no background service, and no complex
-   finding-packaging split.
+   `scripts/plugin_new.py` for a small native plugin with one commandlet, one
+   main input, one plugin-owned event topic, no third-party Python dependency,
+   no wrapped binary, no background service, and no complex finding-packaging
+   split. Use `--bundled <family>` only when the requested plugin should ship
+   under `bywaf/plugins/...`.
 2. If the task does not fit that scope, start from the closest checked-in
    skeleton under `../plugin_skeletons/`.
 3. Ask the assistant to fill in the scaffold or skeleton, not invent a new
