@@ -167,6 +167,19 @@ python3 scripts/plugin_check.py path/to/{commandlet} --strict-inference --llm-fe
 PYTHONPATH=path/to/{commandlet} python3 -m unittest discover -s path/to/{commandlet}/tests
 ```
 
+## Where To Put Code
+
+- Put the commandlet's first implementation inside `{commandlet}(...)` in
+  `plugin.py`.
+- Replace the placeholder yielded payload with the structured fact this plugin
+  owns.
+- If the logic grows, move pure parsing/probing code into helper functions or
+  split files such as `detect.py`, then keep `plugin.py` as the thin commandlet
+  entry point.
+- Keep `bywaf.plugin.toml` synchronized with the commandlet: arguments,
+  emitted topics, capabilities, database actions, and event schema fields.
+- Update `tests/test_{commandlet}.py` as behavior changes.
+
 ## Contract
 
 - Commandlet: `{commandlet}`
@@ -193,6 +206,20 @@ PY
 
 Also update `bywaf/plugins/plugins.toml`, `docs/BUNDLED_PLUGIN_MANUAL.md`,
 tests, and `CHANGELOG.md` before committing a real bundled plugin.
+
+## Where To Put Code
+
+- Put the commandlet's first implementation inside `{commandlet}(...)` in
+  `__init__.py`.
+- Replace the placeholder yielded payload with the structured fact this plugin
+  owns.
+- If the logic grows, move pure parsing/probing code into helper functions or
+  split files such as `detect.py`, then keep `__init__.py` as the bundled
+  commandlet entry point.
+- Keep `bywaf.plugin.toml` synchronized with the commandlet: arguments,
+  emitted topics, capabilities, database actions, and event schema fields.
+- Add or update repository tests for the real behavior before adding the plugin
+  to `bywaf/plugins/plugins.toml`.
 
 ## Contract
 

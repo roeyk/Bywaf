@@ -23,6 +23,11 @@ under `bywaf/plugins/...`:
 python3 scripts/plugin_new.py my_probe --bundled http
 ```
 
+The generated README tells the plugin writer where to insert code. In short:
+start inside the generated commandlet function, replace the placeholder event
+payload, and keep `bywaf.plugin.toml` plus tests synchronized as behavior
+changes.
+
 The scaffold is not a replacement for skeletons that model vulnerability
 finding packaging, library-backed integrations, wrapped binaries, or
 service/provider behavior.

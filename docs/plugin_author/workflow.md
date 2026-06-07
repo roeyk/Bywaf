@@ -24,6 +24,20 @@ For a small bundled-native plugin that ships under `bywaf/plugins/...`, use:
 python3 scripts/plugin_new.py my_probe --bundled http
 ```
 
+After scaffolding, the plugin writer inserts code in the generated commandlet
+function first:
+
+- external plugins: edit `plugin.py`, inside `my_probe(context, cfg,
+  input_events)`;
+- bundled plugins: edit `__init__.py`, inside `my_probe(context, cfg,
+  input_events)`;
+- replace the placeholder yielded payload with the plugin-owned fact;
+- keep `bywaf.plugin.toml` synchronized with the behavior: arguments, emitted
+  topics, capabilities, database actions, and event schema fields;
+- when the logic grows, move pure probing/parsing into helper functions or
+  split files such as `detect.py`, while keeping the commandlet file as the thin
+  entry point.
+
 For more complex plugin shapes, pick the closest skeleton instead of inventing
 a layout:
 

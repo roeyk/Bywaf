@@ -101,6 +101,11 @@ integration.
 Bundled scaffold output still needs the normal bundled follow-up work:
 `bywaf/plugins/plugins.toml`, the bundled plugin manual, tests, and changelog.
 
+After scaffolding, put the first implementation in the generated commandlet
+function: `plugin.py` for external plugins, or `__init__.py` for bundled
+plugins. Replace the placeholder yielded payload with the real structured fact,
+then keep `bywaf.plugin.toml` and the tests synchronized with the behavior.
+
 | Goal | Start with | Then read |
 | --- | --- | --- |
 | Small one-file commandlet | `python3 scripts/plugin_new.py my_probe --output /tmp/my_probe` | [Plugin Fundamentals](fundamentals.md) |

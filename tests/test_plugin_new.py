@@ -34,6 +34,10 @@ class PluginNewTests(unittest.TestCase):
             self.assertTrue(plugin_dir.joinpath("plugin.py").exists())
             self.assertTrue(plugin_dir.joinpath("bywaf.plugin.toml").exists())
             self.assertTrue(plugin_dir.joinpath("tests", "test_generated_probe.py").exists())
+            readme = plugin_dir.joinpath("README.md").read_text(encoding="utf-8")
+            self.assertIn("## Where To Put Code", readme)
+            self.assertIn("inside `generated_probe(...)` in", readme)
+            self.assertIn("Keep `bywaf.plugin.toml` synchronized", readme)
 
             check = run_script(
                 "scripts/plugin_check.py",
@@ -132,6 +136,10 @@ class PluginNewTests(unittest.TestCase):
             self.assertTrue(plugin_dir.joinpath("__init__.py").exists())
             self.assertTrue(plugin_dir.joinpath("bywaf.plugin.toml").exists())
             self.assertFalse(plugin_dir.joinpath("plugin.py").exists())
+            readme = plugin_dir.joinpath("README.md").read_text(encoding="utf-8")
+            self.assertIn("## Where To Put Code", readme)
+            self.assertIn("inside `generated_bundle(...)` in", readme)
+            self.assertIn("Add or update repository tests", readme)
             manifest = plugin_dir.joinpath("bywaf.plugin.toml").read_text(encoding="utf-8")
             self.assertIn('module = "bywaf.plugins.scaffoldtest.generated_bundle"', manifest)
             self.assertIn("Checklist: update bywaf/plugins/plugins.toml", create.stdout)
