@@ -214,6 +214,8 @@ python3 scripts/plugin_check.py path/to/plugin.zip --temp-checkout --strict-infe
 python3 scripts/plugin_check.py path/to/plugin_dir --graph
 python3 scripts/plugin_check.py --all
 python3 scripts/plugin_graph.py --topic port.open
+bywaf plugins graph
+bywaf plugins graph --json
 ```
 
 ## Documentation

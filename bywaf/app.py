@@ -34,6 +34,7 @@ from .repl import (
     new_shell_state,
     print_commandlets,
     print_events,
+    print_plugin_graph,
     print_history,
     print_triggers,
     process_framework_requests,
@@ -86,6 +87,7 @@ __all__ = [
     "parse_save_spec",
     "print_commandlets",
     "print_events",
+    "print_plugin_graph",
     "print_history",
     "print_triggers",
     "process_framework_requests",
@@ -156,7 +158,11 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="subcommand")
     add_runner_arguments(subparsers.add_parser("cmd", help=argparse.SUPPRESS))
     add_runner_arguments(subparsers.add_parser("exec", help="run an OS shell command"))
-    subparsers.add_parser("plugins", help="list loaded plugin providers")
+    plugins_parser = subparsers.add_parser("plugins", help="list loaded plugin providers")
+    plugins_parser.add_argument("action", nargs="?", choices=("graph",), help="optional plugin catalog action")
+    plugins_parser.add_argument("--provider", help="show graph context for one provider path")
+    plugins_parser.add_argument("--topic", help="show graph context for one topic")
+    plugins_parser.add_argument("--json", action="store_true", help="emit machine-readable plugin graph data")
     subparsers.add_parser("cmds", help="show commandlets grouped by plugin provider").add_argument("--page", action="store_true")
     subparsers.add_parser("triggers", help="show provider-owned trigger rules")
     subparsers.add_parser("history", help="show command history")
@@ -288,7 +294,9 @@ def cmd_cli_subcommand(runner: Runner, args: argparse.Namespace) -> int:
 
 def plugins_cli_subcommand(runner: Runner, args: argparse.Namespace) -> int:
     """Print loaded plugin providers."""
-    del args
+    if args.action == "graph":
+        print_plugin_graph(runner, json_output=args.json, provider=args.provider, topic=args.topic)
+        return 0
     print("\n".join(runner.registry.provider_names()))
     return 0
 

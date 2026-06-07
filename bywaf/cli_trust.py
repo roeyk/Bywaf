@@ -18,8 +18,12 @@ from .registry import (
     PluginRegistry,
     PluginTrustError,
     PluginTrustPolicy,
+    build_manifest_graph,
+    bundled_manifest_map,
     load_verified_plugin_catalog,
+    parse_plugin_manifest,
     parse_plugin_config,
+    validate_manifest_dependencies,
 )
 from .triggers import trigger_action_name
 from .varstore import VarStore
@@ -83,14 +87,13 @@ def load_filesystem_registry(
         )
     registry = PluginRegistry({}, varstore)
     policy = PluginTrustPolicy.developer_bypass() if forced_plugins else plugin_trust_policy
-    for entry in parse_plugin_config(plugin_config):
+    entries = parse_plugin_config(plugin_config)
+    for entry in entries:
         plugin_dir = plugin_root / entry
-        catalog_entry_verified = False
         if catalog is not None:
             # A signed catalog binds entry name to plugin directory contents.
             # Manual path overrides are intentionally outside this path.
             if catalog.verifies_entry(plugin_dir, entry):
-                catalog_entry_verified = True
                 db.publish(
                     "plugin.catalog.entry.verified",
                     plugin_catalog_entry_payload(catalog.path, plugin_dir, entry),
@@ -103,6 +106,20 @@ def load_filesystem_registry(
                     "framework",
                 )
                 raise PluginTrustError(f"warning: refusing external plugin {plugin_dir}; catalog entry missing or hash mismatch")
+    filesystem_manifests = {
+        entry.replace(".", "/"): parse_plugin_manifest(plugin_root / entry / "bywaf.plugin.toml")
+        for entry in entries
+    }
+    graph = build_manifest_graph({**bundled_manifest_map(), **filesystem_manifests})
+    validate_manifest_dependencies(
+        filesystem_manifests,
+        graph=graph,
+        providers=filesystem_manifests,
+    )
+    registry.manifests.update(filesystem_manifests)
+    for entry in entries:
+        plugin_dir = plugin_root / entry
+        catalog_entry_verified = catalog is not None and catalog.verifies_entry(plugin_dir, entry)
         try:
             # Manifest trust is checked by the registry loader. This wrapper
             # adds CLI/audit context around success or rejection.
@@ -134,6 +151,7 @@ def merge_filesystem_registry(registry: PluginRegistry, filesystem: PluginRegist
     for trigger in filesystem.triggers:
         provider = filesystem.trigger_provider(trigger) or trigger_action_name(trigger)
         registry.add_triggers(provider, (trigger,))
+    registry.manifests.update(filesystem.manifests)
 
 
 def plugin_catalog_payload(

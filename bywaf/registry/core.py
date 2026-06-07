@@ -27,12 +27,15 @@ from .config import (
     parse_plugin_config,
     provider_name,
 )
+from .graph import build_manifest_graph, bundled_manifest_map, validate_manifest_dependencies
 from .loading import load_plugins, load_trigger_specs
 from .manifest import (
+    PluginManifest,
     enforce_plugin_manifest,
     enforce_trigger_manifest,
     load_filesystem_plugin_package,
     load_package_manifest,
+    parse_plugin_manifest,
 )
 from .trust import (
     PluginManifestTrust,
@@ -65,6 +68,7 @@ class PluginRegistry:
     commandlet_origins: dict[str, str] = field(default_factory=dict)
     commandlet_plugin_versions: dict[str, str] = field(default_factory=dict)
     commandlet_bywaf_requirements: dict[str, str] = field(default_factory=dict)
+    manifests: dict[str, PluginManifest] = field(default_factory=dict)
 
     @classmethod
     def discover(
@@ -78,6 +82,8 @@ class PluginRegistry:
         entries = parse_package_plugin_config(package_name, config_name)
         store = varstore or VarStore()
         registry = cls({}, store)
+        manifests = bundled_manifest_map(package_name, config_name)
+        validate_manifest_dependencies(manifests)
         for entry in entries:
             registry.load_package_entry(package_name, entry)
         registry.add_aliases(parse_package_plugin_aliases(package_name, config_name))
@@ -97,9 +103,23 @@ class PluginRegistry:
         """Load plugins from an explicit filesystem config file."""
         registry = cls({}, varstore or VarStore())
         policy = PluginTrustPolicy.developer_bypass() if forced else trust_policy
-        for entry in parse_plugin_config(Path(config_file)):
+        entries = parse_plugin_config(Path(config_file))
+        plugin_root = Path(plugin_root)
+        filesystem_manifests = registry.parse_filesystem_manifest_set(
+            plugin_root,
+            entries,
+            policy=policy,
+            catalog=catalog,
+        )
+        graph = build_manifest_graph({**bundled_manifest_map(), **filesystem_manifests})
+        validate_manifest_dependencies(
+            filesystem_manifests,
+            graph=graph,
+            providers=filesystem_manifests,
+        )
+        for entry in entries:
             registry.load_filesystem_entry(
-                Path(plugin_root),
+                plugin_root,
                 entry,
                 trust_policy=policy,
                 catalog=catalog,
@@ -134,6 +154,13 @@ class PluginRegistry:
         # manifest/catalog path useful as pre-import metadata rather than only a
         # post-import consistency check.
         enforce_filesystem_plugin_trust(plugin_dir, entry=entry, trust_policy=policy, catalog=catalog)
+        pre_import_manifest = parse_plugin_manifest(plugin_dir / "bywaf.plugin.toml")
+        graph = build_manifest_graph({**bundled_manifest_map(), **self.manifests, provider_path: pre_import_manifest})
+        validate_manifest_dependencies(
+            {provider_path: pre_import_manifest},
+            graph=graph,
+            providers=(provider_path,),
+        )
         manifest_trust = PluginManifestTrust(
             public_key_path=manifest_key,
             catalog_verified=catalog is not None and catalog.verifies_entry(plugin_dir, entry),
@@ -154,6 +181,7 @@ class PluginRegistry:
             load_defaults_file(plugin_dir, plugin, self.varstore, scope=self.variable_scope(plugin.spec.name))
         self.register_provider_default(provider_path, manifest.default_commandlet)
         self.add_triggers(entry, triggers)
+        self.manifests[provider_path] = manifest
         return plugins[0]
 
     def load_package_entry(self, package_name: str, entry: str) -> Commandlet:
@@ -186,8 +214,25 @@ class PluginRegistry:
             load_module_defaults(module, plugin, self.varstore, scope=self.variable_scope(plugin.spec.name))
         if manifest is not None:
             self.register_provider_default(provider_path, manifest.default_commandlet)
+            self.manifests[provider_path] = manifest
         self.add_triggers(entry, triggers)
         return plugins[0]
+
+    def parse_filesystem_manifest_set(
+        self,
+        plugin_root: Path,
+        entries: list[str],
+        *,
+        policy: PluginTrustPolicy | None,
+        catalog: VerifiedPluginCatalog | None,
+    ) -> dict[str, PluginManifest]:
+        """Return config-entry manifests after trust checks and before import."""
+        manifests = {}
+        for entry in entries:
+            plugin_dir = plugin_root / entry
+            enforce_filesystem_plugin_trust(plugin_dir, entry=entry, trust_policy=policy, catalog=catalog)
+            manifests[normalize_catalog_path(entry)] = parse_plugin_manifest(plugin_dir / "bywaf.plugin.toml")
+        return manifests
 
     def register_commandlet(
         self,

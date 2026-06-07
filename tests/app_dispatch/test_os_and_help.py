@@ -10,6 +10,7 @@ Used by:
 from pathlib import Path
 import contextlib
 import io
+import json
 import os
 import tempfile
 import unittest
@@ -17,6 +18,7 @@ from unittest.mock import patch
 
 from bywaf.app import (
     dispatch_repl_line,
+    main,
     make_runner,
 )
 
@@ -129,6 +131,27 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("plugins", output.getvalue())
             self.assertIn("cmds", output.getvalue())
             self.assertIn("script", output.getvalue())
+
+    def test_plugins_graph_cli_prints_dependency_sections(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(main(["--database", str(Path(tmp, "db.sqlite3")), "plugins", "graph"]), 0)
+
+            text = output.getvalue()
+            self.assertIn("Plugin dependency graph", text)
+            self.assertIn("Schema dependency graph", text)
+
+    def test_plugins_graph_cli_can_emit_json(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(main(["--database", str(Path(tmp, "db.sqlite3")), "plugins", "graph", "--json"]), 0)
+
+            data = json.loads(output.getvalue())
+            self.assertIn("providers", data)
+            self.assertIn("edges", data)
+            self.assertIn("http/http_probe", data["providers"])
 
     def test_manifest_commandlet_help_uses_key_value_options(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -15,6 +15,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
+from ..event.schemas import event_schema
 from .config import parse_package_plugin_config
 from .manifest import PluginManifest, load_package_manifest
 
@@ -122,6 +123,19 @@ def build_package_manifest_graph(
     return build_manifest_graph(manifests)
 
 
+def bundled_manifest_map(
+    package_name: str = "bywaf.plugins",
+    config_name: str = "plugins.toml",
+) -> dict[str, PluginManifest]:
+    """Return bundled manifests keyed by provider path without importing plugins."""
+    manifests = {}
+    for entry in parse_package_plugin_config(package_name, config_name):
+        manifest = load_package_manifest(package_name, entry)
+        if manifest is not None:
+            manifests[entry] = manifest
+    return manifests
+
+
 def build_manifest_graph(manifests: dict[str, PluginManifest]) -> ManifestRelationshipGraph:
     """Build a graph from provider path to parsed manifest metadata."""
     nodes = {provider: node_from_manifest(provider, manifest) for provider, manifest in manifests.items()}
@@ -171,6 +185,58 @@ def relationship_report_for_provider(
         "database_writes": node.database_writes,
         "relationships": tuple(edge_to_dict(edge) for edge in graph.relationships_for(provider)),
     }
+
+
+def dependency_errors(
+    provider: str,
+    manifest: PluginManifest,
+    graph: ManifestRelationshipGraph,
+) -> list[str]:
+    """Return manifest hard-dependency diagnostics for one provider."""
+    errors = []
+    for dependency in manifest.requires_plugins:
+        if dependency == provider:
+            errors.append(f"requires_plugins self-dependency: {dependency}")
+        elif dependency not in graph.nodes:
+            errors.append(f"missing required plugin: {dependency}")
+    for topic in manifest.requires_schemas:
+        providers = graph.providers_for_schema(topic)
+        if event_schema(topic) is not None:
+            continue
+        if not providers:
+            errors.append(f"missing required schema: {topic}")
+        elif len(providers) > 1:
+            errors.append(f"ambiguous required schema {topic}: providers {', '.join(providers)}")
+    return errors
+
+
+def validate_manifest_dependencies(
+    manifests: dict[str, PluginManifest],
+    *,
+    graph: ManifestRelationshipGraph | None = None,
+    providers: Iterable[str] | None = None,
+) -> None:
+    """Reject missing or ambiguous hard manifest dependencies."""
+    graph = graph or build_manifest_graph(manifests)
+    selected = tuple(providers) if providers is not None else tuple(sorted(manifests))
+    errors = []
+    for provider in selected:
+        manifest = manifests.get(provider)
+        if manifest is None:
+            continue
+        errors.extend(f"{provider}: {error}" for error in dependency_errors(provider, manifest, graph))
+    if errors:
+        raise ValueError("; ".join(errors))
+
+
+def registered_topics_for_graph(graph: ManifestRelationshipGraph) -> tuple[str, ...]:
+    """Return graph topics with framework/runtime registered schemas."""
+    topics = {
+        topic
+        for node in graph.nodes.values()
+        for topic in (*node.schemas, *node.consumes, *node.emits, *node.requires_schemas)
+    }
+    return tuple(sorted(topic for topic in topics if event_schema(topic) is not None))
 
 
 def topic_context(

@@ -219,6 +219,8 @@ python3 scripts/plugin_check.py --all --strict-inference
 python3 scripts/plugin_check.py --all --graph
 python3 scripts/plugin_graph.py --topic port.open
 python3 scripts/plugin_graph.py --provider http.http_probe
+bywaf plugins graph
+bywaf plugins graph --json
 ```
 
 `plugin_check` is a schema verifier, not just a style linter. Its strict
@@ -249,7 +251,9 @@ advisory context: declaring `consumes = ["port.open"]` means the plugin can
 consume that topic when events are available; it does not automatically load a
 producer plugin. For bundled provider inspection, `scripts/plugin_graph.py`
 prints the pre-import manifest graph directly, for example known producers and
-consumers of `port.open` or the relationships for `http.http_probe`.
+consumers of `port.open` or the relationships for `http.http_probe`. For the
+runtime registry view, use `bywaf plugins graph`; it includes bundled plugins
+and any configured filesystem plugins that passed dependency validation.
 
 The checker does not make plugin code sandboxed or inherently safe. Native and
 library-backed plugins are still Python code. Treat a passing check as

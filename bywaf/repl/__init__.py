@@ -11,6 +11,7 @@ from .display import friendly_error
 from .display import print_commandlets
 from .display import print_events
 from .display import print_history
+from .display import print_plugin_graph
 from .display import print_triggers
 from .dispatch import dispatch_repl_line
 from .parsing import command_from_remainder
@@ -56,6 +57,7 @@ __all__ = [
     "print_commandlets",
     "print_events",
     "print_history",
+    "print_plugin_graph",
     "print_triggers",
     "process_framework_requests",
     "read_logical_input",

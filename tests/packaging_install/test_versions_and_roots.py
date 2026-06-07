@@ -63,6 +63,45 @@ class PackagingInstallVersionAndRootTests(unittest.TestCase):
             self.assertIn("systemprobe", runner.registry.names())
             self.assertEqual(runner.registry.varstore.get("site/systemprobe.origin"), "system-wide")
 
+    def test_filesystem_config_validates_declared_plugin_dependencies_before_import(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp, "home", "alice", ".bywaf", "plugins")
+            write_plugin(root, "local/provider", "provider", "provider")
+            consumer = write_plugin(root, "local/consumer", "consumer", "consumer")
+            consumer_manifest = consumer / "bywaf.plugin.toml"
+            consumer_manifest.write_text(
+                consumer_manifest.read_text(encoding="utf-8").replace(
+                    'version = "0.1.0"\n',
+                    'version = "0.1.0"\nrequires_plugins = ["local/provider"]\n',
+                ),
+                encoding="utf-8",
+            )
+            config = root / "plugins.toml"
+            config.write_text('default_plugins = ["local/consumer", "local/provider"]\n')
+
+            runner = make_runner(Path(tmp, "db.sqlite3"), plugin_root=root, plugin_config=config, forced_plugins=True)
+
+            self.assertIn("consumer", runner.registry.names())
+            self.assertIn("provider", runner.registry.names())
+
+    def test_filesystem_config_rejects_missing_declared_plugin_dependency_before_import(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp, "home", "alice", ".bywaf", "plugins")
+            consumer = write_plugin(root, "local/consumer", "consumer", "consumer")
+            consumer_manifest = consumer / "bywaf.plugin.toml"
+            consumer_manifest.write_text(
+                consumer_manifest.read_text(encoding="utf-8").replace(
+                    'version = "0.1.0"\n',
+                    'version = "0.1.0"\nrequires_plugins = ["local/missing"]\n',
+                ),
+                encoding="utf-8",
+            )
+            config = root / "plugins.toml"
+            config.write_text('default_plugins = ["local/consumer"]\n')
+
+            with self.assertRaisesRegex(ValueError, "missing required plugin: local/missing"):
+                make_runner(Path(tmp, "db.sqlite3"), plugin_root=root, plugin_config=config, forced_plugins=True)
+
     def test_cli_run_uses_explicit_plugin_root_and_config(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "home", "alice", ".bywaf", "plugins")

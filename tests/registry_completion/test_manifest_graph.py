@@ -8,8 +8,8 @@ from bywaf.registry import (
     PluginManifest,
     build_manifest_graph,
     build_package_manifest_graph,
+    dependency_errors,
 )
-from scripts.plugin_check import dependency_errors
 
 
 def test_bundled_manifest_graph_indexes_schema_providers_without_importing_plugins():

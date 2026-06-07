@@ -183,17 +183,21 @@ import. That graph indexes commandlets, plugin-owned schemas, consumed topics,
 emitted topics, capabilities, database topic access, triggers, provider
 variables, secrets, traits, roles, and `requires_bywaf`. It is an inspection
 and recommendation surface today; `requires_schemas` and `requires_plugins`
-are hard graph edges. Automatic dependency closure and loader ordering remain
-future runtime behavior.
+are hard graph edges. Bywaf validates configured filesystem plugin dependency
+sets before importing plugin code, but automatic dependency installation and
+loader closure remain future runtime behavior.
 
 Use `python3 scripts/plugin_check.py path/to/plugin --graph` to include graph
 context in a filesystem plugin validation report. Use
 `python3 scripts/plugin_graph.py --topic <topic>` or
 `python3 scripts/plugin_graph.py --provider <provider>` to inspect bundled
-manifest relationships directly. These commands read manifest metadata and do
-not infer hard dependencies from topic names. `plugin_check` fails missing
-required plugins, missing required schemas, and ambiguous plugin-owned schema
-providers.
+manifest relationships directly. Use `bywaf plugins graph`,
+`bywaf plugins graph --provider <provider>`, `bywaf plugins graph --topic
+<topic>`, or `bywaf plugins graph --json` to inspect the currently loaded
+registry, including configured filesystem plugins. These commands read
+manifest metadata and do not infer hard dependencies from topic names.
+`plugin_check` and runtime plugin loading fail missing required plugins,
+missing required schemas, and ambiguous plugin-owned schema providers.
 
 Reserve exact plugin dependencies for non-schema provider coupling, such as a
 specific commandlet, artifact producer, service, listener, exporter, provider

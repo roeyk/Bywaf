@@ -29,7 +29,22 @@ from bywaf.plugin.capabilities import capability_code_label, capability_declared
 from bywaf.registry.config import parse_package_plugin_config  # noqa: E402
 from bywaf.registry.loading import load_plugins, load_trigger_specs  # noqa: E402
 from bywaf.registry.compat import satisfies_bywaf_requirement  # noqa: E402
-from bywaf.registry import PluginManifest, PluginManifestTrust, build_manifest_graph, build_package_manifest_graph, relationship_report_for_provider, verify_plugin_manifest_signature_data, load_filesystem_plugin_package, parse_plugin_manifest_data, load_package_manifest, enforce_plugin_manifest, enforce_trigger_manifest  # noqa: E402
+from bywaf.registry import (  # noqa: E402
+    PluginManifest,
+    PluginManifestTrust,
+    build_manifest_graph,
+    build_package_manifest_graph,
+    bundled_manifest_map,
+    dependency_errors,
+    enforce_plugin_manifest,
+    enforce_trigger_manifest,
+    load_filesystem_plugin_package,
+    load_package_manifest,
+    parse_plugin_manifest_data,
+    registered_topics_for_graph,
+    relationship_report_for_provider,
+    verify_plugin_manifest_signature_data,
+)
 from bywaf.toml_support import load_data_file  # noqa: E402
 from bywaf.tools.plugin_check import analyze_plugin_source  # noqa: E402
 from bywaf.tools.plugin_parser_contract import parser_contract_diagnostics  # noqa: E402
@@ -268,48 +283,9 @@ def filesystem_dependency_errors(provider: str, manifest: PluginManifest) -> lis
     return dependency_errors(f"filesystem:{provider}", manifest, graph)
 
 
-def dependency_errors(provider: str, manifest: PluginManifest, graph: Any) -> list[str]:
-    """Return manifest hard-dependency diagnostics for one provider."""
-    errors = []
-    for dependency in manifest.requires_plugins:
-        if dependency == provider:
-            errors.append(f"requires_plugins self-dependency: {dependency}")
-        elif dependency not in graph.nodes:
-            errors.append(f"missing required plugin: {dependency}")
-    for topic in manifest.requires_schemas:
-        providers = graph.providers_for_schema(topic)
-        if event_schema(topic) is not None:
-            continue
-        if not providers:
-            errors.append(f"missing required schema: {topic}")
-        elif len(providers) > 1:
-            errors.append(f"ambiguous required schema {topic}: providers {', '.join(providers)}")
-    return errors
-
-
 def bundled_graph() -> Any:
     """Return the current bundled manifest graph."""
     return build_package_manifest_graph("bywaf.plugins", "plugins.toml")
-
-
-def bundled_manifest_map() -> dict[str, PluginManifest]:
-    """Return bundled manifests keyed by provider without importing plugin code."""
-    manifests = {}
-    for entry in parse_package_plugin_config("bywaf.plugins", "plugins.toml"):
-        manifest = load_package_manifest("bywaf.plugins", entry)
-        if manifest is not None:
-            manifests[entry] = manifest
-    return manifests
-
-
-def registered_topics_for_graph(graph: Any) -> tuple[str, ...]:
-    """Return graph topics with framework/runtime registered schemas."""
-    topics = {
-        topic
-        for node in graph.nodes.values()
-        for topic in (*node.schemas, *node.consumes, *node.emits, *node.requires_schemas)
-    }
-    return tuple(sorted(topic for topic in topics if event_schema(topic) is not None))
 
 
 def finalize_inference_report(

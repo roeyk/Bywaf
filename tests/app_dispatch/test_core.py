@@ -51,6 +51,10 @@ class AppDispatchTests(unittest.TestCase):
     def test_build_parser_accepts_builtin_commands(self):
         parser = build_parser()
         self.assertEqual(parser.parse_args(["plugins"]).subcommand, "plugins")
+        graph_args = parser.parse_args(["plugins", "graph", "--json"])
+        self.assertEqual(graph_args.subcommand, "plugins")
+        self.assertEqual(graph_args.action, "graph")
+        self.assertTrue(graph_args.json)
         self.assertEqual(parser.parse_args(["cmds"]).subcommand, "cmds")
         self.assertEqual(parser.parse_args(["triggers"]).subcommand, "triggers")
         self.assertEqual(parser.parse_args(["history"]).subcommand, "history")
