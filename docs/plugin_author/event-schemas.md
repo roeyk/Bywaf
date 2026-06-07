@@ -10,6 +10,7 @@ without knowing the original scanner.
 - [Why Schemas Instead Of Plugin Classes](#why-schemas-instead-of-plugin-classes)
 - [Deserialize At The Boundary](#deserialize-at-the-boundary)
 - [Plugin-Owned Schemas](#plugin-owned-schemas)
+- [Schema Dependencies And Plugin Dependencies](#schema-dependencies-and-plugin-dependencies)
 - [Inspect Registered Schemas](#inspect-registered-schemas)
 - [Declare Consumes And Emits](#declare-consumes-and-emits)
 - [Keep Raw Tool Detail Separate](#keep-raw-tool-detail-separate)
@@ -226,6 +227,50 @@ Promotion should normally keep the same topic name and version lineage so
 existing producers and consumers keep interoperating. Create a new framework
 topic only when the plugin-owned topic name or field meanings are clearly wrong.
 Temporary aliases are a migration bridge, not the long-term model.
+
+## Schema Dependencies And Plugin Dependencies
+
+A topic is the event channel name, such as `http.endpoint`. A schema is the
+data contract for events on that topic: required fields, optional fields,
+version, and field meanings. A commandlet can declare that it consumes a topic
+without requiring a specific producer plugin to be loaded.
+
+`consumes = ["http.endpoint"]` means "this commandlet can use `http.endpoint`
+events when they are supplied." It does not mean "load `http_probe`." Events
+may come from an earlier pipeline step, stored project history, imported
+evidence, a bundled plugin, or a third-party plugin that publishes the same
+schema-backed contract.
+
+When a future manifest dependency system is implemented, use schema
+dependencies for data contracts and plugin dependencies for exact provider
+behavior:
+
+```toml
+[plugin]
+# Planned fields; do not add these to strict manifests until supported.
+requires_schemas = ["http.endpoint"]
+requires_plugins = ["http.http_probe"]
+```
+
+Use `requires_schemas` when the plugin only needs a stable payload contract.
+Use `requires_plugins` only when the plugin depends on something beyond a
+schema, such as:
+
+- a specific commandlet being available;
+- artifacts produced by that plugin;
+- side effects such as populating the database, starting a service, or
+  refreshing runtime state;
+- a long-running service, listener, exporter, watchdog, or external-tool
+  wrapper;
+- provider variables, defaults, profiles, or shared runtime settings;
+- normalization behavior that is specific to that plugin, not just the event
+  field names;
+- external tool or library management that the other plugin owns.
+
+Dependency resolution should remain manifest-first. Bywaf should be able to
+scan manifests, build a dependency graph, report the dependency closure to the
+operator, and order schema providers before dependents without importing plugin
+Python just to discover metadata.
 
 ## Inspect Registered Schemas
 

@@ -27,6 +27,7 @@ build static catalog views, accept pre-load catalog variables, and give
 - [Why Manifests Matter](#why-manifests-matter)
 - [Schema](#schema)
 - [Plugin Table](#plugin-table)
+- [Dependency Metadata](#dependency-metadata)
 - [Commandlet Entries](#commandlet-entries)
 - [Commandlet Options](#commandlet-options)
 - [Commandlet Arguments](#commandlet-arguments)
@@ -156,6 +157,32 @@ The `[plugin]` table describes plugin-level traits.
 
 `native = true` conflicts with `library_backed = true` or
 `process_wrapped = true`.
+
+# Dependency Metadata
+
+Current manifests support `requires_bywaf` for framework-version compatibility.
+They do not yet support plugin dependency fields. Because manifests are strict,
+do not add unsupported keys such as `requires_plugins` or `requires_schemas`
+until the registry implements them.
+
+The intended future split is:
+
+| Future key | Meaning |
+| --- | --- |
+| `requires_schemas` | Data contracts that must be registered, such as `http.endpoint`, regardless of which provider plugin owns them. |
+| `requires_plugins` | Exact plugin dependencies, used only when a plugin depends on provider behavior beyond a schema. |
+
+Most pipeline compatibility belongs in commandlet `consumes`, not in hard
+dependencies. For example, a commandlet that can consume `http.endpoint` events
+should normally declare `consumes = ["http.endpoint"]`; that does not require
+loading `http.http_probe`, because equivalent events may already exist in the
+database or may be produced by another compatible plugin.
+
+Reserve exact plugin dependencies for non-schema provider coupling, such as a
+specific commandlet, artifact producer, service, listener, exporter, provider
+variable/default, normalization behavior, or external tool wrapper. See
+[Schema Dependencies And Plugin Dependencies](plugin_author/event-schemas.md#schema-dependencies-and-plugin-dependencies)
+for the author-facing guidance.
 
 # Commandlet Entries
 
