@@ -10,6 +10,16 @@ commented sections that say where to place detection, verification, parsing,
 or finding-packaging code. Prefer filling in the existing functions/classes
 over inventing a new plugin layout from scratch.
 
+For the smallest native one-commandlet plugin, prefer the scaffold command:
+
+```bash
+python3 scripts/plugin_new.py my_probe --output /tmp/my_probe
+```
+
+Use these skeleton directories when the plugin needs a richer shape, such as
+vulnerability finding packaging, a third-party library, an external process, or
+a provider-owned service trigger.
+
 LLM Guardrails:
 
 - For ordinary commandlets, prefer a manifest-backed bare `@commandlet`

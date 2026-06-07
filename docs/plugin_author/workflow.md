@@ -2,9 +2,19 @@
 
 This is the recommended loop for creating or changing a Bywaf plugin.
 
-## 1. Start From A Skeleton
+## 1. Start From A Scaffold Or Skeleton
 
-Pick the closest skeleton instead of inventing a layout:
+For a small one-commandlet native plugin, start with the scaffold command:
+
+```bash
+python3 scripts/plugin_new.py my_probe --output /tmp/my_probe
+```
+
+It creates `plugin.py`, `bywaf.plugin.toml`, a focused test stub, and a short
+README using the current manifest-backed `@commandlet` pattern.
+
+For more complex plugin shapes, pick the closest skeleton instead of inventing
+a layout:
 
 - `native_minimal` for a small pure-Python commandlet
 - `native_vulnerability` for a detection plugin that emits findings

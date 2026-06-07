@@ -17,7 +17,13 @@ into focused pages so each page has one job and can be read independently.
 For most implementors, do this:
 
 1. [Plugin Fundamentals](fundamentals.md)
-2. Copy the closest [Plugin Skeleton](../plugin_skeletons/README.md)
+2. Create a small native scaffold, or copy the closest
+   [Plugin Skeleton](../plugin_skeletons/README.md) for advanced plugin shapes:
+
+   ```bash
+   python3 scripts/plugin_new.py my_probe --output /tmp/my_probe
+   ```
+
 3. Fill in the existing files instead of inventing a new layout
 4. Run:
 
@@ -78,12 +84,12 @@ not following the current Bywaf plugin schema.
 
 | Goal | Start with | Then read |
 | --- | --- | --- |
-| Small one-file commandlet | `native_minimal` skeleton | [Plugin Fundamentals](fundamentals.md) |
+| Small one-file commandlet | `python3 scripts/plugin_new.py my_probe --output /tmp/my_probe` | [Plugin Fundamentals](fundamentals.md) |
 | Third-party Python library plugin | `library_backed` skeleton | [Plugin Fundamentals](fundamentals.md) |
 | External binary wrapper | `process_wrapped` skeleton | [Commandlet API Reference](commandlet-api.md#framework-requests-and-audit-events) |
 | Vulnerability or CVE detector | `native_vulnerability`, `library_backed_vulnerability`, or `process_wrapped_vulnerability` | [Vulnerability Plugin Guide](vulnerability-plugins.md) |
 | Long-running service with provider triggers | `service_trigger_provider` skeleton | [Plugin Packaging And Checking](packaging-and-checking.md) |
-| AI-generated plugin draft | closest skeleton in a scratch directory | [LLM-Assisted Plugin Authoring](llm-assisted-authoring.md) |
+| AI-generated plugin draft | scaffold for small commandlets; closest skeleton for advanced shapes | [LLM-Assisted Plugin Authoring](llm-assisted-authoring.md) |
 
 ## Plugin Shape
 
