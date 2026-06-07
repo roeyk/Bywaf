@@ -33,7 +33,9 @@ class TestHttpHeadersTests(unittest.TestCase):
             self.assertEqual(
                 titles,
                 {
+                    "Missing Content-Security-Policy",
                     "Missing HTTP Strict Transport Security",
+                    "Missing Referrer-Policy",
                     "Missing X-Content-Type-Options",
                     "Missing browser framing protection",
                 },
@@ -96,6 +98,40 @@ class TestHttpHeadersTests(unittest.TestCase):
         classes = {candidate["class"] for candidate in missing_security_header_candidates(result)}
 
         self.assertNotIn("web.header.missing_framing_policy", classes)
+
+    def test_http_headers_promotes_missing_csp_and_referrer_policy(self):
+        result = HeaderProbeResult(
+            target=HeaderTarget("example.test", 443, True),
+            status=200,
+            headers={
+                "Strict-Transport-Security": "max-age=31536000",
+                "X-Content-Type-Options": "nosniff",
+                "X-Frame-Options": "DENY",
+            },
+        )
+
+        classes = {candidate["class"] for candidate in missing_security_header_candidates(result)}
+
+        self.assertIn("web.header.missing_content_security_policy", classes)
+        self.assertIn("web.header.missing_referrer_policy", classes)
+
+    def test_http_headers_accepts_csp_and_referrer_policy(self):
+        result = HeaderProbeResult(
+            target=HeaderTarget("example.test", 443, True),
+            status=200,
+            headers={
+                "Strict-Transport-Security": "max-age=31536000",
+                "X-Content-Type-Options": "nosniff",
+                "X-Frame-Options": "DENY",
+                "Content-Security-Policy": "default-src 'self'",
+                "Referrer-Policy": "strict-origin-when-cross-origin",
+            },
+        )
+
+        classes = {candidate["class"] for candidate in missing_security_header_candidates(result)}
+
+        self.assertNotIn("web.header.missing_content_security_policy", classes)
+        self.assertNotIn("web.header.missing_referrer_policy", classes)
 
 
 if __name__ == "__main__":

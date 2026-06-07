@@ -50,8 +50,8 @@ impact label and sorted from highest to lowest operator/developer impact:
   added scan breadth. `tech_review` remains the shorter chain that promotes and
   deduplicates those fresh candidates before `report`.
 - [medium] Expanded `http_headers` finding coverage to promote missing browser
-  framing protection when responses lack both `X-Frame-Options` and a
-  `Content-Security-Policy` `frame-ancestors` directive.
+  framing protection, missing Content-Security-Policy, and missing
+  Referrer-Policy from already-collected response headers.
 - [medium] Improved compact report inbox rows so grouped findings summarize
   all affected resources represented by the group, instead of only the newest
   representative event.

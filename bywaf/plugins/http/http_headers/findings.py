@@ -73,6 +73,38 @@ def missing_security_header_candidates(result: HeaderProbeResult) -> list[dict[s
                 source={"tool": "http_headers", "topic": "http.headers"},
             )
         )
+    if "content-security-policy" not in headers:
+        candidates.append(
+            candidate_payload(
+                title="Missing Content-Security-Policy",
+                finding_class="web.header.missing_content_security_policy",
+                severity="low",
+                confidence="medium",
+                finding_scope="web_origin",
+                target={"scheme": scheme, "host": target.host, "port": str(target.port), "path": "/"},
+                identifiers={"cwe": ["CWE-693"], "owasp": ["A05:2021"]},
+                affected=[{"url": url}],
+                evidence=f"{url} did not return Content-Security-Policy.",
+                recommendation="Set a Content-Security-Policy that restricts script, object, frame, and other high-risk content sources.",
+                source={"tool": "http_headers", "topic": "http.headers"},
+            )
+        )
+    if "referrer-policy" not in headers:
+        candidates.append(
+            candidate_payload(
+                title="Missing Referrer-Policy",
+                finding_class="web.header.missing_referrer_policy",
+                severity="info",
+                confidence="medium",
+                finding_scope="web_origin",
+                target={"scheme": scheme, "host": target.host, "port": str(target.port), "path": "/"},
+                identifiers={},
+                affected=[{"url": url}],
+                evidence=f"{url} did not return Referrer-Policy.",
+                recommendation='Set Referrer-Policy to a deliberate value such as "strict-origin-when-cross-origin" or stricter.',
+                source={"tool": "http_headers", "topic": "http.headers"},
+            )
+        )
     cookie_findings = weak_cookie_candidates(headers, url, scheme, target.host, target.port)
     candidates.extend(cookie_findings)
     if server := exposed_server_header(headers):

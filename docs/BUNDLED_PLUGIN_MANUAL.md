@@ -931,8 +931,9 @@ Use this when header posture matters: it records response headers and promotes m
 high-value security headers into finding candidates. It is a small HTTP probe that pairs
 well with `http_probe` and report review.
 Current finding coverage includes missing HSTS, missing X-Content-Type-Options,
-missing browser framing protection, weak cookie attributes, implementation-disclosing
-Server headers, and HTTPS-to-HTTP redirects.
+missing Content-Security-Policy, missing Referrer-Policy, missing browser framing
+protection, weak cookie attributes, implementation-disclosing Server headers, and
+HTTPS-to-HTTP redirects.
 
 Plugin metadata:
 
