@@ -10,23 +10,49 @@ Used by:
 from __future__ import annotations
 
 import argparse
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet, option
 from bywaf.plugins._args import key_value_to_long_options
-from bywaf.plugins.analysis.finding_dedupe import FINDING_INPUT_TOPICS, normalize_event
-from bywaf.plugins.analysis.finding_display import affected_values, compact_table_text
-from bywaf.rendering import Column, Table, render_table
+from bywaf.plugins.analysis.finding_dedupe import FINDING_INPUT_TOPICS
+from bywaf.plugins.analysis.finding_report_export import FORMAT_CHOICES, findings_table, infer_export_format, write_table_artifact
+from bywaf.plugins.analysis.finding_report_rows import (
+    candidate_payload,
+    cve_values,
+    finding_rows,
+    host_from_target,
+    identifiers_from_payload,
+    recommendation_for,
+    row_from_event,
+    row_from_payload,
+)
+from bywaf.plugins.analysis.finding_report_topics import DEDUP_FINDING_TOPICS, REPORT_FINDING_TOPICS, SOURCE_CHOICES
 from bywaf.utils import complete_path
 
-DEDUP_FINDING_TOPICS = ("finding.new", "finding.merge_candidate")
-REPORT_FINDING_TOPICS = ("finding.candidate", "finding.confirmed", *DEDUP_FINDING_TOPICS)
-SOURCE_CHOICES = ("auto", "dedupe", "tools", "all")
-FORMAT_CHOICES = ("md", "csv", "jsonl", "html", "docx", "xlsx")
 OPTION_KEYS = {"export", "file", "format", "limit", "source"}
+
+__all__ = [
+    "DEDUP_FINDING_TOPICS",
+    "FORMAT_CHOICES",
+    "FindingReport",
+    "REPORT_FINDING_TOPICS",
+    "SOURCE_CHOICES",
+    "candidate_payload",
+    "cve_values",
+    "finding_rows",
+    "findings_table",
+    "host_from_target",
+    "identifiers_from_payload",
+    "infer_export_format",
+    "recommendation_for",
+    "report_topic_allowed",
+    "row_from_event",
+    "row_from_payload",
+    "select_report_events",
+    "write_table_artifact",
+]
 
 
 @commandlet(
@@ -144,157 +170,6 @@ def report_topic_allowed(topic: str, source: str, include_candidates: bool) -> b
     if source == "tools":
         return topic in FINDING_INPUT_TOPICS
     return topic in REPORT_FINDING_TOPICS or topic in FINDING_INPUT_TOPICS
-
-
-def finding_rows(events: list[Event], *, include_candidates: bool) -> list[dict[str, str]]:
-    """Convert finding events into the requested report columns."""
-    rows: list[dict[str, str]] = []
-    seen_finding_ids: set[str] = set()
-    for event in events:
-        if event.topic == "finding.merge_candidate" and not include_candidates:
-            continue
-        row = row_from_event(event)
-        finding_id = str(event.payload.get("finding_id") or "")
-        if finding_id and event.topic in {"finding.candidate", "finding.confirmed", "finding.new"}:
-            # Keep the table readable when a commandlet emitted the same
-            # normalized finding more than once in the selected scope.
-            if finding_id in seen_finding_ids:
-                continue
-            seen_finding_ids.add(finding_id)
-        rows.append(row)
-    return rows
-
-
-def row_from_event(event: Event) -> dict[str, str]:
-    """Return one reporting row from a normalized or raw finding event."""
-    if event.topic in REPORT_FINDING_TOPICS:
-        payload = event.payload
-        if event.topic == "finding.merge_candidate":
-            payload = candidate_payload(payload)
-        return row_from_payload(payload)
-    normalized = normalize_event(event)
-    return {
-        "finding_name": normalized.title,
-        "description": compact_table_text(normalized.evidence or normalized.finding_class),
-        "hosts_affected": host_from_target(normalized.target.as_payload()),
-        "cve": cve_values(normalized.identifiers),
-        "severity": normalized.severity,
-        "recommendation": compact_table_text(recommendation_for(normalized.finding_class, normalized.raw)),
-    }
-
-
-def row_from_payload(payload: Mapping[str, Any]) -> dict[str, str]:
-    """Return one reporting row from a normalized finding payload."""
-    title = str(payload.get("title") or payload.get("class") or "finding")
-    finding_class = str(payload.get("class") or "")
-    description = compact_table_text(payload.get("description") or payload.get("evidence") or finding_class)
-    identifiers = identifiers_from_payload(payload)
-    return {
-        "finding_name": title,
-        "description": description,
-        "hosts_affected": "; ".join(affected_values([payload])) or host_from_target(payload.get("target")),
-        "cve": cve_values(identifiers),
-        "severity": str(payload.get("severity") or "unknown"),
-        "recommendation": compact_table_text(recommendation_for(finding_class, dict(payload))),
-    }
-
-
-def candidate_payload(payload: Mapping[str, Any]) -> Mapping[str, Any]:
-    """Return the nested candidate payload for merge-candidate rows."""
-    candidate = payload.get("candidate")
-    if isinstance(candidate, Mapping):
-        return candidate
-    return payload
-
-
-def findings_table(rows: list[dict[str, str]]) -> Table:
-    """Build the report table with stable user-facing headings."""
-    return Table.from_rows(
-        rows,
-        (
-            Column("finding_name", "Finding name"),
-            Column("description", "Description"),
-            Column("hosts_affected", "Host(s) affected"),
-            Column("cve", "CVE"),
-            Column("severity", "Severity rating"),
-            Column("recommendation", "Recommendation"),
-        ),
-        title="Findings",
-    )
-
-
-def write_table_artifact(context: CommandContext, table: Table, path: Path, format_name: str) -> None:
-    """Render a table to disk and attach it as a report artifact."""
-    context.audit_capability("filesystem.write")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    rendered = render_table(table, format_name)  # type: ignore[arg-type]
-    if isinstance(rendered, bytes):
-        path.write_bytes(rendered)
-    else:
-        path.write_text(rendered, encoding="utf-8")
-    context.artifacts.attach_file(path, name=path.name, note="Finding report table")
-
-
-def infer_export_format(path: Path, fallback: str) -> str:
-    """Infer a table renderer from an export filename suffix."""
-    suffix = path.suffix.lower().lstrip(".")
-    if suffix == "json":
-        return "jsonl"
-    if suffix in FORMAT_CHOICES:
-        return suffix
-    if fallback in FORMAT_CHOICES:
-        return fallback
-    return "md"
-
-
-def identifiers_from_payload(payload: Mapping[str, Any]) -> dict[str, list[str]]:
-    """Return normalized identifiers from a finding payload."""
-    raw = payload.get("identifiers")
-    if not isinstance(raw, Mapping):
-        return {}
-    identifiers: dict[str, list[str]] = {}
-    for key, value in raw.items():
-        values = value if isinstance(value, list) else [value]
-        identifiers[str(key).lower()] = [str(item) for item in values if str(item)]
-    return identifiers
-
-
-def cve_values(identifiers: Mapping[str, list[str]]) -> str:
-    """Return comma-separated CVE identifiers."""
-    return ", ".join(identifiers.get("cve", ()))
-
-
-def host_from_target(target: object) -> str:
-    """Return a compact affected-host string from a target payload."""
-    if not isinstance(target, Mapping):
-        return ""
-    host = str(target.get("host") or "")
-    scheme = str(target.get("scheme") or "")
-    port = str(target.get("port") or "")
-    path = str(target.get("path") or "")
-    if host:
-        authority = host if not port else f"{host}:{port}"
-        return f"{scheme}://{authority}{path}" if scheme else f"{authority}{path}"
-    url = target.get("url")
-    return str(url) if url else ""
-
-
-def recommendation_for(finding_class: str, payload: Mapping[str, Any]) -> str:
-    """Return a supplied remediation or a conservative class-based suggestion."""
-    for key in ("recommendation", "remediation", "solution", "fix"):
-        value = payload.get(key)
-        if value:
-            return str(value)
-    recommendations = {
-        "missing_security_header": "Add the missing security header and verify it is present on affected responses.",
-        "directory_listing": "Disable directory listing or restrict access to the affected path.",
-        "default_credentials": "Change default credentials and verify authentication controls.",
-        "known_vulnerable_component": "Upgrade or patch the affected component and retest.",
-        "exposed_admin_interface": "Restrict administrative interfaces to authorized networks and require strong authentication.",
-        "tls_weak_cipher": "Disable weak TLS protocols/ciphers and retest the service.",
-        "sql_injection_possible": "Validate input handling and confirm with safe, authorized testing before remediation.",
-    }
-    return recommendations.get(finding_class, "Review the source evidence, confirm impact, and remediate according to the affected component.")
 
 
 def plugin() -> Commandlet:
