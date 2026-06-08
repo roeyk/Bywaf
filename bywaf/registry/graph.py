@@ -13,117 +13,26 @@ Used by:
 from __future__ import annotations
 
 from collections.abc import Iterable
-from dataclasses import dataclass, field
 
 from ..event.schemas import event_schema
 from .config import parse_package_plugin_config
+from .graph_model import ManifestGraphNode, ManifestRelationship, ManifestRelationshipGraph
+from .graph_reports import registered_topics_for_graph, relationship_report_for_provider
 from .manifest import PluginManifest, load_package_manifest
 
-
-@dataclass(frozen=True, slots=True)
-class ManifestGraphNode:
-    """One plugin/provider node derived from manifest metadata.
-
-    Manifest graph construction creates one node per provider before importing
-    plugin Python. Registry tooling, dependency checks, and graph renderers
-    consume it to reason about schemas, topics, capabilities, variables, roles,
-    and explicit plugin dependencies.
-    """
-
-    provider: str
-    commandlets: tuple[str, ...]
-    requires_bywaf: str | None
-    requires_schemas: tuple[str, ...]
-    requires_plugins: tuple[str, ...]
-    schemas: tuple[str, ...]
-    consumes: tuple[str, ...]
-    emits: tuple[str, ...]
-    capabilities: tuple[str, ...]
-    database_reads: tuple[str, ...]
-    database_writes: tuple[str, ...]
-    triggers: tuple[str, ...]
-    trigger_topics: tuple[str, ...]
-    trigger_actions: tuple[str, ...]
-    provider_variables: tuple[str, ...]
-    secret_provider_variables: tuple[str, ...]
-    secret_options: tuple[str, ...]
-    traits: tuple[str, ...]
-    roles: tuple[str, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class ManifestRelationship:
-    """One manifest-derived graph edge.
-
-    `build_manifest_graph` emits these edges for explicit dependencies and
-    inferred relationships such as provided schemas, consumed/emitted topics,
-    trigger topics, and commandlets. Graph queries and renderers consume them.
-    """
-
-    source: str
-    kind: str
-    target: str
-    hard: bool = False
-    detail: str = ""
-
-
-@dataclass(frozen=True, slots=True)
-class ManifestRelationshipGraph:
-    """Provider nodes and manifest-derived relationship edges.
-
-    Registry and tool code build this graph from manifests without loading
-    plugin modules. Dependency resolution, schema/topic audits, and graph output
-    consume its lookup indexes.
-    """
-
-    nodes: dict[str, ManifestGraphNode]
-    edges: tuple[ManifestRelationship, ...]
-    schema_providers: dict[str, tuple[str, ...]] = field(init=False)
-    topic_producers: dict[str, tuple[str, ...]] = field(init=False)
-    topic_consumers: dict[str, tuple[str, ...]] = field(init=False)
-    commandlet_providers: dict[str, str] = field(init=False)
-
-    def __post_init__(self) -> None:
-        """Build lookup indexes for common graph questions."""
-        object.__setattr__(self, "schema_providers", tuple_map(self.edges, "provides_schema"))
-        object.__setattr__(self, "topic_producers", tuple_map(self.edges, "emits_topic"))
-        object.__setattr__(self, "topic_consumers", tuple_map(self.edges, "consumes_topic"))
-        commandlet_providers = {}
-        for edge in self.edges:
-            if edge.kind == "provides_commandlet":
-                commandlet_providers[edge.target] = edge.source
-        object.__setattr__(self, "commandlet_providers", commandlet_providers)
-
-    def providers_for_schema(self, topic: str) -> tuple[str, ...]:
-        """Return providers that own a schema for one topic."""
-        return self.schema_providers.get(topic, ())
-
-    def producers_for_topic(self, topic: str) -> tuple[str, ...]:
-        """Return providers that declare they may emit one topic."""
-        return self.topic_producers.get(topic, ())
-
-    def consumers_for_topic(self, topic: str) -> tuple[str, ...]:
-        """Return providers that declare they may consume one topic."""
-        return self.topic_consumers.get(topic, ())
-
-    def provider_for_commandlet(self, commandlet: str) -> str | None:
-        """Return the manifest provider for one commandlet, if unique."""
-        return self.commandlet_providers.get(commandlet)
-
-    def relationships_for(self, provider: str) -> tuple[ManifestRelationship, ...]:
-        """Return all relationships with the provider as source."""
-        return tuple(edge for edge in self.edges if edge.source == provider)
-
-    def to_dict(self) -> dict[str, object]:
-        """Return a stable JSON-serializable representation."""
-        return {
-            "providers": {provider: node_to_dict(node) for provider, node in sorted(self.nodes.items())},
-            "edges": [edge_to_dict(edge) for edge in self.edges],
-            "schema_providers": self.schema_providers,
-            "topic_producers": self.topic_producers,
-            "topic_consumers": self.topic_consumers,
-            "commandlet_providers": self.commandlet_providers,
-        }
+__all__ = [
+    "ManifestGraphNode",
+    "ManifestRelationship",
+    "ManifestRelationshipGraph",
+    "build_manifest_graph",
+    "build_package_manifest_graph",
+    "bundled_manifest_map",
+    "dependency_errors",
+    "provider_in_graph",
+    "registered_topics_for_graph",
+    "relationship_report_for_provider",
+    "validate_manifest_dependencies",
+]
 
 
 def build_package_manifest_graph(
@@ -159,48 +68,6 @@ def build_manifest_graph(manifests: dict[str, PluginManifest]) -> ManifestRelati
     for provider, node in nodes.items():
         edges.extend(relationships_from_node(provider, node))
     return ManifestRelationshipGraph(nodes=nodes, edges=tuple(sorted(edges, key=edge_key)))
-
-
-def relationship_report_for_provider(
-    graph: ManifestRelationshipGraph,
-    provider: str,
-    *,
-    registered_schemas: Iterable[str] = (),
-) -> dict[str, object]:
-    """Return compact relationship context for one provider."""
-    node = graph.nodes[provider]
-    registered = set(registered_schemas)
-    return {
-        "provider": provider,
-        "commandlets": node.commandlets,
-        "schemas": node.schemas,
-        "requires_schemas": node.requires_schemas,
-        "requires_plugins": node.requires_plugins,
-        "consumes": tuple(
-            topic_context(
-                topic,
-                producers=graph.producers_for_topic(topic),
-                consumers=(),
-                schema_providers=graph.providers_for_schema(topic),
-                registered=topic in registered,
-            )
-            for topic in node.consumes
-        ),
-        "emits": tuple(
-            topic_context(
-                topic,
-                producers=graph.producers_for_topic(topic),
-                consumers=graph.consumers_for_topic(topic),
-                schema_providers=graph.providers_for_schema(topic),
-                registered=topic in registered,
-            )
-            for topic in node.emits
-        ),
-        "capabilities": node.capabilities,
-        "database_reads": node.database_reads,
-        "database_writes": node.database_writes,
-        "relationships": tuple(edge_to_dict(edge) for edge in graph.relationships_for(provider)),
-    }
 
 
 def dependency_errors(
@@ -248,80 +115,6 @@ def validate_manifest_dependencies(
         errors.extend(f"{provider}: {error}" for error in dependency_errors(provider, manifest, graph))
     if errors:
         raise ValueError("; ".join(errors))
-
-
-def registered_topics_for_graph(graph: ManifestRelationshipGraph) -> tuple[str, ...]:
-    """Return graph topics with framework/runtime registered schemas."""
-    topics = {
-        topic
-        for node in graph.nodes.values()
-        for topic in (*node.schemas, *node.consumes, *node.emits, *node.requires_schemas)
-    }
-    return tuple(sorted(topic for topic in topics if event_schema(topic) is not None))
-
-
-def topic_context(
-    topic: str,
-    *,
-    producers: Iterable[str],
-    consumers: Iterable[str],
-    schema_providers: Iterable[str],
-    registered: bool,
-) -> dict[str, object]:
-    """Return producer/consumer/schema context for one topic."""
-    provider_tuple = tuple(sorted(schema_providers))
-    return {
-        "topic": topic,
-        "schema_status": schema_status(provider_tuple, registered=registered),
-        "schema_providers": provider_tuple,
-        "known_producers": tuple(sorted(producers)),
-        "known_consumers": tuple(sorted(consumers)),
-    }
-
-
-def schema_status(schema_providers: tuple[str, ...], *, registered: bool) -> str:
-    """Return a compact schema registration label for graph output."""
-    if schema_providers:
-        return "plugin-owned"
-    if registered:
-        return "framework-registered"
-    return "unregistered"
-
-
-def node_to_dict(node: ManifestGraphNode) -> dict[str, object]:
-    """Return a JSON-serializable node mapping."""
-    return {
-        "provider": node.provider,
-        "commandlets": node.commandlets,
-        "requires_bywaf": node.requires_bywaf,
-        "requires_schemas": node.requires_schemas,
-        "requires_plugins": node.requires_plugins,
-        "schemas": node.schemas,
-        "consumes": node.consumes,
-        "emits": node.emits,
-        "capabilities": node.capabilities,
-        "database_reads": node.database_reads,
-        "database_writes": node.database_writes,
-        "triggers": node.triggers,
-        "trigger_topics": node.trigger_topics,
-        "trigger_actions": node.trigger_actions,
-        "provider_variables": node.provider_variables,
-        "secret_provider_variables": node.secret_provider_variables,
-        "secret_options": node.secret_options,
-        "traits": node.traits,
-        "roles": node.roles,
-    }
-
-
-def edge_to_dict(edge: ManifestRelationship) -> dict[str, object]:
-    """Return a JSON-serializable edge mapping."""
-    return {
-        "source": edge.source,
-        "kind": edge.kind,
-        "target": edge.target,
-        "hard": edge.hard,
-        "detail": edge.detail,
-    }
 
 
 def node_from_manifest(provider: str, manifest: PluginManifest) -> ManifestGraphNode:
@@ -413,15 +206,6 @@ def flatten(values: Iterable[Iterable[str]]) -> list[str]:
 def sorted_set(values: Iterable[str]) -> list[str]:
     """Return sorted unique string values."""
     return sorted(set(values))
-
-
-def tuple_map(edges: tuple[ManifestRelationship, ...], kind: str) -> dict[str, tuple[str, ...]]:
-    """Return target-to-source tuple map for one relationship kind."""
-    mapping: dict[str, list[str]] = {}
-    for edge in edges:
-        if edge.kind == kind:
-            mapping.setdefault(edge.target, []).append(edge.source)
-    return {target: tuple(sorted(sources)) for target, sources in sorted(mapping.items())}
 
 
 def edge_key(edge: ManifestRelationship) -> tuple[str, str, str, str]:
