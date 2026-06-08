@@ -1084,8 +1084,8 @@ Use this when method posture matters: it records the methods advertised by
 `Allow` or `Public` response headers and promotes risky methods into finding
 candidates. It is a small HTTP probe that pairs well with `http_probe`,
 `http_headers`, and report review.
-Current finding coverage includes enabled TRACE and write-capable methods such
-as PUT, PATCH, and DELETE.
+Current finding coverage includes enabled TRACE, write-capable methods such as
+PUT, PATCH, and DELETE, and WebDAV methods such as PROPFIND or MKCOL.
 
 Plugin metadata:
 

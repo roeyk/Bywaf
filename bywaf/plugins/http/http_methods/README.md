@@ -24,5 +24,5 @@ PYTHONPATH=. pytest -q tests/framework_http_app/test_http_methods.py
 
 `http_methods` sends one OPTIONS request per explicit target or upstream
 `port.open` event. It records the advertised methods from `Allow` or `Public`
-headers and promotes enabled TRACE or write-capable methods into candidate
-findings for report review.
+headers and promotes enabled TRACE, write-capable, or WebDAV methods into
+candidate findings for report review.

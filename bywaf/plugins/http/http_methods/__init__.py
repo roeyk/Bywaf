@@ -14,6 +14,7 @@ from bywaf.plugins.target_policy import filter_targets_by_host
 
 DEFAULTS = {"path": "/", "scheme": "auto", "silent": "false", "timeout": 5}
 WRITE_METHODS = ("PUT", "PATCH", "DELETE")
+WEBDAV_METHODS = ("PROPFIND", "PROPPATCH", "MKCOL", "COPY", "MOVE", "LOCK", "UNLOCK")
 
 
 @commandlet(
@@ -243,6 +244,24 @@ def method_findings(payload: dict[str, object]) -> list[dict[str, object]]:
                 affected=[{"url": str(payload["url"])}],
                 evidence=f"{payload['url']} allowed write-capable HTTP methods: {', '.join(write_methods)}.",
                 recommendation="Disable PUT, PATCH, and DELETE unless they are required and access-controlled.",
+                source={"tool": "http_methods", "topic": "http.methods"},
+            )
+        )
+    webdav_methods = [method for method in WEBDAV_METHODS if method in methods]
+    if webdav_methods:
+        findings.append(
+            candidate_payload(
+                title="WebDAV HTTP methods enabled",
+                finding_class="web.method.webdav_enabled",
+                severity="medium",
+                confidence="medium",
+                confidence_basis="safe_probe",
+                finding_scope="web_origin",
+                target=target_payload(payload),
+                identifiers={"cwe": ["CWE-650"], "owasp": ["A05:2021"]},
+                affected=[{"url": str(payload["url"])}],
+                evidence=f"{payload['url']} allowed WebDAV HTTP methods: {', '.join(webdav_methods)}.",
+                recommendation="Disable WebDAV methods unless they are required and access-controlled.",
                 source={"tool": "http_methods", "topic": "http.methods"},
             )
         )

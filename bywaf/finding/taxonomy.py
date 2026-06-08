@@ -93,6 +93,11 @@ STARTER_FINDING_CLASSES: dict[str, FindingClassInfo] = {
         "HTTP Basic authentication challenge has no realm.",
         {"cwe": ("CWE-16",), "owasp": ("A05:2021",)},
     ),
+    "web.method.webdav_enabled": FindingClassInfo(
+        "web.method.webdav_enabled",
+        "WebDAV HTTP methods are enabled.",
+        {"cwe": ("CWE-650",), "owasp": ("A05:2021",)},
+    ),
     "service.telnet.exposed": FindingClassInfo(
         "service.telnet.exposed",
         "Telnet service exposed on a target.",

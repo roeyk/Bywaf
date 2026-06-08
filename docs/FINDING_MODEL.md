@@ -177,6 +177,7 @@ Starter examples:
 | `web.cors.wildcard_with_credentials` | `CWE-942`, OWASP `A05:2021` |
 | `web.method.trace_enabled` | `CWE-16`, OWASP `A05:2021` |
 | `web.method.write_methods_enabled` | `CWE-650`, OWASP `A01:2021` |
+| `web.method.webdav_enabled` | `CWE-650`, OWASP `A05:2021` |
 | `web.exposure.git_config` | `CWE-538`, OWASP `A05:2021` |
 | `web.exposure.source_control_metadata` | `CWE-538`, OWASP `A05:2021` |
 | `web.exposure.source_map` | `CWE-538`, OWASP `A05:2021` |
@@ -319,8 +320,8 @@ review-worthy rule. For example, `portscanner` promotes exposed Telnet, and
 `http_headers` promotes missing high-value HTTP security headers, weak cookie
 attributes, implementation-revealing `Server` headers, and HTTPS-to-HTTP
 redirects.
-`http_methods` promotes enabled TRACE and write-capable HTTP methods from
-OPTIONS response metadata.
+`http_methods` promotes enabled TRACE, write-capable, and WebDAV HTTP methods
+from OPTIONS response metadata.
 `http_cors` promotes arbitrary Origin reflection and credentialed wildcard or
 reflected CORS posture from bounded preflight-style response metadata.
 `git_expose_check` promotes exposed `.git/config` repository metadata, and

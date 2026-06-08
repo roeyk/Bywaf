@@ -27,21 +27,31 @@ class TestHttpMethodsTests(unittest.TestCase):
         self.assertEqual(targets, [("127.0.0.1", 443, "https", "/")])
 
     def test_http_methods_normalizes_allow_header(self):
-        self.assertEqual(normalize_methods("get, POST, options, TRACE"), ["GET", "OPTIONS", "POST", "TRACE"])
+        self.assertEqual(
+            normalize_methods("get, POST, options, TRACE, PROPFIND"),
+            ["GET", "OPTIONS", "POST", "PROPFIND", "TRACE"],
+        )
 
-    def test_http_methods_promotes_trace_and_write_methods(self):
+    def test_http_methods_promotes_trace_write_and_webdav_methods(self):
         payload = {
             "url": "https://example.test/",
             "host": "example.test",
             "port": 443,
             "scheme": "https",
             "path": "/",
-            "methods": ["GET", "PUT", "TRACE"],
+            "methods": ["GET", "PUT", "PROPFIND", "TRACE"],
         }
 
         classes = {candidate["class"] for candidate in method_findings(payload)}
 
-        self.assertEqual(classes, {"web.method.trace_enabled", "web.method.write_methods_enabled"})
+        self.assertEqual(
+            classes,
+            {
+                "web.method.trace_enabled",
+                "web.method.webdav_enabled",
+                "web.method.write_methods_enabled",
+            },
+        )
 
     def test_http_methods_probe_uses_allow_header(self):
         target = MethodTarget("https://example.test/", "example.test", 443, "https", "/")
@@ -77,10 +87,14 @@ class TestHttpMethodsTests(unittest.TestCase):
             candidates = runner.db.events_for_topic("finding.candidate")
 
             self.assertEqual(len(method_events), 1)
-            self.assertEqual(method_events[0].payload["methods"], ["GET", "OPTIONS", "PUT", "TRACE"])
+            self.assertEqual(method_events[0].payload["methods"], ["GET", "OPTIONS", "PROPFIND", "PUT", "TRACE"])
             self.assertEqual(
                 {event.payload["class"] for event in candidates},
-                {"web.method.trace_enabled", "web.method.write_methods_enabled"},
+                {
+                    "web.method.trace_enabled",
+                    "web.method.webdav_enabled",
+                    "web.method.write_methods_enabled",
+                },
             )
             self.assertTrue(all(event.pipeline_id for event in candidates))
 
@@ -103,7 +117,7 @@ class PublicResponse(FakeResponse):
 
 
 class RiskyResponse(FakeResponse):
-    headers = {"Allow": "GET, OPTIONS, PUT, TRACE"}
+    headers = {"Allow": "GET, OPTIONS, PUT, PROPFIND, TRACE"}
 
 
 class AllowConnection:

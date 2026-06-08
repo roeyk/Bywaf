@@ -53,8 +53,8 @@ impact label and sorted from highest to lowest operator/developer impact:
   framing protection, missing Content-Security-Policy, and missing
   Referrer-Policy from already-collected response headers.
 - [medium] Added bundled `http_methods` OPTIONS probing to record advertised
-  HTTP methods and promote TRACE or write-capable methods into candidate
-  findings.
+  HTTP methods and promote TRACE, write-capable, or WebDAV methods into
+  candidate findings.
 - [medium] Added bundled `http_auth` challenge probing to record HTTP
   authentication posture and promote Basic-over-cleartext,
   administrative-path challenge, and missing-realm candidates.
