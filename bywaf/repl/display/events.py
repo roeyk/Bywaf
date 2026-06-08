@@ -17,40 +17,31 @@ from .settings import (
     EVENT_COMMANDLET_COLOR,
     EVENT_ID_COLOR,
 )
+from .scan_events import (
+    format_finding_event,
+    format_finding_merge_candidate_event,
+    format_http_headers_event,
+    format_tls_certificate_event,
+    format_tls_probe_error_event,
+)
 from .variables import subject_text
+
 
 def format_event(event, runner: Runner | None = None) -> str:
     """Render one event row for human-readable console output."""
     # Prefer topic-specific summaries for high-volume operational events. The
     # fallback still exposes the raw payload for unknown third-party topics.
-    if event.topic == "port.open":
-        return format_port_open_event(event, runner)
-    if event.topic == "host.found":
-        return format_host_found_event(event, runner)
-    if event.topic == "name.resolved":
-        return format_name_resolved_event(event, runner)
-    if event.topic == "console.alert":
-        return format_console_alert_event(event)
-    if event.topic in {"console.output", "framework.console.output.requested"}:
+    if event.topic in CONSOLE_OUTPUT_TOPICS:
         return format_console_output_event(event)
-    if event.topic == "framework.console.alert.requested":
-        return format_console_alert_requested_event(event)
-    if event.topic in {"plugin.capability.used", "plugin.capability.missing"}:
-        return format_capability_event(event)
-    if event.topic.startswith("plugin.progress."):
-        return format_progress_event(event)
-    if event.topic.startswith("command.run."):
-        return format_command_run_event(event)
-    if event.topic.startswith("job."):
-        return format_job_event(event)
-    if event.topic.startswith("framework.trigger."):
-        return format_trigger_event(event)
-    if event.topic == "framework.process.run.requested":
-        return format_process_request_event(event)
-    if event.topic in {"tool.error", "tool.exception", "system.error", "web.error", "network.error"}:
+    if event.topic in ERROR_TOPICS:
         return format_error_event(event)
-    if event.topic == "runtime.name.assigned":
-        return format_runtime_name_event(event)
+    if formatter := RUNNER_EVENT_FORMATTERS.get(event.topic):
+        return formatter(event, runner)
+    if formatter := SIMPLE_EVENT_FORMATTERS.get(event.topic):
+        return formatter(event)
+    for prefix, formatter in PREFIX_EVENT_FORMATTERS:
+        if event.topic.startswith(prefix):
+            return formatter(event)
     return f"{event.id}: {event.topic} {event.payload}"
 
 
@@ -224,6 +215,39 @@ def format_runtime_name_event(event) -> str:
     target_id = payload.get("target_id", "")
     name = payload.get("name", "")
     return f"{event.id}: {target_type} {target_id} named {name}".strip()
+
+
+RUNNER_EVENT_FORMATTERS = {
+    "finding.candidate": format_finding_event,
+    "finding.new": format_finding_event,
+    "finding.confirmed": format_finding_event,
+    "finding.updated": format_finding_event,
+    "finding.merge_candidate": format_finding_merge_candidate_event,
+    "http.headers": format_http_headers_event,
+    "tls.certificate": format_tls_certificate_event,
+    "tls.probe.error": format_tls_probe_error_event,
+    "port.open": format_port_open_event,
+    "host.found": format_host_found_event,
+    "name.resolved": format_name_resolved_event,
+}
+
+SIMPLE_EVENT_FORMATTERS = {
+    "console.alert": format_console_alert_event,
+    "framework.console.alert.requested": format_console_alert_requested_event,
+    "plugin.capability.used": format_capability_event,
+    "plugin.capability.missing": format_capability_event,
+    "framework.process.run.requested": format_process_request_event,
+    "runtime.name.assigned": format_runtime_name_event,
+}
+
+CONSOLE_OUTPUT_TOPICS = {"console.output", "framework.console.output.requested"}
+ERROR_TOPICS = {"tool.error", "tool.exception", "system.error", "web.error", "network.error"}
+PREFIX_EVENT_FORMATTERS = (
+    ("plugin.progress.", format_progress_event),
+    ("command.run.", format_command_run_event),
+    ("job.", format_job_event),
+    ("framework.trigger.", format_trigger_event),
+)
 
 
 def friendly_error(exc: Exception) -> str:

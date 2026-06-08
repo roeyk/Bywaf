@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from bywaf.app import make_runner, process_framework_requests
+from bywaf.app import dispatch_repl_line, make_runner, process_framework_requests
 from bywaf.db import EventStore
 from bywaf.plugin import CommandContext
 from bywaf.plugins.http.tls_probe import tls_probe
@@ -87,6 +87,34 @@ class TlsProbeFindingTests(unittest.TestCase):
                 ["service.tls.hostname_mismatch"],
             )
             self.assertIn("TLS certificate hostname mismatch", output.getvalue())
+
+    def test_tls_probe_repl_output_is_compact(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            state = ShellState()
+            output = io.StringIO()
+
+            def fake_fetch(host, port, timeout):
+                del host, port, timeout
+                return {
+                    "subject": "commonName=example.test",
+                    "issuer": "commonName=CA",
+                    "san": ["example.test"],
+                    "not_after": "Jan 01 00:00:00 2035 GMT",
+                }
+
+            with (
+                patch("bywaf.plugins.http.tls_probe.fetch_certificate", side_effect=fake_fetch),
+                contextlib.redirect_stdout(output),
+            ):
+                dispatch_repl_line(runner, "tls_probe example.test:443", state)
+                process_framework_requests(runner, state)
+
+            text = output.getvalue()
+            self.assertIn("tls.certificate example.test:443 subject=commonName=example.test", text)
+            self.assertIn("captured TLS certificate from example.test:443", text)
+            self.assertNotIn("{'subject':", text)
+            self.assertNotIn("{'host':", text)
 
 
 if __name__ == "__main__":

@@ -1,15 +1,18 @@
 """Framework HTTP app tests for test http headers."""
 
+import contextlib
+import io
 from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
 
-from bywaf.app import make_runner
+from bywaf.app import dispatch_repl_line, make_runner, process_framework_requests
 from bywaf.event import Event
 from bywaf.plugins.http.http_headers import HttpHeaders
 from bywaf.plugins.http.http_headers.findings import missing_security_header_candidates
 from bywaf.plugins.http.http_headers.models import HeaderProbeResult, HeaderTarget
+from bywaf.repl import ShellState
 
 
 class TestHttpHeadersTests(unittest.TestCase):
@@ -41,6 +44,25 @@ class TestHttpHeadersTests(unittest.TestCase):
                 },
             )
             self.assertTrue(all(event.pipeline_id for event in candidates))
+
+    def test_http_headers_repl_output_is_compact(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            state = ShellState()
+            output = io.StringIO()
+
+            with (
+                patch("bywaf.plugins.http.http_headers.detect.http.client.HTTPSConnection", FakeHttpConnection),
+                contextlib.redirect_stdout(output),
+            ):
+                dispatch_repl_line(runner, "http_headers --ssl true example.test", state)
+                process_framework_requests(runner, state)
+
+            text = output.getvalue()
+            self.assertIn("finding.candidate Missing HTTP Strict Transport Security", text)
+            self.assertIn("http.headers example.test:443 status=200 headers=Server", text)
+            self.assertNotIn("{'affected':", text)
+            self.assertNotIn("{'headers':", text)
 
     def test_http_headers_promotes_cookie_redirect_and_server_findings(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -514,6 +514,38 @@ class AppDispatchTests(unittest.TestCase):
                 "pipeline pipeline-1 named client scan",
             ),
             (
+                "finding.candidate",
+                {
+                    "title": "Missing HTTP Strict Transport Security",
+                    "class": "web.header.missing_hsts",
+                    "severity": "medium",
+                    "target": {"scheme": "https", "host": "example.test", "port": "443", "path": "/"},
+                },
+                "finding.candidate Missing HTTP Strict Transport Security https://example.test:443 medium",
+            ),
+            (
+                "http.headers",
+                {"host": "example.test", "port": 443, "status": 200, "headers": {"Server": "example"}},
+                "http.headers example.test:443 status=200 headers=Server",
+            ),
+            (
+                "tls.certificate",
+                {
+                    "host": "example.test",
+                    "port": 443,
+                    "subject": "commonName=example.test",
+                    "issuer": "commonName=CA",
+                    "not_after": "Jan 01 00:00:00 2035 GMT",
+                    "san": ["example.test", "www.example.test"],
+                },
+                "tls.certificate example.test:443 subject=commonName=example.test",
+            ),
+            (
+                "tls.probe.error",
+                {"host": "example.test", "port": 443, "error": "handshake failed"},
+                "tls.probe.error example.test:443 error=handshake failed",
+            ),
+            (
                 "job.failed",
                 {
                     "job_id": 376,
