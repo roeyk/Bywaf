@@ -4,6 +4,7 @@ from pathlib import Path
 import contextlib
 import importlib.resources
 import io
+import json
 import re
 import tempfile
 import tomllib
@@ -108,6 +109,87 @@ class PackagingInstallVersionAndRootTests(unittest.TestCase):
             self.assertEqual(runner.registry.provider_commandlet_names("local/provider"), ["provider"])
             events = EventStore(db_path).events_for_topic("plugin.dependency.auto_loaded")
             self.assertEqual(events[-1].payload["plugin"], "local/provider")
+
+    def test_cli_plugin_graph_shows_filesystem_dependency_closure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp, "home", "alice", ".bywaf", "plugins")
+            write_plugin(root, "local/provider", "provider", "provider")
+            consumer = write_plugin(root, "local/consumer", "consumer", "consumer")
+            consumer_manifest = consumer / "bywaf.plugin.toml"
+            consumer_manifest.write_text(
+                consumer_manifest.read_text(encoding="utf-8").replace(
+                    'version = "0.1.0"\n',
+                    'version = "0.1.0"\nrequires_plugins = ["local/provider"]\n',
+                ),
+                encoding="utf-8",
+            )
+            config = root / "plugins.toml"
+            config.write_text('default_plugins = ["local/consumer"]\n')
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                status = main(
+                    [
+                        "--database",
+                        str(Path(tmp, "db.sqlite3")),
+                        "--plugin-root",
+                        str(root),
+                        "--plugin-config",
+                        str(config),
+                        "--force-plugins",
+                        "plugins",
+                        "graph",
+                    ]
+                )
+
+            self.assertEqual(status, 0)
+            text = output.getvalue()
+            self.assertIn("Filesystem plugin load closure", text)
+            self.assertIn("local/provider", text)
+            self.assertIn("local/consumer", text)
+            self.assertIn("configured", text)
+            self.assertIn("auto-loaded", text)
+            self.assertIn("requires_plugins", text)
+
+    def test_cli_plugin_graph_json_includes_filesystem_dependency_closure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp, "home", "alice", ".bywaf", "plugins")
+            write_plugin(root, "local/provider", "provider", "provider")
+            consumer = write_plugin(root, "local/consumer", "consumer", "consumer")
+            consumer_manifest = consumer / "bywaf.plugin.toml"
+            consumer_manifest.write_text(
+                consumer_manifest.read_text(encoding="utf-8").replace(
+                    'version = "0.1.0"\n',
+                    'version = "0.1.0"\nrequires_plugins = ["local/provider"]\n',
+                ),
+                encoding="utf-8",
+            )
+            config = root / "plugins.toml"
+            config.write_text('default_plugins = ["local/consumer"]\n')
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                status = main(
+                    [
+                        "--database",
+                        str(Path(tmp, "db.sqlite3")),
+                        "--plugin-root",
+                        str(root),
+                        "--plugin-config",
+                        str(config),
+                        "--force-plugins",
+                        "plugins",
+                        "graph",
+                        "--json",
+                    ]
+                )
+
+            self.assertEqual(status, 0)
+            closure = json.loads(output.getvalue())["filesystem_dependency_closure"]
+            self.assertEqual(closure["requested"], ["local/consumer"])
+            self.assertEqual(closure["auto_loaded"], ["local/provider"])
+            self.assertEqual(closure["load_order"], ["local/provider", "local/consumer"])
+            self.assertEqual(closure["auto_load_reasons"], {"local/provider": "requires_plugins"})
 
     def test_filesystem_config_rejects_dependency_chain_when_nested_dependency_is_missing(self):
         with tempfile.TemporaryDirectory() as tmp:

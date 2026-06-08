@@ -24,6 +24,7 @@ from .registry import (
     PluginRegistry,
     PluginTrustPolicy,
     filesystem_manifest_dependency_closure,
+    normalize_catalog_path,
     parse_plugin_config,
 )
 from .triggers import trigger_action_name
@@ -64,6 +65,14 @@ def load_filesystem_registry(
     policy = PluginTrustPolicy.developer_bypass() if forced_plugins else plugin_trust_policy
     requested_entries = parse_plugin_config(plugin_config)
     entries, filesystem_manifests = filesystem_manifest_dependency_closure(plugin_root, requested_entries)
+    requested_providers = tuple(normalize_catalog_path(entry) for entry in requested_entries)
+    load_order = tuple(normalize_catalog_path(entry) for entry in entries)
+    requested_set = set(requested_providers)
+    auto_loaded = tuple(provider for provider in load_order if provider not in requested_set)
+    registry.filesystem_requested_providers = requested_providers
+    registry.filesystem_load_order = load_order
+    registry.filesystem_auto_loaded_providers = auto_loaded
+    registry.filesystem_auto_load_reasons = {provider: "requires_plugins" for provider in auto_loaded}
     audit_auto_loaded_dependencies(db, plugin_root, requested_entries, entries)
     verify_catalog_entries_with_audit(db, plugin_root, entries, catalog)
     registry.manifests.update(filesystem_manifests)
@@ -90,3 +99,7 @@ def merge_filesystem_registry(registry: PluginRegistry, filesystem: PluginRegist
         provider = filesystem.trigger_provider(trigger) or trigger_action_name(trigger)
         registry.add_triggers(provider, (trigger,))
     registry.manifests.update(filesystem.manifests)
+    registry.filesystem_requested_providers = filesystem.filesystem_requested_providers
+    registry.filesystem_auto_loaded_providers = filesystem.filesystem_auto_loaded_providers
+    registry.filesystem_load_order = filesystem.filesystem_load_order
+    registry.filesystem_auto_load_reasons.update(filesystem.filesystem_auto_load_reasons)

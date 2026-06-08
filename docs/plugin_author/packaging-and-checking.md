@@ -259,6 +259,9 @@ manifest graph directly, for example known producers and consumers of
 `port.open` or the relationships for `http.http_probe`. For the runtime
 registry view, use `bywaf plugins graph`; it includes bundled plugins and any
 configured or auto-loaded filesystem plugins that passed dependency validation.
+It also shows the filesystem closure load order, which providers were
+configured directly, which were auto-loaded, and the `requires_plugins` reason
+for those additions.
 
 The checker does not make plugin code sandboxed or inherently safe. Native and
 library-backed plugins are still Python code. Treat a passing check as

@@ -48,8 +48,11 @@ source of truth; assistant output is only a proposal until it passes
 
 ## Current API At A Glance
 
-Bywaf plugins provide commandlets. They do not use Veil-style modules,
-Metasploit-style `info` dictionaries, or `run/exploit` entrypoints.
+Bywaf plugins provide commandlets. They are **not** Veil modules, Metasploit
+modules, `info` dictionaries, or `run/exploit` entrypoint scripts. The current
+plugin API is commandlet-based: plugin authors use `@commandlet`, `@argument`,
+`@option`, `CommandletBase`, `CommandContext`, a `plugin()` factory, and a
+`bywaf.plugin.toml` manifest.
 
 ```text
 plugin.py          small @commandlet function plus plugin() factory

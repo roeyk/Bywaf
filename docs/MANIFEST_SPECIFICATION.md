@@ -198,10 +198,12 @@ context in a filesystem plugin validation report. Use
 manifest relationships directly. Use `bywaf plugins graph`,
 `bywaf plugins graph --provider <provider>`, `bywaf plugins graph --topic
 <topic>`, or `bywaf plugins graph --json` to inspect the currently loaded
-registry, including configured and auto-loaded filesystem plugins. These
-commands read manifest metadata and do not infer hard dependencies from topic
-names. `plugin_check` and runtime plugin loading fail missing required plugins,
-missing required schemas, and ambiguous plugin-owned schema providers.
+registry. The runtime graph includes the filesystem dependency closure:
+configured filesystem providers, auto-loaded `requires_plugins` dependencies,
+their load order, and why each dependency was added. These commands read
+manifest metadata and do not infer hard dependencies from topic names.
+`plugin_check` and runtime plugin loading fail missing required plugins, missing
+required schemas, and ambiguous plugin-owned schema providers.
 
 Reserve exact plugin dependencies for non-schema provider coupling, such as a
 specific commandlet, artifact producer, service, listener, exporter, provider

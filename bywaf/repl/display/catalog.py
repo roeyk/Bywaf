@@ -74,6 +74,7 @@ def print_plugin_graph(runner: Runner, *, json_output: bool = False, provider: s
         }
     else:
         payload = graph.to_dict()
+        payload["filesystem_dependency_closure"] = filesystem_dependency_closure_payload(runner)
     if json_output:
         print(json.dumps(payload, indent=2, sort_keys=True))
         return
@@ -128,7 +129,28 @@ def render_full_plugin_graph_payload(runner: Runner, payload: dict[str, object])
         for edge in edge_rows
         if isinstance(edge, dict) and edge.get("kind") in {"requires_schema", "provides_schema", "consumes_topic", "emits_topic"}
     ]
-    sections = ["Plugin dependency graph"]
+    sections = ["Filesystem plugin load closure"]
+    closure = payload.get("filesystem_dependency_closure")
+    closure_rows = filesystem_dependency_closure_rows(closure)
+    if closure_rows:
+        sections.append(
+            render_console_table(
+                Table(
+                    (
+                        Column("order", "ORDER"),
+                        Column("plugin", "PLUGIN"),
+                        Column("source", "SOURCE"),
+                        Column("reason", "REASON"),
+                    ),
+                    tuple(closure_rows),
+                ),
+                runner.registry.varstore.get,
+            )
+        )
+    else:
+        sections.append("no filesystem plugin closure loaded")
+    sections.append("")
+    sections.append("Plugin dependency graph")
     if plugin_rows:
         sections.append(
             render_console_table(
@@ -163,6 +185,51 @@ def render_full_plugin_graph_payload(runner: Runner, payload: dict[str, object])
     else:
         sections.append("no schema or topic relationships")
     return "\n".join(sections)
+
+
+def filesystem_dependency_closure_payload(runner: Runner) -> dict[str, object]:
+    """Return configured and auto-loaded filesystem plugin closure metadata."""
+    registry = runner.registry
+    return {
+        "requested": list(registry.filesystem_requested_providers),
+        "auto_loaded": list(registry.filesystem_auto_loaded_providers),
+        "load_order": list(registry.filesystem_load_order),
+        "auto_load_reasons": dict(registry.filesystem_auto_load_reasons),
+    }
+
+
+def filesystem_dependency_closure_rows(closure: object) -> list[dict[str, str]]:
+    """Return display rows for filesystem dependency closure metadata."""
+    if not isinstance(closure, dict):
+        return []
+    load_order = closure.get("load_order")
+    if not isinstance(load_order, list):
+        return []
+    requested = set(str(provider) for provider in object_sequence(closure.get("requested")))
+    auto_loaded = set(str(provider) for provider in object_sequence(closure.get("auto_loaded")))
+    reasons = closure.get("auto_load_reasons")
+    reason_map = reasons if isinstance(reasons, dict) else {}
+    rows = []
+    for index, provider in enumerate(load_order, start=1):
+        plugin = str(provider)
+        if plugin in requested:
+            source = "configured"
+            reason = "plugin_config"
+        elif plugin in auto_loaded:
+            source = "auto-loaded"
+            reason = str(reason_map.get(plugin, "requires_plugins"))
+        else:
+            source = "loaded"
+            reason = "-"
+        rows.append(
+            {
+                "order": str(index),
+                "plugin": plugin,
+                "source": source,
+                "reason": reason,
+            }
+        )
+    return rows
 
 
 def schema_edge_label(kind: str) -> str:

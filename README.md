@@ -5,11 +5,6 @@ network testing workflows. It gives operators an interactive shell, plugin
 commandlets, durable SQLite-backed events, artifacts, notes, runtime metadata,
 and report-oriented finding workflows.
 
-Bywaf plugins are **not** Veil modules, Metasploit modules, `info` dictionaries,
-or `run/exploit` entrypoint scripts. The current plugin API is commandlet-based:
-plugin authors use `@commandlet`, `@argument`, `@option`, `CommandletBase`,
-`CommandContext`, a `plugin()` factory, and a `bywaf.plugin.toml` manifest.
-
 The core idea is simple:
 
 ```text
