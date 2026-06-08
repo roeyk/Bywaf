@@ -41,6 +41,9 @@ LLM Guardrails:
 - For ordinary commandlets, prefer a manifest-backed bare `@commandlet`
   function that receives `(context, cfg, input_events)`. This is the default
   authoring path unless the commandlet needs advanced hooks.
+- For scaffold-generated function commandlets, tests should import `plugin`,
+  call `commandlet = plugin()`, and exercise `commandlet.run(...)`. Do not call
+  the decorated commandlet object directly as if it were the original function.
 - For advanced commandlets, decorate the `CommandletBase` class with
   `@commandlet`, `@argument`, and `@option`. Do not decorate the `plugin()`
   factory in either style.

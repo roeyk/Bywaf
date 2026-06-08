@@ -180,6 +180,14 @@ PYTHONPATH=path/to/{commandlet} python3 -m unittest discover -s path/to/{command
   emitted topics, capabilities, database actions, and event schema fields.
 - Update `tests/test_{commandlet}.py` as behavior changes.
 
+## Test Pattern
+
+- Import the module-level factory with `from plugin import plugin`.
+- Create the commandlet with `commandlet = plugin()`.
+- Exercise the scaffold through `commandlet.run(context, ["example.test"], [])`.
+- Do not call the decorated `{commandlet}(...)` object directly in tests; after
+  decoration it is a commandlet wrapper, not the original Python function.
+
 ## Contract
 
 - Commandlet: `{commandlet}`
@@ -220,6 +228,13 @@ tests, and `CHANGELOG.md` before committing a real bundled plugin.
   emitted topics, capabilities, database actions, and event schema fields.
 - Add or update repository tests for the real behavior before adding the plugin
   to `bywaf/plugins/plugins.toml`.
+
+## Test Pattern
+
+- Load or import the plugin through its exported commandlet factory/registry
+  path, then exercise `commandlet.run(context, ["example.test"], [])`.
+- Do not call the decorated `{commandlet}(...)` object directly in tests; after
+  decoration it is a commandlet wrapper, not the original Python function.
 
 ## Contract
 

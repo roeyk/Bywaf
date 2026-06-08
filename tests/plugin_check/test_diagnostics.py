@@ -38,6 +38,54 @@ class TestDiagnosticsTests(unittest.TestCase):
             self.assertFalse(report["ok"])
             self.assertEqual(report["diagnostics"][0]["code"], "decorator-on-plugin-factory")
 
+    def test_check_plugin_reports_missing_factory_for_decorated_commandlet(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = Path(tmp) / "example"
+            plugin_dir.mkdir()
+            plugin_dir.joinpath("plugin.py").write_text(
+                "from bywaf.plugin import commandlet\n"
+                "\n"
+                "@commandlet\n"
+                "def example(context, cfg, input_events):\n"
+                "    del context\n"
+                "    del input_events\n"
+                "    yield {'ok': cfg.target}\n",
+                encoding="utf-8",
+            )
+            plugin_dir.joinpath("bywaf.plugin.toml").write_text(
+                "[plugin]\n"
+                'version = "0.1.0"\n\n'
+                "[[commandlets]]\n"
+                'name = "example"\n'
+                'emits = ["example.observed"]\n'
+                "capabilities = []\n"
+                "database.actions.write = true\n"
+                "\n"
+                "[[commandlets.arguments]]\n"
+                'name = "target"\n'
+                'description = "Target value"\n'
+                "\n"
+                "[[event_schemas]]\n"
+                'topic = "example.observed"\n'
+                'version = "1"\n'
+                'summary = "Example observation."\n'
+                "\n"
+                "[[event_schemas.fields]]\n"
+                'name = "ok"\n'
+                'type = "str"\n'
+                'description = "Observed value."\n',
+                encoding="utf-8",
+            )
+
+            report = check_plugin(plugin_dir)
+
+            self.assertFalse(report["ok"])
+            diagnostics = [item["code"] for item in report["diagnostics"]]
+            self.assertIn("missing-plugin-factory", diagnostics)
+            feedback = render_llm_feedback(report)
+            self.assertIn("def plugin() -> Commandlet", feedback)
+            self.assertIn("plugin().run(...)", feedback)
+
     def test_check_plugin_reports_invalid_candidate_payload_keyword(self):
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(

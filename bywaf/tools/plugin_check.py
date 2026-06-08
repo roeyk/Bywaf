@@ -27,6 +27,9 @@ def analyze_plugin_source(plugin_dir: Path) -> SourceAnalysis:
     warnings: list[CapabilityEvidence] = []
     diagnostics: list[SourceDiagnostic] = []
     inferred_emits: set[str] = set()
+    has_plugin_factory = False
+    has_plugins_factory = False
+    commandlet_decorator_nodes: list[tuple[Path, ast.AST]] = []
     paths = [plugin_dir] if plugin_dir.is_file() else sorted(plugin_dir.rglob("*.py"))
     for path in paths:
         if "__pycache__" in path.parts:
@@ -39,6 +42,25 @@ def analyze_plugin_source(plugin_dir: Path) -> SourceAnalysis:
         warnings.extend(visitor.warnings)
         diagnostics.extend(visitor.diagnostics)
         inferred_emits.update(visitor.inferred_emits)
+        has_plugin_factory = has_plugin_factory or visitor.has_plugin_factory
+        has_plugins_factory = has_plugins_factory or visitor.has_plugins_factory
+        commandlet_decorator_nodes.extend((path, node) for node in visitor.commandlet_decorator_nodes)
+    if commandlet_decorator_nodes and not has_plugin_factory and not has_plugins_factory:
+        path, node = commandlet_decorator_nodes[0]
+        diagnostics.append(
+            SourceDiagnostic(
+                severity="error",
+                code="missing-plugin-factory",
+                path=str(path),
+                line=getattr(node, "lineno", 1),
+                message="module defines @commandlet objects but no plugin() or plugins() factory",
+                guidance=(
+                    "Add an undecorated factory at module scope, for example: "
+                    "def plugin() -> Commandlet: return your_commandlet. "
+                    "Do not call the decorated FunctionCommandlet directly in tests; use plugin().run(...)."
+                ),
+            )
+        )
     capabilities = sorted({item.capability for item in evidence})
     return SourceAnalysis(
         tuple(capabilities),

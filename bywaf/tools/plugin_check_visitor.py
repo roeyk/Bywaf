@@ -40,6 +40,9 @@ class CapabilityVisitor(ast.NodeVisitor):
         self.diagnostics: list[SourceDiagnostic] = []
         self.inferred_emits: set[str] = set()
         self.literal_dict_assignments: dict[str, ast.Dict] = {}
+        self.has_plugin_factory = False
+        self.has_plugins_factory = False
+        self.commandlet_decorator_nodes: list[ast.AST] = []
 
     def visit_Assign(self, node: ast.Assign) -> None:  # noqa: N802 - ast API
         """Track simple literal payload assignments for later publish checks."""
@@ -63,14 +66,27 @@ class CapabilityVisitor(ast.NodeVisitor):
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802 - ast API
         """Detect decorators accidentally attached to plugin() factories."""
         if node.name == "plugin":
+            self.has_plugin_factory = True
             self.inspect_plugin_factory_decorators(node)
+        if node.name == "plugins":
+            self.has_plugins_factory = True
+        self.inspect_commandlet_decorator(node)
         self.visit_function_body(node)
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:  # noqa: N802 - ast API
         """Detect decorators accidentally attached to async plugin() factories."""
         if node.name == "plugin":
+            self.has_plugin_factory = True
             self.inspect_plugin_factory_decorators(node)
+        if node.name == "plugins":
+            self.has_plugins_factory = True
+        self.inspect_commandlet_decorator(node)
         self.visit_function_body(node)
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:  # noqa: N802 - ast API
+        """Track commandlet-decorated classes for missing factory diagnostics."""
+        self.inspect_commandlet_decorator(node)
+        self.generic_visit(node)
 
     def visit_Import(self, node: ast.Import) -> None:  # noqa: N802 - ast API
         """Record import aliases and warn for direct network/process modules."""
@@ -201,6 +217,13 @@ class CapabilityVisitor(ast.NodeVisitor):
                     "@commandlet can decorate a manifest-backed function or a CommandletBase class, but not "
                     "plugin(). Keep plugin() as an undecorated factory that only returns the commandlet object.",
                 )
+
+    def inspect_commandlet_decorator(self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef) -> None:
+        """Track functions/classes decorated as commandlets."""
+        for decorator in node.decorator_list:
+            path = self.call_path(decorator.func) if isinstance(decorator, ast.Call) else self.call_path(decorator)
+            if call_basename(path) == "commandlet":
+                self.commandlet_decorator_nodes.append(decorator)
 
     def inspect_authoring_call(self, node: ast.Call, path: str) -> None:
         """Report common plugin-authoring mistakes before import/runtime failures.

@@ -218,6 +218,10 @@ def extend_llm_feedback_items(
     for error in errors:
         if any(str(error).startswith(f"{diagnostic['code']}:") for diagnostic in diagnostics):
             continue
+        if "does not define plugin()" in str(error) and any(
+            diagnostic["code"] == "missing-plugin-factory" for diagnostic in diagnostics
+        ):
+            continue
         if str(error).startswith("missing shared event emits declarations:"):
             continue
         lines.extend(llm_error_feedback(item_number, error))
@@ -289,15 +293,23 @@ def llm_unused_capability_feedback(item_number: int, capability: str, capability
 
 def llm_error_feedback(item_number: int, error: object) -> list[str]:
     """Return LLM feedback lines for one remaining checker error."""
+    error_text = str(error)
     if error == "manifest [plugin].version is required":
         return [
             f"{item_number}. Missing required manifest field: [plugin].version",
             "   Problem: bywaf.plugin.toml must include a non-empty version string in the [plugin] table.",
             '   Fix: add a line such as version = "0.1.0" under [plugin], or preserve this field when copying a skeleton manifest.',
         ]
+    if "does not define plugin()" in error_text:
+        return [
+            f"{item_number}. Missing required plugin() factory",
+            f"   Problem: {error_text}",
+            "   Fix: add an undecorated module-level factory such as `def plugin() -> Commandlet: return your_commandlet`. "
+            "For scaffold-generated function commandlets, return the decorated function object and test it through `plugin().run(...)`.",
+        ]
     return [
         f"{item_number}. Checker error",
-        f"   Problem: {error}",
+        f"   Problem: {error_text}",
         "   Fix: correct the plugin so scripts/plugin_check.py can import and validate it.",
     ]
 

@@ -91,6 +91,10 @@ Rules:
 - For small commandlets, prefer a manifest-backed @commandlet function in
   plugin.py that receives (context, cfg, input_events), not decorators on
   plugin().
+- For scaffold-generated function commandlets, include at least one focused
+  test that imports `plugin`, creates `commandlet = plugin()`, and calls
+  `commandlet.run(context, ["example.test"], [])`. Do not call the decorated
+  commandlet function object directly.
 - For advanced class-based commandlets, put @commandlet, @argument, and @option
   on the CommandletBase class in plugin.py, not on plugin().
 - Keep manifest/decorator metadata and runtime behavior separate.

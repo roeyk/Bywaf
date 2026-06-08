@@ -151,6 +151,22 @@ The reviewer should see the generated scaffold shape preserved:
 - tests that call the generated commandlet in the supported way for the
   scaffold output.
 
+For scaffold-derived plugins, at least one focused test should import the
+module-level factory and exercise the generated commandlet through the framework
+surface:
+
+```python
+from plugin import plugin
+
+commandlet = plugin()
+events = list(commandlet.run(context, ["https://example.test"], []))
+```
+
+Do not call the decorated function object directly. After decoration, that
+object is a `FunctionCommandlet` wrapper, not the original Python function.
+Helper-only tests are not enough; at least one test must execute the commandlet
+entry path that Bywaf will load.
+
 For the general plugin authoring benchmark, the generated package usually has
 the same core files, and a class-based package may also be valid when it uses
 the documented `CommandletBase` shape correctly:
@@ -192,6 +208,9 @@ Before submitting the plugin, check these common failure points:
   `Commandlet`, `CommandletBase`, `@commandlet`, and `@argument`; do not import
   from `bywaf.framework`.
 - Return `def plugin() -> Commandlet`, not `Commandlet(name=..., handler=...)`.
+- For scaffold-derived function commandlets, test via `plugin().run(...)`.
+  Do not call the decorated commandlet object as if it were the original Python
+  function.
 - In `bywaf.plugin.toml`, use `capabilities = [...]` inside the matching
   `[[commandlets]]` row; do not create a separate `[capabilities]` table.
 - Use manifest event-schema field types exactly as documented: `str`, `int`,
@@ -224,6 +243,8 @@ The draft passes the benchmark only when all of these are true:
    primary interface.
 5. Error paths emit bounded, JSON-serializable payloads and do not hide
    unexpected network failures behind vague success messages.
+6. At least one focused test executes the commandlet through its loaded
+   Bywaf-facing commandlet object, not only through helper functions.
 
 Additional scaffold-first pass criteria:
 
