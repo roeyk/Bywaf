@@ -106,6 +106,9 @@ class Table:
         Called by: `handle_render_table_request()` when the framework services
         a plugin render request.
         """
+        # Validate and normalize column definitions first. The payload crosses
+        # the plugin/framework event boundary, so this method accepts only the
+        # small schema produced by to_payload() before constructing Columns.
         raw_columns = payload.get("columns", ())
         if not isinstance(raw_columns, Sequence):
             raise ValueError("table columns must be a sequence")
@@ -123,6 +126,9 @@ class Table:
             if align not in {"left", "right", "center"}:
                 raise ValueError("table column align must be left, right, or center")
             columns.append(Column(key, title, align))  # type: ignore[arg-type]
+        # Rows are normalized after columns because renderers expect mappings
+        # keyed by column names. Stringifying row keys prevents non-string JSON
+        # object keys from leaking into the rendering layer.
         raw_rows = payload.get("rows", ())
         if not isinstance(raw_rows, Sequence):
             raise ValueError("table rows must be a sequence")
@@ -131,6 +137,8 @@ class Table:
             if not isinstance(raw_row, Mapping):
                 raise ValueError("table row entries must be objects")
             rows.append({str(key): value for key, value in raw_row.items()})
+        # Title is optional display metadata; validate it last so the structural
+        # column/row errors remain the first failures reported to callers.
         title = payload.get("title")
         if title is not None and not isinstance(title, str):
             raise ValueError("table title must be a string")
