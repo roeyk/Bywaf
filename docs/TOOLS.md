@@ -424,9 +424,10 @@ tool modules.
 | `bundled_plugin_manual_check.py` | `scripts/bundled_plugin_manual_check.py`, tests | Bundled plugin manual drift detection. |
 | `plugin_check.py` | `scripts/plugin_check.py`, tests | Static plugin source analysis without importing plugin code. |
 | `plugin_check_helpers.py` | `plugin_check_visitor.py` | AST helper functions for capability and risky-API inference. |
+| `plugin_check_llm_render.py` | `plugin_check_render.py`, `scripts/plugin_check.py` | LLM-oriented checker feedback rendering. |
 | `plugin_check_model.py` | plugin checker modules | Data classes for capability evidence and diagnostics. |
 | `plugin_check_visitor.py` | `plugin_check.py` | AST visitor for capability, emit, and diagnostic inference. |
-| `plugin_check_render.py` | `scripts/plugin_check.py` | Human and LLM-oriented checker output rendering. |
+| `plugin_check_render.py` | `scripts/plugin_check.py` | Human-oriented checker output rendering and compatibility facade. |
 | `plugin_check_graph_render.py` | `plugin_check_render.py` | Manifest relationship graph output rendering. |
 | `plugin_manifest.py` | manifest generation workflows | Manifest generation helpers. |
 | `plugin_parser_contract.py` | `scripts/plugin_check.py` | Parser-vs-metadata diagnostics for commandlet arguments and options. |
