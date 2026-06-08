@@ -10,7 +10,7 @@ Used by:
 
 from __future__ import annotations
 
-from .rendering_exporters import (
+from .exporters import (
     TableFormat,
     TableRenderer,
     align_text,
@@ -27,7 +27,7 @@ from .rendering_exporters import (
     safe_sheet_title,
     table_renderers,
 )
-from .rendering_model import (
+from .model import (
     Align,
     Column,
     Table,
