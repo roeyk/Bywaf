@@ -80,7 +80,7 @@ class NormalizedFinding:
         """Return the strongest available dedupe key for this finding."""
         identifier = best_identifier(self.identifiers)
         if identifier:
-            return "|".join(("id", self.target_identity_key(), identifier))
+            return "|".join(("id", self.target_identity_key(), self.finding_class, identifier))
         return "|".join(("fingerprint", self.target_identity_key(), self.finding_class, evidence_fingerprint(self)))
 
     def target_identity_key(self) -> str:

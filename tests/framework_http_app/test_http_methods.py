@@ -1,11 +1,13 @@
 """Framework HTTP app tests for HTTP method inspection."""
 
+import contextlib
+import io
 from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
 
-from bywaf.app import make_runner
+from bywaf.app import make_runner, process_framework_requests
 from bywaf.event import Event
 from bywaf.plugins.http.http_methods import (
     HttpMethods,
@@ -14,6 +16,7 @@ from bywaf.plugins.http.http_methods import (
     normalize_methods,
     probe_methods,
 )
+from bywaf.repl import ShellState
 
 
 class TestHttpMethodsTests(unittest.TestCase):
@@ -97,6 +100,33 @@ class TestHttpMethodsTests(unittest.TestCase):
                 },
             )
             self.assertTrue(all(event.pipeline_id for event in candidates))
+
+    def test_http_methods_deduped_findings_appear_in_report(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            with patch("bywaf.plugins.http.http_methods.http.client.HTTPSConnection", RiskyConnection):
+                runner.execute("http_methods https://example.test/ | finding_dedupe -s")
+
+            findings = runner.db.events_for_topic("finding.new")
+            self.assertEqual(
+                {event.payload["class"] for event in findings},
+                {
+                    "web.method.trace_enabled",
+                    "web.method.webdav_enabled",
+                    "web.method.write_methods_enabled",
+                },
+            )
+
+            output = io.StringIO()
+            pipeline_id = findings[0].pipeline_id
+            with contextlib.redirect_stdout(output):
+                runner.execute(f"report pipeline={pipeline_id} status=all")
+                process_framework_requests(runner, ShellState())
+
+            text = output.getvalue()
+            self.assertIn("HTTP TRACE method enabled", text)
+            self.assertIn("HTTP write-capable methods enabled", text)
+            self.assertIn("WebDAV HTTP methods enabled", text)
 
 
 class FakeResponse:

@@ -111,6 +111,38 @@ class FindingDedupeTests(unittest.TestCase):
             self.assertIn({"tool": "http_paths", "topic": "http.path"}, finding["sources"])
             self.assertIn({"tool": "repo_exposure", "topic": "repo.git_config.checked"}, finding["sources"])
 
+    def test_same_target_and_cwe_different_classes_are_distinct_findings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            first = db.publish(
+                "finding.candidate",
+                {
+                    "title": "HTTP write-capable methods enabled",
+                    "class": "web.method.write_methods_enabled",
+                    "target_scope": {"kind": "web_origin", "value": "https://example.test"},
+                    "identifiers": {"cwe": ["CWE-650"]},
+                },
+                "http_methods",
+            )
+            second = db.publish(
+                "finding.candidate",
+                {
+                    "title": "WebDAV HTTP methods enabled",
+                    "class": "web.method.webdav_enabled",
+                    "target_scope": {"kind": "web_origin", "value": "https://example.test"},
+                    "identifiers": {"cwe": ["CWE-650"]},
+                },
+                "http_methods",
+            )
+
+            list(FindingDedupe().run(context_for(db), ["-s"], [first, second]))
+
+            self.assertEqual(
+                {event.payload["class"] for event in db.events_for_topic("finding.new")},
+                {"web.method.write_methods_enabled", "web.method.webdav_enabled"},
+            )
+            self.assertEqual(db.events_for_topic("finding.duplicate"), [])
+
     def test_status_upgrade_publishes_updated(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
