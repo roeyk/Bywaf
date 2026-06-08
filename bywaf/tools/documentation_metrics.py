@@ -62,6 +62,9 @@ class DocumentationImpact:
 MARKDOWN_LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 
+# Heuristic stale-terminology table used by `collect_documentation_metrics()`
+# and `collect_documentation_impact()` to flag docs that may still describe
+# older runtime vocabulary or legacy selector syntax.
 STALE_DOC_TERMS = (
     "command run",
     "run id",
@@ -72,6 +75,9 @@ STALE_DOC_TERMS = (
     "--from-step",
 )
 
+# Audience-role terms used by `collect_documentation_metrics()` as a rough
+# signal that one document may be mixing operator, plugin-author, maintainer,
+# packaging, and security-reviewer concerns.
 DOC_AUDIENCE_TERMS = (
     "operator",
     "plugin author",
@@ -82,6 +88,8 @@ DOC_AUDIENCE_TERMS = (
     "contributor",
 )
 
+# Stop words for `important_doc_terms()`. These keep impact ranking focused on
+# project vocabulary, paths, symbols, and command names instead of generic prose.
 GENERIC_DOC_WORDS = {
     "and",
     "are",
@@ -108,13 +116,19 @@ GENERIC_DOC_WORDS = {
 
 
 def collect_documentation_metrics(repo_root: Path, *, docs_root: Path | None = None) -> DocumentationMetrics:
-    """Collect cohesion and coupling signals for Markdown documentation."""
+    """Collect cohesion and coupling signals for Markdown documentation.
+
+    Called by: `bywaf.tools.architecture_metrics.collect_architecture_metrics()`
+    when the architecture report includes documentation pressure.
+    """
     docs_root = (docs_root or repo_root / "docs").resolve()
     document_paths = markdown_documents(repo_root, docs_root)
     links_by_doc: dict[Path, tuple[str, ...]] = {}
     incoming: defaultdict[Path, int] = defaultdict(int)
     broken_links: list[str] = []
 
+    # First pass: gather outbound links and invert them into incoming-link
+    # counts so each document can report both coupling directions.
     for path in document_paths:
         links = tuple(markdown_links(path.read_text(encoding="utf-8")))
         links_by_doc[path] = links
@@ -128,6 +142,8 @@ def collect_documentation_metrics(repo_root: Path, *, docs_root: Path | None = N
             else:
                 broken_links.append(f"{path.relative_to(repo_root)} -> {target}")
 
+    # Second pass: compute per-document size, heading, terminology, and
+    # audience-mixing signals now that incoming-link counts are known.
     documents = []
     for path in document_paths:
         text = path.read_text(encoding="utf-8")
