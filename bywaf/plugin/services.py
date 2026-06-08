@@ -26,6 +26,16 @@ from .services_artifacts import (
     artifact_event_payload as artifact_event_payload,
     attach_generated_artifact as attach_generated_artifact,
 )
+from .progress import (
+    progress_float_var as progress_float_var,
+    progress_payload as progress_payload,
+    progress_percent as progress_percent,
+    should_emit_progress as should_emit_progress,
+)
+from .signals import (
+    ContextSignals as ContextSignals,
+    signal_applies_to_context as signal_applies_to_context,
+)
 
 if TYPE_CHECKING:
     from .context import CommandContext
@@ -120,87 +130,6 @@ class ContextRender:
             if rendered:
                 print(rendered, flush=True)
         return event
-
-
-def progress_payload(
-    context: CommandContext,
-    *,
-    status: str,
-    phase: str,
-    current: int | float | None,
-    total: int | float | None,
-    unit: str | None,
-    message: str | None,
-    target: str | None,
-    eta_seconds: int | float | None,
-    extra: Mapping[str, object],
-) -> dict[str, object]:
-    """Build one normalized progress payload."""
-    payload: dict[str, object] = {
-        "commandlet": context.source,
-        "status": status,
-        "phase": phase,
-        "job_id": context.job_id,
-        "pipeline_id": context.pipeline_id,
-        "command_run_id": context.command_run_id,
-        "parent_command_run_id": context.parent_command_run_id,
-    }
-    if current is not None:
-        payload["current"] = current
-    if total is not None:
-        payload["total"] = total
-    percent = progress_percent(current, total)
-    if percent is not None:
-        payload["percent"] = percent
-    if unit is not None:
-        payload["unit"] = unit
-    if message is not None:
-        payload["message"] = message
-    if target is not None:
-        payload["target"] = target
-    if eta_seconds is not None:
-        payload["eta_seconds"] = eta_seconds
-    payload.update(extra)
-    return payload
-
-
-def progress_percent(current: int | float | None, total: int | float | None) -> float | None:
-    """Return progress percent when current and total are usable."""
-    if current is None or total is None or total <= 0:
-        return None
-    return round((float(current) / float(total)) * 100, 2)
-
-
-def should_emit_progress(context: CommandContext, payload: Mapping[str, object]) -> bool:
-    """Enforce framework progress throttling for one pipeline step."""
-    status = str(payload.get("status", "updated"))
-    if status in {"started", "completed", "failed"}:
-        return True
-    last = context.metadata.get("_progress_last")
-    if not isinstance(last, Mapping):
-        return True
-    phase = payload.get("phase")
-    if phase != last.get("phase"):
-        return True
-    interval_ms = progress_float_var(context, "progress.min-interval-ms", 250.0)
-    last_time = last.get("monotonic")
-    if isinstance(last_time, (int, float)) and (time.monotonic() - float(last_time)) * 1000 >= interval_ms:
-        return True
-    percent = payload.get("percent")
-    last_percent = last.get("percent")
-    if isinstance(percent, (int, float)) and isinstance(last_percent, (int, float)):
-        delta = progress_float_var(context, "progress.min-percent-delta", 1.0)
-        return abs(float(percent) - float(last_percent)) >= delta
-    return False
-
-
-def progress_float_var(context: CommandContext, name: str, default: float) -> float:
-    """Read a global progress throttle setting with a safe fallback."""
-    raw = context.vars.get_global(name, str(default))
-    try:
-        return float(raw) if raw is not None else default
-    except ValueError:
-        return default
 
 
 @dataclass(slots=True)
@@ -442,50 +371,3 @@ class ContextEvents:
         if self.context._db is None:
             raise ValueError(f"{label} requires an active database")
         return self.context._db
-
-
-@dataclass(frozen=True, slots=True)
-class ContextSignals:
-    """Plugin-facing helper for framework live-control signals."""
-
-    context: CommandContext
-
-    def pending(self, *, action: str | None = None, after_id: int = 0, limit: int = 1000) -> list[Event]:
-        """Return signals that apply to this job, pipeline, or run."""
-        events = self.context.events.query(topic="runtime.signal.requested", limit=limit)
-        matching = [
-            event
-            for event in events
-            if (event.id or 0) > after_id
-            and signal_applies_to_context(event, self.context)
-            and (action is None or event.payload.get("action") == action)
-        ]
-        return matching
-
-    def applied(self, request: Event, message: str = "", **details: object) -> Event:
-        """Publish that this commandlet applied a live-control signal."""
-        return self._respond("runtime.signal.applied", request, message, details)
-
-    def ignored(self, request: Event, message: str = "", **details: object) -> Event:
-        """Publish that this commandlet ignored a live-control signal."""
-        return self._respond("runtime.signal.ignored", request, message, details)
-
-    def _respond(self, topic: str, request: Event, message: str, details: dict[str, object]) -> Event:
-        payload = {
-            "request_event_id": request.id,
-            "action": request.payload.get("action"),
-            "message": message,
-            "details": details,
-        }
-        return self.context.events.publish(topic, payload)
-
-
-def signal_applies_to_context(event: Event, context: CommandContext) -> bool:
-    """Return whether one runtime signal is scoped to this command context."""
-    target_type = event.payload.get("target_type")
-    target_id = str(event.payload.get("target_id", ""))
-    return (
-        (target_type == "run" and context.command_run_id == target_id)
-        or (target_type == "pipeline" and context.pipeline_id == target_id)
-        or (target_type == "job" and context.job_id is not None and str(context.job_id) == target_id)
-    )
