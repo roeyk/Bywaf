@@ -213,6 +213,58 @@ class ReportScopeTests(unittest.TestCase):
             self.assertEqual(len(reviews), 1)
             self.assertEqual(reviews[0].payload["finding_id"], "apache-41773")
 
+    def test_finding_review_expands_related_cves_from_scoped_event_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "finding.new",
+                {
+                    "finding_id": "apache-advisory",
+                    "title": "Apache path traversal advisory",
+                    "target": {"host": "apache.test"},
+                    "identifiers": {
+                        "cve": ["CVE-2021-41773"],
+                        "related_cves": ["CVE-2021-42013"],
+                    },
+                    "severity": "high",
+                },
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+            runner.db.publish(
+                "finding.new",
+                {
+                    "finding_id": "apache-variant",
+                    "title": "Apache path traversal variant",
+                    "target": {"host": "apache.test"},
+                    "identifiers": {"cve": ["CVE-2021-42013"]},
+                    "severity": "high",
+                },
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="run-b",
+            )
+            runner.db.publish(
+                "finding.new",
+                {
+                    "finding_id": "openssl-heartbleed",
+                    "title": "OpenSSL Heartbleed",
+                    "target": {"host": "openssl.test"},
+                    "identifiers": {"cve": ["CVE-2014-0160"]},
+                    "severity": "critical",
+                },
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="run-c",
+            )
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute("finding confirm all pipeline=pipeline-a status=all cve=CVE-2021-41773+")
+
+            reviews = runner.db.events_for_topic("finding.reviewed")
+            self.assertEqual([review.payload["finding_id"] for review in reviews], ["apache-advisory", "apache-variant"])
+
     def test_report_last_explicitly_uses_latest_scan_scope(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))

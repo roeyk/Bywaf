@@ -260,6 +260,7 @@ bywaf> report defer 4 pipeline=1 note=needs owner confirmation
 bywaf> report reject 2 pipeline=1 note=false positive after manual check
 bywaf> finding confirm 1 pipeline=1
 bywaf> finding confirm all cve=CVE-2021-* pipeline=1
+bywaf> finding confirm all cve=CVE-2021-41773+ pipeline=1
 bywaf> finding unconfirm 1 status=confirmed pipeline=1
 ```
 
