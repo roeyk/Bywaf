@@ -352,7 +352,11 @@ therefore use short chains such as:
 
 ```text
 http_methods https://example.test/ | report
+http_tls https://example.test/ | report
 ```
+
+`http_tls` is an operator-friendly alias for the canonical `tls_probe`
+commandlet while naming remains provisional.
 
 Use `report analyze=off` when you want a pure snapshot of findings that already
 exist in the event store.

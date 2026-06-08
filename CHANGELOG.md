@@ -24,6 +24,10 @@ impact label and sorted from highest to lowest operator/developer impact:
 
 ### Changed
 
+- [high] Made `report` imply finding deduplication for upstream raw finding
+  streams, so short operator chains such as `http_methods https://target/ |
+  report` normalize findings before rendering without requiring an explicit
+  `finding_dedupe` step.
 - [high] Made `report` run the default safe passive synthesis bundle over
   already-collected service, banner, HTTP endpoint, and web fingerprint facts
   before rendering, with `report analyze=off` available for pure snapshot
@@ -55,6 +59,9 @@ impact label and sorted from highest to lowest operator/developer impact:
 - [medium] Added bundled `http_methods` OPTIONS probing to record advertised
   HTTP methods and promote TRACE, write-capable, or WebDAV methods into
   candidate findings.
+- [medium] Added `http_tls` as an operator-friendly provisional alias for the
+  canonical `tls_probe` commandlet, keeping runtime/audit identity on
+  `tls_probe` while naming remains unsettled.
 - [medium] Added bundled `http_auth` challenge probing to record HTTP
   authentication posture and promote Basic-over-cleartext,
   administrative-path challenge, and missing-realm candidates.

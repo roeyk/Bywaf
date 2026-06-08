@@ -187,6 +187,7 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "cmds")
             text = output.getvalue()
             self.assertIn("ALIASES", text)
+            self.assertIn("http_tls", text)
             self.assertIn("webfin", text)
             self.assertIn("web_fingerprint", text)
 

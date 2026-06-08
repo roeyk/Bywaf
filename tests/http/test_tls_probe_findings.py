@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from bywaf.app import make_runner, process_framework_requests
 from bywaf.db import EventStore
 from bywaf.plugin import CommandContext
 from bywaf.plugins.http.tls_probe import tls_probe
+from bywaf.repl import ShellState
 
 
 class TlsProbeFindingTests(unittest.TestCase):
@@ -54,6 +58,35 @@ class TlsProbeFindingTests(unittest.TestCase):
             finding = db.events_for_topic("finding.candidate")[0].payload
             self.assertEqual(finding["class"], "service.tls.hostname_mismatch")
             self.assertIn("example.test", finding["evidence"])
+
+    def test_http_tls_alias_reports_tls_findings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            output = io.StringIO()
+
+            def fake_fetch(host, port, timeout):
+                del host, port, timeout
+                return {
+                    "subject": "commonName=other.test",
+                    "issuer": "commonName=CA",
+                    "san": ["other.test"],
+                    "not_after": "Jan 01 00:00:00 2035 GMT",
+                }
+
+            with (
+                patch("bywaf.plugins.http.tls_probe.fetch_certificate", side_effect=fake_fetch),
+                contextlib.redirect_stdout(output),
+            ):
+                runner.execute("http_tls example.test:443 | report status=all")
+                process_framework_requests(runner, ShellState())
+
+            self.assertTrue(runner.db.events_for_topic("job.requested")[-1].payload["command"].startswith("http_tls "))
+            self.assertEqual(runner.db.events_for_topic("command.run.started")[0].payload["commandlet"], "tls_probe")
+            self.assertEqual(
+                [event.payload["class"] for event in runner.db.events_for_topic("finding.new")],
+                ["service.tls.hostname_mismatch"],
+            )
+            self.assertIn("TLS certificate hostname mismatch", output.getvalue())
 
 
 if __name__ == "__main__":

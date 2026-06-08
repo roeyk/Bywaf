@@ -53,4 +53,5 @@ default_plugins = [
 ]
 
 [commandlet_aliases]
+http_tls = "tls_probe"
 web_fingerprint = "webfin"

@@ -2074,6 +2074,7 @@ finding events arrive from the pipeline:
 
 ```text
 bywaf> http_methods https://example.test/ | report
+bywaf> http_tls https://example.test/ | report
 ```
 
 Exact matches use standardized identifiers such as CVE/CWE/GHSA/vendor IDs

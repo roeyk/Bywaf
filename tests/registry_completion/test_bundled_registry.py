@@ -119,6 +119,7 @@ class RegistryBundledPluginTests(unittest.TestCase):
 
     def test_bundled_commandlet_aliases_are_loaded_from_config(self):
         aliases = parse_package_plugin_aliases("bywaf.plugins", "plugins.toml")
+        self.assertEqual(aliases["http_tls"], "tls_probe")
         self.assertEqual(aliases["web_fingerprint"], "webfin")
 
     def test_bundled_sidecar_manifest_traits(self):
@@ -288,6 +289,13 @@ class RegistryBundledPluginTests(unittest.TestCase):
         self.assertEqual(self.registry.resolve_commandlet_name("web_fingerprint"), "webfin")
         self.assertEqual(self.registry.commandlet_aliases_for("webfin", include_provider=False), ["web_fingerprint"])
         self.assertEqual(self.registry.variable_scope("web_fingerprint"), "http/webfin")
+
+    def test_http_tls_alias_resolves_to_tls_probe(self):
+        self.assertIn("http_tls", self.registry.commandlet_aliases())
+        self.assertIs(self.registry.get("http_tls"), self.registry.get("tls_probe"))
+        self.assertEqual(self.registry.resolve_commandlet_name("http_tls"), "tls_probe")
+        self.assertEqual(self.registry.commandlet_aliases_for("tls_probe", include_provider=False), ["http_tls"])
+        self.assertEqual(self.registry.variable_scope("http_tls"), "http/tls_probe")
 
     def test_loads_package_defaults_into_varstore(self):
         self.assertEqual(self.registry.varstore.get("network/portscanner.port"), "")
