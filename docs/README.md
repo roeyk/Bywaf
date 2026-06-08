@@ -78,6 +78,8 @@ For fuller role-based reading sequences, see
   loop.
 - [Testing](TESTING.md): project-level test map for plugins, framework code,
   package builds, metrics, and manual validation.
+- [Tools](TOOLS.md): maintainer and plugin-author tool inventory, including
+  plugin checks, scaffolding, metrics, package helpers, and benchmark scripts.
 - [Documentation Paths](DOCUMENTATION_PATHS.md): role-based reading sequences
   for users, operators, plugin developers, framework developers, security
   reviewers, packagers, and documentation maintainers.

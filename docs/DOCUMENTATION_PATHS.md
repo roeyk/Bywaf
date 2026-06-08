@@ -27,6 +27,8 @@ documentation maintainers.
 - [Framework Development](FRAMEWORK_DEVELOPMENT.md): maintainer-oriented code
   and workflow map.
 - [Testing](TESTING.md): validation commands and package/test matrix.
+- [Tools](TOOLS.md): plugin-author and maintainer tool inventory, including
+  arguments and intended workflows.
 - [Security Audit](SECURITY_AUDIT.md): security review scope and release-gate
   checks.
 - [Performance](PERFORMANCE.md): measurement, optimization, and runtime
@@ -107,6 +109,7 @@ Read in order:
 6. [Plugin Manifest Specification](MANIFEST_SPECIFICATION.md)
 7. [Plugin Packaging And Checking](plugin_author/packaging-and-checking.md)
 8. [Plugin Testing And Guidelines](plugin_author/testing-and-guidelines.md)
+9. [Tools](TOOLS.md)
 
 Optional deep dives:
 
@@ -158,8 +161,9 @@ Read in order:
 4. [Runtime Model](RUNTIME_MODEL.md)
 5. [Persistence Model](PERSISTENCE_MODEL.md)
 6. [Testing](TESTING.md)
-7. [Architecture Metrics](ARCHITECTURE_METRICS.md)
-8. [Performance](PERFORMANCE.md)
+7. [Tools](TOOLS.md)
+8. [Architecture Metrics](ARCHITECTURE_METRICS.md)
+9. [Performance](PERFORMANCE.md)
 
 Optional deep dives:
 
@@ -207,10 +211,11 @@ Read in order:
 
 1. [Install Guide](../INSTALL.md)
 2. [Testing](TESTING.md)
-3. [Key Management](KEY_MANAGEMENT.md)
-4. [Plugin Packaging And Checking](plugin_author/packaging-and-checking.md)
-5. [Safe Defaults Checklist](SAFE_DEFAULTS_CHECKLIST.md)
-6. [Changelog](../CHANGELOG.md)
+3. [Tools](TOOLS.md)
+4. [Key Management](KEY_MANAGEMENT.md)
+5. [Plugin Packaging And Checking](plugin_author/packaging-and-checking.md)
+6. [Safe Defaults Checklist](SAFE_DEFAULTS_CHECKLIST.md)
+7. [Changelog](../CHANGELOG.md)
 
 Optional deep dives:
 
@@ -233,9 +238,10 @@ Read in order:
 2. [Terminology](TERMINOLOGY.md)
 3. [Development Workflow](DEVELOPMENT_WORKFLOW_README.md)
 4. [Framework Development](FRAMEWORK_DEVELOPMENT.md)
-5. [Architecture Metrics](ARCHITECTURE_METRICS.md)
-6. [Testing](TESTING.md)
-7. [Documentation Paths](DOCUMENTATION_PATHS.md)
+5. [Tools](TOOLS.md)
+6. [Architecture Metrics](ARCHITECTURE_METRICS.md)
+7. [Testing](TESTING.md)
+8. [Documentation Paths](DOCUMENTATION_PATHS.md)
 
 Optional deep dives:
 

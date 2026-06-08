@@ -232,6 +232,7 @@ bywaf plugins graph --json
 - [docs/BUNDLED_PLUGIN_MANUAL.md](docs/BUNDLED_PLUGIN_MANUAL.md): bundled plugin families, examples, outputs, findings, and artifacts.
 - [docs/FRAMEWORK_SURFACE.md](docs/FRAMEWORK_SURFACE.md): capabilities, topics, and bundled commandlets.
 - [docs/TESTING.md](docs/TESTING.md): plugin, framework, package, metrics, and manual testing map.
+- [docs/TOOLS.md](docs/TOOLS.md): plugin-author and maintainer tool inventory with arguments and workflows.
 - [docs/plugin_author/README.md](docs/plugin_author/README.md): plugin developer guide.
 - [docs/FRAMEWORK_DEVELOPMENT.md](docs/FRAMEWORK_DEVELOPMENT.md): core framework contributor guide.
 - [docs/DEVELOPMENT_WORKFLOW_README.md](docs/DEVELOPMENT_WORKFLOW_README.md): maintainer human-plus-LLM workflow and private tracker/handoff boundaries.
