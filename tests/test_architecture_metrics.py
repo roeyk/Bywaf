@@ -32,6 +32,7 @@ def test_architecture_metrics_counts_internal_imports_and_cycles(tmp_path: Path)
     assert by_name["pkg.c"].imports == ("pkg.a",)
     assert by_name["pkg.a"].function_count == 1
     assert by_name["pkg.a"].max_function_complexity > 1
+    assert by_name["pkg.a"].documentation_pressure > 0
     assert by_name["pkg.a"].test_refs == 1
     assert by_name["pkg.external"].security_hits == 1
     assert any({"pkg.a", "pkg.b", "pkg.c"} == set(cycle) for cycle in metrics.cycles)
@@ -74,6 +75,7 @@ def test_architecture_metrics_text_report_names_pressure_points(tmp_path: Path) 
     assert "Architecture metrics for pkg" in report
     assert "Highest fan-out" in report
     assert "Highest module complexity" in report
+    assert "Highest documentation pressure" in report
     assert "High hub score with low test references" in report
     assert "pkg.hub" in report
 

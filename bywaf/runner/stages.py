@@ -161,6 +161,8 @@ def pipeline_visible_stage_events(
 
 def normalize_valued_option_args(plugin, args: list[str]) -> list[str]:
     """Convert public `name=value` syntax into argparse `--name value` pairs."""
+    # Convert only declared valued options. Listener/runtime flags and
+    # positional values containing `=` are left in their original form.
     valued_options = {option.name for option in plugin.spec.options if option.name not in {"listen", "silent"}}
     normalized: list[str] = []
     for arg in args:
@@ -311,6 +313,8 @@ def effective_database_actions(plugin, args: list[str]) -> tuple[str, ...]:
 
 def redact_commandlet_args(context: CommandContext, plugin, args: list[str]) -> tuple[list[str], list[dict[str, str]]]:
     """Redact declared secret commandlet options while preserving provenance."""
+    # Normalize declared secret option names once so both --name and name=value
+    # argument styles can be compared against the same set.
     secret_options = {option.name.strip().lower().replace("_", "-") for option in plugin.spec.options if option.secret}
     if not secret_options:
         return list(args), []
@@ -318,6 +322,8 @@ def redact_commandlet_args(context: CommandContext, plugin, args: list[str]) -> 
     secrets: list[dict[str, str]] = []
     pending_secret_option: str | None = None
     for arg in args:
+        # Handle `--secret value`, where the sensitive value appears in the
+        # token after the option name.
         if pending_secret_option is not None:
             redacted.append(REDACTED_VALUE)
             secrets.append(secret_arg_metadata(context, pending_secret_option, arg))
@@ -325,6 +331,8 @@ def redact_commandlet_args(context: CommandContext, plugin, args: list[str]) -> 
             continue
         option_name, value, style = split_option_arg(arg)
         if option_name is not None and option_name in secret_options:
+            # Handle `--secret=value` and `secret=value` while keeping enough
+            # style information to preserve the operator-visible argument shape.
             if value is None:
                 redacted.append(f"--{option_name}")
                 pending_secret_option = option_name

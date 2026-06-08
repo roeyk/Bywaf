@@ -40,6 +40,9 @@ def parse_networks(value: str) -> tuple[Any, ...]:
         try:
             networks.append(ipaddress.ip_network(item, strict=False))
         except ValueError:
+            # Policy values may be hostnames or compact target expressions; if
+            # they are not networks already, resolve/expand them and store each
+            # resulting address as a single-host network for later comparisons.
             for host in resolve_policy_targets(item):
                 networks.append(ipaddress.ip_network(host, strict=False))
     return tuple(networks)
@@ -47,6 +50,9 @@ def parse_networks(value: str) -> tuple[Any, ...]:
 
 def resolve_policy_targets(target: str) -> tuple[str, ...]:
     """Resolve or expand one target used inside policy configuration."""
+    # Expand compact host syntax before DNS resolution, but cap policy expansion
+    # so a misconfigured allow/deny variable cannot create an unbounded startup
+    # resolver workload.
     candidates = host_candidates(target)
     if len(candidates) > DEFAULT_TARGET_LIMIT:
         raise ValueError(f"expanded policy target list exceeds limit {DEFAULT_TARGET_LIMIT}")
@@ -66,6 +72,9 @@ def apply_network_policy(
     warnings: list[str] = []
     for target in targets:
         if is_ipv4_range(target):
+            # Apply policy after expanding IPv4 range syntax. If every expanded
+            # host is allowed, keep the original compact range for operator
+            # readability; otherwise return only the surviving concrete hosts.
             filtered, target_warnings = apply_network_policy(host_candidates(target), allowed, denied)
             if target_warnings:
                 warnings.extend(target_warnings)

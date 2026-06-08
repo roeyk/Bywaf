@@ -13,8 +13,10 @@ from __future__ import annotations
 
 import argparse
 import ast
+import io
 import json
 import subprocess
+import tokenize
 from collections import defaultdict
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -40,6 +42,10 @@ class ModuleMetric:
     function_count: int
     complexity: int
     max_function_complexity: int
+    comment_lines: int
+    docstring_lines: int
+    dense_constructs: int
+    documentation_pressure: int
     test_refs: int
     churn: int
     security_hits: int
@@ -102,6 +108,10 @@ def collect_architecture_metrics(
             function_count=stats_by_module[name].function_count,
             complexity=stats_by_module[name].complexity,
             max_function_complexity=stats_by_module[name].max_function_complexity,
+            comment_lines=stats_by_module[name].comment_lines,
+            docstring_lines=stats_by_module[name].docstring_lines,
+            dense_constructs=stats_by_module[name].dense_constructs,
+            documentation_pressure=stats_by_module[name].documentation_pressure,
             test_refs=test_refs[name],
             churn=churn[name],
             security_hits=stats_by_module[name].security_hits,
@@ -122,6 +132,10 @@ class ModuleStaticStats:
     function_count: int
     complexity: int
     max_function_complexity: int
+    comment_lines: int
+    docstring_lines: int
+    dense_constructs: int
+    documentation_pressure: int
     security_hits: int
 
 
@@ -148,10 +162,26 @@ def module_static_stats(tree: ast.AST, source: str) -> ModuleStaticStats:
     """Return simple complexity and security-surface metrics for one module."""
     functions = [node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)]
     function_complexities = [complexity_score(function) for function in functions]
+    complexity = complexity_score(tree)
+    max_function_complexity = max(function_complexities, default=0)
+    comment_lines = source_comment_lines(source)
+    docstring_lines = ast_docstring_lines(tree)
+    dense_constructs = dense_construct_score(tree)
     return ModuleStaticStats(
         function_count=len(functions),
-        complexity=complexity_score(tree),
-        max_function_complexity=max(function_complexities, default=0),
+        complexity=complexity,
+        max_function_complexity=max_function_complexity,
+        comment_lines=comment_lines,
+        docstring_lines=docstring_lines,
+        dense_constructs=dense_constructs,
+        documentation_pressure=documentation_pressure_score(
+            loc=sum(1 for line in source.splitlines() if line.strip() and not line.strip().startswith("#")),
+            complexity=complexity,
+            max_function_complexity=max_function_complexity,
+            dense_constructs=dense_constructs,
+            comment_lines=comment_lines,
+            docstring_lines=docstring_lines,
+        ),
         security_hits=security_surface_hits(source),
     )
 
@@ -177,6 +207,63 @@ def complexity_score(node: ast.AST) -> int:
         elif isinstance(child, ast.BoolOp):
             score += max(1, len(child.values) - 1)
     return score
+
+
+def dense_construct_score(tree: ast.AST) -> int:
+    """Return a rough count of compact constructs that often need orientation."""
+    score = 0
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ListComp | ast.DictComp | ast.SetComp | ast.GeneratorExp):
+            score += 2
+        elif isinstance(node, ast.Dict) and len(node.keys) >= 4:
+            score += 1
+        elif isinstance(node, ast.List | ast.Tuple) and len(node.elts) >= 4:
+            score += 1
+        elif isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            end = getattr(node, "end_lineno", node.lineno)
+            if end - node.lineno + 1 >= 35:
+                score += 2
+    return score
+
+
+def source_comment_lines(source: str) -> int:
+    """Count standalone and inline `#` comments in Python source."""
+    try:
+        tokens = tokenize.generate_tokens(io.StringIO(source).readline)
+        return sum(1 for token in tokens if token.type == tokenize.COMMENT)
+    except tokenize.TokenError:
+        return 0
+
+
+def ast_docstring_lines(tree: ast.AST) -> int:
+    """Count module/class/function docstring lines from AST source spans."""
+    total = 0
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
+            continue
+        body = getattr(node, "body", ())
+        if not body:
+            continue
+        first = body[0]
+        if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant) and isinstance(first.value.value, str):
+            end = getattr(first, "end_lineno", first.lineno)
+            total += max(1, end - first.lineno + 1)
+    return total
+
+
+def documentation_pressure_score(
+    *,
+    loc: int,
+    complexity: int,
+    max_function_complexity: int,
+    dense_constructs: int,
+    comment_lines: int,
+    docstring_lines: int,
+) -> int:
+    """Score modules where dense code likely needs more orientation comments."""
+    pressure = loc // 25 + complexity + max_function_complexity + dense_constructs
+    credit = comment_lines // 3 + docstring_lines // 4
+    return max(0, pressure - credit)
 
 
 SECURITY_SURFACE_TOKENS = (

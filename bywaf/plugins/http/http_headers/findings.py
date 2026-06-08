@@ -21,6 +21,8 @@ def missing_security_header_candidates(result: HeaderProbeResult) -> list[dict[s
     scheme = "https" if target.use_ssl else "http"
     candidates: list[dict[str, object]] = []
     url = f"{scheme}://{target.host}:{target.port}/"
+    # Transport/content-sniffing headers are direct per-origin checks from the
+    # observed response header dictionary.
     if target.use_ssl and "strict-transport-security" not in headers:
         # HSTS is scoped to the web origin rather than a single route. Multiple
         # pages on the same scheme/host/port should group into one report item.
@@ -58,6 +60,8 @@ def missing_security_header_candidates(result: HeaderProbeResult) -> list[dict[s
             )
         )
     if missing_framing_policy(headers):
+        # Framing protection can be provided by either legacy X-Frame-Options or
+        # CSP frame-ancestors, so it uses a helper instead of one header lookup.
         candidates.append(
             candidate_payload(
                 title="Missing browser framing protection",
@@ -107,6 +111,9 @@ def missing_security_header_candidates(result: HeaderProbeResult) -> list[dict[s
         )
     cookie_findings = weak_cookie_candidates(headers, url, scheme, target.host, target.port)
     candidates.extend(cookie_findings)
+    # Disclosure and redirect checks are lower-confidence informational signals,
+    # appended after the missing-header findings so report output groups the
+    # primary security-header gaps first.
     if server := exposed_server_header(headers):
         candidates.append(
             candidate_payload(

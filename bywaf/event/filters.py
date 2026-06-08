@@ -95,6 +95,8 @@ def parse_payload_filter_tokens(tokens: Sequence[str]) -> dict[str, str]:
 
 def parse_selector_expression(raw_values: str, key: str = "selector") -> SelectorExpression:
     """Parse comma-separated selector values with `!` exclusions."""
+    # Split the selector into positive and negative terms in one pass. Matching
+    # later treats positives as OR choices and negatives as exclusions.
     include: list[str] = []
     exclude: list[str] = []
     for raw_value in raw_values.split(","):
@@ -115,6 +117,8 @@ def parse_selector_expression(raw_values: str, key: str = "selector") -> Selecto
 
 def selector_matches_values(selector: SelectorExpression, values: Sequence[Any]) -> bool:
     """Return whether candidate values satisfy include-minus-exclude semantics."""
+    # Normalize payload candidates to strings once, then apply the two selector
+    # phases: at least one include must match, and no exclusion may match.
     text_values = [str(value) for value in values if value is not None]
     if not text_values:
         return False
@@ -171,10 +175,14 @@ def payload_filter_values(payload: dict[str, Any], key: str) -> list[Any]:
     nested target/source host fields because vulnerability finding events often
     wrap host identity in a structured target object.
     """
+    # Start with the exact key path. The special host= selector then broadens
+    # the candidate set to common nested host locations used by finding events.
     values = value_at_path(payload, key)
     if key == "host":
         for path in ("target.host", "source.host", "endpoint.host"):
             values.extend(value_at_path(payload, path))
+    # Flatten one level so selectors work the same way against scalar payload
+    # fields and simple list-valued fields such as identifiers or tags.
     flattened: list[Any] = []
     for value in values:
         if isinstance(value, (list, tuple, set)):

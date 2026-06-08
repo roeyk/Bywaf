@@ -37,6 +37,8 @@ def split_pipeline(command_line: str) -> tuple[list[str], bool]:
 
 def parse_ports(value: str) -> tuple[int, ...]:
     """Parse comma/range port syntax such as `22,80,8000-8010`."""
+    # First expand comma-separated scalars and inclusive ranges, then validate
+    # the unified list so all error paths use the same range check.
     ports: list[int] = []
     for chunk in value.split(","):
         if "-" in chunk:
@@ -69,6 +71,8 @@ def is_ipv4_range(value: str) -> bool:
 
 def expand_ipv4_range(value: str) -> tuple[str, ...]:
     """Expand forms like `192.168.1-3.1-255`."""
+    # Parse each octet independently, then take the Cartesian product so compact
+    # dotted range syntax can expand across more than one octet.
     parts = value.split(".")
     if len(parts) != 4:
         raise ValueError(f"invalid IPv4 range: {value}")

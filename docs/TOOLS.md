@@ -249,8 +249,9 @@ python3 scripts/bundled_plugin_manual_check.py
 
 **What it does:** Reports source-code and documentation pressure metrics:
 module size, imports, fan-in/fan-out, hub score, complexity, cycles,
-security-surface hints, documentation size, link coupling, stale terms,
-duplicate headings, and audience-mixing hints.
+documentation pressure for dense source, security-surface hints, documentation
+size, link coupling, stale terms, duplicate headings, and audience-mixing
+hints.
 
 **Who uses it:** Framework developers, documentation maintainers,
 LLM-assisted contributors, and release reviewers.

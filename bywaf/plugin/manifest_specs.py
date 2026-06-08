@@ -36,6 +36,8 @@ def spec_from_manifest(path: str | Path, commandlet_name: str) -> CommandSpec:
     """Build a CommandSpec from one commandlet row in a TOML manifest."""
     data = tomllib.loads(Path(path).read_text(encoding="utf-8"))
     row = manifest_commandlet_row(data, commandlet_name)
+    # Database actions are nested in the manifest but flat in CommandSpec, so
+    # normalize that subtable before constructing the public command metadata.
     database = row.get("database", {})
     database_actions = database.get("actions", {}) if isinstance(database, dict) else {}
     return CommandSpec(
@@ -146,6 +148,8 @@ def parse_manifest_bool(value: str | bool) -> bool:
 
 def key_value_args_to_options(args: Sequence[str], option_names: set[str]) -> list[str]:
     """Convert `key=value` option args into argparse `--key=value` args."""
+    # Only manifest-declared option names are rewritten. Positional arguments
+    # containing `=` must pass through unchanged for the commandlet parser.
     converted: list[str] = []
     for arg in args:
         key, separator, value = arg.partition("=")

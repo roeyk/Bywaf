@@ -165,6 +165,8 @@ def ensure_event_columns(conn: sqlite3.Connection | Any) -> None:
             """
         )
     if "secrets" not in tables:
+        # Secret refs are stored in the project DB so commandlets can reference
+        # durable secret handles without persisting cleartext in job arguments.
         conn.executescript(
             """
             CREATE TABLE IF NOT EXISTS secrets (
@@ -180,6 +182,8 @@ def ensure_event_columns(conn: sqlite3.Connection | Any) -> None:
             """
         )
     if "trigger_state" not in tables:
+        # Trigger state persists enabled/cursor positions so finite listeners
+        # resume from the correct event boundary after restart.
         conn.executescript(
             """
             CREATE TABLE IF NOT EXISTS trigger_state (

@@ -57,6 +57,11 @@ The built-in metrics report currently covers:
 - **Complexity:** an AST-based branch/control-flow score per module and per
   highest-complexity function. High values point to places where dispatch
   tables, smaller helpers, or clearer state machines may help.
+- **Documentation pressure:** a source-code triage score that rises with LOC,
+  complexity, large literals/comprehensions, and long functions, then subtracts
+  limited credit for existing comments and docstrings. This is intended to find
+  dense code that may need phase comments or symbol docstrings; it is not a
+  target for adding comments everywhere.
 - **Test references:** rough counts of module references from `tests/`. This is
   not coverage, but it highlights high-hub modules that appear weakly exercised
   by focused tests.
@@ -106,6 +111,10 @@ Use the metrics as triage signals:
 - **High complexity:** look for long `if`/`elif` or `match` ladders, deeply
   nested branches, and repeated parser/rendering branches. Dispatch tables,
   smaller pure helpers, and data-driven command maps are good first candidates.
+- **High documentation pressure:** inspect the function bodies before adding
+  comments. Good fixes are concise phase-boundary comments for dense
+  transformations, dispatch-table use-site comments, or docstrings that name
+  producers/consumers. Avoid comments that merely restate single statements.
 - **High LOC only:** inspect before splitting. A large cohesive table or schema
   module can be acceptable.
 - **High fan-out:** look for orchestration code that can hand work to a narrower

@@ -134,6 +134,9 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
         validate_requires_bywaf(requires_bywaf, source, "plugin.requires_bywaf")
     requires_schemas = string_list_field(plugin_data, "requires_schemas", source, "plugin")
     requires_plugins = string_list_field(plugin_data, "requires_plugins", source, "plugin")
+    # Commandlets are normalized into parallel maps keyed by commandlet name.
+    # That keeps later manifest/code enforcement simple: each contract surface
+    # can be compared independently without reparsing the raw TOML rows.
     commandlet_rows = data.get("commandlets")
     if not isinstance(commandlet_rows, list) or not commandlet_rows:
         raise ValueError(f"{source} must declare at least one [[commandlets]] entry")
@@ -202,6 +205,8 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
     default_commandlet = optional_string_field(plugin_data, "default_commandlet", source, "plugin")
     if default_commandlet is not None and default_commandlet not in commandlets:
         raise ValueError(f"{source} plugin.default_commandlet must name a declared commandlet")
+    # Triggers and event schemas are parsed after commandlets because they are
+    # provider-level declarations, not per-commandlet metadata.
     triggers = parse_trigger_rows(data.get("triggers", []), source)
     event_schemas = parse_event_schema_rows(data.get("event_schemas", []), source)
     return PluginManifest(

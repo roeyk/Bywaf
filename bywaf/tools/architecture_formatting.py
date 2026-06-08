@@ -18,6 +18,7 @@ def format_metrics(metrics: ArchitectureMetrics, *, top: int = 12) -> str:
     hubs = sorted(modules, key=lambda module: module.fan_in + module.fan_out, reverse=True)[:top]
     complex_modules = sorted(modules, key=lambda module: module.complexity, reverse=True)[:top]
     complex_functions = sorted(modules, key=lambda module: module.max_function_complexity, reverse=True)[:top]
+    documentation_pressure = sorted(modules, key=lambda module: module.documentation_pressure, reverse=True)[:top]
     low_test_hubs = sorted(
         modules,
         key=lambda module: (module.test_refs == 0, module.fan_in + module.fan_out, module.security_hits),
@@ -38,6 +39,22 @@ def format_metrics(metrics: ArchitectureMetrics, *, top: int = 12) -> str:
             "Highest single-function complexity",
             ((module.name, module.max_function_complexity) for module in complex_functions),
             "score",
+        ),
+        detail_section(
+            "Highest documentation pressure",
+            (
+                (
+                    module.name,
+                    (
+                        f"score={module.documentation_pressure} "
+                        f"complexity={module.complexity} "
+                        f"dense={module.dense_constructs} "
+                        f"comments={module.comment_lines} "
+                        f"docstrings={module.docstring_lines}"
+                    ),
+                )
+                for module in documentation_pressure
+            ),
         ),
         detail_section(
             "High hub score with low test references",

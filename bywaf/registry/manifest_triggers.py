@@ -23,6 +23,8 @@ def parse_trigger_rows(value: Any, source: str) -> tuple[TriggerSpec, ...]:
     triggers: list[TriggerSpec] = []
     names: set[str] = set()
     for index, row in enumerate(value, start=1):
+        # Validate the raw manifest row first, then normalize it into the
+        # immutable TriggerSpec consumed by the registry and trigger runner.
         if not isinstance(row, dict):
             raise ValueError(f"{source} triggers entry {index} must be a table")
         context = f"triggers entry {index}"
@@ -69,6 +71,8 @@ def parse_trigger_rows(value: Any, source: str) -> tuple[TriggerSpec, ...]:
             raise ValueError(f"{source} triggers entry {index} suppress_self_trigger must be true or false")
         description = optional_string_field(row, "description", source, context, default="")
         capability = optional_string_field(row, "capability", source, context)
+        # payload_equals is sorted for deterministic specs, while list-valued
+        # trigger exclusions keep the manifest order supplied by the provider.
         triggers.append(
             TriggerSpec(
                 name=name,

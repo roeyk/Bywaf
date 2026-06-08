@@ -136,6 +136,8 @@ def parse_runtime_list_selectors(
             raise ValueError(f"{command} uses selector syntax; use sort=<key>, not {token}")
         key, separator, value = token.partition("=")
         if key == SORT_SELECTOR and separator:
+            # Pull sort= out of the payload filters before delegating the
+            # remaining field=value selectors to the shared event-filter parser.
             sort_key = parse_runtime_sort(value, allowed_sort_keys, command)
         else:
             filters.append(token)

@@ -79,6 +79,8 @@ def ansi_color(text: str, style: str) -> str:
 
 def ansi_style_code(style: str) -> str | None:
     """Return one combined ANSI SGR sequence for color plus attributes."""
+    # Style strings are whitespace-separated tokens. Each token can contribute
+    # an attribute code, a foreground color, or be ignored if it is unknown.
     codes: list[str] = []
     for token in style.split():
         normalized = token.strip().casefold().replace("_", "-")
@@ -98,6 +100,8 @@ def ansi_color_code(color: str) -> str | None:
     normalized = color.strip().casefold().replace("_", "-")
     if not normalized:
         return None
+    # Check named colors first, then progressively parse indexed and truecolor
+    # foreground/background forms such as color123, bg:blue, and rgb:1,2,3.
     if normalized in ANSI_COLORS:
         return ANSI_COLORS[normalized]
     if normalized.startswith("color"):
