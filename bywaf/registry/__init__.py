@@ -21,7 +21,8 @@ from .config import (
     parse_plugin_config,
     provider_name,
 )
-from .core import PluginRegistry, filesystem_manifest_dependency_closure
+from .core import PluginRegistry
+from .dependencies import filesystem_manifest_dependency_closure
 from .graph import (
     ManifestGraphNode,
     ManifestRelationship,
