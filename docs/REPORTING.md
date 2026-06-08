@@ -90,6 +90,19 @@ findings that should stay visible during field work. Use `status=all`,
 `status=accepted`, `status=confirmed`, `status=deferred`, `status=rejected`, or
 `status=unreviewed` to inspect a specific review state.
 
+Use `cve=` to filter findings by CVE identifier:
+
+```text
+bywaf> report cve=CVE-2021-41773
+bywaf> report cve=CVE-2021-41773,CVE-2021-42013
+bywaf> report cve=CVE-2021-*
+```
+
+The selector matches CVEs present in finding `identifiers`. `*` is supported
+for wildcard matching. A future advisory relationship provider may support the
+reserved `CVE-...+` related-CVE form; until then, use explicit comma-separated
+lists or wildcard selectors.
+
 Use ordering flags when a review pass needs a specific queue shape:
 
 ```text
@@ -238,6 +251,7 @@ bywaf> report accept 1-3,7-9 pipeline=1 note=validated during retest
 bywaf> report defer 4 pipeline=1 note=needs owner confirmation
 bywaf> report reject 2 pipeline=1 note=false positive after manual check
 bywaf> finding confirm 1 pipeline=1
+bywaf> finding confirm all cve=CVE-2021-* pipeline=1
 bywaf> finding unconfirm 1 status=confirmed pipeline=1
 ```
 

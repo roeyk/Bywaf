@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 from bywaf.plugin import CommandContext
 
-from .model import FindingGroup, effective_finding_payload, group_finding_events
+from .model import FindingGroup, effective_finding_payload, filter_groups_by_cve, group_finding_events
 
 REVIEW_DECISIONS = {
     "accept": "accepted",
@@ -47,7 +47,7 @@ def review_report_groups(context: CommandContext, parsed, events, *, source: str
         raise ValueError(f"report {parsed.action} requires a selection such as 1, 1-3, or all")
     # Review actions operate on the same filtered inbox the operator sees. That
     # keeps `report accept 1-3` aligned with the currently displayed row numbers.
-    groups = group_finding_events(events)
+    groups = filter_groups_by_cve(group_finding_events(events), str(getattr(parsed, "cve", "")))
     decisions = latest_review_decisions(context)
     visible_groups = filter_groups_by_status(groups, decisions, parsed.status)
     selected = selected_groups(visible_groups, str(parsed.selection))

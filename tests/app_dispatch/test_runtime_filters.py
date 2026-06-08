@@ -113,6 +113,37 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("custom_view", text)
             self.assertIn("custom_write", text)
 
+    def test_job_listing_filters_by_status_and_commandlet_rows(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.record_job("missing", 123, "failed")
+            runner.db.record_job("hostscanner 127.0.0.1", 123, "failed")
+            runner.db.record_job("missing", 123, "finished")
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "job --all status=failed commandlet=missing")
+
+            text = output.getvalue()
+            self.assertIn("failed", text)
+            self.assertIn("missing", text)
+            self.assertNotIn("hostscanner 127.0.0.1", text)
+            self.assertNotIn("completed/finished", text)
+
+    def test_job_listing_filters_by_command_substring(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            runner.db.record_job("hostscanner 127.0.0.1", 123, "finished")
+            runner.db.record_job("portscanner host=127.0.0.1", 123, "finished")
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                dispatch_repl_line(runner, "job --all command=portscanner")
+
+            text = output.getvalue()
+            self.assertIn("portscanner host=127.0.0.1", text)
+            self.assertNotIn("hostscanner 127.0.0.1", text)
+
     def test_jobs_all_marks_active_state(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

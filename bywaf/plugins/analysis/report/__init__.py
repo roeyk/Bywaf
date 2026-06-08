@@ -34,7 +34,7 @@ from .synthesis import REPORT_ANALYZE_CHOICES, synthesize_report_findings
 REPORT_ACTIONS = ("accept", "confirm", "defer", "reject", "unconfirm", "create", "detail", "network", "show", "update")
 REPORT_REVIEW_ACTIONS = tuple(REVIEW_DECISIONS)
 REPORT_SAVE_ACTIONS = ("create", "update")
-REPORT_OPTION_KEYS = {"analyze", "job", "pipeline", "step", "limit", "name", "note", "page", "sort", "status"}
+REPORT_OPTION_KEYS = {"analyze", "cve", "job", "pipeline", "step", "limit", "name", "note", "page", "sort", "status"}
 REPORT_STATUS_CHOICES = ("all", "accepted", "confirmed", "deferred", "open", "rejected", "unreviewed")
 REPORT_SORT_CHOICES = ("finding", "host")
 
@@ -44,7 +44,7 @@ REPORT_SORT_CHOICES = ("finding", "host")
     description="Show grouped finding reports for recent, step, job, or pipeline scopes.",
     usage=(
         "report [--last|--new|network|<index-range>|detail <index-range>|accept|confirm|defer|reject|unconfirm <index-range|all>] "
-        "[pipeline=<ids>] [job=<ids>] [step=<ids>] [status=<filter>] [analyze=passive|off]"
+        "[pipeline=<ids>] [job=<ids>] [step=<ids>] [status=<filter>] [cve=<id|pattern>] [analyze=passive|off]"
     ),
     examples=(
         "report",
@@ -71,12 +71,14 @@ REPORT_SORT_CHOICES = ("finding", "host")
         "report pipeline=1,2,3",
         "report job=7",
         "report step=12",
+        "report cve=CVE-2021-*",
     ),
 )
 @option("job", "job id or comma-separated job ids", completion="job")
 @option("pipeline", "pipeline id or comma-separated pipeline ids", completion="pipeline")
 @option("step", "step id or comma-separated step ids", completion="step")
 @option("name", "saved report scope name")
+@option("cve", "CVE selector; accepts comma-separated values and * wildcards")
 @option("limit", "maximum events to inspect", "1000")
 @option("analyze", "run passive report synthesis before rendering", "passive", REPORT_ANALYZE_CHOICES)
 @option("page", "page rendered report output", "true", ("true", "false"))
@@ -118,6 +120,7 @@ class Report(CommandletBase):
         )
         parser.add_argument("--step", default="", help="step id or comma-separated step ids")
         parser.add_argument("--name", default="", help="saved report scope name")
+        parser.add_argument("--cve", default="", help="CVE selector; accepts comma-separated values and * wildcards")
         parser.add_argument("--limit", type=int, default=1000)
         parser.add_argument("--note", default="")
         parser.add_argument("--analyze", choices=REPORT_ANALYZE_CHOICES, default="passive")
@@ -166,6 +169,7 @@ class Report(CommandletBase):
             "analyze=",
             "analyze=off",
             "analyze=passive",
+            "cve=",
             "detail",
             "pipeline=",
             "job=",

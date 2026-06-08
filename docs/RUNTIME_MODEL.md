@@ -271,6 +271,11 @@ job, pipeline, or step ID. `--new` shows rows created since the last time that
 runtime view was checked and highlights the newest row. The cursor is stored in
 operator-local filesystem state, not as project database events.
 
+`job` also accepts job-row selectors for historical review:
+`status=<status>`, `commandlet=<name>`, and `command=<substring>`. For example,
+`job --all status=failed commandlet=missing` isolates historical failed rows
+for an unknown command name without deleting audit history.
+
 ## Plugin Author Implications
 
 Plugin code should treat the `CommandContext` as the source of step state. Do

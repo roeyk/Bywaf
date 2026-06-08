@@ -2,7 +2,14 @@
 """Report command tests split by responsibility."""
 
 from tests.report.support import *  # noqa: F403,F405
+from bywaf.plugins.analysis.report.model import cve_patterns
+
+
 class ReportScopeTests(unittest.TestCase):
+    def test_cve_plus_selector_requires_relationship_provider(self):
+        with self.assertRaisesRegex(ValueError, "related-CVE expansion requires a CVE relationship provider"):
+            cve_patterns("CVE-2021-41773+")
+
     def test_report_pipeline_renders_scoped_findings(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
@@ -44,6 +51,98 @@ class ReportScopeTests(unittest.TestCase):
             self.assertEqual(rendered.payload["events"], [finding.id])
             self.assertEqual(rendered.payload["groups"], ["finding-1"])
             self.assertEqual(rendered.payload["rows"], 1)
+
+    def test_report_filters_by_cve_exact_wildcard_and_comma_list(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "finding.new",
+                {
+                    "finding_id": "apache-41773",
+                    "title": "Apache path traversal",
+                    "target": {"host": "apache.test"},
+                    "identifiers": {"cve": ["CVE-2021-41773"]},
+                    "severity": "high",
+                },
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+            runner.db.publish(
+                "finding.new",
+                {
+                    "finding_id": "apache-42013",
+                    "title": "Apache path traversal variant",
+                    "target": {"host": "apache.test"},
+                    "identifiers": {"cve": ["CVE-2021-42013"]},
+                    "severity": "high",
+                },
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="run-b",
+            )
+            runner.db.publish(
+                "finding.new",
+                {
+                    "finding_id": "openssl-heartbleed",
+                    "title": "OpenSSL Heartbleed",
+                    "target": {"host": "openssl.test"},
+                    "identifiers": {"cve": ["CVE-2014-0160"]},
+                    "severity": "critical",
+                },
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="run-c",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.execute("report pipeline=pipeline-a status=all cve=CVE-2021-41773")
+                runner.execute("report pipeline=pipeline-a status=all cve=CVE-2021-*")
+                runner.execute("report pipeline=pipeline-a status=all cve=CVE-2021-42013,CVE-2014-0160")
+                process_framework_requests(runner, ShellState())
+
+            rendered = runner.db.events_for_topic("report.rendered")
+            self.assertEqual(rendered[0].payload["groups"], ["apache-41773"])
+            self.assertEqual(rendered[1].payload["groups"], ["apache-41773", "apache-42013"])
+            self.assertEqual(rendered[2].payload["groups"], ["apache-42013", "openssl-heartbleed"])
+
+    def test_finding_review_filters_by_cve_wildcard(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            runner.db.publish(
+                "finding.new",
+                {
+                    "finding_id": "apache-41773",
+                    "title": "Apache path traversal",
+                    "target": {"host": "apache.test"},
+                    "identifiers": {"cve": ["CVE-2021-41773"]},
+                    "severity": "high",
+                },
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="run-a",
+            )
+            runner.db.publish(
+                "finding.new",
+                {
+                    "finding_id": "openssl-heartbleed",
+                    "title": "OpenSSL Heartbleed",
+                    "target": {"host": "openssl.test"},
+                    "identifiers": {"cve": ["CVE-2014-0160"]},
+                    "severity": "critical",
+                },
+                "scanner",
+                pipeline_id="pipeline-a",
+                command_run_id="run-b",
+            )
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.execute("finding confirm all pipeline=pipeline-a status=all cve=CVE-2021-*")
+
+            reviews = runner.db.events_for_topic("finding.reviewed")
+            self.assertEqual(len(reviews), 1)
+            self.assertEqual(reviews[0].payload["finding_id"], "apache-41773")
 
     def test_report_last_explicitly_uses_latest_scan_scope(self):
         with tempfile.TemporaryDirectory() as tmp:

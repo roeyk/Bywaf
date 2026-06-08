@@ -192,6 +192,15 @@ bywaf> pipeline --all
 Default runtime listings show active work only. Add `--all` to include completed,
 failed, stale, or killed entries.
 
+To inspect old failed rows without deleting audit history, combine `--all` with
+job-table selectors:
+
+```text
+bywaf> job --all status=failed
+bywaf> job --all commandlet=missing
+bywaf> job --all status=failed commandlet=missing
+```
+
 ## How do I create a clean project for a client?
 
 ```bash

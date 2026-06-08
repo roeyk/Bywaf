@@ -16,7 +16,7 @@ from bywaf.finding import SEVERITY_CLASS_ORDER, severity_class
 from bywaf.plugin import CommandContext
 
 from .details import render_group_details
-from .model import FindingGroup, effective_finding_payload, events_for_groups, group_finding_events
+from .model import FindingGroup, effective_finding_payload, events_for_groups, filter_groups_by_cve, group_finding_events
 from .network import host_overviews, render_network_overview
 from .review import (
     ReviewDecision,
@@ -40,7 +40,7 @@ def render_finding_report(
     """Render report results and emit a report-rendered audit event."""
     # Rendering starts from raw events every time. Reports do not own findings;
     # they are scoped views over the event log plus review-state events.
-    groups = group_finding_events(events)
+    groups = filter_groups_by_cve(group_finding_events(events), str(getattr(parsed, "cve", "")))
     decisions = latest_review_decisions(context)
     filtered_groups = filter_groups_by_status(groups, decisions, parsed.status)
     filtered_groups = order_report_groups(filtered_groups, decisions, parsed)

@@ -26,9 +26,10 @@ FINDING_OPTION_KEYS = REPORT_OPTION_KEYS
 @commandlet(
     name="finding",
     description="Confirm or unconfirm grouped finding rows from a report scope.",
-    usage="finding confirm|unconfirm <index-range|all> [pipeline=<ids>] [job=<ids>] [step=<ids>] [status=<filter>] [note=<text>]",
+    usage="finding confirm|unconfirm <index-range|all> [pipeline=<ids>] [job=<ids>] [step=<ids>] [status=<filter>] [cve=<id|pattern>] [note=<text>]",
     examples=(
         "finding confirm 1 pipeline=7 note=validated with curl",
+        "finding confirm all cve=CVE-2021-*",
         "finding confirm all status=unreviewed",
         "finding unconfirm 1 status=confirmed note=retest no longer reproduces",
     ),
@@ -36,6 +37,7 @@ FINDING_OPTION_KEYS = REPORT_OPTION_KEYS
 @option("job", "job id or comma-separated job ids", completion="job")
 @option("pipeline", "pipeline id or comma-separated pipeline ids", completion="pipeline")
 @option("step", "step id or comma-separated step ids", completion="step")
+@option("cve", "CVE selector; accepts comma-separated values and * wildcards")
 @option("limit", "maximum events to inspect", "1000")
 @option("note", "operator review note")
 @option("sort", "report grouping used for row numbering", "finding", REPORT_SORT_CHOICES)
@@ -57,6 +59,7 @@ class Finding(CommandletBase):
         parser.add_argument("--job", default="")
         parser.add_argument("--pipeline", default="")
         parser.add_argument("--step", default="")
+        parser.add_argument("--cve", default="")
         parser.add_argument("--limit", type=int, default=1000)
         parser.add_argument("--note", default="")
         parser.add_argument("--sort", choices=REPORT_SORT_CHOICES, default="finding")
@@ -75,6 +78,7 @@ class Finding(CommandletBase):
             "confirm",
             "unconfirm",
             "all",
+            "cve=",
             "pipeline=",
             "job=",
             "step=",
