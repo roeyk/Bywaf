@@ -38,8 +38,10 @@ Review these areas before a testing release:
   from argv, env, stdout, stderr, and streamed process output.
 - The pager invokes `less` with `LESSSECURE=1` and an option terminator before
   the file path.
-- Filesystem plugin packages require manifests, and trusted loading can require
-  signed manifests or signed catalogs.
+- Filesystem plugin packages require manifests. Trusted loading can require
+  signed manifests for sidecar metadata integrity or signed catalogs for
+  reviewed-tree integrity that binds `plugin.py` and `bywaf.plugin.toml`
+  hashes.
 - Capability auditing records declared and missing capability use; enforcement
   mode can deny undeclared mediated framework requests.
 - Effective `database.actions.*` metadata lets view-only commandlet invocations

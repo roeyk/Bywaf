@@ -1,7 +1,7 @@
 # Key Management
 
 This document records Bywaf's maintainer policy for official plugin manifest
-signing keys and public verification keys.
+signing keys, plugin catalog signing keys, and public verification keys.
 
 ## Document Index
 
@@ -21,9 +21,20 @@ Public manifest verification keys are distributable trust anchors. They can be
 committed, packaged, and listed in release notes so operators can verify which
 official key signed a manifest.
 
+Manifest-signing keys and catalog-signing keys protect different boundaries.
+Manifest signatures protect canonical `bywaf.plugin.toml` values. Catalog
+signatures protect a reviewed catalog entry that records hashes for both the
+plugin implementation file and its sidecar manifest. Use manifest-signing
+language when discussing TOML metadata integrity; use catalog-signing language
+when discussing package or reviewed-tree integrity.
+
+Private catalog-signing keys are also maintainer or plugin-publisher secrets.
+They are used by `scripts/plugin_catalog.py sign` to sign catalog files after
+reviewed plugin code and sidecar hashes have been recorded.
+
 ## Private Key Storage Controls
 
-Private manifest-signing keys must:
+Private manifest-signing and catalog-signing keys must:
 
 - stay outside the repository and outside the `bywaf/` package tree;
 - never be committed, packaged, emailed, pasted into issues, or written into
@@ -59,8 +70,8 @@ public key outside the official Bywaf key set.
 
 ## Rotation Policy
 
-Official manifest-signing keys rotate annually with a 60-day staggered
-transition:
+Official manifest-signing and catalog-signing keys rotate annually with a
+60-day staggered transition:
 
 - publish the next public verification key before it is used for signing;
 - temporarily trust both the current and next public keys during the 60-day

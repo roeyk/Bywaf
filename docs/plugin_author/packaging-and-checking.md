@@ -142,6 +142,19 @@ Runtime catalog trust decisions are audited with
 `plugin.catalog.verified`, `plugin.catalog.rejected`,
 `plugin.catalog.entry.verified`, and `plugin.catalog.entry.rejected`.
 
+Manifest signatures and catalog signatures protect different boundaries:
+
+- an inline `[bywaf_signature]` block in `bywaf.plugin.toml` signs only the
+  canonical manifest values, which protects declarative metadata such as
+  commandlets, capabilities, database actions, dependencies, and schemas;
+- a signed plugin catalog signs catalog metadata that includes hashes for both
+  `plugin.py` and `bywaf.plugin.toml`, which is the current package-integrity
+  mechanism for a reviewed plugin tree.
+
+In other words, "sign the manifest" means "protect the TOML sidecar." "Sign the
+plugin catalog" means "bind the reviewed plugin code and manifest hashes to a
+trusted catalog entry."
+
 Plugin manifest signatures sign a digest of canonical parsed values, not raw
 TOML bytes. Comments, whitespace, and formatting can change freely without
 disturbing the signature; changes to the actual declarative values change the
@@ -331,7 +344,9 @@ capabilities are merged into the manifest only when the plugin exposes exactly
 one commandlet; multi-commandlet plugins still need the author to assign
 inferred capabilities to the right commandlet manually.
 
-Sign a plugin manifest outside the Bywaf interpreter:
+Sign a plugin manifest outside the Bywaf interpreter. This signs the
+`bywaf.plugin.toml` sidecar only; use a signed catalog when the trust decision
+needs to bind both the plugin source file and the sidecar manifest:
 
 ```bash
 python3 scripts/plugin_manifest_sign.py \
@@ -343,9 +358,9 @@ python3 scripts/plugin_manifest_sign.py \
 ## Plugin Catalog Signing
 
 Bywaf keeps runtime plugin loading separate from maintainer release tooling. The
-maintainer-side catalog helper builds a reviewed catalog from bundled plugin
-source files and sidecar manifests, records SHA-256 hashes, and can sign that
-catalog with an encrypted Ed25519 key:
+maintainer-side catalog helper builds a reviewed catalog from bundled or
+external plugin source files and sidecar manifests, records SHA-256 hashes, and
+can sign that catalog with an encrypted Ed25519 key:
 
 ```bash
 python3 scripts/plugin_catalog.py build --output dist/plugin-catalog.json
@@ -365,6 +380,8 @@ python3 scripts/plugin_catalog.py verify \
 
 `verify` checks the catalog signature. `--check-tree` additionally checks that
 the current plugin modules and sidecar manifests still match the hashes and
-metadata in the signed catalog. This is the beginning of plugin chain-of-custody
-support; runtime trust prompts, revocation policy, and external plugin package
-distribution are still design items.
+metadata in the signed catalog. Catalog verification is therefore the mechanism
+that detects tampering with either `plugin.py` or `bywaf.plugin.toml` after
+review. This is the beginning of plugin chain-of-custody support; runtime trust
+prompts, revocation policy, and external plugin package distribution are still
+design items.

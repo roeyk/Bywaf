@@ -176,9 +176,9 @@ python3 scripts/plugin_graph.py --json
 
 **Who uses it:** Plugin publishers and release maintainers.
 
-**Process:** Use when preparing trusted plugin packages or release-managed
-plugin catalogs. Ordinary local plugin development usually does not require
-signing.
+**Process:** Use when preparing trusted plugin manifests. This signs only the
+canonical `bywaf.plugin.toml` sidecar values, not the plugin source file.
+Ordinary local plugin development usually does not require signing.
 
 **Common usage:**
 
@@ -203,7 +203,9 @@ python3 scripts/plugin_manifest_sign.py --manifest bywaf.plugin.toml --private m
 **Who uses it:** Release maintainers and future plugin catalog maintainers.
 
 **Process:** Use during release/catalog workflows, not during ordinary plugin
-implementation.
+implementation. A signed catalog binds reviewed plugin entries to hashes of
+both `plugin.py` and `bywaf.plugin.toml`, so catalog verification is the current
+package-integrity check for plugin code plus sidecar metadata.
 
 **Common usage:**
 
