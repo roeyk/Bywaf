@@ -52,6 +52,9 @@ NOISE_TOPIC_PREFIXES = (
     "watchdog.",
 )
 NOISE_TOPICS = {"process.run", "runtime.name.assigned"}
+# Results views hide commandlets that already have dedicated runtime views.
+# result_view_commandlet() checks this set before choosing generic result
+# rendering.
 RESULT_VIEW_COMMANDS = {
     "artifact",
     "bundle",

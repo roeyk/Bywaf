@@ -112,6 +112,9 @@ class BuiltinCompletionMixin:
 
     def complete_by_spec(self, spec: CompletionSpec, prefix: str) -> list[str]:
         """Resolve a CompletionSpec into concrete candidates."""
+        # CompletionSpec kinds are a public plugin-authoring contract.
+        # complete_by_spec() uses this dispatch table to keep each kind's provider
+        # explicit instead of burying plugin-visible behavior in branches.
         dispatch = {
             "path": lambda: complete_path(prefix or "."),
             "file": lambda: complete_path(prefix or "."),

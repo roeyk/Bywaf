@@ -39,6 +39,9 @@ SUBJECTS = frozenset(
     }
 )
 
+# infer_subjects() walks finding payload keys and uses this lookup table to
+# attach a stable semantic subject to common field names before report/rendering
+# code applies subject-aware styling and grouping.
 FIELD_SUBJECT_MAP = {
     "account": "account",
     "artifact": "artifact",

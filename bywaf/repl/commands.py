@@ -105,6 +105,9 @@ def set_prompt_pattern(runner: Runner, state: ShellState, pattern: str, *, sourc
     )
 
 
+# Built-in REPL commands are handled before plugin commandlets. The REPL
+# dispatcher uses this dispatch table to keep shell-local actions, resource commands,
+# and plugin execution on separate paths.
 REPL_COMMAND_HANDLERS: dict[str, ReplCommandHandler] = {
     "?": handle_help_command,
     "cmds": handle_cmds_command,

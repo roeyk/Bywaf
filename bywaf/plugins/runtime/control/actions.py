@@ -211,6 +211,9 @@ def signal_end_run(context: CommandContext, target_id: str, hard: bool) -> None:
         cancel_run(context, target_id)
 
 
+# Operator control commands target jobs, pipelines, or runs with different DB
+# actions. dispatch_control_action() uses this dispatch table to keep that matrix
+# explicit.
 CONTROL_HANDLERS: dict[tuple[str, str], ControlHandler] = {
     ("cancel", "job"): control_cancel_job,
     ("cancel", "pipeline"): control_cancel_pipeline,
@@ -230,6 +233,8 @@ CONTROL_HANDLERS: dict[tuple[str, str], ControlHandler] = {
 }
 
 
+# Framework signal events use the same action/target matrix but operate from
+# stored signal payloads. dispatch_framework_signal() uses this separate dispatch table.
 FRAMEWORK_SIGNAL_HANDLERS: dict[tuple[str, str], SignalHandler] = {
     ("end", "job"): signal_end_job,
     ("end", "pipeline"): signal_end_pipeline,

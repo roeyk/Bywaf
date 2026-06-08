@@ -20,6 +20,9 @@ from bywaf.runtime_display import (
 from bywaf.operator_state import update_view_cursor, view_cursor
 from bywaf.stores import EventStoreProtocol
 
+# Runtime view detection affects follow-up commands, cursor handling, and shell
+# completion. is_runtime_view_command() uses this base set for commandlets whose
+# default action is read-only.
 VIEW_COMMANDLETS = {
     "audit",
     "finding_report",
@@ -32,11 +35,16 @@ VIEW_COMMANDLETS = {
     "search",
     "step",
 }
+# Some runtime commandlets have read-only subcommands that should still count as
+# views. is_runtime_view_command() uses this classification table for those actions.
 VIEW_ACTIONS = {
     "artifact": {"list", "search", "show", "verify"},
     "bundle": {"list", "show", "verify"},
     "key": {"list", "show", "test"},
 }
+# Mutating subcommands are not runtime views even when they appear on otherwise
+# view-oriented commandlets. is_runtime_view_command() checks this classification
+# table first.
 MUTATING_ACTIONS = {
     "note": {"add"},
     "report": {"accept", "defer", "reject"},

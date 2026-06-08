@@ -337,6 +337,9 @@ def history_cli_subcommand(runner: Runner, args: argparse.Namespace) -> int:
     return 0
 
 
+# CLI subcommands are framework entrypoints, not plugin commandlets. main() uses
+# this dispatch table after argparse so each startup mode stays separated from REPL
+# command dispatch.
 CLI_SUBCOMMAND_HANDLERS: dict[str | None, CliSubcommandHandler] = {
     "cmd": cmd_cli_subcommand,
     "cmds": cmds_cli_subcommand,

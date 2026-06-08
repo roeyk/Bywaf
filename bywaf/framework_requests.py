@@ -321,6 +321,9 @@ def handle_process_stream_request(runner: Runner, state: FrameworkRequestState, 
     )
 
 
+# Framework request events are emitted by commandlet contexts when a plugin asks
+# the host to perform UI, paging, process, or rendering work. The request loop
+# uses this dispatch table to keep those host-side effects explicit and auditable.
 FRAMEWORK_REQUEST_HANDLERS = {
     "shell.prompt.requested": handle_prompt_request,
     "framework.console.alert.requested": handle_console_alert_request,

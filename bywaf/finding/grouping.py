@@ -150,6 +150,9 @@ def artifact_scope_value(target: Mapping[str, Any]) -> str:
     return f"artifact:{artifact_id}" if artifact_id else ""
 
 
+# Target scopes are grouped by subject kind, but each kind stores its identity
+# in different payload fields. target_scope_value() uses this normalization
+# lookup table before finding grouping/dedupe compares them.
 TARGET_SCOPE_VALUE_HANDLERS: dict[str, Callable[[Mapping[str, Any]], str]] = {
     "artifact": artifact_scope_value,
     "cloud_account": cloud_account_scope_value,

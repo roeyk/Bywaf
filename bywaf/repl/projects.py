@@ -87,6 +87,9 @@ def project_archive_command(runner: Runner, state: ResourceState, args: list[str
     )
 
 
+# Project subcommands mutate or inspect project state outside ordinary plugin
+# execution. handle_project_command() uses this dispatch table so supported actions stay
+# synchronized with PROJECT_ACTIONS and completion/help.
 PROJECT_COMMAND_HANDLERS: dict[str, ProjectCommandHandler] = {
     PROJECT_ARCHIVE: project_archive_command,
     PROJECT_EXPORT: project_archive_command,

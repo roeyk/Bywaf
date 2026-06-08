@@ -134,6 +134,9 @@ def load_plugin_resource(
     return commandlets
 
 
+# `load <kind>=...` is a small resource-dispatch surface. load_resource() uses
+# this dispatch table so each loadable resource kind can validate and publish its own
+# audit event without growing a branch ladder.
 LOAD_RESOURCE_HANDLERS: dict[str, LoadResourceHandler] = {
     "plugin": load_plugin_resource,
 }

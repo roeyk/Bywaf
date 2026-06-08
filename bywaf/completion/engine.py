@@ -131,6 +131,8 @@ class CoreCompleter(
 
         # Built-in shell commands are completed here because they are not
         # commandlets and therefore do not have CommandSpec metadata.
+        # base_candidates() uses this dispatch table to route each built-in to its
+        # command-specific completion provider.
         dispatch = {
             "?": lambda current_prefix: self.help_candidates(current_prefix),
             "config": self.config_candidates,

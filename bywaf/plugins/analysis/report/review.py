@@ -15,6 +15,9 @@ from bywaf.plugin import CommandContext
 
 from .model import FindingGroup, effective_finding_payload, filter_groups_by_cve, group_finding_events
 
+# report review actions are verbs, while persisted finding.reviewed events store
+# statuses. review_report_groups() uses this lookup table to convert the operator
+# action into the durable review decision written to the event stream.
 REVIEW_DECISIONS = {
     "accept": "accepted",
     "confirm": "confirmed",
@@ -22,7 +25,12 @@ REVIEW_DECISIONS = {
     "reject": "rejected",
     "unconfirm": "unreviewed",
 }
+# latest_review_decisions() and review_counts() use this closed set to validate
+# stored review decisions and initialize status counters for report summaries.
 REVIEW_STATUSES = ("accepted", "confirmed", "deferred", "rejected", "unreviewed")
+
+# Review actions and stored statuses use different user-facing words.
+# review_output_label() uses this lookup table to keep output labels stable.
 ACTION_OUTPUT_LABELS = {
     "accepted": "accepted",
     "confirmed": "confirmed",

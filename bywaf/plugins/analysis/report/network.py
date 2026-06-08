@@ -233,6 +233,9 @@ def finding_hosts(payload: dict) -> set[str]:
     return hosts
 
 
+# Network reports synthesize context from several event topics, each with a
+# different payload shape. network_context() uses this dispatch table to route
+# each topic to the right normalizer without topic-specific branches.
 CONTEXT_EVENT_HANDLERS: dict[str, ContextEventHandler] = {
     "host.found": add_named_host_event,
     "name.resolved": add_named_host_event,

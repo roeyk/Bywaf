@@ -221,6 +221,8 @@ def test_key_selector_action(context: CommandContext, args: list[str]) -> None:
     test_key_action(context, selector(args, "name", required=True))
 
 
+# Key operations have different side effects and selector needs. Key.run() uses
+# this dispatch table after argparse so each action stays isolated and auditable.
 KEY_ACTION_HANDLERS: dict[str, KeyActionHandler] = {
     "export": export_key_action,
     "generate": generate_key_action,

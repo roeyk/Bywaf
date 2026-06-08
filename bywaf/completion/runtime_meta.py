@@ -29,6 +29,9 @@ class RuntimeCompletionMetadataMixin:
         kind, value = runtime_completion_target(candidate, line, prefix)
         if kind is None or not value:
             return ""
+        # Runtime selector completions can show different metadata depending on
+        # whether the candidate names a job, pipeline, or step. completion_meta()
+        # uses this dispatch table after runtime_completion_target() identifies the kind.
         dispatch = {
             "job": self.job_completion_meta,
             "pipeline": self.pipeline_completion_meta,

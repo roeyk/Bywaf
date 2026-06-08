@@ -161,6 +161,9 @@ def apply_finding_candidate(web: dict[str, WebInventory], payload: dict[str, obj
         add_value(row.findings, payload.get("title") or payload.get("class"))
 
 
+# The web inventory merges URL/service/finding facts from different event
+# topics into one per-target row. collect_web() uses this dispatch table to
+# route each topic to the right merge helper.
 WEB_EVENT_HANDLERS: dict[str, WebEventHandler] = {
     "http.endpoint": apply_http_endpoint,
     "http.path": apply_http_path,

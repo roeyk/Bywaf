@@ -11,6 +11,9 @@ Used by:
 from __future__ import annotations
 
 
+# ansi_color_code() accepts friendly style names in user-configurable display
+# variables. These tables translate those names into SGR numbers before the
+# parser handles dynamic forms such as colorNN, rgb:, and bg:.
 ANSI_COLORS = {
     "black": "30",
     "red": "31",
@@ -31,6 +34,8 @@ ANSI_COLORS = {
     "bright-cyan": "96",
     "bright-white": "97",
 }
+# ansi_background_color_code() consumes this companion table for bg: style
+# tokens, keeping foreground and background aliases deliberately separate.
 ANSI_BACKGROUND_COLORS = {
     "black": "40",
     "red": "41",
@@ -50,6 +55,8 @@ ANSI_BACKGROUND_COLORS = {
     "bright-white": "107",
 }
 
+# ansi_style_code() treats these tokens as text attributes that can be combined
+# with color tokens in one display style string.
 ANSI_STYLE_TOKENS = {
     "bold": "1",
     "dim": "2",

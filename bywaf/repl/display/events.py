@@ -217,6 +217,9 @@ def format_runtime_name_event(event) -> str:
     return f"{event.id}: {target_type} {target_id} named {name}".strip()
 
 
+# Runtime display needs richer, topic-specific summaries for operational event
+# payloads. format_event() checks this dispatch table first before falling back to simple
+# infrastructure and prefix-based formatters.
 RUNNER_EVENT_FORMATTERS = {
     "finding.candidate": format_finding_event,
     "finding.new": format_finding_event,
@@ -231,6 +234,9 @@ RUNNER_EVENT_FORMATTERS = {
     "name.resolved": format_name_resolved_event,
 }
 
+# These infrastructure topics need compact one-line formatting but do not need
+# the richer runtime context handled by RUNNER_EVENT_FORMATTERS. format_event()
+# uses this as its second exact-topic dispatch table.
 SIMPLE_EVENT_FORMATTERS = {
     "console.alert": format_console_alert_event,
     "framework.console.alert.requested": format_console_alert_requested_event,
@@ -242,6 +248,9 @@ SIMPLE_EVENT_FORMATTERS = {
 
 CONSOLE_OUTPUT_TOPICS = {"console.output", "framework.console.output.requested"}
 ERROR_TOPICS = {"tool.error", "tool.exception", "system.error", "web.error", "network.error"}
+# Some runtime event families are versioned by topic prefix rather than a single
+# exact topic. format_event() uses this final fallback dispatch table for those
+# families.
 PREFIX_EVENT_FORMATTERS = (
     ("plugin.progress.", format_progress_event),
     ("command.run.", format_command_run_event),

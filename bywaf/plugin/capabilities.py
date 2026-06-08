@@ -16,6 +16,10 @@ from ..specs import CommandSpec
 
 DATABASE_ACTIONS = ("view", "write", "manage")
 
+# Capability codes are audit labels, not authorization rules.
+# capability_code_label() uses this lookup table to keep stable human-readable
+# C### labels for framework-defined capabilities, while topic-scoped DB
+# capabilities get generated subcodes.
 ASSIGNED_CAPABILITY_CODES = {
     "db.raw": "C201",
     "artifact.read": "C202",
