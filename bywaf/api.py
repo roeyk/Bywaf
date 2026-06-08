@@ -26,7 +26,13 @@ from .toml_support import dump_variables_toml, load_data_file
 
 @dataclass(slots=True)
 class BywafSession:
-    """Small public facade for REPL, GUI, web, and test clients."""
+    """Small public facade for REPL, GUI, web, and test clients.
+
+    This represents an embedded Bywaf runtime session.
+    Constructed by: `BywafSession.open()`.
+    Used by: external Python callers and API tests to run command text, inspect
+    jobs/events, and export/import state without driving the interactive shell.
+    """
 
     runner: Runner
 

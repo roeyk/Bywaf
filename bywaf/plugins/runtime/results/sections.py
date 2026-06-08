@@ -35,6 +35,8 @@ def render_hosts_section(context: CommandContext, events: list[Event]) -> str:
 
 def render_name_resolution_section(context: CommandContext, events: list[Event]) -> str:
     """Render name-to-address mappings as one row per original name."""
+    # First group host facts by submitted name, then render one de-duplicated
+    # address list per name so repeated resolver observations stay readable.
     grouped: dict[str, list[str]] = {}
     for event in events:
         name = str(event.payload.get("name") or "")
@@ -93,6 +95,8 @@ def render_http_endpoints_section(context: CommandContext, events: list[Event]) 
 
 def render_http_headers_section(context: CommandContext, events: list[Event]) -> str:
     """Render HTTP header probe results."""
+    # Header events can carry large dictionaries; this section reduces them to
+    # count plus high-value missing-header summary before table rendering.
     rows = [
         (
             event.payload.get("host", ""),
@@ -222,6 +226,9 @@ def render_tls_certificates_section(context: CommandContext, events: list[Event]
 
 def render_screenshots_section(context: CommandContext, events: list[Event]) -> str:
     """Render screenshot artifact references as a compact result table."""
+    # Screenshot events may include several URLs and artifact records; keep the
+    # table scannable by showing the first URLs, screenshot count, and compact
+    # artifact references.
     rows = [
         (
             event.payload.get("host", ""),
@@ -347,6 +354,8 @@ def render_http_paths_section(context: CommandContext, events: list[Event]) -> s
 
 def render_web_fingerprints_section(context: CommandContext, events: list[Event]) -> str:
     """Render web technology fingerprints."""
+    # Fingerprint payloads can be noisy, so the results view caps displayed
+    # technologies and collapses observation details into severity counts.
     rows = [
         (
             event.payload.get("url", ""),

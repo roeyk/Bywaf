@@ -33,7 +33,13 @@ def new_run_id(prefix: str) -> str:
 
 @dataclass(frozen=True, slots=True)
 class StageRun:
-    """Execution identity assigned to one pipeline stage."""
+    """Execution identity assigned to one pipeline stage.
+
+    This represents the runtime IDs attached to one parsed command invocation.
+    `prepare_stage_runs()` constructs one per parsed command invocation.
+    `build_context()` and `execute_stage()` consume it to assign command-run ids
+    and parent ids consistently across pipeline steps.
+    """
 
     invocation: CommandInvocation
     command_run_id: str

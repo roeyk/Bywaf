@@ -22,7 +22,12 @@ SUPPORTED_ALGORITHM = "ed25519"
 
 @dataclass(frozen=True, slots=True)
 class KeyPaths:
-    """Filesystem paths for the user-local Bywaf keyring."""
+    """Filesystem paths for the user-local Bywaf keyring.
+
+    This represents the canonical keyring directory layout.
+    Constructed by: keyring path-resolution code.
+    Used by: key generation, import/export, listing, and signing operations.
+    """
 
     root: Path
     private_dir: Path
@@ -32,7 +37,13 @@ class KeyPaths:
 
 @dataclass(frozen=True, slots=True)
 class KeyRecord:
-    """Metadata for one known signing or verification key."""
+    """Metadata for one known signing or verification key.
+
+    This represents one key without loading private key contents.
+    Constructed by: keyring storage from metadata files.
+    Used by: runtime key commandlets, signing, verification, and plugin trust
+    code.
+    """
 
     name: str
     scope: str

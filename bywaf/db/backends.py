@@ -23,7 +23,12 @@ from .support import set_sqlcipher_key, sqlcipher
 
 @dataclass(frozen=True, slots=True)
 class DatabaseBackendCapabilities:
-    """Backend capabilities that affect storage behavior and operator docs."""
+    """Backend capabilities that affect storage behavior and operator docs.
+
+    This represents what the active storage backend can safely promise.
+    Constructed by: database backend implementations.
+    Used by: EventStore, status output, and operator documentation paths.
+    """
 
     name: str
     local_file: bool

@@ -161,6 +161,8 @@ class CoreCompleter(
             SET_COMMAND: lambda current_prefix: self.vars_candidates(current_prefix, rest),
             SETG_COMMAND: lambda current_prefix: self.setg_candidates(current_prefix, rest),
         }
+        # This lookup uses the local built-in completion dispatch table above
+        # in place of an if/elif ladder over shell command names.
         handler = dispatch.get(command)
         return handler(prefix) if handler is not None else root_candidates
 

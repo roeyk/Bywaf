@@ -16,7 +16,13 @@ from typing import Any
 
 @dataclass(slots=True)
 class VarStore:
-    """String-valued session variable storage shared by commandlets."""
+    """String-valued session variable storage shared by commandlets.
+
+    This represents the current variable namespace for one session.
+    Constructed by: CLI/API startup, project config loading, and registry setup.
+    Used by: command parsing, plugin contexts, completion, and REPL `vars`
+    commands.
+    """
 
     values: dict[str, str] = field(default_factory=dict)
 

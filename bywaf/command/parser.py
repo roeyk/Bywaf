@@ -28,7 +28,14 @@ from .pipeline_syntax import (
 
 @dataclass(frozen=True, slots=True)
 class CommandInvocation:
-    """Parsed commandlet invocation plus framework-owned execution selectors."""
+    """Parsed commandlet invocation plus framework-owned execution selectors.
+
+    This represents one executable command after shell text has been normalized.
+    Constructed by: `parse_invocation()` after peeling Bywaf selectors away
+    from plugin-owned args.
+    Used by: runner execution and `build_context()` to choose the commandlet,
+    replay source, background behavior, display name, and approval/plan mode.
+    """
 
     name: str
     args: list[str]
@@ -48,7 +55,14 @@ class CommandInvocation:
 
 @dataclass(frozen=True, slots=True)
 class Pipeline:
-    """A sequence of commandlets connected by pipe syntax."""
+    """A parsed command pipeline.
+
+    This represents a full command expression, including pipe order and shared
+    pipeline metadata.
+    Constructed by: `parse_pipeline()` from REPL/CLI text.
+    Used by: runner pipeline execution to process ordered command invocations
+    with shared metadata such as background mode and display name.
+    """
 
     commands: tuple[CommandInvocation, ...]
     background: bool = False

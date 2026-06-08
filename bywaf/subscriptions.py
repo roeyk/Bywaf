@@ -15,7 +15,13 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class Subscription:
-    """A scoped request for events newer than a known high-water mark."""
+    """A scoped request for events newer than a known high-water mark.
+
+    This represents an event-consumption cursor for topics and runtime scope.
+    Constructed by: pipeline and trigger code from commandlet `consumes`
+    metadata.
+    Used by: the event store to fetch only relevant events and avoid rereads.
+    """
 
     topics: tuple[str, ...]
     # `after_id` is the cursor used by polling pipelines and triggers. It keeps

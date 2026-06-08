@@ -74,6 +74,8 @@ class Key(CommandletBase):
             raise ValueError("usage: key <list|show|generate|import|export|remove|test>")
         action = args[0]
         rest = args[1:]
+        # This lookup uses KEY_ACTION_HANDLERS, defined below, in place of an
+        # if/elif ladder over key subcommands.
         handler = KEY_ACTION_HANDLERS.get(action)
         if handler is None:
             raise ValueError(f"unknown key action: {action}")

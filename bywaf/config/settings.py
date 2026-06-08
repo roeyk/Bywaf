@@ -21,6 +21,10 @@ class Settings:
     The project keeps user-writable state under `.bywaf/` so packaged code can
     live elsewhere while databases, configs, plugin overrides, and history stay
     local to the working directory unless the user passes explicit paths.
+
+    Constructed by: `default_settings()` and callers using `Settings()`.
+    Used by: CLI, API, project, and resource-loading code when no explicit path
+    is supplied.
     """
 
     # These defaults are intentionally relative. Project mode and explicit CLI

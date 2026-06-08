@@ -35,6 +35,8 @@ def format_event(event, runner: Runner | None = None) -> str:
         return format_console_output_event(event)
     if event.topic in ERROR_TOPICS:
         return format_error_event(event)
+    # These lookups use the formatter dispatch tables defined below in place of
+    # if/elif ladders over exact topics and topic prefixes.
     if formatter := RUNNER_EVENT_FORMATTERS.get(event.topic):
         return formatter(event, runner)
     if formatter := SIMPLE_EVENT_FORMATTERS.get(event.topic):

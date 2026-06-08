@@ -32,7 +32,13 @@ from .runtime_events import publish_note_if_present, publish_runtime_name, publi
 
 @dataclass(frozen=True, slots=True)
 class StageResult:
-    """Events produced by one executed pipeline stage."""
+    """Events produced by one executed pipeline stage.
+
+    This represents a stage's output events plus optional pipeline-stop state.
+    `execute_stage()` returns this after plugin execution.
+    `Runner.execute_pipeline()` consumes it to pass events to later pipeline
+    stages and honor `PipelineStop` requests without raw tuple state.
+    """
 
     events: list[Event]
     stopped: bool = False

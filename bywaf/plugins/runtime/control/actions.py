@@ -41,6 +41,8 @@ def dispatch_framework_signal(context: CommandContext, parsed: dict[str, object]
     kind = str(parsed["kind"])
     target_id = str(parsed["target_id"])
     hard = parsed["mode"] == "hard"
+    # This lookup uses FRAMEWORK_SIGNAL_HANDLERS, defined below, in place of a
+    # match/case ladder over signal action and target kind.
     handler = FRAMEWORK_SIGNAL_HANDLERS.get((action, kind))
     if handler is None:
         raise ValueError(f"unsupported signal target: {kind}={target_id}")

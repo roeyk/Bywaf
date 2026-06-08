@@ -19,7 +19,12 @@ from .schemas import EventSchemaObject
 
 @dataclass(frozen=True)
 class HostFound(EventSchemaObject):
-    """A host observed alive or otherwise reachable."""
+    """A host observed alive or otherwise reachable.
+
+    This represents the canonical host discovery fact.
+    Constructed by: discovery plugins before publishing `host.found`.
+    Used by: inventory, report synthesis, and runtime event display.
+    """
 
     __topic__ = "host.found"
 
@@ -32,7 +37,12 @@ class HostFound(EventSchemaObject):
 
 @dataclass(frozen=True)
 class NameResolved(EventSchemaObject):
-    """One hostname-to-address resolution fact."""
+    """One hostname-to-address resolution fact.
+
+    This links a name to the host address that resolved from it.
+    Constructed by: DNS-aware plugins before publishing `name.resolved`.
+    Used by: inventory and network report synthesis.
+    """
 
     __topic__ = "name.resolved"
 
@@ -43,7 +53,13 @@ class NameResolved(EventSchemaObject):
 
 @dataclass(frozen=True)
 class OpenPort(EventSchemaObject):
-    """A network port observed open on a host."""
+    """A network port observed open on a host.
+
+    This represents the canonical open-port observation.
+    Constructed by: port scanners before publishing `port.open`.
+    Used by: service inventory, report synthesis, event display, and follow-up
+    service probes.
+    """
 
     __topic__ = "port.open"
 
@@ -58,7 +74,12 @@ class OpenPort(EventSchemaObject):
 
 @dataclass(frozen=True)
 class HttpEndpoint(EventSchemaObject):
-    """A reachable HTTP or HTTPS endpoint."""
+    """A reachable HTTP or HTTPS endpoint.
+
+    This represents a normalized web origin/path that responded or failed.
+    Constructed by: HTTP probing plugins before publishing `http.endpoint`.
+    Used by: web inventory, reporting, and downstream HTTP analysis plugins.
+    """
 
     __topic__ = "http.endpoint"
 
@@ -74,7 +95,13 @@ class HttpEndpoint(EventSchemaObject):
 
 @dataclass(frozen=True)
 class ScreenshottedHost(EventSchemaObject):
-    """One host or endpoint with one or more screenshot artifact references."""
+    """One host or endpoint with one or more screenshot artifact references.
+
+    This ties web visual evidence to a host or URL.
+    Constructed by: screenshot plugins before publishing
+    `web.screenshotted_host`.
+    Used by: web inventory and reports.
+    """
 
     __topic__ = "web.screenshotted_host"
 
@@ -86,7 +113,13 @@ class ScreenshottedHost(EventSchemaObject):
 
 @dataclass(frozen=True)
 class TcpBanner(EventSchemaObject):
-    """A TCP service banner or first response."""
+    """A TCP service banner or first response.
+
+    This represents raw-but-bounded service identity evidence.
+    Constructed by: banner-grabbing plugins before publishing `tcp.banner`.
+    Used by: service detection, technology indicators, reports, and event
+    display.
+    """
 
     __topic__ = "tcp.banner"
 
@@ -101,7 +134,13 @@ class TcpBanner(EventSchemaObject):
 
 @dataclass(frozen=True)
 class ServiceDetected(EventSchemaObject):
-    """A normalized service classification for a host/port."""
+    """A normalized service classification for a host/port.
+
+    This represents a tool-neutral service identity.
+    Constructed by: port scanners and service probes before publishing
+    `service.detected`.
+    Used by: inventory, reports, and pipeline consumers.
+    """
 
     __topic__ = "service.detected"
 
@@ -118,7 +157,13 @@ class ServiceDetected(EventSchemaObject):
 
 @dataclass(frozen=True)
 class TlsCertificate(EventSchemaObject):
-    """TLS certificate metadata observed from a network service."""
+    """TLS certificate metadata observed from a network service.
+
+    This represents inspectable certificate metadata, not the raw certificate.
+    Constructed by: TLS probing plugins before publishing `tls.certificate`.
+    Used by: certificate inventory, reports, event display, and expiration
+    checks.
+    """
 
     __topic__ = "tls.certificate"
 
@@ -136,7 +181,13 @@ class TlsCertificate(EventSchemaObject):
 
 @dataclass(frozen=True)
 class HttpPathObserved(EventSchemaObject):
-    """One HTTP path response observed during path probing."""
+    """One HTTP path response observed during path probing.
+
+    This represents a probed URL path and response metadata.
+    Constructed by: path discovery plugins before publishing `http.path`.
+    Used by: web inventory, path-finding analysis, reports, and follow-up
+    checks.
+    """
 
     __topic__ = "http.path"
 
@@ -154,7 +205,13 @@ class HttpPathObserved(EventSchemaObject):
 
 @dataclass(frozen=True)
 class WebWafDetected(EventSchemaObject):
-    """A WAF or edge protection product fingerprint."""
+    """A WAF or edge protection product fingerprint.
+
+    This represents edge-protection evidence for a web target.
+    Constructed by: WAF-detection plugins before publishing
+    `web.waf.detected`.
+    Used by: web inventory, reports, and finding logic.
+    """
 
     __topic__ = "web.waf.detected"
 
@@ -169,7 +226,13 @@ class WebWafDetected(EventSchemaObject):
 
 @dataclass(frozen=True)
 class NetworkRouteHop(EventSchemaObject):
-    """One hop observed while tracing a route to a target."""
+    """One hop observed while tracing a route to a target.
+
+    This represents one hop in a path observation.
+    Constructed by: traceroute-style plugins before publishing
+    `network.route.hop`.
+    Used by: network inventory and reports.
+    """
 
     __topic__ = "network.route.hop"
 
@@ -184,7 +247,13 @@ class NetworkRouteHop(EventSchemaObject):
 
 @dataclass(frozen=True)
 class SmbShareFound(EventSchemaObject):
-    """An SMB share observed on a host."""
+    """An SMB share observed on a host.
+
+    This represents share exposure evidence.
+    Constructed by: SMB enumeration plugins before publishing
+    `smb.share.found`.
+    Used by: inventory, finding logic, and reports.
+    """
 
     __topic__ = "smb.share.found"
 
@@ -200,7 +269,13 @@ class SmbShareFound(EventSchemaObject):
 
 @dataclass(frozen=True)
 class ArtifactAttached(EventSchemaObject):
-    """Artifact metadata attached to runtime provenance."""
+    """Artifact metadata attached to runtime provenance.
+
+    This represents artifact metadata without embedding artifact contents.
+    Constructed by: commandlets and artifact services before publishing
+    `artifact.attached`.
+    Used by: bundle, audit, report, and runtime artifact views.
+    """
 
     __topic__ = "artifact.attached"
 

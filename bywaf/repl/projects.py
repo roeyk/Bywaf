@@ -29,6 +29,8 @@ def dispatch_project_command(runner: Runner, state: ResourceState, tokens: list[
     if not tokens:
         print_project_usage()
         return
+    # This lookup uses PROJECT_COMMAND_HANDLERS, defined below, in place of an
+    # if/elif ladder over project subcommands.
     handler = PROJECT_COMMAND_HANDLERS.get(tokens[0])
     if handler is None:
         print_project_usage()

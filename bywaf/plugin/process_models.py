@@ -8,7 +8,12 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class ProcessResult:
-    """Normalized result from a framework-mediated process run."""
+    """Normalized result from a framework-mediated process run.
+
+    This represents completed stdout/stderr process output plus audit linkage.
+    Constructed by: `ContextProcess.run()` after a wrapped process request.
+    Used by: process-backed plugins via `ok` and `check_returncode()`.
+    """
 
     argv: tuple[str, ...]
     returncode: int

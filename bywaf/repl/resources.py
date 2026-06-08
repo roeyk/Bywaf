@@ -87,6 +87,8 @@ def load_repl_resource(runner: Runner, spec: str, state: ResourceState | None = 
     state = state or default_resource_state(runner)
     forced, resource, catalog_path = parse_load_spec(spec)
     key, value = parse_resource_assignment(resource)
+    # This lookup uses LOAD_RESOURCE_HANDLERS, defined below, in place of an
+    # if/elif ladder over loadable resource kinds.
     handler = LOAD_RESOURCE_HANDLERS.get(key)
     if handler is None or not value:
         print("usage: plugin load=<path> [--force]")

@@ -58,6 +58,8 @@ def process_framework_requests(runner: Runner, state: FrameworkRequestState) -> 
 
 def handle_framework_request(runner: Runner, state: FrameworkRequestState, event) -> None:
     """Validate and apply one framework request event."""
+    # This lookup uses FRAMEWORK_REQUEST_HANDLERS, defined below, in place of an
+    # if/elif ladder over framework request topics.
     handler = FRAMEWORK_REQUEST_HANDLERS.get(event.topic)
     if handler is None:
         deny_framework_request(runner, event, f"unsupported request topic: {event.topic}")

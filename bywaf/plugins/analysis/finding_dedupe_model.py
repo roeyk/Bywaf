@@ -10,7 +10,12 @@ from typing import Any
 
 @dataclass(frozen=True, slots=True)
 class TargetIdentity:
-    """Canonical identity of the affected target."""
+    """Canonical identity of the affected target.
+
+    This represents the target fields used to compare findings across tools.
+    Constructed by: finding normalizers from tool-specific payloads.
+    Used by: `NormalizedFinding.exact_key()` and dedupe comparison helpers.
+    """
 
     scheme: str = ""
     host: str = ""
@@ -53,7 +58,14 @@ class TargetIdentity:
 
 @dataclass(slots=True)
 class NormalizedFinding:
-    """Tool-neutral finding representation used by the deduper."""
+    """Tool-neutral finding representation used by the deduper.
+
+    This represents one vulnerability/advisory after scanner-specific fields
+    have been normalized.
+    Constructed by: `finding_dedupe` from raw finding/advisory events.
+    Used by: `CanonicalFinding`, merge logic, report grouping, and
+    `finding.new` payload publishing.
+    """
 
     source_event_id: int | None
     source_topic: str
@@ -132,7 +144,13 @@ class NormalizedFinding:
 
 @dataclass(slots=True)
 class CanonicalFinding:
-    """One deduped finding and the source events attached to it."""
+    """One deduped finding and the source events attached to it.
+
+    This represents the in-memory aggregate for repeated equivalent findings.
+    Constructed by: the deduper while processing a run.
+    Used by: `add_source()` and final canonical payload emission with source
+    event provenance.
+    """
 
     finding_id: str
     finding: NormalizedFinding

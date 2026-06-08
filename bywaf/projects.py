@@ -20,7 +20,13 @@ PROJECT_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 @dataclass(frozen=True, slots=True)
 class ProjectPaths:
-    """Resolved filesystem paths for one Bywaf project."""
+    """Resolved filesystem paths for one Bywaf project.
+
+    This represents the runtime state layout for one named project.
+    Constructed by: `project_paths()`.
+    Used by: project commands, CLI startup, and database/config/history resource
+    handling.
+    """
 
     name: str
     root: Path

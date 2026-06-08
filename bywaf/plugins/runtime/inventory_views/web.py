@@ -88,6 +88,8 @@ def build_web_inventory(events: list[Event]) -> dict[str, WebInventory]:
     """Aggregate web endpoint facts."""
     web: dict[str, WebInventory] = {}
     for event in events:
+        # This lookup uses WEB_EVENT_HANDLERS, defined below, in place of an
+        # if/elif ladder over web inventory event topics.
         handler = WEB_EVENT_HANDLERS.get(event.topic)
         if handler is not None:
             handler(web, event.payload)

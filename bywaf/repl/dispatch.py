@@ -43,6 +43,8 @@ def dispatch_repl_line(runner: Runner, line: str, state: ShellState | None = Non
             return None
         name = parts[0]
         rest = parts[1] if len(parts) > 1 else None
+        # This lookup uses REPL_COMMAND_HANDLERS, imported from commands.py, in
+        # place of an if/elif ladder over built-in REPL command names.
         handler = REPL_COMMAND_HANDLERS.get(name)
         if handler is not None:
             return handler(runner, state, rest, line)

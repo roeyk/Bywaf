@@ -12,7 +12,12 @@ from typing import Any, cast
 
 @dataclass(frozen=True, slots=True)
 class ProcessChunk:
-    """One streamed stdout/stderr chunk from a framework-mediated process."""
+    """One streamed stdout/stderr chunk from a framework-mediated process.
+
+    This represents incremental process output before the process exits.
+    Constructed by: `read_stream_chunk()` while `stream_process()` is active.
+    Used by: wrapper plugins consuming `ContextProcess.stream()`.
+    """
 
     argv: tuple[str, ...]
     stream: str
@@ -22,7 +27,13 @@ class ProcessChunk:
 
 @dataclass(frozen=True, slots=True)
 class StreamProcessState:
-    """State needed while streaming one framework-mediated process."""
+    """State needed while streaming one framework-mediated process.
+
+    This represents stable execution metadata for one streaming child process.
+    Constructed by: `stream_process()`.
+    Used by: `raise_if_stream_timeout()`, `read_stream_chunk()`, and cleanup
+    helpers.
+    """
 
     normalized_argv: tuple[str, ...]
     audit_argv: tuple[str, ...]

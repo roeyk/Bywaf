@@ -27,7 +27,13 @@ class PluginTrustError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class PluginTrustPolicy:
-    """Operator-selected filesystem plugin trust bypasses."""
+    """Operator-selected filesystem plugin trust bypasses.
+
+    This represents the active trust posture for filesystem plugins.
+    Constructed by: CLI flags and registry setup.
+    Used by: filesystem plugin loading, catalog verification, and manifest
+    signature checks.
+    """
 
     allow_unsigned_plugins: bool = False
     allow_unsigned_plugin_manifests: bool = False
@@ -47,7 +53,13 @@ class PluginTrustPolicy:
 
 @dataclass(frozen=True, slots=True)
 class VerifiedPluginCatalog:
-    """Runtime plugin catalog accepted by the current trust policy."""
+    """Runtime plugin catalog accepted by the current trust policy.
+
+    This represents a catalog whose signature policy has already been handled.
+    Constructed by: `load_verified_plugin_catalog()`.
+    Used by: `enforce_filesystem_plugin_trust()` to bind plugin code and
+    manifests to catalog hashes before import.
+    """
 
     path: Path
     plugins: dict[str, dict[str, Any]]
@@ -68,7 +80,13 @@ class VerifiedPluginCatalog:
 
 @dataclass(frozen=True, slots=True)
 class PluginManifestTrust:
-    """Manifest signature verification inputs for filesystem plugins."""
+    """Manifest signature verification inputs for filesystem plugins.
+
+    This represents trust inputs needed to verify one plugin sidecar.
+    Constructed by: registry and plugin-check paths from operator/catalog
+    settings.
+    Used by: manifest verification before filesystem plugin import.
+    """
 
     public_key_path: Path | None = None
     catalog_verified: bool = False

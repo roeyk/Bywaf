@@ -23,6 +23,9 @@ def render_table(
     """Render a small table, optionally styling aligned cells by subject."""
     if not rows:
         return ""
+    # Rendering is a four-phase transformation: normalize values to strings,
+    # calculate column widths, optionally shrink/truncate to the terminal, then
+    # apply styles after padding so ANSI escape codes do not affect alignment.
     text_rows = [[str(value) if value is not None else "" for value in row] for row in rows]
     widths = [
         max(len(header), *(len(row[index]) for row in text_rows))
@@ -31,6 +34,8 @@ def render_table(
     if max_width is not None:
         widths = shrink_table_widths(widths, headers, max_width)
         text_rows = [[truncate_cell(value, widths[index]) for index, value in enumerate(row)] for row in text_rows]
+    # Header/ruler rows are built before body rows so the styling code can keep
+    # column subjects separate from row subjects.
     lines = [
         "  ".join(
             style_table_header(
@@ -42,6 +47,8 @@ def render_table(
         "  ".join(style_table_header("-" * width, style_getter) for width in widths),
     ]
     lines.extend(
+        # Each generated body row computes its row subject once, then styles
+        # individual padded cells by column subject and active-row state.
         "  ".join(
             style_table_cell(
                 value.ljust(widths[index]),
@@ -68,9 +75,14 @@ def shrink_table_widths(widths: list[int], headers: Sequence[str], max_width: in
     """Shrink wide columns until a table fits the requested display width."""
     if not widths:
         return widths
+    # Account for the two-space separators before comparing column widths
+    # against the display budget.
     available = max(1, max_width - (2 * (len(widths) - 1)))
     minimums = [min(max(len(header), 3), width) for header, width in zip(headers, widths)]
     if available < sum(minimums):
+        # When even minimum widths do not fit, distribute the tiny remaining
+        # budget to the originally widest columns so the most informative cells
+        # get the most room.
         compressed = [1] * len(widths)
         remaining = max(0, available - len(compressed))
         for index in sorted(range(len(widths)), key=lambda item: widths[item], reverse=True):
@@ -83,6 +95,9 @@ def shrink_table_widths(widths: list[int], headers: Sequence[str], max_width: in
         return compressed
     shrunk = list(widths)
     while sum(shrunk) > available:
+        # Repeatedly trim the column with the most room above its minimum. This
+        # keeps narrow/key columns readable while wide free-text columns absorb
+        # most of the truncation.
         candidates = [index for index, width in enumerate(shrunk) if width > minimums[index]]
         if not candidates:
             break

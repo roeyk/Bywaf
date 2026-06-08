@@ -25,7 +25,14 @@ Align = Literal["left", "right", "center"]
 
 @dataclass(frozen=True, slots=True)
 class Column:
-    """One display column in a structured table."""
+    """One display column in a structured table.
+
+    This represents stable presentation metadata for one row key.
+    Constructed by: commandlets, report renderers, `Table.from_rows()`, and
+    `Table.from_payload()`.
+    Used by: `Table`, `normalize_columns()`, and the format renderers when
+    producing console, Markdown, CSV, JSONL, HTML, DOCX, or XLSX output.
+    """
 
     key: str
     title: str | None = None
@@ -39,7 +46,15 @@ class Column:
 
 @dataclass(frozen=True, slots=True)
 class Table:
-    """Structured tabular data that can be rendered in several formats."""
+    """Structured tabular data that can be rendered in several formats.
+
+    This represents display-ready rows independently of the final output format.
+    Constructed by: runtime commandlets, reports, `Table.from_rows()`, and
+    `Table.from_payload()`.
+    Used by: `ContextRender.table()`, `handle_render_table_request()`, and the
+    `render_*_table()` functions. `to_payload()`/`from_payload()` carry it
+    across the plugin/framework event boundary.
+    """
 
     columns: tuple[Column, ...]
     rows: tuple[Mapping[str, object], ...]
@@ -53,14 +68,22 @@ class Table:
         *,
         title: str | None = None,
     ) -> "Table":
-        """Build a table from mapping rows or positional sequence rows."""
+        """Build a table from mapping rows or positional sequence rows.
+
+        Called by: commandlets and reports that have row data but do not need to
+        manually construct `Column` objects.
+        """
         normalized_rows = tuple(rows)
         normalized_columns = normalize_columns(columns, normalized_rows)
         mapped_rows = tuple(map_row(row, normalized_columns) for row in normalized_rows)
         return cls(normalized_columns, mapped_rows, title=title)
 
     def to_payload(self) -> dict[str, object]:
-        """Return a JSON-safe payload for framework request events."""
+        """Return a JSON-safe payload for framework request events.
+
+        Called by: `ContextRender.table()` before sending a render request
+        through the event boundary.
+        """
         # Tables can cross the plugin/framework boundary as events. Keep the
         # payload simple so commandlets can request rendering without importing
         # terminal-specific code.
@@ -78,7 +101,11 @@ class Table:
 
     @classmethod
     def from_payload(cls, payload: Mapping[str, object]) -> "Table":
-        """Build a table from a framework request payload."""
+        """Build a table from a framework request payload.
+
+        Called by: `handle_render_table_request()` when the framework services
+        a plugin render request.
+        """
         raw_columns = payload.get("columns", ())
         if not isinstance(raw_columns, Sequence):
             raise ValueError("table columns must be a sequence")
@@ -147,6 +174,8 @@ def json_safe_value(value: object) -> object:
 
 def render_table(table: Table, fmt: TableFormat = "console") -> str | bytes:
     """Render a table in one supported format."""
+    # This lookup uses the table_renderers() dispatch table in place of an
+    # if/elif ladder over output formats.
     renderer = table_renderers().get(fmt)
     if renderer is None:
         raise ValueError(f"unsupported table format: {fmt}")
@@ -172,12 +201,18 @@ def render_console_table(table: Table, style_getter=None) -> str:
         return table.title or ""
     from .runtime_display import shrink_table_widths, style_table_cell, style_table_header, terminal_table_width, truncate_cell
 
+    # Console rendering first converts every cell to display text, then computes
+    # the widest required width for each column before terminal-width shrinking.
     values = table_values(table)
     widths = [
         max(len(column.heading), *(len(row[index]) for row in values))
         for index, column in enumerate(table.columns)
     ]
+    # shrink_table_widths() preserves readable headings where possible while
+    # forcing the whole table into the current terminal width.
     widths = shrink_table_widths(widths, [column.heading for column in table.columns], terminal_table_width())
+    # Once final widths are known, truncate cell text up front so alignment and
+    # styling operate on exactly the text that will be printed.
     values = [
         [truncate_cell(value, widths[index]) for index, value in enumerate(row)]
         for row in values
@@ -185,6 +220,8 @@ def render_console_table(table: Table, style_getter=None) -> str:
     lines: list[str] = []
     if table.title:
         lines.append(table.title)
+    # Render header and separator rows before body rows; per-cell styling is
+    # applied after alignment so ANSI escape codes do not affect width math.
     lines.append(
         "  ".join(
             style_table_header(

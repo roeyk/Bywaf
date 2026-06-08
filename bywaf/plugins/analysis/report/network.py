@@ -22,7 +22,12 @@ from .style import report_text
 
 @dataclass
 class HostOverview:
-    """Aggregated report context for one host."""
+    """Aggregated report context for one host.
+
+    This represents the network-context row and detail block for one host.
+    Constructed by: `host_overviews()` from context and finding events.
+    Used by: `render_network_overview()` and `render_host_details()`.
+    """
 
     host: str
     names: set[str] = field(default_factory=set)
@@ -40,6 +45,9 @@ def render_network_overview(context: CommandContext, context_events: list[Event]
     hosts = host_overviews(context_events, finding_events)
     if not hosts:
         return ""
+    # The overview table compresses each host bucket into one scanline row:
+    # names, ports, services, web context, and finding titles are each
+    # de-duplicated while preserving a stable display order where it matters.
     rows = [
         (
             host.host,
@@ -58,6 +66,8 @@ def render_network_overview(context: CommandContext, context_events: list[Event]
         style_getter=command_context_style_getter(context),
         max_width=terminal_table_width(),
     )
+    # The detail block reuses the same host buckets for users who need the
+    # expanded facts after scanning the compact overview table.
     details = render_host_details(context, sorted(hosts.values(), key=lambda item: ip_sort_value(item.host)))
     return report_text(context, "section", "Network overview") + "\n" + table + ("\n" + details if details else "")
 
@@ -67,6 +77,8 @@ def render_host_details(context: CommandContext, hosts: list[HostOverview]) -> s
     lines = [report_text(context, "section", "Host details")]
     for host in hosts:
         lines.append(report_text(context, "label", host.host))
+        # Append only populated fact groups so sparse host buckets do not create
+        # empty labels in the human-facing report.
         append_host_fact(lines, "names", sorted(host.names))
         append_host_fact(lines, "open ports", dict.fromkeys(port_endpoint_text(event) for event in sort_port_events(host.ports, "port")))
         append_host_fact(lines, "services", sorted(host.services))
@@ -97,6 +109,8 @@ ContextEventHandler = Callable[[dict[str, HostOverview], Event], None]
 
 def add_context_event(hosts: dict[str, HostOverview], event: Event) -> None:
     """Add one shared network fact to host overview buckets."""
+    # This lookup uses CONTEXT_EVENT_HANDLERS, defined below, in place of an
+    # if/elif ladder over network context event topics.
     handler = CONTEXT_EVENT_HANDLERS.get(event.topic)
     if handler:
         handler(hosts, event)

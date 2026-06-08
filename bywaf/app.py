@@ -256,6 +256,8 @@ def main(argv: list[str] | None = None) -> int:
         repl(runner)
         return 0
     try:
+        # This lookup uses CLI_SUBCOMMAND_HANDLERS, defined below, in place of
+        # an if/elif ladder over argparse subcommands.
         handler = CLI_SUBCOMMAND_HANDLERS.get(args.subcommand)
         if handler is None:
             parser.error(f"unknown subcommand: {args.subcommand}")

@@ -48,7 +48,13 @@ ON artifacts(job_id, pipeline_id, command_run_id);
 
 @dataclass(frozen=True, slots=True)
 class Artifact:
-    """One artifact row plus provenance metadata."""
+    """One artifact row plus provenance metadata.
+
+    This represents a stored artifact body and its runtime provenance.
+    `Artifact.from_row()` and `ArtifactStore.get()` rehydrate these from
+    artifact storage. Runtime artifact commands, bundles, exports, and
+    report/audit views consume them without knowing the storage table layout.
+    """
 
     id: int
     artifact_id: str
@@ -68,7 +74,11 @@ class Artifact:
 
     @classmethod
     def from_row(cls, row: Any) -> "Artifact":
-        """Rehydrate an artifact from a database row."""
+        """Rehydrate an artifact from a database row.
+
+        Called by: artifact-store query methods before returning typed artifact
+        records to runtime artifact, bundle, export, and report paths.
+        """
         return cls(
             id=int(row["id"]),
             artifact_id=str(row["artifact_id"]),
@@ -90,7 +100,13 @@ class Artifact:
 
 @dataclass(frozen=True, slots=True)
 class ArtifactVerification:
-    """Integrity result for one artifact row."""
+    """Integrity result for one artifact row.
+
+    This represents whether stored metadata still matches the artifact body.
+    `ArtifactStore.verify()` constructs this after comparing stored metadata
+    with the artifact body. Runtime artifact and bundle commands consume it to
+    show integrity status and problems.
+    """
 
     artifact_id: str
     ok: bool

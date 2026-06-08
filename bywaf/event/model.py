@@ -20,7 +20,14 @@ from ..time_format import bywaf_now
 
 @dataclass(frozen=True, slots=True)
 class Event:
-    """One immutable message on the SQLite event bus."""
+    """One immutable row on the Bywaf event ledger.
+
+    This represents persisted framework/plugin facts after JSON payload parsing.
+    Constructed by: `Event.new()` for unsaved events and `Event.from_row()` for
+    database rows.
+    Used by: commandlet contexts, runner pipelines, REPL display, report
+    grouping, and runtime views.
+    """
 
     id: int | None
     topic: str
@@ -42,7 +49,11 @@ class Event:
         command_run_id: str | None = None,
         parent_command_run_id: str | None = None,
     ) -> "Event":
-        """Create a new unsaved event with an operator-local timestamp."""
+        """Create a new unsaved event with an operator-local timestamp.
+
+        Called by: event-store publishing paths before an event row receives a
+        database id.
+        """
         return cls(
             None,
             topic,
@@ -56,7 +67,11 @@ class Event:
 
     @classmethod
     def from_row(cls, row: Any) -> "Event":
-        """Rehydrate an Event from a sqlite3.Row."""
+        """Rehydrate an Event from a sqlite3.Row.
+
+        Called by: `EventStore` query methods that expose persisted rows as
+        immutable `Event` objects.
+        """
         # Older DB rows/tests may not have newer provenance columns, so check
         # row.keys() instead of assuming every schema-era field exists.
         return cls(
@@ -73,7 +88,11 @@ class Event:
         )
 
     def payload_json(self) -> str:
-        """Serialize payloads deterministically for storage and tests."""
+        """Serialize payloads deterministically for storage and tests.
+
+        Called by: event-store insert/update code and tests that compare stored
+        payload text.
+        """
         # Stable key ordering keeps event comparisons and signed/exported
         # payloads predictable.
         return json.dumps(self.payload, sort_keys=True, separators=(",", ":"))

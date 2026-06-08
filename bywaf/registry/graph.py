@@ -22,7 +22,13 @@ from .manifest import PluginManifest, load_package_manifest
 
 @dataclass(frozen=True, slots=True)
 class ManifestGraphNode:
-    """One plugin/provider node derived from manifest metadata."""
+    """One plugin/provider node derived from manifest metadata.
+
+    Manifest graph construction creates one node per provider before importing
+    plugin Python. Registry tooling, dependency checks, and graph renderers
+    consume it to reason about schemas, topics, capabilities, variables, roles,
+    and explicit plugin dependencies.
+    """
 
     provider: str
     commandlets: tuple[str, ...]
@@ -47,7 +53,12 @@ class ManifestGraphNode:
 
 @dataclass(frozen=True, slots=True)
 class ManifestRelationship:
-    """One manifest-derived graph edge."""
+    """One manifest-derived graph edge.
+
+    `build_manifest_graph` emits these edges for explicit dependencies and
+    inferred relationships such as provided schemas, consumed/emitted topics,
+    trigger topics, and commandlets. Graph queries and renderers consume them.
+    """
 
     source: str
     kind: str
@@ -58,7 +69,12 @@ class ManifestRelationship:
 
 @dataclass(frozen=True, slots=True)
 class ManifestRelationshipGraph:
-    """Provider nodes and manifest-derived relationship edges."""
+    """Provider nodes and manifest-derived relationship edges.
+
+    Registry and tool code build this graph from manifests without loading
+    plugin modules. Dependency resolution, schema/topic audits, and graph output
+    consume its lookup indexes.
+    """
 
     nodes: dict[str, ManifestGraphNode]
     edges: tuple[ManifestRelationship, ...]

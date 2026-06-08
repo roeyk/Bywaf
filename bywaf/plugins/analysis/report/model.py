@@ -20,7 +20,13 @@ from bywaf.finding.grouping import finding_group_key as derive_finding_group_key
 
 @dataclass(frozen=True)
 class FindingGroup:
-    """A derived reporting group for one logical finding."""
+    """A derived reporting group for one logical finding.
+
+    This represents the report/review row for one logical finding.
+    `group_finding_events()` constructs these from raw finding events.
+    `render_report_groups()`, CVE filtering helpers, and review actions consume
+    groups so row numbers, moderation decisions, and related events stay aligned.
+    """
 
     finding_id: str
     events: tuple[Event, ...]

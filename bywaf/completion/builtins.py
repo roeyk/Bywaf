@@ -131,6 +131,8 @@ class BuiltinCompletionMixin:
             "key.verify": lambda: key_candidates(verify=True),
             "plugin": self.registry.names,
         }
+        # This lookup uses the local CompletionSpec dispatch table above in
+        # place of an if/elif ladder over completion kinds.
         handler = dispatch.get(spec.kind)
         return handler() if handler is not None else []
 

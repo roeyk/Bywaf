@@ -17,7 +17,13 @@ from ..event import Event
 
 @dataclass(slots=True)
 class JobLifecycle:
-    """Small helper for publishing consistent job lifecycle events."""
+    """Small helper for publishing consistent job lifecycle events.
+
+    This represents the mutable lifecycle publisher for one background job.
+    `JobLifecycle.create()` constructs this when a background job is requested.
+    Runner background helpers consume its methods to keep DB status updates and
+    `job.*` event payloads in one consistent place.
+    """
 
     db: EventStore
     job_id: int

@@ -78,6 +78,8 @@ def target_scope(kind: str, value: str) -> dict[str, str]:
 
 def target_scope_value(kind: str, target: Mapping[str, Any]) -> str:
     """Return a stable target-scope value from conventional target fields."""
+    # This lookup uses TARGET_SCOPE_VALUE_HANDLERS, defined below, in place of
+    # an if/elif ladder over target-scope kinds.
     handler = TARGET_SCOPE_VALUE_HANDLERS.get(kind)
     if handler is not None:
         return handler(target)

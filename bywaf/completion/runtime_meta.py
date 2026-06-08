@@ -37,6 +37,8 @@ class RuntimeCompletionMetadataMixin:
             "pipeline": self.pipeline_completion_meta,
             "step": self.run_completion_meta,
         }
+        # This lookup uses the local runtime metadata dispatch table above in
+        # place of an if/elif ladder over runtime selector kinds.
         handler = dispatch.get(kind)
         return handler(value) if handler is not None else ""
 

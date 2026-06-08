@@ -28,7 +28,12 @@ SECRET_REF_PREFIX = "$__secret_"
 
 @dataclass(frozen=True, slots=True)
 class SecretFingerprint:
-    """Audit-safe correlation fingerprint for a secret value."""
+    """Audit-safe correlation fingerprint for a secret value.
+
+    This represents a non-reversible identifier for repeated secret use.
+    Constructed by: `fingerprint_secret()`.
+    Used by: audit display and secret metadata consumers.
+    """
 
     algorithm: str
     value: str
@@ -40,7 +45,12 @@ class SecretFingerprint:
 
 @dataclass(frozen=True, slots=True)
 class RedactedSecret:
-    """One redacted secret field found in command text."""
+    """One redacted secret field found in command text.
+
+    This represents one removed sensitive value plus its audit fingerprint.
+    Constructed by: command-history redaction while scanning user input.
+    Used by: history storage, audit output, and redaction tests.
+    """
 
     name: str
     fingerprint: SecretFingerprint
@@ -49,7 +59,12 @@ class RedactedSecret:
 
 @dataclass(frozen=True, slots=True)
 class SecretRef:
-    """In-memory reference to a secret value that must not be persisted."""
+    """In-memory reference to a secret value that must not be persisted.
+
+    This represents a process-local handle to plaintext secret material.
+    Constructed by: `InMemorySecretStore.put()`.
+    Used by: VarStore values, command arguments, and `ContextSecrets.resolve()`.
+    """
 
     ref: str
     name: str
@@ -59,7 +74,12 @@ class SecretRef:
 
 @dataclass(frozen=True, slots=True)
 class RedactionResult:
-    """Command text after secret removal plus correlation metadata."""
+    """Command text after secret removal plus correlation metadata.
+
+    This represents sanitized command text plus any redacted secret metadata.
+    Constructed by: redaction helpers before history/audit storage.
+    Used by: REPL history and database command recording.
+    """
 
     command: str
     secrets: tuple[RedactedSecret, ...] = field(default_factory=tuple)
@@ -71,6 +91,9 @@ class InMemorySecretStore:
 
     The variable store and audit history only receive the reference and a
     fingerprint; the plaintext secret remains in this process.
+
+    Constructed by: REPL/session startup.
+    Used by: `ContextSecrets` and redaction metadata helpers.
     """
 
     values: dict[str, str] = field(default_factory=dict)

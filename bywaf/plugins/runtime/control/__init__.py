@@ -48,6 +48,8 @@ class Control(CommandletBase):
         # before dispatch so handlers only deal with canonical job/pipeline/run
         # coordinates.
         kind, target_id = resolve_control_target(context, *parse_target(parsed.target), allow_pipeline=True)
+        # This lookup uses CONTROL_HANDLERS from actions.py in place of a
+        # match/case ladder over control action and target kind.
         handler = CONTROL_HANDLERS.get((self.action, kind))
         if handler is None:
             raise ValueError(f"unsupported target: {parsed.target}")
