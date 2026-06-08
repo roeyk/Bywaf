@@ -39,6 +39,42 @@ files rather than inventing the layout from scratch.
 Treat `http.title` as a plugin-owned event topic for this benchmark unless the
 current documentation defines a shared framework topic for HTTP titles.
 
+## Benchmark Modes
+
+Use one of these modes before evaluating a generated plugin.
+
+### General Plugin Authoring Benchmark
+
+This mode answers: can the assistant produce any valid Bywaf plugin package
+using a documented supported style?
+
+The assistant may use the scaffold, a documented skeleton, or a documented
+class-based commandlet shape when that shape is appropriate. The package passes
+only if it satisfies the normal pass criteria below: `plugin_check`, focused
+tests, manual API review, structured events, and bounded error behavior.
+
+Use this mode to evaluate broad Bywaf plugin literacy. A passing result proves
+that the assistant can generate a valid plugin package; it does not prove that
+the assistant can follow the scaffold-first workflow.
+
+### Scaffold-First Benchmark
+
+This stricter mode answers: can the assistant start from Bywaf's generated
+scaffold and fill it in without drifting to another layout?
+
+The assistant must:
+
+- run `scripts/plugin_new.py` to create the initial plugin directory;
+- preserve the generated function-commandlet shape;
+- edit only the intended scaffold insertion points, manifest metadata, README,
+  and focused tests needed for the requested behavior;
+- avoid rewriting the scaffold as a `CommandletBase` class unless the prompt
+  explicitly changes modes;
+- pass the same validation gates as the general benchmark.
+
+Use this mode when testing whether the scaffold documentation and generated
+files are clear enough for external LLMs to use directly.
+
 The point is not title extraction sophistication. The point is whether the
 assistant can follow the documented Bywaf plugin contract:
 
@@ -53,6 +89,10 @@ assistant can follow the documented Bywaf plugin contract:
 
 ## Suggested Prompt
 
+Use this prompt for the scaffold-first benchmark. For the general benchmark,
+replace the scaffold-specific sentences with an explicit allowance to use any
+documented supported plugin shape.
+
 ```text
 Read the Bywaf Plugin Developer path in docs/DOCUMENTATION_PATHS.md, then read
 the referenced plugin author docs needed for this task. Create a complete
@@ -60,7 +100,9 @@ filesystem plugin directory named http_title.
 
 Start by using scripts/plugin_new.py to generate the initial http_title
 scaffold in a scratch directory. Then modify only what is necessary to implement
-the behavior below. Do not write the plugin layout from scratch.
+the behavior below. Preserve the generated function-commandlet shape; do not
+rewrite the scaffold into a CommandletBase class or another plugin layout. Do
+not write the plugin layout from scratch.
 
 The plugin must:
 - provide one commandlet named http_title;
@@ -86,7 +128,32 @@ Output the full directory tree and complete file contents.
 
 ## Expected Shape
 
-The generated package should look like:
+For the scaffold-first benchmark, the generated package should look like:
+
+```text
+http_title/
+  plugin.py
+  bywaf.plugin.toml
+  README.md
+  tests/
+    test_http_title.py
+```
+
+The reviewer should see the generated scaffold shape preserved:
+
+- `plugin.py` exporting `def plugin() -> Commandlet`;
+- a manifest-backed `@commandlet` function in `plugin.py`, not a
+  `CommandletBase` class;
+- runtime code inserted inside the generated commandlet function or small local
+  helpers;
+- generated README guidance kept accurate after edits;
+- manifest metadata synchronized with the generated commandlet metadata;
+- tests that call the generated commandlet in the supported way for the
+  scaffold output.
+
+For the general plugin authoring benchmark, the generated package usually has
+the same core files, and a class-based package may also be valid when it uses
+the documented `CommandletBase` shape correctly:
 
 ```text
 http_title/
@@ -116,6 +183,11 @@ The exact implementation may vary, but the reviewer should see:
 
 Before submitting the plugin, check these common failure points:
 
+- For scaffold-first mode, preserve the generated function-commandlet shape.
+  Do not replace it with a `CommandletBase` class.
+- For general mode, either the scaffold function-commandlet shape or the
+  documented class-based `CommandletBase` shape may be acceptable; note which
+  one was used.
 - Use current imports from `bywaf.plugin`, such as `CommandContext`,
   `Commandlet`, `CommandletBase`, `@commandlet`, and `@argument`; do not import
   from `bywaf.framework`.
@@ -152,6 +224,15 @@ The draft passes the benchmark only when all of these are true:
    primary interface.
 5. Error paths emit bounded, JSON-serializable payloads and do not hide
    unexpected network failures behind vague success messages.
+
+Additional scaffold-first pass criteria:
+
+1. The submitted plugin was generated from `scripts/plugin_new.py`.
+2. The generated function-commandlet shape remains intact.
+3. Tests exercise the scaffold commandlet through its supported invocation
+   path; they do not call an internal wrapper object as if it were the original
+   function.
+4. The submission clearly states that it is scaffold-derived.
 
 Expected checker notes:
 
