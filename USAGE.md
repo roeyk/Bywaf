@@ -2069,6 +2069,13 @@ bywaf> finding_dedupe file=dedupe-summary.json
 bywaf> finding_dedupe format=md file=findings.md
 ```
 
+For normal operator review, `report` implies that analysis step when raw
+finding events arrive from the pipeline:
+
+```text
+bywaf> http_methods https://example.test/ | report
+```
+
 Exact matches use standardized identifiers such as CVE/CWE/GHSA/vendor IDs
 when available, then target identity and stable evidence fingerprints. Fuzzy
 text matching is only used as a low-confidence `finding.merge_candidate`.

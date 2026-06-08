@@ -11,16 +11,32 @@ from collections.abc import Iterable, Mapping
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext
-from bywaf.plugins.analysis.finding_dedupe import dedupe_findings
+from bywaf.plugins.analysis.finding_dedupe import FINDING_INPUT_TOPICS, dedupe_findings
 from bywaf.plugins.analysis.finding_dedupe_normalize import normalize_event
 from bywaf.plugins.analysis.finding_dedupe_publish import publish_dedupe_result
-from bywaf.plugins.analysis.finding_report import REPORT_FINDING_TOPICS
+from bywaf.plugins.analysis.finding_report import DEDUP_FINDING_TOPICS, REPORT_FINDING_TOPICS
 from bywaf.plugins.analysis.technology_indicators import findings_from_event
 
 from .model import sort_unique_events
 
 REPORT_ANALYZE_CHOICES = ("off", "passive")
 PASSIVE_SYNTHESIS_TOPICS = ("service.detected", "tcp.banner", "http.endpoint", "web.fingerprint")
+
+
+def report_input_findings(context: CommandContext, input_events: Iterable[Event]) -> list[Event]:
+    """Return reportable upstream findings, deduping raw finding input first."""
+    events = list(input_events)
+    reportable = [event for event in events if event.topic in REPORT_FINDING_TOPICS]
+    if any(event.topic in DEDUP_FINDING_TOPICS for event in reportable):
+        return sort_unique_events(reportable)
+
+    raw_findings = [event for event in events if event.topic in FINDING_INPUT_TOPICS]
+    if not raw_findings:
+        return []
+
+    result = dedupe_findings((normalize_event(event) for event in raw_findings), fuzzy_threshold=0.82)
+    published = publish_dedupe_result(context, result, threshold=0.82, silent=True)
+    return sort_unique_events(event for event in published if event.topic in REPORT_FINDING_TOPICS)
 
 
 def synthesize_report_findings(

@@ -128,6 +128,30 @@ class TestHttpMethodsTests(unittest.TestCase):
             self.assertIn("HTTP write-capable methods enabled", text)
             self.assertIn("WebDAV HTTP methods enabled", text)
 
+    def test_http_methods_report_pipeline_implies_dedupe_analysis(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = make_runner(Path(tmp, "db.sqlite3"))
+            output = io.StringIO()
+            with (
+                patch("bywaf.plugins.http.http_methods.http.client.HTTPSConnection", RiskyConnection),
+                contextlib.redirect_stdout(output),
+            ):
+                runner.execute("http_methods https://example.test/ | report status=all")
+                process_framework_requests(runner, ShellState())
+
+            self.assertEqual(
+                {event.payload["class"] for event in runner.db.events_for_topic("finding.new")},
+                {
+                    "web.method.trace_enabled",
+                    "web.method.webdav_enabled",
+                    "web.method.write_methods_enabled",
+                },
+            )
+            text = output.getvalue()
+            self.assertIn("HTTP TRACE method enabled", text)
+            self.assertIn("HTTP write-capable methods enabled", text)
+            self.assertIn("WebDAV HTTP methods enabled", text)
+
 
 class FakeResponse:
     status = 200

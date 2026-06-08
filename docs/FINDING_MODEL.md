@@ -346,6 +346,14 @@ bundle over selected facts before rendering, so the common chain can be shorter:
 http_probe https://example.test/ | webfin | report
 ```
 
+When `report` receives raw finding events from an upstream commandlet, it also
+applies the normal finding deduplication step before rendering. Operators can
+therefore use short chains such as:
+
+```text
+http_methods https://example.test/ | report
+```
+
 Use `report analyze=off` when you want a pure snapshot of findings that already
 exist in the event store.
 

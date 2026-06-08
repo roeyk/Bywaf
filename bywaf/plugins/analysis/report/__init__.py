@@ -23,13 +23,12 @@ from bywaf.plugin import (
     option,
 )
 from bywaf.plugins._args import key_value_to_long_options
-from bywaf.plugins.analysis.finding_report import REPORT_FINDING_TOPICS
 
 from .events import select_report_context_events, select_report_new_context_events, select_report_new_scope_events, select_report_scope_events
 from .render import render_finding_report, render_network_report
 from .review import REVIEW_DECISIONS, review_report_groups
 from .saved import apply_saved_report_scope, save_report_scope
-from .synthesis import REPORT_ANALYZE_CHOICES, synthesize_report_findings
+from .synthesis import REPORT_ANALYZE_CHOICES, report_input_findings, synthesize_report_findings
 
 REPORT_ACTIONS = ("accept", "confirm", "defer", "reject", "unconfirm", "create", "detail", "network", "show", "update")
 REPORT_REVIEW_ACTIONS = tuple(REVIEW_DECISIONS)
@@ -139,7 +138,7 @@ class Report(CommandletBase):
         if parsed.action == "show":
             apply_saved_report_scope(context, parsed)
 
-        input_findings = [event for event in input_events if event.topic in REPORT_FINDING_TOPICS]
+        input_findings = report_input_findings(context, input_events)
         if parsed.new and not input_findings:
             events = select_report_new_scope_events(context, parsed)
             context_events = select_report_new_context_events(context, parsed)
