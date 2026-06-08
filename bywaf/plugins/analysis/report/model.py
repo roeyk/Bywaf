@@ -77,22 +77,50 @@ def events_for_groups(groups: list[FindingGroup]) -> list[Event]:
 
 def filter_groups_by_cve(groups: list[FindingGroup], selector: str) -> list[FindingGroup]:
     """Return finding groups matching comma-separated CVE selectors."""
-    patterns = cve_patterns(selector)
+    patterns = cve_patterns(selector, groups)
     if not patterns:
         return groups
     return [group for group in groups if group_matches_cve(group, patterns)]
 
 
-def cve_patterns(selector: str) -> tuple[str, ...]:
+def cve_patterns(selector: str, groups: list[FindingGroup] | None = None) -> tuple[str, ...]:
     """Return normalized CVE selector patterns."""
-    patterns = tuple(item.strip().upper() for item in selector.split(",") if item.strip())
-    related = [pattern for pattern in patterns if pattern.endswith("+")]
-    if related:
-        raise ValueError(
-            "cve=...+ related-CVE expansion requires a CVE relationship provider; "
-            "use cve=CVE-YYYY-NNNN for exact matching or cve=CVE-YYYY-* for wildcard matching"
-        )
-    return patterns
+    patterns: list[str] = []
+    for item in selector.split(","):
+        pattern = item.strip().upper()
+        if pattern:
+            patterns.extend(expand_cve_pattern(pattern, groups or ()))
+    return tuple(patterns)
+
+
+def expand_cve_pattern(pattern: str, groups: Iterable[FindingGroup]) -> tuple[str, ...]:
+    """Expand one CVE selector pattern."""
+    if not pattern.endswith("+"):
+        return (pattern,)
+    root = pattern[:-1]
+    if not root or "*" in root:
+        raise ValueError("cve=...+ requires one exact CVE before the + suffix")
+    expanded = related_cve_patterns(root, groups)
+    if not expanded:
+        raise ValueError(f"cve={root}+ has no related CVEs in scoped finding/advisory events")
+    return expanded
+
+
+def related_cve_patterns(root: str, groups: Iterable[FindingGroup]) -> tuple[str, ...]:
+    """Return one root CVE plus related CVEs found in scoped event metadata."""
+    values = [root]
+    seen = {root}
+    for group in groups:
+        for event in group.events:
+            payload = effective_finding_payload(event)
+            cves = payload_cve_values(payload)
+            if root not in cves:
+                continue
+            for related in payload_related_cves(payload):
+                if related not in seen:
+                    values.append(related)
+                    seen.add(related)
+    return tuple(values) if len(values) > 1 else ()
 
 
 def group_matches_cve(group: FindingGroup, patterns: tuple[str, ...]) -> bool:
@@ -108,17 +136,8 @@ def group_cve_values(group: FindingGroup) -> tuple[str, ...]:
     values: list[str] = []
     seen: set[str] = set()
     for event in group.events:
-        identifiers = effective_finding_payload(event).get("identifiers")
-        if not isinstance(identifiers, Mapping):
-            continue
-        raw_values = identifiers.get("cve") or identifiers.get("CVE") or ()
-        if isinstance(raw_values, str):
-            raw_values = (raw_values,)
-        if not isinstance(raw_values, Iterable):
-            continue
-        for raw_value in raw_values:
-            value = str(raw_value).strip().upper()
-            if value and value not in seen:
+        for value in payload_cve_values(effective_finding_payload(event)):
+            if value not in seen:
                 values.append(value)
                 seen.add(value)
     return tuple(values)
@@ -127,6 +146,45 @@ def group_cve_values(group: FindingGroup) -> tuple[str, ...]:
 def cve_value_matches(value: str, pattern: str) -> bool:
     """Return whether a CVE value matches an exact or wildcard selector."""
     return fnmatchcase(value.upper(), pattern.upper())
+
+
+def payload_cve_values(payload: Mapping[str, Any]) -> tuple[str, ...]:
+    """Return normalized primary CVEs from a finding or advisory payload."""
+    identifiers = payload.get("identifiers")
+    if not isinstance(identifiers, Mapping):
+        return ()
+    return normalized_values(identifiers.get("cve") or identifiers.get("CVE") or ())
+
+
+def payload_related_cves(payload: Mapping[str, Any]) -> tuple[str, ...]:
+    """Return normalized related CVEs from a finding or advisory payload."""
+    identifiers = payload.get("identifiers")
+    if isinstance(identifiers, Mapping):
+        values = normalized_values(
+            identifiers.get("related_cves")
+            or identifiers.get("related_cve")
+            or identifiers.get("related")
+            or ()
+        )
+        if values:
+            return values
+    return normalized_values(payload.get("related_cves") or payload.get("related_cve") or ())
+
+
+def normalized_values(raw_values: Any) -> tuple[str, ...]:
+    """Return normalized unique string values from scalar or iterable metadata."""
+    if isinstance(raw_values, str):
+        raw_values = (raw_values,)
+    if not isinstance(raw_values, Iterable):
+        return ()
+    values: list[str] = []
+    seen: set[str] = set()
+    for raw_value in raw_values:
+        value = str(raw_value).strip().upper()
+        if value and value not in seen:
+            values.append(value)
+            seen.add(value)
+    return tuple(values)
 
 
 def sort_unique_events(events: Iterable[Event]) -> list[Event]:

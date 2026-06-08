@@ -99,9 +99,17 @@ bywaf> report cve=CVE-2021-*
 ```
 
 The selector matches CVEs present in finding `identifiers`. `*` is supported
-for wildcard matching. A future advisory relationship provider may support the
-reserved `CVE-...+` related-CVE form; until then, use explicit comma-separated
-lists or wildcard selectors.
+for wildcard matching. Add `+` after one exact CVE to include related CVEs
+declared by scoped finding/advisory event metadata:
+
+```text
+bywaf> report cve=CVE-2021-41773+
+```
+
+The `+` form uses relationships already present in scoped events, for example
+`identifiers.related_cves = ["CVE-2021-42013"]` on a finding or advisory-shaped
+payload. It does not infer relationships from CVE numbering, and it fails
+clearly when no scoped event declares related CVEs for the requested root CVE.
 
 Use ordering flags when a review pass needs a specific queue shape:
 

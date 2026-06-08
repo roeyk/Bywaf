@@ -66,6 +66,22 @@ The current normalized finding payload is intentionally small:
 Commandlets may emit richer fact payloads. The normalized finding layer keeps a
 stable subset so reporting does not depend on every tool's native schema.
 
+For vulnerability/advisory findings that know CVE relationships, put the primary
+CVEs in `identifiers.cve` and related CVEs in `identifiers.related_cves`:
+
+```json
+{
+  "identifiers": {
+    "cve": ["CVE-2021-41773"],
+    "related_cves": ["CVE-2021-42013"]
+  }
+}
+```
+
+The report `cve=CVE-...+` selector uses this scoped event metadata to include
+the requested CVE plus related CVEs. It does not infer relationships from CVE
+numbering.
+
 `confidence` and `confidence_basis` answer different questions. Confidence
 states how strongly the detector trusts the finding. Confidence basis states
 why: a safe direct probe, observed response content, service/banner evidence, a
