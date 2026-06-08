@@ -12,13 +12,27 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.plugins.analysis.finding_display import affected_values, compact_table_text, unique_compact_values
-from bywaf.plugins.runtime.artifact.summary import format_artifact_reference
 
-from .model import FindingGroup, effective_finding_payload, sort_unique_events
+from .detail_artifacts import artifact_commands, artifact_group_values, artifact_values, finding_artifact_events
+from .model import FindingGroup, effective_finding_payload
 from .style import finding_text, report_text, subject_text
+
+__all__ = [
+    "append_detail_line",
+    "artifact_commands",
+    "artifact_group_values",
+    "artifact_values",
+    "compact_source_value",
+    "confidence_basis_values",
+    "evidence_values",
+    "finding_artifact_events",
+    "finding_status_values",
+    "provenance_values",
+    "render_group_details",
+    "source_values",
+]
 
 
 def render_group_details(context: CommandContext, groups: list[FindingGroup]) -> str:
@@ -111,50 +125,6 @@ def compact_source_value(raw: object) -> str:
     if tool:
         return str(tool)
     return compact_table_text(raw)
-
-
-def artifact_values(context: CommandContext, group: FindingGroup) -> list[str]:
-    """Return artifacts associated with a finding group by step or pipeline."""
-    return unique_compact_values(format_artifact_reference(context, event) for event in finding_artifact_events(context, group))
-
-
-def finding_artifact_events(context: CommandContext, group: FindingGroup) -> list[Event]:
-    """Return artifact events associated with a finding group."""
-    steps = unique_compact_values(event.command_run_id or "" for event in group.events)
-    pipelines = unique_compact_values(event.pipeline_id or "" for event in group.events)
-    events: list[Event] = []
-    for step in steps:
-        events.extend(context.events.query(topic="artifact.attached", step=step, limit=1000))
-    if not steps:
-        for pipeline in pipelines:
-            events.extend(context.events.query(topic="artifact.attached", pipeline=pipeline, limit=1000))
-    return sort_unique_events(events)
-
-
-def artifact_group_values(context: CommandContext, group: FindingGroup) -> list[str]:
-    """Return grouped artifact references by producing commandlet/step."""
-    events = finding_artifact_events(context, group)
-    grouped: dict[str, list[str]] = {}
-    for event in events:
-        payload = event.payload
-        label = str(payload.get("commandlet") or event.source or "")
-        step = str(payload.get("command_run_id") or event.command_run_id or "")
-        if step:
-            label = f"{label}/{step}" if label else step
-        grouped.setdefault(label or "artifact", []).append(format_artifact_reference(context, event))
-    if len(grouped) <= 1:
-        return []
-    return [f"{label}: {', '.join(values)}" for label, values in sorted(grouped.items())]
-
-
-def artifact_commands(context: CommandContext, group: FindingGroup) -> list[str]:
-    """Return artifact-list commands for a finding's runtime scope."""
-    steps = unique_compact_values(event.command_run_id or "" for event in group.events)
-    pipelines = unique_compact_values(event.pipeline_id or "" for event in group.events)
-    commands = [f"artifact list step={step}" for step in steps]
-    if not commands:
-        commands = [f"artifact list pipeline={pipeline}" for pipeline in pipelines]
-    return [subject_text(context, "command_line", command) for command in commands]
 
 
 def provenance_values(context: CommandContext, group: FindingGroup) -> list[str]:
