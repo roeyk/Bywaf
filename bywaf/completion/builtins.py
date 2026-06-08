@@ -24,6 +24,13 @@ from ..utils import complete_path
 from .event_selectors import event_candidates, event_selector_value_candidates
 from .providers import bundle_candidates, key_candidates
 from .resources import complete_at_file_prefix, complete_resource_value, resource_candidates
+from .variables import (
+    active_context_variable_candidates,
+    is_qualified_variable_prefix,
+    qualified_variable_candidates,
+    secret_option_candidates,
+    unscoped_variable_candidates,
+)
 
 if TYPE_CHECKING:
     from ..db import EventStore
@@ -255,46 +262,3 @@ class BuiltinCompletionMixin:
             return secret_candidates
         names = [name.removeprefix("global.") for name in self.registry.varstore.names() if name.startswith("global.")]
         return [f"{name}=" for name in names if name.startswith(prefix)]
-
-
-def secret_option_candidates(args: list[str]) -> list[str]:
-    """Return the secret option candidate when it has not already been used."""
-    return [] if "--secret" in args else ["--secret"]
-
-
-def is_qualified_variable_prefix(prefix: str) -> bool:
-    """Return whether a variable prefix names an explicit variable scope."""
-    return prefix.startswith("global.") or ("/" in prefix and "." in prefix)
-
-
-def qualified_variable_candidates(prefix: str, names: list[str], catalog_names: list[str]) -> list[str]:
-    """Complete fully-qualified variable names."""
-    return [f"{name}=" for name in all_variable_names(names, catalog_names) if name.startswith(prefix)]
-
-
-def active_context_variable_candidates(active_context: str | None, names: list[str]) -> list[str]:
-    """Complete short variable names for the active `use` context."""
-    if not active_context:
-        return []
-    scoped_prefix = f"{active_context}."
-    return [f"{name.removeprefix(scoped_prefix)}=" for name in names if name.startswith(scoped_prefix)]
-
-
-def unscoped_variable_candidates(prefix: str, names: list[str], catalog_names: list[str]) -> list[str]:
-    """Complete commandlet scopes and global-style variable names."""
-    all_names = all_variable_names(names, catalog_names)
-    return [
-        *commandlet_scope_candidates(prefix, all_names),
-        *[f"{name}=" for name in all_names if "/" not in name and name.startswith(prefix)],
-    ]
-
-
-def commandlet_scope_candidates(prefix: str, names: list[str]) -> list[str]:
-    """Complete commandlet variable scopes such as `discovery/hostscanner.`."""
-    scopes = sorted({name.rsplit(".", 1)[0] for name in names if "/" in name and "." in name})
-    return [f"{scope}." for scope in scopes if f"{scope}.".startswith(prefix)]
-
-
-def all_variable_names(names: list[str], catalog_names: list[str]) -> list[str]:
-    """Return stable unique variable names from runtime and catalog sources."""
-    return sorted(set(names).union(catalog_names))
