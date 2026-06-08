@@ -17,6 +17,7 @@ from .config import Settings
 from .projects import ProjectPaths
 
 VIEW_CURSORS_FILE = "view-cursors.json"
+ACTIVE_DATABASE_FILE = "active-database.json"
 
 
 def operator_state_dir(runner: object | None) -> Path:
@@ -34,6 +35,34 @@ def operator_state_dir(runner: object | None) -> Path:
 def view_cursors_path(runner: object | None) -> Path:
     """Return the path for runtime view cursors."""
     return operator_state_dir(runner) / VIEW_CURSORS_FILE
+
+
+def ad_hoc_active_database_path() -> Path:
+    """Return the operator-local pointer for the last selected ad hoc DB."""
+    return Settings().state_dir / ACTIVE_DATABASE_FILE
+
+
+def load_ad_hoc_active_database() -> Path | None:
+    """Return the last selected ad hoc DB path, ignoring stale local state."""
+    path = ad_hoc_active_database_path()
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(data, dict) or not isinstance(data.get("database"), str):
+        return None
+    database = Path(data["database"]).expanduser()
+    return database if database.exists() else None
+
+
+def save_ad_hoc_active_database(database: Path) -> None:
+    """Persist the ad hoc DB that normal startup should reopen next time."""
+    path = ad_hoc_active_database_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"database": str(database)}
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def load_view_cursors(runner: object | None) -> dict[str, int]:

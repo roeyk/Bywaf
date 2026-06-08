@@ -9,6 +9,7 @@ Used by:
 
 import contextlib
 import io
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -16,10 +17,12 @@ from unittest.mock import patch
 
 from bywaf.app import (
     build_parser,
+    database_argument_is_explicit,
     format_event,
     command_from_remainder,
     main,
     parse_load_spec,
+    startup_database_path,
 )
 from bywaf.db import EventStore
 from bywaf.cli_trust import plugin_trust_policy_from_args
@@ -47,6 +50,35 @@ class AppDispatchTests(unittest.TestCase):
         self.assertEqual(args.subcommand, "cmds")
         self.assertTrue(args.page)
         self.assertEqual(args.database, ".bywaf/bywaf.sqlite3")
+
+    def test_database_argument_detection(self):
+        self.assertFalse(database_argument_is_explicit(["repl"]))
+        self.assertTrue(database_argument_is_explicit(["--database", "client.sqlite3", "repl"]))
+        self.assertTrue(database_argument_is_explicit(["--database=client.sqlite3", "repl"]))
+
+    def test_startup_uses_persisted_ad_hoc_database_without_explicit_override(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path.cwd()
+            try:
+                os.chdir(tmp)
+                database = Path(".bywaf/db/clean.sqlite3")
+                EventStore(database)
+                Path(".bywaf").mkdir(exist_ok=True)
+                Path(".bywaf/active-database.json").write_text(
+                    '{"database": ".bywaf/db/clean.sqlite3"}\n',
+                    encoding="utf-8",
+                )
+
+                self.assertEqual(
+                    startup_database_path(None, ".bywaf/bywaf.sqlite3", explicit_database=False),
+                    database,
+                )
+                self.assertEqual(
+                    startup_database_path(None, "manual.sqlite3", explicit_database=True),
+                    Path("manual.sqlite3"),
+                )
+            finally:
+                os.chdir(cwd)
 
     def test_build_parser_accepts_builtin_commands(self):
         parser = build_parser()

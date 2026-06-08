@@ -298,6 +298,22 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             finally:
                 os.chdir(cwd)
 
+    def test_db_new_persists_ad_hoc_active_database_for_next_startup(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path.cwd()
+            try:
+                os.chdir(tmp)
+                runner = make_runner(Path(".bywaf/bywaf.sqlite3"))
+                runner.db.record_job("old", None, "finished")
+                with contextlib.redirect_stdout(io.StringIO()):
+                    runner.execute("db new")
+
+                state = json.loads(Path(".bywaf/active-database.json").read_text(encoding="utf-8"))
+                self.assertEqual(Path(state["database"]), runner.db.path)
+                self.assertEqual(EventStore(runner.db.path).jobs(), [])
+            finally:
+                os.chdir(cwd)
+
     def test_db_stats_reports_main_and_artifact_database_counts(self):
         with tempfile.TemporaryDirectory() as tmp:
             db_path = Path(tmp, "db.sqlite3")

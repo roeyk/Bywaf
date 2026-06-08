@@ -20,6 +20,7 @@ from . import __version__
 from .cli_trust import load_filesystem_registry, merge_filesystem_registry, plugin_trust_policy_from_args
 from .config import Settings
 from .db import EventStore, database_appears_encrypted
+from .operator_state import load_ad_hoc_active_database
 from .projects import ProjectPaths, create_project, require_project
 from .registry import PluginRegistry, PluginTrustError, PluginTrustPolicy
 from .repl import (
@@ -214,6 +215,7 @@ def main(argv: list[str] | None = None) -> int:
     """CLI entry point used by `python -m bywaf` and the console script."""
     project_name, parsed_argv = extract_startup_project(sys.argv[1:] if argv is None else argv)
     parsed_argv = route_direct_commandlet_argv(parsed_argv)
+    explicit_database = database_argument_is_explicit(parsed_argv)
     parser = build_parser()
     args = parser.parse_args(parsed_argv)
     if args.version:
@@ -230,7 +232,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.new and project is None:
         print("error: --new requires project=<name>")
         return 1
-    database = project.database if project is not None else Path(args.database)
+    database = startup_database_path(project, args.database, explicit_database=explicit_database)
     settings = Settings(database=database)
     try:
         runner = make_runner(
@@ -260,6 +262,20 @@ def main(argv: list[str] | None = None) -> int:
         return handler(runner, args)
     finally:
         shutdown_runner(runner)
+
+
+def database_argument_is_explicit(argv: list[str]) -> bool:
+    """Return True when argv contains an explicit --database option."""
+    return any(arg == "--database" or arg.startswith("--database=") for arg in argv)
+
+
+def startup_database_path(project: ProjectPaths | None, database: str | Path, *, explicit_database: bool) -> Path:
+    """Return the DB path startup should open for this invocation."""
+    if project is not None:
+        return project.database
+    if explicit_database:
+        return Path(database)
+    return load_ad_hoc_active_database() or Path(database)
 
 
 def handle_setup_startup(args: argparse.Namespace) -> int | None:

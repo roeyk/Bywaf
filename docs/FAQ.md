@@ -279,6 +279,11 @@ bywaf> db load file=snapshot.sqlite3
 
 If the database is encrypted, Bywaf prompts for the passphrase.
 
+In ad hoc mode, `db load` and `db new` update the local active-database pointer
+used by later plain `bywaf` startups. Passing `--database path/to/db.sqlite3`
+at startup overrides that pointer for the current invocation. Project mode uses
+the selected project database instead.
+
 ## How do I set a commandlet variable?
 
 ```text

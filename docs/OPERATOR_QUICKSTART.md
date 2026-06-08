@@ -47,6 +47,11 @@ Create a fresh project database when you want a clean run:
 bywaf> db new
 ```
 
+In an ad hoc session, `db new` becomes the active local database for later
+plain `bywaf` startups. Use `--database path/to/db.sqlite3` to override that
+saved ad hoc selection for one invocation. Project mode always uses the active
+project database.
+
 ## Find Commands
 
 List commandlets and inspect help:

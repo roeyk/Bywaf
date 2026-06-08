@@ -203,8 +203,11 @@ Good manual passes include:
   `script load file=scripts/manual_finding_report_flow.bywaf`.
 
 Use `db new` before manual sessions when old events would make results hard to
-read. Do not bake third-party targets into committed scripts; use local
-fixtures or systems you own or are explicitly authorized to test.
+read. In ad hoc mode, that fresh database remains the active local database for
+later plain `bywaf` startups; pass `--database path/to/db.sqlite3` when a test
+or reproduction needs a specific database instead. Do not bake third-party
+targets into committed scripts; use local fixtures or systems you own or are
+explicitly authorized to test.
 
 ## Environment Notes
 

@@ -19,6 +19,7 @@ from pathlib import Path
 from bywaf.config import Settings
 from bywaf.db import EventStore, database_appears_encrypted, export_encrypted_database, export_plaintext_database
 from bywaf.event import Event
+from bywaf.operator_state import save_ad_hoc_active_database
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
 from bywaf.plugins._args import reject_long_option_values
 from bywaf.utils import complete_path
@@ -395,6 +396,9 @@ def replace_active_store(context: CommandContext, db: EventStore) -> None:
         # The REPL/API injects this callback so commandlets do not reach into
         # Runner internals directly.
         replacer(db)
+    runner = context.metadata.get("runner")
+    if getattr(runner, "project", None) is None:
+        save_ad_hoc_active_database(db.path)
     context.db = db
 
 
