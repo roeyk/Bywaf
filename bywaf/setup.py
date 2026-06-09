@@ -59,6 +59,28 @@ class SetupResult:
     recorded_event: bool
 
 
+@dataclass(frozen=True, slots=True)
+class SetupChoices:
+    """Interactive setup choices collected before filesystem changes."""
+
+    project_name: str
+    encrypted: bool
+    passphrase: str | None
+    secret_input_mode: str
+    generated_keys: tuple[KeyRecord, ...]
+    existing_keys: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class SetupState:
+    """Filesystem state created or confirmed during setup."""
+
+    config: Path
+    project: ProjectPaths
+    created_config: bool
+    created_project: bool
+
+
 def user_state_root() -> Path:
     """Return the durable per-user Bywaf state directory."""
     return Path.home() / ".bywaf"
@@ -99,29 +121,77 @@ def run_setup(
     include_plugin_signing_keys: bool = False,
 ) -> SetupResult:
     """Create durable user setup files and a default project if needed."""
+    choices = collect_setup_choices(
+        project_name=project_name,
+        include_plugin_signing_keys=include_plugin_signing_keys,
+    )
+    state = create_setup_state(choices.project_name)
+    recorded_event = publish_setup_events(state, choices)
+    result = setup_result(state, choices, recorded_event=recorded_event)
+    if output:
+        print_setup_result(result)
+    return result
+
+
+def collect_setup_choices(
+    *,
+    project_name: str,
+    include_plugin_signing_keys: bool,
+) -> SetupChoices:
+    """Collect setup options before creating durable files."""
     interactive = interactive_stdio()
     if interactive:
         project_name = prompt_project_name(project_name)
     secret_input_mode = configured_secret_input_mode()
-    encrypted = False
-    passphrase: str | None = None
-    if interactive and confirm("Create encrypted project database?", default=False):
-        database = project_paths(project_name).database
-        if database.exists():
-            raise ValueError(f"cannot enable encryption during setup because project database already exists: {database}")
-        encrypted = True
-        passphrase = prompt_setup_passphrase(database, mode=secret_input_mode)
+    encrypted, passphrase = setup_encryption_choice(project_name, interactive=interactive, mode=secret_input_mode)
+    generated_keys, existing_keys = setup_signing_key_choices(
+        interactive=interactive,
+        include_plugin_signing_keys=include_plugin_signing_keys,
+        mode=secret_input_mode,
+    )
+    return SetupChoices(
+        project_name=project_name,
+        encrypted=encrypted,
+        passphrase=passphrase,
+        secret_input_mode=secret_input_mode,
+        generated_keys=generated_keys,
+        existing_keys=existing_keys,
+    )
+
+
+def setup_encryption_choice(project_name: str, *, interactive: bool, mode: str) -> tuple[bool, str | None]:
+    """Return whether setup should create an encrypted project database."""
+    if not interactive or not confirm("Create encrypted project database?", default=False):
+        return False, None
+    database = project_paths(project_name).database
+    if database.exists():
+        raise ValueError(f"cannot enable encryption during setup because project database already exists: {database}")
+    return True, prompt_setup_passphrase(database, mode=mode)
+
+
+def setup_signing_key_choices(
+    *,
+    interactive: bool,
+    include_plugin_signing_keys: bool,
+    mode: str,
+) -> tuple[tuple[KeyRecord, ...], tuple[str, ...]]:
+    """Return signing keys generated or found during interactive setup."""
     generated_keys: tuple[KeyRecord, ...] = ()
     existing_keys: tuple[str, ...] = ()
     if interactive and confirm("Create local signing key for evidence bundles?", default=False):
-        generated_keys, existing_keys = generate_setup_signing_keys(mode=secret_input_mode)
+        generated_keys, existing_keys = generate_setup_signing_keys(mode=mode)
     if interactive and include_plugin_signing_keys and confirm("Create plugin manifest/catalog signing keys?", default=False):
         plugin_generated, plugin_existing = generate_setup_signing_keys(
-            mode=secret_input_mode,
+            mode=mode,
             key_names=PLUGIN_SIGNING_KEYS,
         )
         generated_keys = (*generated_keys, *plugin_generated)
         existing_keys = (*existing_keys, *plugin_existing)
+    return generated_keys, existing_keys
+
+
+def create_setup_state(project_name: str) -> SetupState:
+    """Create user config and project directories for setup."""
     root = user_state_root()
     config = user_config_path()
     root.mkdir(parents=True, exist_ok=True)
@@ -134,51 +204,54 @@ def run_setup(
     created_project = not project.path.exists()
     if created_project:
         project = create_project(project_name)
+    return SetupState(config=config, project=project, created_config=created_config, created_project=created_project)
 
-    recorded_event = False
-    db = EventStore(project.database, passphrase=passphrase)
+
+def publish_setup_events(state: SetupState, choices: SetupChoices) -> bool:
+    """Publish setup audit events into the newly active project database."""
+    db = EventStore(state.project.database, passphrase=choices.passphrase)
     db.publish(
         "setup.completed",
         {
-            "config": str(config),
-            "project": project.name,
-            "project_path": str(project.path),
-            "database": str(project.database),
-            "encrypted": encrypted,
-            "created_config": created_config,
-            "created_project": created_project,
-            "secret_input_mode": secret_input_mode,
-            "generated_keys": [key_record_payload(record) for record in generated_keys],
-            "existing_keys": list(existing_keys),
+            "config": str(state.config),
+            "project": state.project.name,
+            "project_path": str(state.project.path),
+            "database": str(state.project.database),
+            "encrypted": choices.encrypted,
+            "created_config": state.created_config,
+            "created_project": state.created_project,
+            "secret_input_mode": choices.secret_input_mode,
+            "generated_keys": [key_record_payload(record) for record in choices.generated_keys],
+            "existing_keys": list(choices.existing_keys),
         },
         "framework",
     )
-    if generated_keys or existing_keys:
+    if choices.generated_keys or choices.existing_keys:
         db.publish(
             "setup.keys_configured",
             {
-                "generated_keys": [key_record_payload(record) for record in generated_keys],
-                "existing_keys": list(existing_keys),
+                "generated_keys": [key_record_payload(record) for record in choices.generated_keys],
+                "existing_keys": list(choices.existing_keys),
                 "key_root": str(default_key_paths().root),
             },
             "framework",
         )
-    recorded_event = True
+    return True
 
-    result = SetupResult(
-        config=config,
-        project=project,
-        created_config=created_config,
-        created_project=created_project,
-        encrypted=encrypted,
-        secret_input_mode=secret_input_mode,
-        generated_keys=tuple(record.name for record in generated_keys),
-        existing_keys=existing_keys,
+
+def setup_result(state: SetupState, choices: SetupChoices, *, recorded_event: bool) -> SetupResult:
+    """Return the public setup result from internal setup state."""
+    return SetupResult(
+        config=state.config,
+        project=state.project,
+        created_config=state.created_config,
+        created_project=state.created_project,
+        encrypted=choices.encrypted,
+        secret_input_mode=choices.secret_input_mode,
+        generated_keys=tuple(record.name for record in choices.generated_keys),
+        existing_keys=choices.existing_keys,
         recorded_event=recorded_event,
     )
-    if output:
-        print_setup_result(result)
-    return result
 
 
 def print_setup_result(result: SetupResult) -> None:
