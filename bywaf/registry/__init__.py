@@ -63,24 +63,26 @@ from .manifest import (
     table_value,
 )
 from .trust import (
-    MANIFEST_SIGNATURE_SCHEMA,
-    PluginManifestTrust,
     PluginTrustError,
     PluginTrustPolicy,
     VerifiedPluginCatalog,
     canonical_catalog_bytes,
-    canonical_manifest_bytes,
     cryptography_primitives,
-    cryptography_signing_primitives,
     enforce_filesystem_plugin_trust,
-    enforce_plugin_manifest_signature,
     load_json,
     load_verified_plugin_catalog,
+    sha256_file,
+    verify_catalog_signature,
+)
+from .trust_manifest import (
+    MANIFEST_SIGNATURE_SCHEMA,
+    PluginManifestTrust,
+    canonical_manifest_bytes,
+    cryptography_signing_primitives,
+    enforce_plugin_manifest_signature,
     plugin_manifest_digest,
     plugin_manifest_signature_block,
-    sha256_file,
     string_signature_field,
-    verify_catalog_signature,
     verify_plugin_manifest_signature_data,
 )
 

@@ -36,8 +36,10 @@ from .manifest_model import PluginManifest
 from .manifest_schemas import parse_event_schema_rows
 from .manifest_triggers import parse_trigger_rows
 from .trust import (
-    PluginManifestTrust,
     PluginTrustPolicy,
+)
+from .trust_manifest import (
+    PluginManifestTrust,
     enforce_plugin_manifest_signature,
 )
 

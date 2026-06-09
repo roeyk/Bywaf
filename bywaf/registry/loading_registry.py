@@ -34,11 +34,11 @@ from .manifest import (
     parse_plugin_manifest,
 )
 from .trust import (
-    PluginManifestTrust,
     PluginTrustPolicy,
     VerifiedPluginCatalog,
     enforce_filesystem_plugin_trust,
 )
+from .trust_manifest import PluginManifestTrust
 
 if TYPE_CHECKING:
     from ..varstore import VarStore
