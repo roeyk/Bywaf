@@ -8,6 +8,7 @@ Reference for commandlet specs, parsing, output, event flow, completion, runtime
 - [Manifest-Backed Configuration](#manifest-backed-configuration)
 - [Plans](#plans)
 - [Parsing Arguments](#parsing-arguments)
+- [Parsing Key/Value Selectors](#parsing-keyvalue-selectors)
 - [Rendering Tables](#rendering-tables)
 - [Publishing Events](#publishing-events)
 - [Consuming Pipeline Input](#consuming-pipeline-input)
@@ -232,6 +233,37 @@ framework records `plan.requested`, `policy.evaluated`, approval/denial, and
 repair decisions, including `approved_by=<os user>`.
 
 ## Parsing Arguments
+
+For simple commandlets, prefer manifest-backed options and positional
+arguments. Bywaf handles `key=value` option conversion, defaults, and type
+casts for you.
+
+## Parsing Key/Value Selectors
+
+Some commandlets intentionally use selector-style arguments instead of ordinary
+options, for example `note add step=1 text=validated manually` or a result view
+that accepts `job=`, `pipeline=`, and `sort=` selectors. Use the public selector
+helpers instead of hand-rolling this parsing in every plugin:
+
+```python
+from bywaf.plugin import parse_key_value_tokens, require_exactly_one_selector
+
+selectors = parse_key_value_tokens(
+    args,
+    allowed_keys={"job", "pipeline", "step", "text"},
+    command="my_plugin",
+    text_keys={"text"},
+)
+scope_key = require_exactly_one_selector(
+    selectors,
+    ("job", "pipeline", "step"),
+    command="my_plugin",
+)
+```
+
+`text_keys` marks selectors whose value consumes the remaining tokens. That is
+useful for final free-text notes while still validating that every earlier token
+is a `key=value` selector.
 
 Use `argparse` inside `run()` when the command has real options:
 
