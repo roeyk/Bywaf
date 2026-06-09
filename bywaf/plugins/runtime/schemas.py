@@ -7,6 +7,7 @@ from collections.abc import Iterable
 from bywaf.event import EVENT_SCHEMAS, Event, plugin_event_schemas
 from bywaf.event.schemas import EventSchema
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
+from bywaf.plugins.runtime.schema_selectors import parse_schema_args, schema_completions
 from bywaf.runtime_display import command_context_style_getter, render_table, terminal_table_width
 
 
@@ -41,45 +42,7 @@ class Schemas(CommandletBase):
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
         """Complete schema selectors."""
         del context, args
-        candidates = [
-            "--page",
-            "detail=false",
-            "detail=true",
-            "owner=all",
-            "owner=framework",
-            "owner=plugin",
-            "sort=owner",
-            "sort=-owner",
-            "sort=topic",
-            "sort=-topic",
-            "sort=used",
-            "sort=-used",
-            "topic=",
-        ]
-        return [candidate for candidate in candidates if candidate.startswith(prefix)]
-
-
-def parse_schema_args(args: list[str]) -> tuple[dict[str, str], bool]:
-    """Parse schemas selectors."""
-    selectors = {"owner": "all", "topic": "", "detail": "false", "sort": "topic"}
-    page = False
-    for arg in args:
-        if arg == "--page":
-            page = True
-            continue
-        key, separator, value = arg.partition("=")
-        if not separator:
-            raise ValueError("schemas selectors must be key=value")
-        if key not in selectors:
-            raise ValueError("schemas selectors must be one of: detail, owner, sort, topic")
-        if key == "owner" and value not in {"all", "framework", "plugin"}:
-            raise ValueError("schemas owner= must be one of: all, framework, plugin")
-        if key == "detail" and value not in {"false", "true"}:
-            raise ValueError("schemas detail= must be one of: false, true")
-        if key == "sort" and value.lstrip("-") not in {"owner", "topic", "used"}:
-            raise ValueError("schemas sort= must be one of: owner, topic, used")
-        selectors[key] = value
-    return selectors, page
+        return schema_completions(prefix)
 
 
 def schema_rows(context: CommandContext, selectors: dict[str, str]) -> list[tuple[str, str, EventSchema]]:
