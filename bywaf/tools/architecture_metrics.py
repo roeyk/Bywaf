@@ -15,6 +15,7 @@ import argparse
 import ast
 import json
 import subprocess
+from collections.abc import Mapping
 from collections import defaultdict
 from dataclasses import asdict
 from pathlib import Path
@@ -46,6 +47,9 @@ from .documentation_metrics import (
     collect_documentation_metrics,
 )
 
+ModulePaths = dict[str, Path]
+ImportGraph = dict[str, set[str]]
+
 
 def collect_architecture_metrics(
     root: Path,
@@ -59,13 +63,41 @@ def collect_architecture_metrics(
     root = root.resolve()
     repo_root = root.parent
     package = package or root.name
+    modules = discover_modules(root, package)
+    adjacency, loc_by_module, stats_by_module = analyze_modules(root, package, modules)
+    fan_in = fan_in_map(adjacency)
+    module_metrics = build_module_metrics(
+        root,
+        repo_root,
+        modules,
+        adjacency,
+        fan_in,
+        loc_by_module,
+        stats_by_module,
+        tests_root=tests_root or repo_root / "tests",
+        include_churn=include_churn,
+    )
+    edge_count = sum(len(targets) for targets in adjacency.values())
+    docs = collect_documentation_metrics(repo_root, docs_root=docs_root)
+    return ArchitectureMetrics(package, len(modules), edge_count, dependency_cycles(adjacency), module_metrics, docs)
+
+
+def discover_modules(root: Path, package: str) -> ModulePaths:
+    """Return importable package modules keyed by dotted module name."""
     module_paths = sorted(path for path in root.rglob("*.py") if "__pycache__" not in path.parts)
-    modules = {module_name(root, path, package): path for path in module_paths}
+    return {module_name(root, path, package): path for path in module_paths}
+
+
+def analyze_modules(
+    root: Path,
+    package: str,
+    modules: ModulePaths,
+) -> tuple[ImportGraph, dict[str, int], dict[str, ModuleStaticStats]]:
+    """Return import graph, LOC, and static source metrics for modules."""
     packages = {name for name, path in modules.items() if path.name == "__init__.py"}
-    adjacency: dict[str, set[str]] = {name: set() for name in modules}
+    adjacency: ImportGraph = {name: set() for name in modules}
     loc_by_module = {name: source_loc(path) for name, path in modules.items()}
     stats_by_module: dict[str, ModuleStaticStats] = {}
-
     for name, path in modules.items():
         source = path.read_text(encoding="utf-8")
         tree = ast.parse(source, filename=str(path))
@@ -73,15 +105,34 @@ def collect_architecture_metrics(
         for imported in internal_imports(tree, name, package, set(modules), packages):
             if imported != name:
                 adjacency[name].add(imported)
+    return adjacency, loc_by_module, stats_by_module
 
+
+def fan_in_map(adjacency: ImportGraph) -> dict[str, set[str]]:
+    """Return reverse import edges keyed by imported module."""
     fan_in: dict[str, set[str]] = defaultdict(set)
     for source, targets in adjacency.items():
         for target in targets:
             fan_in[target].add(source)
+    return fan_in
 
+
+def build_module_metrics(
+    root: Path,
+    repo_root: Path,
+    modules: ModulePaths,
+    adjacency: ImportGraph,
+    fan_in: Mapping[str, set[str]],
+    loc_by_module: Mapping[str, int],
+    stats_by_module: Mapping[str, ModuleStaticStats],
+    *,
+    tests_root: Path,
+    include_churn: bool,
+) -> tuple[ModuleMetric, ...]:
+    """Return per-module architecture metrics from collected source signals."""
     test_refs = test_reference_counts(modules, tests_root or repo_root / "tests")
     churn = git_churn_counts(repo_root, modules) if include_churn else defaultdict(int)
-    module_metrics = tuple(
+    return tuple(
         ModuleMetric(
             name=name,
             path=str(modules[name].relative_to(root.parent)),
@@ -102,10 +153,12 @@ def collect_architecture_metrics(
         )
         for name in sorted(modules)
     )
+
+
+def dependency_cycles(adjacency: ImportGraph) -> tuple[tuple[str, ...], ...]:
+    """Return sorted multi-module dependency cycles."""
     cycles = tuple(tuple(sorted(component)) for component in strongly_connected_components(adjacency) if len(component) > 1)
-    edge_count = sum(len(targets) for targets in adjacency.values())
-    docs = collect_documentation_metrics(repo_root, docs_root=docs_root)
-    return ArchitectureMetrics(package, len(modules), edge_count, tuple(sorted(cycles)), module_metrics, docs)
+    return tuple(sorted(cycles))
 
 
 def test_reference_counts(modules: dict[str, Path], tests_root: Path) -> defaultdict[str, int]:
