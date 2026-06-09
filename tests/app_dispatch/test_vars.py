@@ -179,7 +179,7 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with (
                 patch("bywaf.repl.command.vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
-                patch("bywaf.repl.command.vars.getpass.getpass", return_value="prompted-secret") as getpass,
+                patch("bywaf.repl.command.var_secrets.getpass.getpass", return_value="prompted-secret") as getpass,
                 contextlib.redirect_stdout(output),
             ):
                 dispatch_repl_line(runner, "set --secret pw=", state)
@@ -202,7 +202,7 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with (
                 patch("bywaf.repl.command.vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
-                patch("bywaf.repl.command.vars.read_askpass_secret", return_value="askpass-secret") as askpass,
+                patch("bywaf.repl.command.var_secrets.read_askpass_secret", return_value="askpass-secret") as askpass,
                 contextlib.redirect_stdout(output),
             ):
                 dispatch_repl_line(runner, "set --secret pw=", state)
@@ -226,8 +226,8 @@ class AppDispatchTests(unittest.TestCase):
             errors = io.StringIO()
             with (
                 patch("bywaf.repl.command.vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
-                patch("bywaf.repl.command.vars.read_askpass_secret", side_effect=AskpassUnavailable("no gui")),
-                patch("bywaf.repl.command.vars.getpass.getpass", return_value="fallback-secret") as getpass,
+                patch("bywaf.repl.command.var_secrets.read_askpass_secret", side_effect=AskpassUnavailable("no gui")),
+                patch("bywaf.repl.command.var_secrets.getpass.getpass", return_value="fallback-secret") as getpass,
                 contextlib.redirect_stdout(output),
                 contextlib.redirect_stderr(errors),
             ):
@@ -250,8 +250,8 @@ class AppDispatchTests(unittest.TestCase):
             errors = io.StringIO()
             with (
                 patch("bywaf.repl.command.vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
-                patch("bywaf.repl.command.vars.effective_secret_input_mode", return_value="block"),
-                patch("bywaf.repl.command.vars.getpass.getpass", return_value="fallback-secret") as getpass,
+                patch("bywaf.repl.command.var_secrets.effective_secret_input_mode", return_value="block"),
+                patch("bywaf.repl.command.var_secrets.getpass.getpass", return_value="fallback-secret") as getpass,
                 contextlib.redirect_stdout(output),
                 contextlib.redirect_stderr(errors),
             ):
@@ -271,7 +271,7 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with (
                 patch("bywaf.repl.command.vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
-                patch("bywaf.repl.command.vars.getpass.getpass") as getpass,
+                patch("bywaf.repl.command.var_secrets.getpass.getpass") as getpass,
                 contextlib.redirect_stdout(output),
             ):
                 dispatch_repl_line(runner, "set --secret pw=[REDACTED]", state)
@@ -294,7 +294,7 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with (
                 patch("bywaf.repl.command.vars.load_or_create_fingerprint_key", return_value=b"k" * 32),
-                patch("bywaf.repl.command.vars.getpass.getpass", return_value="prompted-secret") as getpass,
+                patch("bywaf.repl.command.var_secrets.getpass.getpass", return_value="prompted-secret") as getpass,
                 contextlib.redirect_stdout(output),
             ):
                 dispatch_repl_line(runner, "set session.ticket= --secret", state)
