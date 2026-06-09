@@ -21,11 +21,8 @@ from ..specs import ArgumentSpec, OptionSpec, TriggerSpec
 from ..toml_support import load_data_file
 from .loading import load_module_path, load_plugins, load_trigger_specs
 from .manifest_fields import (
-    argument_rows_field,
     bool_field,
-    database_actions_field,
     list_field as list_field,
-    option_rows_field,
     optional_string_field,
     require_known_keys,
     string_field as string_field,
@@ -34,6 +31,7 @@ from .manifest_fields import (
     validate_requires_bywaf,
     validate_version_string,
 )
+from .manifest_commandlets import parse_manifest_commandlets
 from .manifest_schemas import parse_event_schema_rows
 from .manifest_triggers import parse_trigger_rows
 from .trust import (
@@ -137,61 +135,7 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
     # Commandlets are normalized into parallel maps keyed by commandlet name.
     # That keeps later manifest/code enforcement simple: each contract surface
     # can be compared independently without reparsing the raw TOML rows.
-    commandlet_rows = data.get("commandlets")
-    if not isinstance(commandlet_rows, list) or not commandlet_rows:
-        raise ValueError(f"{source} must declare at least one [[commandlets]] entry")
-    commandlets: set[str] = set()
-    commandlet_capabilities: dict[str, tuple[str, ...]] = {}
-    commandlet_database_actions: dict[str, tuple[str, ...]] = {}
-    commandlet_consumes: dict[str, tuple[str, ...]] = {}
-    commandlet_emits: dict[str, tuple[str, ...]] = {}
-    commandlet_options: dict[str, tuple[OptionSpec, ...]] = {}
-    commandlet_arguments: dict[str, tuple[ArgumentSpec, ...]] = {}
-    commandlet_secret_options: dict[str, tuple[str, ...]] = {}
-    commandlet_provider_variables: dict[str, tuple[str, ...]] = {}
-    commandlet_secret_provider_variables: dict[str, tuple[str, ...]] = {}
-    for index, row in enumerate(commandlet_rows, start=1):
-        # Each commandlet row is collected into per-commandlet maps so later
-        # enforcement can compare manifest declarations with the concrete
-        # CommandSpec produced by decorators or explicit plugin code.
-        if not isinstance(row, dict):
-            raise ValueError(f"{source} commandlets entry {index} must be a table")
-        require_known_keys(
-            row,
-            {
-                "name",
-                "module",
-                "description",
-                "usage",
-                "examples",
-                "capabilities",
-                "consumes",
-                "emits",
-                "database",
-                "database_actions",
-                "options",
-                "arguments",
-                "secret_options",
-                "provider_variables",
-                "secret_provider_variables",
-            },
-            source,
-            f"commandlets entry {index}",
-        )
-        name = row.get("name")
-        if not isinstance(name, str) or not name:
-            raise ValueError(f"{source} commandlets entry {index} requires name")
-        commandlets.add(name)
-        context = f"commandlets entry {index}"
-        commandlet_capabilities[name] = string_list_field(row, "capabilities", source, context)
-        commandlet_database_actions[name] = database_actions_field(row, source, context)
-        commandlet_consumes[name] = string_list_field(row, "consumes", source, context)
-        commandlet_emits[name] = string_list_field(row, "emits", source, context)
-        commandlet_options[name] = option_rows_field(row, source, context)
-        commandlet_arguments[name] = argument_rows_field(row, source, context)
-        commandlet_secret_options[name] = string_list_field(row, "secret_options", source, context)
-        commandlet_provider_variables[name] = string_list_field(row, "provider_variables", source, context)
-        commandlet_secret_provider_variables[name] = string_list_field(row, "secret_provider_variables", source, context)
+    commandlets = parse_manifest_commandlets(data.get("commandlets"), source)
     library_backed = bool_field(plugin_data, "library_backed", source, "plugin")
     process_wrapped = bool_field(plugin_data, "process_wrapped", source, "plugin")
     service = bool_field(plugin_data, "service", source, "plugin")
@@ -203,28 +147,28 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
         raise ValueError(f"{source} native=true conflicts with library_backed or process_wrapped")
     roles = string_list_field(plugin_data, "roles", source, "plugin")
     default_commandlet = optional_string_field(plugin_data, "default_commandlet", source, "plugin")
-    if default_commandlet is not None and default_commandlet not in commandlets:
+    if default_commandlet is not None and default_commandlet not in commandlets.names:
         raise ValueError(f"{source} plugin.default_commandlet must name a declared commandlet")
     # Triggers and event schemas are parsed after commandlets because they are
     # provider-level declarations, not per-commandlet metadata.
     triggers = parse_trigger_rows(data.get("triggers", []), source)
     event_schemas = parse_event_schema_rows(data.get("event_schemas", []), source)
     return PluginManifest(
-        commandlets=frozenset(commandlets),
+        commandlets=commandlets.names,
         version=version,
         requires_bywaf=requires_bywaf,
         requires_schemas=requires_schemas,
         requires_plugins=requires_plugins,
         triggers=triggers,
-        commandlet_capabilities=commandlet_capabilities,
-        commandlet_database_actions=commandlet_database_actions,
-        commandlet_consumes=commandlet_consumes,
-        commandlet_emits=commandlet_emits,
-        commandlet_options=commandlet_options,
-        commandlet_arguments=commandlet_arguments,
-        commandlet_secret_options=commandlet_secret_options,
-        commandlet_provider_variables=commandlet_provider_variables,
-        commandlet_secret_provider_variables=commandlet_secret_provider_variables,
+        commandlet_capabilities=commandlets.capabilities,
+        commandlet_database_actions=commandlets.database_actions,
+        commandlet_consumes=commandlets.consumes,
+        commandlet_emits=commandlets.emits,
+        commandlet_options=commandlets.options,
+        commandlet_arguments=commandlets.arguments,
+        commandlet_secret_options=commandlets.secret_options,
+        commandlet_provider_variables=commandlets.provider_variables,
+        commandlet_secret_provider_variables=commandlets.secret_provider_variables,
         event_schemas=event_schemas,
         default_commandlet=default_commandlet,
         library_backed=library_backed,
