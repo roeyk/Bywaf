@@ -87,3 +87,4 @@ class InventoryCommand(CommandletBase):
             context.page_text(output)
         else:
             context.output(output)
+        return ()

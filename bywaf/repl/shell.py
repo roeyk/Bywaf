@@ -18,44 +18,20 @@ import sys
 import termios
 import tty
 from collections.abc import Callable
-from datetime import datetime
-from pathlib import Path
 
 from ..completion import Completer, build_prompt_session, install_readline
 from ..framework_requests import process_framework_requests
-from .commands import execute_shell_command, visible_commandlet_events
 from .dispatch import dispatch_repl_line
 from .display import (
     friendly_error,
 )
-from .parsing import command_from_remainder, line_has_continuation, remove_line_continuation, split_command_sequence
+from .history_recording import record_command_history, redact_history_command
+from . import noninteractive
+from .parsing import line_has_continuation, remove_line_continuation
 from .preferences import apply_preferences, ensure_preferences_file, load_preferences, resolve_preferences_path
-from ..plugins.network.nmap_backend import NmapScanError, NmapUnavailableError
 from ..runner import Runner
-from ..secret.store import load_or_create_fingerprint_key, redact_command_text
-from .resource_specs import DEFAULT_HISTORY
 from .state import DEFAULT_HISTORY_TIMESTAMP_FORMAT, HISTORY_TIMESTAMP_FORMAT_VAR, ShellState, new_shell_state
 from ..triggers import disable_session_triggers, start_default_services, stop_session_services
-
-HISTORY_SECRET_NAMES = frozenset(
-    {
-        "api-key",
-        "api_key",
-        "apikey",
-        "auth",
-        "authorization",
-        "bearer",
-        "client-secret",
-        "client_secret",
-        "cookie",
-        "key",
-        "pass",
-        "password",
-        "secret",
-        "session",
-        "token",
-    }
-)
 
 
 def shutdown_runner(runner: Runner) -> None:
@@ -248,80 +224,15 @@ def apply_startup_preferences(runner: Runner, state: ShellState) -> None:
 
 
 def execute_and_print(runner: Runner, command: str) -> int:
-    """Execute one command line for top-level `bywaf exec` callers."""
-    return execute_shell_command(runner, command)
-
-
-def execute_commandlet_and_print(runner: Runner, command: str) -> int:
-    """Execute one commandlet line for direct non-interactive CLI callers."""
-    try:
-        state = new_shell_state(runner)
-        events = runner.execute(command)
-        process_framework_requests(runner, state)
-        from .display import print_events
-
-        print_events(visible_commandlet_events(events), runner)
-    except SystemExit as exc:
-        if exc.code in (0, None):
-            return 0
-        print(f"error: command failed with exit code {exc.code}")
-        return int(exc.code) if isinstance(exc.code, int) else 1
-    except (NmapUnavailableError, NmapScanError) as exc:
-        print(f"error: {exc}")
-        return 1
-    except (KeyError, ValueError) as exc:
-        print(f"error: {friendly_error(exc)}")
-        return 1
-    return 0
+    """Compatibility wrapper for non-interactive `bywaf exec` execution."""
+    return noninteractive.execute_and_print(runner, command)
 
 
 def run_remainder(runner: Runner, tokens: list[str]) -> int:
-    """Validate and run the token remainder from `bywaf exec ...`."""
-    try:
-        command = command_from_remainder(tokens)
-    except ValueError as exc:
-        print(f"error: {exc}")
-        return 1
-    return execute_and_print(runner, command)
+    """Compatibility wrapper for `bywaf exec ...` token remainders."""
+    return noninteractive.run_remainder(runner, tokens)
 
 
 def run_commandlet_remainder(runner: Runner, tokens: list[str]) -> int:
-    """Validate and run direct non-interactive commandlet arguments."""
-    try:
-        command = command_from_remainder(tokens)
-    except ValueError:
-        print("error: commandlet invocation requires a command")
-        return 1
-    status = 0
-    for one_command in split_command_sequence(command) or [command]:
-        status = execute_commandlet_and_print(runner, one_command)
-        if status != 0:
-            return status
-    return status
-
-
-def record_command_history(
-    history_command: str,
-    path: Path = DEFAULT_HISTORY,
-    session_history: list[str] | None = None,
-    timestamp_format: str = DEFAULT_HISTORY_TIMESTAMP_FORMAT,
-) -> str | None:
-    """Append a history-safe command to in-memory session history."""
-    del path
-    if not history_command.strip():
-        return None
-    # Store the timestamp as an inline comment so explicitly saved history
-    # remains readable as executable scripts after stripping comments.
-    timestamp = datetime.now().astimezone().strftime(timestamp_format).strip()
-    entry = f"{history_command}  # {timestamp}"
-    if session_history is not None:
-        session_history.append(entry)
-    return entry
-
-
-def redact_history_command(command: str) -> str:
-    """Return a history-safe command with obvious secret assignments removed."""
-    if "=" not in command:
-        return command
-    result = redact_command_text(command, key=load_or_create_fingerprint_key(), secret_names=HISTORY_SECRET_NAMES)
-    return result.command
+    """Compatibility wrapper for direct commandlet CLI token remainders."""
+    return noninteractive.run_commandlet_remainder(runner, tokens)
