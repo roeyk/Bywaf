@@ -11,17 +11,17 @@ Used by:
 
 from __future__ import annotations
 
-import argparse
 import sys
-from collections.abc import Callable
 from pathlib import Path
 
 from . import __version__
+from .app_dispatch import CLI_SUBCOMMAND_HANDLERS
+from .app_parser import build_parser, database_argument_is_explicit, extract_startup_project, route_direct_commandlet_argv
+from .app_startup import handle_setup_startup, startup_database_path, startup_project
 from .cli_trust import load_filesystem_registry, merge_filesystem_registry, plugin_trust_policy_from_args
 from .config import Settings
 from .db import EventStore, database_appears_encrypted
-from .operator_state import load_ad_hoc_active_database
-from .projects import ProjectPaths, create_project, require_project
+from .projects import ProjectPaths
 from .registry import PluginRegistry, PluginTrustError, PluginTrustPolicy
 from .repl import (
     ShellState,
@@ -44,7 +44,6 @@ from .repl import (
     remove_line_continuation,
     render_prompt,
     repl,
-    run_commandlet_remainder,
     run_remainder,
     set_prompt_pattern,
     shutdown_runner,
@@ -62,8 +61,7 @@ from .repl.resources import (
     save_history,
 )
 from .repl.scripts import run_script, script_commands, strip_inline_comment
-from .runner import Runner, add_runner_arguments
-from .setup import first_run_notice_needed, print_first_run_notice, run_setup
+from .runner import Runner
 
 # Compatibility export list for code that imports helpers from `bywaf.app`.
 # The implementation has been split across REPL/resource/runner modules, but
@@ -107,69 +105,6 @@ __all__ = [
     "split_command_sequence",
     "strip_inline_comment",
 ]
-
-
-def build_parser() -> argparse.ArgumentParser:
-    """Build the non-interactive command-line interface."""
-
-    parser = argparse.ArgumentParser(prog="bywaf")
-    parser.add_argument("--database", default=str(DEFAULT_DATABASE), help="SQLite database path")
-    parser.add_argument("--new", action="store_true", help="create a named project before starting")
-    parser.add_argument("--setup", action="store_true", help="create user configuration and a default project")
-    parser.add_argument("--setup-plugin-signing-keys", action="store_true", help=argparse.SUPPRESS)
-    parser.add_argument("--quiet", action="store_true", help="suppress friendly startup notices")
-    parser.add_argument("--encrypt", action="store_true", help="open or create the database with SQLCipher encryption")
-    parser.add_argument("--encrypted", action="store_true", help=argparse.SUPPRESS)
-    parser.add_argument("--plugin-root", help="directory containing filesystem plugins")
-    parser.add_argument("--plugin-config", help="JSON or simple YAML plugin config")
-    parser.add_argument("--plugin-catalog", help="signed JSON catalog for filesystem plugin trust")
-    parser.add_argument("--plugin-catalog-key", help="trusted public key for --plugin-catalog")
-    parser.add_argument("--plugin-manifest-key", help="trusted public key for filesystem plugin manifest signatures")
-    parser.add_argument(
-        "--force-plugins",
-        action="store_true",
-        help=argparse.SUPPRESS,
-    )
-    parser.add_argument(
-        "--allow-untrusted-plugins",
-        action="store_true",
-        help="load plugins despite missing signatures, missing trusted keys, or mismatched trusted keys",
-    )
-    parser.add_argument(
-        "--allow-unsigned-plugins",
-        action="store_true",
-        help="load filesystem plugins even when plugin signatures are missing",
-    )
-    parser.add_argument(
-        "--allow-unsigned-plugin-manifests",
-        action="store_true",
-        help="allow development plugin manifests without manifest signatures",
-    )
-    parser.add_argument(
-        "--allow-missing-plugin-keys",
-        action="store_true",
-        help="allow plugin signature verification to continue when trusted public keys are missing",
-    )
-    parser.add_argument(
-        "--allow-mismatched-plugin-keys",
-        action="store_true",
-        help="allow plugin signature verification to continue when signer keys do not match trusted keys",
-    )
-    parser.add_argument("--version", action="store_true", help="print version and exit")
-    subparsers = parser.add_subparsers(dest="subcommand")
-    add_runner_arguments(subparsers.add_parser("cmd", help=argparse.SUPPRESS))
-    add_runner_arguments(subparsers.add_parser("exec", help="run an OS shell command"))
-    plugins_parser = subparsers.add_parser("plugins", help="list loaded plugin providers")
-    plugins_parser.add_argument("action", nargs="?", choices=("graph",), help="optional plugin catalog action")
-    plugins_parser.add_argument("--provider", help="show graph context for one provider path")
-    plugins_parser.add_argument("--topic", help="show graph context for one topic")
-    plugins_parser.add_argument("--json", action="store_true", help="emit machine-readable plugin graph data")
-    subparsers.add_parser("cmds", help="show commandlets grouped by plugin provider").add_argument("--page", action="store_true")
-    subparsers.add_parser("triggers", help="show provider-owned trigger rules")
-    subparsers.add_parser("history", help="show command history")
-    subparsers.add_parser("repl", help="start interactive shell")
-    return parser
-
 
 def make_runner(
     database: str | Path,
@@ -256,158 +191,12 @@ def main(argv: list[str] | None = None) -> int:
         repl(runner)
         return 0
     try:
-        # This lookup uses CLI_SUBCOMMAND_HANDLERS, defined below, in place of
-        # an if/elif ladder over argparse subcommands.
+        # This lookup uses the CLI_SUBCOMMAND_HANDLERS dispatch table from
+        # app_dispatch.py in place of an if/elif ladder over argparse
+        # subcommands.
         handler = CLI_SUBCOMMAND_HANDLERS.get(args.subcommand)
         if handler is None:
             parser.error(f"unknown subcommand: {args.subcommand}")
         return handler(runner, args)
     finally:
         shutdown_runner(runner)
-
-
-def database_argument_is_explicit(argv: list[str]) -> bool:
-    """Return True when argv contains an explicit --database option."""
-    return any(arg == "--database" or arg.startswith("--database=") for arg in argv)
-
-
-def startup_database_path(project: ProjectPaths | None, database: str | Path, *, explicit_database: bool) -> Path:
-    """Return the DB path startup should open for this invocation."""
-    if project is not None:
-        return project.database
-    if explicit_database:
-        return Path(database)
-    return load_ad_hoc_active_database() or Path(database)
-
-
-def handle_setup_startup(args: argparse.Namespace) -> int | None:
-    """Handle explicit setup or the optional interactive first-run notice."""
-    if args.setup:
-        try:
-            run_setup(output=not args.quiet, include_plugin_signing_keys=args.setup_plugin_signing_keys)
-        except (KeyboardInterrupt, EOFError):
-            print("setup cancelled")
-            return 1
-        except (RuntimeError, ValueError) as exc:
-            print(f"error: {exc}")
-            return 1
-        return 0
-    if args.subcommand in ("repl", None) and first_run_notice_needed(quiet=args.quiet):
-        print_first_run_notice()
-    return None
-
-
-CliSubcommandHandler = Callable[[Runner, argparse.Namespace], int]
-
-
-def exec_cli_subcommand(runner: Runner, args: argparse.Namespace) -> int:
-    """Run a non-interactive OS shell command."""
-    return run_remainder(runner, args.command)
-
-
-def cmd_cli_subcommand(runner: Runner, args: argparse.Namespace) -> int:
-    """Run a direct non-interactive commandlet invocation."""
-    return run_commandlet_remainder(runner, args.command)
-
-
-def plugins_cli_subcommand(runner: Runner, args: argparse.Namespace) -> int:
-    """Print loaded plugin providers."""
-    if args.action == "graph":
-        print_plugin_graph(runner, json_output=args.json, provider=args.provider, topic=args.topic)
-        return 0
-    print("\n".join(runner.registry.provider_names()))
-    return 0
-
-
-def cmds_cli_subcommand(runner: Runner, args: argparse.Namespace) -> int:
-    """Print commandlets grouped by provider."""
-    print_commandlets(runner, page=args.page)
-    return 0
-
-
-def triggers_cli_subcommand(runner: Runner, args: argparse.Namespace) -> int:
-    """Print provider-owned trigger rules."""
-    del args
-    print_triggers(runner)
-    return 0
-
-
-def history_cli_subcommand(runner: Runner, args: argparse.Namespace) -> int:
-    """Print shell history."""
-    del runner, args
-    print_history()
-    return 0
-
-
-# CLI subcommands are framework entrypoints, not plugin commandlets. main() uses
-# this dispatch table after argparse so each startup mode stays separated from REPL
-# command dispatch.
-CLI_SUBCOMMAND_HANDLERS: dict[str | None, CliSubcommandHandler] = {
-    "cmd": cmd_cli_subcommand,
-    "cmds": cmds_cli_subcommand,
-    "history": history_cli_subcommand,
-    "plugins": plugins_cli_subcommand,
-    "exec": exec_cli_subcommand,
-    "triggers": triggers_cli_subcommand,
-}
-
-
-CLI_SUBCOMMANDS = frozenset(("cmd", "exec", "plugins", "cmds", "triggers", "history", "repl"))
-GLOBAL_OPTIONS_WITH_VALUES = frozenset(
-    (
-        "--database",
-        "--plugin-root",
-        "--plugin-config",
-        "--plugin-catalog",
-        "--plugin-catalog-key",
-        "--plugin-manifest-key",
-    )
-)
-
-
-def route_direct_commandlet_argv(argv: list[str]) -> list[str]:
-    """Route `bywaf <commandlet> ...` through the hidden commandlet CLI path."""
-    routed: list[str] = []
-    skip_next = False
-    for index, token in enumerate(argv):
-        if skip_next:
-            routed.append(token)
-            skip_next = False
-            continue
-        if token in GLOBAL_OPTIONS_WITH_VALUES:
-            routed.append(token)
-            skip_next = True
-            continue
-        if any(token.startswith(f"{option}=") for option in GLOBAL_OPTIONS_WITH_VALUES):
-            routed.append(token)
-            continue
-        if token.startswith("-"):
-            routed.append(token)
-            continue
-        if token in CLI_SUBCOMMANDS:
-            return argv
-        return [*routed, "cmd", *argv[index:]]
-    return argv
-
-
-def extract_startup_project(argv: list[str]) -> tuple[str | None, list[str]]:
-    """Remove a leading `project=name` selector from OS CLI argv."""
-    project_name: str | None = None
-    cleaned: list[str] = []
-    subcommands = {"exec", "plugins", "cmds", "history", "repl"}
-    before_subcommand = True
-    for token in argv:
-        if before_subcommand and token.startswith("project="):
-            project_name = token.split("=", 1)[1]
-            continue
-        cleaned.append(token)
-        if token in subcommands:
-            before_subcommand = False
-    return project_name, cleaned
-
-
-def startup_project(name: str | None, *, create: bool) -> ProjectPaths | None:
-    """Resolve or create a startup project selected from the OS command line."""
-    if name is None:
-        return None
-    return create_project(name) if create else require_project(name)
