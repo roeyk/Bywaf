@@ -67,6 +67,7 @@ class TestSkeletonsRuntimePolicyTests(unittest.TestCase):
     def test_runtime_code_uses_context_for_artifact_store_access(self):
         root = Path(__file__).resolve().parents[2]
         allowed = {
+            root / "bywaf" / "artifact_store.py",
             root / "bywaf" / "artifacts.py",
             root / "bywaf" / "plugin" / "context.py",
             root / "bywaf" / "plugin" / "services.py",
