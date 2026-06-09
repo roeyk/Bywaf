@@ -1,7 +1,7 @@
 """Runner facade and foreground pipeline execution.
 
 Provides Runner, command-line execution routing, foreground pipeline execution,
-framework selector handling, and stage execution orchestration. Stage context
+framework selector handling, and pipeline-step execution orchestration. Step context
 preparation lives in runner.context; background job lifecycle publication and
 child-process entry points live in runner.jobs.
 
@@ -19,15 +19,16 @@ from pathlib import Path
 
 from ..command.parser import CommandInvocation, Pipeline, parse_pipeline
 from .context import StageRun
-from .context import ensure_run_var_snapshot
 from .context import is_management_pipeline
 from .context import new_run_id
 from .context import prepare_stage_runs
 from .jobs import JobLifecycle, should_run_stage_processes
+from .pipeline_steps import execute_pipeline_steps
+from .pipeline_steps import run_pipeline_step_processes
+from .pipeline_steps import snapshot_step_variables
 from .runtime_events import attach_cursor_event_id
 from .runtime_events import pipeline_exists
 from .runtime_events import publish_runtime_name
-from .stages import execute_stage, run_stage_process
 from ..db import EventStore, Subscription
 from ..event import Event
 from ..registry import PluginRegistry
@@ -141,41 +142,8 @@ class Runner:
         pipeline_id = pipeline_id or new_run_id("pipeline")
         if pipeline_name:
             publish_runtime_name(self.db, "pipeline", pipeline_id, pipeline_name, pipeline_id=pipeline_id)
-        stages = stages or prepare_stage_runs(commands)
-        input_events: list[Event] = []
-        produced: list[Event] = []
-        for stage in stages:
-            # Foreground pipelines are stream-like: each stage receives only the
-            # visible output of the previous stage, while all emitted events are
-            # still persisted for audit and later report queries.
-            result = execute_stage(
-                self.db,
-                self.registry,
-                stage,
-                pipeline_id=pipeline_id,
-                job_id=self.job_id,
-                input_events=input_events,
-                replace_db=self.replace_db,
-                runner=self,
-            )
-            input_events = result.events
-            produced.extend(result.events)
-            if result.stopped:
-                self.db.publish(
-                    "pipeline.stopped",
-                    {
-                        "pipeline_id": pipeline_id,
-                        "reason": result.stop_reason,
-                        "command_run_id": stage.command_run_id,
-                        "job_id": self.job_id,
-                    },
-                    "framework",
-                    pipeline_id=pipeline_id,
-                    command_run_id=stage.command_run_id,
-                    parent_command_run_id=stage.parent_command_run_id,
-                )
-                break
-        return produced
+        step_runs = stages or prepare_stage_runs(commands)
+        return execute_pipeline_steps(self, step_runs, pipeline_id=pipeline_id)
 
     def replace_db(self, db: EventStore) -> None:
         """Replace the active database after an in-process management command."""
@@ -188,7 +156,7 @@ class Runner:
         pipeline_id: str | None = None,
         stages: tuple[StageRun, ...] | None = None,
     ) -> None:
-        """Run each stage in its own process for stage-level background jobs.
+        """Run each pipeline step in its own process for step-level background jobs.
 
         This is used for background pipelines where each pipeline step should
         have an independent process boundary.  Runtime variables are snapshotted
@@ -196,59 +164,14 @@ class Runner:
         already in flight.
         """
         pipeline_id = pipeline_id or new_run_id("pipeline")
-        stages = stages or prepare_stage_runs(commands)
-        processes: list[mp.Process] = []
-        for stage in stages:
-            # Child processes do not share the parent registry state, so record
-            # the exact variables for this stage before the child reconstructs
-            # its execution context from the database.
-            ensure_run_var_snapshot(
-                self.db,
-                self.registry.varstore,
-                job_id=self.job_id,
-                pipeline_id=pipeline_id,
-                command_run_id=stage.command_run_id,
-                commandlet=self.registry.variable_scope(stage.invocation.name),
-            )
-            process = mp.Process(
-                target=run_stage_process,
-                args=(
-                    str(self.db.path),
-                    self.db.passphrase,
-                    self.job_id,
-                    stage.invocation.name,
-                    stage.invocation.args,
-                    pipeline_id,
-                    stage.command_run_id,
-                    stage.parent_command_run_id,
-                    stage.invocation.background,
-                    stage.invocation.from_step,
-                    stage.invocation.from_pipeline,
-                    stage.invocation.from_job,
-                    stage.invocation.from_topic,
-                    stage.invocation.replay_after_id,
-                    stage.invocation.note,
-                    stage.invocation.display_name,
-                    stage.invocation.variable_expansions,
-                    stage.invocation.expanded_text,
-                    stage.invocation.plan_only,
-                    stage.invocation.approved,
-                ),
-                daemon=False,
-            )
-            process.start()
-            processes.append(process)
-        # Wait for every stage process here because the containing job process
-        # owns the overall lifecycle and should not mark the job complete until
-        # all of its stage children have exited.
-        for process in processes:
-            process.join()
+        step_runs = stages or prepare_stage_runs(commands)
+        run_pipeline_step_processes(self, step_runs, pipeline_id=pipeline_id)
 
     def start_background(self, command_line: str, *, pipeline: Pipeline | None = None) -> Event:
         """Start an entire command line in a child process and record a job.
 
         The REPL calls this for commands ending in `&`.  The parent records the
-        request event and process id; the child process owns stage execution and
+        request event and process id; the child process owns step execution and
         final job lifecycle updates.
         """
         foreground = command_line.strip()
@@ -262,23 +185,13 @@ class Runner:
         pipeline_id = new_run_id("pipeline")
         if pipeline.display_name:
             publish_runtime_name(self.db, "pipeline", pipeline_id, pipeline.display_name, pipeline_id=pipeline_id)
-        stages = prepare_stage_runs(pipeline.commands)
+        step_runs = prepare_stage_runs(pipeline.commands)
         lifecycle = JobLifecycle.create(self.db, foreground, None)
-        for stage in stages:
-            # Snapshot stage variables before the background process starts for
-            # the same reason as `run_pipeline_processes`: background work must
-            # be reproducible even if the operator changes variables later.
-            ensure_run_var_snapshot(
-                self.db,
-                self.registry.varstore,
-                job_id=lifecycle.job_id,
-                pipeline_id=pipeline_id,
-                command_run_id=stage.command_run_id,
-                commandlet=self.registry.variable_scope(stage.invocation.name),
-            )
+        for step_run in step_runs:
+            snapshot_step_variables(self, step_run, job_id=lifecycle.job_id, pipeline_id=pipeline_id)
         process = mp.Process(
             target=run_background_job,
-            args=(str(self.db.path), self.db.passphrase, lifecycle.job_id, foreground, pipeline_id, stages),
+            args=(str(self.db.path), self.db.passphrase, lifecycle.job_id, foreground, pipeline_id, step_runs),
             daemon=False,
         )
         process.start()
@@ -335,42 +248,35 @@ class Runner:
             plan_only=original.plan_only,
             approved=original.approved,
         )
-        stage = StageRun(invocation, new_run_id(invocation.name), upstream_run_id)
+        step_run = StageRun(invocation, new_run_id(invocation.name), upstream_run_id)
         lifecycle = JobLifecycle.create(
             self.db,
             f"pipeline attach {pipeline_id} {command_line} step={upstream_run_id or ''} since={since_cursor}".strip(),
             None,
         )
-        ensure_run_var_snapshot(
-            self.db,
-            self.registry.varstore,
-            job_id=lifecycle.job_id,
-            pipeline_id=pipeline_id,
-            command_run_id=stage.command_run_id,
-            commandlet=self.registry.variable_scope(invocation.name),
-        )
+        snapshot_step_variables(self, step_run, job_id=lifecycle.job_id, pipeline_id=pipeline_id)
         # Publish an explicit attachment event before the child starts.  If the
         # child fails early, audit/history still shows that the operator
-        # requested a continuation stage and which cursor it would have used.
+        # requested a continuation step and which cursor it would have used.
         self.db.publish(
             "pipeline.attached",
             {
                 "job_id": lifecycle.job_id,
                 "pipeline_id": pipeline_id,
                 "command": command_line,
-                "command_run_id": stage.command_run_id,
+                "command_run_id": step_run.command_run_id,
                 "parent_command_run_id": upstream_run_id,
                 "since": since_cursor,
                 "after_id": after_id,
             },
             "runner",
             pipeline_id=pipeline_id,
-            command_run_id=stage.command_run_id,
+            command_run_id=step_run.command_run_id,
             parent_command_run_id=upstream_run_id,
         )
         process = mp.Process(
             target=run_attached_pipeline_job,
-            args=(str(self.db.path), self.db.passphrase, lifecycle.job_id, command_line, pipeline_id, stage),
+            args=(str(self.db.path), self.db.passphrase, lifecycle.job_id, command_line, pipeline_id, step_run),
             daemon=False,
         )
         process.start()
@@ -412,7 +318,7 @@ def run_background_job(
     try:
         lifecycle.start(pid)
         # The child process rebuilds parser/registry state from the command
-        # line. Stage snapshots carry variable values captured by the parent.
+        # line. Step snapshots carry variable values captured by the parent.
         runner = Runner(db, PluginRegistry.discover(), job_id=job_id)
         pipeline = parse_pipeline(
             command_line,
@@ -435,7 +341,7 @@ def run_attached_pipeline_job(
     job_id: int,
     command_line: str,
     pipeline_id: str,
-    stage: StageRun,
+    step_run: StageRun,
 ) -> None:
     """Child-process entry point for a commandlet attached to a live pipeline."""
     try:
@@ -448,10 +354,10 @@ def run_attached_pipeline_job(
         return
     try:
         lifecycle.start(pid)
-        # Attached stages inherit the parent pipeline id but execute in their
+        # Attached steps inherit the parent pipeline id but execute in their
         # own job process so long-running fan-out work can be tracked.
         runner = Runner(db, PluginRegistry.discover(), job_id=job_id)
-        runner.run_pipeline((stage.invocation,), pipeline_id=pipeline_id, stages=(stage,))
+        runner.run_pipeline((step_run.invocation,), pipeline_id=pipeline_id, stages=(step_run,))
     except Exception as exc:
         lifecycle.fail(str(exc))
     else:
