@@ -12,21 +12,25 @@ Used by:
 
 from __future__ import annotations
 
-import shlex
 from collections.abc import Callable
-from dataclasses import dataclass
 
-from ..command.names import VARIABLE_COMMANDS
 from .askpass import (
-    ASKPASS_MODE,
-    AUTO_SECRET_INPUT_MODE,
-    BLOCK_SECRET_INPUT_MODE,
-    GETPASS_SECRET_INPUT_MODE,
-    PLAIN_SECRET_INPUT_MODE,
-    PLAINTEXT_SECRET_INPUT_MODE,
-    desktop_askpass_available,
+    ASKPASS_MODE as ASKPASS_MODE,
+    AUTO_SECRET_INPUT_MODE as AUTO_SECRET_INPUT_MODE,
+    BLOCK_SECRET_INPUT_MODE as BLOCK_SECRET_INPUT_MODE,
+    GETPASS_SECRET_INPUT_MODE as GETPASS_SECRET_INPUT_MODE,
+    PLAIN_SECRET_INPUT_MODE as PLAIN_SECRET_INPUT_MODE,
+    PLAINTEXT_SECRET_INPUT_MODE as PLAINTEXT_SECRET_INPUT_MODE,
+    desktop_askpass_available as desktop_askpass_available,
 )
-from .store import REDACTED_VALUE
+from .input_modes import DEFAULT_SECRET_INPUT_MODE as DEFAULT_SECRET_INPUT_MODE
+from .input_modes import SECRET_INPUT_MODES as SECRET_INPUT_MODES
+from .input_modes import SECRET_INPUT_MODE_VAR as SECRET_INPUT_MODE_VAR
+from .input_modes import normalize_secret_input_mode as normalize_secret_input_mode
+from .input_state import SECRET_BLOCK_VALUE as SECRET_BLOCK_VALUE
+from .input_state import PromptSecretInputState as PromptSecretInputState
+from .input_state import PromptSecretSpan as PromptSecretSpan
+from .input_state import open_secret_assignment_name as open_secret_assignment_name
 
 try:
     from prompt_toolkit.document import Document
@@ -46,158 +50,18 @@ except ImportError:  # pragma: no cover - exercised only on minimal installs.
     create_output = None
 
 
-SECRET_INPUT_MODE_VAR = "secret.input-mode"
-DEFAULT_SECRET_INPUT_MODE = AUTO_SECRET_INPUT_MODE
-SECRET_INPUT_MODES = {
-    ASKPASS_MODE,
-    AUTO_SECRET_INPUT_MODE,
-    BLOCK_SECRET_INPUT_MODE,
-    GETPASS_SECRET_INPUT_MODE,
-    PLAIN_SECRET_INPUT_MODE,
-    PLAINTEXT_SECRET_INPUT_MODE,
-}
-SECRET_BLOCK_VALUE = REDACTED_VALUE
-
-
-def normalize_secret_input_mode(value: object | None) -> str:
-    """Return a supported secret input mode, defaulting to auto."""
-    mode = str(value or DEFAULT_SECRET_INPUT_MODE).strip().casefold()
-    return mode if mode in SECRET_INPUT_MODES else DEFAULT_SECRET_INPUT_MODE
-
-
 def effective_secret_input_mode(value: object | None) -> str:
-    """Resolve auto mode to askpass on desktops and block elsewhere."""
+    """Resolve auto mode using this facade's patchable askpass probe.
+
+    Called by: completion and REPL setup code. Tests patch
+    `bywaf.secret.input.desktop_askpass_available`, so this public facade keeps
+    the decision point here even though shared constants live in
+    `secret.input_modes`.
+    """
     mode = normalize_secret_input_mode(value)
     if mode == AUTO_SECRET_INPUT_MODE:
         return ASKPASS_MODE if desktop_askpass_available() else BLOCK_SECRET_INPUT_MODE
     return mode
-
-
-@dataclass(slots=True)
-class PromptSecretSpan:
-    """One visible redacted span with a hidden in-memory value."""
-
-    name: str
-    start: int
-    end: int
-    value: str = ""
-    focused: bool = True
-
-    def contains(self, position: int) -> bool:
-        """Return whether a cursor position is inside this protected span."""
-        return self.start <= position <= self.end
-
-
-class PromptSecretInputState:
-    """Mutable state for one prompt-toolkit command line."""
-
-    def __init__(self) -> None:
-        self.span: PromptSecretSpan | None = None
-
-    def clear(self) -> None:
-        """Forget any hidden secret from the previous prompt."""
-        self.span = None
-
-    def focused(self) -> PromptSecretSpan | None:
-        """Return the focused secret span, if one is active."""
-        return self.span if self.span and self.span.focused else None
-
-    def focus(self) -> None:
-        """Focus the protected span."""
-        if self.span is not None:
-            self.span.focused = True
-
-    def clear_focus(self) -> None:
-        """Leave the protected span without deleting its hidden value."""
-        if self.span is not None:
-            self.span.focused = False
-
-    def focus_span(self, app) -> None:
-        """Focus the protected span and hide the normal terminal cursor."""
-        self.focus()
-        app.output.hide_cursor()
-        app.invalidate()
-
-    def leave_after(self, buffer, app) -> None:
-        """Move the cursor after the protected span."""
-        if self.span is not None:
-            buffer.cursor_position = self.span.end
-        self.clear_focus()
-        app.output.show_cursor()
-        app.invalidate()
-
-    def leave_before(self, buffer, app) -> None:
-        """Move the cursor before the protected span."""
-        if self.span is not None:
-            buffer.cursor_position = max(0, self.span.start - 1)
-        self.clear_focus()
-        app.output.show_cursor()
-        app.invalidate()
-
-    def open_span_if_needed(self, buffer) -> None:
-        """Replace an explicit empty secret assignment with `[REDACTED]`."""
-        name = open_secret_assignment_name(buffer.document.text_before_cursor)
-        if name is None:
-            return
-        # The visible command line receives only a fixed redaction token. The
-        # actual typed secret lives in PromptSecretSpan.value until dispatch.
-        start = buffer.cursor_position
-        buffer.insert_text(SECRET_BLOCK_VALUE, move_cursor=True)
-        self.span = PromptSecretSpan(name=name, start=start, end=start + len(SECRET_BLOCK_VALUE))
-        buffer.cursor_position = self.span.start
-
-    def cursor_relation(self, document: Document) -> str:
-        """Return the cursor location relative to the active span."""
-        if self.span is None:
-            return "none"
-        pos = document.cursor_position
-        if pos == self.span.start - 1:
-            return "left-adjacent"
-        if pos < self.span.start:
-            return "before"
-        if pos == self.span.start:
-            return "start"
-        if self.span.start < pos < self.span.end:
-            return "inside"
-        if pos == self.span.end:
-            return "end"
-        if pos == self.span.end + 1:
-            return "right-adjacent"
-        return "after"
-
-    def drop_span(self, buffer) -> None:
-        """Remove the visible redacted span and forget the hidden value."""
-        if self.span is None:
-            return
-        text = buffer.text
-        buffer.text = text[: self.span.start] + text[self.span.end :]
-        buffer.cursor_position = min(buffer.cursor_position, len(buffer.text))
-        self.clear()
-
-    def forget_if_editing_prefix(self, buffer) -> None:
-        """Drop the secret if visible edits invalidate the secret assignment."""
-        if self.span is not None and buffer.cursor_position <= self.span.start:
-            self.drop_span(buffer)
-
-    def delete_before_cursor(self, buffer) -> None:
-        """Backspace safely around a protected secret span."""
-        self.forget_if_editing_prefix(buffer)
-        buffer.delete_before_cursor(count=1)
-
-    def delete_at_cursor(self, buffer) -> None:
-        """Delete safely around a protected secret span."""
-        if self.span is not None and buffer.cursor_position < self.span.start:
-            self.drop_span(buffer)
-        buffer.delete(count=1)
-
-    def values_for_command(self, text: str) -> dict[str, str]:
-        """Return hidden secret values that correspond to a submitted line."""
-        if self.span is None:
-            return {}
-        visible = text[self.span.start : self.span.end]
-        if visible != SECRET_BLOCK_VALUE:
-            return {}
-        return {self.span.name: self.span.value}
 
 
 class PromptSecretLexer(Lexer):
@@ -409,23 +273,3 @@ def prompt_secret_output(state: PromptSecretInputState):
     if create_output is None:
         return None
     return SecretCursorOutput(create_output(), state)
-
-
-def open_secret_assignment_name(text_before_cursor: str) -> str | None:
-    """Return the variable name for an explicit empty secret assignment."""
-    try:
-        tokens = shlex.split(text_before_cursor)
-    except ValueError:
-        return None
-    if not tokens or tokens[0] not in VARIABLE_COMMANDS:
-        return None
-    if len(tokens) >= 3 and tokens[-2] == "--secret":
-        assignment = tokens[-1]
-    elif len(tokens) >= 3 and tokens[-1] == "--secret":
-        assignment = tokens[-2]
-    else:
-        return None
-    if not assignment.endswith("="):
-        return None
-    name = assignment[:-1]
-    return name or None
