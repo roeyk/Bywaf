@@ -11,18 +11,20 @@ Used by:
 from __future__ import annotations
 
 import shlex
-import shutil
 from collections.abc import Mapping, Sequence
 from .command.parser import parse_pipeline
 from .db.support import SERIAL_DISPLAY_LENGTH, serial_body
 from .event.filters import parse_payload_filter_tokens
+from .runtime_table_widths import (
+    shrink_table_widths as shrink_table_widths,
+    terminal_table_width as terminal_table_width,
+    truncate_cell as truncate_cell,
+)
 from .runtime_tables import (
     StyleGetter,
     render_table as render_table,
-    shrink_table_widths as shrink_table_widths,
     style_table_cell as style_table_cell,
     style_table_header as style_table_header,
-    truncate_cell as truncate_cell,
 )
 from .time_format import format_compact_runtime_timestamp, format_duration_between
 
@@ -186,8 +188,6 @@ def runtime_view_completion_candidates(prefix: str, allowed_sort_keys: Sequence[
     return [candidate for candidate in candidates if candidate.startswith(prefix)]
 
 
-
-
 def display_runtime_serial(value: object | None) -> str:
     """Return a compact display value for durable runtime serials."""
     if value is None:
@@ -239,8 +239,3 @@ def command_context_style_getter(context) -> StyleGetter:
         return default
 
     return get
-
-
-def terminal_table_width(fallback: int = 100) -> int:
-    """Return the current terminal width for view-command tables."""
-    return shutil.get_terminal_size(fallback=(fallback, 24)).columns

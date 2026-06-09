@@ -183,7 +183,7 @@ class AppDispatchTests(unittest.TestCase):
             )
             output = io.StringIO()
             with (
-                patch("bywaf.runtime_display.shutil.get_terminal_size", return_value=os.terminal_size((72, 24))),
+                patch("bywaf.runtime_table_widths.shutil.get_terminal_size", return_value=os.terminal_size((72, 24))),
                 contextlib.redirect_stdout(output),
             ):
                 dispatch_repl_line(runner, "job --all")
