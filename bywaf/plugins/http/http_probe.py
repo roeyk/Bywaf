@@ -20,14 +20,21 @@ from __future__ import annotations
 import re
 import time
 import urllib.error
-import urllib.parse
 import urllib.request
 from collections.abc import Iterable
 from dataclasses import dataclass
 
 from bywaf.event import Event
-from bywaf.event.schema_objects import HttpEndpoint, OpenPort
+from bywaf.event.schema_objects import HttpEndpoint
 from bywaf.plugins.http.cookies import load_cookie_jar
+from bywaf.plugins.http.http_targets import (
+    HttpTarget,
+    build_url as build_url,
+    choose_scheme as choose_scheme,
+    http_target_from_port_event,
+    http_target_from_text,
+    http_targets,
+)
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
 from bywaf.plugins.target_policy import filter_targets_by_host
 
@@ -160,57 +167,22 @@ def probe_targets(
     path: str,
 ) -> list[ProbeTarget]:
     """Resolve probe targets from args or upstream `port.open` events."""
-    if targets:
-        return [target_from_text(target, scheme, path) for target in targets]
-    return [
-        target_from_port_event(event, scheme, path)
-        for event in input_events
-        if "host" in event.payload and "port" in event.payload
-    ]
+    return [_probe_target(target) for target in http_targets(targets, input_events, scheme, path)]
 
 
 def target_from_port_event(event: Event, scheme: str, path: str) -> ProbeTarget:
     """Convert one `port.open` event into an HTTP probe target."""
-    open_port = OpenPort.from_event(event)
-    host = open_port.host
-    port = open_port.port
-    selected_scheme = choose_scheme(port, scheme)
-    return ProbeTarget(build_url(selected_scheme, host, port, path), host, port, selected_scheme)
+    return _probe_target(http_target_from_port_event(event, scheme, path))
 
 
 def target_from_text(target: str, scheme: str, path: str) -> ProbeTarget:
     """Parse URL, host, or host:port text into a ProbeTarget."""
-    if target.startswith(("http://", "https://")):
-        parsed = urllib.parse.urlparse(target)
-        selected_scheme = parsed.scheme
-        port = parsed.port or (443 if selected_scheme == "https" else 80)
-        return ProbeTarget(target, parsed.hostname or "", port, selected_scheme)
-    host, port = split_host_port(target)
-    selected_scheme = choose_scheme(port, scheme)
-    return ProbeTarget(build_url(selected_scheme, host, port, path), host, port, selected_scheme)
+    return _probe_target(http_target_from_text(target, scheme, path))
 
 
-def split_host_port(target: str) -> tuple[str, int]:
-    """Parse host[:port], defaulting to port 80."""
-    if ":" in target:
-        host, port = target.rsplit(":", 1)
-        return host, int(port)
-    return target, 80
-
-
-def choose_scheme(port: int, scheme: str) -> str:
-    """Choose HTTP/HTTPS from a user override or common port convention."""
-    if scheme != "auto":
-        return scheme
-    return "https" if port == 443 else "http"
-
-
-def build_url(scheme: str, host: str, port: int, path: str) -> str:
-    """Build a normalized URL, omitting default ports."""
-    normalized_path = path if path.startswith("/") else f"/{path}"
-    default_port = 443 if scheme == "https" else 80
-    netloc = host if port == default_port else f"{host}:{port}"
-    return f"{scheme}://{netloc}{normalized_path}"
+def _probe_target(target: HttpTarget) -> ProbeTarget:
+    """Adapt the shared HTTP target model to http_probe's legacy target shape."""
+    return ProbeTarget(target.url, target.host, target.port, target.scheme)
 
 
 def probe_url(opener, url: str, method: str, timeout: float, user_agent: str) -> dict:
