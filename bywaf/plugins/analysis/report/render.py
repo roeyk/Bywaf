@@ -16,6 +16,7 @@ from bywaf.plugin import CommandContext
 from .details import render_group_details
 from .model import events_for_groups, filter_groups_by_cve, group_finding_events
 from .network import host_overviews, render_network_overview
+from .output import emit_report_output, publish_report_rendered
 from .review import (
     filter_groups_by_status,
     latest_review_decisions,
@@ -29,7 +30,6 @@ from .render_summary import (
     render_status_heading,
     report_grouping_line,
     report_heading,
-    report_rendered_payload,
     resume_focus_line,
     resume_summary_line,
     review_summary_line,
@@ -76,15 +76,13 @@ def render_finding_report(
     if not displayed_groups:
         output_lines.append(empty_status_message(parsed.status))
         emit_report_output(context, output_lines, parsed)
-        context.events.publish(
-            "report.rendered",
-            report_rendered_payload(
-                parsed,
-                filtered_events,
-                groups=displayed_groups,
-                rows=0,
-                counts=review_counts(groups, decisions),
-            ),
+        publish_report_rendered(
+            context,
+            parsed,
+            filtered_events,
+            groups=displayed_groups,
+            rows=0,
+            counts=review_counts(groups, decisions),
         )
         return
     output_lines.append(report_text(context, "section", render_status_heading(parsed)))
@@ -101,15 +99,13 @@ def render_finding_report(
             report_text(context, "hint", "Use `report <#>` for detail.")
         )
     emit_report_output(context, output_lines, parsed)
-    context.events.publish(
-        "report.rendered",
-        report_rendered_payload(
-            parsed,
-            events_for_groups(displayed_groups),
-            groups=displayed_groups,
-            rows=len(table.rows),
-            counts=review_counts(groups, decisions),
-        ),
+    publish_report_rendered(
+        context,
+        parsed,
+        events_for_groups(displayed_groups),
+        groups=displayed_groups,
+        rows=len(table.rows),
+        counts=review_counts(groups, decisions),
     )
 
 
@@ -129,32 +125,12 @@ def render_network_report(
     else:
         output_lines.append("no network observations")
     emit_report_output(context, output_lines, parsed)
-    context.events.publish(
-        "report.rendered",
-        report_rendered_payload(
-            parsed,
-            [*context_events, *finding_events],
-            groups=[],
-            rows=len(host_overviews(context_events, finding_events)),
-            counts={},
-            action="network",
-        ),
+    publish_report_rendered(
+        context,
+        parsed,
+        [*context_events, *finding_events],
+        groups=[],
+        rows=len(host_overviews(context_events, finding_events)),
+        counts={},
+        action="network",
     )
-
-
-def emit_report_output(context: CommandContext, lines: list[str], parsed: Namespace) -> None:
-    """Page or print one complete rendered report."""
-    rendered = "\n".join(line for line in lines if line)
-    if parse_bool_selector(parsed.page):
-        context.page_text(rendered)
-    else:
-        context.output(rendered)
-
-def parse_bool_selector(value: object) -> bool:
-    """Parse a selector-style boolean such as `page=false`."""
-    normalized = str(value).strip().casefold()
-    if normalized in {"1", "true", "yes", "on"}:
-        return True
-    if normalized in {"0", "false", "no", "off"}:
-        return False
-    raise ValueError(f"invalid boolean value: {value}")
