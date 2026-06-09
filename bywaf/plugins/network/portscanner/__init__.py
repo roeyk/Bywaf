@@ -25,7 +25,7 @@ from bywaf.plugins.discovery.hostscanner import publish_name_resolution_events
 from bywaf.plugins.network.nmap_diagnostics import NMAP_FAILURES, publish_nmap_error
 from bywaf.plugins.network.nmap_backend import scan_open_ports
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option, parse_bool, split_var_values
-from bywaf.plugins._args import key_value_to_long_options
+from bywaf.plugin import kv_to_args
 from bywaf.plugins.network.portscanner.ports import Ports
 from bywaf.plugins.network.portscanner.findings import telnet_open_candidate
 
@@ -269,7 +269,7 @@ VALUE_OPTION_KEYS = {"arguments", "except", "host", "listen-interval", "listen-t
 
 def normalize_value_args(args: list[str]) -> list[str]:
     """Convert supported Bywaf `key=value` tokens into argparse options."""
-    return key_value_to_long_options(args, VALUE_OPTION_KEYS)
+    return kv_to_args(args, VALUE_OPTION_KEYS)
 
 
 def explicit_hosts_or_var(positional_hosts: list[str], option_host: str) -> list[str]:

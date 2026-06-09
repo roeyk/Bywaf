@@ -22,7 +22,7 @@ from bywaf.plugin import (
     commandlet,
     option,
 )
-from bywaf.plugins._args import key_value_to_long_options
+from bywaf.plugin import kv_to_args
 
 from .events import select_report_context_events, select_report_new_context_events, select_report_new_scope_events, select_report_scope_events
 from .render import render_finding_report, render_network_report
@@ -208,7 +208,7 @@ def normalize_report_args(args: list[str]) -> list[str]:
             break
         normalized.append(token)
         index += 1
-    return key_value_to_long_options(normalized, REPORT_OPTION_KEYS)
+    return kv_to_args(normalized, REPORT_OPTION_KEYS)
 
 
 def normalize_report_action(parsed) -> None:

@@ -14,7 +14,7 @@ from collections.abc import Iterable
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
-from bywaf.plugins._args import key_value_to_long_options
+from bywaf.plugin import kv_to_args
 from bywaf.plugins.recon.dns_lookup import optional_module
 
 DEFAULTS = {"api-key": "", "limit": "10", "mode": "host"}
@@ -39,7 +39,7 @@ class ShodanLookup(CommandletBase):
         parser.add_argument("--api-key", default=self.var_default(context, "api-key", ""))
         parser.add_argument("--limit", type=int, default=self.var_default(context, "limit", 10, cast=int))
         parser.add_argument("--mode", choices=("host", "search"), default=self.var_default(context, "mode", "host"))
-        parsed = parser.parse_args(key_value_to_long_options(args, OPTION_KEYS))
+        parsed = parser.parse_args(kv_to_args(args, OPTION_KEYS))
         shodan_mod = optional_module(context, "shodan", "shodan")
         if shodan_mod is None:
             return ()

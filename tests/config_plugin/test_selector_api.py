@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from bywaf.plugin import parse_bool, parse_kv, parse_kvs, require_one_selector
+from bywaf.plugin import kv_to_args, parse_bool, parse_kv, parse_kvs, reject_option_equals, require_one_selector
 
 
 class PluginSelectorApiTests(unittest.TestCase):
@@ -45,6 +45,16 @@ class PluginSelectorApiTests(unittest.TestCase):
         for value in (False, "0", "false", "no", "off", ""):
             with self.subTest(value=value):
                 self.assertFalse(parse_bool(value))
+
+    def test_kv_to_args_converts_declared_keys_only(self) -> None:
+        self.assertEqual(
+            kv_to_args(["target=example.test", "raw=a=b"], {"target"}),
+            ["--target", "example.test", "raw=a=b"],
+        )
+
+    def test_reject_option_equals_rejects_declared_long_options(self) -> None:
+        with self.assertRaisesRegex(ValueError, "usage"):
+            reject_option_equals(["--target=example.test"], {"target"}, usage="usage")
 
 
 if __name__ == "__main__":

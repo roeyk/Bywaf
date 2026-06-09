@@ -22,7 +22,7 @@ from dataclasses import dataclass
 
 from bywaf.event import Event
 from bywaf.policy import resolve_target
-from bywaf.plugins._args import key_value_to_long_options
+from bywaf.plugin import kv_to_args
 from bywaf.plugins.network.nmap_diagnostics import NMAP_FAILURES, publish_nmap_error
 from bywaf.plugins.network.nmap_backend import discover_live_hosts
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, PlanItem, PlanRepair, PlanReport, commandlet, option, parse_bool, split_var_values
@@ -215,7 +215,7 @@ def publish_name_resolution_events(context: CommandContext, names_by_host: dict[
 
 def normalize_value_args(args: list[str]) -> list[str]:
     """Convert supported Bywaf `key=value` tokens into argparse options."""
-    return key_value_to_long_options(args, VALUE_OPTION_KEYS)
+    return kv_to_args(args, VALUE_OPTION_KEYS)
 
 
 def explicit_targets_or_var(commandlet: HostScanner, context: CommandContext, targets: list[str], host_option: str) -> list[str]:

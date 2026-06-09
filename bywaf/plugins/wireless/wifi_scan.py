@@ -26,7 +26,7 @@ from bywaf.config import Settings
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option, parse_bool
 from bywaf.plugin.process_artifacts import process_output_artifact_payload
-from bywaf.plugins._args import key_value_to_long_options
+from bywaf.plugin import kv_to_args
 
 DEFAULTS = {
     "binary": "kismet",
@@ -70,7 +70,7 @@ class WifiScan(CommandletBase):
         parser.add_argument("--interface", default=self.var_default(context, "interface", ""))
         parser.add_argument("--log-types", default=self.var_default(context, "log-types", "kismet,json"))
         parser.add_argument("--output-dir", default=self.var_default(context, "output-dir", ""))
-        parsed = parser.parse_args(key_value_to_long_options(args, OPTION_KEYS))
+        parsed = parser.parse_args(kv_to_args(args, OPTION_KEYS))
 
         if not parsed.interface:
             context.events.publish(

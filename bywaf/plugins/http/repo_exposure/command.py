@@ -21,7 +21,7 @@ from typing import Any
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, CommandletBase, parse_bool
-from bywaf.plugins._args import key_value_to_long_options
+from bywaf.plugin import kv_to_args
 from bywaf.plugins.http.http_probe import build_opener, target_from_text
 from bywaf.plugins.http.nikto import filter_http_payloads_by_policy
 
@@ -76,7 +76,7 @@ def git_targets(targets: list[str], input_events: Iterable[Event]) -> list[dict[
 
 def normalize_value_args(args: list[str]) -> list[str]:
     """Convert Bywaf `target=value` tokens into argparse options."""
-    return key_value_to_long_options(args, {"target"})
+    return kv_to_args(args, {"target"})
 
 
 def endpoint_from_target_text(target: str) -> dict[str, Any]:

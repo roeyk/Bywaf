@@ -1,35 +1,8 @@
-"""Shared argument parsing helpers for bundled plugins.
-
-Provides common conversion and option parsing utilities used by commandlets to
-avoid repeating small argparse/string handling patterns.
-
-Used by:
-- bundled plugin modules: normalize commandlet arguments.
-- plugin tests: exercise option handling through real commandlets."""
+"""Compatibility imports for bundled plugin argument helpers."""
 
 
 from __future__ import annotations
 
+from bywaf.plugin.parsing import kv_to_args, reject_option_equals
 
-def key_value_to_long_options(args: list[str], keys: set[str]) -> list[str]:
-    """Convert selected `key=value` tokens into argparse long options."""
-    normalized: list[str] = []
-    for arg in args:
-        key, separator, value = arg.partition("=")
-        if separator and key in keys:
-            # Bywaf users type option=value, while argparse commandlets often
-            # define --option. Convert only declared keys so positional values
-            # containing '=' are left alone.
-            normalized.extend([f"--{key}", value])
-        else:
-            normalized.append(arg)
-    return normalized
-
-
-def reject_long_option_values(args: list[str], keys: set[str], *, usage: str) -> None:
-    """Reject value-carrying `--option=value` forms for Bywaf-owned options."""
-    flags = {f"--{key}" for key in keys}
-    for arg in args:
-        key, separator, _value = arg.partition("=")
-        if separator and key in flags:
-            raise ValueError(usage)
+__all__ = ["kv_to_args", "reject_option_equals"]

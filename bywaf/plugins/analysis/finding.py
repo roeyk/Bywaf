@@ -17,7 +17,7 @@ from bywaf.plugins.analysis.finding_report import REPORT_FINDING_TOPICS
 from bywaf.plugins.analysis.report import REPORT_OPTION_KEYS, REPORT_SORT_CHOICES, REPORT_STATUS_CHOICES
 from bywaf.plugins.analysis.report.events import select_report_scope_events
 from bywaf.plugins.analysis.report.review import review_report_groups
-from bywaf.plugins._args import key_value_to_long_options
+from bywaf.plugin import kv_to_args
 
 FINDING_ACTIONS = ("confirm", "unconfirm")
 FINDING_OPTION_KEYS = REPORT_OPTION_KEYS
@@ -113,7 +113,7 @@ def normalize_finding_args(args: list[str]) -> list[str]:
             break
         normalized.append(token)
         index += 1
-    return key_value_to_long_options(normalized, FINDING_OPTION_KEYS)
+    return kv_to_args(normalized, FINDING_OPTION_KEYS)
 
 
 def plugin() -> Commandlet:

@@ -15,7 +15,7 @@ from pathlib import Path
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet, option
-from bywaf.plugins._args import key_value_to_long_options
+from bywaf.plugin import kv_to_args
 from bywaf.plugins.analysis.finding_dedupe import FINDING_INPUT_TOPICS
 from bywaf.plugins.analysis.finding_report_export import FORMAT_CHOICES, findings_table, infer_export_format, write_table_artifact
 from bywaf.plugins.analysis.finding_report_rows import (
@@ -85,7 +85,7 @@ class FindingReport(CommandletBase):
         parser.add_argument("--format", choices=FORMAT_CHOICES, default="md", help=argparse.SUPPRESS)
         parser.add_argument("--limit", type=int, default=1000, help=argparse.SUPPRESS)
         parser.add_argument("--source", choices=SOURCE_CHOICES, default="auto", help=argparse.SUPPRESS)
-        parsed = parser.parse_args(key_value_to_long_options(args, OPTION_KEYS))
+        parsed = parser.parse_args(kv_to_args(args, OPTION_KEYS))
 
         events = select_report_events(
             context,

@@ -13,7 +13,7 @@ from collections.abc import Iterable
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
-from bywaf.plugins._args import key_value_to_long_options
+from bywaf.plugin import kv_to_args
 from bywaf.plugins.recon.dns_lookup import optional_module
 from bywaf.plugins.target_policy import filter_host_port_targets
 
@@ -40,7 +40,7 @@ class SshProbe(CommandletBase):
         parser.add_argument("--port", type=int, default=self.var_default(context, "port", 22, cast=int))
         parser.add_argument("--timeout", type=float, default=self.var_default(context, "timeout", 5, cast=float))
         parser.add_argument("--username", default=self.var_default(context, "username", ""))
-        parsed = parser.parse_args(key_value_to_long_options(args, OPTION_KEYS))
+        parsed = parser.parse_args(kv_to_args(args, OPTION_KEYS))
         password = context.secrets.resolve(parsed.password, "")
         paramiko = optional_module(context, "paramiko", "paramiko")
         if paramiko is None:

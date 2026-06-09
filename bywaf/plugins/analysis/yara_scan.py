@@ -14,7 +14,7 @@ from pathlib import Path
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
-from bywaf.plugins._args import key_value_to_long_options
+from bywaf.plugin import kv_to_args
 from bywaf.plugins.recon.dns_lookup import optional_module
 
 DEFAULTS = {"rule": ""}
@@ -35,7 +35,7 @@ class YaraScan(CommandletBase):
         parser = self.parser()
         parser.add_argument("files", nargs="+")
         parser.add_argument("--rule", default=self.var_default(context, "rule", ""))
-        parsed = parser.parse_args(key_value_to_long_options(args, OPTION_KEYS))
+        parsed = parser.parse_args(kv_to_args(args, OPTION_KEYS))
         yara = optional_module(context, "yara", "yara-python")
         if yara is None:
             return ()

@@ -21,7 +21,7 @@ from bywaf.db import EventStore, database_appears_encrypted, export_encrypted_da
 from bywaf.event import Event
 from bywaf.operator_state import save_ad_hoc_active_database
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
-from bywaf.plugins._args import reject_long_option_values
+from bywaf.plugin import reject_option_equals
 from bywaf.utils import complete_path
 
 from .db_paths import database_related_paths
@@ -223,7 +223,7 @@ def print_database_status(context: CommandContext) -> None:
 
 def normalize_db_args(args: list[str]) -> list[str]:
     """Convert Bywaf `file=...` syntax into the internal argparse option."""
-    reject_long_option_values(args, {"file"}, usage="usage: db <action> [file=path] [--encrypt] [--force]")
+    reject_option_equals(args, {"file"}, usage="usage: db <action> [file=path] [--encrypt] [--force]")
     normalized: list[str] = []
     for arg in args:
         if arg.startswith("file="):

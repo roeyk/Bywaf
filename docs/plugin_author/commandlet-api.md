@@ -252,6 +252,28 @@ parser.add_argument(
 )
 ```
 
+Use `kv_to_args` when a commandlet accepts Bywaf-style `name=value` tokens but
+uses argparse internally:
+
+```python
+from bywaf.plugin import kv_to_args
+
+OPTION_KEYS = {"target", "timeout"}
+
+parser.add_argument("--target")
+parser.add_argument("--timeout", type=float)
+parsed = parser.parse_args(kv_to_args(args, OPTION_KEYS))
+```
+
+Use `reject_option_equals` when a commandlet deliberately allows `name=value`
+but wants to reject shell-style `--name=value` for Bywaf-owned value options:
+
+```python
+from bywaf.plugin import reject_option_equals
+
+reject_option_equals(args, OPTION_KEYS, usage="usage: my_plugin target=value")
+```
+
 ## Parsing Key/Value Selectors
 
 Some commandlets intentionally use selector-style arguments instead of ordinary

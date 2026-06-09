@@ -18,7 +18,7 @@ from typing import Any
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, TriggerSpec, commandlet, option, parse_bool
-from bywaf.plugins._args import key_value_to_long_options
+from bywaf.plugin import kv_to_args
 
 ACTIVE_STATUSES = {"queued", "claimed", "running", "pausing", "paused", "cancelling"}
 ERROR_TOPICS = {"command.run.failed", "job.failed", "tool.error"}
@@ -74,7 +74,7 @@ class Watchdog(CommandletBase):
         parser.add_argument("-s", "--silent", action="store_true", default=self.var_default(context, "silent", False, cast=parse_bool))
         parser.add_argument("--stall-threshold", type=float, default=self.var_default(context, "stall-threshold", 120.0, cast=float))
         parser.add_argument("--timeout", type=float, default=self.var_default(context, "timeout", 300.0, cast=float))
-        parsed = parser.parse_args(key_value_to_long_options(args, OPTION_KEYS))
+        parsed = parser.parse_args(kv_to_args(args, OPTION_KEYS))
         validate_thresholds(parsed)
         emitted: set[tuple[str, int]] = set()
         while True:

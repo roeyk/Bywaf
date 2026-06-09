@@ -17,7 +17,7 @@ from typing import Any
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
-from bywaf.plugins._args import key_value_to_long_options
+from bywaf.plugin import kv_to_args
 from bywaf.plugins.analysis.finding_dedupe_model import CanonicalFinding, NormalizedFinding
 from bywaf.plugins.analysis.finding_dedupe_normalize import (
     count_decisions,
@@ -82,7 +82,7 @@ class FindingDedupe(CommandletBase):
         parser.add_argument("--format", choices=("json", "md"), default="json", help=argparse.SUPPRESS)
         parser.add_argument("--limit", type=int, default=1000, help=argparse.SUPPRESS)
         parser.add_argument("--threshold", type=float, default=0.82, help=argparse.SUPPRESS)
-        parsed = parser.parse_args(key_value_to_long_options(args, OPTION_KEYS))
+        parsed = parser.parse_args(kv_to_args(args, OPTION_KEYS))
 
         events = selected_finding_events(context, list(input_events), parsed.limit)
         result = dedupe_findings(

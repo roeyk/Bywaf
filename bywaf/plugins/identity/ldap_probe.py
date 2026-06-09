@@ -13,7 +13,7 @@ from collections.abc import Iterable
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
-from bywaf.plugins._args import key_value_to_long_options
+from bywaf.plugin import kv_to_args
 from bywaf.plugins.recon.dns_lookup import optional_module
 
 DEFAULTS = {"base-dn": "", "password": "", "port": "389", "ssl": "false", "timeout": "5", "username": ""}
@@ -44,7 +44,7 @@ class LdapProbe(CommandletBase):
         parser.add_argument("--ssl", choices=("true", "false"), default=self.var_default(context, "ssl", "false"))
         parser.add_argument("--timeout", type=float, default=self.var_default(context, "timeout", 5, cast=float))
         parser.add_argument("--username", default=self.var_default(context, "username", ""))
-        parsed = parser.parse_args(key_value_to_long_options(args, OPTION_KEYS))
+        parsed = parser.parse_args(kv_to_args(args, OPTION_KEYS))
         password = context.secrets.resolve(parsed.password, "")
         ldap3 = optional_module(context, "ldap3", "ldap3")
         if ldap3 is None:

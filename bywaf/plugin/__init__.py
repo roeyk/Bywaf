@@ -42,7 +42,7 @@ from .pipeline import (
     ContextPipeline,
     PipelineStop,
 )
-from .parsing import parse_bool
+from .parsing import kv_to_args, parse_bool, reject_option_equals
 from .services import (
     CompletionContext,
     ContextArtifacts,
@@ -132,6 +132,7 @@ __all__ = [
     "framework_request_capability_map",
     "framework_request_prefix_capabilities",
     "implied_capabilities",
+    "kv_to_args",
     "leaked_secret_arguments",
     "manifest_arguments_from_manifest",
     "normalize_argv",
@@ -145,6 +146,7 @@ __all__ = [
     "progress_payload",
     "progress_percent",
     "redact_process_argv",
+    "reject_option_equals",
     "require_one_selector",
     "run_process_argv",
     "should_emit_progress",

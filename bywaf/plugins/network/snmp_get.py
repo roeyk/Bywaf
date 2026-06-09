@@ -14,7 +14,7 @@ from typing import Any
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
-from bywaf.plugins._args import key_value_to_long_options
+from bywaf.plugin import kv_to_args
 from bywaf.plugins.recon.dns_lookup import optional_module
 
 DEFAULTS = {"community": "public", "oid": "1.3.6.1.2.1.1.1.0", "port": "161", "timeout": "5"}
@@ -41,7 +41,7 @@ class SnmpGet(CommandletBase):
         parser.add_argument("--oid", default=self.var_default(context, "oid", "1.3.6.1.2.1.1.1.0"))
         parser.add_argument("--port", type=int, default=self.var_default(context, "port", 161, cast=int))
         parser.add_argument("--timeout", type=float, default=self.var_default(context, "timeout", 5, cast=float))
-        parsed = parser.parse_args(key_value_to_long_options(args, OPTION_KEYS))
+        parsed = parser.parse_args(kv_to_args(args, OPTION_KEYS))
         hlapi = optional_module(context, "pysnmp.hlapi", "pysnmp")
         if hlapi is None:
             return ()
