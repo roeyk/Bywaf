@@ -8,18 +8,33 @@ routing, job lifecycle, and process startup.
 from __future__ import annotations
 
 import multiprocessing as mp
-from typing import TYPE_CHECKING
+from typing import Protocol
 
+from ..db import EventStore
 from ..event import Event
+from ..registry import PluginRegistry
 from .context import StageRun, ensure_run_var_snapshot
 from .stages import execute_stage, run_stage_process
 
-if TYPE_CHECKING:
-    from .core import Runner
+
+class PipelineRunner(Protocol):
+    """Runner surface required by pipeline-step helper functions.
+
+    Implemented by: `runner.core.Runner` for normal execution and
+    `runner.background.BackgroundRunner` inside child processes.
+    """
+
+    db: EventStore
+    registry: PluginRegistry
+    job_id: int | None
+
+    def replace_db(self, db: EventStore) -> None:
+        """Replace the active database after an in-process management command."""
+        ...
 
 
 def execute_pipeline_steps(
-    runner: Runner,
+    runner: PipelineRunner,
     step_runs: tuple[StageRun, ...],
     *,
     pipeline_id: str,
@@ -50,7 +65,7 @@ def execute_pipeline_steps(
 
 
 def publish_pipeline_stopped(
-    runner: Runner,
+    runner: PipelineRunner,
     step_run: StageRun,
     *,
     pipeline_id: str,
@@ -73,7 +88,7 @@ def publish_pipeline_stopped(
 
 
 def run_pipeline_step_processes(
-    runner: Runner,
+    runner: PipelineRunner,
     step_runs: tuple[StageRun, ...],
     *,
     pipeline_id: str,
@@ -100,7 +115,7 @@ def run_pipeline_step_processes(
 
 
 def snapshot_step_variables(
-    runner: Runner,
+    runner: PipelineRunner,
     step_run: StageRun,
     *,
     job_id: int | None,
@@ -118,7 +133,7 @@ def snapshot_step_variables(
 
 
 def stage_process_args(
-    runner: Runner,
+    runner: PipelineRunner,
     step_run: StageRun,
     *,
     pipeline_id: str,

@@ -1,8 +1,8 @@
 """Runner package compatibility exports.
 
 Provides the stable `bywaf.runner` import surface while implementation moves
-into cohesive runner modules: core, context, stages, jobs, at_files, plans, and
-runtime_events.
+into cohesive runner modules: core, background, context, stages, jobs,
+at_files, plans, and runtime_events.
 """
 
 from .at_files import AtFileExpansion
@@ -12,9 +12,9 @@ from .at_files import expand_at_file_arg
 from .at_files import expand_at_file_args
 from .at_files import parse_at_file_token
 from .at_files import publish_at_file_expansion
+from .background import run_attached_pipeline_job
+from .background import run_background_job
 from .core import add_runner_arguments
-from .core import run_attached_pipeline_job
-from .core import run_background_job
 from .context import StageRun
 from .context import build_context
 from .context import effective_run_vars

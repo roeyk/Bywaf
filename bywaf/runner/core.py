@@ -2,8 +2,8 @@
 
 Provides Runner, command-line execution routing, foreground pipeline execution,
 framework selector handling, and pipeline-step execution orchestration. Step context
-preparation lives in runner.context; background job lifecycle publication and
-child-process entry points live in runner.jobs.
+preparation lives in runner.context; background child-process entry points live
+in runner.background.
 
 Used by:
 - CLI, REPL, and API layers: execute command text and pipelines.
@@ -15,14 +15,15 @@ from __future__ import annotations
 import argparse
 import multiprocessing as mp
 import os
-from pathlib import Path
 
 from ..command.parser import CommandInvocation, Pipeline, parse_pipeline
+from .background import run_attached_pipeline_job
+from .background import run_background_job
 from .context import StageRun
 from .context import is_management_pipeline
 from .context import new_run_id
 from .context import prepare_stage_runs
-from .jobs import JobLifecycle, should_run_stage_processes
+from .jobs import JobLifecycle
 from .pipeline_steps import execute_pipeline_steps
 from .pipeline_steps import run_pipeline_step_processes
 from .pipeline_steps import snapshot_step_variables
@@ -175,6 +176,9 @@ class Runner:
         final job lifecycle updates.
         """
         foreground = command_line.strip()
+        # The REPL often passes a parsed pipeline from `execute()`, but direct
+        # callers may only have the command text.  Parse here as the parent so
+        # unknown commandlets fail before a background job row is created.
         pipeline = pipeline or parse_pipeline(
             foreground,
             varstore=self.registry.varstore,
@@ -182,13 +186,22 @@ class Runner:
             command_scope_resolver=self.registry.variable_scope,
         )
         self.validate_pipeline_commands(pipeline)
+        # Allocate pipeline/stage identifiers in the parent.  The child process
+        # receives these IDs and writes events into the same durable provenance
+        # chain instead of inventing a separate pipeline identity after fork.
         pipeline_id = new_run_id("pipeline")
         if pipeline.display_name:
             publish_runtime_name(self.db, "pipeline", pipeline_id, pipeline.display_name, pipeline_id=pipeline_id)
         step_runs = prepare_stage_runs(pipeline.commands)
         lifecycle = JobLifecycle.create(self.db, foreground, None)
+        # Snapshot mutable session variables before the child starts.  Later
+        # `set` commands in the REPL should not change work that has already
+        # been submitted to run in the background.
         for step_run in step_runs:
             snapshot_step_variables(self, step_run, job_id=lifecycle.job_id, pipeline_id=pipeline_id)
+        # Fork only serializable execution state.  The child reopens the
+        # database and rediscovers plugins in `runner.background` rather than
+        # inheriting live SQLite connections or registry objects from the parent.
         process = mp.Process(
             target=run_background_job,
             args=(str(self.db.path), self.db.passphrase, lifecycle.job_id, foreground, pipeline_id, step_runs),
@@ -289,81 +302,6 @@ class Runner:
     def subscribe_once(self, topics: tuple[str, ...], after_id: int = 0) -> list[Event]:
         """Small convenience wrapper used by tests and simple callers."""
         return self.db.fetch(Subscription(topics=topics, after_id=after_id))
-
-
-def run_background_job(
-    db_path: str,
-    db_passphrase: str | None,
-    job_id: int,
-    command_line: str,
-    pipeline_id: str,
-    stages: tuple[StageRun, ...],
-) -> None:
-    """Child-process entry point for a background pipeline.
-
-    The child reopens the database and rediscovers bundled plugins instead of
-    inheriting live connection/plugin objects from the parent process.
-    """
-    try:
-        db = EventStore(Path(db_path), passphrase=db_passphrase)
-        pid = mp.current_process().pid
-        lifecycle = JobLifecycle(db, job_id, command_line)
-        if not lifecycle.claim(pid):
-            return
-    except Exception:
-        # The parent may have exited or removed a temporary database before the
-        # child starts. There is nowhere reliable to record that failure, so the
-        # child exits quietly instead of printing a multiprocessing traceback.
-        return
-    try:
-        lifecycle.start(pid)
-        # The child process rebuilds parser/registry state from the command
-        # line. Step snapshots carry variable values captured by the parent.
-        runner = Runner(db, PluginRegistry.discover(), job_id=job_id)
-        pipeline = parse_pipeline(
-            command_line,
-            command_resolver=runner.registry.resolve_commandlet_name,
-            command_scope_resolver=runner.registry.variable_scope,
-        )
-        if should_run_stage_processes(pipeline.commands):
-            runner.run_pipeline_processes(pipeline.commands, pipeline_id=pipeline_id, stages=stages)
-        else:
-            runner.run_pipeline(pipeline.commands, pipeline_id=pipeline_id, stages=stages)
-    except Exception as exc:
-        lifecycle.fail(str(exc))
-    else:
-        lifecycle.finish()
-
-
-def run_attached_pipeline_job(
-    db_path: str,
-    db_passphrase: str | None,
-    job_id: int,
-    command_line: str,
-    pipeline_id: str,
-    step_run: StageRun,
-) -> None:
-    """Child-process entry point for a commandlet attached to a live pipeline."""
-    try:
-        db = EventStore(Path(db_path), passphrase=db_passphrase)
-        pid = mp.current_process().pid
-        lifecycle = JobLifecycle(db, job_id, command_line)
-        if not lifecycle.claim(pid):
-            return
-    except Exception:
-        return
-    try:
-        lifecycle.start(pid)
-        # Attached steps inherit the parent pipeline id but execute in their
-        # own job process so long-running fan-out work can be tracked.
-        runner = Runner(db, PluginRegistry.discover(), job_id=job_id)
-        runner.run_pipeline((step_run.invocation,), pipeline_id=pipeline_id, stages=(step_run,))
-    except Exception as exc:
-        lifecycle.fail(str(exc))
-    else:
-        lifecycle.finish()
-
-
 
 
 def add_runner_arguments(parser: argparse.ArgumentParser) -> None:
