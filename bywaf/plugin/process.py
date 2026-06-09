@@ -22,6 +22,9 @@ from .process_audit import check_process_argv_for_secrets
 from .process_audit import leaked_secret_arguments as leaked_secret_arguments
 from .process_audit import redact_known_secret_values
 from .process_audit import redact_process_argv
+from .process_exec import normalize_argv
+from .process_exec import popen_process_argv as popen_process_argv
+from .process_exec import run_process_argv as run_process_argv
 from .process_models import ProcessResult
 from .process_stream import (
     ProcessChunk,
@@ -33,6 +36,8 @@ from .process_stream import (
     timeout_deadline,
     timeout_expired,  # noqa: F401 - re-exported from this module for plugin API compatibility.
 )
+from .process_transcript import process_output_artifact_name
+from .process_transcript import process_output_transcript
 
 if TYPE_CHECKING:
     from .context import CommandContext
@@ -230,7 +235,6 @@ class ContextProcess:
             command_run_id=self.context.command_run_id,
             parent_command_run_id=self.context.parent_command_run_id,
         )
-
     def publish_started(self, argv: tuple[str, ...], request_event_id: int | None) -> None:
         """Record that a streamed process was started."""
         if self.context._db is None:
@@ -285,82 +289,3 @@ class ContextProcess:
             command_run_id=self.context.command_run_id,
             parent_command_run_id=self.context.parent_command_run_id,
         )
-
-
-def normalize_argv(argv: Sequence[str]) -> tuple[str, ...]:
-    """Validate and normalize an argv sequence for safe process execution."""
-    if isinstance(argv, str):
-        raise TypeError("process argv must be a sequence of strings, not a shell string")
-    normalized = tuple(str(part) for part in argv)
-    if not normalized:
-        raise ValueError("process argv cannot be empty")
-    if any(part == "" for part in normalized):
-        raise ValueError("process argv cannot contain empty arguments")
-    return normalized
-
-
-def process_output_artifact_name(result: ProcessResult) -> str:
-    """Return a stable display name for one process-output transcript artifact."""
-    stem = Path(result.argv[0]).name if result.argv else "process"
-    request = f"-{result.request_event_id}" if result.request_event_id is not None else ""
-    return f"{stem}{request}-output.txt"
-
-
-def process_output_transcript(context: CommandContext, result: ProcessResult) -> str:
-    """Return an audit-safe process transcript suitable for artifact storage."""
-    stdout = redact_known_secret_values(context, result.stdout)
-    stderr = redact_known_secret_values(context, result.stderr)
-    return "\n".join(
-        (
-            "argv: " + " ".join(result.argv),
-            f"returncode: {result.returncode}",
-            f"ok: {str(result.ok).lower()}",
-            "",
-            "stdout:",
-            stdout,
-            "",
-            "stderr:",
-            stderr,
-        )
-    )
-
-
-def run_process_argv(
-    argv: Sequence[str],
-    *,
-    cwd: str | Path | None = None,
-    env: Mapping[str, str] | None = None,
-    timeout: float | None = None,
-) -> subprocess.CompletedProcess[str]:
-    """Run an argv vector with shell execution explicitly disabled."""
-    # Framework-mediated argv execution; shell is explicitly disabled.
-    return subprocess.run(  # nosec B603
-        list(normalize_argv(argv)),
-        cwd=str(Path(cwd).expanduser()) if cwd is not None else None,
-        env=dict(env) if env is not None else None,
-        timeout=timeout,
-        capture_output=True,
-        text=True,
-        shell=False,
-        check=False,
-    )
-
-
-def popen_process_argv(
-    argv: Sequence[str],
-    *,
-    cwd: str | Path | None = None,
-    env: Mapping[str, str] | None = None,
-) -> subprocess.Popen[str]:
-    """Start an argv-vector process for line-oriented streaming."""
-    # Framework-mediated argv execution; shell is explicitly disabled.
-    return subprocess.Popen(  # nosec B603
-        list(normalize_argv(argv)),
-        cwd=str(Path(cwd).expanduser()) if cwd is not None else None,
-        env=dict(env) if env is not None else None,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        bufsize=1,
-        shell=False,
-    )
