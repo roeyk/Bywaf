@@ -246,15 +246,15 @@ that accepts `job=`, `pipeline=`, and `sort=` selectors. Use the public selector
 helpers instead of hand-rolling this parsing in every plugin:
 
 ```python
-from bywaf.plugin import parse_key_value_tokens, require_exactly_one_selector
+from bywaf.plugin import parse_kvs, require_one_selector
 
-selectors = parse_key_value_tokens(
+selectors = parse_kvs(
     args,
     allowed_keys={"job", "pipeline", "step", "text"},
     command="my_plugin",
     text_keys={"text"},
 )
-scope_key = require_exactly_one_selector(
+scope_key = require_one_selector(
     selectors,
     ("job", "pipeline", "step"),
     command="my_plugin",

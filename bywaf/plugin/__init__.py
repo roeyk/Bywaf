@@ -57,9 +57,9 @@ from .services import (
     signal_applies_to_context,
 )
 from .selectors import (
-    parse_key_value_token,
-    parse_key_value_tokens,
-    require_exactly_one_selector,
+    parse_kv,
+    parse_kvs,
+    require_one_selector,
 )
 from .process import (
     ContextProcess,
@@ -136,14 +136,14 @@ __all__ = [
     "normalize_argv",
     "normalize_completion",
     "option",
-    "parse_key_value_token",
-    "parse_key_value_tokens",
+    "parse_kv",
+    "parse_kvs",
     "popen_process_argv",
     "progress_float_var",
     "progress_payload",
     "progress_percent",
     "redact_process_argv",
-    "require_exactly_one_selector",
+    "require_one_selector",
     "run_process_argv",
     "should_emit_progress",
     "signal_applies_to_context",

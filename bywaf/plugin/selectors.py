@@ -1,7 +1,7 @@
 """Public selector parsing helpers for commandlets.
 
 Used by: bundled plugins with `key=value` selector syntax, and external
-plugins through `from bywaf.plugin import parse_key_value_tokens`.
+plugins through `from bywaf.plugin import parse_kvs`.
 """
 
 from __future__ import annotations
@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Collection, Sequence
 
 
-def parse_key_value_tokens(
+def parse_kvs(
     tokens: Sequence[str],
     *,
     allowed_keys: Collection[str] | None = None,
@@ -25,7 +25,7 @@ def parse_key_value_tokens(
     selectors: dict[str, str] = {}
     index = 0
     while index < len(tokens):
-        key, value = parse_key_value_token(tokens[index], command=command)
+        key, value = parse_kv(tokens[index], command=command)
         if allowed_keys is not None and key not in allowed_keys:
             raise ValueError(f"unknown {command} selector: {key}")
         if key in text_keys:
@@ -39,7 +39,7 @@ def parse_key_value_tokens(
     return selectors
 
 
-def parse_key_value_token(token: str, *, command: str = "command") -> tuple[str, str]:
+def parse_kv(token: str, *, command: str = "command") -> tuple[str, str]:
     """Parse one non-empty `key=value` selector token."""
     if "=" not in token:
         raise ValueError(f"invalid {command} selector: {token}")
@@ -49,7 +49,7 @@ def parse_key_value_token(token: str, *, command: str = "command") -> tuple[str,
     return key, value
 
 
-def require_exactly_one_selector(selectors: dict[str, str], keys: Collection[str], *, command: str) -> str:
+def require_one_selector(selectors: dict[str, str], keys: Collection[str], *, command: str) -> str:
     """Validate that exactly one selector key from `keys` is present.
 
     Returns the present key so commandlets can branch without recalculating the

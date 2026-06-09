@@ -3,13 +3,21 @@
 from __future__ import annotations
 
 import http.client
-import urllib.parse
 from collections.abc import Iterable
-from dataclasses import dataclass
 
 from bywaf.event import Event
 from bywaf.finding import candidate_payload
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
+from bywaf.plugins.http.http_targets import (
+    HttpTarget as MethodTarget,
+    build_url as build_url,
+    choose_scheme as choose_scheme,
+    http_target_from_port_event,
+    http_target_from_text,
+    http_targets,
+    normalize_path as normalize_path,
+    split_host_port as split_host_port,
+)
 from bywaf.plugins.target_policy import filter_targets_by_host
 
 DEFAULTS = {"path": "/", "scheme": "auto", "silent": "false", "timeout": 5}
@@ -73,17 +81,6 @@ class HttpMethods(CommandletBase):
         ]
 
 
-@dataclass(frozen=True, slots=True)
-class MethodTarget:
-    """Normalized HTTP target for OPTIONS probing."""
-
-    url: str
-    host: str
-    port: int
-    scheme: str
-    path: str
-
-
 def parse_bool(value: str | bool) -> bool:
     """Parse bool-like commandlet variable values."""
     if isinstance(value, bool):
@@ -98,66 +95,17 @@ def method_targets(
     path: str,
 ) -> list[MethodTarget]:
     """Resolve method-probe targets from arguments or upstream port events."""
-    if targets:
-        return [target_from_text(target, scheme, path) for target in targets]
-    return [
-        target_from_port_event(event, scheme, path)
-        for event in input_events
-        if "host" in event.payload and "port" in event.payload
-    ]
+    return http_targets(targets, input_events, scheme, path)
 
 
 def target_from_port_event(event: Event, scheme: str, path: str) -> MethodTarget:
     """Convert one `port.open` event into a method probe target."""
-    host = str(event.payload["host"])
-    port = int(event.payload["port"])
-    selected_scheme = choose_scheme(port, scheme)
-    normalized_path = normalize_path(path)
-    return MethodTarget(build_url(selected_scheme, host, port, normalized_path), host, port, selected_scheme, normalized_path)
+    return http_target_from_port_event(event, scheme, path)
 
 
 def target_from_text(target: str, scheme: str, path: str) -> MethodTarget:
     """Parse URL, host, or host:port text into a MethodTarget."""
-    if target.startswith(("http://", "https://")):
-        parsed = urllib.parse.urlparse(target)
-        selected_scheme = parsed.scheme
-        port = parsed.port or (443 if selected_scheme == "https" else 80)
-        normalized_path = parsed.path or normalize_path(path)
-        if parsed.query:
-            normalized_path = f"{normalized_path}?{parsed.query}"
-        return MethodTarget(target, parsed.hostname or "", port, selected_scheme, normalized_path)
-    host, port = split_host_port(target)
-    selected_scheme = choose_scheme(port, scheme)
-    normalized_path = normalize_path(path)
-    return MethodTarget(build_url(selected_scheme, host, port, normalized_path), host, port, selected_scheme, normalized_path)
-
-
-def split_host_port(target: str) -> tuple[str, int]:
-    """Parse host[:port], defaulting to port 80."""
-    if ":" in target:
-        host, port = target.rsplit(":", 1)
-        return host, int(port)
-    return target, 80
-
-
-def choose_scheme(port: int, scheme: str) -> str:
-    """Choose HTTP/HTTPS from a user override or common port convention."""
-    if scheme != "auto":
-        return scheme
-    return "https" if port == 443 else "http"
-
-
-def normalize_path(path: str) -> str:
-    """Return a request path with a leading slash."""
-    return path if path.startswith("/") else f"/{path}"
-
-
-def build_url(scheme: str, host: str, port: int, path: str) -> str:
-    """Build a normalized URL, omitting default ports."""
-    normalized_path = normalize_path(path)
-    default_port = 443 if scheme == "https" else 80
-    netloc = host if port == default_port else f"{host}:{port}"
-    return f"{scheme}://{netloc}{normalized_path}"
+    return http_target_from_text(target, scheme, path)
 
 
 def probe_methods(target: MethodTarget, *, timeout: float) -> dict[str, object]:

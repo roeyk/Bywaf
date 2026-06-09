@@ -3,13 +3,21 @@
 from __future__ import annotations
 
 import http.client
-import urllib.parse
 from collections.abc import Iterable
-from dataclasses import dataclass
 
 from bywaf.event import Event
 from bywaf.finding import candidate_payload
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
+from bywaf.plugins.http.http_targets import (
+    HttpTarget as AuthTarget,
+    build_url as build_url,
+    choose_scheme as choose_scheme,
+    http_target_from_port_event,
+    http_target_from_text,
+    http_targets,
+    normalize_path as normalize_path,
+    split_host_port as split_host_port,
+)
 from bywaf.plugins.target_policy import filter_targets_by_host
 
 DEFAULTS = {"path": "/", "scheme": "auto", "method": "HEAD", "timeout": 5}
@@ -67,17 +75,6 @@ class HttpAuth(CommandletBase):
         ]
 
 
-@dataclass(frozen=True, slots=True)
-class AuthTarget:
-    """Normalized HTTP target for auth challenge probing."""
-
-    url: str
-    host: str
-    port: int
-    scheme: str
-    path: str
-
-
 def auth_targets(
     targets: list[str],
     input_events: Iterable[Event],
@@ -85,66 +82,17 @@ def auth_targets(
     path: str,
 ) -> list[AuthTarget]:
     """Resolve auth-probe targets from arguments or upstream port events."""
-    if targets:
-        return [target_from_text(target, scheme, path) for target in targets]
-    return [
-        target_from_port_event(event, scheme, path)
-        for event in input_events
-        if "host" in event.payload and "port" in event.payload
-    ]
+    return http_targets(targets, input_events, scheme, path)
 
 
 def target_from_port_event(event: Event, scheme: str, path: str) -> AuthTarget:
     """Convert one `port.open` event into an auth probe target."""
-    host = str(event.payload["host"])
-    port = int(event.payload["port"])
-    selected_scheme = choose_scheme(port, scheme)
-    normalized_path = normalize_path(path)
-    return AuthTarget(build_url(selected_scheme, host, port, normalized_path), host, port, selected_scheme, normalized_path)
+    return http_target_from_port_event(event, scheme, path)
 
 
 def target_from_text(target: str, scheme: str, path: str) -> AuthTarget:
     """Parse URL, host, or host:port text into an AuthTarget."""
-    if target.startswith(("http://", "https://")):
-        parsed = urllib.parse.urlparse(target)
-        selected_scheme = parsed.scheme
-        port = parsed.port or (443 if selected_scheme == "https" else 80)
-        normalized_path = parsed.path or normalize_path(path)
-        if parsed.query:
-            normalized_path = f"{normalized_path}?{parsed.query}"
-        return AuthTarget(target, parsed.hostname or "", port, selected_scheme, normalized_path)
-    host, port = split_host_port(target)
-    selected_scheme = choose_scheme(port, scheme)
-    normalized_path = normalize_path(path)
-    return AuthTarget(build_url(selected_scheme, host, port, normalized_path), host, port, selected_scheme, normalized_path)
-
-
-def split_host_port(target: str) -> tuple[str, int]:
-    """Parse host[:port], defaulting to port 80."""
-    if ":" in target:
-        host, port = target.rsplit(":", 1)
-        return host, int(port)
-    return target, 80
-
-
-def choose_scheme(port: int, scheme: str) -> str:
-    """Choose HTTP/HTTPS from a user override or common port convention."""
-    if scheme != "auto":
-        return scheme
-    return "https" if port == 443 else "http"
-
-
-def normalize_path(path: str) -> str:
-    """Return a request path with a leading slash."""
-    return path if path.startswith("/") else f"/{path}"
-
-
-def build_url(scheme: str, host: str, port: int, path: str) -> str:
-    """Build a normalized URL, omitting default ports."""
-    normalized_path = normalize_path(path)
-    default_port = 443 if scheme == "https" else 80
-    netloc = host if port == default_port else f"{host}:{port}"
-    return f"{scheme}://{netloc}{normalized_path}"
+    return http_target_from_text(target, scheme, path)
 
 
 def probe_auth(target: AuthTarget, *, method: str, timeout: float) -> dict[str, object]:
