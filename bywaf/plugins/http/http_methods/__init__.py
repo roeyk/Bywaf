@@ -7,7 +7,7 @@ from collections.abc import Iterable
 
 from bywaf.event import Event
 from bywaf.finding import candidate_payload
-from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option, parse_bool
 from bywaf.plugins.http.http_targets import (
     HttpTarget as MethodTarget,
     build_url as build_url,
@@ -79,13 +79,6 @@ class HttpMethods(CommandletBase):
             (target.host, target.port, target.scheme, target.path)
             for target in method_targets(list(targets or []), input_events, scheme, path)
         ]
-
-
-def parse_bool(value: str | bool) -> bool:
-    """Parse bool-like commandlet variable values."""
-    if isinstance(value, bool):
-        return value
-    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def method_targets(

@@ -25,7 +25,7 @@ from bywaf.policy import resolve_target
 from bywaf.plugins._args import key_value_to_long_options
 from bywaf.plugins.network.nmap_diagnostics import NMAP_FAILURES, publish_nmap_error
 from bywaf.plugins.network.nmap_backend import discover_live_hosts
-from bywaf.plugin import CommandContext, Commandlet, CommandletBase, PlanItem, PlanRepair, PlanReport, commandlet, option, split_var_values
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, PlanItem, PlanRepair, PlanReport, commandlet, option, parse_bool, split_var_values
 from bywaf.utils import host_candidates
 
 DEFAULTS = {"arguments": "-sn", "except": "", "host": "", "limit": 256, "targets": ""}
@@ -239,13 +239,6 @@ def exclude_hosts(hosts: Iterable[str], except_value: str) -> tuple[str, ...]:
     if not excluded:
         return tuple(hosts)
     return tuple(host for host in hosts if host not in excluded)
-
-
-def parse_bool(value: str | bool) -> bool:
-    """Parse bool-like commandlet variable values."""
-    if isinstance(value, bool):
-        return value
-    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def plan_required(context: CommandContext) -> bool:

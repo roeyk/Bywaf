@@ -42,6 +42,7 @@ from .pipeline import (
     ContextPipeline,
     PipelineStop,
 )
+from .parsing import parse_bool
 from .services import (
     CompletionContext,
     ContextArtifacts,
@@ -136,6 +137,7 @@ __all__ = [
     "normalize_argv",
     "normalize_completion",
     "option",
+    "parse_bool",
     "parse_kv",
     "parse_kvs",
     "popen_process_argv",

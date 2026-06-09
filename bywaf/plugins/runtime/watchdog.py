@@ -17,7 +17,7 @@ import time
 from typing import Any
 
 from bywaf.event import Event
-from bywaf.plugin import CommandContext, Commandlet, CommandletBase, TriggerSpec, commandlet, option
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, TriggerSpec, commandlet, option, parse_bool
 from bywaf.plugins._args import key_value_to_long_options
 
 ACTIVE_STATUSES = {"queued", "claimed", "running", "pausing", "paused", "cancelling"}
@@ -238,13 +238,6 @@ def parse_timestamp(value: object) -> datetime | None:
 def format_timestamp(value: datetime | None) -> str | None:
     """Return a stable ISO timestamp for event payloads."""
     return value.isoformat() if value is not None else None
-
-
-def parse_bool(value: str | bool) -> bool:
-    """Parse Bywaf boolean variable strings."""
-    if isinstance(value, bool):
-        return value
-    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def plugin() -> Commandlet:

@@ -35,7 +35,7 @@ from bywaf.plugins.http.http_targets import (
     http_target_from_text,
     http_targets,
 )
-from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option, parse_bool
 from bywaf.plugins.target_policy import filter_targets_by_host
 
 DEFAULTS = {
@@ -151,13 +151,6 @@ def remember_option(context: CommandContext, name: str, explicit: str | None) ->
         # Cookie/profile settings are often reused across several HTTP tools, so
         # an explicit value becomes the commandlet-scoped default for later runs.
         context.vars.set(name, explicit)
-
-
-def parse_bool(value: str | bool) -> bool:
-    """Parse bool-like commandlet variable values."""
-    if isinstance(value, bool):
-        return value
-    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def probe_targets(

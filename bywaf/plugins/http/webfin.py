@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from bywaf.event import Event
-from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option, parse_bool
 from bywaf.plugins.http.http_probe import build_opener, probe_url, target_from_text
 from bywaf.plugins.target_policy import filter_targets_by_host
 
@@ -117,13 +117,6 @@ def endpoint_payloads(
             )
         return payloads
     return [dict(event.payload) for event in input_events if event.topic == "http.endpoint"]
-
-
-def parse_bool(value: str | bool) -> bool:
-    """Parse bool-like commandlet variable values."""
-    if isinstance(value, bool):
-        return value
-    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def fingerprint_endpoint(endpoint: dict[str, Any]) -> dict[str, Any]:

@@ -238,6 +238,20 @@ For simple commandlets, prefer manifest-backed options and positional
 arguments. Bywaf handles `key=value` option conversion, defaults, and type
 casts for you.
 
+Use `parse_bool` when a commandlet needs to pass stored string defaults into an
+argparse boolean flag:
+
+```python
+from bywaf.plugin import parse_bool
+
+parser.add_argument(
+    "-s",
+    "--silent",
+    action="store_true",
+    default=self.var_default(context, "silent", False, cast=parse_bool),
+)
+```
+
 ## Parsing Key/Value Selectors
 
 Some commandlets intentionally use selector-style arguments instead of ordinary

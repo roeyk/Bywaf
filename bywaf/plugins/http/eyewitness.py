@@ -25,7 +25,7 @@ from typing import Any
 from bywaf.config import Settings
 from bywaf.event.schema_objects import ScreenshottedHost
 from bywaf.event import Event
-from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option, parse_bool
 from bywaf.plugin.process_artifacts import process_output_artifact_payload
 from bywaf.plugins._args import key_value_to_long_options, reject_long_option_values
 from bywaf.plugins.http.nikto import (
@@ -300,13 +300,6 @@ def publish_tool_problem(context: CommandContext, topic: str, tool: str, message
             "error": str(exc),
         },
     )
-
-
-def parse_bool(value: str | bool) -> bool:
-    """Parse bool-like commandlet variable values."""
-    if isinstance(value, bool):
-        return value
-    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def plugin() -> Commandlet:

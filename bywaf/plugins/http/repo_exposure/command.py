@@ -20,7 +20,7 @@ from collections.abc import Iterable
 from typing import Any
 
 from bywaf.event import Event
-from bywaf.plugin import CommandContext, CommandletBase
+from bywaf.plugin import CommandContext, CommandletBase, parse_bool
 from bywaf.plugins._args import key_value_to_long_options
 from bywaf.plugins.http.http_probe import build_opener, target_from_text
 from bywaf.plugins.http.nikto import filter_http_payloads_by_policy
@@ -63,13 +63,6 @@ def run_git_config_check(
         elif result.status is DetectionStatus.ERROR:
             context.alert(f"could not check {result.base_url}: {result.error}", silent=True)
         yield payload
-
-
-def parse_bool(value: str | bool) -> bool:
-    """Parse bool-like commandlet variable values."""
-    if isinstance(value, bool):
-        return value
-    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def git_targets(targets: list[str], input_events: Iterable[Event]) -> list[dict[str, Any]]:

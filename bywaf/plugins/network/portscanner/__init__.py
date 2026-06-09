@@ -24,7 +24,7 @@ from bywaf.plugins.addressing import filter_addresses_for_ip_family, is_ip_scan_
 from bywaf.plugins.discovery.hostscanner import publish_name_resolution_events
 from bywaf.plugins.network.nmap_diagnostics import NMAP_FAILURES, publish_nmap_error
 from bywaf.plugins.network.nmap_backend import scan_open_ports
-from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option, split_var_values
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option, parse_bool, split_var_values
 from bywaf.plugins._args import key_value_to_long_options
 from bywaf.plugins.network.portscanner.ports import Ports
 from bywaf.plugins.network.portscanner.findings import telnet_open_candidate
@@ -277,10 +277,3 @@ def explicit_hosts_or_var(positional_hosts: list[str], option_host: str) -> list
     explicit_hosts = list(positional_hosts)
     explicit_hosts.extend(split_var_values(option_host))
     return explicit_hosts
-
-
-def parse_bool(value: str | bool) -> bool:
-    """Parse bool-like commandlet variable values."""
-    if isinstance(value, bool):
-        return value
-    return value.strip().lower() in {"1", "true", "yes", "on"}

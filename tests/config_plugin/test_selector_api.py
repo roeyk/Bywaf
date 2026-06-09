@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from bywaf.plugin import parse_kv, parse_kvs, require_one_selector
+from bywaf.plugin import parse_bool, parse_kv, parse_kvs, require_one_selector
 
 
 class PluginSelectorApiTests(unittest.TestCase):
@@ -35,6 +35,16 @@ class PluginSelectorApiTests(unittest.TestCase):
     def test_require_one_selector_rejects_ambiguous_scope(self) -> None:
         with self.assertRaisesRegex(ValueError, "requires exactly one"):
             require_one_selector({"job": "1", "step": "2"}, ("job", "pipeline", "step"), command="example")
+
+    def test_parse_bool_accepts_common_truthy_values(self) -> None:
+        for value in (True, "1", "true", "yes", "on", " TRUE "):
+            with self.subTest(value=value):
+                self.assertTrue(parse_bool(value))
+
+    def test_parse_bool_rejects_other_values(self) -> None:
+        for value in (False, "0", "false", "no", "off", ""):
+            with self.subTest(value=value):
+                self.assertFalse(parse_bool(value))
 
 
 if __name__ == "__main__":

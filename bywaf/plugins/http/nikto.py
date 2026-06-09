@@ -20,7 +20,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from bywaf.event import Event
-from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option, parse_bool
 from bywaf.plugins.http.nikto_findings import (
     extract_finding_records,
     finding_identifiers,
@@ -115,13 +115,6 @@ class Nikto(CommandletBase):
             context.raise_if_cancelled()
             run_target(context, parsed, target)
         return ()
-
-
-def parse_bool(value: str | bool) -> bool:
-    """Parse bool-like commandlet variable values."""
-    if isinstance(value, bool):
-        return value
-    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def plugin() -> Commandlet:
