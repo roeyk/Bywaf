@@ -1,7 +1,7 @@
 """Readline and prompt-toolkit completion adapters.
 
 Provides the public Completer API, readline callback behavior, prompt-toolkit
-integration, and display formatting for completion menus.
+integration, and re-exports the completion display helpers.
 
 Used by:
 - REPL shell: installs interactive completion.
@@ -12,10 +12,6 @@ Used by:
 
 from __future__ import annotations
 
-import readline
-import shlex
-from collections.abc import Sequence
-from os.path import commonprefix
 from typing import Any
 
 try:
@@ -59,6 +55,19 @@ from .resources import (
     is_explicit_path,
     preserve_explicit_prefix,
     resource_candidates,
+)
+from .readline_ui import (
+    common_completion_prefix,
+    completion_prefix,
+    completion_results,
+    configure_readline_delimiters,
+    display_label,
+    format_candidate,
+    install_readline,
+    print_completion_menu,
+    readline,
+    should_display_value_only,
+    should_print_completion_menu,
 )
 from .runtime import runtime_completion_target
 from .tokens import positional_index, tokens_after_last_pipe
@@ -243,100 +252,3 @@ def build_prompt_session(completer: Completer):
     # the session that owns the corresponding lexer/output objects.
     setattr(session, "secret_state", secret_state)
     return session
-
-
-def install_readline(completer: Completer) -> None:
-    """Install a Completer into Python readline."""
-    configure_readline_delimiters()
-    readline.set_completer(completer.complete)
-    readline.parse_and_bind("tab: complete")
-
-
-def configure_readline_delimiters() -> None:
-    """Keep option dashes and key/value equals signs inside completion tokens.
-
-    Python readline otherwise treats characters like `-` and `=` as token
-    boundaries.  Bywaf completions need `--flag`, `key=value`, and scoped
-    selector text to remain one token so the completion core sees the same
-    shape the command parser will later receive.
-    """
-    delimiters = readline.get_completer_delims()
-    readline.set_completer_delims(delimiters.replace("-", "").replace("=", ""))
-
-
-def should_print_completion_menu(line: str, candidates: Sequence[str]) -> bool:
-    """Use a custom menu for key=value completions so labels stay readable."""
-    prefix = completion_prefix(line)
-    return (
-        len(candidates) > 1
-        and "=" in prefix
-        and should_display_value_only(prefix, candidates)
-    )
-
-
-def should_display_value_only(prefix: str, candidates: Sequence[str]) -> bool:
-    """Return whether completion display should hide a repeated key= prefix."""
-    return "=" in prefix and all(candidate.startswith(prefix.split("=", 1)[0] + "=") for candidate in candidates)
-
-
-def print_completion_menu(line: str, candidates: Sequence[str]) -> None:
-    """Print value-only labels for key=value completion candidates."""
-    labels = [display_label(candidate) for candidate in candidates]
-    print()
-    print("  " + "   ".join(labels))
-    print(line, end="", flush=True)
-
-
-def display_label(candidate: str) -> str:
-    """Strip key prefixes from key=value candidates for display."""
-    if "=" in candidate:
-        return candidate.split("=", 1)[1]
-    return candidate
-
-
-def completion_prefix(line: str) -> str:
-    """Return the current token prefix from a readline buffer."""
-    try:
-        tokens = shlex.split(line)
-    except ValueError:
-        tokens = line.split()
-    tokens = tokens_after_last_pipe(tokens)
-    return "" if line.endswith(" ") else (tokens[-1] if tokens else "")
-
-
-def completion_results(line: str, candidates: Sequence[str]) -> list[str]:
-    """Return readline-formatted completion results.
-
-    Readline cannot separately say "insert this shared prefix first, then show
-    these candidates"; it only sees a sequence of candidate strings.  Returning
-    the shared prefix as the first candidate gives the normal shell behavior of
-    extending as much text as possible before cycling through alternatives.
-    """
-    common = common_completion_prefix(line, candidates)
-    if common:
-        return [common, *[format_candidate(candidate) for candidate in candidates]]
-    return [format_candidate(candidate) for candidate in candidates]
-
-
-def common_completion_prefix(line: str, candidates: Sequence[str]) -> str | None:
-    """Return a shared candidate prefix that extends the current token."""
-    prefix = completion_prefix(line)
-    if len(candidates) < 2:
-        return None
-    common = commonprefix(list(candidates))
-    if len(common) > len(prefix):
-        return common
-    if "=" in prefix:
-        key = prefix.split("=", 1)[0] + "="
-        if all(candidate.startswith(key) for candidate in candidates):
-            suffix_common = commonprefix([candidate[len(key):] for candidate in candidates])
-            if len(suffix_common) > len(prefix[len(key):]):
-                return key + suffix_common
-    return None
-
-
-def format_candidate(candidate: str) -> str:
-    """Append spaces only to complete word-like candidates."""
-    if candidate.startswith("--") or candidate.endswith("=") or candidate.endswith("/"):
-        return candidate
-    return candidate + " "
