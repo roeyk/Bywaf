@@ -7,11 +7,11 @@ instead of remembering which scanner emitted which event topic.
 
 from __future__ import annotations
 
-from argparse import Namespace
 from collections.abc import Iterable
 
 from bywaf.event import Event
-from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
+from bywaf.plugin import CommandContext, Commandlet, commandlet
+from bywaf.plugins.runtime.inventory_command import InventoryCommand
 from bywaf.plugins.runtime.inventory_render import (
     banner_event_keys,
     cert_event_keys,
@@ -34,69 +34,18 @@ from bywaf.plugins.runtime.inventory_render import (
     waf_event_keys,
     web_event_keys,
 )
-from bywaf.plugins.runtime.inventory_scope import inventory_scope_label, parse_inventory_selectors, select_inventory_events
-
-HOST_TOPICS = ("host.found", "name.resolved", "port.open", "http.endpoint", "service.detected", "finding.candidate")
-SERVICE_TOPICS = ("port.open", "service.detected", "http.endpoint", "tcp.banner", "tls.certificate")
-WEB_TOPICS = (
-    "http.endpoint",
-    "http.path",
-    "web.fingerprint",
-    "web.waf.detected",
-    "web.screenshotted_host",
-    "finding.candidate",
+from bywaf.plugins.runtime.inventory_topics import (
+    BANNER_TOPICS,
+    CERT_TOPICS,
+    HOST_TOPICS,
+    PATH_TOPICS,
+    ROUTE_TOPICS,
+    SCREENSHOT_TOPICS,
+    SERVICE_TOPICS,
+    SHARE_TOPICS,
+    WAF_TOPICS,
+    WEB_TOPICS,
 )
-WAF_TOPICS = ("web.waf.detected",)
-SHARE_TOPICS = ("smb.share.found",)
-ROUTE_TOPICS = ("network.route.hop",)
-CERT_TOPICS = ("tls.certificate",)
-BANNER_TOPICS = ("tcp.banner",)
-PATH_TOPICS = ("http.path",)
-SCREENSHOT_TOPICS = ("web.screenshotted_host",)
-
-
-class InventoryCommand(CommandletBase):
-    """Shared parser and selector behavior for inventory commandlets."""
-
-    topics: tuple[str, ...] = ()
-    sort_keys: tuple[str, ...] = ()
-    identity = staticmethod(lambda event: set())
-
-    def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
-        """Complete common inventory selectors."""
-        del context, args
-        candidates = [
-            "--last",
-            "--new",
-            "--page",
-            "all=true",
-            "job=",
-            "job=latest",
-            "pipeline=",
-            "step=",
-            *(f"sort={key}" for key in self.sort_keys),
-            *(f"sort=-{key}" for key in self.sort_keys),
-        ]
-        return [candidate for candidate in candidates if candidate.startswith(prefix)]
-
-    def selected_events(self, context: CommandContext, args: list[str]) -> tuple[Namespace, list[Event], bool]:
-        """Parse scope selectors and return matching events."""
-        parser = self.parser()
-        parser.usage = self.spec.usage
-        parser.add_argument("--last", action="store_true")
-        parser.add_argument("--new", action="store_true")
-        parser.add_argument("--page", action="store_true")
-        parser.add_argument("selectors", nargs="*", metavar="key=value")
-        parsed = parser.parse_args(args)
-        selectors = parse_inventory_selectors(
-            parsed.selectors,
-            last=parsed.last,
-            new=parsed.new,
-            sort_keys=self.sort_keys,
-        )
-        context.require_foreground(f"{self.spec.name} inventory views")
-        events = select_inventory_events(context, self.topics, selectors, self.identity)
-        return selectors, events, bool(parsed.page)
 
 
 @commandlet(
@@ -114,14 +63,7 @@ class Hosts(InventoryCommand):
 
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Render host inventory rows."""
-        del input_events
-        selectors, events, page = self.selected_events(context, args)
-        output = render_hosts_inventory(context, events, inventory_scope_label(selectors), selectors.sort)
-        if page:
-            context.page_text(output)
-        else:
-            context.output(output)
-        return ()
+        return self.render_inventory(context, args, input_events, render_hosts_inventory)
 
 
 @commandlet(
@@ -139,14 +81,7 @@ class Services(InventoryCommand):
 
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Render service inventory rows."""
-        del input_events
-        selectors, events, page = self.selected_events(context, args)
-        output = render_services_inventory(context, events, inventory_scope_label(selectors), selectors.sort)
-        if page:
-            context.page_text(output)
-        else:
-            context.output(output)
-        return ()
+        return self.render_inventory(context, args, input_events, render_services_inventory)
 
 
 @commandlet(
@@ -164,14 +99,7 @@ class Web(InventoryCommand):
 
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Render web inventory rows."""
-        del input_events
-        selectors, events, page = self.selected_events(context, args)
-        output = render_web_inventory(context, events, inventory_scope_label(selectors), selectors.sort)
-        if page:
-            context.page_text(output)
-        else:
-            context.output(output)
-        return ()
+        return self.render_inventory(context, args, input_events, render_web_inventory)
 
 
 @commandlet(
@@ -189,14 +117,7 @@ class Wafs(InventoryCommand):
 
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Render WAF inventory rows."""
-        del input_events
-        selectors, events, page = self.selected_events(context, args)
-        output = render_wafs_inventory(context, events, inventory_scope_label(selectors), selectors.sort)
-        if page:
-            context.page_text(output)
-        else:
-            context.output(output)
-        return ()
+        return self.render_inventory(context, args, input_events, render_wafs_inventory)
 
 
 @commandlet(
@@ -214,14 +135,7 @@ class Shares(InventoryCommand):
 
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Render share inventory rows."""
-        del input_events
-        selectors, events, page = self.selected_events(context, args)
-        output = render_shares_inventory(context, events, inventory_scope_label(selectors), selectors.sort)
-        if page:
-            context.page_text(output)
-        else:
-            context.output(output)
-        return ()
+        return self.render_inventory(context, args, input_events, render_shares_inventory)
 
 
 @commandlet(
@@ -239,14 +153,7 @@ class Routes(InventoryCommand):
 
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Render route inventory rows."""
-        del input_events
-        selectors, events, page = self.selected_events(context, args)
-        output = render_routes_inventory(context, events, inventory_scope_label(selectors), selectors.sort)
-        if page:
-            context.page_text(output)
-        else:
-            context.output(output)
-        return ()
+        return self.render_inventory(context, args, input_events, render_routes_inventory)
 
 
 @commandlet(
@@ -264,14 +171,7 @@ class Certs(InventoryCommand):
 
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Render certificate inventory rows."""
-        del input_events
-        selectors, events, page = self.selected_events(context, args)
-        output = render_certs_inventory(context, events, inventory_scope_label(selectors), selectors.sort)
-        if page:
-            context.page_text(output)
-        else:
-            context.output(output)
-        return ()
+        return self.render_inventory(context, args, input_events, render_certs_inventory)
 
 
 @commandlet(
@@ -289,14 +189,7 @@ class Banners(InventoryCommand):
 
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Render banner inventory rows."""
-        del input_events
-        selectors, events, page = self.selected_events(context, args)
-        output = render_banners_inventory(context, events, inventory_scope_label(selectors), selectors.sort)
-        if page:
-            context.page_text(output)
-        else:
-            context.output(output)
-        return ()
+        return self.render_inventory(context, args, input_events, render_banners_inventory)
 
 
 @commandlet(
@@ -314,14 +207,7 @@ class Paths(InventoryCommand):
 
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Render path inventory rows."""
-        del input_events
-        selectors, events, page = self.selected_events(context, args)
-        output = render_paths_inventory(context, events, inventory_scope_label(selectors), selectors.sort)
-        if page:
-            context.page_text(output)
-        else:
-            context.output(output)
-        return ()
+        return self.render_inventory(context, args, input_events, render_paths_inventory)
 
 
 @commandlet(
@@ -339,14 +225,7 @@ class Screenshots(InventoryCommand):
 
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Render screenshot inventory rows."""
-        del input_events
-        selectors, events, page = self.selected_events(context, args)
-        output = render_screenshots_inventory(context, events, inventory_scope_label(selectors), selectors.sort)
-        if page:
-            context.page_text(output)
-        else:
-            context.output(output)
-        return ()
+        return self.render_inventory(context, args, input_events, render_screenshots_inventory)
 
 
 def plugins() -> tuple[Commandlet, ...]:
