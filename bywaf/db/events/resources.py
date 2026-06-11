@@ -1,16 +1,26 @@
-"""Event-backed resource lookup helpers for EventStore."""
+"""Event-backed resource lookup helpers for EventStore.
+
+Used by: `EventStoreEventMixin`, which exposes serial lookup, artifact counts,
+and runtime display-name lookup through the public `EventStore` facade.
+"""
 
 from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-from .backends import DatabaseConnection
-from .support import artifact_count_queries, resolve_serial_match
-from ..event import Event
+from ...event import Event
+from ..backends import DatabaseConnection
+from ..support import artifact_count_queries, resolve_serial_match
 
 
 class EventStoreEventResourceMixin:
+    """Resource lookup API derived from events.
+
+    Used by: audit views, artifact summaries, serial lookup, and runtime views
+    that need to resolve human-facing IDs from event columns and payload fields.
+    """
+
     @contextmanager
     def connect(self) -> Iterator[DatabaseConnection]:
         """Implemented by EventStore."""
@@ -130,3 +140,6 @@ class EventStoreEventResourceMixin:
             if target_type is not None and target_id is not None and name is not None:
                 names[(str(target_type), str(target_id))] = str(name)
         return names
+
+
+__all__ = ["EventStoreEventResourceMixin"]

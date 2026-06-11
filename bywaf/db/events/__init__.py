@@ -1,4 +1,4 @@
-"""Event publish/query operations for EventStore.
+"""Event publish/query package for EventStore.
 
 Provides event insertion, subscription fetch/poll, topic queries, audit serial
 lookups, artifact event counts, and runtime naming lookup.
@@ -15,14 +15,21 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any, cast
 
-from .backends import DatabaseConnection
-from .event_queries import EventStoreEventQueryMixin
-from .event_resources import EventStoreEventResourceMixin
-from ..event import Event
-from ..subscriptions import Subscription
+from .queries import EventStoreEventQueryMixin
+from .resources import EventStoreEventResourceMixin
+from ...event import Event
+from ...subscriptions import Subscription
+from ..backends import DatabaseConnection
 
 
 class EventStoreEventMixin(EventStoreEventQueryMixin, EventStoreEventResourceMixin):
+    """Event publish/subscribe API mixed into `db.EventStore`.
+
+    Constructed by: Python's MRO when `EventStore` inherits this mixin.
+    Used by: runner/plugin/repl code through `EventStore.publish()`,
+    `fetch()`, `poll()`, and the query/resource methods inherited below.
+    """
+
     @contextmanager
     def connect(self) -> Iterator[DatabaseConnection]:
         """Implemented by EventStore."""
@@ -146,3 +153,6 @@ class EventStoreEventMixin(EventStoreEventQueryMixin, EventStoreEventResourceMix
             if events or timeout_seconds <= 0 or time.monotonic() >= deadline:
                 return events
             time.sleep(interval_seconds)
+
+
+__all__ = ["EventStoreEventMixin"]

@@ -11,12 +11,18 @@ import json
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-from .backends import DatabaseConnection
-from .event_filter_queries import EventStorePayloadFilterQueryMixin
-from ..event import Event
+from .filter_queries import PayloadFilterMixin
+from ...event import Event
+from ..backends import DatabaseConnection
 
 
-class EventStoreEventQueryMixin(EventStorePayloadFilterQueryMixin):
+class EventStoreEventQueryMixin(PayloadFilterMixin):
+    """Topic, id, job, and scope query API mixed into `EventStore`.
+
+    Used by: REPL `event`/`job` views, runner replay selection, reports,
+    completion providers, and tests that inspect emitted facts.
+    """
+
     @contextmanager
     def connect(self) -> Iterator[DatabaseConnection]:
         """Implemented by EventStore."""
@@ -212,3 +218,6 @@ class EventStoreEventQueryMixin(EventStorePayloadFilterQueryMixin):
                 (after_id, json.dumps(topics), job_id, job_id, job_id, limit),
             )
             return [Event.from_row(row) for row in rows]
+
+
+__all__ = ["EventStoreEventQueryMixin"]

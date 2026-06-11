@@ -17,12 +17,19 @@ from __future__ import annotations
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-from .backends import DatabaseConnection
-from ..event import Event
-from ..event.filters import event_matches_payload_filters
+from ...event import Event
+from ...event.filters import event_matches_payload_filters
+from ..backends import DatabaseConnection
 
 
-class EventStorePayloadFilterQueryMixin:
+class PayloadFilterMixin:
+    """Payload-selector query API mixed into event queries.
+
+    Used by: runtime list/report filters that accept event payload selectors
+    such as `host=...`.  The matching itself stays in Python so it can reuse the
+    schema-aware event filter rules instead of duplicating them as JSON SQL.
+    """
+
     @contextmanager
     def connect(self) -> Iterator[DatabaseConnection]:
         """Implemented by EventStore."""
@@ -116,3 +123,6 @@ class EventStorePayloadFilterQueryMixin:
                 if event.command_run_id and event_matches_payload_filters(event, filters):
                     matched.add(event.command_run_id)
         return matched
+
+
+__all__ = ["PayloadFilterMixin"]
