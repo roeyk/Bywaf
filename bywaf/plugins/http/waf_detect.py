@@ -31,16 +31,23 @@ def waf_detect(context: CommandContext, cfg: RunConfig, input_events: Iterable[E
     scoped_targets = filter_targets_by_host(context, targets, host_from_url)
 
     for url in scoped_targets:
+        # Check the runner cancellation flag before starting the next network
+        # operation.
         context.raise_if_cancelled()
 
         # This audit records actual runtime use of an already-declared
         # capability. Keeping it next to the network call makes audit logs
         # reflect the operation that consumed `network.connect`.
+        # Append a runtime capability-use record for this command context.
         context.audit_capability("network.connect")
+
+        # Send a HEAD request and collect the response headers or transport
+        # error for this URL.
         result = fetch_headers(url, cfg.timeout, cfg.user_agent)
 
         # Detection is kept pure: raw fetch results become either a typed
         # schema object or `None`; framework publication happens below.
+        # Match the fetched headers against the passive WAF rule table.
         detection = detect_waf(url, result)
         if detection is None:
             continue
@@ -48,7 +55,9 @@ def waf_detect(context: CommandContext, cfg: RunConfig, input_events: Iterable[E
         # The structured event is the durable result for reports, pipelines,
         # tests, and downstream plugins. The alert is secondary operator
         # feedback and can be suppressed without losing the data.
+        # Persist the typed WAF detection payload in the event store.
         context.events.publish("web.waf.detected", detection.to_payload())
+        # Request a one-line operator alert for interactive runs.
         context.alert(f"detected {detection.vendor} WAF signal at {url}", silent=cfg.silent)
     return ()
 
@@ -81,6 +90,7 @@ def waf_targets(targets: list[str], input_events: Iterable[Event]) -> list[str]:
 
     # Convert only the event type this plugin declares in `consumes`. The
     # schema object validates/names the payload before we read its URL field.
+    # Walk upstream events and extract the URL from each HTTP endpoint payload.
     return [
         HttpEndpoint.from_event(event).url
         for event in input_events
@@ -117,17 +127,22 @@ def fetch_headers(url: str, timeout: float, user_agent: str) -> dict[str, object
 
     # WAF fingerprints often appear in headers, so HEAD avoids downloading a
     # response body while still preserving the common passive signals.
+    # Build a urllib request object for a HEAD request to the target URL.
     request = urllib.request.Request(url, method="HEAD", headers={"User-Agent": user_agent})
     try:
         # URL scheme is restricted to HTTP(S) above.
+        # Open the prepared request URL and expose the HTTP response object.
         with urllib.request.urlopen(request, timeout=timeout) as response:  # nosec B310
+            # Copy the response status and headers into plain Python objects.
             return {"status": response.status, "headers": dict(response.headers)}
     except urllib.error.HTTPError as exc:
         # HTTP error responses can still carry WAF/CDN headers, so keep them.
+        # Copy the error response status and headers into the same result shape.
         return {"status": exc.status, "headers": dict(exc.headers)}
     except urllib.error.URLError as exc:
         # Transport errors provide no headers. The error text is retained for
         # diagnostics while detection simply treats the target as unmatched.
+        # Return an empty header map plus a readable transport error string.
         return {"error": str(exc.reason), "headers": {}}
 
 
@@ -142,18 +157,22 @@ def detect_waf(url: str, result: dict[str, object]) -> WebWafDetected | None:
 
     # Normalize the header map into simple strings so rule predicates can stay
     # case-insensitive and deterministic across urllib response objects.
+    # Build a casefolded header dictionary: normalized-name -> string value.
     folded = {str(key).casefold(): str(value) for key, value in headers.items()}
 
     # Sorted evidence keeps emitted payloads stable for tests and review. The
     # lowercase copy is used for substring matching; the original case is kept
     # in the event payload for operator inspection.
+    # Flatten the normalized headers into one deterministic evidence string.
     evidence = " ".join(f"{key}: {value}" for key, value in sorted(folded.items()))
+    # Scan the WAF rule dispatch table for the first matching fingerprint.
     rule = matching_waf_rule(folded, evidence.casefold())
     if rule is None:
         return None
 
     # The schema object centralizes the `web.waf.detected` payload contract and
     # keeps this plugin aligned with the shared event registry.
+    # Re-parse the URL so the emitted event includes the hostname separately.
     parsed = urllib.parse.urlparse(url)
     return WebWafDetected(
         url=url,
