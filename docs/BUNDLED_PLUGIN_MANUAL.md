@@ -709,7 +709,7 @@ Plugin metadata:
 | Plugin | `recon.dns_lookup` |
 | Commandlets | `dns_lookup` |
 | Last updated | `2026-06-01` from source history |
-| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/recon/dns_lookup.py bywaf/plugins/recon/dns_lookup.plugin.toml` |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/recon/dns_lookup/__init__.py bywaf/plugins/recon/dns_lookup/bywaf.plugin.toml` |
 
 #### Commandlet: `dns_lookup`
 
@@ -750,7 +750,7 @@ Plugin metadata:
 | Plugin | `recon.dns_enum` |
 | Commandlets | `dns_enum` |
 | Last updated | `2026-06-01` from source history |
-| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/recon/dns_enum.py bywaf/plugins/recon/dns_enum.plugin.toml` |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/recon/dns_enum/__init__.py bywaf/plugins/recon/dns_enum/bywaf.plugin.toml` |
 
 #### Commandlet: `dns_enum`
 
