@@ -10,8 +10,8 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from .schema_catalog import EVENT_SCHEMAS
-from .schema_defs import EventSchema, FieldType
+from .catalog import EVENT_SCHEMAS
+from .defs import EventSchema, FieldType
 
 PLUGIN_EVENT_SCHEMAS: dict[str, EventSchema] = {}
 

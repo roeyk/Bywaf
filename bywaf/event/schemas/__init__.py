@@ -16,15 +16,15 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import fields, is_dataclass
 from typing import Any, ClassVar, Self, TypeVar
 
-from .schema_catalog import EVENT_SCHEMAS
-from .schema_defs import FIELD_TYPES, EventSchema, FieldSchema
-from .schema_registry import event_schema as event_schema
-from .schema_registry import field_value_matches as field_value_matches
-from .schema_registry import plugin_event_schemas as plugin_event_schemas
-from .schema_registry import register_event_schema as register_event_schema
-from .schema_registry import register_event_schemas as register_event_schemas
-from .schema_registry import unregister_event_schema as unregister_event_schema
-from .schema_registry import validate_event_payload as validate_event_payload
+from .catalog import EVENT_SCHEMAS
+from .defs import FIELD_TYPES, EventSchema, FieldSchema
+from .registry import event_schema as event_schema
+from .registry import field_value_matches as field_value_matches
+from .registry import plugin_event_schemas as plugin_event_schemas
+from .registry import register_event_schema as register_event_schema
+from .registry import register_event_schemas as register_event_schemas
+from .registry import unregister_event_schema as unregister_event_schema
+from .registry import validate_event_payload as validate_event_payload
 
 T = TypeVar("T")
 

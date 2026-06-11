@@ -1,12 +1,12 @@
 """Framework-owned event schema catalog.
 
-Kept separate from `bywaf.event.schemas` so validation/object conversion logic
-does not have to share a module with the large built-in topic table.
+This package-local module keeps the large built-in topic table separate from
+the validation and object-conversion helpers exported by `bywaf.event.schemas`.
 """
 
 from __future__ import annotations
 
-from .schema_defs import EventSchema, FieldSchema
+from .defs import EventSchema, FieldSchema
 
 EVENT_SCHEMAS: dict[str, EventSchema] = {
     "host.found": EventSchema(
