@@ -21,7 +21,7 @@ from bywaf.plugin import (
     argument,
     commandlet,
 )
-from bywaf.plugins.runtime.bundle_actions import (
+from bywaf.plugins.runtime.bundle.actions import (
     add_bundle_item,
     bundle_action_handlers,
     bundle_completion_selectors,
@@ -34,7 +34,7 @@ from bywaf.plugins.runtime.bundle_actions import (
     show_bundle,
     verify_bundle,
 )
-from bywaf.plugins.runtime.bundle_content import (
+from bywaf.plugins.runtime.bundle.content import (
     artifact_record,
     bundle_manifest,
     resolve_bundle_content,
@@ -43,7 +43,7 @@ from bywaf.plugins.runtime.bundle_content import (
     resolve_run_selector,
     selected_artifacts,
 )
-from bywaf.plugins.runtime.bundle_model import (
+from bywaf.plugins.runtime.bundle.model import (
     BUNDLE_ACTIONS,
     BUNDLE_CONTENT_KINDS,
     Bundle,
@@ -53,7 +53,7 @@ from bywaf.plugins.runtime.bundle_model import (
     require_selector,
     split_csv,
 )
-from bywaf.plugins.runtime.bundle_state import all_bundles, bundle_by_name, require_bundle
+from bywaf.plugins.runtime.bundle.state import all_bundles, bundle_by_name, require_bundle
 
 __all__ = [
     "BUNDLE_ACTIONS",

@@ -2018,7 +2018,7 @@ Plugin metadata:
 | Plugin | `runtime.bundle` |
 | Commandlets | `bundle` |
 | Last updated | `2026-06-02` from source history |
-| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/bundle.py bywaf/plugins/runtime/bundle.plugin.toml` |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/bundle bywaf/plugins/runtime/bundle/bywaf.plugin.toml` |
 
 #### Commandlet: `bundle`
 

@@ -10,15 +10,15 @@ from typing import Any
 
 from bywaf.keyring import sign_bytes, verify_bytes
 from bywaf.plugin import CommandContext, CompletionContext, CompletionSpec
-from bywaf.plugins.runtime.bundle_content import bundle_manifest, resolve_bundle_content
-from bywaf.plugins.runtime.bundle_model import (
+from bywaf.plugins.runtime.bundle.content import bundle_manifest, resolve_bundle_content
+from bywaf.plugins.runtime.bundle.model import (
     BUNDLE_CONTENT_KINDS,
     canonical_json,
     first_content_kind,
     parse_bundle_selectors,
     require_selector,
 )
-from bywaf.plugins.runtime.bundle_state import all_bundles, bundle_by_name, require_bundle
+from bywaf.plugins.runtime.bundle.state import all_bundles, bundle_by_name, require_bundle
 from bywaf.utils import complete_path
 
 BundleHandler = Any

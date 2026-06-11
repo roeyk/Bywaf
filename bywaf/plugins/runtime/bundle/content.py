@@ -9,7 +9,7 @@ from bywaf.artifacts import Artifact
 from bywaf.plugin import CommandContext
 from bywaf.plugins.runtime import audit as audit_plugin
 from bywaf.plugins.runtime.artifact import artifact_event_payload
-from bywaf.plugins.runtime.bundle_model import Bundle, split_csv
+from bywaf.plugins.runtime.bundle.model import Bundle, split_csv
 
 
 def bundle_manifest(context: CommandContext, bundle: Bundle, *, include_bodies: bool) -> dict[str, Any]:

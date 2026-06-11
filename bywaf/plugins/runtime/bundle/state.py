@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from bywaf.plugin import CommandContext
-from bywaf.plugins.runtime.bundle_model import Bundle
+from bywaf.plugins.runtime.bundle.model import Bundle
 
 
 def all_bundles(context: CommandContext) -> dict[str, Bundle]:
