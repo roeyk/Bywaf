@@ -50,7 +50,14 @@ DEFAULTS = {"port": "", "ssl": "false", "target": "", "timeout": 5}
 @option("ssl", "use HTTPS", "false", ("true", "false"))
 @option("timeout", "connection timeout", "5")
 class HttpHeaders(CommandletBase):
-    """Thin commandlet wrapper around split HTTP header check modules."""
+    """Commandlet wrapper around split HTTP header check modules.
+
+    Called by: PluginRegistry/runner dispatch for the `http_headers`
+    commandlet.
+
+    Delegates to: `run_http_headers()` for parsing, target resolution,
+    probing, event payload creation, and finding promotion.
+    """
 
     def run(
         self,
@@ -58,11 +65,21 @@ class HttpHeaders(CommandletBase):
         args: list[str],
         input_events: Iterable[Event],
     ):
-        """Fetch HEAD response metadata for explicit or pipeline targets."""
+        """Fetch HEAD response metadata for explicit or pipeline targets.
+
+        Called by: the Bywaf runner through `CommandletBase.run()`.
+        """
+        # Delegate execution to command.py so this provider module stays as the
+        # stable registry/import surface rather than owning orchestration logic.
         yield from run_http_headers(self, context, args, input_events)
 
     def targets(self, target, port, use_ssl, input_events):
-        """Resolve an explicit target or derive targets from `port.open` events."""
+        """Resolve target triples for completion/tests.
+
+        Called by: tests and compatibility callers that need the older tuple
+        shape instead of `HeaderTarget` objects.
+        """
+        # Convert the domain model back to the historical tuple format.
         return [
             (header_target.host, header_target.port, header_target.use_ssl)
             for header_target in header_targets(target, port, use_ssl, input_events)
@@ -70,5 +87,5 @@ class HttpHeaders(CommandletBase):
 
 
 def plugin() -> Commandlet:
-    """Factory used by PluginRegistry."""
+    """Return the commandlet object loaded by PluginRegistry."""
     return HttpHeaders()
