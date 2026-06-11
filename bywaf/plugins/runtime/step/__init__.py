@@ -15,7 +15,6 @@ from collections.abc import Iterable
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
-from bywaf.plugins.runtime.step_detail import show_step
 from bywaf.plugins.runtime.view import (
     apply_runtime_new_cursor,
     filter_runtime_rows_by_events,
@@ -37,6 +36,8 @@ from bywaf.runtime_display import (
     runtime_status_summary,
     terminal_table_width,
 )
+
+from .detail import show_step
 
 STEP_SORT_KEYS = ("id", "serial", "state", "pipeline", "source", "events", "started")
 STEP_TABLE_HEADERS = ("STEP", "STATUS", "PIPELINE", "SOURCE", "EVENTS", "ART", "STARTED", "DUR", "NAME")
