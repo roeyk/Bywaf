@@ -15,6 +15,7 @@ FINDING_TOPICS = (
     "vulnerability.potential",
 )
 
+
 def normalize_findings(target: dict[str, Any], data: Any, artifact_payload: dict[str, Any]) -> list[dict[str, Any]]:
     """Convert Nikto-specific records into Bywaf vulnerability payloads."""
     findings: list[dict[str, Any]] = []
@@ -65,6 +66,8 @@ def extract_finding_records(data: Any) -> list[dict[str, Any]]:
     if not isinstance(data, dict):
         return records
 
+    # Nikto JSON is not stable across every version/wrapper. Check common
+    # top-level collection keys first, then recurse below for nested variants.
     for key in ("vulnerabilities", "findings", "items"):
         value = data.get(key)
         if isinstance(value, list):
@@ -121,6 +124,8 @@ def finding_evidence(record: dict[str, Any]) -> str:
 def finding_identifiers(record: dict[str, Any]) -> dict[str, list[str]]:
     """Extract CVE/CWE/OWASP/vendor identifiers from a finding record."""
     text = json.dumps(record, sort_keys=True, default=str)
+    # Pull identifiers from the serialized record so nested reference fields are
+    # covered even when Nikto changes the exact key name.
     identifiers: dict[str, list[str]] = {
         "cve": sorted(set(re.findall(r"CVE-\d{4}-\d{4,}", text, re.IGNORECASE))),
         "cwe": sorted(set(identifier.upper() for identifier in re.findall(r"CWE-\d+", text, re.IGNORECASE))),

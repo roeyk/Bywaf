@@ -1,6 +1,6 @@
 """Nikto process execution orchestration.
 
-Used by: `nikto.Nikto` after command parsing and target selection choose the
+Used by: `Nikto.run()` after command parsing and target selection choose the
 normalized scan targets.
 """
 
@@ -12,8 +12,8 @@ from pathlib import Path
 from typing import Any
 
 from bywaf.plugin import CommandContext
-from bywaf.plugins.http.nikto_artifacts import attach_process_output, attach_raw_output, load_nikto_json
-from bywaf.plugins.http.nikto_findings import normalize_findings, publish_finding, publish_tool_problem
+from .artifacts import attach_process_output, attach_raw_output, load_nikto_json
+from .findings import normalize_findings, publish_finding, publish_tool_problem
 
 
 def run_target(context: CommandContext, parsed: Any, target: dict[str, Any]) -> None:
@@ -43,6 +43,8 @@ def run_target(context: CommandContext, parsed: Any, target: dict[str, Any]) -> 
             publish_tool_problem(context, "system.error", target, "could not execute nikto", exc)
             return
 
+        # If the process failed or skipped the JSON output file, attach stdout
+        # and stderr before we attempt to parse anything.
         process_artifact_payload = (
             attach_process_output(context, Path(temp_dir), target, result)
             if not result.ok or not output_path.exists()
@@ -65,6 +67,8 @@ def run_target(context: CommandContext, parsed: Any, target: dict[str, Any]) -> 
 
         artifact_payload = attach_raw_output(context, output_path, target) if output_path.exists() else {}
         combined_artifact_payload = {**process_artifact_payload, **artifact_payload}
+        # Parse scanner output, normalize all findings, then emit each through
+        # the compatibility topics owned by this wrapper.
         data = load_nikto_json(context, output_path, target, combined_artifact_payload)
         findings = normalize_findings(target, data, combined_artifact_payload)
         for finding in findings:

@@ -1,6 +1,6 @@
 """Nikto output loading and artifact attachment helpers.
 
-Used by: `nikto_process.run_target()` after the external Nikto process has
+Used by: `process.run_target()` after the external Nikto process has
 returned or failed to produce structured JSON.
 """
 
@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from bywaf.plugin import CommandContext
-from bywaf.plugins.http.nikto_findings import publish_tool_problem
+from .findings import publish_tool_problem
 
 
 def load_nikto_json(
@@ -23,6 +23,9 @@ def load_nikto_json(
 ) -> Any:
     """Load Nikto JSON output, reporting malformed output as a tool error."""
     if not output_path.exists():
+        # Nikto is expected to create the JSON file named in `-output`. If the
+        # process exits without that file, preserve the failure as structured
+        # tool telemetry instead of raising from the wrapper.
         context.events.publish(
             "tool.error",
             {
@@ -36,6 +39,7 @@ def load_nikto_json(
         return {}
     try:
         context.audit_capability("filesystem.read")
+        # Read the scanner-produced JSON artifact from the temporary workdir.
         return json.loads(output_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         publish_tool_problem(
@@ -84,6 +88,8 @@ def attach_process_output(context: CommandContext, temp_dir: Path, target: dict[
     if not stdout and not stderr and returncode == 0:
         return {}
     evidence_path = temp_dir / "nikto-process-output.txt"
+    # Build a small text artifact so operators can inspect scanner output when
+    # the structured JSON path was not enough to explain the failure.
     evidence_path.write_text(
         "\n".join(
             (

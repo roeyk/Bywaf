@@ -21,13 +21,13 @@ from collections.abc import Iterable
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option, parse_bool
-from bywaf.plugins.http.nikto_findings import (
+from .findings import (
     extract_finding_records,
     finding_identifiers,
     normalize_findings,
 )
-from bywaf.plugins.http.nikto_process import nikto_argv, run_target
-from bywaf.plugins.http.nikto_targets import (
+from .process import nikto_argv, run_target
+from .targets import (
     dedupe_targets,
     filter_http_payloads_by_policy,
     nikto_targets,

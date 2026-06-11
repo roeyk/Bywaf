@@ -28,6 +28,8 @@ def nikto_targets(targets: list[str], input_events: Iterable[Event], source: str
         return dedupe_targets(resolved)
 
     events = list(input_events)
+    # `source` lets operators choose whether Nikto scans only web fingerprints,
+    # only explicit CLI targets, or all upstream HTTP endpoint evidence.
     if source in {"all", "webfin"}:
         resolved.extend(target_from_webfin_event(event) for event in events if event.topic == "web.fingerprint")
     if source == "all":

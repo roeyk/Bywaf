@@ -59,11 +59,13 @@ boundaries, failure semantics, deployment, and capability declarations.
 ## Plugin Manifest
 
 Filesystem plugins may include `bywaf.plugin.toml` next to `plugin.py`.
-Bundled plugins use sidecar manifests such as `nikto.plugin.toml` next to
-`nikto.py`. When present, the manifest is authoritative: Bywaf registers only
-the commandlets listed in `[[commandlets]]`. Extra commandlets returned by
-`plugin()` or `plugins()` are ignored, and commandlets declared in the manifest
-but missing from Python code cause plugin loading to fail.
+Bundled single-file plugins use sidecar manifests such as
+`waf_detect.plugin.toml` next to `waf_detect.py`; bundled plugin packages use
+package-local manifests such as `nikto/bywaf.plugin.toml`. When present, the
+manifest is authoritative: Bywaf registers only the commandlets listed in
+`[[commandlets]]`. Extra commandlets returned by `plugin()` or `plugins()` are
+ignored, and commandlets declared in the manifest but missing from Python code
+cause plugin loading to fail.
 
 See `MANIFEST_SPECIFICATION.md` for the complete sidecar TOML schema and
 validation rules.

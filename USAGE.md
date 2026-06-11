@@ -664,7 +664,7 @@ storage
 
 Bundled plugins are listed in `bywaf/plugins/plugins.toml`. Adding a plugin file
 is not enough to load it by default; add its dotted path to that config and add
-or update its sidecar manifest, such as `bywaf/plugins/http/nikto.plugin.toml`.
+or update its manifest, such as `bywaf/plugins/http/nikto/bywaf.plugin.toml`.
 
 External filesystem plugins are arbitrary local Python code. Bywaf refuses to
 load them unless plugin catalog trust is verified or the operator explicitly

@@ -203,7 +203,7 @@ verification keys can be committed and packaged.
 Bundled plugins live under `bywaf/plugins/` and are loaded from
 `bywaf/plugins/plugins.toml`. To make a bundled commandlet load automatically,
 add its dotted module path to `default_plugins` and add or update the matching
-sidecar manifest, for example `bywaf/plugins/http/nikto.plugin.toml`.
+manifest, for example `bywaf/plugins/http/nikto/bywaf.plugin.toml`.
 
 ## AI-Assisted Plugin Development
 

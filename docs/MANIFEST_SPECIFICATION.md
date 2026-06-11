@@ -41,8 +41,10 @@ build static catalog views, accept pre-load catalog variables, and give
 
 Filesystem plugins use `bywaf.plugin.toml` next to `plugin.py`.
 
-Bundled plugins use sidecar manifests named after the Python module, such as
-`nikto.plugin.toml` next to `nikto.py`.
+Bundled single-file plugins can use sidecar manifests named after the Python
+module, such as `waf_detect.plugin.toml` next to `waf_detect.py`. Bundled plugin
+packages use `bywaf.plugin.toml` inside the package, such as
+`nikto/bywaf.plugin.toml`.
 
 # Why Manifests Matter
 
