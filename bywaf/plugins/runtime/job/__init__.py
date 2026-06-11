@@ -1,10 +1,14 @@
 """Runtime job commandlet.
 
-Provides a bundled plugin implementation and CommandSpec metadata. Lists and inspects background job state.
+Provides the bundled `runtime.job` plugin implementation and CommandSpec
+metadata. Operators use this commandlet to list, inspect, and control
+background jobs.
 
 Used by:
-- PluginRegistry discovery: loads this module as a commandlet provider.
-- runner and REPL: execute it through normal commandlet dispatch."""
+- PluginRegistry discovery: loads this package as a commandlet provider.
+- runner and REPL: execute it through normal commandlet dispatch.
+- Runtime control plugins: import the re-exported job lookup/control helpers.
+"""
 
 
 from __future__ import annotations
@@ -12,18 +16,39 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from bywaf.event import Event
-from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, CompletionSpec, argument, commandlet
-from bywaf.plugins.runtime import job_control as _job_control
-from bywaf.plugins.runtime.job_actions import job_action_handlers
-from bywaf.plugins.runtime.job_control import cancel_job, kill_job, require_job
-from bywaf.plugins.runtime.job_display import format_job, format_job_command, job_ids, latest_job_args, print_jobs, sort_job_rows
-from bywaf.plugins.runtime.job_parsing import JOB_ACTIONS, JOB_SORT_KEYS, job_completion_candidates, parse_job_operation, validate_job_mode
+from bywaf.plugin import (
+    CommandContext,
+    Commandlet,
+    CommandletBase,
+    CompletionContext,
+    CompletionSpec,
+    argument,
+    commandlet,
+)
+from bywaf.plugins.runtime.job import control as _job_control
+from bywaf.plugins.runtime.job.actions import job_action_handlers
+from bywaf.plugins.runtime.job.control import cancel_job, kill_job, require_job
+from bywaf.plugins.runtime.job.display import (
+    format_job,
+    format_job_command,
+    job_ids,
+    latest_job_args,
+    print_jobs,
+    sort_job_rows,
+)
+from bywaf.plugins.runtime.job.parsing import (
+    JOB_ACTIONS,
+    JOB_SORT_KEYS,
+    job_completion_candidates,
+    parse_job_operation,
+    validate_job_mode,
+)
 
 ACTIVE_STATUSES = {"queued", "claimed", "running", "pausing", "paused", "cancelling"}
 
-# Compatibility patch seam: tests and external callers may still patch
-# `bywaf.plugins.runtime.job.os.kill`; alias the moved control module's `os`
-# object so that patch continues to affect `job_control.kill_job()`.
+# Compatibility patch seam: tests still patch `bywaf.plugins.runtime.job.os.kill`;
+# alias the control module's `os` object so those patches continue to affect
+# `control.kill_job()`.
 os = _job_control.os
 
 __all__ = [
@@ -72,6 +97,7 @@ class Job(CommandletBase):
         input_events: Iterable[Event],
     ):
         """Parse and execute one job-management operation."""
+        del input_events
         parser = self.parser()
         parser.add_argument("--all", action="store_true")
         parser.add_argument("--hard", action="store_true")
@@ -88,6 +114,8 @@ class Job(CommandletBase):
         parsed.sort = operation.sort
         context.require_foreground("job management commands")
         validate_job_mode(parsed.action, soft=parsed.soft, hard=parsed.hard)
+        # `job_action_handlers()` returns the action dispatch table used here
+        # instead of an if/elif ladder over list/show/cancel/end/kill.
         job_action_handlers()[parsed.action](context, parsed)
         return ()
 

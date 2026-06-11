@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from argparse import Namespace
 
-from bywaf.plugins.runtime.job_filters import split_job_row_selectors
+from bywaf.plugins.runtime.job.filters import split_job_row_selectors
 from bywaf.plugins.runtime.view_common import split_since_selector, view_selector_candidates
 from bywaf.runtime_display import parse_runtime_list_selectors
 

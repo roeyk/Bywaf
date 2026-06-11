@@ -7,8 +7,8 @@ from collections.abc import Callable
 
 from bywaf.plugin import CommandContext
 from bywaf.plugins.runtime.artifact.summary import artifact_events_for_job, render_artifact_summary
-from bywaf.plugins.runtime.job_control import cancel_job, kill_job, require_job
-from bywaf.plugins.runtime.job_display import format_job, latest_job_args, print_jobs
+from bywaf.plugins.runtime.job.control import cancel_job, kill_job, require_job
+from bywaf.plugins.runtime.job.display import format_job, latest_job_args, print_jobs
 from bywaf.runtime_display import command_context_style_getter
 
 JobActionHandler = Callable[[CommandContext, Namespace], None]
@@ -20,6 +20,8 @@ def job_action_handlers() -> dict[str, JobActionHandler]:
     Called by: `Job.run()`, which uses this dispatch table instead of an
     `if`/`elif` action ladder.
     """
+    # Dispatch table for Job.run(): each normalized action token maps to the
+    # command handler that performs validation, rendering, or job control.
     return {
         "cancel": cancel_job_action,
         "end": end_job_action,
@@ -48,6 +50,8 @@ def show_job_action(context: CommandContext, parsed: Namespace) -> None:
     """Run `job show`."""
     row = require_job(context, parsed.id)
     display_name = context.runtime_store("job show").runtime_names().get(("job", str(row["id"])))
+    # Detail output combines the job lifecycle block with artifact summary
+    # context so operators can jump from `job N` to artifact inspection.
     sections = [
         format_job(
             row,

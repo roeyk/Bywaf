@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from bywaf.plugin import CommandContext, CompletionContext
-from bywaf.plugins.runtime.job_filters import filter_job_rows
+from bywaf.plugins.runtime.job.filters import filter_job_rows
 from bywaf.plugins.runtime.view_common import (
     apply_runtime_new_cursor,
     filter_runtime_rows_by_events,
@@ -48,6 +48,8 @@ def print_jobs(
     """
     del show_active
     runtime = context.runtime_store("job list")
+    # Start from durable runtime rows, then apply display-level visibility,
+    # row selectors, event-payload selectors, and the per-command "new" cursor.
     rows = runtime.jobs(active_only=active_only)
     rows = filter_view_job_rows(context.event_store("job list"), rows)
     if row_filters:
@@ -107,6 +109,8 @@ def print_jobs(
 def sort_job_rows(rows: list[dict], sort_key: str) -> list[dict]:
     """Return job rows ordered by the requested operator-facing column."""
     display_key = runtime_sort_key(sort_key)
+    # Dispatch table for sort_job_rows(): translates the public sort key into
+    # the row value used by Python's stable sorter.
     sorters = {
         "id": lambda row: int(row["id"]),
         "serial": lambda row: str(row["serial"]),
