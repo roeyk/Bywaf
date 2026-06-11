@@ -7,12 +7,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from ..artifacts import Artifact, artifact_store_for_event_store
-from ..db import EventStore
-from ..event import Event
+from ...artifacts import Artifact, artifact_store_for_event_store
+from ...db import EventStore
+from ...event import Event
 
 if TYPE_CHECKING:
-    from .context import CommandContext
+    from ..context import CommandContext
 
 
 @dataclass(frozen=True, slots=True)

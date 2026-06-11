@@ -71,8 +71,8 @@ class TestSkeletonsRuntimePolicyTests(unittest.TestCase):
             root / "bywaf" / "artifacts.py",
             root / "bywaf" / "plugin" / "context.py",
             root / "bywaf" / "plugin" / "context" / "__init__.py",
-            root / "bywaf" / "plugin" / "services.py",
-            root / "bywaf" / "plugin" / "services_artifacts.py",
+            root / "bywaf" / "plugin" / "services" / "__init__.py",
+            root / "bywaf" / "plugin" / "services" / "artifacts.py",
         }
         offenders: list[str] = []
         for path in (root / "bywaf").rglob("*.py"):

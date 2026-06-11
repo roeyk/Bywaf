@@ -16,12 +16,12 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from ..db import EventStore, Subscription
-from ..event import Event
-from ..event.schemas import EventSchemaObject, event_schema, schema_objects, validate_event_payload
+from ...db import EventStore, Subscription
+from ...event import Event
+from ...event.schemas import EventSchemaObject, event_schema, schema_objects, validate_event_payload
 
 if TYPE_CHECKING:
-    from .context import CommandContext
+    from ..context import CommandContext
 
 
 @dataclass(frozen=True, slots=True)

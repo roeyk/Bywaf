@@ -13,31 +13,31 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from ..artifacts import artifact_store_for_event_store
-from ..db import EventStore
-from ..event import Event
-from .. import policy as network_policy
-from ..rendering import Table, render_console_table
-from ..varstore import VarStore
-from .services_events import ContextEvents as ContextEvents
-from .services_artifacts import (
+from ...artifacts import artifact_store_for_event_store
+from ...db import EventStore
+from ...event import Event
+from ... import policy as network_policy
+from ...rendering import Table, render_console_table
+from ...varstore import VarStore
+from .events import ContextEvents as ContextEvents
+from .artifacts import (
     ContextArtifacts as ContextArtifacts,
     artifact_event_payload as artifact_event_payload,
     attach_generated_artifact as attach_generated_artifact,
 )
-from .progress import (
+from ..progress import (
     progress_float_var as progress_float_var,
     progress_payload as progress_payload,
     progress_percent as progress_percent,
     should_emit_progress as should_emit_progress,
 )
-from .signals import (
+from ..signals import (
     ContextSignals as ContextSignals,
     signal_applies_to_context as signal_applies_to_context,
 )
 
 if TYPE_CHECKING:
-    from .context import CommandContext
+    from ..context import CommandContext
 
 
 @dataclass(frozen=True, slots=True)
