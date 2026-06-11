@@ -12,8 +12,8 @@ from bywaf.event.schema_objects import TlsCertificate
 from bywaf.plugin import CommandContext, Commandlet, RunConfig, commandlet
 from bywaf.plugins.target_policy import filter_targets_by_host
 
-from .tls_probe_findings import certificate_matches_host, host_matches_name, parse_tls_time, tls_certificate_findings
-from .tls_probe_targets import TlsTarget, target_from_text, tls_targets
+from .findings import certificate_matches_host, host_matches_name, parse_tls_time, tls_certificate_findings
+from .targets import TlsTarget, target_from_text, tls_targets
 
 
 @commandlet

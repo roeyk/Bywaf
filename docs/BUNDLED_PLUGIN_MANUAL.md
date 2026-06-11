@@ -1323,7 +1323,7 @@ Plugin metadata:
 | Plugin | `http.tls_probe` |
 | Commandlets | `tls_probe` |
 | Last updated | `2026-06-02` from source history |
-| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/tls_probe.py bywaf/plugins/http/tls_probe.plugin.toml` |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/tls_probe/` |
 
 #### Commandlet: `tls_probe`
 
