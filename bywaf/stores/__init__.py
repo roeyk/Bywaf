@@ -10,11 +10,11 @@ Used by:
 
 from __future__ import annotations
 
-from .stores_artifacts import ArtifactStoreProtocol
-from .stores_events import EventStoreProtocol
-from .stores_maintenance import MaintenanceStoreProtocol
-from .stores_maintenance import VariableStoreProtocol
-from .stores_runtime import RuntimeStoreProtocol
+from .artifacts import ArtifactStoreProtocol
+from .events import EventStoreProtocol
+from .maintenance import MaintenanceStoreProtocol
+from .maintenance import VariableStoreProtocol
+from .runtime import RuntimeStoreProtocol
 
 __all__ = [
     "ArtifactStoreProtocol",

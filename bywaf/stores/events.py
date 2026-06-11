@@ -9,8 +9,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
-from .event import Event
-from .subscriptions import Subscription
+from ..event import Event
+from ..subscriptions import Subscription
 
 
 @runtime_checkable
