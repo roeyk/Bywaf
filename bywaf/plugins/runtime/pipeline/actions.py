@@ -11,7 +11,7 @@ from collections.abc import Callable
 
 from bywaf.plugin import CommandContext
 from bywaf.plugins.runtime.job import cancel_job, kill_job
-from bywaf.plugins.runtime.pipeline_view import (
+from bywaf.plugins.runtime.pipeline.view import (
     format_pipeline,
     format_pipeline_artifacts,
     format_pipeline_inspection_hints,
@@ -25,7 +25,13 @@ PipelineActionHandler = Callable[[CommandContext, Namespace], None]
 
 
 def pipeline_action_handlers() -> dict[str, PipelineActionHandler]:
-    """Return pipeline action handlers keyed by action name."""
+    """Return pipeline action handlers keyed by action name.
+
+    Called by: `Pipeline.run()`, which uses this dispatch table instead of an
+    `if`/`elif` action ladder.
+    """
+    # Dispatch table for Pipeline.run(): each normalized action token maps to
+    # the handler that lists, shows, cancels, or ends a pipeline.
     return {
         "cancel": cancel_pipeline_action,
         "end": end_pipeline_action,
@@ -56,6 +62,8 @@ def show_pipeline_action(context: CommandContext, parsed: Namespace) -> None:
     display_name = runtime.runtime_names().get(("pipeline", str(row["pipeline_id"])))
     alias = runtime.pipeline_aliases().get(str(row["pipeline_id"]))
     style_getter = command_context_style_getter(context)
+    # Pipeline detail is intentionally sectioned: summary, inspection hints,
+    # artifacts, related jobs, and related steps can evolve independently.
     sections = [
         format_pipeline(
             row,

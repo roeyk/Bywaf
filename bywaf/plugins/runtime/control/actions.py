@@ -12,7 +12,7 @@ from collections.abc import Callable
 
 from bywaf.plugin import CommandContext
 from bywaf.plugins.runtime.job import cancel_job, kill_job, require_job
-from bywaf.plugins.runtime.pipeline_actions import cancel_pipeline, kill_pipeline
+from bywaf.plugins.runtime.pipeline import cancel_pipeline, kill_pipeline
 
 from .operations import (
     cancel_run,

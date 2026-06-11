@@ -2226,7 +2226,7 @@ Plugin metadata:
 | Plugin | `runtime.pipeline` |
 | Commandlets | `pipeline` |
 | Last updated | `2026-06-02` from source history |
-| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/pipeline.py bywaf/plugins/runtime/pipeline.plugin.toml` |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/pipeline` |
 
 #### Commandlet: `pipeline`
 

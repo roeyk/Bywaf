@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from bywaf.plugin import CommandContext
-from bywaf.plugins.runtime.pipeline_detail import (
+from bywaf.plugins.runtime.pipeline.detail import (
     format_pipeline,
     format_pipeline_artifacts,
     format_pipeline_inspection_hints,
@@ -57,6 +57,8 @@ def print_pipelines(
 ) -> None:
     """Print active pipelines by default, or all pipelines when requested."""
     runtime = context.runtime_store("pipeline list")
+    # Start from runtime rows, then apply visibility filtering, since/event
+    # selectors, the per-command "new" cursor, and optional user sorting.
     rows = runtime.pipelines(active_only=active_only)
     rows = filter_view_only_pipelines(context, rows)
     rows = filter_runtime_rows_since(runtime, "pipeline", rows, since)
@@ -140,6 +142,8 @@ def filter_view_only_pipelines(context: CommandContext, rows: list[dict]) -> lis
 def sort_pipeline_rows(rows: list[dict], sort_key: str) -> list[dict]:
     """Return pipeline rows ordered by the requested operator-facing column."""
     display_key = runtime_sort_key(sort_key)
+    # Dispatch table for sort_pipeline_rows(): translates public sort keys into
+    # concrete row values used by Python's stable sorter.
     sorters = {
         "id": lambda row: int(row["pipeline_id"]),
         "serial": lambda row: str(row["pipeline_id"]),

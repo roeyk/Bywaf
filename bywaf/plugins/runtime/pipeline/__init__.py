@@ -1,10 +1,13 @@
 """Runtime pipeline commandlet.
 
-Provides a bundled plugin implementation and CommandSpec metadata. Lists and inspects pipeline state and history.
+Provides the bundled `runtime.pipeline` plugin implementation and CommandSpec
+metadata. Operators use this commandlet to list, inspect, attach to, and
+control pipelines.
 
 Used by:
-- PluginRegistry discovery: loads this module as a commandlet provider.
+- PluginRegistry discovery: loads this package as a commandlet provider.
 - runner and REPL: execute it through normal commandlet dispatch.
+- Runtime control plugins: import the re-exported pipeline control helpers.
 """
 
 from __future__ import annotations
@@ -22,14 +25,35 @@ from bywaf.plugin import (
     argument,
     commandlet,
 )
-from bywaf.plugins.runtime.pipeline_actions import pipeline_action_handlers, validate_pipeline_mode
-from bywaf.plugins.runtime.pipeline_attach import attach_candidates, attach_pipeline, pipeline_ids
-from bywaf.plugins.runtime.pipeline_view import PIPELINE_SORT_KEYS
+from bywaf.plugins.runtime.pipeline.actions import (
+    cancel_pipeline,
+    kill_pipeline,
+    pipeline_action_handlers,
+    require_pipeline,
+    validate_pipeline_mode,
+)
+from bywaf.plugins.runtime.pipeline.attach import attach_candidates, attach_pipeline, pipeline_ids
+from bywaf.plugins.runtime.pipeline.view import PIPELINE_SORT_KEYS
 from bywaf.plugins.runtime.view_common import split_since_selector, view_selector_candidates
 from bywaf.runtime_display import parse_runtime_list_selectors
 
 PIPELINE_ACTIONS = ("attach", "cancel", "end", "kill")
 REMOVED_PIPELINE_ACTIONS = {"list", "show"}
+
+__all__ = [
+    "PIPELINE_ACTIONS",
+    "PIPELINE_SORT_KEYS",
+    "Pipeline",
+    "attach_pipeline",
+    "cancel_pipeline",
+    "kill_pipeline",
+    "parse_pipeline_operation",
+    "pipeline_ids",
+    "plugin",
+    "require_pipeline",
+    "validate_pipeline_mode",
+]
+
 
 @commandlet(
     name="pipeline",
@@ -64,6 +88,7 @@ class Pipeline(CommandletBase):
         input_events: Iterable[Event],
     ):
         """Parse and execute one pipeline-management operation."""
+        del input_events
         parser = self.parser()
         if args and args[0] == "attach":
             # `pipeline attach` has a commandlet tail after its selectors. Parse
@@ -85,6 +110,8 @@ class Pipeline(CommandletBase):
         parsed.sort = operation.sort
         context.require_foreground("pipeline management commands")
         validate_pipeline_mode(parsed.action, soft=parsed.soft, hard=parsed.hard)
+        # `pipeline_action_handlers()` returns the action dispatch table used
+        # here instead of an if/elif ladder over list/show/cancel/end/kill.
         pipeline_action_handlers()[parsed.action](context, parsed)
         return ()
 

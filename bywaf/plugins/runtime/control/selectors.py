@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from bywaf.plugin import CommandContext, CompletionContext
 from bywaf.plugins.runtime.job import job_ids
-from bywaf.plugins.runtime.pipeline_attach import pipeline_ids
+from bywaf.plugins.runtime.pipeline import pipeline_ids
 
 
 def parse_target(target: str) -> tuple[str, str]:
