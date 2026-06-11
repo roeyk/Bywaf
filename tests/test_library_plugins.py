@@ -157,6 +157,18 @@ class LibraryPluginTests(unittest.TestCase):
             services = [event.payload["service"] for event in db.events_for_topic("service.detected")]
             self.assertEqual(services, ["https", "ssh"])
 
+    def test_service_probe_classifies_udp_port_events(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = EventStore(Path(tmp, "bywaf.sqlite3"))
+            context = CommandContext(db=db, source="service_probe", metadata={"capabilities": service_probe.spec.capabilities})
+            events = [
+                Event.new("port.open", {"host": "192.0.2.10", "port": 53, "protocol": "udp"}, "portscanner"),
+                Event.new("port.open", {"host": "192.0.2.10", "port": 161, "protocol": "udp"}, "portscanner"),
+            ]
+            list(service_probe.run(context, [], events))
+            services = [event.payload["service"] for event in db.events_for_topic("service.detected")]
+            self.assertEqual(services, ["dns", "snmp"])
+
     def test_tls_probe_publishes_certificate_metadata(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))

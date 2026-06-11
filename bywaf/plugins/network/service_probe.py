@@ -12,34 +12,73 @@ from typing import cast
 from bywaf.event.schema_objects import HttpEndpoint, OpenPort, ServiceDetected, TcpBanner, TlsCertificate
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, RunConfig, commandlet
+from bywaf.service_names import classify_banner, known_service
 
 
 @commandlet
 def service_probe(context: CommandContext, cfg: RunConfig, input_events: Iterable[Event]):
-    """Classify upstream service observations."""
+    """Classify upstream service observations.
+
+    Called by: the Bywaf runner when the `service_probe` commandlet executes.
+
+    Consumes: passive upstream facts such as `port.open`, `tcp.banner`,
+    `http.endpoint`, and `tls.certificate`.
+
+    Emits: normalized `service.detected` facts for inventory, reports,
+    technology indicators, and downstream analysis plugins.
+    """
+
+    # The framework passes plugin config through the generic RunConfig type.
+    # This cast names the concrete config fields this commandlet uses.
     cfg = cast(ServiceProbeConfig, cfg)
+
     for event in input_events:
+        # Convert each supported upstream event into a neutral service fact.
+        # Unsupported topics return None and are ignored.
         service = service_from_event(event)
         if service is None:
             continue
+
+        # The structured event is the durable output. The alert is only
+        # operator-facing feedback for the current run and can be silenced.
         context.events.publish("service.detected", service.to_payload())
         context.alert(f"detected service {service.service} on {service.host}:{service.port}/{service.protocol}", silent=cfg.silent)
     return ()
 
 
 class ServiceProbeConfig(RunConfig):
-    """Typed effective config for service_probe."""
+    """Plugin-specific effective configuration for `service_probe`.
+
+    Constructed by: the framework when it hydrates manifest defaults and
+    operator arguments for this commandlet run.
+
+    Used by: `service_probe()` to decide whether operator-facing alerts should
+    be suppressed.
+    """
 
     silent: bool
 
 
 def service_from_event(event: Event) -> ServiceDetected | None:
-    """Return a service fact from one upstream event."""
+    """Return a normalized service fact from one upstream event.
+
+    Called by: `service_probe()` for every pipeline input event.
+
+    The function is deliberately pure with respect to framework state. It does
+    not publish or alert, which keeps unit tests focused on classification
+    behavior and lets the commandlet own side effects in one place.
+    """
+
     if event.topic == OpenPort.__topic__:
+        # Port scanners may already know the service. If they do not, use the
+        # shared service-name helper, which now handles both TCP and UDP.
         port = OpenPort.from_event(event)
         service = port.service or known_service(port.port, port.protocol)
         return ServiceDetected(port.host, port.port, port.protocol, service or "unknown", source="port.open", confidence="medium")
+
     if event.topic == TcpBanner.__topic__:
+        # Banners are stronger evidence than port numbers, so classify banner
+        # text first and fall back to well-known port lookup only when needed.
         banner = TcpBanner.from_event(event)
         return ServiceDetected(
             banner.host,
@@ -50,73 +89,23 @@ def service_from_event(event: Event) -> ServiceDetected | None:
             confidence="high" if banner.banner else "low",
             evidence=banner.banner or banner.error,
         )
+
     if event.topic == HttpEndpoint.__topic__:
+        # HTTP endpoint facts already identify the application protocol and
+        # carry optional server evidence from earlier HTTP probing.
         endpoint = HttpEndpoint.from_event(event)
         return ServiceDetected(endpoint.host, endpoint.port, "tcp", endpoint.scheme, source="http.endpoint", confidence="high", evidence=endpoint.server)
+
     if event.topic == TlsCertificate.__topic__:
+        # A certificate proves a TLS-speaking service even when the exact
+        # application protocol above TLS remains unknown.
         cert = TlsCertificate.from_event(event)
         return ServiceDetected(cert.host, cert.port, "tcp", "tls", source="tls.certificate", confidence="high", evidence=cert.subject)
+
     return None
 
 
-def known_service(port: int, protocol: str) -> str:
-    """Return common service labels for well-known ports."""
-    if protocol != "tcp":
-        return ""
-    return {
-        21: "ftp",
-        22: "ssh",
-        23: "telnet",
-        25: "smtp",
-        53: "dns",
-        80: "http",
-        110: "pop3",
-        143: "imap",
-        389: "ldap",
-        443: "https",
-        445: "smb",
-        993: "imaps",
-        995: "pop3s",
-        2375: "docker",
-        2376: "docker",
-        3389: "rdp",
-        5601: "kibana",
-        5985: "winrm",
-        5986: "winrm",
-        6379: "redis",
-        6443: "kubernetes",
-        8443: "https-alt",
-        9090: "prometheus",
-        9200: "elasticsearch",
-        9300: "elasticsearch",
-        10250: "kubelet",
-        11211: "memcached",
-        27017: "mongodb",
-    }.get(port, "")
-
-
-def classify_banner(banner: str) -> str:
-    """Infer a service label from a banner."""
-    lowered = banner.casefold()
-    if lowered.startswith("ssh-"):
-        return "ssh"
-    if lowered.startswith("http/") or "server:" in lowered:
-        return "http"
-    if "smtp" in lowered:
-        return "smtp"
-    if "ftp" in lowered:
-        return "ftp"
-    if "redis_version" in lowered or lowered.startswith("-redis"):
-        return "redis"
-    if "memcached" in lowered:
-        return "memcached"
-    if "mongodb" in lowered:
-        return "mongodb"
-    if "elasticsearch" in lowered or "opensearch" in lowered:
-        return "elasticsearch"
-    return ""
-
-
 def plugin() -> Commandlet:
-    """Factory used by PluginRegistry."""
+    """Return the commandlet factory object used by PluginRegistry."""
+
     return service_probe
