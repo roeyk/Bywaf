@@ -17,22 +17,50 @@ from bywaf.plugins.target_policy import filter_targets_by_host
 
 @commandlet
 def waf_detect(context: CommandContext, cfg: RunConfig, input_events: Iterable[Event]):
-    """Detect common WAF/CDN fingerprints from HTTP headers."""
+    """Detect common WAF/CDN fingerprints from HTTP response headers.
+
+    Called by: the Bywaf runner when the `waf_detect` commandlet executes.
+
+    Consumes: explicit command-line targets, or upstream `http.endpoint`
+    events when used in a pipeline such as `http_probe ... | waf_detect`.
+
+    Emits: `web.waf.detected` events for recognized passive header signals.
+    """
     cfg = cast(WafDetectConfig, cfg)
-    for url in filter_targets_by_host(context, waf_targets(cfg.targets, input_events), host_from_url):
+    targets = waf_targets(cfg.targets, input_events)
+    scoped_targets = filter_targets_by_host(context, targets, host_from_url)
+
+    for url in scoped_targets:
         context.raise_if_cancelled()
+
+        # This audit records actual runtime use of an already-declared
+        # capability. Keeping it next to the network call makes audit logs
+        # reflect the operation that consumed `network.connect`.
         context.audit_capability("network.connect")
         result = fetch_headers(url, cfg.timeout, cfg.user_agent)
+
+        # Detection is kept pure: raw fetch results become either a typed
+        # schema object or `None`; framework publication happens below.
         detection = detect_waf(url, result)
         if detection is None:
             continue
+
+        # The structured event is the durable result for reports, pipelines,
+        # tests, and downstream plugins. The alert is secondary operator
+        # feedback and can be suppressed without losing the data.
         context.events.publish("web.waf.detected", detection.to_payload())
         context.alert(f"detected {detection.vendor} WAF signal at {url}", silent=cfg.silent)
     return ()
 
 
 class WafDetectConfig(RunConfig):
-    """Typed effective config for waf_detect."""
+    """Effective runtime configuration for `waf_detect`.
+
+    Constructed by: the framework from manifest defaults plus user-supplied
+    arguments/options.
+
+    Used by: `waf_detect()` after casting the generic `RunConfig`.
+    """
 
     targets: list[str]
     silent: bool
@@ -41,9 +69,18 @@ class WafDetectConfig(RunConfig):
 
 
 def waf_targets(targets: list[str], input_events: Iterable[Event]) -> list[str]:
-    """Return target URLs from args or upstream endpoints."""
+    """Return target URLs from explicit args or upstream endpoint events.
+
+    Called by: `waf_detect()` before target-policy filtering.
+
+    Explicit targets win. Without explicit targets, this commandlet acts as a
+    pipeline consumer and derives URLs from upstream `http.endpoint` events.
+    """
     if targets:
-        return [target if target.startswith(("http://", "https://")) else f"http://{target}" for target in targets]
+        return [normalize_target_url(target) for target in targets]
+
+    # Convert only the event type this plugin declares in `consumes`. The
+    # schema object validates/names the payload before we read its URL field.
     return [
         HttpEndpoint.from_event(event).url
         for event in input_events
@@ -51,36 +88,72 @@ def waf_targets(targets: list[str], input_events: Iterable[Event]) -> list[str]:
     ]
 
 
+def normalize_target_url(target: str) -> str:
+    """Return an explicit HTTP(S) URL for an operator-supplied target.
+
+    Called by: `waf_targets()` for direct command arguments.
+    """
+    return target if target.startswith(("http://", "https://")) else f"http://{target}"
+
+
 def host_from_url(url: str) -> str:
-    """Return the network host portion of a URL."""
+    """Return the hostname used by target-policy filtering.
+
+    Called by: `filter_targets_by_host()` through `waf_detect()`.
+    """
     return urllib.parse.urlparse(url).hostname or ""
 
 
 def fetch_headers(url: str, timeout: float, user_agent: str) -> dict[str, object]:
-    """Fetch response headers with a HEAD request."""
+    """Fetch HTTP response headers with a bounded HEAD request.
+
+    Called by: `waf_detect()` once per scoped target URL.
+
+    The return value is intentionally small and uniform so network failures do
+    not interrupt the rest of a multi-target commandlet run.
+    """
     if not is_http_url(url):
         return {"error": "unsupported URL scheme", "headers": {}}
+
+    # WAF fingerprints often appear in headers, so HEAD avoids downloading a
+    # response body while still preserving the common passive signals.
     request = urllib.request.Request(url, method="HEAD", headers={"User-Agent": user_agent})
     try:
         # URL scheme is restricted to HTTP(S) above.
         with urllib.request.urlopen(request, timeout=timeout) as response:  # nosec B310
             return {"status": response.status, "headers": dict(response.headers)}
     except urllib.error.HTTPError as exc:
+        # HTTP error responses can still carry WAF/CDN headers, so keep them.
         return {"status": exc.status, "headers": dict(exc.headers)}
     except urllib.error.URLError as exc:
+        # Transport errors provide no headers. The error text is retained for
+        # diagnostics while detection simply treats the target as unmatched.
         return {"error": str(exc.reason), "headers": {}}
 
 
 def detect_waf(url: str, result: dict[str, object]) -> WebWafDetected | None:
-    """Return a WAF detection from headers when recognized."""
+    """Return a typed WAF detection when fetched headers match a rule.
+
+    Called by: `waf_detect()` after each target's headers are fetched.
+    """
     headers = result.get("headers")
     if not isinstance(headers, dict):
         headers = {}
+
+    # Normalize the header map into simple strings so rule predicates can stay
+    # case-insensitive and deterministic across urllib response objects.
     folded = {str(key).casefold(): str(value) for key, value in headers.items()}
+
+    # Sorted evidence keeps emitted payloads stable for tests and review. The
+    # lowercase copy is used for substring matching; the original case is kept
+    # in the event payload for operator inspection.
     evidence = " ".join(f"{key}: {value}" for key, value in sorted(folded.items()))
     rule = matching_waf_rule(folded, evidence.casefold())
     if rule is None:
         return None
+
+    # The schema object centralizes the `web.waf.detected` payload contract and
+    # keeps this plugin aligned with the shared event registry.
     parsed = urllib.parse.urlparse(url)
     return WebWafDetected(
         url=url,
@@ -95,7 +168,12 @@ def detect_waf(url: str, result: dict[str, object]) -> WebWafDetected | None:
 
 @dataclass(frozen=True, slots=True)
 class WafRule:
-    """One WAF signal rule."""
+    """One passive WAF fingerprinting rule.
+
+    Constructed by: the module-level `WAF_RULES` dispatch table.
+
+    Used by: `matching_waf_rule()` to test normalized headers and evidence.
+    """
 
     vendor: str
     product: str
@@ -103,30 +181,42 @@ class WafRule:
 
 
 def matching_waf_rule(headers: dict[str, str], evidence: str) -> WafRule | None:
-    """Return the first WAF rule matching normalized headers."""
+    """Return the first WAF rule matching normalized headers.
+
+    Called by: `detect_waf()`. Rule order matters: the first matching entry in
+    `WAF_RULES` wins.
+    """
     return next((rule for rule in WAF_RULES if rule.matches(headers, evidence)), None)
 
 
 def has_header(name: str) -> Callable[[dict[str, str], str], bool]:
-    """Return a predicate for a normalized header name."""
+    """Build a WAF rule predicate for an exact normalized header name."""
     return lambda headers, evidence: name in headers
 
 
 def evidence_contains(*needles: str) -> Callable[[dict[str, str], str], bool]:
-    """Return a predicate matching any lowercase evidence substring."""
+    """Build a WAF rule predicate for lowercase evidence substrings."""
     return lambda headers, evidence: any(needle in evidence for needle in needles)
 
 
 def any_signal(*predicates: Callable[[dict[str, str], str], bool]) -> Callable[[dict[str, str], str], bool]:
-    """Return a predicate that matches when any signal predicate matches."""
+    """Build a predicate that matches when any child signal predicate matches."""
     return lambda headers, evidence: any(predicate(headers, evidence) for predicate in predicates)
 
 
 def f5_signal(headers: dict[str, str], evidence: str) -> bool:
-    """Return whether headers look like an F5 BIG-IP/ASM signal."""
+    """Return whether headers look like an F5 BIG-IP/ASM signal.
+
+    Called by: the F5 entry in `WAF_RULES`.
+    """
     return "bigipserver" in evidence or ("f5" in evidence and "x-waf" in headers)
 
 
+# Dispatch table for passive WAF fingerprinting.
+#
+# Used by: `matching_waf_rule()`, which walks this table in order instead of
+# hard-coding an if/elif ladder. Keeping rule metadata as data makes additions
+# and ordering decisions explicit.
 WAF_RULES = (
     WafRule("Cloudflare", "Cloudflare WAF/CDN", any_signal(has_header("cf-ray"), evidence_contains("cloudflare"))),
     WafRule("Sucuri", "Sucuri WAF", any_signal(has_header("x-sucuri-id"), evidence_contains("sucuri"))),
@@ -140,10 +230,13 @@ WAF_RULES = (
 
 
 def is_http_url(url: str) -> bool:
-    """Return whether URL uses an HTTP transport scheme."""
+    """Return whether URL uses an HTTP transport scheme.
+
+    Called by: `fetch_headers()` before urllib opens a network connection.
+    """
     return urllib.parse.urlparse(url).scheme in {"http", "https"}
 
 
 def plugin() -> Commandlet:
-    """Factory used by PluginRegistry."""
+    """Return the commandlet object loaded by PluginRegistry."""
     return waf_detect
