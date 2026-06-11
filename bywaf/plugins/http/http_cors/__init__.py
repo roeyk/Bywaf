@@ -44,7 +44,13 @@ DEFAULTS = {
 @option("scheme", "scheme override", DEFAULTS["scheme"], ("auto", "http", "https"))
 @option("timeout", "request timeout seconds", "5")
 class HttpCors(CommandletBase):
-    """Probe one request with an Origin header and emit CORS posture facts."""
+    """Probe one request with an Origin header and emit CORS posture facts.
+
+    Called by: PluginRegistry/runner dispatch for the `http_cors` commandlet.
+
+    Emits: plugin-owned `http.cors` facts and `finding.candidate` events for
+    clear unsafe CORS posture.
+    """
 
     def run(
         self,
@@ -52,8 +58,13 @@ class HttpCors(CommandletBase):
         args: list[str],
         input_events: Iterable[Event],
     ):
-        """Probe explicit URLs/hosts or HTTP-looking pipeline ports."""
+        """Probe explicit URLs/hosts or HTTP-looking pipeline ports.
+
+        Called by: the Bywaf runner through `CommandletBase.run()`.
+        """
         parser = self.parser()
+        # Add positional targets and runtime options to the argparse parser
+        # that executes this commandlet invocation.
         parser.add_argument("targets", nargs="*")
         parser.add_argument("--origin", default=self.var_default(context, "origin", DEFAULTS["origin"]))
         parser.add_argument("--path", default=self.var_default(context, "path", DEFAULTS["path"]))
@@ -64,27 +75,47 @@ class HttpCors(CommandletBase):
         )
         parser.add_argument("--scheme", choices=("auto", "http", "https"), default=self.var_default(context, "scheme", DEFAULTS["scheme"]))
         parser.add_argument("--timeout", type=float, default=self.var_default(context, "timeout", DEFAULTS["timeout"], cast=float))
+        # Parse command-line arguments into concrete runtime values.
         parsed = parser.parse_args(args)
+
+        # Resolve direct or pipeline targets, then apply the global target
+        # scope policy by comparing each CorsTarget by host.
         targets = filter_targets_by_host(
             context,
             cors_targets(parsed.targets, input_events, parsed.scheme, parsed.path),
             lambda target: target.host,
         )
         for target in targets:
+            # Record actual runtime use of the declared network capability.
             context.audit_capability("network.connect")
+
+            # Send the CORS preflight-style OPTIONS request and normalize
+            # response headers into a loose result dict.
             result = probe_cors(
                 target,
                 origin=parsed.origin,
                 request_method=parsed.request_method,
                 timeout=parsed.timeout,
             )
+
+            # Convert the probe result into the plugin-owned `http.cors`
+            # event payload that the framework persists from yielded output.
             payload = result_payload(target, result, parsed.origin, parsed.request_method)
+
+            # Promote clear unsafe CORS policy observations to finding
+            # candidates before yielding the raw CORS fact.
             for finding in cors_findings(payload):
                 context.events.publish("finding.candidate", finding)
             yield payload
 
     def targets(self, targets, scheme, path, input_events):
-        """Resolve explicit targets or derive targets from `port.open` events."""
+        """Resolve target tuples for compatibility tests/callers.
+
+        Called by: tests and older callers that expect tuple output rather
+        than `CorsTarget` objects.
+        """
+        # Convert the shared HTTP target model back to the historical tuple
+        # shape exposed by this commandlet helper.
         return [
             (target.host, target.port, target.scheme, target.path)
             for target in cors_targets(list(targets or []), input_events, scheme, path)
@@ -97,17 +128,28 @@ def cors_targets(
     scheme: str,
     path: str,
 ) -> list[CorsTarget]:
-    """Resolve CORS-probe targets from arguments or upstream port events."""
+    """Resolve CORS-probe targets from arguments or upstream port events.
+
+    Called by: `HttpCors.run()` and `HttpCors.targets()`.
+    """
+    # Delegate URL/host/port parsing to the shared HTTP target helper so HTTP
+    # plugins use consistent defaults and pipeline conversion.
     return http_targets(targets, input_events, scheme, path)
 
 
 def target_from_port_event(event: Event, scheme: str, path: str) -> CorsTarget:
-    """Convert one `port.open` event into a CORS probe target."""
+    """Convert one `port.open` event into a CORS probe target.
+
+    Re-exported for tests and compatibility imports.
+    """
     return http_target_from_port_event(event, scheme, path)
 
 
 def target_from_text(target: str, scheme: str, path: str) -> CorsTarget:
-    """Parse URL, host, or host:port text into a CorsTarget."""
+    """Parse URL, host, or host:port text into a CorsTarget.
+
+    Re-exported for tests and compatibility imports.
+    """
     return http_target_from_text(target, scheme, path)
 
 
@@ -118,20 +160,37 @@ def probe_cors(
     request_method: str,
     timeout: float,
 ) -> dict[str, object]:
-    """Perform one CORS preflight-style request and return response metadata."""
+    """Perform one CORS preflight-style request and return response metadata.
+
+    Called by: `HttpCors.run()` once per scoped target.
+    """
+    # Pick the stdlib connection class that matches the resolved target scheme.
     connection_class = http.client.HTTPSConnection if target.scheme == "https" else http.client.HTTPConnection
+
+    # Open an HTTP(S) connection to the target host and port.
     connection = connection_class(target.host, target.port, timeout=timeout)
+
+    # Build the CORS request headers that simulate a browser cross-origin
+    # preflight check for the requested method.
     headers = {
         "Origin": origin,
         "Access-Control-Request-Method": request_method,
     }
     try:
+        # Send the OPTIONS request with the Origin and requested-method headers.
         connection.request("OPTIONS", target.path, headers=headers)
+
+        # Read the server's CORS preflight response.
         response = connection.getresponse()
+
+        # Extract the CORS posture headers this commandlet evaluates.
         allow_origin = response.getheader("Access-Control-Allow-Origin") or ""
         allow_credentials = response.getheader("Access-Control-Allow-Credentials") or ""
         allow_methods = response.getheader("Access-Control-Allow-Methods") or ""
         vary = response.getheader("Vary") or ""
+
+        # Return both raw header values and normalized booleans for finding
+        # generation and display/reporting.
         return {
             "ok": True,
             "status": response.status,
@@ -145,18 +204,30 @@ def probe_cors(
             "credentials_allowed": truthy_header(allow_credentials),
         }
     except (OSError, http.client.HTTPException, ValueError) as exc:
+        # Preserve a structured error payload so one failed target does not
+        # abort the rest of the commandlet run.
         return {"ok": False, "error": str(exc)}
     finally:
+        # Always release the socket-like connection object after probing.
         connection.close()
 
 
 def same_origin_value(value: str, origin: str) -> bool:
-    """Return whether a response origin exactly matches the request origin."""
+    """Return whether a response origin exactly matches the request origin.
+
+    Called by: `probe_cors()` when deriving `reflected_origin`.
+    """
+    # Compare stripped, casefolded values; CORS origin matching is exact for
+    # this passive check.
     return value.strip().casefold() == origin.strip().casefold()
 
 
 def truthy_header(value: str) -> bool:
-    """Return whether a response header means true."""
+    """Return whether a response header means true.
+
+    Called by: `probe_cors()` for Access-Control-Allow-Credentials.
+    """
+    # The CORS credentials header is only enabled by the literal true value.
     return value.strip().casefold() == "true"
 
 
@@ -166,7 +237,12 @@ def result_payload(
     origin: str,
     request_method: str,
 ) -> dict[str, object]:
-    """Return the plugin-owned `http.cors` fact payload."""
+    """Return the plugin-owned `http.cors` fact payload.
+
+    Called by: `HttpCors.run()` before yielding the fact.
+    """
+    # Combine stable target fields, request inputs, raw response headers, and
+    # normalized posture booleans in the event schema shape.
     return {
         "url": target.url,
         "host": target.host,
@@ -188,13 +264,22 @@ def result_payload(
 
 
 def cors_findings(payload: dict[str, object]) -> list[dict[str, object]]:
-    """Promote clear unsafe CORS posture into normalized finding candidates."""
+    """Promote clear unsafe CORS posture into normalized finding candidates.
+
+    Called by: `HttpCors.run()` after one `http.cors` payload is built.
+    """
     findings: list[dict[str, object]] = []
     if payload.get("reflected_origin") and payload.get("credentials_allowed"):
+        # Reflected arbitrary origin plus credentials is the clearest high-risk
+        # CORS posture in this passive probe.
         findings.append(cors_finding(payload, "web.cors.arbitrary_origin_with_credentials", "CORS reflects arbitrary Origin with credentials", "high"))
     elif payload.get("reflected_origin"):
+        # Reflected arbitrary origin without credentials is still usually
+        # unsafe, but impact depends more on readable unauthenticated data.
         findings.append(cors_finding(payload, "web.cors.arbitrary_origin_reflected", "CORS reflects arbitrary Origin", "medium"))
     if payload.get("wildcard_origin") and payload.get("credentials_allowed"):
+        # The CORS spec rejects wildcard+credentials in browsers, but recording
+        # the contradictory posture helps operators fix unsafe server config.
         findings.append(cors_finding(payload, "web.cors.wildcard_with_credentials", "CORS wildcard origin allows credentials", "medium"))
     return findings
 
@@ -205,7 +290,11 @@ def cors_finding(
     title: str,
     severity: str,
 ) -> dict[str, object]:
-    """Return one normalized CORS finding candidate."""
+    """Return one normalized CORS finding candidate.
+
+    Called by: `cors_findings()` for each detected CORS posture issue.
+    """
+    # Package the CORS observation into the common finding.candidate contract.
     return candidate_payload(
         title=title,
         finding_class=finding_class,
@@ -226,7 +315,11 @@ def cors_finding(
 
 
 def target_payload(payload: dict[str, object]) -> dict[str, str]:
-    """Return normalized target details for finding candidates."""
+    """Return normalized target details for finding candidates.
+
+    Called by: `cors_finding()` when packaging candidate payloads.
+    """
+    # Finding payloads expect string target fields for stable grouping keys.
     return {
         "scheme": str(payload["scheme"]),
         "host": str(payload["host"]),
@@ -236,5 +329,5 @@ def target_payload(payload: dict[str, object]) -> dict[str, str]:
 
 
 def plugin() -> Commandlet:
-    """Factory used by PluginRegistry."""
+    """Return the commandlet object loaded by PluginRegistry."""
     return HttpCors()
