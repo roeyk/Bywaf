@@ -66,7 +66,14 @@ REPO_EXPOSURE_CHECKS = ("git_config",)
 @option("timeout", "request timeout seconds", "5")
 @option("user-agent", "HTTP User-Agent", "Bywaf/0.9")
 class GitExposeCheck(CommandletBase):
-    """Check one or more HTTP endpoints for exposed Git repository metadata."""
+    """Check one or more HTTP endpoints for exposed Git repository metadata.
+
+    Called by: PluginRegistry/runner dispatch for the `git_expose_check`
+    commandlet.
+
+    Delegates to: `run_git_config_check()` for parsing, target selection,
+    probing, event payload creation, and finding promotion.
+    """
 
     def run(
         self,
@@ -74,7 +81,12 @@ class GitExposeCheck(CommandletBase):
         args: list[str],
         input_events: Iterable[Event],
     ):
-        """Check explicit targets or upstream `http.endpoint` events."""
+        """Check explicit targets or upstream `http.endpoint` events.
+
+        Called by: the Bywaf runner through `CommandletBase.run()`.
+        """
+        # Delegate execution to command.py so this provider module stays as the
+        # stable registry/import surface rather than owning orchestration logic.
         yield from run_git_config_check(self, context, args, input_events)
 
 
@@ -104,15 +116,20 @@ class RepoExposure(CommandletBase):
         args: list[str],
         input_events: Iterable[Event],
     ):
-        """Run repository exposure checks for explicit or upstream targets."""
+        """Run repository exposure checks for explicit or upstream targets.
+
+        Called by: the Bywaf runner through `CommandletBase.run()`.
+        """
+        # Currently this orchestrator runs the same Git config check and tags
+        # emitted payloads with the broader `repo_exposure` family name.
         yield from run_git_config_check(self, context, args, input_events)
 
 
 def plugin() -> Commandlet:
-    """Factory used by PluginRegistry."""
+    """Return the default commandlet object loaded by PluginRegistry."""
     return GitExposeCheck()
 
 
 def plugins() -> tuple[Commandlet, ...]:
-    """Factory used by PluginRegistry for this provider's commandlets."""
+    """Return all commandlet objects loaded by PluginRegistry for this provider."""
     return (GitExposeCheck(), RepoExposure())

@@ -14,7 +14,13 @@ from enum import Enum
 
 
 class DetectionStatus(Enum):
-    """Detection result vocabulary for source repository exposure checks."""
+    """Detection result vocabulary for source repository exposure checks.
+
+    Constructed by: detection helpers when classifying probe responses.
+
+    Used by: command and finding mapping code to decide whether to emit facts,
+    promote findings, or alert on probe errors.
+    """
 
     # CANDIDATE means the probe observed enough proof for a finding candidate;
     # confirmation/triage remains a reporting/operator decision.
@@ -25,7 +31,13 @@ class DetectionStatus(Enum):
 
 @dataclass(frozen=True, slots=True)
 class GitConfigProbeResult:
-    """Result from probing one endpoint for `/.git/config`."""
+    """Result from probing one endpoint for `/.git/config`.
+
+    Constructed by: `detect.base_result()`.
+
+    Used by: `findings.result_payload()` and
+    `findings.candidate_from_detection()`.
+    """
 
     # Include both normalized target fields and raw evidence so findings.py can
     # choose a grouping scope without re-parsing URLs or HTTP details.
