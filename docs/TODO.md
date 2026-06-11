@@ -67,7 +67,7 @@ Planning dates are release planning markers, not compatibility commitments.
   `bywaf/registry/core.py`, `bywaf/registry/manifest.py`, `bywaf/db/events.py`,
   `bywaf/db/runtime.py`, `bywaf/plugin/context.py`,
   `bywaf/plugin/services.py`, `bywaf/plugin/process.py`,
-  `bywaf/command/parser.py`, `bywaf/completion/engine.py`, and bundled
+  `bywaf/command/parser/`, `bywaf/completion/engine.py`, and bundled
   vulnerability/reporting plugins.
 - Keep changes comment/docstring-only unless a function is too dense to explain
   honestly without extracting helpers; if refactoring is needed, split it into

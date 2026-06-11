@@ -12,7 +12,7 @@ Used by:
 
 from __future__ import annotations
 
-from .pipeline_syntax import normalize_final_text
+from ..pipeline_syntax import normalize_final_text
 
 
 COMMANDLET_TEXT_SELECTORS = {

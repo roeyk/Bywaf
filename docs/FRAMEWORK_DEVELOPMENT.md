@@ -62,7 +62,7 @@ matter to scripts, future GUI/web frontends, or API callers.
 
 ### Command Parsing
 
-- `bywaf/command/parser.py`: parses command text into pipeline and invocation
+- `bywaf/command/parser/`: parses command text into pipeline and invocation
   structures.
 - `bywaf/command/names.py`: shared command/action constants.
 

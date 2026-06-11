@@ -14,15 +14,15 @@ import shlex
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from ..varstore import VarStore
-from .parser_variables import expand_variables_in_text as expand_variables_in_text
-from .parser_selectors import (
+from ...varstore import VarStore
+from .variables import expand_variables_in_text as expand_variables_in_text
+from .selectors import (
     commandlet_owns_text_selector,
     peel_background_marker,
     peel_context_selectors,
     peel_final_text_selector,
 )
-from .pipeline_syntax import (
+from ..pipeline_syntax import (
     peel_pipeline_background as peel_pipeline_background,
     peel_pipeline_name_prefix as peel_pipeline_name_prefix,
     split_pipeline_raw as split_pipeline_raw,

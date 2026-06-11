@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ..varstore import VarStore
+from ...varstore import VarStore
 
 
 def expand_variables_in_text(text: str, varstore: VarStore, commandlet: str) -> tuple[str, tuple[str, ...]]:
