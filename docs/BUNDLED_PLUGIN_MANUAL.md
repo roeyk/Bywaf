@@ -2406,7 +2406,7 @@ Plugin metadata:
 | Plugin | `runtime.note` |
 | Commandlets | `note` |
 | Last updated | `2026-06-02` from source history |
-| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/note.py bywaf/plugins/runtime/note.plugin.toml` |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/note` |
 
 #### Commandlet: `note`
 

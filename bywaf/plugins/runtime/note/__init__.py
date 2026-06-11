@@ -1,10 +1,13 @@
 """Runtime note commandlet.
 
-Provides a bundled plugin implementation and CommandSpec metadata. Adds operator notes to runtime entities through event records.
+Provides the bundled `runtime.note` plugin implementation and CommandSpec
+metadata. Operators use this commandlet to attach and review notes for jobs,
+pipelines, and pipeline steps.
 
 Used by:
-- PluginRegistry discovery: loads this module as a commandlet provider.
-- runner and REPL: execute it through normal commandlet dispatch."""
+- PluginRegistry discovery: loads this package as a commandlet provider.
+- runner and REPL: execute it through normal commandlet dispatch.
+"""
 
 
 from __future__ import annotations
@@ -23,9 +26,9 @@ from bywaf.plugin import (
     commandlet,
 )
 
-from .note_completion import complete_note_args
-from .note_events import add_note, format_note_event, select_note_events
-from .note_selectors import parse_note_args
+from .completion import complete_note_args
+from .events import add_note, format_note_event, select_note_events
+from .selectors import parse_note_args
 
 
 @commandlet(
@@ -64,11 +67,11 @@ class Note(CommandletBase):
         if mode == "add":
             add_note(context, selectors)
             return ()
+        # Display and export share the same selector pipeline; only the final
+        # sink differs between console output and a filesystem write.
         events = select_note_events(context, selectors)
         lines = [format_note_event(event) for event in events]
         if "file" in selectors:
-            # Showing notes and saving notes share selection logic; file= only
-            # changes the sink from console output to a project artifact path.
             path = Path(selectors["file"]).expanduser()
             path.parent.mkdir(parents=True, exist_ok=True)
             context.audit_capability("filesystem.write")
