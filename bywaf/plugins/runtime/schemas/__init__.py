@@ -222,7 +222,9 @@ def schema_usage(context: CommandContext) -> dict[str, tuple[str, ...]]:
     for name, plugin in registry.plugins.items():
         for topic in (*plugin.spec.consumes, *plugin.spec.emits):
             usage.setdefault(topic, set()).add(name)
-    return {topic: tuple(sorted(names)) for topic, names in usage.items()}
+    # Keep short inventory commandlets visible in the compact table before
+    # longer producer names get truncated by terminal-width shrinking.
+    return {topic: tuple(sorted(names, key=lambda name: (len(name), name))) for topic, names in usage.items()}
 
 
 def plugins() -> tuple[Commandlet, ...]:

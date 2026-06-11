@@ -14,6 +14,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+import bywaf
 from bywaf.app import (
     ShellState,
     dispatch_repl_line,
@@ -34,8 +35,8 @@ class AppDispatchTests(unittest.TestCase):
             events = runner.db.events_matching(topic="command.run.arguments", limit=10)
             self.assertTrue(events)
             self.assertEqual(events[-1].payload["database_actions"], ["view"])
-            self.assertEqual(events[-1].payload["plugin_version"], "0.12.2")
-            self.assertEqual(events[-1].payload["bywaf_version"], __import__("bywaf").__version__)
+            self.assertEqual(events[-1].payload["plugin_version"], bywaf.__version__)
+            self.assertEqual(events[-1].payload["bywaf_version"], bywaf.__version__)
 
     def test_mixed_commandlets_classify_effective_database_actions(self):
         from bywaf.plugins.analysis.report import Report

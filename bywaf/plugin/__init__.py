@@ -19,7 +19,7 @@ from .capabilities import (
     request_prefix_caps,
     implied_capabilities,
 )
-from .commands import (
+from .command import (
     Commandlet,
     CommandletBase,
     ManifestCommandlet,

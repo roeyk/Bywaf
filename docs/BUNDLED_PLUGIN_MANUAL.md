@@ -33,7 +33,7 @@ A **provider** is the Python implementation object or module that registers or r
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#discoveryhostscanner">discovery.hostscanner</a></span></div>
 </details>
 <details class="plugin-toc-family">
-<summary id="toc-http"><span class="toc-count">13</span><span class="toc-arrow" aria-hidden="true">▸</span><span class="toc-name">HTTP</span></summary>
+<summary id="toc-http"><span class="toc-count">14</span><span class="toc-arrow" aria-hidden="true">▸</span><span class="toc-name">HTTP</span></summary>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httpeyewitness">http.eyewitness</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httpauth">http.auth</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httpcors">http.cors</a></span></div>
@@ -46,6 +46,7 @@ A **provider** is the Python implementation object or module that registers or r
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httpscreenshotter">http.screenshotter</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httptls_probe">http.tls_probe</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httpwaf_detect">http.waf_detect</a></span></div>
+<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httpwafw00f">http.wafw00f</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httpwebfin">http.webfin</a></span></div>
 </details>
 <details class="plugin-toc-family">
@@ -131,6 +132,7 @@ A **provider** is the Python implementation object or module that registers or r
 | HTTP | `http.webfin` | `webfin` (`web_fingerprint`) | Fingerprint web technologies. | `http_probe https://example.com/ \| webfin` | [http.webfin](#httpwebfin) |
 | HTTP | `http.tls_probe` | `tls_probe` | Collect TLS certificate and hygiene facts. | `tls_probe https://example.com/` | [http.tls_probe](#httptls_probe) |
 | HTTP | `http.waf_detect` | `waf_detect` | Detect likely WAF/CDN signals. | `waf_detect https://example.com/` | [http.waf_detect](#httpwaf_detect) |
+| HTTP | `http.wafw00f` | `waf` | Wrap WafW00f and normalize WAF detections. | `http_probe https://example.com/ \| waf` | [http.wafw00f](#httpwafw00f) |
 | HTTP | `http.nikto` | `nikto` | Wrap Nikto and normalize findings. | `http_probe https://example.com/ \| nikto` | [http.nikto](#httpnikto) |
 | HTTP | `http.eyewitness` | `eyewitness` | Capture web screenshots through EyeWitness. | `http_probe https://example.com/ \| eyewitness` | [http.eyewitness](#httpeyewitness) |
 | HTTP | `http.screenshotter` | `screenshotter` | Friendly EyeWitness-backed screenshot commandlet. | `http_probe https://example.com/ \| screenshotter` | [http.screenshotter](#httpscreenshotter) |
@@ -926,6 +928,7 @@ supplied-credential outcomes when they are in scope.
 - [http.screenshotter](#httpscreenshotter)
 - [http.tls_probe](#httptls_probe)
 - [http.waf_detect](#httpwaf_detect)
+- [http.wafw00f](#httpwafw00f)
 - [http.webfin](#httpwebfin)
 
 <a id="httpheaders"></a>
@@ -1387,6 +1390,52 @@ protection itself as a vulnerability.
 - Consumes: `http.endpoint`.
 - Visible output: prints WAF detection alerts unless `--silent` is set.
 - Emits: `web.waf.detected`.
+
+[Back to HTTP plugin TOC](#http-plugin-toc) | [Back to document HTTP TOC entry](#toc-http)
+
+<a id="httpwafw00f"></a>
+
+### `http.wafw00f`
+
+Runs WafW00f through the framework process API and normalizes WAF detections.
+
+
+Use this when you want WafW00f's active WAF fingerprinting while preserving Bywaf
+process provenance, raw stdout/stderr artifacts, and shared `web.waf.detected`
+events. It complements `waf_detect`: `waf_detect` is the built-in passive header
+heuristic, while `waf` delegates to the external WafW00f tool.
+
+Plugin metadata:
+
+| Field | Value |
+| --- | --- |
+| Family | HTTP |
+| Plugin | `http.wafw00f` |
+| Commandlets | `waf` |
+| Last updated | `2026-06-11` from source history |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/wafw00f/` |
+
+#### Commandlet: `waf`
+
+Example usage: `http_probe https://example.com/ | waf`
+
+Use `waf` against explicit URLs or upstream `http.endpoint` events. The commandlet
+launches WafW00f through the framework process service, which records stdout/stderr
+as process transcript artifacts, then publishes normalized WAF detections for
+inventory and reporting.
+
+| Argument / option | Required? | Type / accepted values | Sample value | Meaning |
+| --- | --- | --- | --- | --- |
+| `<target>` | No | Explicit HTTP or HTTPS URL. | `https://example.com/` | Explicit target; upstream `http.endpoint` may also supply targets. |
+| `binary=` | No | WafW00f executable. | `wafw00f` | External WafW00f command or path. |
+| `timeout=` | No | Seconds per target. | `90` | Maximum process runtime for each target. |
+| `--silent` | No | Binary flag; suppress WAF alerts. | `--silent` | Binary flag; suppress WAF alerts. |
+
+- Consumes: `http.endpoint`.
+- Visible output: prints WAF detection alerts unless `--silent` is set and
+  attaches raw WafW00f stdout/stderr process artifacts through the framework.
+- Emits: `web.waf.detected`, `tool.error`.
+- External dependency: `wafw00f`.
 
 [Back to HTTP plugin TOC](#http-plugin-toc) | [Back to document HTTP TOC entry](#toc-http)
 

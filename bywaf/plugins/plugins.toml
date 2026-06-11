@@ -30,6 +30,7 @@ default_plugins = [
   "http.screenshotter",
   "http.tls_probe",
   "http.waf_detect",
+  "http.wafw00f",
   "http.webfin",
   "wireless.wifi_scan",
   "runtime.job",

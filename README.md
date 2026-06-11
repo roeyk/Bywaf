@@ -29,6 +29,7 @@ Use Bywaf only on systems and networks where you have explicit authorization.
 
 - [Why Bywaf](#why-bywaf)
 - [Install And Run](#install-and-run)
+- [Incorporated Tools](#incorporated-tools)
 - [Quick Start](#quick-start)
 - [Core Concepts](#core-concepts)
 - [Plugins](#plugins)
@@ -73,12 +74,24 @@ For a local pip package build:
 
 ```bash
 scripts/build_pip_package.sh
-python3 -m pip install dist/bywaf-0.12.2-py3-none-any.whl
+python3 -m pip install dist/bywaf-0.13.0-py3-none-any.whl
 bywaf --help
 ```
 
-Optional external tools used by bundled wrapper commandlets include `nmap`,
-`nikto`, `eyewitness`/`screenshotter`, and `kismet`.
+## Incorporated Tools
+
+Some bundled commandlets wrap mature external tools while keeping Bywaf's event,
+artifact, audit, and report flow as the operator-facing interface. These tools
+must be installed separately when you want those commandlets to run.
+
+| Tool | Bundled commandlets | Purpose |
+| --- | --- | --- |
+| `nmap` | `hostscanner`, `portscanner` | Host discovery and port scanning. |
+| `nikto` | `nikto` | Web vulnerability scanning with normalized findings and raw output artifacts. |
+| `wafw00f` | `waf` | Web application firewall detection. |
+| `eyewitness` | `eyewitness`, `screenshotter` | Web screenshot capture and visual evidence collection. |
+| `traceroute` | `traceroute` | Network path observation. |
+| `kismet` | `wifi_scan` | Wireless scan import/wrapping. |
 
 ## Quick Start
 

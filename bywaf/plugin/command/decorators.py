@@ -11,9 +11,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any, Callable, TypeVar, cast, overload
 
-from ..specs import ArgumentSpec, CommandSpec, CompletionSpec, OptionSpec
-from .command_base import normalize_completion
-from .command_manifest import FunctionCommandlet
+from ...specs import ArgumentSpec, CommandSpec, CompletionSpec, OptionSpec
+from .base import normalize_completion
+from .manifest import FunctionCommandlet
 
 _T = TypeVar("_T")
 

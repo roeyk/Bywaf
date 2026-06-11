@@ -14,10 +14,10 @@ from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, ClassVar
 
-from ..event import Event
-from ..specs import CommandSpec, OptionSpec
-from .command_base import CommandletBase
-from .manifest_specs import (
+from ...event import Event
+from ...specs import CommandSpec, OptionSpec
+from .base import CommandletBase
+from .specs import (
     kv_args_to_options,
     manifest_args_from_toml,
     manifest_name_for_function,
@@ -30,7 +30,7 @@ from .manifest_specs import (
 )
 
 if TYPE_CHECKING:
-    from .context import CommandContext
+    from ..context import CommandContext
 
 
 class RunConfig:
@@ -184,7 +184,7 @@ class ManifestArgumentParser(argparse.ArgumentParser):
 class FunctionCommandlet(ManifestCommandlet):
     """Internal adapter for function-style manifest commandlets.
 
-    Constructed by: bare `@commandlet` in `command_decorators.commandlet()`.
+    Constructed by: bare `@commandlet` in `command.decorators.commandlet()`.
     Consumed by: registry/runner through the standard `Commandlet` protocol.
     """
 

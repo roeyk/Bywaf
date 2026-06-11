@@ -5,25 +5,25 @@ process_wrapped = true
 service = false
 
 [[commandlets]]
-name = "screenshotter"
+name = "waf"
 consumes = [
   "http.endpoint",
 ]
 emits = [
-  "eyewitness.screenshot",
-  "web.screenshotted_host",
+  "web.waf.detected",
+  "tool.error",
 ]
 capabilities = [
   "artifact.write",
-  "db.read:process.run",
-  "db.write:eyewitness.screenshot",
-  "db.write:web.screenshotted_host",
+  "db.read:http.endpoint",
+  "db.write:process.run",
   "db.write:tool.error",
-  "db.write:system.error",
-  "filesystem.read",
-  "filesystem.write",
+  "db.write:web.waf.detected",
   "framework.console.alert",
   "framework.process.run",
   "network.connect",
 ]
-module = "bywaf.plugins.http.screenshotter"
+module = "bywaf.plugins.http.wafw00f"
+database.actions.view = true
+database.actions.write = true
+database.actions.manage = false

@@ -1,3 +1,12 @@
+bywaf (0.13.0-1) unstable; urgency=medium
+
+  * Testing release with WafW00f wrapper integration, report-side passive
+    analysis improvements, manifest dependency graph diagnostics, expanded
+    plugin-authoring documentation and scaffolding, performance fixes, and
+    plugin package-boundary cleanup.
+
+ -- Roey Katz <roey.katz@gmail.com>  Thu, 11 Jun 2026 17:38:29 -0400
+
 bywaf (0.12.2-1) unstable; urgency=medium
 
   * Patch release with documentation TOCs, documentation impact metrics, and

@@ -10,6 +10,7 @@ impact label and sorted from highest to lowest operator/developer impact:
 ## Contents
 
 - [Unreleased](#unreleased)
+- [0.13.0 - 2026-06-11](#0130---2026-06-11)
 - [0.12.2 - 2026-05-27](#0122---2026-05-27)
 - [0.12.1 - 2026-05-27](#0121---2026-05-27)
 - [0.12.0 - 2026-05-26](#0120---2026-05-26)
@@ -22,8 +23,18 @@ impact label and sorted from highest to lowest operator/developer impact:
 
 ## [Unreleased]
 
+No unreleased changes.
+
+## [0.13.0] - 2026-06-11
+
+Last updated: 2026-06-11 17:38:29 EDT
+
 ### Changed
 
+- [high] Added bundled `waf` as a WafW00f-backed wrapped-process commandlet
+  that consumes explicit URLs or upstream `http.endpoint` events, retains raw
+  stdout/stderr through framework process artifacts, and publishes normalized
+  `web.waf.detected` facts.
 - [high] Made `report` imply finding deduplication for upstream raw finding
   streams, so short operator chains such as `http_methods https://target/ |
   report` normalize findings before rendering without requiring an explicit
@@ -76,6 +87,10 @@ impact label and sorted from highest to lowest operator/developer impact:
   `requires_schemas` and `requires_plugins`, plus `plugin_check` diagnostics
   for missing plugins, missing schemas, and ambiguous plugin-owned schema
   providers.
+- [medium] Reorganized the plugin-authoring internals so commandlet base
+  classes, decorators, manifest adapters, and manifest spec parsing live under
+  `bywaf.plugin.command`, and removed the redundant top-level context helper
+  facades now that their implementations live under `bywaf.plugin.context`.
 - [medium] Improved compact report inbox rows so grouped findings summarize
   all affected resources represented by the group, instead of only the newest
   representative event.

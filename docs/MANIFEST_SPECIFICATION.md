@@ -67,8 +67,8 @@ A manifest contains one `[plugin]` table, one or more
 
 ```toml
 [plugin]
-version = "0.12.2"
-requires_bywaf = ">=0.12.2"
+version = "0.13.0"
+requires_bywaf = ">=0.13.0"
 requires_schemas = ["http.endpoint"]
 requires_plugins = []
 native = true
@@ -151,7 +151,7 @@ The `[plugin]` table describes plugin-level traits.
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |
 | `version` | string | required | Plugin manifest version string. Filesystem plugins must include this field in `[plugin]`; skeletons use the current Bywaf release version as a starter value. |
-| `requires_bywaf` | string | none | Optional version requirement checked before import, such as `>=0.12.2`. Use this when the plugin depends on a minimum Bywaf API version. |
+| `requires_bywaf` | string | none | Optional version requirement checked before import, such as `>=0.13.0`. Use this when the plugin depends on a minimum Bywaf API version. |
 | `requires_schemas` | list of strings | `[]` | Data contracts that must be registered, such as `http.endpoint`, regardless of which provider plugin owns them. `plugin_check` validates missing or ambiguous required schemas before import. |
 | `requires_plugins` | list of strings | `[]` | Exact plugin dependencies, used only when a plugin depends on provider behavior beyond a schema. `plugin_check` validates missing provider names before import. |
 | `native` | boolean | `true` when neither `library_backed` nor `process_wrapped` is true | In-process Python plugin written against the Bywaf framework API. |
@@ -170,7 +170,7 @@ Current manifests support three plugin-level dependency fields:
 
 | Key | Meaning |
 | --- | --- |
-| `requires_bywaf` | Framework-version compatibility, such as `>=0.12.2`. |
+| `requires_bywaf` | Framework-version compatibility, such as `>=0.13.0`. |
 | `requires_schemas` | Data contracts that must be registered, such as `http.endpoint`, regardless of which provider plugin owns them. |
 | `requires_plugins` | Exact plugin dependencies, used only when a plugin depends on provider behavior beyond a schema. |
 
@@ -260,8 +260,8 @@ Lifecycle/audit events emitted by the framework itself are separate from these
 plugin action flags.
 
 Plugin manifests must declare a SemVer-like `plugin.version`, such as
-`0.12.2`. `requires_bywaf` is optional and currently supports a simple one-clause
-framework requirement such as `>=0.12.2`. Bywaf records both the plugin version
+`0.13.0`. `requires_bywaf` is optional and currently supports a simple one-clause
+framework requirement such as `>=0.13.0`. Bywaf records both the plugin version
 and the framework version that executed a commandlet in command-run provenance
 events.
 

@@ -8,8 +8,8 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Callable
 
-from ..rendering import Table, render_console_table
-from ..specs import ArgumentSpec, CommandSpec, CompletionSpec, OptionSpec
+from ...rendering import Table, render_console_table
+from ...specs import ArgumentSpec, CommandSpec, CompletionSpec, OptionSpec
 
 
 def manifest_path_for_function(func: Callable[..., Any]) -> Path:

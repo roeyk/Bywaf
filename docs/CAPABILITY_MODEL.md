@@ -217,12 +217,15 @@ declare capabilities such as `network.connect`, `network.listen`,
 `filesystem.read`, or `db.write:<topic>` precisely.
 
 Process-wrapped plugins run mature external tools through framework-mediated
-process execution. Examples include wrappers around tools such as nmap, ffuf,
-nikto, sqlmap, or similar utilities. They should use `context.process.run()` or
-`context.process.stream()` instead of direct `subprocess` calls, and they
-should declare `framework.process.run` or `framework.process.stream`. Their
-failure semantics are process exit codes, stdout, stderr, timeouts, and output
-files.
+process execution. Current bundled wrappers incorporate `nmap` for host and
+port discovery, `nikto` for web vulnerability scanning, `wafw00f` for WAF
+detection, `eyewitness`/`screenshotter` for screenshot evidence, `traceroute`
+for path observation, and `kismet` for wireless scan workflows. Future wrappers
+may cover tools such as ffuf, sqlmap, WhatWaf, or similar utilities. They
+should use `context.process.run()` or `context.process.stream()` instead of
+direct `subprocess` calls, and they should declare `framework.process.run` or
+`framework.process.stream`. Their failure semantics are process exit codes,
+stdout, stderr, timeouts, and output files.
 
 Native or FFI plugins load or communicate with compiled code written in C, C++,
 Rust, Go, Zig, or similar languages. They may use FFI, shared libraries, IPC,

@@ -12,12 +12,12 @@ import argparse
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any, Protocol
 
-from ..event import Event
-from ..specs import CommandSpec, CompletionSpec
-from .manifest_specs import split_var_values
+from ...event import Event
+from ...specs import CommandSpec, CompletionSpec
+from .specs import split_var_values
 
 if TYPE_CHECKING:
-    from .context import CommandContext
+    from ..context import CommandContext
 
 
 def normalize_completion(completion: CompletionSpec | str | None) -> CompletionSpec:

@@ -26,6 +26,7 @@ class RegistryBundledPluginTests(unittest.TestCase):
         self.assertIn("git_expose_check", self.registry.names())
         self.assertIn("repo_exposure", self.registry.names())
         self.assertIn("screenshotter", self.registry.names())
+        self.assertIn("waf", self.registry.names())
         self.assertIn("webfin", self.registry.names())
         self.assertIn("wifi_scan", self.registry.names())
         self.assertIn("finding_dedupe", self.registry.names())
@@ -91,6 +92,7 @@ class RegistryBundledPluginTests(unittest.TestCase):
                 "http.screenshotter",
                 "http.tls_probe",
                 "http.waf_detect",
+                "http.wafw00f",
                 "http.webfin",
                 "wireless.wifi_scan",
                 "runtime.job",

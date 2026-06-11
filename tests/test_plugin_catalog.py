@@ -16,6 +16,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import bywaf
 from scripts.plugin_catalog import (
     build_catalog,
     check_catalog_tree,
@@ -41,7 +42,7 @@ class PluginCatalogTests(unittest.TestCase):
         catalog = build_catalog()
         watchdog = next(row for row in catalog["plugins"] if row["entry"] == "runtime.watchdog")
 
-        self.assertEqual(watchdog["version"], "0.12.2")
+        self.assertEqual(watchdog["version"], bywaf.__version__)
         self.assertIsNone(watchdog["requires_bywaf"])
         self.assertEqual(watchdog["triggers"][0]["name"], "network-access-starts-watchdog")
         self.assertEqual(watchdog["triggers"][0]["action_mode"], "service")

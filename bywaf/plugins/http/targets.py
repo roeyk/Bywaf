@@ -1,4 +1,9 @@
-"""Shared HTTP target normalization for bundled HTTP commandlets."""
+"""Shared HTTP target normalization for bundled HTTP commandlets.
+
+This module is the common parsing boundary for simple HTTP-family plugins. It
+keeps URL/host/port/scheme decisions out of individual commandlets so wrappers
+such as WafW00f, Nikto, and HTTP probes can share the same target behavior.
+"""
 
 from __future__ import annotations
 
@@ -11,7 +16,7 @@ from bywaf.event import Event
 
 @dataclass(frozen=True, slots=True)
 class HttpTarget:
-    """Normalized HTTP target derived from text or a `port.open` event.
+    """Normalized HTTP target derived from text or an upstream event.
 
     Constructed by: `http_targets()`, `http_target_from_text()`, and
     `http_target_from_port()`.
@@ -46,6 +51,28 @@ def http_targets(
     ]
 
 
+def endpoint_http_targets(
+    targets: list[str],
+    input_events: Iterable[Event],
+    *,
+    scheme: str = "auto",
+    path: str = "/",
+) -> list[HttpTarget]:
+    """Resolve explicit targets or upstream `http.endpoint` events.
+
+    Called by: process-backed HTTP tools such as the WafW00f wrapper when the
+    command can run directly (`waf https://...`) or as a pipeline consumer
+    (`http_probe ... | waf`).
+    """
+    if targets:
+        return [http_target_from_text(target, scheme, path) for target in targets]
+    return [
+        http_target_from_endpoint(event, scheme, path)
+        for event in input_events
+        if event.topic == "http.endpoint" and isinstance(event.payload.get("url"), str)
+    ]
+
+
 def http_target_from_port(event: Event, scheme: str, path: str) -> HttpTarget:
     """Convert one `port.open` event into a normalized HTTP target."""
     host = str(event.payload["host"])
@@ -58,6 +85,27 @@ def http_target_from_port(event: Event, scheme: str, path: str) -> HttpTarget:
         port,
         selected_scheme,
         normalized_path,
+    )
+
+
+def http_target_from_endpoint(event: Event, scheme: str = "auto", path: str = "/") -> HttpTarget:
+    """Convert one `http.endpoint` event into a normalized HTTP target."""
+    payload_url = str(event.payload["url"])
+    target = http_target_from_text(payload_url, scheme, path)
+    payload_host = event.payload.get("host")
+    payload_port = event.payload.get("port")
+    payload_scheme = event.payload.get("scheme")
+    # Prefer explicit schema-backed endpoint fields when present. Older tests
+    # and imported data may only carry `url`, so each override is conditional.
+    host = str(payload_host) if payload_host else target.host
+    port = int(payload_port) if payload_port is not None else target.port
+    selected_scheme = str(payload_scheme) if payload_scheme else target.scheme
+    return HttpTarget(
+        build_url(selected_scheme, host, port, target.path),
+        host,
+        port,
+        selected_scheme,
+        target.path,
     )
 
 

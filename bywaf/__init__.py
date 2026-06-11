@@ -4,7 +4,7 @@ Provides package-level version information and marks the source tree as the
 importable `bywaf` package."""
 
 
-__version__ = "0.12.2"
+__version__ = "0.13.0"
 
 from .api import BywafSession
 

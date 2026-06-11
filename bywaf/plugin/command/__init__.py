@@ -1,6 +1,6 @@
 """Public commandlet authoring facade.
 
-Provides the stable `bywaf.plugin.commands` import surface for commandlet
+Provides the internal `bywaf.plugin.command` package surface for commandlet
 protocols, base classes, decorators, and manifest-backed adapters.
 
 Used by:
@@ -11,10 +11,10 @@ Used by:
 
 from __future__ import annotations
 
-from .command_base import Commandlet, CommandletBase, normalize_completion
-from .command_decorators import argument, commandlet, option
-from .command_manifest import FunctionCommandlet, ManifestArgumentParser, ManifestCommandlet, RunConfig
-from .manifest_specs import (
+from .base import Commandlet, CommandletBase, normalize_completion
+from .decorators import argument, commandlet, option
+from .manifest import FunctionCommandlet, ManifestArgumentParser, ManifestCommandlet, RunConfig
+from .specs import (
     format_table as format_table,
     kv_args_to_options,
     manifest_args_from_toml,

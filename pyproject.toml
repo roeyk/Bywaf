@@ -1,6 +1,6 @@
 [project]
 name = "bywaf"
-version = "0.12.2"
+version = "0.13.0"
 description = "Highly-auditable Python 3 commandlet framework with SQLite pub/sub for Bywaf-style workflows."
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -47,16 +47,47 @@ include = ["bywaf*"]
 [tool.setuptools.package-data]
 "bywaf.keys" = ["*.pem", "*.pub.pem", "*.example", "README.md"]
 "bywaf.plugins" = ["plugins.toml", "plugins.json"]
+# Filesystem plugins keep their commandlet manifest next to the Python package
+# that owns the commandlet. List nested package-local `bywaf.plugin.toml`
+# files explicitly so wheels, Debian packages, and RPMs preserve the same
+# manifest-backed import behavior as the source tree.
 "bywaf.plugins.analysis" = ["*.plugin.toml"]
+"bywaf.plugins.analysis.finding" = ["bywaf.plugin.toml"]
+"bywaf.plugins.analysis.finding.dedupe" = ["bywaf.plugin.toml"]
+"bywaf.plugins.analysis.finding.report" = ["bywaf.plugin.toml"]
 "bywaf.plugins.discovery" = ["*.plugin.toml"]
 "bywaf.plugins.http" = ["*.plugin.toml"]
-"bywaf.plugins.http.http_headers" = ["bywaf.plugin.toml"]
+"bywaf.plugins.http.auth" = ["bywaf.plugin.toml"]
+"bywaf.plugins.http.cors" = ["bywaf.plugin.toml"]
+"bywaf.plugins.http.headers" = ["bywaf.plugin.toml"]
+"bywaf.plugins.http.methods" = ["bywaf.plugin.toml"]
+"bywaf.plugins.http.nikto" = ["bywaf.plugin.toml"]
+"bywaf.plugins.http.paths" = ["bywaf.plugin.toml"]
+"bywaf.plugins.http.probe" = ["bywaf.plugin.toml"]
 "bywaf.plugins.http.repo_exposure" = ["bywaf.plugin.toml"]
+"bywaf.plugins.http.tls_probe" = ["bywaf.plugin.toml"]
+"bywaf.plugins.http.wafw00f" = ["bywaf.plugin.toml"]
 "bywaf.plugins.identity" = ["*.plugin.toml"]
 "bywaf.plugins.network" = ["*.plugin.toml"]
 "bywaf.plugins.os" = ["*.plugin.toml"]
 "bywaf.plugins.recon" = ["*.plugin.toml"]
+"bywaf.plugins.recon.dns_enum" = ["bywaf.plugin.toml"]
+"bywaf.plugins.recon.dns_lookup" = ["bywaf.plugin.toml"]
 "bywaf.plugins.runtime" = ["*.plugin.toml"]
+"bywaf.plugins.runtime.artifact" = ["bywaf.plugin.toml"]
+"bywaf.plugins.runtime.audit" = ["bywaf.plugin.toml"]
+"bywaf.plugins.runtime.bundle" = ["bywaf.plugin.toml"]
+"bywaf.plugins.runtime.control" = ["bywaf.plugin.toml"]
+"bywaf.plugins.runtime.inventory" = ["bywaf.plugin.toml"]
+"bywaf.plugins.runtime.job" = ["bywaf.plugin.toml"]
+"bywaf.plugins.runtime.key" = ["bywaf.plugin.toml"]
+"bywaf.plugins.runtime.name" = ["bywaf.plugin.toml"]
+"bywaf.plugins.runtime.note" = ["bywaf.plugin.toml"]
+"bywaf.plugins.runtime.pipeline" = ["bywaf.plugin.toml"]
+"bywaf.plugins.runtime.results" = ["bywaf.plugin.toml"]
+"bywaf.plugins.runtime.schemas" = ["bywaf.plugin.toml"]
+"bywaf.plugins.runtime.step" = ["bywaf.plugin.toml"]
+"bywaf.plugins.runtime.watchdog" = ["bywaf.plugin.toml"]
 "bywaf.plugins.storage" = ["*.plugin.toml"]
 "bywaf.plugins.wireless" = ["*.plugin.toml"]
 
