@@ -10,8 +10,8 @@ class BundledManifestHydrationTests(unittest.TestCase):
 
     def test_bundled_sidecar_hydrates_runtime_security_metadata(self):
         from bywaf.plugins.analysis.finding import Finding
-        from bywaf.plugins.analysis.finding_dedupe import FINDING_INPUT_TOPICS, FINDING_OUTPUT_TOPICS, FindingDedupe
-        from bywaf.plugins.analysis.finding_report import REPORT_FINDING_TOPICS, FindingReport
+        from bywaf.plugins.analysis.finding.dedupe import FINDING_INPUT_TOPICS, FINDING_OUTPUT_TOPICS, FindingDedupe
+        from bywaf.plugins.analysis.finding.report import REPORT_FINDING_TOPICS, FindingReport
         from bywaf.plugins.analysis.report import Report
         from bywaf.plugins.analysis.yara_scan import YaraScan
         from bywaf.plugins.discovery.hostscanner import HostScanner

@@ -44,11 +44,17 @@ class RegistryCompletionCoreTests(unittest.TestCase):
             completer.candidates("use analysis/"),
             [
                 "analysis/finding",
-                "analysis/finding_dedupe",
-                "analysis/finding_report",
+                "analysis/finding/",
                 "analysis/report",
                 "analysis/technology_indicators",
                 "analysis/yara_scan",
+            ],
+        )
+        self.assertEqual(
+            completer.candidates("use analysis/finding/"),
+            [
+                "analysis/finding/dedupe",
+                "analysis/finding/report",
             ],
         )
         self.assertEqual(completer.candidates("use glo"), ["global"])

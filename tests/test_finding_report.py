@@ -16,7 +16,7 @@ from pathlib import Path
 from bywaf.db import EventStore
 from bywaf.app import make_runner
 from bywaf.plugin import CommandContext
-from bywaf.plugins.analysis.finding_report import FindingReport, infer_export_format
+from bywaf.plugins.analysis.finding.report import FindingReport, infer_export_format
 
 
 def context_for(db: EventStore) -> CommandContext:

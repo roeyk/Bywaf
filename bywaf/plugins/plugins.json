@@ -1,8 +1,8 @@
 {
   "default_plugins": [
     "discovery.hostscanner",
-    "analysis.finding_dedupe",
-    "analysis.finding_report",
+    "analysis.finding.dedupe",
+    "analysis.finding.report",
     "analysis.report",
     "analysis.yara_scan",
     "identity.ldap_probe",

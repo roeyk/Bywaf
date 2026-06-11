@@ -62,8 +62,8 @@ class RegistryBundledPluginTests(unittest.TestCase):
             [
                 "discovery.hostscanner",
                 "analysis.finding",
-                "analysis.finding_dedupe",
-                "analysis.finding_report",
+                "analysis.finding.dedupe",
+                "analysis.finding.report",
                 "analysis.report",
                 "analysis.technology_indicators",
                 "analysis.yara_scan",

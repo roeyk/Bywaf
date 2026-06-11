@@ -9,8 +9,8 @@ from typing import Any
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext
-from bywaf.plugins.analysis.finding_dedupe_model import NormalizedFinding
-from bywaf.plugins.analysis.finding_dedupe_normalize import stable_finding_id
+from bywaf.plugins.analysis.finding.dedupe.model import NormalizedFinding
+from bywaf.plugins.analysis.finding.dedupe.normalize import stable_finding_id
 
 DecisionPayloadBuilder = Callable[[dict[str, Any], str], dict[str, Any]]
 AlertTextBuilder = Callable[[dict[str, Any]], str]

@@ -4,10 +4,12 @@ native = true
 service = false
 
 [[commandlets]]
-name = "finding_dedupe"
+name = "finding_report"
 consumes = [
   "finding.candidate",
   "finding.confirmed",
+  "finding.new",
+  "finding.merge_candidate",
   "nikto.finding",
   "vulnerability.found",
   "vulnerability.potential",
@@ -16,30 +18,24 @@ consumes = [
   "vulnerability.false_positive",
 ]
 emits = [
-  "finding.new",
-  "finding.duplicate",
-  "finding.updated",
-  "finding.merge_candidate",
+  "framework.render.table.requested",
+  "artifact.attached",
 ]
 capabilities = [
   "artifact.write",
   "db.read:*",
   "db.read:finding.candidate",
   "db.read:finding.confirmed",
+  "db.read:finding.new",
+  "db.read:finding.merge_candidate",
   "db.read:nikto.finding",
   "db.read:vulnerability.found",
   "db.read:vulnerability.potential",
   "db.read:vulnerability.confirmed",
   "db.read:vulnerability.speculative",
   "db.read:vulnerability.false_positive",
-  "db.write:*",
-  "db.write:finding.new",
-  "db.write:finding.duplicate",
-  "db.write:finding.updated",
-  "db.write:finding.merge_candidate",
   "filesystem.read",
   "filesystem.write",
-  "framework.console.alert",
-  "framework.console.output",
+  "framework.render.table",
 ]
-module = "bywaf.plugins.analysis.finding_dedupe"
+module = "bywaf.plugins.analysis.finding.report"

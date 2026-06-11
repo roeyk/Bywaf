@@ -1,6 +1,6 @@
 """Target normalization helpers for finding dedupe.
 
-Used by: `finding_dedupe_normalize.normalize_event()` to collapse URL, nested
+Used by: `finding.dedupe.normalize.normalize_event()` to collapse URL, nested
 target, and top-level host/port/path payload shapes into one `TargetIdentity`.
 """
 
@@ -10,7 +10,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from bywaf.finding.grouping import normalized_target_scope
-from bywaf.plugins.analysis.finding_dedupe_model import TargetIdentity
+from bywaf.plugins.analysis.finding.dedupe.model import TargetIdentity
 
 
 def normalize_target(payload: dict[str, Any]) -> TargetIdentity:

@@ -8,13 +8,13 @@ from typing import Any
 
 from bywaf.event import Event
 from bywaf.finding.grouping import finding_group_key
-from bywaf.plugins.analysis.finding_dedupe_identifiers import normalize_identifiers
-from bywaf.plugins.analysis.finding_dedupe_model import (
+from bywaf.plugins.analysis.finding.dedupe.identifiers import normalize_identifiers
+from bywaf.plugins.analysis.finding.dedupe.model import (
     NormalizedFinding,
     best_identifier,
     normalize_text,
 )
-from bywaf.plugins.analysis.finding_dedupe_targets import normalize_target, normalize_target_scope
+from bywaf.plugins.analysis.finding.dedupe.targets import normalize_target, normalize_target_scope
 
 STATUS_RANKS = {
     "false_positive": 0,

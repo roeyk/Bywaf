@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from bywaf.plugins.analysis.finding_display import affected_values
-from bywaf.plugins.analysis.finding_report import finding_rows
+from bywaf.plugins.analysis.finding.report import finding_rows
 from bywaf.rendering import Column, Table
 
 from .model import FindingGroup, effective_finding_payload

@@ -11,9 +11,9 @@ from typing import cast
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, ManifestCommandlet, RunConfig
-from bywaf.plugins.analysis.finding_dedupe import dedupe_findings
-from bywaf.plugins.analysis.finding_dedupe_normalize import normalize_event
-from bywaf.plugins.analysis.finding_dedupe_publish import publish_dedupe_result, summary_line
+from bywaf.plugins.analysis.finding.dedupe import dedupe_findings
+from bywaf.plugins.analysis.finding.dedupe.normalize import normalize_event
+from bywaf.plugins.analysis.finding.dedupe.publish import publish_dedupe_result, summary_line
 
 from .technology_indicator_payloads import candidate_for_rule, evidence_text
 from .technology_indicator_rules import RULES, VersionIndicatorRule, matching_rules

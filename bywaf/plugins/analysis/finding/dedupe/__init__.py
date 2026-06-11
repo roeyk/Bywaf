@@ -18,15 +18,15 @@ from typing import Any
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
 from bywaf.plugin import kv_to_args
-from bywaf.plugins.analysis.finding_dedupe_model import CanonicalFinding, NormalizedFinding
-from bywaf.plugins.analysis.finding_dedupe_normalize import (
+from bywaf.plugins.analysis.finding.dedupe.model import CanonicalFinding, NormalizedFinding
+from bywaf.plugins.analysis.finding.dedupe.normalize import (
     count_decisions,
     matched_on,
     normalize_event,
     stable_finding_id,
     status_rank,
 )
-from bywaf.plugins.analysis.finding_dedupe_publish import (
+from bywaf.plugins.analysis.finding.dedupe.publish import (
     publish_dedupe_result,
     summary_line,
     write_summary_artifact,

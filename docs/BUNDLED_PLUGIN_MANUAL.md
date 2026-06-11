@@ -22,8 +22,8 @@ A **provider** is the Python implementation object or module that registers or r
 <details class="plugin-toc-family">
 <summary id="toc-analysis"><span class="toc-count">6</span><span class="toc-arrow" aria-hidden="true">▸</span><span class="toc-name">Analysis</span></summary>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#analysisfinding">analysis.finding</a></span></div>
-<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#analysisfinding_dedupe">analysis.finding_dedupe</a></span></div>
-<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#analysisfinding_report">analysis.finding_report</a></span></div>
+<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#analysisfindingdedupe">analysis.finding.dedupe</a></span></div>
+<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#analysisfindingreport">analysis.finding.report</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#analysisreport">analysis.report</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">2</span><span class="toc-name"><a href="#analysistechnology_indicators">analysis.technology_indicators</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#analysisyara_scan">analysis.yara_scan</a></span></div>
@@ -135,8 +135,8 @@ A **provider** is the Python implementation object or module that registers or r
 | HTTP | `http.eyewitness` | `eyewitness` | Capture web screenshots through EyeWitness. | `http_probe https://example.com/ \| eyewitness` | [http.eyewitness](#httpeyewitness) |
 | HTTP | `http.screenshotter` | `screenshotter` | Friendly EyeWitness-backed screenshot commandlet. | `http_probe https://example.com/ \| screenshotter` | [http.screenshotter](#httpscreenshotter) |
 | Wireless | `wireless.wifi_scan` | `wifi_scan` | Wrap Kismet-style wireless scans. | `wifi_scan interface=wlan0mon duration=60` | [wireless.wifi_scan](#wirelesswifi_scan) |
-| Analysis | `analysis.finding_dedupe` | `finding_dedupe` | Normalize and deduplicate findings. | `nikto https://example.com/ \| finding_dedupe` | [analysis.finding_dedupe](#analysisfinding_dedupe) |
-| Analysis | `analysis.finding_report` | `finding_report` | Render finding tables and report artifacts. | `finding_report export=findings.md` | [analysis.finding_report](#analysisfinding_report) |
+| Analysis | `analysis.finding.dedupe` | `finding_dedupe` | Normalize and deduplicate findings. | `nikto https://example.com/ \| finding_dedupe` | [analysis.finding.dedupe](#analysisfindingdedupe) |
+| Analysis | `analysis.finding.report` | `finding_report` | Render finding tables and report artifacts. | `finding_report export=findings.md` | [analysis.finding.report](#analysisfindingreport) |
 | Analysis | `analysis.report` | `report` | Review, synthesize, accept, confirm, defer, or reject findings. | `http_probe https://example.test/ \| webfin \| report` | [analysis.report](#analysisreport) |
 | Analysis | `analysis.finding` | `finding` | Lower-level finding review actions. | `finding confirm 1-3 pipeline=1` | [analysis.finding](#analysisfinding) |
 | Analysis | `analysis.technology_indicators` | `technology_indicators`, `tech_review` | Promote passive vulnerable-version indicators. | `http_probe https://example.test/ \| webfin \| tech_review \| report` | [analysis.technology_indicators](#analysistechnology_indicators) |
@@ -1588,15 +1588,15 @@ attached.
 ### Analysis Plugin TOC
 
 - [analysis.finding](#analysisfinding)
-- [analysis.finding_dedupe](#analysisfinding_dedupe)
-- [analysis.finding_report](#analysisfinding_report)
+- [analysis.finding.dedupe](#analysisfindingdedupe)
+- [analysis.finding.report](#analysisfindingreport)
 - [analysis.report](#analysisreport)
 - [analysis.technology_indicators](#analysistechnology_indicators)
 - [analysis.yara_scan](#analysisyara_scan)
 
-<a id="analysisfinding_dedupe"></a>
+<a id="analysisfindingdedupe"></a>
 
-### `analysis.finding_dedupe`
+### `analysis.finding.dedupe`
 
 Normalizes and deduplicates raw finding streams.
 
@@ -1610,10 +1610,10 @@ Plugin metadata:
 | Field | Value |
 | --- | --- |
 | Family | Analysis |
-| Plugin | `analysis.finding_dedupe` |
+| Plugin | `analysis.finding.dedupe` |
 | Commandlets | `finding_dedupe` |
 | Last updated | `2026-06-02` from source history |
-| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/analysis/finding_dedupe.py bywaf/plugins/analysis/finding_dedupe.plugin.toml` |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/analysis/finding/dedupe/__init__.py bywaf/plugins/analysis/finding/dedupe/bywaf.plugin.toml` |
 
 #### Commandlet: `finding_dedupe`
 
@@ -1640,9 +1640,9 @@ on distinct issues.
 
 [Back to Analysis plugin TOC](#analysis-plugin-toc) | [Back to document Analysis TOC entry](#toc-analysis)
 
-<a id="analysisfinding_report"></a>
+<a id="analysisfindingreport"></a>
 
-### `analysis.finding_report`
+### `analysis.finding.report`
 
 Renders finding tables and exports report artifacts.
 
@@ -1656,10 +1656,10 @@ Plugin metadata:
 | Field | Value |
 | --- | --- |
 | Family | Analysis |
-| Plugin | `analysis.finding_report` |
+| Plugin | `analysis.finding.report` |
 | Commandlets | `finding_report` |
 | Last updated | `2026-06-02` from source history |
-| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/analysis/finding_report.py bywaf/plugins/analysis/finding_report.plugin.toml` |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/analysis/finding/report/__init__.py bywaf/plugins/analysis/finding/report/bywaf.plugin.toml` |
 
 #### Commandlet: `finding_report`
 

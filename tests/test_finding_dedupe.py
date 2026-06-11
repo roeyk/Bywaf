@@ -15,7 +15,7 @@ from pathlib import Path
 
 from bywaf.db import EventStore
 from bywaf.plugin import CommandContext
-from bywaf.plugins.analysis.finding_dedupe import FindingDedupe, normalize_event
+from bywaf.plugins.analysis.finding.dedupe import FindingDedupe, normalize_event
 
 
 def context_for(db: EventStore) -> CommandContext:

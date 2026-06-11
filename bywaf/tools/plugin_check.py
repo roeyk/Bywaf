@@ -30,10 +30,8 @@ def analyze_plugin_source(plugin_dir: Path) -> SourceAnalysis:
     has_plugin_factory = False
     has_plugins_factory = False
     commandlet_decorator_nodes: list[tuple[Path, ast.AST]] = []
-    paths = [plugin_dir] if plugin_dir.is_file() else sorted(plugin_dir.rglob("*.py"))
+    paths = [plugin_dir] if plugin_dir.is_file() else plugin_source_paths(plugin_dir)
     for path in paths:
-        if "__pycache__" in path.parts:
-            continue
         source = path.read_text(encoding="utf-8")
         tree = ast.parse(source, filename=str(path))
         visitor = CapabilityVisitor(path=path, source=source)
@@ -69,3 +67,32 @@ def analyze_plugin_source(plugin_dir: Path) -> SourceAnalysis:
         tuple(warnings),
         tuple(diagnostics),
     )
+
+
+def plugin_source_paths(plugin_dir: Path) -> list[Path]:
+    """Return Python files owned by one plugin source root.
+
+    Called by: `analyze_plugin_source()` before AST inference.
+
+    Package plugins can contain child plugin packages, each with its own
+    `bywaf.plugin.toml`. Those child packages are separate providers, so strict
+    inference for the parent must not attribute child filesystem, artifact, or
+    render behavior to the parent commandlet.
+    """
+    return [
+        path
+        for path in sorted(plugin_dir.rglob("*.py"))
+        if "__pycache__" not in path.parts and not nested_plugin_source(plugin_dir, path)
+    ]
+
+
+def nested_plugin_source(plugin_dir: Path, path: Path) -> bool:
+    """Return whether `path` belongs to a child plugin package."""
+    for parent in path.parents:
+        if parent == plugin_dir:
+            return False
+        if parent == parent.parent:
+            return False
+        if (parent / "bywaf.plugin.toml").exists():
+            return True
+    return False

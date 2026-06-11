@@ -100,12 +100,15 @@ class CompletionRegressionTests(unittest.TestCase):
 
     def test_variable_expansion_completion_for_filespec_parameters(self):
         registry = PluginRegistry.discover()
-        registry.varstore.set("analysis/finding_report.report_path", "report.md")
+        registry.varstore.set("analysis/finding/report/finding_report.report_path", "report.md")
         registry.varstore.set("global.shared_path", "shared.md")
         completer = Completer(registry)
         self.assertIn("export=$report_path", completer.candidates("finding_report export=$rep"))
         self.assertIn("export=$shared_path", completer.candidates("finding_report export=$sha"))
-        self.assertIn("export=${analysis/finding_report.report_path}", completer.candidates("finding_report export=${analysis"))
+        self.assertIn(
+            "export=${analysis/finding/report/finding_report.report_path}",
+            completer.candidates("finding_report export=${analysis"),
+        )
 
     def test_common_manual_regression_cases(self):
         cases = (

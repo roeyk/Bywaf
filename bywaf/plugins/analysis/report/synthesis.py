@@ -11,10 +11,10 @@ from collections.abc import Iterable, Mapping
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext
-from bywaf.plugins.analysis.finding_dedupe import FINDING_INPUT_TOPICS, dedupe_findings
-from bywaf.plugins.analysis.finding_dedupe_normalize import normalize_event
-from bywaf.plugins.analysis.finding_dedupe_publish import publish_dedupe_result
-from bywaf.plugins.analysis.finding_report import DEDUP_FINDING_TOPICS, REPORT_FINDING_TOPICS
+from bywaf.plugins.analysis.finding.dedupe import FINDING_INPUT_TOPICS, dedupe_findings
+from bywaf.plugins.analysis.finding.dedupe.normalize import normalize_event
+from bywaf.plugins.analysis.finding.dedupe.publish import publish_dedupe_result
+from bywaf.plugins.analysis.finding.report import DEDUP_FINDING_TOPICS, REPORT_FINDING_TOPICS
 from bywaf.plugins.analysis.technology_indicators import findings_from_event
 
 from .model import sort_unique_events

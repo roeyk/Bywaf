@@ -12,9 +12,9 @@ from collections.abc import Mapping
 from typing import Any
 
 from bywaf.event import Event
-from bywaf.plugins.analysis.finding_dedupe import normalize_event
+from bywaf.plugins.analysis.finding.dedupe import normalize_event
 from bywaf.plugins.analysis.finding_display import affected_values, compact_table_text
-from bywaf.plugins.analysis.finding_report_topics import REPORT_FINDING_TOPICS
+from bywaf.plugins.analysis.finding.topics import REPORT_FINDING_TOPICS
 
 
 def finding_rows(events: list[Event], *, include_candidates: bool) -> list[dict[str, str]]:

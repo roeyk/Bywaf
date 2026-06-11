@@ -12,7 +12,7 @@ from argparse import Namespace
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext
-from bywaf.plugins.analysis.finding_report import REPORT_FINDING_TOPICS
+from bywaf.plugins.analysis.finding.report import REPORT_FINDING_TOPICS
 from bywaf.plugins.runtime.audit import resolve_pipeline_selector, resolve_run_selector
 
 from .delta import finding_event_keys, host_event_keys, new_events_for_topic_group, service_event_keys, web_event_keys

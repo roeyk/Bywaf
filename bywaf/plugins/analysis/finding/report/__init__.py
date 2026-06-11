@@ -16,9 +16,9 @@ from pathlib import Path
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet, option
 from bywaf.plugin import kv_to_args
-from bywaf.plugins.analysis.finding_dedupe import FINDING_INPUT_TOPICS
-from bywaf.plugins.analysis.finding_report_export import FORMAT_CHOICES, findings_table, infer_export_format, write_table_artifact
-from bywaf.plugins.analysis.finding_report_rows import (
+from bywaf.plugins.analysis.finding.dedupe import FINDING_INPUT_TOPICS
+from bywaf.plugins.analysis.finding.report.export import FORMAT_CHOICES, findings_table, infer_export_format, write_table_artifact
+from bywaf.plugins.analysis.finding.report.rows import (
     candidate_payload,
     cve_values,
     finding_rows,
@@ -28,7 +28,7 @@ from bywaf.plugins.analysis.finding_report_rows import (
     row_from_event,
     row_from_payload,
 )
-from bywaf.plugins.analysis.finding_report_topics import DEDUP_FINDING_TOPICS, REPORT_FINDING_TOPICS, SOURCE_CHOICES
+from bywaf.plugins.analysis.finding.topics import DEDUP_FINDING_TOPICS, REPORT_FINDING_TOPICS, SOURCE_CHOICES
 from bywaf.utils import complete_path
 
 OPTION_KEYS = {"export", "file", "format", "limit", "source"}

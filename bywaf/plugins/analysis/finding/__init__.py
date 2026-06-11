@@ -13,11 +13,11 @@ from collections.abc import Iterable
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet, option
-from bywaf.plugins.analysis.finding_report import REPORT_FINDING_TOPICS
 from bywaf.plugins.analysis.report import REPORT_OPTION_KEYS, REPORT_SORT_CHOICES, REPORT_STATUS_CHOICES
 from bywaf.plugins.analysis.report.events import select_report_scope_events
 from bywaf.plugins.analysis.report.review import review_report_groups
 from bywaf.plugin import kv_to_args
+from .topics import REPORT_FINDING_TOPICS
 
 FINDING_ACTIONS = ("confirm", "unconfirm")
 FINDING_OPTION_KEYS = REPORT_OPTION_KEYS

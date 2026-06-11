@@ -1,6 +1,6 @@
 """Identifier extraction helpers for finding dedupe normalization.
 
-Used by: `finding_dedupe_normalize.normalize_event()` to normalize explicit
+Used by: `finding.dedupe.normalize.normalize_event()` to normalize explicit
 identifier payloads and extract embedded CVE/CWE/GHSA/OSV tokens from older
 free-form tool events.
 """
