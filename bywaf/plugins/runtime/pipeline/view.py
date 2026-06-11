@@ -10,7 +10,7 @@ from bywaf.plugins.runtime.pipeline.detail import (
     format_pipeline_jobs,
     format_pipeline_steps,
 )
-from bywaf.plugins.runtime.view_common import (
+from bywaf.plugins.runtime.view import (
     apply_runtime_new_cursor,
     filter_runtime_rows_by_events,
     filter_runtime_rows_since,

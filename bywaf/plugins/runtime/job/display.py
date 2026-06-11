@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from bywaf.plugin import CommandContext, CompletionContext
 from bywaf.plugins.runtime.job.filters import filter_job_rows
-from bywaf.plugins.runtime.view_common import (
+from bywaf.plugins.runtime.view import (
     apply_runtime_new_cursor,
     filter_runtime_rows_by_events,
     filter_runtime_rows_since,

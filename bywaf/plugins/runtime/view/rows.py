@@ -6,8 +6,8 @@ from collections.abc import Iterable
 
 from bywaf.stores import EventStoreProtocol
 
-from .view_classification import is_view_command_line, is_view_commandlet
-from .view_command_metadata import command_run_metadata_by_id, command_run_metadata_by_job_id
+from .classification import is_view_command_line, is_view_commandlet
+from .commands import command_run_metadata_by_id, command_run_metadata_by_job_id
 
 
 def filter_view_run_rows(db: EventStoreProtocol, rows: list[dict]) -> list[dict]:

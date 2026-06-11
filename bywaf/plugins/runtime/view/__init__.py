@@ -1,12 +1,12 @@
-"""Shared compatibility facade for runtime view commandlets.
+"""Shared facade for runtime view commandlets.
 
-The runtime view helpers are grouped by responsibility in sibling modules:
+The runtime view helpers are grouped by responsibility in package modules:
 
-- `view_classification`: recognizes read-only operator view commands.
-- `view_filters`: applies cursor, `since=`, metadata, and event filters.
+- `classification`: recognizes read-only operator view commands.
+- `filters`: applies cursor, `since=`, metadata, and event filters.
 
-This module keeps the original import surface stable for job, pipeline, and
-step commandlets while owning only common selector completion helpers.
+Used by: job, pipeline, and step commandlets for shared selector parsing,
+view filtering, and completion candidates.
 """
 
 from __future__ import annotations
@@ -15,14 +15,14 @@ from collections.abc import Sequence
 
 from bywaf.runtime_display import runtime_sort_completion_candidates, runtime_view_completion_candidates
 
-from .view_classification import (
+from .classification import (
     MUTATING_ACTIONS as MUTATING_ACTIONS,
     VIEW_ACTIONS as VIEW_ACTIONS,
     VIEW_COMMANDLETS as VIEW_COMMANDLETS,
     is_view_command_line as is_view_command_line,
     is_view_commandlet as is_view_commandlet,
 )
-from .view_filters import (
+from .filters import (
     apply_runtime_new_cursor as apply_runtime_new_cursor,
     command_run_metadata_by_id as command_run_metadata_by_id,
     command_run_metadata_by_job_id as command_run_metadata_by_job_id,

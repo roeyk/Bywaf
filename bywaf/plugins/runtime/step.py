@@ -16,7 +16,7 @@ from collections.abc import Iterable
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
 from bywaf.plugins.runtime.step_detail import show_step
-from bywaf.plugins.runtime.view_common import (
+from bywaf.plugins.runtime.view import (
     apply_runtime_new_cursor,
     filter_runtime_rows_by_events,
     filter_runtime_rows_since,

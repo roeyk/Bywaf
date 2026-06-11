@@ -1,18 +1,17 @@
-"""Compatibility facade for runtime view row filters.
+"""Facade for runtime view row filters.
 
-Runtime filtering helpers are grouped by responsibility in sibling modules:
+Runtime filtering helpers are grouped by responsibility in package modules:
 
-- `view_cursor_filters`: local cursors, `--new`, and `since=`.
-- `view_metadata_filters`: read-only command metadata classification.
-- `view_event_filters`: event-payload selector filtering.
+- `cursor`: local cursors, `--new`, and `since=`.
+- `metadata`: read-only command metadata classification.
+- `events`: event-payload selector filtering.
 
-This module keeps the original import surface stable for job, pipeline, and
-step commandlets.
+Used by: the `runtime.view` facade to expose one compact filtering surface.
 """
 
 from __future__ import annotations
 
-from .view_cursor_filters import (
+from .cursor import (
     apply_runtime_new_cursor,
     filter_runtime_rows_since,
     newest_runtime_row_id,
@@ -20,8 +19,8 @@ from .view_cursor_filters import (
     resolve_job_since,
     runtime_row_local_id,
 )
-from .view_event_filters import EVENT_MATCHERS, filter_runtime_rows_by_events
-from .view_metadata_filters import (
+from .events import EVENT_MATCHERS, filter_runtime_rows_by_events
+from .metadata import (
     command_run_metadata_by_id,
     command_run_metadata_by_job_id,
     filter_view_job_rows,
