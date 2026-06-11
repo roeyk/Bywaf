@@ -6,9 +6,9 @@ failure, and argument audit events around commandlet execution.
 
 from __future__ import annotations
 
-from ..event import Event
-from ..plugin import CommandContext
-from .stage_arguments import effective_database_actions, redact_commandlet_args
+from ...event import Event
+from ...plugin import CommandContext
+from .arguments import effective_database_actions, redact_commandlet_args
 
 
 def publish_command_run_lifecycle(context: CommandContext, status: str, **details: object) -> Event | None:

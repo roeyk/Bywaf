@@ -8,10 +8,10 @@ from __future__ import annotations
 
 import shlex
 
-from ..command.parser import CommandInvocation
-from ..event import Event
-from ..plugin import CommandContext
-from .stage_arguments import redact_commandlet_args, redact_secret_reference_args
+from ...command.parser import CommandInvocation
+from ...event import Event
+from ...plugin import CommandContext
+from .arguments import redact_commandlet_args, redact_secret_reference_args
 
 DISPLAY_EXPANSION_VAR = "display.expansion"
 DISPLAY_EXPANSION_DEFAULT = "off"

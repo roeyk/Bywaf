@@ -10,9 +10,9 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import cast
 
-from ..plugin import CommandContext
-from ..plugin.capabilities import DATABASE_ACTIONS
-from ..secret.store import REDACTED_VALUE, fingerprint_secret, load_or_create_fingerprint_key
+from ...plugin import CommandContext
+from ...plugin.capabilities import DATABASE_ACTIONS
+from ...secret.store import REDACTED_VALUE, fingerprint_secret, load_or_create_fingerprint_key
 
 
 def normalize_valued_option_args(plugin, args: list[str]) -> list[str]:
