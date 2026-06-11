@@ -12,14 +12,14 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from ..specs import CompletionSpec
-from .resources import complete_at_file_prefix
-from .plugin_arg_selectors import (
+from ...specs import CompletionSpec
+from ..resources import complete_at_file_prefix
+from .selectors import (
     framework_from_selector_candidates,
     in_from_selector_context,
     is_from_selector_token,
 )
-from .plugin_arg_values import (
+from .values import (
     custom_candidates,
     declared_option_candidates,
     first_candidate_group,
@@ -30,9 +30,9 @@ from .plugin_arg_values import (
 )
 
 if TYPE_CHECKING:
-    from ..db import EventStore
-    from ..plugin import Commandlet
-    from ..registry import PluginRegistry
+    from ...db import EventStore
+    from ...plugin import Commandlet
+    from ...registry import PluginRegistry
 
 
 class PluginArgumentCompletionMixin:

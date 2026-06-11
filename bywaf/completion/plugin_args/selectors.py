@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from ..specs import CompletionSpec
+from ...specs import CompletionSpec
 
 CompleteBySpec = Callable[[CompletionSpec, str], list[str]]
 

@@ -9,17 +9,17 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from ..plugin import CompletionContext
-from ..specs import CompletionSpec
-from ..utils import complete_path
-from .constants import FRAMEWORK_OPTION_COMPLETIONS, option_is_binary
-from .tokens import positional_index
-from .variables import variable_reference_candidates
+from ...plugin import CompletionContext
+from ...specs import CompletionSpec
+from ...utils import complete_path
+from ..constants import FRAMEWORK_OPTION_COMPLETIONS, option_is_binary
+from ..tokens import positional_index
+from ..variables import variable_reference_candidates
 
 if TYPE_CHECKING:
-    from ..db import EventStore
-    from ..plugin import Commandlet
-    from ..registry import PluginRegistry
+    from ...db import EventStore
+    from ...plugin import Commandlet
+    from ...registry import PluginRegistry
 
 CompleteBySpec = Callable[[CompletionSpec, str], list[str]]
 
