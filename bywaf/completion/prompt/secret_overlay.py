@@ -1,6 +1,6 @@
 """Prompt secret-span overlay styling.
 
-Used by: `prompt_ui.BywafPromptLexer` to let focused secret-input spans override
+Used by: `completion.prompt.BywafPromptLexer` to let focused secret-input spans override
 normal value/string syntax highlighting.
 """
 

@@ -1,6 +1,6 @@
 """Prompt input value-fragment construction.
 
-Used by: `prompt_ui.BywafPromptLexer` to style assignment keys, quoted strings,
+Used by: `completion.prompt.BywafPromptLexer` to style assignment keys, quoted strings,
 plain values, and `$variable` references in live REPL input.
 """
 
@@ -8,14 +8,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from .prompt_scanner import (
+from .scanner import (
     next_unquoted_equals,
     next_variable_reference_start,
     prompt_closing_quote_index,
     value_token_end,
     variable_reference_end,
 )
-from .prompt_styles import (
+from .styles import (
     DISPLAY_STRING_STYLE_VAR,
     DISPLAY_VALUE_STYLE_VAR,
     DISPLAY_VARIABLE_STYLE_VAR,

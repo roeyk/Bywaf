@@ -27,7 +27,7 @@ except ImportError:  # pragma: no cover - exercised only on minimal installs.
 
 from .constants import BINARY_OPTION_NAMES, option_is_binary
 from .engine import CoreCompleter
-from .prompt_ui import (
+from .prompt import (
     COMPLETION_SELECT_KEY_VAR,
     COMPLETION_WASD_SELECTION_VAR,
     DEFAULT_COMPLETION_SELECT_KEY,

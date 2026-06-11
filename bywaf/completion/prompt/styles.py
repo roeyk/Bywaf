@@ -1,6 +1,6 @@
 """Prompt-toolkit style translation helpers.
 
-Used by: `prompt_value_render` and `prompt_ui` to translate Bywaf display/style
+Used by: `prompt.value_render` and `completion.prompt` to translate Bywaf display/style
 variables into prompt-toolkit fragment style strings.
 """
 

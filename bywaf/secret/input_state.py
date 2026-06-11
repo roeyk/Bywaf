@@ -46,7 +46,7 @@ class PromptSecretInputState:
     Constructed by: `completion.facade.make_prompt_session_kwargs()`.
 
     Consumed by: `secret.input.prompt_secret_key_bindings()`,
-    `completion.prompt_ui.BywafPromptLexer`, and REPL dispatch code that reads
+    `completion.prompt.BywafPromptLexer`, and REPL dispatch code that reads
     hidden secret values after the visible command line is submitted.
     """
 

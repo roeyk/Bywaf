@@ -1,6 +1,6 @@
 """Prompt input token scanning helpers.
 
-Used by: `prompt_value_render` and the prompt UI façade to find key/value
+Used by: `prompt.value_render` and the prompt package façade to find key/value
 boundaries, quoted strings, and Bywaf variable references without changing
 command parsing semantics.
 """

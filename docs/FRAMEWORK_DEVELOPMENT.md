@@ -126,7 +126,7 @@ mutations of original findings.
   structured foreground/background settings, and subject style inheritance.
 - `bywaf/repl/display/`: REPL-facing rendering helpers for events, variables,
   expansion previews, runtime tables, and pager output.
-- `bywaf/completion/prompt_ui.py`: live prompt syntax highlighting for comments,
+- `bywaf/completion/prompt/`: live prompt syntax highlighting for comments,
   quoted strings, assignment values, and `$VARIABLE` references.
 - `docs/plugin_author/output-subjects-and-styles.md`: canonical subject and
   theme contract for plugin authors and renderer maintainers.

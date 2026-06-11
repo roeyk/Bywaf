@@ -23,7 +23,7 @@ except ImportError:  # pragma: no cover - exercised only on minimal installs.
     Lexer = object
     Style = None
 
-from ..secret.input import (
+from ...secret.input import (
     DEFAULT_SECRET_INPUT_MODE,
     SECRET_INPUT_MODE_VAR,
     PromptSecretInputState,
@@ -31,7 +31,7 @@ from ..secret.input import (
     effective_secret_input_mode,
     normalize_secret_input_mode,
 )
-from .prompt_fragments import (
+from .fragments import (
     DISPLAY_STRING_STYLE_VAR as DISPLAY_STRING_STYLE_VAR,
     DISPLAY_STYLE_PREFIX as DISPLAY_STYLE_PREFIX,
     DISPLAY_VALUE_STYLE_VAR as DISPLAY_VALUE_STYLE_VAR,
@@ -54,7 +54,7 @@ from .prompt_fragments import (
     value_token_end as value_token_end,
     variable_reference_end as variable_reference_end,
 )
-from .prompt_keys import (
+from .keys import (
     COMPLETION_SELECT_KEY_VAR as COMPLETION_SELECT_KEY_VAR,
     COMPLETION_WASD_SELECTION_VAR as COMPLETION_WASD_SELECTION_VAR,
     DEFAULT_COMPLETION_SELECT_KEY as DEFAULT_COMPLETION_SELECT_KEY,
