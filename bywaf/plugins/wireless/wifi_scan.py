@@ -25,7 +25,7 @@ from typing import Any
 from bywaf.config import Settings
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option, parse_bool
-from bywaf.plugin.process_artifacts import process_output_artifact_payload
+from bywaf.plugin.process.artifacts import proc_artifact_ref
 from bywaf.plugin import kv_to_args
 
 DEFAULTS = {
@@ -122,7 +122,7 @@ def run_wifi_scan(context: CommandContext, parsed: Any, output_dir: Path) -> Non
         return
 
     if result is not None and not result.ok:
-        process_artifact = process_output_artifact_payload(context)
+        process_artifact = proc_artifact_ref(context)
         context.events.publish(
             "tool.error",
             {

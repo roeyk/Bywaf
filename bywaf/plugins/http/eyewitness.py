@@ -26,7 +26,7 @@ from bywaf.config import Settings
 from bywaf.event.schema_objects import ScreenshottedHost
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option, parse_bool
-from bywaf.plugin.process_artifacts import process_output_artifact_payload
+from bywaf.plugin.process.artifacts import proc_artifact_ref
 from bywaf.plugin import kv_to_args, reject_option_equals
 from bywaf.plugins.http.nikto import (
     dedupe_targets,
@@ -173,7 +173,7 @@ def run_eyewitness(context: CommandContext, parsed: Any, targets: list[dict[str,
 
     # Preserve raw process output as an artifact only when the run failed or no
     # screenshots were found; successful screenshot artifacts are the evidence.
-    process_artifact_payload = process_output_artifact_payload(context) if not result.ok or not screenshots else {}
+    proc_artifact = proc_artifact_ref(context) if not result.ok or not screenshots else {}
     if not result.ok:
         # Publish nonzero process status with stdout/stderr and optional
         # process-output artifact details for later audit.
@@ -186,7 +186,7 @@ def run_eyewitness(context: CommandContext, parsed: Any, targets: list[dict[str,
                 "returncode": result.returncode,
                 "stdout": result.stdout,
                 "stderr": result.stderr,
-                **process_artifact_payload,
+                **proc_artifact,
             },
         )
 
@@ -210,7 +210,7 @@ def run_eyewitness(context: CommandContext, parsed: Any, targets: list[dict[str,
                 "severity": "warning",
                 "message": "EyeWitness produced no screenshot files",
                 "output_dir": str(output_dir),
-                **process_artifact_payload,
+                **proc_artifact,
             },
         )
 

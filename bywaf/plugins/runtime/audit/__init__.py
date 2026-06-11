@@ -32,8 +32,8 @@ from . import export as audit_export_module
 from .common import AUDIT_ACTIONS, AUDIT_FORMATS, AUDIT_LIST_TARGETS, AuditActionHandler
 from .export import event_record, export_events
 from .inventory import capability_inventory_rows, format_capability_inventory
-from .policy_report import format_policy_decisions, policy_decision_rows, policy_selector_completion_candidates
-from .topic_report import format_topic_policy_rows, topic_policy_rows, topic_policy_selector_completion_candidates
+from .policy_report import format_policy_decisions, policy_candidates, policy_decision_rows
+from .topic_report import format_topic_policy_rows, topic_policy_candidates, topic_policy_rows
 from .selectors import (
     parse_compact_time as parse_compact_time,
     parse_list_selectors,
@@ -103,9 +103,9 @@ class Audit(CommandletBase):
             if len(args) == 1:
                 return list(AUDIT_LIST_TARGETS)
             if len(args) >= 2 and args[1] == "policy":
-                return policy_selector_completion_candidates(context, prefix)
+                return policy_candidates(context, prefix)
             if len(args) >= 2 and args[1] == "topics":
-                return topic_policy_selector_completion_candidates(context, prefix)
+                return topic_policy_candidates(context, prefix)
             return ["plugin=", "decision=", "target=", "topic=", "reason=", "step=", "pipeline=", "job=", "serial=", "since=", "until="]
         if prefix.startswith("file="):
             return [f"file={candidate}" for candidate in complete_path(prefix.removeprefix("file="))]

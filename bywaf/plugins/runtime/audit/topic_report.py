@@ -31,7 +31,7 @@ def topic_policy_rows(context: CommandContext, selectors: dict[str, str]) -> lis
     return [topic_policy_row(event) for event in events if topic_policy_event_matches(event, selectors)]
 
 
-def topic_policy_selector_completion_candidates(context: object, prefix: str) -> list[str]:
+def topic_policy_candidates(context: object, prefix: str) -> list[str]:
     """Return `audit list topics` selector value completions."""
     db = getattr(context, "db", None)
     if db is None:

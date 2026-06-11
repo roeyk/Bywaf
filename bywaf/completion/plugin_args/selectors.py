@@ -16,7 +16,7 @@ FROM_SELECTORS = (("job=", "job"), ("pipeline=", "pipeline"), ("step=", "step"),
 FROM_SELECTOR_KEYS = {"job", "pipeline", "step", "topic"}
 
 
-def framework_from_selector_candidates(complete_by_spec: CompleteBySpec, prefix: str) -> list[str]:
+def from_selector_values(complete_by_spec: CompleteBySpec, prefix: str) -> list[str]:
     """Complete selector values used after a plugin commandlet `--from` token."""
     for selector, spec_kind in FROM_SELECTORS:
         if prefix.startswith(selector):

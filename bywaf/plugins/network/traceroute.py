@@ -23,7 +23,7 @@ from bywaf.event.schema_objects import HostFound, NetworkRouteHop
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, RunConfig, commandlet
 from bywaf.plugin.process import ProcessResult
-from bywaf.plugin.process_artifacts import process_output_artifact_payload
+from bywaf.plugin.process.artifacts import proc_artifact_ref
 from bywaf.plugins.target_policy import filter_targets_by_host
 from bywaf.runtime_display import command_context_style_getter, render_table, terminal_table_width
 
@@ -101,7 +101,7 @@ def run_traceroute(context: CommandContext, cfg: TracerouteConfig, target: str) 
             tool,
             target,
             result.stderr.strip() or f"{tool} exited with {result.returncode}",
-            process_output_artifact_payload(context),
+            proc_artifact_ref(context),
         )
     return result
 

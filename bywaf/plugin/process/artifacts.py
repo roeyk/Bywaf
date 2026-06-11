@@ -11,7 +11,7 @@ from typing import Any
 from ..context import CommandContext
 
 
-def process_output_artifact_payload(context: CommandContext) -> dict[str, Any]:
+def proc_artifact_ref(context: CommandContext) -> dict[str, Any]:
     """Return the latest process-output artifact reference for the current step."""
     if context.command_run_id is None:
         return {}
