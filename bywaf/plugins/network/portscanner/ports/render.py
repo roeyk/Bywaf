@@ -141,3 +141,16 @@ def port_endpoint_text(event: Event) -> str:
 def hosts_for_events(events: list[Event]) -> set[str]:
     """Return unique hosts from a group of port events."""
     return {str(event.payload.get("host", "")) for event in events if event.payload.get("host") is not None}
+
+
+__all__ = [
+    "hosts_for_events",
+    "ip_sort_value",
+    "port_endpoint_text",
+    "port_sort_value",
+    "raw_port_row",
+    "render_ports_by_host",
+    "render_ports_by_port",
+    "render_ports_table",
+    "sort_port_events",
+]

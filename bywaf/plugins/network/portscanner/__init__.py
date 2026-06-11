@@ -17,6 +17,7 @@ Used by:
 
 from __future__ import annotations
 
+from importlib import import_module
 from collections.abc import Iterable
 
 from bywaf.event import Event
@@ -26,7 +27,6 @@ from bywaf.plugins.network.nmap_diagnostics import NMAP_FAILURES, publish_nmap_e
 from bywaf.plugins.network.nmap_backend import scan_open_ports
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option, parse_bool, split_var_values
 from bywaf.plugin import kv_to_args
-from bywaf.plugins.network.portscanner.ports import Ports
 from bywaf.plugins.network.portscanner.findings import telnet_open_candidate
 
 DEFAULTS = {
@@ -261,6 +261,11 @@ def plugin() -> Commandlet:
 
 def plugins() -> tuple[Commandlet, ...]:
     """Factory used when the portscanner provider exposes helper views too."""
+    # The `ports` view lives in a child package. Import it lazily here so the
+    # bundled provider can expose both commandlets without creating a static
+    # parent<->child import cycle in architecture metrics.
+    ports_module = import_module("bywaf.plugins.network.portscanner.ports")
+    Ports = ports_module.Ports
     return (PortScanner(), Ports())
 
 

@@ -59,3 +59,6 @@ def validate_ports_scope(scope: dict[str, str]) -> None:
         raise ValueError("ports all=true cannot be combined with job=, pipeline=, or step=")
     if len(explicit_scopes) > 1:
         raise ValueError("ports accepts only one runtime scope: job=, pipeline=, or step=")
+
+
+__all__ = ["PORT_FILTER_KEYS", "PORT_SCOPE_KEYS", "PORT_SORT_KEYS", "parse_ports_selectors", "validate_ports_scope"]

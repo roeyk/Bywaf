@@ -80,3 +80,12 @@ def command_is_portscanner(command_line: str) -> bool:
     """Return whether a stored command line targets the portscanner commandlet."""
     first = command_line.split(maxsplit=1)[0] if command_line.split() else ""
     return first in {"portscanner", "network/portscanner"}
+
+
+__all__ = [
+    "command_is_portscanner",
+    "latest_portscanner_scope",
+    "port_event_keys",
+    "select_port_events",
+    "select_port_scope_events",
+]

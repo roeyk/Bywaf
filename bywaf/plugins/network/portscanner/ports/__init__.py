@@ -22,14 +22,14 @@ from bywaf.runtime_display import (
     runtime_sort_note,
 )
 
-from .ports_events import latest_portscanner_scope, select_port_events
-from .ports_render import (
+from .events import latest_portscanner_scope, select_port_events
+from .render import (
     ip_sort_value as ip_sort_value,
     port_endpoint_text as port_endpoint_text,
     render_ports_table,
     sort_port_events as sort_port_events,
 )
-from .ports_selectors import PORT_SORT_KEYS, parse_ports_selectors
+from .selectors import PORT_SORT_KEYS, parse_ports_selectors
 
 
 @commandlet(
@@ -147,3 +147,14 @@ def no_ports_message(selectors: Namespace) -> str:
 def plugin() -> Commandlet:
     """Return the runtime ports commandlet."""
     return Ports()
+
+
+__all__ = [
+    "PORT_SORT_KEYS",
+    "Ports",
+    "ip_sort_value",
+    "plugin",
+    "port_endpoint_text",
+    "render_ports",
+    "sort_port_events",
+]
