@@ -7,6 +7,7 @@ separate from schema collection and rendering.
 from __future__ import annotations
 
 
+# Default selector values consumed by `parse_schema_args()`.
 DEFAULT_SCHEMA_SELECTORS = {
     "owner": "all",
     "topic": "",
@@ -14,6 +15,7 @@ DEFAULT_SCHEMA_SELECTORS = {
     "sort": "topic",
 }
 
+# Completion candidates consumed by `schema_completions()`.
 SCHEMA_COMPLETIONS = (
     "--page",
     "detail=false",

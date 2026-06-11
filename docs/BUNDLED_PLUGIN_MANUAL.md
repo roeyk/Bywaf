@@ -2533,7 +2533,7 @@ Plugin metadata:
 | Plugin | `runtime.schemas` |
 | Commandlets | `schemas` |
 | Last updated | `2026-06-02` from source history |
-| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/schemas.py bywaf/plugins/runtime/schemas.plugin.toml` |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/schemas/` |
 
 #### Commandlet: `schemas`
 

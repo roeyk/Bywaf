@@ -1,4 +1,8 @@
-"""Runtime view for registered event schemas."""
+"""Runtime view for registered event schemas.
+
+Used by: the bundled `schemas` commandlet to show operators and plugin authors
+the active framework-owned and plugin-owned event contracts.
+"""
 
 from __future__ import annotations
 
@@ -7,8 +11,9 @@ from collections.abc import Iterable
 from bywaf.event import EVENT_SCHEMAS, Event, plugin_event_schemas
 from bywaf.event.schemas import EventSchema
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
-from bywaf.plugins.runtime.schema_selectors import parse_schema_args, schema_completions
 from bywaf.runtime_display import command_context_style_getter, render_table, terminal_table_width
+
+from .selectors import parse_schema_args, schema_completions
 
 
 @commandlet(
@@ -25,10 +30,14 @@ from bywaf.runtime_display import command_context_style_getter, render_table, te
     ),
 )
 class Schemas(CommandletBase):
-    """Render framework and plugin-owned event schemas."""
+    """Render framework and plugin-owned event schemas.
+
+    Constructed by: `plugins()` for the `runtime.schemas` provider.
+    Used by: operators and plugin authors through the REPL `schemas` command.
+    """
 
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
-        """Render schema rows."""
+        """Parse selectors, collect schema rows, and display the rendered table."""
         del input_events
         selectors, page = parse_schema_args(args)
         rows = schema_rows(context, selectors)
@@ -46,16 +55,28 @@ class Schemas(CommandletBase):
 
 
 def schema_rows(context: CommandContext, selectors: dict[str, str]) -> list[tuple[str, str, EventSchema]]:
-    """Return selected schema rows as owner/topic/schema tuples."""
+    """Return selected schema rows as owner/topic/schema tuples.
+
+    Called by: `Schemas.run()` before `render_schemas()` formats the table.
+    """
     rows: list[tuple[str, str, EventSchema]] = []
     owner = selectors["owner"]
     topic_prefix = selectors["topic"]
+
+    # Collect both built-in framework schemas and plugin-owned schemas, but
+    # only for the owner scope requested by the command selectors.
     if owner in {"all", "framework"}:
         rows.extend(("framework", topic, schema) for topic, schema in EVENT_SCHEMAS.items())
     if owner in {"all", "plugin"}:
         rows.extend(("plugin", topic, schema) for topic, schema in plugin_event_schemas().items())
+
+    # Topic prefix filtering is intentionally string-prefix based because
+    # schema topics are hierarchical names such as `web.fingerprint`.
     usage = schema_usage(context)
     selected = [row for row in rows if not topic_prefix or row[1].startswith(topic_prefix)]
+
+    # The sort selector supports a leading minus for descending order while
+    # keeping the public selector names compact: topic, owner, and used.
     sort_key = selectors["sort"]
     descending = sort_key.startswith("-")
     key = sort_key.removeprefix("-")
@@ -68,7 +89,10 @@ def schema_sort_value(
     usage: dict[str, tuple[str, ...]],
     key: str,
 ) -> tuple[object, ...]:
-    """Return a stable sort value for a schema row."""
+    """Return a stable sort value for a schema row.
+
+    Called by: `schema_rows()` as the key function for selected rows.
+    """
     owner, topic, schema = row
     if key == "owner":
         return (owner, topic)
@@ -82,10 +106,18 @@ def render_schemas(
     rows: list[tuple[str, str, EventSchema]],
     selectors: dict[str, str],
 ) -> str:
-    """Render schema list output."""
+    """Render schema list output.
+
+    Called by: `Schemas.run()` after row selection. The table is the compact
+    default view; `detail=true` appends one field-level section per schema.
+    """
     if not rows:
         return "Schemas: no registered schemas"
     usage = schema_usage(context)
+
+    # Build table rows from normalized EventSchema objects. The renderer
+    # handles terminal-width shrinking and styling, so this function only
+    # supplies semantic cell subjects and values.
     table_rows = [
         (
             owner,
@@ -133,7 +165,10 @@ def render_schema_details(
     rows: list[tuple[str, str, EventSchema]],
     usage: dict[str, tuple[str, ...]],
 ) -> list[str]:
-    """Render field-level detail for selected schemas."""
+    """Render field-level detail for selected schemas.
+
+    Called by: `render_schemas()` when the operator asks for `detail=true`.
+    """
     lines: list[str] = []
     for owner, topic, schema in rows:
         lines.append("")
@@ -171,11 +206,18 @@ def render_schema_details(
 
 
 def schema_usage(context: CommandContext) -> dict[str, tuple[str, ...]]:
-    """Return commandlets that declare each schema topic in consumes/emits."""
+    """Return commandlets that declare each schema topic in consumes/emits.
+
+    Called by: `schema_rows()` and `render_schemas()` to explain which loaded
+    commandlets use a schema as an input or output contract.
+    """
     runner = context.metadata.get("runner")
     registry = getattr(runner, "registry", None)
     if registry is None:
         return {}
+
+    # Registry specs are already loaded at this point, so usage can be computed
+    # cheaply from declared consumes/emits without importing more plugin code.
     usage: dict[str, set[str]] = {}
     for name, plugin in registry.plugins.items():
         for topic in (*plugin.spec.consumes, *plugin.spec.emits):
