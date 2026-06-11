@@ -2133,7 +2133,7 @@ Plugin metadata:
 | Plugin | `runtime.inventory` |
 | Commandlets | `hosts`, `services`, `web`, `wafs`, `shares`, `routes`, `certs`, `banners`, `paths`, `screenshots` |
 | Last updated | `2026-06-02` from source history |
-| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/inventory.py bywaf/plugins/runtime/inventory.plugin.toml bywaf/plugins/runtime/inventory_views` |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/inventory` |
 
 #### Commandlets: `hosts`, `services`, `web`, `wafs`, `shares`, `routes`, `certs`, `banners`, `paths`, `screenshots`
 

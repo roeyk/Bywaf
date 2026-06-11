@@ -10,7 +10,7 @@ from argparse import Namespace
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext
-from bywaf.plugins.runtime.inventory_scope import events_new_to_scope
+from bywaf.plugins.runtime.inventory.scope import events_new_to_scope
 from bywaf.plugins.runtime.job import require_job
 
 

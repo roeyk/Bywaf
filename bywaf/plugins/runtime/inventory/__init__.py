@@ -11,8 +11,8 @@ from collections.abc import Iterable
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, commandlet
-from bywaf.plugins.runtime.inventory_command import InventoryCommand
-from bywaf.plugins.runtime.inventory_render import (
+from bywaf.plugins.runtime.inventory.command import InventoryCommand
+from bywaf.plugins.runtime.inventory.render import (
     banner_event_keys,
     cert_event_keys,
     host_event_keys,
@@ -34,7 +34,7 @@ from bywaf.plugins.runtime.inventory_render import (
     waf_event_keys,
     web_event_keys,
 )
-from bywaf.plugins.runtime.inventory_topics import (
+from bywaf.plugins.runtime.inventory.topics import (
     BANNER_TOPICS,
     CERT_TOPICS,
     HOST_TOPICS,

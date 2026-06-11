@@ -3,7 +3,7 @@
 Used by:
 - `runtime.inventory`: assigns each inventory commandlet the event topics it
   needs to build its operator view.
-- `runtime.inventory_scope`: receives these groups when selecting events from
+- `runtime.inventory.scope`: receives these groups when selecting events from
   jobs, pipelines, steps, or the whole project.
 """
 

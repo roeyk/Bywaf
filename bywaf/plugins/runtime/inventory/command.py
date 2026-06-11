@@ -13,7 +13,7 @@ from collections.abc import Callable, Iterable
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, CommandletBase, CompletionContext
-from bywaf.plugins.runtime.inventory_scope import (
+from bywaf.plugins.runtime.inventory.scope import (
     InventoryIdentity,
     inventory_scope_label,
     parse_inventory_selectors,
