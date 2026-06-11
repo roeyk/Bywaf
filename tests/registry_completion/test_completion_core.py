@@ -2,12 +2,23 @@
 """Registry and completion tests split by responsibility."""
 
 from tests.registry_completion.support import *  # noqa: F403,F405
+
+
 class RegistryCompletionCoreTests(unittest.TestCase):
+    """Core completion behavior across commands, contexts, files, and secrets.
+
+    These tests exercise `Completer.candidates()` directly because completion
+    is a user-facing contract but does not require a full prompt-toolkit UI.
+    """
+
     def setUp(self):
+        """Create a fresh bundled registry for each completion scenario."""
         self.registry = PluginRegistry.discover()
 
     def test_completes_command_names(self):
         completer = Completer(self.registry)
+        # Command completion should include public commandlets and aliases, but
+        # not internal implementation names such as the REPL provider itself.
         self.assertIn("hostscanner", completer.candidates("host"))
         self.assertIn("http/http_probe", completer.candidates("http/"))
         self.assertIn("history", completer.candidates("hist"))
@@ -64,6 +75,8 @@ class RegistryCompletionCoreTests(unittest.TestCase):
         self.registry.varstore.set("discovery/hostscanner.targets", "127.0.0.1")
         self.registry.varstore.set("global.proxy", "http://127.0.0.1:8080")
         completer = Completer(self.registry, active_context="discovery/hostscanner")
+        # In an active plugin context, local variable names are offered first;
+        # fully qualified names remain available when the user types a prefix.
         self.assertIn("targets=", completer.candidates("set "))
         self.assertNotIn("discovery/hostscanner.targets=", completer.candidates("set "))
         self.assertEqual(completer.candidates("set global.pro"), ["global.proxy="])
@@ -116,6 +129,8 @@ class RegistryCompletionCoreTests(unittest.TestCase):
         state.span = PromptSecretSpan("pw", span_start, span_start + len(SECRET_BLOCK_VALUE), "secret")
         buffer = FakePromptBuffer(text, span_start)
 
+        # Editing the assignment prefix invalidates the protected secret span
+        # because the hidden value can no longer be safely associated with it.
         state.delete_before_cursor(buffer)
 
         self.assertEqual(buffer.text, "set --secret pw")
@@ -183,6 +198,8 @@ class RegistryCompletionCoreTests(unittest.TestCase):
             try:
                 os.chdir(tmp)
                 completer = Completer(self.registry)
+                # Completion preserves the exact @ expansion mode prefix typed
+                # by the operator instead of normalizing to plain filenames.
                 self.assertEqual(completer.candidates("hostscanner @tar"), ["@targets.txt"])
                 self.assertEqual(completer.candidates("hostscanner @@tar"), ["@@targets.txt"])
                 self.assertEqual(completer.candidates("hostscanner @lines:tar"), ["@lines:targets.txt"])

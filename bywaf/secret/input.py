@@ -65,18 +65,26 @@ def effective_secret_input_mode(value: object | None) -> str:
 
 
 class PromptSecretLexer(Lexer):
-    """Color the protected `[REDACTED]` span."""
+    """Color the protected `[REDACTED]` span.
+
+    Constructed by: prompt-toolkit setup when secret-block input is enabled.
+    Consumed by: prompt rendering to style the visible placeholder while the
+    real secret stays in `PromptSecretInputState`.
+    """
 
     def __init__(self, state: PromptSecretInputState) -> None:
         self.state = state
 
     def lex_document(self, document: Document):
+        """Return a prompt-toolkit line lexer for the current document."""
         def get_line(lineno: int):
             text = document.lines[lineno]
             span = self.state.span
             if lineno != 0 or span is None:
                 return [("", text)]
             fragments = []
+            # Split the single-line prompt into normal text before/after the
+            # placeholder and a styled protected span in the middle.
             if span.start > 0:
                 fragments.append(("", text[: span.start]))
             style = "class:secret.focused" if span.focused else "class:secret.inactive"
@@ -107,7 +115,11 @@ class SecretCursorOutput:
 
 
 def prompt_secret_key_bindings(state: PromptSecretInputState, enabled: Callable[[], bool] | None = None):
-    """Return key bindings that keep secret text out of the prompt buffer."""
+    """Return key bindings that keep secret text out of the prompt buffer.
+
+    Called by: completion prompt setup. The handlers below intercept cursor and
+    editing keys while a redacted span is focused.
+    """
     if KeyBindings is None or Condition is None or Keys is None:
         return None
     bindings = KeyBindings()
@@ -173,6 +185,9 @@ def handle_secret_left(state: PromptSecretInputState, buffer, app) -> None:
     if span is None:
         buffer.cursor_left(count=1)
         return
+    # When focused, arrow keys leave the protected block as a unit. When not
+    # focused, landing on either edge focuses the block rather than exposing
+    # internal cursor positions.
     if span.focused:
         state.leave_before(buffer, app)
         return
@@ -192,6 +207,8 @@ def handle_secret_right(state: PromptSecretInputState, buffer, app) -> None:
     if span is None:
         buffer.cursor_right(count=1)
         return
+    # Symmetric handling to handle_secret_left(): the visible placeholder is
+    # navigated as one editable object with hidden backing storage.
     if span.focused:
         state.leave_after(buffer, app)
         return
@@ -244,6 +261,8 @@ def handle_focused_secret_text(
 ) -> None:
     """Handle a key press while the secret span is focused."""
     span = state.focused()
+    # Tab/enter leave the protected input mode; printable keys append to the
+    # hidden value without mutating the visible prompt buffer.
     if key in {"tab", "c-i"} or data == "\t":
         state.leave_after(buffer, app)
         return

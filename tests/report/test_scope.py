@@ -2,7 +2,15 @@
 """Report command tests split by responsibility."""
 
 from tests.report.support import *  # noqa: F403,F405
+
+
 class ReportScopeTests(unittest.TestCase):
+    """Report scope and CVE selector behavior tests.
+
+    These tests construct synthetic event timelines directly in the EventStore
+    so report selection can be verified without invoking real scanner plugins.
+    """
+
     def test_report_pipeline_renders_scoped_findings(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
@@ -36,6 +44,8 @@ class ReportScopeTests(unittest.TestCase):
                 runner.execute("report pipeline=pipeline-a")
                 process_framework_requests(runner, ShellState())
 
+            # The selected pipeline should drive both visible output and the
+            # durable report.rendered audit payload.
             text = output.getvalue()
             self.assertIn("Report scope: pipeline=pipeline-a (1 finding group, 1 event)", text)
             self.assertIn("Missing HSTS", text)
@@ -48,6 +58,8 @@ class ReportScopeTests(unittest.TestCase):
     def test_report_filters_by_cve_exact_wildcard_and_comma_list(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            # Publish three independent finding groups so each CVE selector
+            # shape can prove its exact inclusion/exclusion behavior.
             runner.db.publish(
                 "finding.new",
                 {
@@ -96,6 +108,8 @@ class ReportScopeTests(unittest.TestCase):
                 process_framework_requests(runner, ShellState())
 
             rendered = runner.db.events_for_topic("report.rendered")
+            # exact, wildcard, and comma-list selectors are executed in order
+            # above; the audit events preserve the selected group IDs.
             self.assertEqual(rendered[0].payload["groups"], ["apache-41773"])
             self.assertEqual(rendered[1].payload["groups"], ["apache-41773", "apache-42013"])
             self.assertEqual(rendered[2].payload["groups"], ["apache-42013", "openssl-heartbleed"])
@@ -103,6 +117,8 @@ class ReportScopeTests(unittest.TestCase):
     def test_report_expands_related_cves_from_scoped_event_metadata(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            # The `+` suffix expands from related_cves attached to the scoped
+            # advisory event, not from an external CVE database.
             runner.db.publish(
                 "finding.new",
                 {
@@ -296,6 +312,9 @@ class ReportScopeTests(unittest.TestCase):
     def test_report_new_renders_composite_inventory_delta(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            # Build an old/new inventory timeline with both host facts and
+            # finding facts so `report --new` has to synthesize a delta across
+            # multiple topic families.
             runner.db.publish(
                 "host.found",
                 {"host": "192.0.2.10", "status": "up"},

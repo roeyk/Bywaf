@@ -20,6 +20,12 @@ from bywaf.app import (
 
 
 class AppDispatchTests(unittest.TestCase):
+    """End-to-end app dispatch tests for inventory and result views.
+
+    These tests seed the database directly, then dispatch REPL commands through
+    the app layer so rendering, aliases, and output text are validated together.
+    """
+
     def test_inventory_commands_summarize_project_knowledge(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -31,6 +37,9 @@ class AppDispatchTests(unittest.TestCase):
                 commandlet="http_probe",
                 values={},
             )
+            # Seed representative facts from every inventory family this test
+            # exercises: host, service, web, share, route, cert, banner, path,
+            # screenshot, and finding evidence.
             runner.db.publish("host.found", {"host": "192.0.2.20", "name": "web-1", "status": "up"}, "hostscanner", pipeline_id="scan-pipeline", command_run_id="scan-step")
             runner.db.publish("name.resolved", {"name": "example.test", "host": "192.0.2.20"}, "dns_lookup", pipeline_id="scan-pipeline", command_run_id="scan-step")
             runner.db.publish(
@@ -113,6 +122,9 @@ class AppDispatchTests(unittest.TestCase):
 
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
+                # Dispatch through the REPL layer instead of calling inventory
+                # renderers directly; this catches command registration and
+                # alias drift as well as table text changes.
                 dispatch_repl_line(runner, "hosts")
                 dispatch_repl_line(runner, "services")
                 dispatch_repl_line(runner, "web")
@@ -149,6 +161,8 @@ class AppDispatchTests(unittest.TestCase):
 
             sorted_output = io.StringIO()
             with contextlib.redirect_stdout(sorted_output):
+                # Sort checks make sure each inventory view exposes its own
+                # documented sort keys through the public command surface.
                 dispatch_repl_line(runner, "services sort=-port")
                 dispatch_repl_line(runner, "web sort=status")
                 dispatch_repl_line(runner, "routes sort=hop")
@@ -161,6 +175,8 @@ class AppDispatchTests(unittest.TestCase):
     def test_inventory_new_filters_to_latest_new_facts(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
+            # Old/new duplicate facts plus one genuinely new host/port verify
+            # the identity-based delta logic used by `--new`.
             runner.db.publish(
                 "host.found",
                 {"host": "192.0.2.10", "status": "up"},

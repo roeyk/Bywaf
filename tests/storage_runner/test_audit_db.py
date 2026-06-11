@@ -3,7 +3,16 @@
 
 from tests.storage_runner.support import *  # noqa: F403,F405
 
+
 class StorageRunnerAuditDbTests(unittest.TestCase):
+    """Runner integration tests for database and audit commandlets.
+
+    These tests construct real temporary stores and then drive commandlets
+    through `Runner.execute()`, because the important behavior includes both
+    printed operator output and the audit events the framework records while a
+    commandlet runs.
+    """
+
     def test_db_commandlet_reports_status(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -15,6 +24,8 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             text = output.getvalue()
             self.assertIn("mode=plaintext", text)
             self.assertRegex(text, r"events=\d+")
+            # The db status command is a read-only inspection command: it needs
+            # raw database access but must not claim management privileges.
             capabilities = {
                 event.payload["capability"]
                 for event in runner.db.events_for_topic("plugin.capability.used")
@@ -38,6 +49,8 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
     def test_audit_list_capabilities_prints_inventory(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
+            # Seed the same capability telemetry that commandlet execution
+            # normally emits so the audit renderer can be tested directly.
             runner.db.publish(
                 "plugin.capability.used",
                 {"commandlet": "hostscanner", "capability": "network.connect", "declared": True},
@@ -63,6 +76,8 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
                 {"commandlet": "fixture", "capability": "db.write:host.found", "declared": True},
                 "fixture",
             )
+            # Topic-specific database capabilities carry a stable derived
+            # subcode so audit output can group broad and narrow DB writes.
             row = capability_inventory_row("db.write:host.found", {}, {"db.write:host.found": [event]}, {})
 
             self.assertEqual(row["Capability"], "db.write:host.found")
@@ -71,6 +86,8 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
     def test_audit_list_policy_prints_policy_decisions(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
+            # This fixture mirrors a scope policy repair: one target was
+            # removed and a warning was preserved for later review.
             runner.db.publish(
                 "policy.evaluated",
                 {
@@ -101,6 +118,8 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
     def test_audit_list_policy_selects_plugin(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
+            # Two policy rows make the selector meaningful: the audit command
+            # should display only the commandlet named by plugin=.
             runner.db.publish(
                 "policy.evaluated",
                 {"commandlet": "hostscanner", "decision": "warn", "before": {"targets": ["198.51.100.10"]}, "after": {"targets": []}},
@@ -132,6 +151,8 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
     def test_audit_list_topics_prints_topic_policy_decisions(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
+            # Topic policy events are emitted when runtime publication policy
+            # accepts, warns, audits, or blocks a plugin topic.
             runner.db.publish(
                 "plugin.topic.policy",
                 {
@@ -172,6 +193,8 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             runner = make_runner(Path(tmp, "db.sqlite3"))
             first = runner.db.publish("topic", {"value": "old"}, "test")
             second = runner.db.publish("topic", {"value": "new"}, "test")
+            # Pin timestamps explicitly so the YYYYMMDD selectors are
+            # deterministic regardless of the machine clock or timezone.
             with runner.db.connect() as conn:
                 conn.execute("UPDATE events SET created_at = ? WHERE id = ?", ("2026-05-16T10:00:00+00:00", first.id))
                 conn.execute("UPDATE events SET created_at = ? WHERE id = ?", ("2026-05-17T10:00:00+00:00", second.id))
@@ -185,6 +208,8 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
     def test_audit_show_filters_since_step_bound(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
+            # Step-relative bounds are operator shortcuts for "show events from
+            # this command run forward".
             runner.db.publish("topic", {"value": "old"}, "test", command_run_id="old-run")
             runner.db.publish("topic", {"value": "new"}, "test", command_run_id="new-run")
             output = io.StringIO()
@@ -199,6 +224,8 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             path = Path(tmp, "audit.jsonl")
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.publish("topic", {"value": 1}, "test")
+            # JSONL is the machine-readable export used for downstream tooling
+            # and evidence review outside the interactive shell.
             with contextlib.redirect_stdout(io.StringIO()):
                 runner.execute(f"audit export file={path} topic=topic")
                 process_framework_requests(runner, ShellState())
@@ -211,6 +238,8 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             path = Path(tmp, "audit.sqlite3")
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.publish("topic", {"value": 1}, "test")
+            # A SQLite export should be a usable EventStore copy, not just a
+            # byte-for-byte dump with missing framework tables.
             with contextlib.redirect_stdout(io.StringIO()):
                 runner.execute(f"audit export file={path}")
                 process_framework_requests(runner, ShellState())
@@ -243,6 +272,8 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             second = Path(tmp, "second.sqlite3")
             runner = make_runner(first)
             runner.db.publish("topic", {"value": 1}, "test")
+            # `db new file=...` changes the active runner store while leaving
+            # the previous database intact for later inspection.
             with contextlib.redirect_stdout(io.StringIO()):
                 runner.execute(f"db new file={second}")
             self.assertEqual(runner.db.path, second)
@@ -276,6 +307,8 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             second = Path(tmp, "second.sqlite3")
             EventStore(second).publish("topic", {"value": 1}, "test")
             runner = make_runner(first)
+            # --force is allowed, but it preserves the overwritten database as
+            # an adjacent backup before switching the active connection.
             with contextlib.redirect_stdout(io.StringIO()):
                 runner.execute(f"db new --force file={second}")
             self.assertEqual(runner.db.path, second)
@@ -291,6 +324,8 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             try:
                 os.chdir(tmp)
                 runner = make_runner(Path("current.sqlite3"))
+                # The no-argument form creates an ad hoc runtime-state
+                # database under the project-local .bywaf directory.
                 with contextlib.redirect_stdout(io.StringIO()):
                     runner.execute("db new")
                 self.assertEqual(runner.db.path.parent, Path(".bywaf/db"))
@@ -308,6 +343,9 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
                 with contextlib.redirect_stdout(io.StringIO()):
                     runner.execute("db new")
 
+                # This regression protects the user's report that `db new`
+                # appeared to work until the next shell startup reverted to the
+                # old database.
                 state = json.loads(Path(".bywaf/active-database.json").read_text(encoding="utf-8"))
                 self.assertEqual(Path(state["database"]), runner.db.path)
                 self.assertEqual(EventStore(runner.db.path).jobs(), [])
@@ -321,6 +359,8 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             source = Path(tmp, "proof.txt")
             source.write_text("proof", encoding="utf-8")
             runner.db.publish("custom.topic", {"value": 1}, "test")
+            # Attach one artifact so db stats has both main-store and
+            # artifact-store counts to render.
             with contextlib.redirect_stdout(io.StringIO()):
                 runner.execute(f"artifact attach step=run-1 file={source} name=proof.txt")
                 process_framework_requests(runner, ShellState())
@@ -348,6 +388,8 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             path = Path(tmp, "db.sqlite3")
             runner = make_runner(path)
             runner.db.publish("topic", {"value": 1}, "test")
+            # Exercise the full SQLCipher lifecycle against one active runner
+            # so connection replacement and preserved rows are both covered.
             with patch("getpass.getpass", side_effect=["secret", "secret"]):
                 runner.execute("db encrypt")
             self.assertTrue(runner.db.encrypted)

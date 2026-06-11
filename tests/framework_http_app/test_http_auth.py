@@ -18,6 +18,12 @@ from bywaf.plugins.http.auth import (
 
 
 class TestHttpAuthTests(unittest.TestCase):
+    """HTTP authentication posture tests with network-free connection fakes.
+
+    The suite verifies target derivation, challenge parsing, weak-auth finding
+    promotion, and commandlet event publication.
+    """
+
     def test_http_auth_targets_from_arg(self):
         targets = HttpAuth().targets(["example.test:8080"], "auto", "/admin", [])
         self.assertEqual(targets, [("example.test", 8080, "http", "/admin")])
@@ -105,6 +111,8 @@ class TestHttpAuthTests(unittest.TestCase):
 
 
 class FakeResponse:
+    """Base auth response fake exposing the http.client response surface used."""
+
     status = 401
     reason = "Unauthorized"
     headers: list[tuple[str, str]] = []
@@ -128,6 +136,8 @@ class RiskyResponse(FakeResponse):
 
 
 class BasicConnection:
+    """http.client connection fake returning an authentication challenge."""
+
     response = BasicResponse()
 
     def __init__(self, host, port=None, timeout=None):
@@ -155,6 +165,8 @@ class RiskyConnection(BasicConnection):
 
 
 class ErrorConnection(BasicConnection):
+    """Connection fake for transport failure payload tests."""
+
     def request(self, method, path):
         raise OSError("connection refused")
 

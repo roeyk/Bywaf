@@ -22,10 +22,17 @@ POLICY_DECISIONS = ("allow", "warn", "deny", "block")
 
 
 def policy_decision_rows(context: CommandContext, selectors: dict[str, str]) -> list[dict[str, str]]:
-    """Return printable rows for recorded policy decisions."""
+    """Return printable rows for recorded policy decisions.
+
+    Called by: the runtime audit commandlet after parsing `audit list policy`
+    selectors from the operator.
+    """
     unsupported = set(selectors) - POLICY_SELECTOR_KEYS
     if unsupported:
         raise ValueError(f"unsupported audit policy selector: {sorted(unsupported)[0]}")
+    # Runtime selectors are handled by the shared event selector helper. The
+    # policy-specific selectors below are applied after query so their matching
+    # rules can inspect structured before/after policy payloads.
     query = {key: value for key, value in selectors.items() if key in {"job", "pipeline", "serial", "since", "step", "until"}}
     query["topic"] = "policy.evaluated"
     events = selected_events(context, query, limit=100000)
@@ -33,7 +40,11 @@ def policy_decision_rows(context: CommandContext, selectors: dict[str, str]) -> 
 
 
 def policy_candidates(context: object, prefix: str) -> list[str]:
-    """Return `audit list policy` selector value completions."""
+    """Return `audit list policy` selector value completions.
+
+    Called by: plugin argument completion when the current commandlet is
+    `audit list policy`.
+    """
     db = getattr(context, "db", None)
     if db is None:
         return []
@@ -46,6 +57,8 @@ def policy_candidates(context: object, prefix: str) -> list[str]:
 
 def policy_selector_values(db: object, key: str) -> list[str]:
     """Return value candidates for one policy report selector."""
+    # Each branch maps a selector key to the cheapest available source of
+    # observed values: constants, policy events, runtime aliases, or job rows.
     if key == "decision":
         return sorted({*POLICY_DECISIONS, *policy_decision_values(db)})
     if key == "plugin":
@@ -98,6 +111,8 @@ def policy_target_completion_values(db: object) -> list[str]:
 
 def policy_event_matches(event: Event, selectors: dict[str, str]) -> bool:
     """Return whether a policy event matches operator report selectors."""
+    # Policy payload matching is intentionally substring-based for targets so
+    # operators can search partially normalized URLs/hosts from policy repairs.
     if (decision := selectors.get("decision")) and str(event.payload.get("decision", "")) != decision:
         return False
     if (plugin := selectors.get("plugin")) and policy_commandlet(event) != plugin:
@@ -112,6 +127,9 @@ def policy_event_matches(event: Event, selectors: dict[str, str]) -> bool:
 def policy_decision_row(event: Event) -> dict[str, str]:
     """Build one printable policy decision report row."""
     payload = event.payload
+    # The policy event stores before/after target sets as nested payloads. The
+    # row flattens them for a fixed-width table while preserving notes about
+    # warnings and automatic repairs.
     before = format_targets(payload.get("before"))
     after = format_targets(payload.get("after"))
     warnings = payload.get("warnings", ())

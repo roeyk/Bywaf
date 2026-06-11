@@ -75,7 +75,11 @@ def run_benchmark(
     read_every: int = 0,
     workload: str = DIRECT_WORKLOAD,
 ) -> BenchmarkResult:
-    """Run a multi-process EventStore write contention benchmark."""
+    """Run a multi-process EventStore write contention benchmark.
+
+    Called by: `scripts/sqlite_contention_benchmark.py` and maintainers
+    collecting performance baselines before storage changes.
+    """
     if writers < 1:
         raise ValueError("writers must be at least 1")
     if events_per_writer < 1:
@@ -89,6 +93,8 @@ def run_benchmark(
     database.parent.mkdir(parents=True, exist_ok=True)
     EventStore(database).checkpoint()
     started = time.perf_counter()
+    # Run each writer in a separate process to exercise SQLite file locking and
+    # WAL behavior rather than only Python-thread scheduling.
     with ProcessPoolExecutor(max_workers=writers, mp_context=benchmark_mp_context()) as executor:
         futures = [
             executor.submit(
@@ -137,6 +143,8 @@ def run_writer(
     for sequence in range(events_per_writer):
         before = time.perf_counter()
         try:
+            # The emitter hides whether this worker is using direct store writes
+            # or the plugin-facing context event API.
             emitter(sequence, payload_data)
             published += 1
             write_latencies.append((time.perf_counter() - before) * 1000)
@@ -148,6 +156,8 @@ def run_writer(
         if read_every and (sequence + 1) % read_every == 0:
             read_before = time.perf_counter()
             try:
+                # Optional read pressure approximates follow/report views
+                # querying while plugins are still producing events.
                 db.recent_events(10)
                 read_latencies.append((time.perf_counter() - read_before) * 1000)
             except Exception as exc:  # pragma: no cover - failure shape is environment-dependent.
@@ -168,7 +178,11 @@ def run_writer(
 
 
 def build_emitter(db: EventStore, writer: int, payload_bytes: int, workload: str):
-    """Return the write path for one benchmark worker."""
+    """Return the write path for one benchmark worker.
+
+    The returned callable gives `run_writer()` one uniform publishing surface
+    while still comparing direct EventStore writes to plugin-style event writes.
+    """
     if workload == PLUGIN_WORKLOAD:
         context = CommandContext(
             db=db,
@@ -236,6 +250,8 @@ def aggregate_results(
     workload: str = DIRECT_WORKLOAD,
 ) -> BenchmarkResult:
     """Aggregate per-worker benchmark results."""
+    # Flatten latency samples across workers after preserving each worker's
+    # individual result for diagnosis of skew or lock-heavy outliers.
     attempted = sum(result.attempted for result in results)
     published = sum(result.published for result in results)
     failures = sum(result.failures for result in results)
@@ -339,6 +355,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.database is None:
+        # Temporary DB mode is the safest default for ad hoc measurements; a
+        # caller can pass --database when comparing local-vs-SSHFS storage.
         with TemporaryDirectory() as tmp:
             result = run_benchmark(
                 Path(tmp, "contention.sqlite3"),

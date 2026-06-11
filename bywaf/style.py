@@ -184,7 +184,11 @@ def parse_color_int(raw: str, minimum: int, maximum: int) -> int | None:
 
 
 def subject_style(getter, subject: str) -> str:
-    """Return the configured style for a subject, falling back to parents."""
+    """Return the configured style for a subject, falling back to parents.
+
+    Called by: runtime display helpers that style semantic subjects such as
+    `host.name`, `port`, and `finding.severity`.
+    """
     current = subject
     while current:
         key = f"display/style.{current}"
@@ -194,6 +198,8 @@ def subject_style(getter, subject: str) -> str:
         structured = structured_subject_style(getter, key)
         if structured:
             return structured
+        # Parent fallback lets a broad style such as display/style.host apply
+        # to display/style.host.name unless the child is configured directly.
         if "." not in current:
             break
         current = current.rsplit(".", 1)[0]
@@ -203,6 +209,8 @@ def subject_style(getter, subject: str) -> str:
 def structured_subject_style(getter, key: str) -> str:
     """Return a style assembled from `.foreground`, `.background`, and flags."""
     tokens: list[str] = []
+    # Structured variables are merged into the same token language accepted by
+    # ansi_style_code(), keeping config storage and rendering paths unified.
     for flag in sorted(STRUCTURED_STYLE_FLAGS):
         if truthy_style_flag(getter(f"{key}.{flag}", "")):
             tokens.append(flag)

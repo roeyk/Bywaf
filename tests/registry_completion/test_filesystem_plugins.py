@@ -2,7 +2,16 @@
 """Registry and completion tests split by responsibility."""
 
 from tests.registry_completion.support import *  # noqa: F403,F405
+
+
 class RegistryFilesystemPluginTests(unittest.TestCase):
+    """Filesystem plugin trust, manifest, dependency, and completion tests.
+
+    The test cases create throwaway plugin directories on disk because this
+    subsystem's behavior depends on real paths, sidecar manifests, defaults,
+    and plugin trust-policy decisions.
+    """
+
     def test_load_plugin_requires_factory(self):
         module = ModuleType("empty")
         with self.assertRaisesRegex(AttributeError, "does not define plugin"):
@@ -25,6 +34,8 @@ class RegistryFilesystemPluginTests(unittest.TestCase):
             root = Path(tmp, "plugins")
             plugin_dir = root / "scanners" / "example"
             plugin_dir.mkdir(parents=True)
+            # Build a minimal filesystem plugin exactly as an external plugin
+            # author would ship it: plugin module, defaults, and manifest.
             (plugin_dir / "plugin.py").write_text(
                 "from bywaf.plugin import CommandSpec\n"
                 "class Example:\n"
@@ -53,6 +64,8 @@ class RegistryFilesystemPluginTests(unittest.TestCase):
             root = Path(tmp, "plugins")
             plugin_dir = root / "scanners" / "example"
             plugin_dir.mkdir(parents=True)
+            # Unsigned filesystem plugins are intentionally refused unless a
+            # trusted catalog or explicit developer bypass is present.
             (plugin_dir / "plugin.py").write_text(
                 "from bywaf.plugin import CommandSpec\n"
                 "class Example:\n"
@@ -133,6 +146,9 @@ class RegistryFilesystemPluginTests(unittest.TestCase):
             root = Path(tmp, "plugins")
             plugin_dir = root / "scanners" / "example"
             plugin_dir.mkdir(parents=True)
+            # The Python module advertises two commandlets, but the manifest
+            # allows only one. The registry must treat the manifest as the
+            # public contract for external filesystem plugins.
             (plugin_dir / "plugin.py").write_text(
                 "from bywaf.plugin import CommandSpec\n"
                 "class Example:\n"

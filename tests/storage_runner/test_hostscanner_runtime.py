@@ -3,7 +3,15 @@
 
 from tests.storage_runner.support import *  # noqa: F403,F405
 
+
 class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
+    """Runner integration tests centered on hostscanner and runtime metadata.
+
+    The suite patches scanner backends but runs through `Runner.execute()` so
+    command parsing, variable expansion, notes, names, capabilities, and event
+    persistence are exercised together.
+    """
+
     def test_parse_empty_invocation_fails(self):
         with self.assertRaises(ValueError):
             parse_invocation("")
@@ -61,6 +69,8 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
                 with contextlib.redirect_stdout(io.StringIO()):
                     events = runner.execute("hostscanner $targets")
             discover.assert_called_once_with("127.0.0.1 127.0.0.2", "-sn")
+            # Variable expansion is recorded as framework evidence attached to
+            # the same command run as the plugin event.
             expansions = runner.db.events_for_topic("framework.variable.expanded")
             self.assertEqual(expansions[0].payload["variables"], ["discovery/hostscanner.targets"])
             self.assertEqual(expansions[0].command_run_id, events[0].command_run_id)
@@ -102,6 +112,8 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
                         "hostscanner 127.0.0.1 note=scope approved | portscanner note=top ports"
                     )
             notes = runner.db.events_for_topic("note.attached")
+            # Inline note= values are stage-local in pipelines, not copied from
+            # one commandlet to the next.
             self.assertEqual([note.payload["note"] for note in notes], ["scope approved", "top ports"])
             self.assertEqual(notes[0].command_run_id, events[0].command_run_id)
             self.assertEqual(notes[1].command_run_id, events[-1].command_run_id)
@@ -113,6 +125,8 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
                 with contextlib.redirect_stdout(io.StringIO()):
                     events = runner.execute("client subnet scan: hostscanner 127.0.0.1 name=localhost sweep")
             names = runner.db.runtime_names()
+            # Prefix labels name the pipeline, while trailing name= labels name
+            # the individual command run.
             pipeline_id = events[0].pipeline_id
             self.assertIsNotNone(pipeline_id)
             assert pipeline_id is not None
@@ -150,6 +164,8 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
                 with contextlib.redirect_stdout(io.StringIO()):
                     runner.execute(f"hostscanner @lines:{targets}")
             discover.assert_called_once_with("127.0.0.1 127.0.0.2", "-sn")
+            # @lines expansion emits provenance so the original file input can
+            # be audited separately from the expanded command arguments.
             expansion = runner.db.events_for_topic("framework.argument.expanded")[0]
             self.assertEqual(expansion.payload["mode"], "lines")
             self.assertEqual(expansion.payload["produced"], 2)
@@ -255,6 +271,8 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
                 with contextlib.redirect_stdout(io.StringIO()):
                     events = runner.execute("hostscanner 127.0.0.1")
             self.assertEqual([event.topic for event in events], ["host.found"])
+            # Foreground execution still travels through the same job lifecycle
+            # machinery used by background commands.
             topics = runner.db.topics()
             self.assertIn("job.requested", topics)
             self.assertIn("job.claimed", topics)
@@ -271,6 +289,8 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
         ):
             events = list(HostScanner().run(context, ["-s", "127.0.0.1"], []))
         self.assertEqual(events[0]["host"], "127.0.0.1")
+        # The silent flag is a plugin-level display control; the structured
+        # host event is still yielded for persistence.
         self.assertEqual(output.getvalue(), "")
 
     def test_hostscanner_expands_range_before_nmap(self):
@@ -282,9 +302,13 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
                 runner = make_runner(Path(tmp, "db.sqlite3"))
                 with contextlib.redirect_stdout(io.StringIO()):
                     runner.execute("hostscanner 192.168.0.1-2")
+            # Range shorthand is normalized before the backend adapter sees
+            # the target string.
             discover.assert_called_once_with("192.168.0.1 192.168.0.2", "-sn")
 
     def test_hostscanner_resolves_name_before_nmap(self):
+        # Duplicate DNS answers are common; the policy layer should preserve
+        # order while removing repeats before scanner invocation.
         address_info = [
             (2, 1, 6, "", ("203.0.113.10", 0)),
             (2, 1, 6, "", ("203.0.113.11", 0)),
@@ -309,6 +333,8 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
             host_events = [event for event in events if event.topic == "host.found"]
             self.assertEqual(host_events[0].payload["host"], "203.0.113.10")
             self.assertEqual(host_events[0].payload["name"], "example.test")
+            # Resolution evidence is stored separately from the host.found
+            # events so reports can explain how names became addresses.
             resolved = runner.db.events_for_topic("name.resolved")
             self.assertEqual([event.payload["name"] for event in resolved], ["example.test", "example.test"])
             self.assertEqual([event.payload["host"] for event in resolved], ["203.0.113.10", "203.0.113.11"])
@@ -330,6 +356,8 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
                 runner = make_runner(Path(tmp, "db.sqlite3"))
                 with contextlib.redirect_stdout(io.StringIO()):
                     runner.execute("hostscanner 192.168.0.1-3 except=192.168.0.2,192.168.0.3")
+            # Exclusion filtering is applied after range expansion and before
+            # invoking nmap, which keeps rejected targets out of backend logs.
             discover.assert_called_once_with("192.168.0.1", "-sn")
 
     def test_hostscanner_except_supports_at_file_value(self):
@@ -354,6 +382,8 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
                 process_framework_requests(runner, ShellState())
             self.assertEqual(events, [])
             discover.assert_not_called()
+            # --test is a dry-run path: it produces plan/policy evidence but
+            # no scanner side effects and no discovered host events.
             self.assertIn("Plan: scan-hosts", output.getvalue())
             self.assertEqual(runner.db.events_for_topic("plan.requested")[0].payload["summary"], "Scan 2 host target(s) with nmap arguments '-sn'.")
             self.assertEqual(runner.db.events_for_topic("policy.evaluated")[0].payload["decision"], "allow")
@@ -367,6 +397,8 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
                     runner.execute("hostscanner 192.168.0.1 10.0.0.1 --yes")
             discover.assert_called_once_with("192.168.0.1", "-sn")
             self.assertEqual(runner.db.events_for_topic("plan.approved")[0].payload["approval_method"], "cli-yes")
+            # --yes authorizes the framework's scope repair instead of making
+            # the plugin scan an out-of-policy target.
             repair = runner.db.events_for_topic("plan.repair.applied")[0]
             self.assertEqual(repair.payload["repair"], "prune-out-of-scope")
             self.assertTrue(repair.payload["approved_by"])

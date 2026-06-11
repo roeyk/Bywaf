@@ -36,6 +36,13 @@ from bywaf.plugins.recon.shodan_lookup import ShodanLookup
 
 
 class LibraryPluginTests(unittest.TestCase):
+    """Library-backed and wrapper plugin behavior tests.
+
+    The tests patch optional imports, sockets, subprocess calls, and filesystem
+    outputs at the plugin boundary. That keeps the suite network-free while
+    still exercising the framework-facing event/artifact behavior.
+    """
+
     def test_optional_module_publishes_tool_error_when_missing(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
@@ -45,6 +52,8 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertEqual(db.events_for_topic("tool.error")[0].payload["tool"], "missing-lib")
 
     def test_dns_lookup_publishes_records(self):
+        # dnspython is represented by a tiny fake module so the test verifies
+        # Bywaf payload construction rather than resolver behavior.
         class FakeRecord:
             def to_text(self):
                 return "127.0.0.1"
@@ -92,6 +101,8 @@ class LibraryPluginTests(unittest.TestCase):
         self.assertEqual(ssh_targets(["host"], 2222, []), [("host", 2222)])
 
     def test_ssh_probe_publishes_failed_auth_without_real_network(self):
+        # The Paramiko surface is faked at the optional-module seam. The plugin
+        # still runs its normal commandlet code path and publishes ssh.service.
         class FakeClient:
             def set_missing_host_key_policy(self, policy):
                 pass
@@ -187,6 +198,8 @@ class LibraryPluginTests(unittest.TestCase):
 
         tls_probe_module = importlib.import_module("bywaf.plugins.http.tls_probe")
 
+        # Fake the SSL socket/context pair so the assertion can focus on the
+        # minimum TLS version Bywaf configures before wrapping the connection.
         class FakeSocket:
             def __enter__(self):
                 return self

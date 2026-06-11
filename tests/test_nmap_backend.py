@@ -25,6 +25,12 @@ from bywaf.plugins.network.nmap_backend import (
 
 
 class NmapBackendTests(unittest.TestCase):
+    """Backend-selection and result-normalization tests for nmap adapters.
+
+    The tests fake both supported Python binding shapes so Bywaf's adapter
+    logic can be validated without requiring nmap or live network access.
+    """
+
     def test_load_backend_prefers_nmaplib(self):
         fake = types.SimpleNamespace(PortScanner=object)
 
@@ -99,6 +105,8 @@ class NmapBackendTests(unittest.TestCase):
 
 
 class FakeHostResult:
+    """Minimal python-nmap host result used by `collect_open_ports()` tests."""
+
     def __init__(self, protocols=None):
         self.protocols = protocols or {"tcp": {22: {"state": "open", "name": "ssh", "reason": "syn-ack"}}}
 
@@ -113,6 +121,8 @@ class FakeHostResult:
 
 
 class FakeScanner:
+    """Minimal python-nmap PortScanner replacement."""
+
     def __init__(self, protocols=None):
         self.protocols = protocols
 
@@ -127,10 +137,14 @@ class FakeScanner:
 
 
 class FakeNmapModule:
+    """Module-shaped object exposing the python-nmap PortScanner API."""
+
     PortScanner = FakeScanner
 
 
 class FakeLibService:
+    """Minimal libnmap service object."""
+
     def __init__(self, port, protocol, state, service="", reason=""):
         self.port = port
         self.protocol = protocol
@@ -140,6 +154,8 @@ class FakeLibService:
 
 
 class FakeLibHost:
+    """Minimal libnmap host object."""
+
     def __init__(self, address, status, services=None):
         self.address = address
         self.status = status
@@ -147,16 +163,24 @@ class FakeLibHost:
 
 
 class FakeReport:
+    """Minimal libnmap report object."""
+
     def __init__(self, hosts):
         self.hosts = hosts
 
 
 def fake_libnmap_backend(report, failed=False, stderr=""):
+    """Return module-like libnmap process/parser objects for adapter tests."""
+
     class ProcessModule:
+        """Fake libnmap.process module with captured constructor arguments."""
+
         last_options = ""
         last_targets = None
 
         class NmapProcess:
+            """Fake libnmap process object consumed by Bywaf's adapter."""
+
             def __init__(self, targets, options):
                 ProcessModule.last_options = options
                 ProcessModule.last_targets = targets
@@ -172,6 +196,8 @@ def fake_libnmap_backend(report, failed=False, stderr=""):
                 return failed
 
     class ParserModule:
+        """Fake libnmap.parser module returning the supplied report."""
+
         class NmapParser:
             @staticmethod
             def parse(stdout):

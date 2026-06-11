@@ -55,6 +55,12 @@ OPTION_KEYS = {"binary", "duration", "interface", "log-types", "output-dir"}
 @option("output-dir", "directory for Kismet output", completion="path")
 @option("silent", "suppress network alerts", "false")
 class WifiScan(CommandletBase):
+    """Process-wrapped Kismet commandlet.
+
+    Constructed by: bundled plugin registry.
+    Consumed by: runner/REPL execution when operators invoke `wifi_scan`.
+    """
+
     def run(
         self,
         context: CommandContext,
@@ -63,6 +69,8 @@ class WifiScan(CommandletBase):
     ):
         """Run Kismet and publish discovered Wi-Fi networks from JSON output."""
         del input_events
+        # Manifest options define user-facing metadata; the runtime parser adds
+        # argparse behavior and hydrates defaults from provider variables.
         parser = self.parser()
         parser.add_argument("-s", "--silent", action="store_true", default=self.var_default(context, "silent", False, cast=parse_bool))
         parser.add_argument("--binary", default=self.var_default(context, "binary", "kismet"))
@@ -92,6 +100,8 @@ def run_wifi_scan(context: CommandContext, parsed: Any, output_dir: Path) -> Non
     """Run Kismet, attach produced logs, and publish network events."""
     context.audit_capability("network.listen")
     output_dir.mkdir(parents=True, exist_ok=True)
+    # Build argv as a list and delegate execution through the framework process
+    # service so audit events and transcript artifacts are captured centrally.
     argv = kismet_argv(
         binary=str(parsed.binary),
         interface=str(parsed.interface),
@@ -213,6 +223,8 @@ def networks_from_output(output_dir: Path) -> list[dict[str, Any]]:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
+        # Kismet output shape varies by version/log type, so extraction is
+        # recursive and normalized before deduplication.
         networks.extend(extract_networks(data))
     return dedupe_networks(networks)
 
@@ -251,6 +263,8 @@ def looks_like_network(data: dict[str, Any]) -> bool:
 
 def normalize_network(data: dict[str, Any]) -> dict[str, Any]:
     """Normalize common Kismet network fields."""
+    # Keep the raw record alongside normalized fields so future consumers can
+    # recover vendor-specific data without changing this plugin schema first.
     ssid = first_value(data, "ssid", "kismet.device.base.name", "dot11.device.last_beaconed_ssid")
     bssid = first_value(data, "bssid", "mac", "kismet.device.base.macaddr")
     channel = first_value(data, "channel", "kismet.device.base.channel")

@@ -21,9 +21,9 @@ from bywaf.app import (
 )
 from bywaf.event import Event
 
-
-
 class AppDispatchTests(unittest.TestCase):
+    """REPL-level tests for event, step, and shell-exec display behavior."""
+
     def test_events_defaults_to_tail_last_25(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -33,6 +33,7 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "events")
             text = output.getvalue()
+            # The default events view is a tail, not a full database dump.
             self.assertNotIn("'n': 4", text)
             self.assertIn("'n': 5", text)
             self.assertIn("'n': 29", text)
@@ -61,6 +62,8 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "event follow step=1 topic=port.open since=beginning once=true")
 
             text = output.getvalue()
+            # step=1 resolves to the first command run in the database and
+            # scopes follow output to that run.
             self.assertIn("following events; press Ctrl-C to stop", text)
             self.assertIn("192.0.2.10:80", text)
             self.assertNotIn("192.0.2.20", text)
@@ -84,6 +87,8 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "event follow job=1 topic=port.open since=beginning once=true")
 
             text = output.getvalue()
+            # job=1 scopes the follow query through command_run metadata, so
+            # events in unrelated pipelines stay hidden.
             self.assertIn("192.0.2.10:80", text)
             self.assertNotIn("192.0.2.20", text)
 
@@ -96,6 +101,8 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "event port.open host=192.0.2.20")
             text = output.getvalue()
+            # Payload selectors use normalized topic renderers when available;
+            # port.open is rendered as host:port/protocol.
             self.assertNotIn("192.0.2.10", text)
             self.assertIn("192.0.2.20:443/tcp", text)
 
@@ -108,6 +115,8 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "event finding.candidate host=192.0.2.10,192.0.2.20 sort=host")
             lines = [line for line in output.getvalue().splitlines() if "finding.candidate" in line]
+            # Host selectors look through common nested payload locations such
+            # as target.host, not only a top-level host field.
             self.assertIn("192.0.2.10", lines[0])
             self.assertIn("192.0.2.20", lines[1])
 
@@ -125,6 +134,8 @@ class AppDispatchTests(unittest.TestCase):
                     "event port.open host=192.168.50.0/24,!192.168.50.1-128 port=80",
                 )
             text = output.getvalue()
+            # Include/exclude selectors are evaluated as a set expression: the
+            # CIDR include is narrowed by the explicit range exclusion.
             self.assertNotIn("192.168.50.10", text)
             self.assertIn("192.168.50.130:80", text)
             self.assertNotIn("192.168.51.20", text)
@@ -156,6 +167,8 @@ class AppDispatchTests(unittest.TestCase):
             with patch("bywaf.repl.command.exec.subprocess.run", return_value=completed) as run:
                 dispatch_repl_line(runner, "exec echo 'hello world'")
 
+            # exec deliberately avoids a shell; quoted tokens are parsed by the
+            # REPL and passed as argv directly.
             run.assert_called_once_with(["echo", "hello world"], check=False)
             events = runner.events.events_matching(topic="shell.exec.completed")
             self.assertEqual(events[-1].payload["argv"], ["echo", "hello world"])
@@ -197,6 +210,8 @@ class AppDispatchTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "step 1")
             text = output.getvalue()
+            # Step inspection merges captured variables and emitted events into
+            # one operator-facing view.
             self.assertIn("Variables", text)
             self.assertIn("test.marker=1", text)
             self.assertIn("host.found 127.0.0.1", text)
@@ -227,6 +242,8 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "step 1")
 
             text = output.getvalue()
+            # Captured console blocks are summarized so one verbose command
+            # does not overwhelm the step detail view.
             self.assertIn("operator.note=manual check", text)
             self.assertNotIn("display/style.host", text)
             self.assertIn("text=STEP  STATUS", text)

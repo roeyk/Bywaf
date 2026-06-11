@@ -21,9 +21,9 @@ from bywaf.app import (
 )
 from bywaf.secret.askpass import AskpassUnavailable
 
-
-
 class AppDispatchTests(unittest.TestCase):
+    """REPL-level tests for variable scopes, aliases, and secret handling."""
+
     def test_use_context_scopes_short_vars_assignments(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -33,6 +33,8 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "set targets=127.0.0.1", state)
                 dispatch_repl_line(runner, "use global", state)
                 dispatch_repl_line(runner, "set target=global", state)
+            # In a command context, short variable names are scoped to the
+            # active commandlet. The global context keeps unprefixed names.
             self.assertEqual(runner.registry.varstore.get("discovery/hostscanner.targets"), "127.0.0.1")
             self.assertEqual(runner.registry.varstore.get("target"), "global")
 
@@ -50,6 +52,8 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "set alpha=1", state)
                 dispatch_repl_line(runner, "set", state)
             text = output.getvalue()
+            # The set listing shows global variables first, then the active
+            # commandlet's scoped variables in deterministic order.
             variables_index = text.index("Variables:")
             active_index = text.index("In-focus variables (discovery/hostscanner):")
             self.assertLess(variables_index, active_index)
@@ -94,6 +98,8 @@ class AppDispatchTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 dispatch_repl_line(runner, "set scanners/example.answer=99", ShellState())
+            # Users can stage variables for plugins that are not loaded yet;
+            # the warning keeps the typo-risk visible without discarding state.
             self.assertEqual(runner.registry.varstore.get("scanners/example.answer"), "99")
             self.assertIn(
                 "warning: scanners/example is not loaded; storing scanners/example.answer until that commandlet is loaded",
@@ -109,6 +115,8 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "set password=supersecret", state)
                 dispatch_repl_line(runner, "set password", state)
             text = output.getvalue()
+            # Secret storage is explicit. A sensitive-looking variable name is
+            # not silently moved into the secret store.
             self.assertEqual(runner.registry.varstore.get("password"), "supersecret")
             self.assertIn("password=supersecret", text)
 
@@ -137,6 +145,8 @@ class AppDispatchTests(unittest.TestCase):
             stored = runner.registry.varstore.get("session.ticket")
             self.assertIsNotNone(stored)
             assert stored is not None
+            # Secret assignments store only an opaque reference in the variable
+            # store; the actual value lives behind the secret backend.
             self.assertTrue(runner.registry.secrets.is_ref(stored))
             self.assertEqual(runner.registry.secrets.get(stored), "supersecret")
             self.assertNotIn("supersecret", text)
@@ -189,6 +199,8 @@ class AppDispatchTests(unittest.TestCase):
             stored = runner.registry.varstore.get("pw")
             self.assertIsNotNone(stored)
             assert stored is not None
+            # Empty secret values trigger an input prompt and still render as a
+            # redacted reference when shown through `set`.
             self.assertTrue(runner.registry.secrets.is_ref(stored))
             self.assertEqual(runner.registry.secrets.get(stored), "prompted-secret")
             self.assertNotIn("prompted-secret", text)
@@ -234,6 +246,8 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "set --secret pw=", state)
                 dispatch_repl_line(runner, "set pw", state)
             getpass.assert_called_once_with("Secret for pw: ")
+            # askpass failures are noisy on stderr but fall back to terminal
+            # input so headless sessions can keep working.
             stored = runner.registry.varstore.get("pw")
             self.assertIsNotNone(stored)
             assert stored is not None

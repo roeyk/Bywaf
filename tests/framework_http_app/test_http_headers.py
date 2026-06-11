@@ -16,6 +16,12 @@ from bywaf.repl import ShellState
 
 
 class TestHttpHeadersTests(unittest.TestCase):
+    """HTTP header commandlet tests with network-free connection fakes.
+
+    The suite checks both direct helper logic and app/REPL behavior so compact
+    console output, event publication, and finding promotion stay aligned.
+    """
+
     def test_http_headers_targets_from_arg(self):
         targets = HttpHeaders().targets("example.test", None, False, [])
         self.assertEqual(targets, [("example.test", 80, False)])
@@ -59,6 +65,8 @@ class TestHttpHeadersTests(unittest.TestCase):
                 process_framework_requests(runner, state)
 
             text = output.getvalue()
+            # The REPL should show concise event summaries, not raw nested
+            # dictionaries from headers or finding payloads.
             self.assertIn("finding.candidate Missing HTTP Strict Transport Security", text)
             self.assertIn("http.headers example.test:443 status=200 headers=Server", text)
             self.assertNotIn("{'affected':", text)
@@ -172,11 +180,15 @@ class FakeHostResult:
 
 
 class FakeHttpResponse:
+    """HEAD response with only the attributes consumed by the plugin."""
+
     status = 200
     headers = {"Server": "example"}
 
 
 class FakeHttpConnection:
+    """http.client connection fake used to avoid network calls."""
+
     def __init__(self, host, port=None, timeout=None):
         self.host = host
         self.port = port
@@ -194,6 +206,8 @@ class FakeHttpConnection:
 
 
 class WeakHeaderResponse:
+    """Response intentionally missing security headers and cookie flags."""
+
     status = 302
     headers = {
         "Server": "Apache/2.4.58",
@@ -203,11 +217,15 @@ class WeakHeaderResponse:
 
 
 class WeakHeaderConnection(FakeHttpConnection):
+    """Connection fake returning weak header posture."""
+
     def getresponse(self):
         return WeakHeaderResponse()
 
 
 class FakePortScanner:
+    """Legacy fake retained for older target-resolution helper tests."""
+
     def scan(self, **kwargs):
         self.kwargs = kwargs
 

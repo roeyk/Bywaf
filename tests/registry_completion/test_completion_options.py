@@ -2,8 +2,17 @@
 """Registry and completion tests split by responsibility."""
 
 from tests.registry_completion.support import *  # noqa: F403,F405
+
+
 class RegistryCompletionOptionTests(unittest.TestCase):
+    """Option, selector, resource, and prompt-toolkit completion tests.
+
+    The suite verifies the completion layer from the user's partial command
+    text rather than by calling lower-level parser helpers directly.
+    """
+
     def setUp(self):
+        """Create a fresh registry so option completion sees bundled metadata."""
         self.registry = PluginRegistry.discover()
 
     def test_completes_plugin_options(self):
@@ -24,6 +33,8 @@ class RegistryCompletionOptionTests(unittest.TestCase):
 
     def test_inventory_and_report_completion_exposes_last_new_selectors(self):
         completer = Completer(self.registry)
+        # All inventory/report views should expose the same runtime scope
+        # selectors, while each view can still contribute its own sort keys.
         for command in ("hosts", "services", "web", "wafs", "shares", "routes", "certs", "banners", "paths", "screenshots", "ports"):
             with self.subTest(command=command):
                 candidates = completer.candidates(f"{command} --")
@@ -49,6 +60,8 @@ class RegistryCompletionOptionTests(unittest.TestCase):
 
     def test_artifact_completion_prefers_actions_first(self):
         completer = Completer(self.registry)
+        # Artifact has an action-first grammar. Completion should suggest
+        # subcommands before selector keys, then switch to action-specific args.
         self.assertEqual(
             completer.candidates("artifact "),
             ["attach", "cat", "export", "import", "list", "remove", "replace", "search", "show", "verify"],
@@ -100,6 +113,8 @@ class RegistryCompletionOptionTests(unittest.TestCase):
     def test_pipeline_attach_completion_prefers_action_then_scope(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))
+            # Seed one pipeline/step so completion can offer both a local
+            # pipeline selector and step-scoped attach options.
             db.publish(
                 "host.found",
                 {"host": "127.0.0.1"},
@@ -181,6 +196,8 @@ class RegistryCompletionOptionTests(unittest.TestCase):
                 os.chdir(tmp)
                 completer = Completer(self.registry)
                 candidates = completer.candidates("plugin load=")
+                # Only directories that look like plugin roots should be
+                # offered for plugin load completion.
                 self.assertIn("load=./local_plugin/", candidates)
                 self.assertNotIn("load=./ordinary_dir/", candidates)
             finally:

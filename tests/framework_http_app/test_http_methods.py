@@ -20,6 +20,12 @@ from bywaf.repl import ShellState
 
 
 class TestHttpMethodsTests(unittest.TestCase):
+    """HTTP method commandlet tests with network-free response fakes.
+
+    These tests cover target resolution, OPTIONS probing, finding promotion,
+    dedupe/report integration, and implicit analysis via `| report`.
+    """
+
     def test_http_methods_targets_from_arg(self):
         targets = HttpMethods().targets(["example.test:8080"], "auto", "/admin", [])
         self.assertEqual(targets, [("example.test", 8080, "http", "/admin")])
@@ -120,6 +126,7 @@ class TestHttpMethodsTests(unittest.TestCase):
             output = io.StringIO()
             pipeline_id = findings[0].pipeline_id
             with contextlib.redirect_stdout(output):
+                # This verifies the explicit chain: scanner -> dedupe -> report.
                 runner.execute(f"report pipeline={pipeline_id} status=all")
                 process_framework_requests(runner, ShellState())
 
@@ -136,6 +143,8 @@ class TestHttpMethodsTests(unittest.TestCase):
                 patch("bywaf.plugins.http.methods.http.client.HTTPSConnection", RiskyConnection),
                 contextlib.redirect_stdout(output),
             ):
+                # This verifies the short user-facing chain: scanner -> report,
+                # where report implies the passive finding dedupe analysis step.
                 runner.execute("http_methods https://example.test/ | report status=all")
                 process_framework_requests(runner, ShellState())
 
@@ -154,6 +163,8 @@ class TestHttpMethodsTests(unittest.TestCase):
 
 
 class FakeResponse:
+    """Base OPTIONS response fake."""
+
     status = 200
     reason = "OK"
     headers: dict[str, str] = {}
@@ -175,6 +186,8 @@ class RiskyResponse(FakeResponse):
 
 
 class AllowConnection:
+    """http.client connection fake returning a configurable response."""
+
     response = AllowResponse()
 
     def __init__(self, host, port=None, timeout=None):
@@ -202,6 +215,8 @@ class RiskyConnection(AllowConnection):
 
 
 class ErrorConnection(AllowConnection):
+    """Connection fake for transport failure payload tests."""
+
     def request(self, method, path):
         raise OSError("connection refused")
 

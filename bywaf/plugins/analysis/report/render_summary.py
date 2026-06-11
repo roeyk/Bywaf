@@ -89,7 +89,13 @@ def report_rendered_payload(
     counts: Mapping[str, int] | None = None,
     action: str | None = None,
 ) -> dict[str, object]:
-    """Return a structured payload describing one rendered report."""
+    """Return a structured payload describing one rendered report.
+
+    Consumed by: audit/event views that need to explain which report command
+    rendered which finding groups and runtime scope.
+    """
+    # Keep the audit payload compact and referential: store event IDs and group
+    # IDs rather than repeating full finding payloads already in the event log.
     return {
         "action": action or ("show" if any((parsed.job, parsed.pipeline, parsed.step)) else "new" if getattr(parsed, "new", False) else "inbox"),
         "job": parsed.job,
@@ -111,6 +117,9 @@ def order_report_groups(
     parsed: Namespace,
 ) -> list[FindingGroup]:
     """Return report groups in the requested operator-priority order."""
+    # The default order is established earlier by grouping/synthesis. These
+    # optional orderings only promote review states without re-sorting the whole
+    # report by unrelated fields.
     if getattr(parsed, "accepted_first", False):
         return sorted(groups, key=lambda group: (review_status(group, decisions) != "accepted", first_group_event_id(group)))
     if getattr(parsed, "candidates_first", False):
@@ -157,6 +166,8 @@ def review_summary_line(
     )
     if not severity_counts:
         return summary
+    # Severity classes are appended only when useful so simple reports do not
+    # grow an empty second summary line.
     class_summary = ", ".join(
         f"{severity_counts[item]} {item}"
         for item in SEVERITY_CLASS_ORDER
@@ -181,6 +192,8 @@ def resume_summary_line(counts: Mapping[str, int]) -> str:
 
 def resume_focus_line(groups: list[FindingGroup], decisions: Mapping[str, ReviewDecision]) -> str:
     """Return severity focus for findings still needing operator attention."""
+    # Resume guidance ignores accepted/deferred/rejected groups; the goal is to
+    # orient an operator toward work still pending in the current scope.
     open_groups = [group for group in groups if review_status(group, decisions) in {"confirmed", "unreviewed"}]
     if not open_groups:
         return ""
@@ -204,6 +217,8 @@ def severity_class_counts(groups: list[FindingGroup]) -> dict[str, int]:
     """Count finding groups by broad operational severity class."""
     counts = {key: 0 for key in SEVERITY_CLASS_ORDER}
     for group in groups:
+        # Count each finding group once using the representative payload chosen
+        # by grouping logic, not every raw event in the group.
         payload = effective_finding_payload(group.representative)
         counts[severity_class(payload.get("severity"))] += 1
     return counts

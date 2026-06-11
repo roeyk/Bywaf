@@ -2,10 +2,20 @@
 """Resources/history/config tests split by responsibility."""
 
 from tests.resources_history_config.support import *  # noqa: F403,F405
+
+
 class ResourcesHistoryRuntimeTests(unittest.TestCase):
+    """Runtime help, script parsing, history, notes, and resource path tests.
+
+    These scenarios intentionally go through public dispatch helpers where
+    possible because they protect user-visible REPL behavior and formatting.
+    """
+
     def test_dispatch_show_run_and_pipeline(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
+            # Seed a run with captured variables so event display can show both
+            # scoped events and the command-run variable snapshot.
             runner.db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", pipeline_id="p", command_run_id="r")
             runner.db.record_command_run_vars(
                 job_id=None,
@@ -35,6 +45,8 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
                 with contextlib.redirect_stdout(io.StringIO()):
                     events = runner.execute("hostscanner 127.0.0.1")
             snapshot = runner.db.command_run_vars(events[0].command_run_id or "")
+            # Command-run snapshots are the provenance layer that later report,
+            # event, and step views use to explain how a scan was configured.
             self.assertEqual(snapshot["discovery/hostscanner.arguments"], "-PE")
             self.assertEqual(snapshot["global.proxy"], "http://127.0.0.1:8080")
 
@@ -110,6 +122,8 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
             self.assertEqual(script_commands(path), [(3, "ls"), (4, "topics")])
 
     def test_script_commands_preserves_quoted_hashes(self):
+        # Hashes inside quotes are user data; only unquoted hashes start
+        # comments in script/history files.
         self.assertEqual(strip_inline_comment("set name='a # b' # later").strip(), "set name='a # b'")
         self.assertEqual(strip_inline_comment('set color="#dc2626" # later').strip(), 'set color="#dc2626"')
 
@@ -154,6 +168,8 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
             path = Path(tmp, ".bywaf", "history.bywaf")
             session_history = []
             entry = record_command_history("ls bywaf", path, session_history)
+            # The REPL keeps session history in memory here; persistent history
+            # files are deliberately not written by this helper.
             self.assertFalse(path.exists())
             self.assertRegex(entry or "", r"^ls bywaf  # \d{8} \d{2}:\d{2}:\d{2}( [A-Z]+)?$")
             self.assertEqual(session_history, [entry])

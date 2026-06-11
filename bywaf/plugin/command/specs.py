@@ -1,4 +1,10 @@
-"""Manifest-backed commandlet spec parsing helpers."""
+"""Manifest-backed commandlet spec parsing helpers.
+
+Used by:
+- `@commandlet`: load command metadata from a sidecar TOML manifest.
+- plugin checkers: compare decorator metadata against manifest declarations.
+- completion/rendering paths: expose manifest arguments and defaults to users.
+"""
 
 from __future__ import annotations
 
@@ -13,7 +19,11 @@ from ...specs import ArgumentSpec, CommandSpec, CompletionSpec, OptionSpec
 
 
 def manifest_path_for_function(func: Callable[..., Any]) -> Path:
-    """Return the conventional sidecar manifest path for a plugin function."""
+    """Return the conventional sidecar manifest path for a plugin function.
+
+    Package plugins use `bywaf.plugin.toml`; legacy single-file plugins use a
+    sibling `*.plugin.toml` file.
+    """
     module = sys.modules.get(func.__module__)
     module_file = getattr(module, "__file__", None)
     if not module_file:
@@ -33,7 +43,11 @@ def manifest_name_for_function(func: Callable[..., Any], path: Path) -> str:
 
 
 def spec_from_manifest(path: str | Path, commandlet_name: str) -> CommandSpec:
-    """Build a CommandSpec from one commandlet row in a TOML manifest."""
+    """Build a CommandSpec from one commandlet row in a TOML manifest.
+
+    Called by: the commandlet decorator when manifest-backed commandlets need
+    framework metadata without duplicating every field in Python.
+    """
     data = tomllib.loads(Path(path).read_text(encoding="utf-8"))
     row = manifest_commandlet_row(data, commandlet_name)
     # Database actions are nested in the manifest but flat in CommandSpec, so
@@ -59,7 +73,11 @@ def spec_from_manifest(path: str | Path, commandlet_name: str) -> CommandSpec:
 
 
 def manifest_args_from_toml(path: str | Path, commandlet_name: str) -> tuple[dict[str, Any], ...]:
-    """Return raw manifest argument rows for argparse-only fields like nargs."""
+    """Return raw manifest argument rows for argparse-only fields like nargs.
+
+    Called by: `CommandletBase.parser()` to preserve runtime parser settings
+    that are not part of the public `ArgumentSpec` surface.
+    """
     data = tomllib.loads(Path(path).read_text(encoding="utf-8"))
     row = manifest_commandlet_row(data, commandlet_name)
     return tuple(item for item in row.get("arguments", ()) if isinstance(item, dict))
@@ -70,6 +88,8 @@ def manifest_commandlet_row(data: Mapping[str, Any], commandlet_name: str) -> Ma
     rows = data.get("commandlets", ())
     if not isinstance(rows, list):
         raise ValueError("manifest commandlets must be a sequence")
+    # Manifest sidecars may describe multiple commandlets; select by the public
+    # commandlet name so shared plugin packages can keep one manifest file.
     for row in rows:
         if isinstance(row, Mapping) and row.get("name") == commandlet_name:
             return row
@@ -119,7 +139,11 @@ def manifest_option_default(option_spec: OptionSpec) -> Any:
 
 
 def manifest_option_cast(option_spec: OptionSpec):
-    """Return a parser/cfg cast function for a manifest option type."""
+    """Return a parser/cfg cast function for a manifest option type.
+
+    Used by argparse setup and variable-backed default hydration to keep CLI
+    values consistent with manifest type declarations.
+    """
     value_type = option_spec.value_type
     if value_type == "int":
         return int

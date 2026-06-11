@@ -19,6 +19,12 @@ from .support import ACTIVE_JOB_STATUSES, resolve_serial_match
 
 
 class EventStoreRuntimeMixin(EventStoreRuntimeStateMixin):
+    """Runtime alias and scope-query operations mixed into `EventStore`.
+
+    Consumed by: runner lifecycle code, runtime commandlets, completion helpers,
+    and report/inventory scope selectors.
+    """
+
     @contextmanager
     def connect(self) -> Iterator[DatabaseConnection]:
         """Implemented by EventStore."""
@@ -146,6 +152,8 @@ class EventStoreRuntimeMixin(EventStoreRuntimeStateMixin):
     def resolve_runtime_serial(self, entity_type: str, value: str) -> str:
         """Resolve a local runtime id, full serial, or unique serial prefix."""
         if value.isdigit():
+            # Numeric selectors refer to local per-database ids shown by job,
+            # pipeline, and step listings.
             with self.connect() as conn:
                 row = conn.execute(
                     """
@@ -167,10 +175,14 @@ class EventStoreRuntimeMixin(EventStoreRuntimeStateMixin):
                 (entity_type,),
             ).fetchall()
         serials = [str(row["serial"]) for row in rows]
+        # Non-numeric input may be a full durable serial or a unique prefix;
+        # leave unknown values unchanged so callers can report scoped errors.
         return resolve_serial_match(value, serials) or value
 
     def ensure_run_aliases(self) -> None:
         """Allocate stable local IDs for known pipeline steps."""
+        # Allocate in chronological order so local ids remain stable and
+        # intuitive even though the query helper may otherwise sort newest-first.
         rows = sorted(
             self.runs_without_alias_backfill(active_only=False),
             key=lambda row: (row["first_event"] or "", row["command_run_id"] or ""),
@@ -182,6 +194,8 @@ class EventStoreRuntimeMixin(EventStoreRuntimeStateMixin):
 
     def ensure_pipeline_aliases(self) -> None:
         """Allocate stable local IDs for known pipelines."""
+        # Pipeline aliases follow first-seen order for the same reason step
+        # aliases do: users should see small stable ids in work order.
         rows = sorted(
             self.pipelines_missing_alias(active_only=False),
             key=lambda row: (row["first_seen"] or "", row["pipeline_id"] or ""),
@@ -239,7 +253,11 @@ class EventStoreRuntimeMixin(EventStoreRuntimeStateMixin):
                 raise
 
     def runs_without_alias_backfill(self, *, active_only: bool = False) -> list[sqlite3.Row]:
-        """Summarize runs without recursively allocating local IDs."""
+        """Summarize runs without recursively allocating local IDs.
+
+        Called by: alias allocation itself; using this avoids recursion through
+        `runs()`, which calls `ensure_run_aliases()`.
+        """
         with self.connect() as conn:
             return list(
                 conn.execute(
@@ -272,7 +290,11 @@ class EventStoreRuntimeMixin(EventStoreRuntimeStateMixin):
             )
 
     def pipelines_missing_alias(self, *, active_only: bool = False) -> list[sqlite3.Row]:
-        """Summarize pipelines without recursively allocating local IDs."""
+        """Summarize pipelines without recursively allocating local IDs.
+
+        Called by: `ensure_pipeline_aliases()` before local ids exist for all
+        known durable pipeline serials.
+        """
         with self.connect() as conn:
             return list(
                 conn.execute(

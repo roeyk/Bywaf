@@ -2,7 +2,15 @@
 """Report command tests split by responsibility."""
 
 from tests.report.support import *  # noqa: F403,F405
+
+
 class ReportReviewTests(unittest.TestCase):
+    """Finding review workflow tests for report and finding command aliases.
+
+    The suite seeds candidate/new finding events and then verifies review
+    decisions, filtering, ordering, and audit payloads through public commands.
+    """
+
     def test_report_confirm_marks_selected_finding_confirmed(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
@@ -24,6 +32,8 @@ class ReportReviewTests(unittest.TestCase):
                 runner.execute("report confirm 1 pipeline=pipeline-a note=validated manually")
                 process_framework_requests(runner, ShellState())
 
+            # Confirmation is both visible feedback and durable
+            # finding.reviewed state used by later report filters.
             self.assertIn("confirmed 1 finding", output.getvalue())
             review = runner.db.events_for_topic("finding.reviewed")[0]
             self.assertEqual(review.payload["finding_id"], "finding-1")
@@ -57,6 +67,9 @@ class ReportReviewTests(unittest.TestCase):
 
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
+                # `finding` is a review-oriented facade over the same report
+                # row selection logic, so confirm/unconfirm should target the
+                # exact row that report would display.
                 runner.execute("finding confirm 1 pipeline=pipeline-a")
                 process_framework_requests(runner, ShellState())
                 runner.execute("finding unconfirm 1 pipeline=pipeline-a")
@@ -100,6 +113,8 @@ class ReportReviewTests(unittest.TestCase):
     def test_report_summarizes_review_state_and_shows_unreviewed_by_default(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            # Seed three findings and review two of them so the default open
+            # report can prove both summary counts and hidden reviewed rows.
             for index, title in enumerate(("Accepted finding", "Deferred finding", "Open finding"), start=1):
                 runner.db.publish(
                     "finding.candidate",
@@ -179,6 +194,9 @@ class ReportReviewTests(unittest.TestCase):
     def test_report_accepted_first_orders_reviewed_findings_first(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
+            # The insertion order puts the open finding first. The report flag
+            # should promote accepted reviewed findings without changing their
+            # underlying event history.
             runner.db.publish(
                 "finding.candidate",
                 {"finding_id": "finding-1", "title": "Open finding", "target": {"host": "b.test"}},

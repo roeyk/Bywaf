@@ -15,8 +15,14 @@ from ...runner import Runner
 
 
 def print_plugin_graph(runner: Runner, *, json_output: bool = False, provider: str | None = None, topic: str | None = None) -> None:
-    """Print manifest-derived plugin graph relationships."""
+    """Print manifest-derived plugin graph relationships.
+
+    Called by: the REPL catalog display command when operators request plugin
+    dependency or topic/schema graph output.
+    """
     graph = build_manifest_graph(runner.registry.manifests)
+    # The command has three report shapes: one provider, one topic, or the full
+    # plugin/schema graph plus filesystem auto-load closure.
     if provider:
         if provider not in graph.nodes:
             print(f"error: unknown provider {provider}")
@@ -44,6 +50,8 @@ def print_plugin_graph(runner: Runner, *, json_output: bool = False, provider: s
 
 def render_plugin_graph_payload(runner: Runner, payload: dict[str, object]) -> str:
     """Return a human-readable plugin graph report."""
+    # Dispatch on payload shape rather than an external mode enum because JSON
+    # output and text output are both built from the same graph payloads.
     if "providers" in payload:
         return render_full_plugin_graph(runner, payload)
     if "topic" in payload:
@@ -73,6 +81,8 @@ def render_full_plugin_graph(runner: Runner, payload: dict[str, object]) -> str:
     """Return default human-readable plugin and schema graph sections."""
     edges = payload.get("edges")
     edge_rows = edges if isinstance(edges, list) else []
+    # Split the manifest graph into operator-facing sections so plugin
+    # dependencies and topic/schema relationships do not blur together.
     plugin_rows = [
         {
             "source": str(edge.get("source", "")),
@@ -173,6 +183,8 @@ def fs_dep_rows(closure: object) -> list[dict[str, str]]:
     rows = []
     for index, provider in enumerate(load_order, start=1):
         plugin = str(provider)
+        # Classify how each filesystem plugin entered the load order: requested
+        # by config, auto-loaded as a dependency, or loaded by another path.
         if plugin in requested:
             source = "configured"
             reason = "plugin_config"
@@ -206,6 +218,8 @@ def schema_edge_label(kind: str) -> str:
 def render_provider_graph_payload(runner: Runner, payload: dict[str, object]) -> str:
     """Return a table for one provider graph report."""
     rows = []
+    # Scalar manifest fields are shown first, followed by expanded consume/emit
+    # topic context that includes known producers, consumers, and schema owners.
     for label in (
         "commandlets",
         "requires_schemas",

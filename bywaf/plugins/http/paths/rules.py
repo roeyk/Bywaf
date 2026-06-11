@@ -8,6 +8,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+# The following rule tables are intentionally conservative. They are consumed
+# by `path_has_content_evidence()` as evidence gates so a 200 response alone
+# does not turn every probed path into a finding.
 ADMIN_PATHS = frozenset({"/admin/", "/admin", "/login", "/wp-login.php"})
 ADMIN_KEYWORDS = ("admin", "administrator", "login", "sign in", "wp-login")
 BACKUP_ARCHIVE_SUFFIXES = (".zip", ".tar", ".tar.gz", ".tgz", ".7z", ".rar")
@@ -112,7 +115,10 @@ def is_database_dump_path(path: str) -> bool:
 
 
 def response_signals(result: dict[str, object]) -> PathResponseSignals:
-    """Return normalized classification inputs from one probe result."""
+    """Return normalized classification inputs from one probe result.
+
+    Called by: path classification helpers before rule-table matching.
+    """
     return PathResponseSignals(
         sample=str(result.get("sample") or "").casefold(),
         title=str(result.get("title") or "").casefold(),
@@ -145,6 +151,8 @@ def is_interesting_path(path: str, result: dict[str, object]) -> bool:
 
 def path_has_content_evidence(path: str, signals: PathResponseSignals) -> bool:
     """Return whether content-specific rules confirm a candidate path hit."""
+    # This is the central content-evidence dispatch. Each helper owns one
+    # finding family so the high-level classification flow stays readable.
     return (
         (path in ADMIN_PATHS and looks_like_admin_surface(signals.title, signals.sample))
         or looks_like_backup_artifact(path, signals.content_type, signals.sample)
@@ -198,6 +206,8 @@ def looks_like_vcs_metadata(path: str, sample: str) -> bool:
 def looks_like_dependency_manifest(path: str, sample: str) -> bool:
     """Return whether response text looks like exposed dependency metadata."""
     marker_groups = DEPENDENCY_MANIFEST_MARKERS.get(path)
+    # Marker groups are ANDed, while markers inside each group are ORed. That
+    # lets rules require multiple weak signals without overfitting exact files.
     return bool(marker_groups) and all(any(marker in sample for marker in group) for group in marker_groups)
 
 
@@ -209,4 +219,6 @@ def looks_like_sensitive_config(path: str, sample: str) -> bool:
 def looks_like_cloud_config(path: str, sample: str) -> bool:
     """Return whether response text looks like exposed cloud or app config."""
     marker_groups = CLOUD_CONFIG_MARKERS.get(path)
+    # Use the same grouped-marker semantics as dependency manifests: at least
+    # one marker from every required group must appear in the response sample.
     return bool(marker_groups) and all(any(marker in sample for marker in group) for group in marker_groups)

@@ -43,8 +43,14 @@ def filter_events_by_payload(events: Sequence[Event], filters: dict[str, str]) -
 
 
 def select_event_rows(events: Sequence[Event], filters: dict[str, str], sort_key: str, limit: int) -> list[Event]:
-    """Apply payload filters, optional sorting, and the display limit."""
+    """Apply payload filters, optional sorting, and the display limit.
+
+    Called by: REPL event display paths after fetching candidate events from
+    the store.
+    """
     rows = filter_events_by_payload(events, filters)
+    # Event queries already arrive in chronological/id order. Only secondary
+    # payload sorts need explicit reordering before the limit is applied.
     if sort_key not in {"time", "id"}:
         rows = sorted(rows, key=lambda event: event_sort_value(event, sort_key))
     return rows[:limit]
@@ -54,6 +60,8 @@ def event_sort_value(event: Event, sort_key: str) -> tuple[str, int]:
     """Return stable sort values for event rows."""
     if sort_key in {"topic", "source"}:
         return (str(getattr(event, sort_key)), event.id or 0)
+    # Payload sorts may resolve to multiple candidate values, especially for
+    # host shortcuts. Use the first candidate plus event id for stable display.
     values = payload_filter_values(event.payload, sort_key)
     value = values[0] if values else ""
     return (str(value), event.id or 0)
@@ -129,6 +137,8 @@ def selector_matches_values(selector: SelectorExpression, values: Sequence[Any])
 
 def selector_value_matches(value: str, pattern: str) -> bool:
     """Return exact, CIDR, or IPv4 last-octet-range match for one value."""
+    # Preserve cheap exact matching first, then support the two network-friendly
+    # selector forms operators commonly use during scan review.
     if value == pattern:
         return True
     if ipv4_octet_range_matches(value, pattern):
@@ -155,6 +165,8 @@ def ipv4_octet_range_matches(value: str, pattern: str) -> bool:
         value_ip = ipaddress.ip_address(value)
     except ValueError:
         return False
+    # The range shorthand is intentionally IPv4-only and only covers the final
+    # octet. CIDR selectors handle broader network expressions.
     if value_ip.version != 4 or not (0 <= start <= stop <= 255):
         return False
     octets = value.split(".")

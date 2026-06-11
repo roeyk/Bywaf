@@ -178,7 +178,11 @@ def collect_documentation_impact(
     docs_root: Path | None = None,
     top: int = 12,
 ) -> DocumentationImpact:
-    """Rank docs likely to need review after source changes."""
+    """Rank docs likely to need review after source changes.
+
+    Called by: maintainers/Codex during documentation refactors to decide which
+    linked or vocabulary-adjacent files should be inspected together.
+    """
     repo_root = repo_root.resolve()
     docs_root = (docs_root or repo_root / "docs").resolve()
     document_paths = markdown_documents(repo_root, docs_root)
@@ -199,6 +203,8 @@ def collect_documentation_impact(
         reasons: list[str] = []
         score = 0
 
+        # Direct links are the strongest evidence that two docs should be
+        # reviewed together after one changes.
         if path in source_links:
             score += 45
             reasons.append("source links to it")
@@ -206,17 +212,23 @@ def collect_documentation_impact(
             score += 45
             reasons.append("links to source")
 
+        # Shared headings catch recurring sections such as Audience, Related
+        # Documents, or Validation that may need synchronized wording.
         shared_headings = source_headings & set(normalized_headings(text))
         if shared_headings:
             score += min(20, len(shared_headings) * 5)
             reasons.append(f"shared headings={len(shared_headings)}")
 
+        # Shared domain terms catch conceptual coupling even when docs do not
+        # directly link to each other.
         shared_terms = source_keywords & important_doc_terms(text)
         if shared_terms:
             score += min(30, len(shared_terms) * 2)
             preview = ", ".join(sorted(shared_terms)[:5])
             reasons.append(f"shared terms={preview}")
 
+        # Stale-term overlap is kept separate so old vocabulary can be cleaned
+        # consistently rather than fixed one document at a time.
         stale_overlap = stale_terms_in(source_text) & stale_terms_in(text)
         if stale_overlap:
             score += len(stale_overlap) * 3
@@ -241,7 +253,12 @@ def linked_paths(source: Path, document_paths: set[Path]) -> set[Path]:
 
 
 def important_doc_terms(text: str) -> set[str]:
-    """Return repeated or domain-looking terms useful for impact ranking."""
+    """Return repeated or domain-looking terms useful for impact ranking.
+
+    This intentionally favors code spans, paths, dotted names, and repeated
+    nouns. It is a heuristic for reviewer attention, not a natural-language
+    classifier.
+    """
     terms: defaultdict[str, int] = defaultdict(int)
     for term in re.findall(r"`([^`]+)`|([A-Za-z][A-Za-z0-9_./=-]{2,})", text):
         value = normalize_doc_term(term[0] or term[1])

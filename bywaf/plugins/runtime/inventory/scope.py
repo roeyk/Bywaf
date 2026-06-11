@@ -1,4 +1,8 @@
-"""Scope and delta selection helpers for inventory commands."""
+"""Scope and delta selection helpers for inventory commands.
+
+Used by: runtime inventory views to interpret `job=`, `pipeline=`, `step=`,
+`--last`, and `--new` consistently across host, web, WAF, and related views.
+"""
 
 from __future__ import annotations
 
@@ -21,11 +25,16 @@ def parse_inventory_selectors(
     new: bool = False,
     sort_keys: tuple[str, ...] = (),
 ) -> Namespace:
-    """Parse shared inventory scope selectors."""
+    """Parse shared inventory scope selectors.
+
+    Called by: inventory commandlets before they query event data.
+    """
     scope: dict[str, str] = {}
     sort = sort_keys[0] if sort_keys else ""
     for token in tokens:
         key, value = parse_inventory_selector_token(token)
+        # `sort=` affects rendering only; all other key=value tokens define
+        # runtime scope and are validated as mutually exclusive selectors.
         if key == "sort":
             sort = parse_inventory_sort(value, sort_keys)
             continue
@@ -84,6 +93,8 @@ def select_inventory_events(
     identity: InventoryIdentity,
 ) -> list[Event]:
     """Return matching inventory events for the selected scope."""
+    # `--new` is evaluated first because it compares a selected scope against
+    # earlier project facts. `--last` is a simpler latest-step shortcut.
     if selectors.new:
         return select_new_inventory_events(context, topics, selectors, identity)
     if selectors.last:
@@ -155,10 +166,17 @@ def events_new_to_scope(
     scoped: list[Event],
     identity: InventoryIdentity,
 ) -> list[Event]:
-    """Filter scoped events to facts not present before the selected scope."""
+    """Filter scoped events to facts not present before the selected scope.
+
+    The caller supplies an identity extractor because each inventory view has a
+    different notion of sameness: host, endpoint, WAF name, screenshot target,
+    certificate subject, and so on.
+    """
     if not scoped:
         return []
     first_id = min((event.id or 0) for event in scoped)
+    # Build the baseline set from events before the scoped run, then keep only
+    # first-seen identities from the selected scope.
     previous_keys = {
         key
         for event in events_matching_topics(context, topics, limit=10000)
@@ -186,6 +204,8 @@ def events_matching_topics(
     """Return events for multiple topics in event order."""
     store = context.event_store("inventory topics")
     rows: list[Event] = []
+    # Query per topic because the store API is topic-centric, then re-sort so
+    # mixed-topic inventory views preserve original event chronology.
     for topic in topics:
         rows.extend(store.events_matching(topic=topic, command_run_id=step, pipeline_id=pipeline, limit=limit))
     return sorted(rows, key=lambda event: event.id or 0)
