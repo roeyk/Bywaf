@@ -17,16 +17,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from .process_audit import audit_process_env
-from .process_audit import check_process_argv_for_secrets
-from .process_audit import leaked_secret_arguments as leaked_secret_arguments
-from .process_audit import redact_known_secret_values
-from .process_audit import redact_process_argv
-from .process_exec import normalize_argv
-from .process_exec import popen_process_argv as popen_process_argv
-from .process_exec import run_process_argv as run_process_argv
-from .process_models import ProcessResult
-from .process_stream import (
+from .audit import audit_process_env
+from .audit import check_process_argv_for_secrets
+from .audit import leaked_secret_arguments as leaked_secret_arguments
+from .audit import redact_known_secret_values
+from .audit import redact_process_argv
+from .exec import normalize_argv
+from .exec import popen_process_argv as popen_process_argv
+from .exec import run_process_argv as run_process_argv
+from .models import ProcessResult
+from .stream import (
     ProcessChunk,
     StreamProcessState,
     close_stream_process,
@@ -36,11 +36,11 @@ from .process_stream import (
     timeout_deadline,
     timeout_expired,  # noqa: F401 - re-exported from this module for plugin API compatibility.
 )
-from .process_transcript import process_output_artifact_name
-from .process_transcript import process_output_transcript
+from .transcript import process_output_artifact_name
+from .transcript import process_output_transcript
 
 if TYPE_CHECKING:
-    from .context import CommandContext
+    from ..context import CommandContext
 
 
 @dataclass(frozen=True, slots=True)
