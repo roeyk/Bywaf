@@ -13,7 +13,7 @@ from typing import Any
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext
-from bywaf.plugins.http.http_probe import target_from_text
+from bywaf.plugins.http.probe import target_from_text
 from bywaf.plugins.target_policy import filter_targets_by_host
 
 

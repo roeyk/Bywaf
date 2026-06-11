@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 from bywaf.db import EventStore
 from bywaf.plugin import CommandContext
-from bywaf.plugins.http.http_probe import HttpProbe, probe_url
+from bywaf.plugins.http.probe import HttpProbe, probe_url
 from bywaf.plugins.http.tls_probe import tls_probe
 from bywaf.plugins.http.waf_detect import waf_detect
 
@@ -85,7 +85,7 @@ class HttpProbeWrapperMatrixTests(TestCase):
         error = urllib.error.URLError("connection refused")
         context = CommandContext(db=None, source="http_probe")
 
-        with patch("bywaf.plugins.http.http_probe.build_opener", return_value=FakeOpener(error)):
+        with patch("bywaf.plugins.http.probe.build_opener", return_value=FakeOpener(error)):
             events = list(HttpProbe().run(context, ["https://example.test/"], []))
 
         self.assertFalse(events[0]["ok"])

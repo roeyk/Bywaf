@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from bywaf.event import Event
 from bywaf.event.schema_objects import HttpEndpoint
 from bywaf.plugins.http.cookies import load_cookie_jar
-from bywaf.plugins.http.http_targets import (
+from bywaf.plugins.http.targets import (
     HttpTarget,
     build_url as build_url,
     choose_scheme as choose_scheme,

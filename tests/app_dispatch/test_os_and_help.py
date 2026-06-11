@@ -151,7 +151,7 @@ class AppDispatchTests(unittest.TestCase):
             data = json.loads(output.getvalue())
             self.assertIn("providers", data)
             self.assertIn("edges", data)
-            self.assertIn("http/http_probe", data["providers"])
+            self.assertIn("http/probe", data["providers"])
 
     def test_manifest_commandlet_help_uses_key_value_options(self):
         with tempfile.TemporaryDirectory() as tmp:

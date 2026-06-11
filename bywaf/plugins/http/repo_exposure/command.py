@@ -22,7 +22,7 @@ from typing import Any
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, CommandletBase, parse_bool
 from bywaf.plugin import kv_to_args
-from bywaf.plugins.http.http_probe import build_opener, target_from_text
+from bywaf.plugins.http.probe import build_opener, target_from_text
 from bywaf.plugins.http.nikto import filter_http_payloads_by_policy
 
 from .detect import probe_git_config

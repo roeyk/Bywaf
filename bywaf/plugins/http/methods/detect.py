@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import http.client
 
-from bywaf.plugins.http.http_targets import HttpTarget as MethodTarget
+from bywaf.plugins.http.targets import HttpTarget as MethodTarget
 
 
 def probe_methods(target: MethodTarget, *, timeout: float) -> dict[str, object]:

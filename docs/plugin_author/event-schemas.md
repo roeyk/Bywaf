@@ -247,7 +247,7 @@ provider behavior:
 ```toml
 [plugin]
 requires_schemas = ["http.endpoint"]
-requires_plugins = ["http.http_probe"]
+requires_plugins = ["http.probe"]
 ```
 
 Use `requires_schemas` when the plugin only needs a stable payload contract.

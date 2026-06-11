@@ -1,7 +1,7 @@
 """Shared HTTP path classification constants and helpers.
 
-Used by: `http_path_findings` for response classification and
-`http_path_finding_payloads` for normalized finding metadata.
+Used by: `paths.findings` for response classification and
+`paths.finding_payloads` for normalized finding metadata.
 """
 
 from __future__ import annotations
@@ -129,8 +129,8 @@ def response_status_is_reviewable(result: dict[str, object]) -> bool:
 def is_interesting_path(path: str, result: dict[str, object]) -> bool:
     """Return whether a path probe response should be promoted for review.
 
-    Called by: `http_paths.http_paths()` through the compatibility facade in
-    `http_path_findings`.
+    Called by: `http_paths.http_paths()` through the facade in
+    `paths.findings`.
     """
     if not response_status_is_reviewable(result):
         return False

@@ -10,7 +10,7 @@ from typing import cast
 
 from bywaf.event.schema_objects import HttpEndpoint, HttpPathObserved
 from bywaf.event import Event
-from bywaf.plugins.http.http_path_findings import finding_for_path, is_interesting_path
+from bywaf.plugins.http.paths.findings import finding_for_path, is_interesting_path
 from bywaf.plugin import CommandContext, Commandlet, RunConfig, commandlet, split_var_values
 from bywaf.plugins.target_policy import filter_targets_by_host
 

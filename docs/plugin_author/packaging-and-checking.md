@@ -231,7 +231,7 @@ python3 scripts/plugin_check.py --all
 python3 scripts/plugin_check.py --all --strict-inference
 python3 scripts/plugin_check.py --all --graph
 python3 scripts/plugin_graph.py --topic port.open
-python3 scripts/plugin_graph.py --provider http.http_probe
+python3 scripts/plugin_graph.py --provider http.probe
 bywaf plugins graph
 bywaf plugins graph --json
 ```
@@ -269,7 +269,7 @@ dependency chain must be available and valid before loading starts; if A
 requires B and B requires missing C, Bywaf fails before importing A or B. For
 bundled provider inspection, `scripts/plugin_graph.py` prints the pre-import
 manifest graph directly, for example known producers and consumers of
-`port.open` or the relationships for `http.http_probe`. For the runtime
+`port.open` or the relationships for `http.probe`. For the runtime
 registry view, use `bywaf plugins graph`; it includes bundled plugins and any
 configured or auto-loaded filesystem plugins that passed dependency validation.
 It also shows the filesystem closure load order, which providers were

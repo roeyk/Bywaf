@@ -14,7 +14,7 @@ from collections.abc import Iterable
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
-from bywaf.plugins.http.http_targets import (
+from bywaf.plugins.http.targets import (
     build_url as build_url,
     choose_scheme as choose_scheme,
     normalize_path as normalize_path,

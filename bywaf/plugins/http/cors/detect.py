@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import http.client
 
-from bywaf.plugins.http.http_targets import HttpTarget as CorsTarget
+from bywaf.plugins.http.targets import HttpTarget as CorsTarget
 
 
 def probe_cors(

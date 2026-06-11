@@ -1,7 +1,7 @@
 """Finding payload construction for interesting HTTP path observations.
 
-Called by: `http_path_findings.finding_for_path()` compatibility exports and
-`http_paths` when an observed path should become a structured finding.
+Called by: `paths.findings.finding_for_path()` exports and `http_paths` when an
+observed path should become a structured finding.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from bywaf.event.schema_objects import HttpPathObserved
 from bywaf.finding import candidate_payload
 
-from .http_path_rules import (
+from .rules import (
     ADMIN_PATHS,
     CLOUD_APP_CONFIG_PATHS,
     DEPENDENCY_MANIFEST_PATHS,

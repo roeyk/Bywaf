@@ -27,7 +27,7 @@ from bywaf.plugins.network.ssh_probe import SshProbe, ssh_targets
 from bywaf.plugins.network.service_probe import service_probe
 from bywaf.plugins.network.tcp_banner import banner_targets, probe_bytes, target_from_text, tcp_banner
 from bywaf.plugins.network.traceroute import parse_traceroute_output, trace_targets, traceroute
-from bywaf.plugins.http.http_paths import http_paths
+from bywaf.plugins.http.paths import http_paths
 from bywaf.plugins.http.tls_probe import tls_certificate_findings, tls_probe
 from bywaf.plugins.http.waf_detect import waf_detect
 from bywaf.plugins.recon.dns_enum import dns_enum
@@ -237,7 +237,7 @@ class LibraryPluginTests(unittest.TestCase):
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(db=db, source="http_paths", metadata={"capabilities": http_paths.spec.capabilities})
             with patch(
-                "bywaf.plugins.http.http_paths.probe_path",
+                "bywaf.plugins.http.paths.probe_path",
                 return_value={"status": 200, "content_type": "text/plain", "length": 42, "sample": "[core] repositoryformatversion = 0"},
             ):
                 list(http_paths.run(context, ["paths=/.git/config", "http://127.0.0.1:8080"], []))
@@ -276,7 +276,7 @@ class LibraryPluginTests(unittest.TestCase):
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(db=db, source="http_paths", metadata={"capabilities": http_paths.spec.capabilities})
             with patch(
-                "bywaf.plugins.http.http_paths.probe_path",
+                "bywaf.plugins.http.paths.probe_path",
                 return_value={"status": 200, "content_type": "text/plain", "length": 20, "sample": "DATABASE_URL=postgres://x"},
             ):
                 list(http_paths.run(context, ["paths=/.env", "http://127.0.0.1:8080"], []))
@@ -295,7 +295,7 @@ class LibraryPluginTests(unittest.TestCase):
                 db = EventStore(Path(tmp, "bywaf.sqlite3"))
                 context = CommandContext(db=db, source="http_paths", metadata={"capabilities": http_paths.spec.capabilities})
                 with patch(
-                    "bywaf.plugins.http.http_paths.probe_path",
+                    "bywaf.plugins.http.paths.probe_path",
                     return_value={"status": 200, "content_type": "text/plain", "length": 64, "sample": "spring.cloud config"},
                 ):
                     list(http_paths.run(context, [f"paths={path}", "http://127.0.0.1:8080"], []))

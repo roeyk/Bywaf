@@ -35,12 +35,12 @@ A **provider** is the Python implementation object or module that registers or r
 <details class="plugin-toc-family">
 <summary id="toc-http"><span class="toc-count">13</span><span class="toc-arrow" aria-hidden="true">▸</span><span class="toc-name">HTTP</span></summary>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httpeyewitness">http.eyewitness</a></span></div>
-<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_auth">http.auth</a></span></div>
-<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_cors">http.cors</a></span></div>
-<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_headers">http.headers</a></span></div>
-<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_methods">http.methods</a></span></div>
-<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_paths">http.http_paths</a></span></div>
-<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_probe">http.http_probe</a></span></div>
+<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httpauth">http.auth</a></span></div>
+<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httpcors">http.cors</a></span></div>
+<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httpheaders">http.headers</a></span></div>
+<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httpmethods">http.methods</a></span></div>
+<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httppaths">http.paths</a></span></div>
+<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httpprobe">http.probe</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httpnikto">http.nikto</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">2</span><span class="toc-name"><a href="#httprepo_exposure">http.repo_exposure</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httpscreenshotter">http.screenshotter</a></span></div>
@@ -122,11 +122,11 @@ A **provider** is the Python implementation object or module that registers or r
 | Recon | `recon.shodan_lookup` | `shodan_lookup` | Query Shodan by IP or search text. | `shodan_lookup mode=search apache country:US` | [recon.shodan_lookup](#reconshodan_lookup) |
 | Identity | `identity.ldap_probe` | `ldap_probe` | Probe LDAP server metadata. | `ldap_probe username=user password=secret dc.example.test` | [identity.ldap_probe](#identityldap_probe) |
 | Identity | `identity.smb_probe` | `smb_probe` | Probe SMB server metadata. | `smb_probe domain=EXAMPLE username=user password=secret dc.example.test` | [identity.smb_probe](#identitysmb_probe) |
-| HTTP | `http.auth` | `http_auth` | Probe HTTP auth challenges and passive auth posture findings. | `http_auth https://example.com/admin` | [http.auth](#httphttp_auth) |
-| HTTP | `http.headers` | `http_headers` | Collect HTTP headers and header findings. | `http_headers ssl=true example.com` | [http.headers](#httphttp_headers) |
-| HTTP | `http.methods` | `http_methods` | Probe allowed HTTP methods and risky method findings. | `http_methods https://example.com/` | [http.methods](#httphttp_methods) |
-| HTTP | `http.http_probe` | `http_probe` | Publish reusable HTTP endpoint facts. | `http_probe https://example.com/` | [http.http_probe](#httphttp_probe) |
-| HTTP | `http.http_paths` | `http_paths` | Check explicit or common web paths. | `http_paths paths=/.git/config,/.env https://example.com/` | [http.http_paths](#httphttp_paths) |
+| HTTP | `http.auth` | `http_auth` | Probe HTTP auth challenges and passive auth posture findings. | `http_auth https://example.com/admin` | [http.auth](#httpauth) |
+| HTTP | `http.headers` | `http_headers` | Collect HTTP headers and header findings. | `http_headers ssl=true example.com` | [http.headers](#httpheaders) |
+| HTTP | `http.methods` | `http_methods` | Probe allowed HTTP methods and risky method findings. | `http_methods https://example.com/` | [http.methods](#httpmethods) |
+| HTTP | `http.probe` | `http_probe` | Publish reusable HTTP endpoint facts. | `http_probe https://example.com/` | [http.probe](#httpprobe) |
+| HTTP | `http.paths` | `http_paths` | Check explicit or common web paths. | `http_paths paths=/.git/config,/.env https://example.com/` | [http.paths](#httppaths) |
 | HTTP | `http.repo_exposure` | `repo_exposure`, `git_expose_check` | Check for exposed repository metadata. | `http_probe https://example.com/ \| repo_exposure` | [http.repo_exposure](#httprepo_exposure) |
 | HTTP | `http.webfin` | `webfin` (`web_fingerprint`) | Fingerprint web technologies. | `http_probe https://example.com/ \| webfin` | [http.webfin](#httpwebfin) |
 | HTTP | `http.tls_probe` | `tls_probe` | Collect TLS certificate and hygiene facts. | `tls_probe https://example.com/` | [http.tls_probe](#httptls_probe) |
@@ -915,12 +915,12 @@ supplied-credential outcomes when they are in scope.
 ### HTTP Plugin TOC
 
 - [http.eyewitness](#httpeyewitness)
-- [http.auth](#httphttp_auth)
-- [http.cors](#httphttp_cors)
-- [http.headers](#httphttp_headers)
-- [http.methods](#httphttp_methods)
-- [http.http_paths](#httphttp_paths)
-- [http.http_probe](#httphttp_probe)
+- [http.auth](#httpauth)
+- [http.cors](#httpcors)
+- [http.headers](#httpheaders)
+- [http.methods](#httpmethods)
+- [http.paths](#httppaths)
+- [http.probe](#httpprobe)
 - [http.nikto](#httpnikto)
 - [http.repo_exposure](#httprepo_exposure)
 - [http.screenshotter](#httpscreenshotter)
@@ -928,7 +928,7 @@ supplied-credential outcomes when they are in scope.
 - [http.waf_detect](#httpwaf_detect)
 - [http.webfin](#httpwebfin)
 
-<a id="httphttp_headers"></a>
+<a id="httpheaders"></a>
 
 ### `http.headers`
 
@@ -975,7 +975,7 @@ are reviewed through `report` or `finding_report`.
 
 [Back to HTTP plugin TOC](#http-plugin-toc) | [Back to document HTTP TOC entry](#toc-http)
 
-<a id="httphttp_auth"></a>
+<a id="httpauth"></a>
 
 ### `http.auth`
 
@@ -1024,7 +1024,7 @@ or `finding_report`.
 
 [Back to HTTP plugin TOC](#http-plugin-toc) | [Back to document HTTP TOC entry](#toc-http)
 
-<a id="httphttp_cors"></a>
+<a id="httpcors"></a>
 
 ### `http.cors`
 
@@ -1073,7 +1073,7 @@ upstream open ports, and successful findings are reviewed through `report` or
 
 [Back to HTTP plugin TOC](#http-plugin-toc) | [Back to document HTTP TOC entry](#toc-http)
 
-<a id="httphttp_methods"></a>
+<a id="httpmethods"></a>
 
 ### `http.methods`
 
@@ -1121,9 +1121,9 @@ ports, and successful findings are reviewed through `report` or
 
 [Back to HTTP plugin TOC](#http-plugin-toc) | [Back to document HTTP TOC entry](#toc-http)
 
-<a id="httphttp_probe"></a>
+<a id="httpprobe"></a>
 
-### `http.http_probe`
+### `http.probe`
 
 Probes HTTP endpoints and publishes reusable endpoint facts.
 
@@ -1137,10 +1137,10 @@ Plugin metadata:
 | Field | Value |
 | --- | --- |
 | Family | HTTP |
-| Plugin | `http.http_probe` |
+| Plugin | `http.probe` |
 | Commandlets | `http_probe` |
 | Last updated | `2026-06-02` from source history |
-| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/http_probe.py bywaf/plugins/http/http_probe.plugin.toml` |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/probe bywaf/plugins/http/probe/bywaf.plugin.toml` |
 
 #### Commandlet: `http_probe`
 
@@ -1169,9 +1169,9 @@ step in a pipeline.
 
 [Back to HTTP plugin TOC](#http-plugin-toc) | [Back to document HTTP TOC entry](#toc-http)
 
-<a id="httphttp_paths"></a>
+<a id="httppaths"></a>
 
-### `http.http_paths`
+### `http.paths`
 
 Checks common or explicitly supplied HTTP paths.
 
@@ -1185,10 +1185,10 @@ Plugin metadata:
 | Field | Value |
 | --- | --- |
 | Family | HTTP |
-| Plugin | `http.http_paths` |
+| Plugin | `http.paths` |
 | Commandlets | `http_paths` |
 | Last updated | `2026-06-03` from source history |
-| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/http_paths.py bywaf/plugins/http/http_path_findings.py bywaf/plugins/http/http_paths.plugin.toml` |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/paths bywaf/plugins/http/paths/findings.py bywaf/plugins/http/paths/bywaf.plugin.toml` |
 
 #### Commandlet: `http_paths`
 

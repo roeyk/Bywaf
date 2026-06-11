@@ -158,7 +158,7 @@ plugin graph debugging.
 ```bash
 python3 scripts/plugin_graph.py
 python3 scripts/plugin_graph.py --topic port.open
-python3 scripts/plugin_graph.py --provider http.http_probe
+python3 scripts/plugin_graph.py --provider http.probe
 python3 scripts/plugin_graph.py --json
 ```
 

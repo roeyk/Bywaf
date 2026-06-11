@@ -21,7 +21,7 @@ from bywaf.event import Event
 from bywaf.plugins.http.cookies import load_firefox_cookies
 from bywaf.plugin import CommandContext
 from bywaf.varstore import VarStore
-from bywaf.plugins.http.http_probe import (
+from bywaf.plugins.http.probe import (
     HttpProbe,
     build_url,
     choose_scheme,
@@ -60,7 +60,7 @@ class HttpProbeTests(unittest.TestCase):
         fake_payload = {"ok": True, "status": 200, "final_url": "http://127.0.0.1/"}
         output = io.StringIO()
         with (
-            patch("bywaf.plugins.http.http_probe.probe_url", return_value=fake_payload),
+            patch("bywaf.plugins.http.probe.probe_url", return_value=fake_payload),
             contextlib.redirect_stdout(output),
         ):
             events = list(HttpProbe().run(context, ["127.0.0.1"], []))
@@ -72,7 +72,7 @@ class HttpProbeTests(unittest.TestCase):
         context = CommandContext(db=None, source="http_probe", metadata={"command_run_id": "run-1"})
         output = io.StringIO()
         with (
-            patch("bywaf.plugins.http.http_probe.probe_url", return_value={"ok": True, "status": 200}),
+            patch("bywaf.plugins.http.probe.probe_url", return_value={"ok": True, "status": 200}),
             contextlib.redirect_stdout(output),
         ):
             events = list(HttpProbe().run(context, ["-s", "127.0.0.1"], []))
@@ -83,8 +83,8 @@ class HttpProbeTests(unittest.TestCase):
         context = CommandContext(db=None, source="http_probe")
         context.vars.set("cookie-file", "/tmp/cookies.txt")
         with (
-            patch("bywaf.plugins.http.http_probe.build_opener") as build_opener,
-            patch("bywaf.plugins.http.http_probe.probe_url", return_value={"ok": True, "status": 200}),
+            patch("bywaf.plugins.http.probe.build_opener") as build_opener,
+            patch("bywaf.plugins.http.probe.probe_url", return_value={"ok": True, "status": 200}),
             contextlib.redirect_stdout(io.StringIO()),
         ):
             list(HttpProbe().run(context, ["127.0.0.1"], []))
@@ -93,8 +93,8 @@ class HttpProbeTests(unittest.TestCase):
     def test_http_probe_remembers_explicit_cookie_file(self):
         context = CommandContext(db=None, source="http_probe")
         with (
-            patch("bywaf.plugins.http.http_probe.build_opener"),
-            patch("bywaf.plugins.http.http_probe.probe_url", return_value={"ok": True, "status": 200}),
+            patch("bywaf.plugins.http.probe.build_opener"),
+            patch("bywaf.plugins.http.probe.probe_url", return_value={"ok": True, "status": 200}),
             contextlib.redirect_stdout(io.StringIO()),
         ):
             list(HttpProbe().run(context, ["--cookie-file", "/tmp/cookies.txt", "127.0.0.1"], []))
@@ -108,7 +108,7 @@ class HttpProbeTests(unittest.TestCase):
             context = CommandContext(db=db, source="http_probe", _varstore=store)
 
             with (
-                patch("bywaf.plugins.http.http_probe.probe_url", return_value={"ok": True, "status": 200}) as probe_url,
+                patch("bywaf.plugins.http.probe.probe_url", return_value={"ok": True, "status": 200}) as probe_url,
                 contextlib.redirect_stdout(io.StringIO()),
             ):
                 events = list(HttpProbe().run(context, ["192.0.2.10", "198.51.100.10"], []))

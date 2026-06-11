@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import http.client
 
-from bywaf.plugins.http.http_targets import HttpTarget as AuthTarget
+from bywaf.plugins.http.targets import HttpTarget as AuthTarget
 
 
 def probe_auth(target: AuthTarget, *, method: str, timeout: float) -> dict[str, object]:

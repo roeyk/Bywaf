@@ -6,7 +6,7 @@ import unittest
 from typing import cast
 
 from bywaf.event.schema_objects import HttpPathObserved
-from bywaf.plugins.http.http_path_findings import finding_for_path, is_interesting_path, path_evidence
+from bywaf.plugins.http.paths.findings import finding_for_path, is_interesting_path, path_evidence
 
 
 class HttpPathFindingHelperTests(unittest.TestCase):

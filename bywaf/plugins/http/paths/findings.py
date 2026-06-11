@@ -1,12 +1,12 @@
-"""Compatibility facade for HTTP path classification and finding payloads.
+"""Facade for HTTP path classification and finding payloads.
 
-Used by: `http_paths` and older tests/imports that still expect both path
-classification helpers and finding payload builders in one module.
+Used by: `http_paths` and tests that need both path classification helpers and
+finding payload builders from one module.
 """
 
 from __future__ import annotations
 
-from .http_path_rules import (
+from .rules import (
     is_backup_archive_path as is_backup_archive_path,
     is_database_dump_path as is_database_dump_path,
     is_interesting_path as is_interesting_path,
@@ -33,21 +33,21 @@ __all__ = [
 
 def finding_for_path(observed: object) -> dict[str, object] | None:
     """Compatibility wrapper for finding payload construction."""
-    from .http_path_finding_payloads import finding_for_path as implementation
+    from .finding_payloads import finding_for_path as implementation
 
     return implementation(observed)  # type: ignore[arg-type]
 
 
 def path_finding_details(path: str, observed: object) -> object:
     """Compatibility wrapper for normalized path finding details."""
-    from .http_path_finding_payloads import path_finding_details as implementation
+    from .finding_payloads import path_finding_details as implementation
 
     return implementation(path, observed)  # type: ignore[arg-type]
 
 
 def exact_path_finding_details(path: str) -> object:
     """Compatibility wrapper for exact-path finding details."""
-    from .http_path_finding_payloads import exact_path_finding_details as implementation
+    from .finding_payloads import exact_path_finding_details as implementation
 
     return implementation(path)
 
@@ -58,21 +58,21 @@ def artifact_path_finding_details(
     cwe_538: dict[str, list[str]],
 ) -> object:
     """Compatibility wrapper for artifact-like path finding details."""
-    from .http_path_finding_payloads import artifact_path_finding_details as implementation
+    from .finding_payloads import artifact_path_finding_details as implementation
 
     return implementation(path, origin_scope, cwe_538)
 
 
 def origin_for_observed_path(observed: object) -> str:
     """Compatibility wrapper for web-origin extraction."""
-    from .http_path_finding_payloads import origin_for_observed_path as implementation
+    from .finding_payloads import origin_for_observed_path as implementation
 
     return implementation(observed)  # type: ignore[arg-type]
 
 
 def path_evidence(observed: object) -> str:
     """Compatibility wrapper for operator-facing path evidence."""
-    from .http_path_finding_payloads import path_evidence as implementation
+    from .finding_payloads import path_evidence as implementation
 
     return implementation(observed)  # type: ignore[arg-type]
 
@@ -80,7 +80,7 @@ def path_evidence(observed: object) -> str:
 def __getattr__(name: str) -> object:
     """Lazily preserve the old `PathFindingDetails` import location."""
     if name == "PathFindingDetails":
-        from .http_path_finding_payloads import PathFindingDetails
+        from .finding_payloads import PathFindingDetails
 
         return PathFindingDetails
     raise AttributeError(name)

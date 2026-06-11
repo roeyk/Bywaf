@@ -14,7 +14,7 @@
     "recon.shodan_lookup",
     "http.headers",
     "http.eyewitness",
-    "http.http_probe",
+    "http.probe",
     "http.nikto",
     "http.repo_exposure",
     "http.webfin",

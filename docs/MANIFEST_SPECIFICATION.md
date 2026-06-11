@@ -177,7 +177,7 @@ Current manifests support three plugin-level dependency fields:
 Most pipeline compatibility belongs in commandlet `consumes`, not in hard
 dependencies. For example, a commandlet that can consume `http.endpoint` events
 should normally declare `consumes = ["http.endpoint"]`; that does not require
-loading `http.http_probe`, because equivalent events may already exist in the
+loading `http.probe`, because equivalent events may already exist in the
 database or may be produced by another compatible plugin.
 
 Bywaf can already build a read-only manifest relationship graph before plugin

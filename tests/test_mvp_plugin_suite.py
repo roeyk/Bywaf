@@ -123,7 +123,7 @@ class MvpPluginSuiteTests(unittest.TestCase):
                     "bywaf.plugins.network.portscanner.scan_open_ports",
                     return_value=[NmapPort("192.0.2.20", 80, "tcp", "open", "http", "syn-ack")],
                 ),
-                patch("bywaf.plugins.http.http_probe.probe_url", side_effect=fake_probe_url),
+                patch("bywaf.plugins.http.probe.probe_url", side_effect=fake_probe_url),
                 patch("bywaf.plugins.http.repo_exposure.command.probe_git_config", side_effect=fake_probe_git_config),
                 contextlib.redirect_stdout(io.StringIO()),
             ):
@@ -240,8 +240,8 @@ class MvpPluginSuiteTests(unittest.TestCase):
                     "bywaf.plugins.network.portscanner.scan_open_ports",
                     return_value=[NmapPort("192.0.2.20", 80, "tcp", "open", "http", "syn-ack")],
                 ),
-                patch("bywaf.plugins.http.http_probe.probe_url", side_effect=fake_probe_url),
-                patch("bywaf.plugins.http.http_paths.probe_path", side_effect=fake_probe_path),
+                patch("bywaf.plugins.http.probe.probe_url", side_effect=fake_probe_url),
+                patch("bywaf.plugins.http.paths.probe_path", side_effect=fake_probe_path),
                 patch("bywaf.plugins.http.repo_exposure.command.probe_git_config", side_effect=fake_probe_git_config),
                 patch(
                     "bywaf.plugins.http.tls_probe.fetch_certificate",

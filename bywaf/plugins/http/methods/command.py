@@ -21,7 +21,7 @@ from collections.abc import Iterable
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, CommandletBase, parse_bool
-from bywaf.plugins.http.http_targets import (
+from bywaf.plugins.http.targets import (
     HttpTarget as MethodTarget,
     http_target_from_port_event,
     http_target_from_text,

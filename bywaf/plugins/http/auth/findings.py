@@ -11,7 +11,7 @@ Used by:
 from __future__ import annotations
 
 from bywaf.finding import candidate_payload
-from bywaf.plugins.http.http_targets import HttpTarget as AuthTarget
+from bywaf.plugins.http.targets import HttpTarget as AuthTarget
 
 # Administrative/login path hints used for passive exposure findings.
 #

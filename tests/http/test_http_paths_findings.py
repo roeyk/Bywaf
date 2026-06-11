@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from bywaf.db import EventStore
 from bywaf.plugin import CommandContext
-from bywaf.plugins.http.http_paths import http_paths
+from bywaf.plugins.http.paths import http_paths
 
 
 class HttpPathFindingTests(unittest.TestCase):
@@ -22,7 +22,7 @@ class HttpPathFindingTests(unittest.TestCase):
                 metadata={"capabilities": http_paths.spec.capabilities},
             )
             with patch(
-                "bywaf.plugins.http.http_paths.probe_path",
+                "bywaf.plugins.http.paths.probe_path",
                 return_value={
                     "status": 200,
                     "content_type": "text/html",
@@ -51,7 +51,7 @@ class HttpPathFindingTests(unittest.TestCase):
                 metadata={"capabilities": http_paths.spec.capabilities},
             )
             with patch(
-                "bywaf.plugins.http.http_paths.probe_path",
+                "bywaf.plugins.http.paths.probe_path",
                 return_value={
                     "status": 200,
                     "content_type": "text/plain",
@@ -79,7 +79,7 @@ class HttpPathFindingTests(unittest.TestCase):
                 metadata={"capabilities": http_paths.spec.capabilities},
             )
             with patch(
-                "bywaf.plugins.http.http_paths.probe_path",
+                "bywaf.plugins.http.paths.probe_path",
                 return_value={
                     "status": 200,
                     "content_type": "text/html",
@@ -104,7 +104,7 @@ class HttpPathFindingTests(unittest.TestCase):
                 metadata={"capabilities": http_paths.spec.capabilities},
             )
             with patch(
-                "bywaf.plugins.http.http_paths.probe_path",
+                "bywaf.plugins.http.paths.probe_path",
                 return_value={
                     "status": 200,
                     "content_type": "application/zip",
@@ -131,7 +131,7 @@ class HttpPathFindingTests(unittest.TestCase):
                 metadata={"capabilities": http_paths.spec.capabilities},
             )
             with patch(
-                "bywaf.plugins.http.http_paths.probe_path",
+                "bywaf.plugins.http.paths.probe_path",
                 return_value={
                     "status": 200,
                     "content_type": "text/plain",
@@ -157,7 +157,7 @@ class HttpPathFindingTests(unittest.TestCase):
                 metadata={"capabilities": http_paths.spec.capabilities},
             )
             with patch(
-                "bywaf.plugins.http.http_paths.probe_path",
+                "bywaf.plugins.http.paths.probe_path",
                 return_value={
                     "status": 200,
                     "content_type": "text/html",
@@ -182,7 +182,7 @@ class HttpPathFindingTests(unittest.TestCase):
                 metadata={"capabilities": http_paths.spec.capabilities},
             )
             with patch(
-                "bywaf.plugins.http.http_paths.probe_path",
+                "bywaf.plugins.http.paths.probe_path",
                 return_value={
                     "status": 200,
                     "content_type": "application/json",
@@ -211,7 +211,7 @@ class HttpPathFindingTests(unittest.TestCase):
                 metadata={"capabilities": http_paths.spec.capabilities},
             )
             with patch(
-                "bywaf.plugins.http.http_paths.probe_path",
+                "bywaf.plugins.http.paths.probe_path",
                 return_value={
                     "status": 200,
                     "content_type": "text/html",
@@ -236,7 +236,7 @@ class HttpPathFindingTests(unittest.TestCase):
                 metadata={"capabilities": http_paths.spec.capabilities},
             )
             with patch(
-                "bywaf.plugins.http.http_paths.probe_path",
+                "bywaf.plugins.http.paths.probe_path",
                 return_value={
                     "status": 200,
                     "content_type": "text/plain",
@@ -268,7 +268,7 @@ class HttpPathFindingTests(unittest.TestCase):
                 metadata={"capabilities": http_paths.spec.capabilities},
             )
             with patch(
-                "bywaf.plugins.http.http_paths.probe_path",
+                "bywaf.plugins.http.paths.probe_path",
                 return_value={
                     "status": 200,
                     "content_type": "application/json",
@@ -301,7 +301,7 @@ class HttpPathFindingTests(unittest.TestCase):
                 metadata={"capabilities": http_paths.spec.capabilities},
             )
             with patch(
-                "bywaf.plugins.http.http_paths.probe_path",
+                "bywaf.plugins.http.paths.probe_path",
                 return_value={
                     "status": 200,
                     "content_type": "text/html",
@@ -326,7 +326,7 @@ class HttpPathFindingTests(unittest.TestCase):
                 metadata={"capabilities": http_paths.spec.capabilities},
             )
             with patch(
-                "bywaf.plugins.http.http_paths.probe_path",
+                "bywaf.plugins.http.paths.probe_path",
                 return_value={
                     "status": 200,
                     "content_type": "text/plain",
@@ -359,7 +359,7 @@ class HttpPathFindingTests(unittest.TestCase):
                 metadata={"capabilities": http_paths.spec.capabilities},
             )
             with patch(
-                "bywaf.plugins.http.http_paths.probe_path",
+                "bywaf.plugins.http.paths.probe_path",
                 return_value={
                     "status": 200,
                     "content_type": "text/html",
@@ -384,7 +384,7 @@ class HttpPathFindingTests(unittest.TestCase):
                 metadata={"capabilities": http_paths.spec.capabilities},
             )
             with patch(
-                "bywaf.plugins.http.http_paths.probe_path",
+                "bywaf.plugins.http.paths.probe_path",
                 return_value={
                     "status": 200,
                     "content_type": "text/plain",

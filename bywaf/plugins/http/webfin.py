@@ -22,7 +22,7 @@ from typing import Any
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option, parse_bool
-from bywaf.plugins.http.http_probe import build_opener, probe_url, target_from_text
+from bywaf.plugins.http.probe import build_opener, probe_url, target_from_text
 from bywaf.plugins.target_policy import filter_targets_by_host
 
 DEFAULTS = {

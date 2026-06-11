@@ -175,7 +175,7 @@ class TestManifestBasicsTests(unittest.TestCase):
             manifest.write_text(
                 manifest.read_text().replace(
                     'version = "0.1.0"\n',
-                    'version = "0.1.0"\nrequires_schemas = ["example.event"]\nrequires_plugins = ["http.http_probe"]\n',
+                    'version = "0.1.0"\nrequires_schemas = ["example.event"]\nrequires_plugins = ["http.probe"]\n',
                 )
             )
 

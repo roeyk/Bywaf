@@ -23,8 +23,8 @@ default_plugins = [
   "http.auth",
   "http.cors",
   "http.methods",
-  "http.http_paths",
-  "http.http_probe",
+  "http.paths",
+  "http.probe",
   "http.nikto",
   "http.repo_exposure",
   "http.screenshotter",
@@ -53,5 +53,11 @@ default_plugins = [
 ]
 
 [commandlet_aliases]
+"http/http_auth" = "http_auth"
+"http/http_cors" = "http_cors"
+"http/http_headers" = "http_headers"
+"http/http_methods" = "http_methods"
+"http/http_paths" = "http_paths"
+"http/http_probe" = "http_probe"
 http_tls = "tls_probe"
 web_fingerprint = "webfin"
