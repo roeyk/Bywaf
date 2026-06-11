@@ -425,13 +425,13 @@ tool modules.
 | `documentation_report.py` | `architecture_formatting.py` | Documentation metrics and impact report rendering. |
 | `documentation_metrics.py` | `architecture_metrics.py` | Markdown size, link, stale-term, duplicate-heading, and audience-mixing metrics. |
 | `bundled_plugin_manual_check.py` | `scripts/bundled_plugin_manual_check.py`, tests | Bundled plugin manual drift detection. |
-| `plugin_check.py` | `scripts/plugin_check.py`, tests | Static plugin source analysis without importing plugin code. |
-| `plugin_check_helpers.py` | `plugin_check_visitor.py` | AST helper functions for capability and risky-API inference. |
-| `plugin_check_llm_render.py` | `plugin_check_render.py`, `scripts/plugin_check.py` | LLM-oriented checker feedback rendering. |
-| `plugin_check_model.py` | plugin checker modules | Data classes for capability evidence and diagnostics. |
-| `plugin_check_visitor.py` | `plugin_check.py` | AST visitor for capability, emit, and diagnostic inference. |
-| `plugin_check_render.py` | `scripts/plugin_check.py` | Human-oriented checker output rendering and compatibility facade. |
-| `plugin_check_graph_render.py` | `plugin_check_render.py` | Manifest relationship graph output rendering. |
+| `plugin_check/` | `scripts/plugin_check.py`, tests | Static plugin source analysis package; `python -m bywaf.tools.plugin_check` delegates to the script wrapper. |
+| `plugin_check/helpers.py` | `plugin_check/visitor.py`, `plugin_check/diagnostics.py` | AST helper functions for capability and risky-API inference. |
+| `plugin_check/llm_render.py` | `plugin_check/render.py`, `scripts/plugin_check.py` | LLM-oriented checker feedback rendering. |
+| `plugin_check/model.py` | plugin checker package modules | Data classes for capability evidence and diagnostics. |
+| `plugin_check/visitor.py` | `plugin_check/__init__.py` | AST visitor for capability, emit, and diagnostic inference. |
+| `plugin_check/render.py` | `scripts/plugin_check.py` | Human-oriented checker output rendering and compatibility facade. |
+| `plugin_check/graph_render.py` | `plugin_check/render.py` | Manifest relationship graph output rendering. |
 | `plugin_manifest.py` | manifest generation workflows | Manifest generation helpers. |
 | `plugin_parser_contract.py` | `scripts/plugin_check.py` | Parser-vs-metadata diagnostics for commandlet arguments and options. |
 | `plugin_submission.py` | `scripts/plugin_check.py` | Zip/directory submission materialization in temporary checkouts. |

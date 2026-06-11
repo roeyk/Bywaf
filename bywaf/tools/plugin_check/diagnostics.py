@@ -5,7 +5,7 @@ from __future__ import annotations
 import ast
 from typing import Protocol, cast
 
-from bywaf.tools.plugin_check_helpers import (
+from .helpers import (
     boolean_like_option_name,
     call_basename,
     literal_string_argument,

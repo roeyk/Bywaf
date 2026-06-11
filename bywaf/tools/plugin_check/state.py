@@ -5,7 +5,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from bywaf.tools.plugin_check_model import CapabilityEvidence, SourceDiagnostic
+from .model import CapabilityEvidence, SourceDiagnostic
 
 
 class CapabilityAnalysisState:

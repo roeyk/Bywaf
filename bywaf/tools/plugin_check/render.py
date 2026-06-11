@@ -5,11 +5,11 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from .plugin_check_graph_render import (
+from .graph_render import (
     format_collection_graph_summary,
     format_single_graph_summary,
 )
-from .plugin_check_llm_render import render_llm_feedback as render_llm_feedback
+from .llm_render import render_llm_feedback as render_llm_feedback
 
 def render_text(report: dict[str, Any]) -> str:
     """Return human-readable validation output."""

@@ -6,8 +6,8 @@ import ast
 from pathlib import Path
 
 from bywaf.event.schemas import event_schema, validate_event_payload
-from bywaf.tools.plugin_check_diagnostics import AuthoringDiagnosticMixin
-from bywaf.tools.plugin_check_helpers import (
+from .diagnostics import AuthoringDiagnosticMixin
+from .helpers import (
     direct_network_call,
     direct_network_module,
     direct_process_call,
@@ -19,7 +19,7 @@ from bywaf.tools.plugin_check_helpers import (
     literal_string_argument,
     literal_string_sequence_argument,
 )
-from bywaf.tools.plugin_check_state import CapabilityAnalysisState
+from .state import CapabilityAnalysisState
 
 
 class CapabilityVisitor(CapabilityAnalysisState, AuthoringDiagnosticMixin, ast.NodeVisitor):

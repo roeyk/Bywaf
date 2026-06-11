@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .plugin_check_graph_render import format_collection_graph_summary, llm_relationship_feedback
+from .graph_render import format_collection_graph_summary, llm_relationship_feedback
 
 
 def render_llm_feedback(report: dict[str, Any]) -> str:

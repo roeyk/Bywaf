@@ -12,8 +12,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from bywaf.tools.plugin_check_model import CapabilityEvidence, SourceAnalysis, SourceDiagnostic
-from bywaf.tools.plugin_check_visitor import CapabilityVisitor
+from .model import CapabilityEvidence, SourceAnalysis, SourceDiagnostic
+from .visitor import CapabilityVisitor
 
 
 def analyze_plugin_source(plugin_dir: Path) -> SourceAnalysis:
