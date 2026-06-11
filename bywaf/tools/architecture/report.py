@@ -1,19 +1,19 @@
-"""Source architecture report sections for `architecture_formatting`."""
+"""Source architecture report sections for `architecture.formatting`."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from .architecture_report_sections import detail_section, section
+from .report_sections import detail_section, section
 
 if TYPE_CHECKING:
-    from .architecture_models import ArchitectureMetrics, ModuleMetric
+    from .models import ArchitectureMetrics, ModuleMetric
 
 
 def architecture_report_sections(metrics: ArchitectureMetrics, *, top: int) -> list[str]:
     """Build source-code sections for the architecture report.
 
-    Called by: `architecture_formatting.format_metrics()`.
+    Called by: `architecture.formatting.format_metrics()`.
     """
     modules = list(metrics.modules)
     ranked = _ranked_architecture_modules(modules, top=top)

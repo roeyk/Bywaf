@@ -415,15 +415,15 @@ tool modules.
 
 | Module | Used By | Purpose |
 | --- | --- | --- |
-| `architecture_formatting.py` | `architecture_metrics.py` | Human-readable formatting for source and documentation metrics. |
-| `architecture_graph.py` | `architecture_metrics.py` | Import graph normalization and cycle detection helpers. |
-| `architecture_metrics.py` | `scripts/architecture_metrics.py`, tests | Architecture metrics CLI/facade and collection orchestration. |
-| `architecture_models.py` | architecture metric modules | Data classes for source and repository-level architecture metrics. |
-| `architecture_report.py` | `architecture_formatting.py` | Source architecture report section assembly. |
-| `architecture_report_sections.py` | architecture report modules | Shared ranked-section text formatting helpers. |
-| `architecture_source.py` | `architecture_metrics.py` | Source-code LOC, complexity, documentation-pressure, and security-surface metrics. |
-| `documentation_report.py` | `architecture_formatting.py` | Documentation metrics and impact report rendering. |
-| `documentation_metrics.py` | `architecture_metrics.py` | Markdown size, link, stale-term, duplicate-heading, and audience-mixing metrics. |
+| `architecture/` | `scripts/architecture_metrics.py`, tests | Architecture metrics package; `python -m bywaf.tools.architecture` delegates to the script-compatible CLI. |
+| `architecture/formatting.py` | `architecture/__init__.py`, tests | Human-readable formatting for source and documentation metrics. |
+| `architecture/graph.py` | `architecture/__init__.py` | Import graph normalization and cycle detection helpers. |
+| `architecture/models.py` | architecture metric modules | Data classes for source and repository-level architecture metrics. |
+| `architecture/report.py` | `architecture/formatting.py` | Source architecture report section assembly. |
+| `architecture/report_sections.py` | architecture and documentation report modules | Shared ranked-section text formatting helpers. |
+| `architecture/source.py` | `architecture/__init__.py` | Source-code LOC, complexity, documentation-pressure, and security-surface metrics. |
+| `documentation_report.py` | `architecture/formatting.py` | Documentation metrics and impact report rendering. |
+| `documentation_metrics.py` | `architecture/__init__.py` | Markdown size, link, stale-term, duplicate-heading, and audience-mixing metrics. |
 | `bundled_plugin_manual_check.py` | `scripts/bundled_plugin_manual_check.py`, tests | Bundled plugin manual drift detection. |
 | `plugin_check/` | `scripts/plugin_check.py`, tests | Static plugin source analysis package; `python -m bywaf.tools.plugin_check` delegates to the script wrapper. |
 | `plugin_check/helpers.py` | `plugin_check/visitor.py`, `plugin_check/diagnostics.py` | AST helper functions for capability and risky-API inference. |

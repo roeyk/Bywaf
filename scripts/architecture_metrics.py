@@ -6,7 +6,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from bywaf.tools.architecture_metrics import main
+from bywaf.tools.architecture import main
 
 
 if __name__ == "__main__":

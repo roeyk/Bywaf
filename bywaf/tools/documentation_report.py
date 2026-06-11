@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from .architecture_report_sections import detail_section, section
+from .architecture.report_sections import detail_section, section
 
 if TYPE_CHECKING:
     from .documentation_metrics import DocumentMetric, DocumentationImpact, DocumentationMetrics
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 def format_documentation_metrics(metrics: DocumentationMetrics, *, top: int = 12) -> str:
     """Render documentation cohesion and coupling pressure sections.
 
-    Called by: `architecture_formatting.format_metrics()`.
+    Called by: `architecture.formatting.format_metrics()`.
     """
     documents = list(metrics.documents)
     ranked = _ranked_documents(documents, top=top)
@@ -57,7 +57,7 @@ def format_documentation_metrics(metrics: DocumentationMetrics, *, top: int = 12
 def format_documentation_impact(impact: DocumentationImpact) -> str:
     """Render related docs to inspect after editing one document.
 
-    Called by: `architecture_metrics.main()` for the documentation-impact CLI
+    Called by: `architecture.main()` for the documentation-impact CLI
     mode and by tests that verify ranking reasons.
     """
     lines = [f"Documentation impact for {impact.source}"]

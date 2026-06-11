@@ -118,7 +118,7 @@ GENERIC_DOC_WORDS = {
 def collect_documentation_metrics(repo_root: Path, *, docs_root: Path | None = None) -> DocumentationMetrics:
     """Collect cohesion and coupling signals for Markdown documentation.
 
-    Called by: `bywaf.tools.architecture_metrics.collect_architecture_metrics()`
+    Called by: `bywaf.tools.architecture.collect_architecture_metrics()`
     when the architecture report includes documentation pressure.
     """
     docs_root = (docs_root or repo_root / "docs").resolve()

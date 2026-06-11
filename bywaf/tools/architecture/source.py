@@ -7,7 +7,7 @@ import io
 import tokenize
 from pathlib import Path
 
-from .architecture_models import ModuleStaticStats
+from .models import ModuleStaticStats
 
 
 SECURITY_SURFACE_TOKENS = (

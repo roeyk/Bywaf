@@ -20,8 +20,8 @@ from collections import defaultdict
 from dataclasses import asdict
 from pathlib import Path
 
-from .architecture_formatting import format_documentation_impact, format_metrics
-from .architecture_graph import (
+from .formatting import format_documentation_impact, format_metrics
+from .graph import (
     internal_imports,
     is_type_checking_guard as is_type_checking_guard,
     normalize_absolute_import as normalize_absolute_import,
@@ -29,8 +29,8 @@ from .architecture_graph import (
     runtime_import_nodes as runtime_import_nodes,
     strongly_connected_components,
 )
-from .architecture_models import ArchitectureMetrics, ModuleMetric, ModuleStaticStats
-from .architecture_source import (
+from .models import ArchitectureMetrics, ModuleMetric, ModuleStaticStats
+from .source import (
     SECURITY_SURFACE_TOKENS as SECURITY_SURFACE_TOKENS,
     ast_docstring_lines as ast_docstring_lines,
     complexity_score as complexity_score,
@@ -42,7 +42,7 @@ from .architecture_source import (
     source_comment_lines as source_comment_lines,
     source_loc,
 )
-from .documentation_metrics import (
+from ..documentation_metrics import (
     collect_documentation_impact,
     collect_documentation_metrics,
 )
@@ -195,7 +195,11 @@ def git_churn_counts(repo_root: Path, modules: dict[str, Path]) -> defaultdict[s
 
 
 def main(argv: list[str] | None = None) -> int:
-    """CLI entry point for `scripts/architecture_metrics.py`."""
+    """CLI entry point for architecture metrics.
+
+    Called by: `scripts/architecture_metrics.py` and
+    `python -m bywaf.tools.architecture`.
+    """
     parser = argparse.ArgumentParser(description="Report lightweight Bywaf architecture metrics.")
     parser.add_argument("root", nargs="?", default="bywaf", help="Python package directory to inspect")
     parser.add_argument("--package", default=None, help="Dotted package name; defaults to root directory name")

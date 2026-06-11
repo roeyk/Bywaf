@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from bywaf.tools.architecture_metrics import (
+from bywaf.tools.architecture import (
     collect_architecture_metrics,
     format_documentation_impact,
     format_metrics,
