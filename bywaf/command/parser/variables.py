@@ -2,7 +2,24 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from ...varstore import VarStore
+
+
+@dataclass
+class ExpansionScan:
+    """Mutable state for one variable-expansion pass.
+
+    Constructed by: `expand_variables_in_text()`.
+    Used by: `consume_scan_char()` and the small quote/escape helpers below to
+    keep the public expansion function from carrying a dense scanner ladder.
+    """
+
+    output: list[str]
+    expanded: list[str]
+    quote: str | None = None
+    escaped: bool = False
 
 
 def expand_variables_in_text(text: str, varstore: VarStore, commandlet: str) -> tuple[str, tuple[str, ...]]:
@@ -13,58 +30,97 @@ def expand_variables_in_text(text: str, varstore: VarStore, commandlet: str) -> 
     while double quotes allow expansion with escaping suitable for the quoted
     context.
     """
-    output: list[str] = []
-    expanded: list[str] = []
-    quote: str | None = None
-    escaped = False
+    scan = ExpansionScan([], [])
     index = 0
     while index < len(text):
-        char = text[index]
-        if escaped:
-            output.append(char)
-            escaped = False
-            index += 1
-            continue
-        if char == "\\":
-            output.append(char)
-            escaped = True
-            index += 1
-            continue
-        if quote == "'":
-            output.append(char)
-            if char == "'":
-                quote = None
-            index += 1
-            continue
-        if char == '"':
-            output.append(char)
-            quote = None if quote == '"' else '"'
-            index += 1
-            continue
-        if char == "'":
-            output.append(char)
-            quote = "'"
-            index += 1
-            continue
-        if char != "$":
-            output.append(char)
-            index += 1
-            continue
-        parsed = parse_variable_reference(text, index)
-        if parsed is None:
-            output.append(char)
-            index += 1
-            continue
-        name, end = parsed
-        # Store the resolved variable name for audit.  This lets a step record
-        # that `$target` expanded from, for example,
-        # `http/repo_exposure/git_expose_check.target`.
-        value, resolved_name = resolve_variable_reference(varstore, commandlet, name)
-        replacement = escape_double_quoted_value(value) if quote == '"' else value
-        output.append(replacement)
-        expanded.append(resolved_name)
-        index = end
-    return "".join(output), tuple(dict.fromkeys(expanded))
+        index = consume_scan_char(text, index, scan, varstore, commandlet)
+    return "".join(scan.output), tuple(dict.fromkeys(scan.expanded))
+
+
+def consume_scan_char(text: str, index: int, scan: ExpansionScan, varstore: VarStore, commandlet: str) -> int:
+    """Consume one character or variable reference from an expansion scan.
+
+    Called by: `expand_variables_in_text()`.  The branch order mirrors shell
+    quoting precedence: escaped characters first, single-quoted literal mode
+    before double-quote toggling, and `$name` expansion only in unquoted or
+    double-quoted text.
+    """
+    char = text[index]
+    if scan.escaped:
+        return consume_escaped_char(char, index, scan)
+    if char == "\\":
+        return begin_escape(char, index, scan)
+    if scan.quote == "'":
+        return consume_single_quoted_char(char, index, scan)
+    if char == '"':
+        return toggle_double_quote(char, index, scan)
+    if char == "'":
+        return begin_single_quote(char, index, scan)
+    if char == "$":
+        return consume_variable_reference(text, index, scan, varstore, commandlet)
+    scan.output.append(char)
+    return index + 1
+
+
+def consume_escaped_char(char: str, index: int, scan: ExpansionScan) -> int:
+    """Append a character that was escaped by the preceding backslash."""
+    scan.output.append(char)
+    scan.escaped = False
+    return index + 1
+
+
+def begin_escape(char: str, index: int, scan: ExpansionScan) -> int:
+    """Copy a backslash and mark the next character as escaped."""
+    scan.output.append(char)
+    scan.escaped = True
+    return index + 1
+
+
+def consume_single_quoted_char(char: str, index: int, scan: ExpansionScan) -> int:
+    """Copy literal text while inside single quotes."""
+    scan.output.append(char)
+    if char == "'":
+        scan.quote = None
+    return index + 1
+
+
+def toggle_double_quote(char: str, index: int, scan: ExpansionScan) -> int:
+    """Copy a double quote and enter or leave double-quoted mode."""
+    scan.output.append(char)
+    scan.quote = None if scan.quote == '"' else '"'
+    return index + 1
+
+
+def begin_single_quote(char: str, index: int, scan: ExpansionScan) -> int:
+    """Copy a single quote and enter literal single-quoted mode."""
+    scan.output.append(char)
+    scan.quote = "'"
+    return index + 1
+
+
+def consume_variable_reference(
+    text: str,
+    index: int,
+    scan: ExpansionScan,
+    varstore: VarStore,
+    commandlet: str,
+) -> int:
+    """Expand a `$name` or `${name}` reference, or copy `$` literally.
+
+    Resolved variable names are retained for command-run audit events.  That is
+    why this helper records both the replacement text and the fully resolved
+    variable key returned by `resolve_variable_reference()`.
+    """
+    parsed = parse_variable_reference(text, index)
+    if parsed is None:
+        scan.output.append(text[index])
+        return index + 1
+    name, end = parsed
+    value, resolved_name = resolve_variable_reference(varstore, commandlet, name)
+    replacement = escape_double_quoted_value(value) if scan.quote == '"' else value
+    scan.output.append(replacement)
+    scan.expanded.append(resolved_name)
+    return end
 
 
 def parse_variable_reference(text: str, dollar_index: int) -> tuple[str, int] | None:

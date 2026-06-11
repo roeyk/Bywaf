@@ -12,8 +12,12 @@ Used by:
 
 from __future__ import annotations
 
+from typing import TypeAlias
+
 from ..pipeline_syntax import normalize_final_text
 
+
+Selectors: TypeAlias = dict[str, str | None]
 
 COMMANDLET_TEXT_SELECTORS = {
     "artifact": frozenset({"name", "note"}),
@@ -104,8 +108,41 @@ def find_unquoted_text_selector(text: str, key: str) -> int | None:
 
 
 def peel_context_selectors(args: list[str]) -> tuple[list[str], dict[str, str | None]]:
-    """Remove framework-owned selector flags from plugin arguments."""
-    selectors: dict[str, str | None] = {
+    """Remove framework-owned selector flags from plugin arguments.
+
+    Called by: `parse_invocation()` after shell splitting.  The return value is
+    the plugin-owned argv plus framework execution selectors used later by
+    runner/context code.
+    """
+    selectors = default_context_selectors()
+    cleaned: list[str] = []
+    index = 0
+    while index < len(args):
+        token = args[index]
+        if token == "--from":
+            # `--from` owns the following selector assignments until the first
+            # non-selector token. Everything after that belongs back to the
+            # plugin commandlet.
+            index = peel_from_group(args, index + 1, selectors)
+            continue
+
+        if apply_bool_selector(token, selectors):
+            index += 1
+            continue
+
+        cleaned.append(token)
+        index += 1
+    return cleaned, selectors
+
+
+def default_context_selectors() -> Selectors:
+    """Return the framework selector defaults used for every commandlet.
+
+    Called by: `peel_context_selectors()` before scanning argv tokens.  Booleans
+    are represented as strings because the parser later maps this dictionary
+    directly onto `CommandInvocation` fields with existing string comparisons.
+    """
+    return {
         "from_step": None,
         "from_pipeline": None,
         "from_job": None,
@@ -113,34 +150,48 @@ def peel_context_selectors(args: list[str]) -> tuple[list[str], dict[str, str | 
         "plan_only": "false",
         "approved": "false",
     }
-    cleaned: list[str] = []
-    index = 0
+
+
+def peel_from_group(args: list[str], start: int, selectors: Selectors) -> int:
+    """Consume the selector assignment group after a `--from` token.
+
+    Returns the index of the first token not consumed by the group.  `topic=`
+    is only a narrowing selector, so it must accompany at least one replay
+    source: `job=`, `pipeline=`, or `step=`.
+    """
+    index = start
+    seen: set[str] = set()
     while index < len(args):
-        token = args[index]
-        if token == "--from":
-            index += 1
-            replay_selectors: set[str] = set()
-            while index < len(args):
-                key, value = context_selector_assignment(args[index])
-                if key is None:
-                    break
-                selectors[key] = value
-                replay_selectors.add(key)
-                index += 1
-            if not replay_selectors:
-                raise ValueError("--from requires job=, pipeline=, or step=")
-            if replay_selectors.isdisjoint({"from_job", "from_pipeline", "from_step"}):
-                raise ValueError("--from requires job=, pipeline=, or step=; topic= only narrows replay input")
-            continue
-        selector_value = CONTEXT_SELECTOR_BOOL_FLAGS.get(token)
-        if selector_value is not None:
-            key, value = selector_value
-            selectors[key] = value
-            index += 1
-            continue
-        cleaned.append(token)
+        key, value = context_selector_assignment(args[index])
+        if key is None:
+            break
+        selectors[key] = value
+        seen.add(key)
         index += 1
-    return cleaned, selectors
+    require_replay_source(seen)
+    return index
+
+
+def require_replay_source(seen: set[str]) -> None:
+    """Validate that a `--from` group names a real replay source."""
+    if not seen:
+        raise ValueError("--from requires job=, pipeline=, or step=")
+    if seen.isdisjoint({"from_job", "from_pipeline", "from_step"}):
+        raise ValueError("--from requires job=, pipeline=, or step=; topic= only narrows replay input")
+
+
+def apply_bool_selector(token: str, selectors: Selectors) -> bool:
+    """Apply a single-token framework flag when `token` is one.
+
+    Called by: `peel_context_selectors()` for flags such as `--test` and
+    `--yes`, keeping the main argv scan from embedding flag table details.
+    """
+    selector_value = CONTEXT_SELECTOR_BOOL_FLAGS.get(token)
+    if selector_value is None:
+        return False
+    key, value = selector_value
+    selectors[key] = value
+    return True
 
 
 def context_selector_assignment(token: str) -> tuple[str | None, str | None]:
