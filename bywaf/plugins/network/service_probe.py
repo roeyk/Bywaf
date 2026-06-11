@@ -80,11 +80,15 @@ def service_from_event(event: Event) -> ServiceDetected | None:
         # Banners are stronger evidence than port numbers, so classify banner
         # text first and fall back to well-known port lookup only when needed.
         banner = TcpBanner.from_event(event)
+        # Prefer the banner classifier, then fall back to the port/protocol
+        # service lookup, then use `unknown` when neither source can identify
+        # the service.
+        service = classify_banner(banner.banner or "") or known_service(banner.port, banner.protocol) or "unknown"
         return ServiceDetected(
             banner.host,
             banner.port,
             banner.protocol,
-            classify_banner(banner.banner or "") or known_service(banner.port, banner.protocol) or "unknown",
+            service,
             source="tcp.banner",
             confidence="high" if banner.banner else "low",
             evidence=banner.banner or banner.error,

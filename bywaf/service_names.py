@@ -55,14 +55,27 @@ def known_service(port: int, protocol: str) -> str:
     `/etc/services`.
     """
 
+    # Normalize protocol spelling before table and stdlib lookup so callers can
+    # pass `TCP`, `tcp`, `Udp`, etc. without creating separate cases.
     normalized_protocol = protocol.casefold()
+
+    # Check Bywaf's security-oriented overrides first. These labels are the
+    # vocabulary we want reports and downstream plugins to see, even when the
+    # operating system service database uses a different or missing name.
     override = SERVICE_OVERRIDES.get((normalized_protocol, port))
     if override is not None:
         return override
 
     try:
+        # Fall back to the OS service database exposed by Python's stdlib.
+        # `getservbyport()` knows common TCP and UDP assignments from sources
+        # such as `/etc/services`, giving broad coverage without Bywaf carrying
+        # a full port-name table.
         return socket.getservbyport(port, normalized_protocol)
     except OSError:
+        # Unknown port/protocol pairs are normal during scanning; return an
+        # empty string so callers can fall back to `unknown` or stronger
+        # evidence such as a banner.
         return ""
 
 
@@ -122,8 +135,14 @@ def classify_banner(banner: str) -> str:
     available than a port-number heuristic.
     """
 
+    # Normalize once so the ordered banner rules can stay simple and
+    # case-insensitive.
     normalized_banner = banner.casefold()
+
     for rule in BANNER_RULES:
+        # Walk the classification table in priority order and return the first
+        # service whose predicate recognizes the banner.
         if rule.matches(normalized_banner):
             return rule.service
+
     return ""
