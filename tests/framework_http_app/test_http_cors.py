@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from bywaf.app import make_runner
 from bywaf.event import Event
-from bywaf.plugins.http.http_cors import (
+from bywaf.plugins.http.cors import (
     CorsTarget,
     HttpCors,
     cors_findings,
@@ -27,7 +27,7 @@ class TestHttpCorsTests(unittest.TestCase):
 
     def test_http_cors_probe_reads_response_headers(self):
         target = CorsTarget("https://example.test/api", "example.test", 443, "https", "/api")
-        with patch("bywaf.plugins.http.http_cors.http.client.HTTPSConnection", ReflectedConnection):
+        with patch("bywaf.plugins.http.cors.http.client.HTTPSConnection", ReflectedConnection):
             result = probe_cors(
                 target,
                 origin="https://evil.example",
@@ -42,7 +42,7 @@ class TestHttpCorsTests(unittest.TestCase):
 
     def test_http_cors_probe_returns_error_payload(self):
         target = CorsTarget("http://example.test/", "example.test", 80, "http", "/")
-        with patch("bywaf.plugins.http.http_cors.http.client.HTTPConnection", ErrorConnection):
+        with patch("bywaf.plugins.http.cors.http.client.HTTPConnection", ErrorConnection):
             result = probe_cors(
                 target,
                 origin="https://evil.example",
@@ -96,7 +96,7 @@ class TestHttpCorsTests(unittest.TestCase):
     def test_http_cors_runner_publishes_fact_and_finding(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
-            with patch("bywaf.plugins.http.http_cors.http.client.HTTPSConnection", ReflectedConnection):
+            with patch("bywaf.plugins.http.cors.http.client.HTTPSConnection", ReflectedConnection):
                 runner.execute("http_cors https://example.test/api origin=https://evil.example")
 
             cors_events = runner.db.events_for_topic("http.cors")

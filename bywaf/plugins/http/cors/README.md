@@ -19,5 +19,5 @@ It does not send credentials, attempt bypasses, or exploit cross-origin access.
 ```bash
 PYTHONPATH=. pytest -q tests/framework_http_app/test_http_cors.py
 python3 scripts/plugin_check.py --all --strict-inference
-python3 scripts/plugin_graph.py --provider http.http_cors
+python3 scripts/plugin_graph.py --provider http.cors
 ```

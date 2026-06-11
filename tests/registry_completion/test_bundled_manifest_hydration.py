@@ -16,9 +16,9 @@ class BundledManifestHydrationTests(unittest.TestCase):
         from bywaf.plugins.analysis.yara_scan import YaraScan
         from bywaf.plugins.discovery.hostscanner import HostScanner
         from bywaf.plugins.http.eyewitness import EyeWitness
-        from bywaf.plugins.http.http_auth import HttpAuth
-        from bywaf.plugins.http.http_headers import HttpHeaders
-        from bywaf.plugins.http.http_methods import HttpMethods
+        from bywaf.plugins.http.auth import HttpAuth
+        from bywaf.plugins.http.headers import HttpHeaders
+        from bywaf.plugins.http.methods import HttpMethods
         from bywaf.plugins.http.http_probe import HttpProbe
         from bywaf.plugins.http.nikto import Nikto
         from bywaf.plugins.http.repo_exposure import GitExposeCheck, RepoExposure

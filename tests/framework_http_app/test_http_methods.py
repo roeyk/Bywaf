@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from bywaf.app import make_runner, process_framework_requests
 from bywaf.event import Event
-from bywaf.plugins.http.http_methods import (
+from bywaf.plugins.http.methods import (
     HttpMethods,
     MethodTarget,
     method_findings,
@@ -58,7 +58,7 @@ class TestHttpMethodsTests(unittest.TestCase):
 
     def test_http_methods_probe_uses_allow_header(self):
         target = MethodTarget("https://example.test/", "example.test", 443, "https", "/")
-        with patch("bywaf.plugins.http.http_methods.http.client.HTTPSConnection", AllowConnection):
+        with patch("bywaf.plugins.http.methods.http.client.HTTPSConnection", AllowConnection):
             result = probe_methods(target, timeout=2)
 
         self.assertEqual(result["status"], 200)
@@ -66,14 +66,14 @@ class TestHttpMethodsTests(unittest.TestCase):
 
     def test_http_methods_probe_uses_public_header_fallback(self):
         target = MethodTarget("http://example.test/", "example.test", 80, "http", "/")
-        with patch("bywaf.plugins.http.http_methods.http.client.HTTPConnection", PublicConnection):
+        with patch("bywaf.plugins.http.methods.http.client.HTTPConnection", PublicConnection):
             result = probe_methods(target, timeout=2)
 
         self.assertEqual(result["methods"], ["GET", "OPTIONS"])
 
     def test_http_methods_probe_returns_error_payload(self):
         target = MethodTarget("http://example.test/", "example.test", 80, "http", "/")
-        with patch("bywaf.plugins.http.http_methods.http.client.HTTPConnection", ErrorConnection):
+        with patch("bywaf.plugins.http.methods.http.client.HTTPConnection", ErrorConnection):
             result = probe_methods(target, timeout=2)
 
         self.assertFalse(result["ok"])
@@ -83,7 +83,7 @@ class TestHttpMethodsTests(unittest.TestCase):
     def test_http_methods_runner_publishes_fact_and_findings(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
-            with patch("bywaf.plugins.http.http_methods.http.client.HTTPSConnection", RiskyConnection):
+            with patch("bywaf.plugins.http.methods.http.client.HTTPSConnection", RiskyConnection):
                 runner.execute("http_methods https://example.test/")
 
             method_events = runner.db.events_for_topic("http.methods")
@@ -104,7 +104,7 @@ class TestHttpMethodsTests(unittest.TestCase):
     def test_http_methods_deduped_findings_appear_in_report(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
-            with patch("bywaf.plugins.http.http_methods.http.client.HTTPSConnection", RiskyConnection):
+            with patch("bywaf.plugins.http.methods.http.client.HTTPSConnection", RiskyConnection):
                 runner.execute("http_methods https://example.test/ | finding_dedupe -s")
 
             findings = runner.db.events_for_topic("finding.new")
@@ -133,7 +133,7 @@ class TestHttpMethodsTests(unittest.TestCase):
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()
             with (
-                patch("bywaf.plugins.http.http_methods.http.client.HTTPSConnection", RiskyConnection),
+                patch("bywaf.plugins.http.methods.http.client.HTTPSConnection", RiskyConnection),
                 contextlib.redirect_stdout(output),
             ):
                 runner.execute("http_methods https://example.test/ | report status=all")

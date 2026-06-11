@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from bywaf.app import make_runner
 from bywaf.event import Event
-from bywaf.plugins.http.http_auth import (
+from bywaf.plugins.http.auth import (
     AuthTarget,
     HttpAuth,
     auth_findings,
@@ -58,7 +58,7 @@ class TestHttpAuthTests(unittest.TestCase):
 
     def test_http_auth_probe_reads_www_authenticate_header(self):
         target = AuthTarget("https://example.test/admin", "example.test", 443, "https", "/admin")
-        with patch("bywaf.plugins.http.http_auth.http.client.HTTPSConnection", BasicConnection):
+        with patch("bywaf.plugins.http.auth.http.client.HTTPSConnection", BasicConnection):
             result = probe_auth(target, method="HEAD", timeout=2)
 
         self.assertEqual(result["status"], 401)
@@ -67,14 +67,14 @@ class TestHttpAuthTests(unittest.TestCase):
 
     def test_http_auth_probe_reads_proxy_authenticate_header(self):
         target = AuthTarget("http://example.test/", "example.test", 80, "http", "/")
-        with patch("bywaf.plugins.http.http_auth.http.client.HTTPConnection", ProxyConnection):
+        with patch("bywaf.plugins.http.auth.http.client.HTTPConnection", ProxyConnection):
             result = probe_auth(target, method="HEAD", timeout=2)
 
         self.assertEqual(result["schemes"], ["NEGOTIATE"])
 
     def test_http_auth_probe_returns_error_payload(self):
         target = AuthTarget("http://example.test/", "example.test", 80, "http", "/")
-        with patch("bywaf.plugins.http.http_auth.http.client.HTTPConnection", ErrorConnection):
+        with patch("bywaf.plugins.http.auth.http.client.HTTPConnection", ErrorConnection):
             result = probe_auth(target, method="HEAD", timeout=2)
 
         self.assertFalse(result["ok"])
@@ -84,7 +84,7 @@ class TestHttpAuthTests(unittest.TestCase):
     def test_http_auth_runner_publishes_fact_and_findings(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
-            with patch("bywaf.plugins.http.http_auth.http.client.HTTPConnection", RiskyConnection):
+            with patch("bywaf.plugins.http.auth.http.client.HTTPConnection", RiskyConnection):
                 runner.execute("http_auth http://example.test/admin")
 
             auth_events = runner.db.events_for_topic("http.auth")

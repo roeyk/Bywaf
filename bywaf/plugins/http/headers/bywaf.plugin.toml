@@ -17,7 +17,7 @@ capabilities = [
   "db.write:http.headers",
   "network.connect",
 ]
-module = "bywaf.plugins.http.http_headers"
+module = "bywaf.plugins.http.headers"
 database.actions.view = false
 database.actions.write = true
 database.actions.manage = false

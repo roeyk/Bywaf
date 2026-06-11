@@ -7,7 +7,7 @@ Bundled Bywaf HTTP method posture plugin.
 ```bash
 python3 - <<'PY'
 from bywaf.registry import PluginRegistry
-PluginRegistry({}).load_package_entry("bywaf.plugins", "http.http_methods")
+PluginRegistry({}).load_package_entry("bywaf.plugins", "http.methods")
 PY
 python3 scripts/plugin_check.py --all --strict-inference
 PYTHONPATH=. pytest -q tests/framework_http_app/test_http_methods.py
@@ -15,7 +15,7 @@ PYTHONPATH=. pytest -q tests/framework_http_app/test_http_methods.py
 
 ## Contract
 
-- Module: `bywaf.plugins.http.http_methods`
+- Module: `bywaf.plugins.http.methods`
 - Commandlet: `http_methods`
 - Consumes: `port.open`
 - Emits: `http.methods`, `finding.candidate`

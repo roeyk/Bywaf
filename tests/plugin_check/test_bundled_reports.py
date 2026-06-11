@@ -34,7 +34,7 @@ class TestBundledReportsTests(unittest.TestCase):
 
         by_entry = {item["entry"]: item for item in report["plugins"]}
         self.assertNotIn("web.fingerprint", by_entry["http.webfin"]["unregistered_declared_emits"])
-        self.assertNotIn("http.headers", by_entry["http.http_headers"]["unregistered_declared_emits"])
+        self.assertNotIn("http.headers", by_entry["http.headers"]["unregistered_declared_emits"])
 
 
 if __name__ == "__main__":

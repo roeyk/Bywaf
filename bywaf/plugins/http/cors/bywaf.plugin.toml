@@ -26,7 +26,7 @@ capabilities = [
   "db.write:http.cors",
   "network.connect",
 ]
-module = "bywaf.plugins.http.http_cors"
+module = "bywaf.plugins.http.cors"
 database.actions.view = false
 database.actions.write = true
 database.actions.manage = false

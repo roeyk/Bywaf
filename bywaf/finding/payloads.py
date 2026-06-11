@@ -127,8 +127,8 @@ def telnet_open_candidate(port_payload: dict[str, Any]) -> dict[str, Any] | None
 
 def missing_http_security_header_candidates(headers_payload: dict[str, Any]) -> list[dict[str, Any]]:
     """Return finding candidates for missing high-value HTTP security headers."""
-    from ..plugins.http.http_headers.findings import missing_security_header_candidates
-    from ..plugins.http.http_headers.models import HeaderProbeResult, HeaderTarget
+    from ..plugins.http.headers.findings import missing_security_header_candidates
+    from ..plugins.http.headers.models import HeaderProbeResult, HeaderTarget
 
     port = int(headers_payload.get("port") or 0)
     result = HeaderProbeResult(

@@ -27,7 +27,7 @@ capabilities = [
   "framework.console.alert",
   "network.connect",
 ]
-module = "bywaf.plugins.http.http_methods"
+module = "bywaf.plugins.http.methods"
 database.actions.view = false
 database.actions.write = true
 database.actions.manage = false

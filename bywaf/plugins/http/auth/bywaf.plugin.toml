@@ -26,7 +26,7 @@ capabilities = [
   "db.write:http.auth",
   "network.connect",
 ]
-module = "bywaf.plugins.http.http_auth"
+module = "bywaf.plugins.http.auth"
 database.actions.view = false
 database.actions.write = true
 database.actions.manage = false

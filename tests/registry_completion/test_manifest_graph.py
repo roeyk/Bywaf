@@ -18,31 +18,31 @@ def test_bundled_manifest_graph_indexes_schema_providers_without_importing_plugi
     self_provider = graph.providers_for_schema("http.auth")
     framework_schema_providers = graph.providers_for_schema("http.endpoint")
 
-    assert self_provider == ("http.http_auth",)
+    assert self_provider == ("http.auth",)
     assert framework_schema_providers == ()
-    assert graph.provider_for_commandlet("http_auth") == "http.http_auth"
+    assert graph.provider_for_commandlet("http_auth") == "http.auth"
 
 
 def test_bundled_manifest_graph_separates_consumers_and_producers():
     graph = build_package_manifest_graph("bywaf.plugins", "plugins.toml")
 
-    assert "http.http_auth" in graph.consumers_for_topic("port.open")
+    assert "http.auth" in graph.consumers_for_topic("port.open")
     assert "network.portscanner" in graph.producers_for_topic("port.open")
-    assert "http.http_auth" in graph.producers_for_topic("http.auth")
+    assert "http.auth" in graph.producers_for_topic("http.auth")
 
 
 def test_bundled_manifest_graph_records_advisory_relationships():
     graph = build_package_manifest_graph("bywaf.plugins", "plugins.toml")
-    relationships = set(graph.relationships_for("http.http_auth"))
+    relationships = set(graph.relationships_for("http.auth"))
 
-    assert ManifestRelationship("http.http_auth", "consumes_topic", "port.open") in relationships
-    assert ManifestRelationship("http.http_auth", "emits_topic", "http.auth") in relationships
-    assert ManifestRelationship("http.http_auth", "emits_topic", "finding.candidate") in relationships
-    assert ManifestRelationship("http.http_auth", "uses_capability", "network.connect") in relationships
-    assert ManifestRelationship("http.http_auth", "writes_topic", "http.auth") in relationships
-    assert ManifestRelationship("http.http_auth", "writes_topic", "finding.candidate") in relationships
-    assert ManifestRelationship("http.http_auth", "has_trait", "native") in relationships
-    assert ManifestRelationship("http.http_auth", "has_role", "command-provider") in relationships
+    assert ManifestRelationship("http.auth", "consumes_topic", "port.open") in relationships
+    assert ManifestRelationship("http.auth", "emits_topic", "http.auth") in relationships
+    assert ManifestRelationship("http.auth", "emits_topic", "finding.candidate") in relationships
+    assert ManifestRelationship("http.auth", "uses_capability", "network.connect") in relationships
+    assert ManifestRelationship("http.auth", "writes_topic", "http.auth") in relationships
+    assert ManifestRelationship("http.auth", "writes_topic", "finding.candidate") in relationships
+    assert ManifestRelationship("http.auth", "has_trait", "native") in relationships
+    assert ManifestRelationship("http.auth", "has_role", "command-provider") in relationships
 
 
 def test_bundled_manifest_graph_marks_requires_bywaf_as_hard_edge():
@@ -59,8 +59,8 @@ def test_bundled_manifest_graph_serializes_for_reports():
     topic_consumers = cast(dict[str, tuple[str, ...]], data["topic_consumers"])
     topic_producers = cast(dict[str, tuple[str, ...]], data["topic_producers"])
 
-    assert providers["http.http_auth"]["schemas"] == ("http.auth",)
-    assert "http.http_auth" in topic_consumers["port.open"]
+    assert providers["http.auth"]["schemas"] == ("http.auth",)
+    assert "http.auth" in topic_consumers["port.open"]
     assert "network.portscanner" in topic_producers["port.open"]
 
 

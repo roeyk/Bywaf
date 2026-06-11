@@ -12,7 +12,7 @@
     "network.ssh_probe",
     "recon.dns_lookup",
     "recon.shodan_lookup",
-    "http.http_headers",
+    "http.headers",
     "http.eyewitness",
     "http.http_probe",
     "http.nikto",

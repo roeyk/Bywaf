@@ -7,7 +7,7 @@ Bundled Bywaf HTTP authentication posture plugin.
 ```bash
 python3 - <<'PY'
 from bywaf.registry import PluginRegistry
-PluginRegistry({}).load_package_entry("bywaf.plugins", "http.http_auth")
+PluginRegistry({}).load_package_entry("bywaf.plugins", "http.auth")
 PY
 python3 scripts/plugin_check.py --all --strict-inference
 PYTHONPATH=. pytest -q tests/framework_http_app/test_http_auth.py
@@ -15,7 +15,7 @@ PYTHONPATH=. pytest -q tests/framework_http_app/test_http_auth.py
 
 ## Contract
 
-- Module: `bywaf.plugins.http.http_auth`
+- Module: `bywaf.plugins.http.auth`
 - Commandlet: `http_auth`
 - Consumes: `port.open`
 - Emits: `http.auth`, `finding.candidate`

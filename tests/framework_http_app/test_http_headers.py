@@ -9,9 +9,9 @@ from unittest.mock import patch
 
 from bywaf.app import dispatch_repl_line, make_runner, process_framework_requests
 from bywaf.event import Event
-from bywaf.plugins.http.http_headers import HttpHeaders
-from bywaf.plugins.http.http_headers.findings import missing_security_header_candidates
-from bywaf.plugins.http.http_headers.models import HeaderProbeResult, HeaderTarget
+from bywaf.plugins.http.headers import HttpHeaders
+from bywaf.plugins.http.headers.findings import missing_security_header_candidates
+from bywaf.plugins.http.headers.models import HeaderProbeResult, HeaderTarget
 from bywaf.repl import ShellState
 
 
@@ -28,7 +28,7 @@ class TestHttpHeadersTests(unittest.TestCase):
     def test_http_headers_promotes_missing_security_headers(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
-            with patch("bywaf.plugins.http.http_headers.detect.http.client.HTTPSConnection", FakeHttpConnection):
+            with patch("bywaf.plugins.http.headers.detect.http.client.HTTPSConnection", FakeHttpConnection):
                 runner.execute("http_headers --ssl true example.test")
 
             candidates = runner.db.events_for_topic("finding.candidate")
@@ -52,7 +52,7 @@ class TestHttpHeadersTests(unittest.TestCase):
             output = io.StringIO()
 
             with (
-                patch("bywaf.plugins.http.http_headers.detect.http.client.HTTPSConnection", FakeHttpConnection),
+                patch("bywaf.plugins.http.headers.detect.http.client.HTTPSConnection", FakeHttpConnection),
                 contextlib.redirect_stdout(output),
             ):
                 dispatch_repl_line(runner, "http_headers --ssl true example.test", state)
@@ -68,7 +68,7 @@ class TestHttpHeadersTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with patch(
-                "bywaf.plugins.http.http_headers.detect.http.client.HTTPSConnection",
+                "bywaf.plugins.http.headers.detect.http.client.HTTPSConnection",
                 WeakHeaderConnection,
             ):
                 runner.execute("http_headers --ssl true example.test")

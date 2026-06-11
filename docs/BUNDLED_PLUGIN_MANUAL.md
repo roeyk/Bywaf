@@ -35,10 +35,10 @@ A **provider** is the Python implementation object or module that registers or r
 <details class="plugin-toc-family">
 <summary id="toc-http"><span class="toc-count">13</span><span class="toc-arrow" aria-hidden="true">▸</span><span class="toc-name">HTTP</span></summary>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httpeyewitness">http.eyewitness</a></span></div>
-<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_auth">http.http_auth</a></span></div>
-<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_cors">http.http_cors</a></span></div>
-<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_headers">http.http_headers</a></span></div>
-<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_methods">http.http_methods</a></span></div>
+<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_auth">http.auth</a></span></div>
+<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_cors">http.cors</a></span></div>
+<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_headers">http.headers</a></span></div>
+<div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_methods">http.methods</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_paths">http.http_paths</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httphttp_probe">http.http_probe</a></span></div>
 <div class="toc-entry"><span class="toc-count toc-child-count">1</span><span class="toc-name"><a href="#httpnikto">http.nikto</a></span></div>
@@ -122,9 +122,9 @@ A **provider** is the Python implementation object or module that registers or r
 | Recon | `recon.shodan_lookup` | `shodan_lookup` | Query Shodan by IP or search text. | `shodan_lookup mode=search apache country:US` | [recon.shodan_lookup](#reconshodan_lookup) |
 | Identity | `identity.ldap_probe` | `ldap_probe` | Probe LDAP server metadata. | `ldap_probe username=user password=secret dc.example.test` | [identity.ldap_probe](#identityldap_probe) |
 | Identity | `identity.smb_probe` | `smb_probe` | Probe SMB server metadata. | `smb_probe domain=EXAMPLE username=user password=secret dc.example.test` | [identity.smb_probe](#identitysmb_probe) |
-| HTTP | `http.http_auth` | `http_auth` | Probe HTTP auth challenges and passive auth posture findings. | `http_auth https://example.com/admin` | [http.http_auth](#httphttp_auth) |
-| HTTP | `http.http_headers` | `http_headers` | Collect HTTP headers and header findings. | `http_headers ssl=true example.com` | [http.http_headers](#httphttp_headers) |
-| HTTP | `http.http_methods` | `http_methods` | Probe allowed HTTP methods and risky method findings. | `http_methods https://example.com/` | [http.http_methods](#httphttp_methods) |
+| HTTP | `http.auth` | `http_auth` | Probe HTTP auth challenges and passive auth posture findings. | `http_auth https://example.com/admin` | [http.auth](#httphttp_auth) |
+| HTTP | `http.headers` | `http_headers` | Collect HTTP headers and header findings. | `http_headers ssl=true example.com` | [http.headers](#httphttp_headers) |
+| HTTP | `http.methods` | `http_methods` | Probe allowed HTTP methods and risky method findings. | `http_methods https://example.com/` | [http.methods](#httphttp_methods) |
 | HTTP | `http.http_probe` | `http_probe` | Publish reusable HTTP endpoint facts. | `http_probe https://example.com/` | [http.http_probe](#httphttp_probe) |
 | HTTP | `http.http_paths` | `http_paths` | Check explicit or common web paths. | `http_paths paths=/.git/config,/.env https://example.com/` | [http.http_paths](#httphttp_paths) |
 | HTTP | `http.repo_exposure` | `repo_exposure`, `git_expose_check` | Check for exposed repository metadata. | `http_probe https://example.com/ \| repo_exposure` | [http.repo_exposure](#httprepo_exposure) |
@@ -915,10 +915,10 @@ supplied-credential outcomes when they are in scope.
 ### HTTP Plugin TOC
 
 - [http.eyewitness](#httpeyewitness)
-- [http.http_auth](#httphttp_auth)
-- [http.http_cors](#httphttp_cors)
-- [http.http_headers](#httphttp_headers)
-- [http.http_methods](#httphttp_methods)
+- [http.auth](#httphttp_auth)
+- [http.cors](#httphttp_cors)
+- [http.headers](#httphttp_headers)
+- [http.methods](#httphttp_methods)
 - [http.http_paths](#httphttp_paths)
 - [http.http_probe](#httphttp_probe)
 - [http.nikto](#httpnikto)
@@ -930,7 +930,7 @@ supplied-credential outcomes when they are in scope.
 
 <a id="httphttp_headers"></a>
 
-### `http.http_headers`
+### `http.headers`
 
 Collects HTTP response headers and promotes missing high-value security headers.
 
@@ -948,10 +948,10 @@ Plugin metadata:
 | Field | Value |
 | --- | --- |
 | Family | HTTP |
-| Plugin | `http.http_headers` |
+| Plugin | `http.headers` |
 | Commandlets | `http_headers` |
 | Last updated | `2026-06-02` from source history |
-| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/http_headers bywaf/plugins/http/http_headers/bywaf.plugin.toml` |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/headers bywaf/plugins/http/headers/bywaf.plugin.toml` |
 
 #### Commandlet: `http_headers`
 
@@ -977,7 +977,7 @@ are reviewed through `report` or `finding_report`.
 
 <a id="httphttp_auth"></a>
 
-### `http.http_auth`
+### `http.auth`
 
 Probes HTTP authentication challenges and reports passive auth posture findings.
 
@@ -995,10 +995,10 @@ Plugin metadata:
 | Field | Value |
 | --- | --- |
 | Family | HTTP |
-| Plugin | `http.http_auth` |
+| Plugin | `http.auth` |
 | Commandlets | `http_auth` |
 | Last updated | `2026-06-06` from source history |
-| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/http_auth` |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/auth` |
 
 #### Commandlet: `http_auth`
 
@@ -1026,7 +1026,7 @@ or `finding_report`.
 
 <a id="httphttp_cors"></a>
 
-### `http.http_cors`
+### `http.cors`
 
 Probes HTTP CORS posture and reports unsafe cross-origin policy candidates.
 
@@ -1043,10 +1043,10 @@ Plugin metadata:
 | Field | Value |
 | --- | --- |
 | Family | HTTP |
-| Plugin | `http.http_cors` |
+| Plugin | `http.cors` |
 | Commandlets | `http_cors` |
 | Last updated | `2026-06-07` from source history |
-| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/http_cors` |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/cors` |
 
 #### Commandlet: `http_cors`
 
@@ -1075,7 +1075,7 @@ upstream open ports, and successful findings are reviewed through `report` or
 
 <a id="httphttp_methods"></a>
 
-### `http.http_methods`
+### `http.methods`
 
 Probes HTTP OPTIONS and reports risky allowed methods.
 
@@ -1092,10 +1092,10 @@ Plugin metadata:
 | Field | Value |
 | --- | --- |
 | Family | HTTP |
-| Plugin | `http.http_methods` |
+| Plugin | `http.methods` |
 | Commandlets | `http_methods` |
 | Last updated | `2026-06-06` from source history |
-| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/http_methods` |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/http/methods` |
 
 #### Commandlet: `http_methods`
 
