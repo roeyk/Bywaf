@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from bywaf.event.schemas import EVENT_SCHEMAS, FIELD_TYPES, EventSchema, FieldSchema
+from ...event.schemas import EVENT_SCHEMAS, FIELD_TYPES, EventSchema, FieldSchema
 
-from .manifest_fields import bool_field, optional_string_field, require_known_keys, string_field, string_list_field
+from .fields import bool_field, optional_string_field, require_known_keys, string_field, string_list_field
 
 
 def parse_event_schema_rows(value: Any, source: str) -> tuple[EventSchema, ...]:

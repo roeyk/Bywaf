@@ -15,9 +15,9 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Iterable
 
-from ..plugin import Commandlet
-from ..specs import TriggerSpec
-from .manifest_model import PluginManifest
+from ...plugin import Commandlet
+from ...specs import TriggerSpec
+from .model import PluginManifest
 
 
 def enforce_plugin_manifest(

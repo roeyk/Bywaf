@@ -10,8 +10,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from ..specs import ArgumentSpec, OptionSpec
-from .manifest_fields import (
+from ...specs import ArgumentSpec, OptionSpec
+from .fields import (
     argument_rows_field,
     database_actions_field,
     option_rows_field,

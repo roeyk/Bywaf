@@ -12,8 +12,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from ..event.schemas import EventSchema
-from ..specs import ArgumentSpec, OptionSpec, TriggerSpec
+from ...event.schemas import EventSchema
+from ...specs import ArgumentSpec, OptionSpec, TriggerSpec
 
 
 @dataclass(frozen=True, slots=True)

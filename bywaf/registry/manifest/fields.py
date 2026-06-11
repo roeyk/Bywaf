@@ -5,9 +5,9 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from bywaf.specs import ArgumentSpec, CompletionSpec, OptionSpec
+from ...specs import ArgumentSpec, CompletionSpec, OptionSpec
 
-from .compat import REQUIREMENT_RE
+from ..compat import REQUIREMENT_RE
 
 SEMVERISH_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
 

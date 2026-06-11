@@ -14,12 +14,21 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
-from ..event.schemas import register_event_schemas
-from ..plugin import Commandlet
-from ..specs import TriggerSpec
-from ..toml_support import load_data_file
-from .loading import load_module_path, load_plugins, load_trigger_specs
-from .manifest_fields import (
+from ...event.schemas import register_event_schemas
+from ...plugin import Commandlet
+from ...specs import TriggerSpec
+from ...toml_support import load_data_file
+from ..loading import load_module_path, load_plugins, load_trigger_specs
+from ..trust import (
+    PluginTrustPolicy,
+)
+from ..trust_manifest import (
+    PluginManifestTrust,
+    enforce_plugin_manifest_signature,
+)
+from .commandlets import parse_manifest_commandlets
+from .enforcement import enforce_plugin_manifest, enforce_trigger_manifest
+from .fields import (
     bool_field,
     list_field as list_field,
     optional_string_field,
@@ -30,18 +39,9 @@ from .manifest_fields import (
     validate_requires_bywaf,
     validate_version_string,
 )
-from .manifest_commandlets import parse_manifest_commandlets
-from .manifest_enforcement import enforce_plugin_manifest, enforce_trigger_manifest
-from .manifest_model import PluginManifest
-from .manifest_schemas import parse_event_schema_rows
-from .manifest_triggers import parse_trigger_rows
-from .trust import (
-    PluginTrustPolicy,
-)
-from .trust_manifest import (
-    PluginManifestTrust,
-    enforce_plugin_manifest_signature,
-)
+from .model import PluginManifest
+from .schemas import parse_event_schema_rows
+from .triggers import parse_trigger_rows
 
 
 def load_filesystem_plugins(plugin_dir: Path) -> tuple[Commandlet, ...]:
