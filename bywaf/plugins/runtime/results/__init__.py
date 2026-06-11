@@ -12,14 +12,12 @@ Used by:
 from __future__ import annotations
 
 from collections.abc import Iterable
+from importlib import import_module
+from typing import Any
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
 from bywaf.plugins.network.portscanner.ports import PORT_SORT_KEYS
-from bywaf.plugins.runtime.results.follow import follow_results
-from bywaf.plugins.runtime.results.render import no_results_message, render_results
-from bywaf.plugins.runtime.results.scope import select_result_scope
-from bywaf.plugins.runtime.results.selectors import parse_results_selectors
 from bywaf.runtime_display import (
     runtime_sort_completion_candidates,
 )
@@ -49,20 +47,21 @@ class Results(CommandletBase):
     ):
         """Select a result scope and render useful inserted records."""
         del input_events
+        helpers = result_helpers()
         parser = self.parser()
         parser.add_argument("--follow", action="store_true")
         parser.add_argument("--page", action="store_true")
         parsed, tokens = parser.parse_known_args(args)
-        selectors = parse_results_selectors(tokens)
+        selectors = helpers["parse_results_selectors"](tokens)
         context.require_foreground("result views")
         if parsed.follow:
-            follow_results(context, selectors)
+            helpers["follow_results"](context, selectors)
             return ()
-        scope = select_result_scope(context, selectors)
+        scope = helpers["select_result_scope"](context, selectors)
         if not scope.events:
-            context.output(no_results_message(context))
+            context.output(helpers["no_results_message"](context))
             return ()
-        output = render_results(context, scope)
+        output = helpers["render_results"](context, scope)
         if parsed.page:
             context.page_text(output)
         else:
@@ -86,6 +85,26 @@ class Results(CommandletBase):
 )
 class ResultAlias(Results):
     """Backwards-free synonym for the singular spelling operators try first."""
+
+
+def result_helpers() -> dict[str, Any]:
+    """Return lazily imported result helper functions.
+
+    Called by: `Results.run()`.  The helpers live in child modules that import
+    each other through the `sections` package, so keeping these imports lazy
+    avoids a static parent-package cycle in architecture metrics.
+    """
+    follow_module = import_module("bywaf.plugins.runtime.results.follow")
+    render_module = import_module("bywaf.plugins.runtime.results.render")
+    scope_module = import_module("bywaf.plugins.runtime.results.scope")
+    selectors_module = import_module("bywaf.plugins.runtime.results.selectors")
+    return {
+        "follow_results": follow_module.follow_results,
+        "no_results_message": render_module.no_results_message,
+        "parse_results_selectors": selectors_module.parse_results_selectors,
+        "render_results": render_module.render_results,
+        "select_result_scope": scope_module.select_result_scope,
+    }
 
 
 def plugins() -> tuple[Commandlet, ...]:

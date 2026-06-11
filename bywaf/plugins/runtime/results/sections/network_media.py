@@ -1,8 +1,7 @@
 """Screenshot and route result sections for the results command.
 
-Used by: `runtime.results.network_sections` to keep the public section import
-surface stable while separating artifact-heavy and route-hop renderers from
-basic host/port/service sections.
+Used by: `runtime.results.sections.network` to keep artifact-heavy and
+route-hop renderers separate from basic host/port/service sections.
 """
 
 from __future__ import annotations

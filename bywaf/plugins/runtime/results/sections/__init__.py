@@ -5,7 +5,8 @@ Compatibility facade for result-section renderers split by domain.
 
 from __future__ import annotations
 
-from .http_sections import (
+from .artifacts import render_artifacts_section, render_tool_errors_section
+from .http import (
     header_count,
     missing_header_summary,
     observation_summary,
@@ -15,7 +16,7 @@ from .http_sections import (
     render_waf_section,
     render_web_fingerprints_section,
 )
-from .network_sections import (
+from .network import (
     equivalent_ports_command,
     format_rtt,
     render_hosts_section,
@@ -28,7 +29,7 @@ from .network_sections import (
     render_tls_certificates_section,
     screenshot_artifact_refs,
 )
-from .share_sections import format_bool, render_smb_shares_section
+from .shares import format_bool, render_smb_shares_section
 
 __all__ = [
     "equivalent_ports_command",
@@ -37,6 +38,7 @@ __all__ = [
     "header_count",
     "missing_header_summary",
     "observation_summary",
+    "render_artifacts_section",
     "render_hosts_section",
     "render_http_endpoints_section",
     "render_http_headers_section",
@@ -49,6 +51,7 @@ __all__ = [
     "render_smb_shares_section",
     "render_tcp_banners_section",
     "render_tls_certificates_section",
+    "render_tool_errors_section",
     "render_waf_section",
     "render_web_fingerprints_section",
     "screenshot_artifact_refs",

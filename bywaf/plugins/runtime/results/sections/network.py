@@ -14,7 +14,7 @@ from bywaf.plugin import CommandContext
 from bywaf.plugins.network.portscanner.ports import render_ports
 from bywaf.runtime_display import command_context_style_getter, render_table, terminal_table_width
 from bywaf.style import styled_subject_text
-from .network_media_sections import (
+from .network_media import (
     format_rtt,
     render_route_hops_section,
     render_screenshots_section,
