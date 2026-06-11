@@ -1942,7 +1942,7 @@ Plugin metadata:
 | Plugin | `runtime.artifact` |
 | Commandlets | `artifact`, `search` |
 | Last updated | `2026-06-02` from source history |
-| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/artifact bywaf/plugins/runtime/artifact.plugin.toml` |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/artifact` |
 
 #### Commandlet: `artifact`
 
@@ -2071,7 +2071,7 @@ Plugin metadata:
 | Plugin | `runtime.audit` |
 | Commandlets | `audit` |
 | Last updated | `2026-06-02` from source history |
-| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/audit bywaf/plugins/runtime/audit.plugin.toml` |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/audit` |
 
 #### Commandlet: `audit`
 
@@ -2317,7 +2317,7 @@ Plugin metadata:
 | Plugin | `runtime.results` |
 | Commandlets | `results`, `result` |
 | Last updated | `2026-06-02` from source history |
-| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/results bywaf/plugins/runtime/results.plugin.toml` |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/results` |
 
 #### Commandlets: `results`, `result`
 
@@ -2363,7 +2363,7 @@ Plugin metadata:
 | Plugin | `runtime.control` |
 | Commandlets | `signal`, `end`, `kill`, `cancel`, `pause`, `resume`, `stop` |
 | Last updated | `2026-06-02` from source history |
-| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/control bywaf/plugins/runtime/control.plugin.toml` |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/control` |
 
 #### Commandlets: `signal`, `end`, `kill`, `cancel`, `pause`, `resume`, `stop`
 
@@ -2449,7 +2449,7 @@ Plugin metadata:
 | Plugin | `runtime.name` |
 | Commandlets | `name` |
 | Last updated | `2026-06-02` from source history |
-| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/name.py bywaf/plugins/runtime/name.plugin.toml` |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/name` |
 
 #### Commandlet: `name`
 
@@ -2490,7 +2490,7 @@ Plugin metadata:
 | Plugin | `runtime.key` |
 | Commandlets | `key` |
 | Last updated | `2026-06-02` from source history |
-| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/key.py bywaf/plugins/runtime/key.plugin.toml` |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/key` |
 
 #### Commandlet: `key`
 
@@ -2574,7 +2574,7 @@ Plugin metadata:
 | Plugin | `runtime.watchdog` |
 | Commandlets | `watchdog` |
 | Last updated | `2026-06-02` from source history |
-| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/watchdog.py bywaf/plugins/runtime/watchdog.plugin.toml` |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/runtime/watchdog` |
 
 #### Commandlet: `watchdog`
 
