@@ -70,6 +70,7 @@ class TestSkeletonsRuntimePolicyTests(unittest.TestCase):
             root / "bywaf" / "artifact_store.py",
             root / "bywaf" / "artifacts.py",
             root / "bywaf" / "plugin" / "context.py",
+            root / "bywaf" / "plugin" / "context" / "__init__.py",
             root / "bywaf" / "plugin" / "services.py",
             root / "bywaf" / "plugin" / "services_artifacts.py",
         }
