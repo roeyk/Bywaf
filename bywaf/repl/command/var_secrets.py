@@ -41,7 +41,7 @@ def read_secret_value(name: str, *, mode: str | None = None) -> str:
     input.
     """
     prompt = f"Secret for {name}: "
-    warn_if_unknown_secret_input_mode(mode)
+    warn_unknown_secret_mode(mode)
     configured_mode = normalize_secret_input_mode(mode)
     effective_mode = effective_secret_input_mode(mode)
     if effective_mode == ASKPASS_MODE:
@@ -62,7 +62,7 @@ def read_secret_value(name: str, *, mode: str | None = None) -> str:
     return getpass.getpass(prompt)
 
 
-def warn_if_unknown_secret_input_mode(mode: str | None) -> None:
+def warn_unknown_secret_mode(mode: str | None) -> None:
     """Warn when a configured secret input mode is unsupported.
 
     Called by: `read_secret_value()` before applying fallback behavior.

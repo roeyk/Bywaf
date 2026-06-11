@@ -21,7 +21,7 @@ from importlib import import_module
 from collections.abc import Iterable
 
 from bywaf.event import Event
-from bywaf.plugins.addressing import filter_addresses_for_ip_family, is_ip_scan_target, target_matches_ip_family
+from bywaf.plugins.addressing import filter_by_ip_family, is_ip_scan_target, target_matches_ip_family
 from bywaf.plugins.discovery.hostscanner import publish_name_resolution_events
 from bywaf.plugins.network.nmap_diagnostics import NMAP_FAILURES, publish_nmap_error
 from bywaf.plugins.network.nmap_backend import scan_open_ports
@@ -129,7 +129,7 @@ def resolve_explicit_hosts(context: CommandContext, hosts: Iterable[str], argume
             else:
                 context.alert(f"scan target {host} does not match nmap address-family arguments")
             continue
-        addresses = filter_addresses_for_ip_family(context.policy.resolve_target(host), arguments)
+        addresses = filter_by_ip_family(context.policy.resolve_target(host), arguments)
         if not addresses:
             context.alert(f"no resolved addresses for {host} match nmap address-family arguments")
             continue
@@ -152,7 +152,7 @@ def scan_hosts(
 ):
     """Scan hosts once and emit normalized open-port payloads."""
     new_hosts = [host for host in hosts if host and host not in seen_hosts]
-    new_hosts = filter_hosts_by_network_policy(context, new_hosts)
+    new_hosts = filter_hosts_by_policy(context, new_hosts)
     if not new_hosts:
         return
     context.raise_if_cancelled()
@@ -215,7 +215,7 @@ def scan_hosts(
         yield payload
 
 
-def filter_hosts_by_network_policy(context: CommandContext, hosts: Iterable[str]) -> list[str]:
+def filter_hosts_by_policy(context: CommandContext, hosts: Iterable[str]) -> list[str]:
     """Apply framework network policy before invoking the port scanner."""
     return list(context.policy.filter_network_targets(hosts))
 

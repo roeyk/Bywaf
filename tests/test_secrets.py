@@ -17,7 +17,7 @@ from bywaf.secret.store import (
     SECRET_REF_PREFIX,
     fingerprint_secret,
     is_secret_name,
-    load_or_create_fingerprint_key,
+    load_fingerprint_key,
     redact_command_text,
 )
 
@@ -32,9 +32,9 @@ class SecretTests(unittest.TestCase):
     def test_load_or_create_fingerprint_key_writes_restrictive_file(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "secret.key")
-            key = load_or_create_fingerprint_key(path)
+            key = load_fingerprint_key(path)
             self.assertEqual(len(key), 32)
-            self.assertEqual(load_or_create_fingerprint_key(path), key)
+            self.assertEqual(load_fingerprint_key(path), key)
             self.assertEqual(path.stat().st_mode & 0o777, 0o600)
 
     def test_is_secret_name_uses_declared_names_only(self):

@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import argparse
 
-from .app_dispatch import CLI_SUBCOMMANDS, GLOBAL_OPTIONS_WITH_VALUES
-from .repl.resources import DEFAULT_DATABASE
-from .runner import add_runner_arguments
+from ..repl.resources import DEFAULT_DATABASE
+from ..runner import add_runner_arguments
+from .dispatch import CLI_SUBCOMMANDS, GLOBAL_OPTIONS_WITH_VALUES
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -92,7 +92,7 @@ def route_direct_commandlet_argv(argv: list[str]) -> list[str]:
     """Route `bywaf <commandlet> ...` through the hidden commandlet CLI path.
 
     Called by: `bywaf.app.main()` before argparse parses argv. The scan uses
-    `GLOBAL_OPTIONS_WITH_VALUES` and `CLI_SUBCOMMANDS` from `app_dispatch.py` so
+    `GLOBAL_OPTIONS_WITH_VALUES` and `CLI_SUBCOMMANDS` from `app.dispatch` so
     global options stay attached to their values while bare commandlet names are
     routed through `cmd`.
     """

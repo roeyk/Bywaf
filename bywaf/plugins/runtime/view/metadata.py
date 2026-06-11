@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .commands import command_run_metadata_by_id, command_run_metadata_by_job_id
+from .commands import run_meta_by_id, run_meta_by_job
 from .rows import (
     filter_view_job_rows,
     filter_view_run_rows,
@@ -13,8 +13,8 @@ from .rows import (
 )
 
 __all__ = [
-    "command_run_metadata_by_id",
-    "command_run_metadata_by_job_id",
+    "run_meta_by_id",
+    "run_meta_by_job",
     "filter_view_job_rows",
     "filter_view_run_rows",
     "is_view_job_row",

@@ -6,7 +6,7 @@ from bywaf.plugin import CommandContext, CompletionContext
 from bywaf.plugins.runtime.job.filters import filter_job_rows
 from bywaf.plugins.runtime.view import (
     apply_runtime_new_cursor,
-    filter_runtime_rows_by_events,
+    filter_rows_by_events,
     filter_runtime_rows_since,
     filter_view_job_rows,
 )
@@ -57,7 +57,7 @@ def print_jobs(
     rows = filter_runtime_rows_since(runtime, "job", rows, since)
     if filters:
         events = context.event_store("job list")
-        rows = filter_runtime_rows_by_events(events, "job", rows, filters)
+        rows = filter_rows_by_events(events, "job", rows, filters)
     rows, newest_id = apply_runtime_new_cursor(context, "job", rows, highlight_newest)
     if sort_key:
         rows = sort_job_rows(rows, sort_key)

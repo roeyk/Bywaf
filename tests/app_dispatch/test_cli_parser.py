@@ -14,7 +14,7 @@ from bywaf.app import (
     parse_load_spec,
     startup_database_path,
 )
-from bywaf.cli_trust import plugin_trust_policy_from_args
+from bywaf.cli_trust import trust_policy_from_args
 from bywaf.db import EventStore
 
 
@@ -113,7 +113,7 @@ class CliParserTests(unittest.TestCase):
         parser = build_parser()
         args = parser.parse_args(["--allow-unsigned-plugin-manifests"])
 
-        policy = plugin_trust_policy_from_args(args)
+        policy = trust_policy_from_args(args)
 
         self.assertFalse(policy.allow_unsigned_plugins)
         self.assertTrue(policy.allow_unsigned_plugin_manifests)

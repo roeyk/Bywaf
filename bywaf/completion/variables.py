@@ -43,7 +43,7 @@ def qualified_variable_candidates(prefix: str, names: list[str], catalog_names: 
     return [f"{name}=" for name in all_variable_names(names, catalog_names) if name.startswith(prefix)]
 
 
-def active_context_variable_candidates(active_context: str | None, names: list[str]) -> list[str]:
+def context_var_candidates(active_context: str | None, names: list[str]) -> list[str]:
     """Complete short variable names for the active `use` context."""
     if not active_context:
         return []

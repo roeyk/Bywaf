@@ -18,8 +18,8 @@ from ..event import Event
 from ..specs import CommandSpec, OptionSpec
 from .command_base import CommandletBase
 from .manifest_specs import (
-    key_value_args_to_options,
-    manifest_arguments_from_manifest,
+    kv_args_to_options,
+    manifest_args_from_toml,
     manifest_name_for_function,
     manifest_option_cast,
     manifest_option_default,
@@ -88,7 +88,7 @@ class ManifestCommandlet(CommandletBase):
         path = cls.resolved_manifest_path()
         name = cls.resolved_manifest_name(path)
         cls.spec = spec_from_manifest(path, name)
-        cls.manifest_arguments = manifest_arguments_from_manifest(path, name)
+        cls.manifest_arguments = manifest_args_from_toml(path, name)
 
     @classmethod
     def resolved_manifest_path(cls) -> Path:
@@ -160,7 +160,7 @@ class ManifestCommandlet(CommandletBase):
             else:
                 parser_kwargs["type"] = manifest_option_cast(option_spec)
             parser.add_argument(f"--{option_spec.name}", **parser_kwargs)
-        return parser.parse_args(key_value_args_to_options(args, option_names))
+        return parser.parse_args(kv_args_to_options(args, option_names))
 
 
 class ManifestArgumentParser(argparse.ArgumentParser):
@@ -195,7 +195,7 @@ class FunctionCommandlet(ManifestCommandlet):
         manifest_path = manifest_path_for_function(func)
         manifest_name = manifest_name_for_function(func, manifest_path)
         self.spec = spec_from_manifest(manifest_path, manifest_name)
-        self.manifest_arguments = manifest_arguments_from_manifest(manifest_path, manifest_name)
+        self.manifest_arguments = manifest_args_from_toml(manifest_path, manifest_name)
 
     def handle(
         self,

@@ -29,7 +29,7 @@ from .findings import (
 from .process import nikto_argv, run_target
 from .targets import (
     dedupe_targets,
-    filter_http_payloads_by_policy,
+    filter_http_by_policy,
     nikto_targets,
     target_from_endpoint_event,
     target_from_webfin_event,
@@ -41,7 +41,7 @@ __all__ = (
     "dedupe_targets",
     "extract_finding_records",
     "finding_identifiers",
-    "filter_http_payloads_by_policy",
+    "filter_http_by_policy",
     "nikto_argv",
     "nikto_targets",
     "normalize_findings",
@@ -95,7 +95,7 @@ class Nikto(CommandletBase):
         parser.add_argument("--tuning", default=self.var_default(context, "tuning", ""))
         parsed = parser.parse_args(args)
 
-        targets = filter_http_payloads_by_policy(
+        targets = filter_http_by_policy(
             context,
             nikto_targets(parsed.targets, input_events, parsed.source),
         )

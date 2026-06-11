@@ -18,7 +18,7 @@ from .event_selectors import event_candidates, event_selector_value_candidates
 from .providers import bundle_candidates, key_candidates
 from .resources import complete_at_file_prefix
 from .variables import (
-    active_context_variable_candidates,
+    context_var_candidates,
     is_qualified_variable_prefix,
     qualified_variable_candidates,
     secret_option_candidates,
@@ -152,7 +152,7 @@ class BuiltinCompletionMixin(BuiltinResourceCompletionMixin):
         catalog_names = self.catalog_variable_names()
         if is_qualified_variable_prefix(prefix):
             return qualified_variable_candidates(prefix, names, catalog_names)
-        active_candidates = active_context_variable_candidates(self.active_context, names)
+        active_candidates = context_var_candidates(self.active_context, names)
         if active_candidates:
             return [*secret_candidates, *active_candidates]
         return [*secret_candidates, *unscoped_variable_candidates(prefix, names, catalog_names)]

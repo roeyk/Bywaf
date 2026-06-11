@@ -14,7 +14,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from bywaf.artifacts import artifact_store_for_event_store
+from bywaf.artifacts import artifact_store_for_db
 from bywaf.db import EventStore
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, RunConfig
@@ -437,7 +437,7 @@ class LibraryPluginTests(unittest.TestCase):
             payload = publish_screenshot(context, screenshot, output_dir, [{"url": "http://127.0.0.1/"}], silent=True)
             publish_screenshotted_hosts(context, [payload])
 
-            artifacts = artifact_store_for_event_store(db).list(command_run_id=context.command_run_id)
+            artifacts = artifact_store_for_db(db).list(command_run_id=context.command_run_id)
             self.assertEqual(len(artifacts), 1)
             screenshot_event = db.events_for_topic("web.screenshotted_host")[0]
             self.assertEqual(screenshot_event.payload["urls"], ["http://127.0.0.1/"])
@@ -469,7 +469,7 @@ class LibraryPluginTests(unittest.TestCase):
             error = db.events_for_topic("tool.error")[0].payload
             self.assertEqual(error["message"], "EyeWitness produced no screenshot files")
             self.assertIn("artifact_id", error)
-            artifacts = artifact_store_for_event_store(db).list(command_run_id=context.command_run_id)
+            artifacts = artifact_store_for_db(db).list(command_run_id=context.command_run_id)
             self.assertEqual(len(artifacts), 1)
             self.assertTrue(artifacts[0].name.startswith("eyewitness-"))
             self.assertTrue(artifacts[0].name.endswith("-output.txt"))

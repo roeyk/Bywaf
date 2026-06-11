@@ -32,7 +32,7 @@ class _DiagnosticState(Protocol):
 class AuthoringDiagnosticMixin:
     """Diagnostics for common plugin-authoring mistakes."""
 
-    def inspect_plugin_factory_decorators(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+    def inspect_factory_decorators(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
         """Report commandlet metadata decorators on plugin() instead of the commandlet class."""
         state = cast(_DiagnosticState, self)
         for decorator in node.decorator_list:

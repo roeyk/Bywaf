@@ -16,8 +16,8 @@ from .command_decorators import argument, commandlet, option
 from .command_manifest import FunctionCommandlet, ManifestArgumentParser, ManifestCommandlet, RunConfig
 from .manifest_specs import (
     format_table as format_table,
-    key_value_args_to_options,
-    manifest_arguments_from_manifest,
+    kv_args_to_options,
+    manifest_args_from_toml,
     manifest_name_for_function,
     manifest_option_cast,
     manifest_option_default,
@@ -38,8 +38,8 @@ __all__ = [
     "argument",
     "commandlet",
     "format_table",
-    "key_value_args_to_options",
-    "manifest_arguments_from_manifest",
+    "kv_args_to_options",
+    "manifest_args_from_toml",
     "manifest_name_for_function",
     "manifest_option_cast",
     "manifest_option_default",

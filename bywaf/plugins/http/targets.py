@@ -14,7 +14,7 @@ class HttpTarget:
     """Normalized HTTP target derived from text or a `port.open` event.
 
     Constructed by: `http_targets()`, `http_target_from_text()`, and
-    `http_target_from_port_event()`.
+    `http_target_from_port()`.
     Used by: bundled HTTP commandlets that need host, port, scheme, path, and
     display URL fields before making one request.
     """
@@ -40,13 +40,13 @@ def http_targets(
     if targets:
         return [http_target_from_text(target, scheme, path) for target in targets]
     return [
-        http_target_from_port_event(event, scheme, path)
+        http_target_from_port(event, scheme, path)
         for event in input_events
         if "host" in event.payload and "port" in event.payload
     ]
 
 
-def http_target_from_port_event(event: Event, scheme: str, path: str) -> HttpTarget:
+def http_target_from_port(event: Event, scheme: str, path: str) -> HttpTarget:
     """Convert one `port.open` event into a normalized HTTP target."""
     host = str(event.payload["host"])
     port = int(event.payload["port"])

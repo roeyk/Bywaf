@@ -35,7 +35,7 @@ class PayloadFilterMixin:
         """Implemented by EventStore."""
         raise NotImplementedError
 
-    def job_ids_matching_payload_filters(self, filters: dict[str, str], *, limit: int = 100000) -> set[int]:
+    def job_ids_for_filters(self, filters: dict[str, str], *, limit: int = 100000) -> set[int]:
         """Return job ids whose associated events match payload filters.
 
         Runtime list filters need to answer "which jobs produced events matching
@@ -80,7 +80,7 @@ class PayloadFilterMixin:
                     matched.add(int(row["matched_job_id"]))
         return matched
 
-    def pipeline_ids_matching_payload_filters(self, filters: dict[str, str], *, limit: int = 100000) -> set[str]:
+    def pipeline_ids_for_filters(self, filters: dict[str, str], *, limit: int = 100000) -> set[str]:
         """Return pipeline serials whose events match payload filters."""
         if not filters:
             return set()
@@ -102,7 +102,7 @@ class PayloadFilterMixin:
                     matched.add(event.pipeline_id)
         return matched
 
-    def run_ids_matching_payload_filters(self, filters: dict[str, str], *, limit: int = 100000) -> set[str]:
+    def run_ids_for_filters(self, filters: dict[str, str], *, limit: int = 100000) -> set[str]:
         """Return command-run serials whose events match payload filters."""
         if not filters:
             return set()

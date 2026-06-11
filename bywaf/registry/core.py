@@ -45,7 +45,7 @@ class PluginRegistry(PluginRegistryLoadingMixin):
     commandlet_bywaf_requirements: dict[str, str] = field(default_factory=dict)
     manifests: dict[str, PluginManifest] = field(default_factory=dict)
     filesystem_requested_providers: tuple[str, ...] = ()
-    filesystem_auto_loaded_providers: tuple[str, ...] = ()
+    fs_autoloaded_providers: tuple[str, ...] = ()
     filesystem_load_order: tuple[str, ...] = ()
     filesystem_auto_load_reasons: dict[str, str] = field(default_factory=dict)
     varstore_class = VarStore

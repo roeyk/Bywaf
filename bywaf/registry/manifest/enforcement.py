@@ -41,12 +41,12 @@ def enforce_plugin_manifest(
     for name in sorted(manifest.commandlets):
         plugin = by_name[name]
         if hydrate_specs:
-            hydrate_command_spec_from_manifest(plugin, manifest, name)
-        enforce_commandlet_manifest_entry(manifest, plugin, path, name)
+            hydrate_spec_from_manifest(plugin, manifest, name)
+        enforce_commandlet_entry(manifest, plugin, path, name)
     return tuple(by_name[name] for name in sorted(manifest.commandlets))
 
 
-def enforce_commandlet_manifest_entry(
+def enforce_commandlet_entry(
     manifest: PluginManifest,
     plugin: Commandlet,
     path: Path,
@@ -69,7 +69,7 @@ def enforce_commandlet_manifest_entry(
         path,
         name,
         "secret_provider_variables",
-        manifest.commandlet_secret_provider_variables.get(name, ()),
+        manifest.commandlet_secret_vars.get(name, ()),
         spec.secret_provider_variables,
     )
 
@@ -135,7 +135,7 @@ def set_mismatch_details(manifest_values: set[str], code_values: set[str]) -> st
     return "; ".join(details)
 
 
-def hydrate_command_spec_from_manifest(plugin: Commandlet, manifest: PluginManifest, name: str) -> None:
+def hydrate_spec_from_manifest(plugin: Commandlet, manifest: PluginManifest, name: str) -> None:
     """Overlay sidecar-owned bundled metadata onto a runtime command spec."""
     spec = plugin.spec
     plugin.spec = replace(
@@ -147,7 +147,7 @@ def hydrate_command_spec_from_manifest(plugin: Commandlet, manifest: PluginManif
         options=manifest.commandlet_options.get(name, spec.options) or spec.options,
         arguments=manifest.commandlet_arguments.get(name, spec.arguments) or spec.arguments,
         provider_variables=manifest.commandlet_provider_variables.get(name, spec.provider_variables),
-        secret_provider_variables=manifest.commandlet_secret_provider_variables.get(
+        secret_provider_variables=manifest.commandlet_secret_vars.get(
             name,
             spec.secret_provider_variables,
         ),

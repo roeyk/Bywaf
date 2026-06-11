@@ -125,9 +125,9 @@ def telnet_open_candidate(port_payload: dict[str, Any]) -> dict[str, Any] | None
     return plugin_candidate(port_payload)
 
 
-def missing_http_security_header_candidates(headers_payload: dict[str, Any]) -> list[dict[str, Any]]:
+def missing_http_sec_headers(headers_payload: dict[str, Any]) -> list[dict[str, Any]]:
     """Return finding candidates for missing high-value HTTP security headers."""
-    from ..plugins.http.headers.findings import missing_security_header_candidates
+    from ..plugins.http.headers.findings import missing_sec_headers
     from ..plugins.http.headers.models import HeaderProbeResult, HeaderTarget
 
     port = int(headers_payload.get("port") or 0)
@@ -140,7 +140,7 @@ def missing_http_security_header_candidates(headers_payload: dict[str, Any]) -> 
         status=int(headers_payload.get("status") or 0),
         headers=dict(headers_payload.get("headers") or {}),
     )
-    return missing_security_header_candidates(result)
+    return missing_sec_headers(result)
 
 
 def stable_finding_id(payload: dict[str, Any]) -> str:

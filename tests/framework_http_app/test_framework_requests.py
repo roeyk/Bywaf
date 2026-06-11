@@ -10,7 +10,7 @@ import unittest
 from unittest.mock import patch
 
 from bywaf.app import ShellState, make_runner, new_shell_state, process_framework_requests
-from bywaf.artifacts import artifact_store_for_event_store
+from bywaf.artifacts import artifact_store_for_db
 
 
 class TestFrameworkRequestsTests(unittest.TestCase):
@@ -160,7 +160,7 @@ class TestFrameworkRequestsTests(unittest.TestCase):
             )
             process_framework_requests(runner, state)
             event = runner.db.events_for_topic("process.run")[0]
-            artifact = artifact_store_for_event_store(runner.db).list(command_run_id="run-1")[0]
+            artifact = artifact_store_for_db(runner.db).list(command_run_id="run-1")[0]
             self.assertEqual(event.payload["request_event_id"], request.id)
             self.assertEqual(event.payload["stdout"], "hello\n")
             self.assertEqual(event.payload["returncode"], 0)

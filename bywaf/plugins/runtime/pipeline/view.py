@@ -6,13 +6,13 @@ from bywaf.plugin import CommandContext
 from bywaf.plugins.runtime.pipeline.detail import (
     format_pipeline,
     format_pipeline_artifacts,
-    format_pipeline_inspection_hints,
+    format_pipeline_hints,
     format_pipeline_jobs,
     format_pipeline_steps,
 )
 from bywaf.plugins.runtime.view import (
     apply_runtime_new_cursor,
-    filter_runtime_rows_by_events,
+    filter_rows_by_events,
     filter_runtime_rows_since,
     view_run_ids,
 )
@@ -36,7 +36,7 @@ __all__ = [
     "filter_view_only_pipelines",
     "format_pipeline",
     "format_pipeline_artifacts",
-    "format_pipeline_inspection_hints",
+    "format_pipeline_hints",
     "format_pipeline_jobs",
     "format_pipeline_steps",
     "print_pipelines",
@@ -64,7 +64,7 @@ def print_pipelines(
     rows = filter_runtime_rows_since(runtime, "pipeline", rows, since)
     if filters:
         events = context.event_store("pipeline list")
-        rows = filter_runtime_rows_by_events(events, "pipeline", rows, filters)
+        rows = filter_rows_by_events(events, "pipeline", rows, filters)
     rows, newest_alias = apply_runtime_new_cursor(context, "pipeline", rows, highlight_newest)
     if sort_key:
         rows = sort_pipeline_rows(rows, sort_key)

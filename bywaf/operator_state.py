@@ -37,14 +37,14 @@ def view_cursors_path(runner: object | None) -> Path:
     return operator_state_dir(runner) / VIEW_CURSORS_FILE
 
 
-def ad_hoc_active_database_path() -> Path:
+def active_database_path() -> Path:
     """Return the operator-local pointer for the last selected ad hoc DB."""
     return Settings().state_dir / ACTIVE_DATABASE_FILE
 
 
-def load_ad_hoc_active_database() -> Path | None:
+def load_active_database() -> Path | None:
     """Return the last selected ad hoc DB path, ignoring stale local state."""
-    path = ad_hoc_active_database_path()
+    path = active_database_path()
     if not path.exists():
         return None
     try:
@@ -57,9 +57,9 @@ def load_ad_hoc_active_database() -> Path | None:
     return database if database.exists() else None
 
 
-def save_ad_hoc_active_database(database: Path) -> None:
+def save_active_database(database: Path) -> None:
     """Persist the ad hoc DB that normal startup should reopen next time."""
-    path = ad_hoc_active_database_path()
+    path = active_database_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {"database": str(database)}
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")

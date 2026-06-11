@@ -17,7 +17,7 @@ from collections.abc import Iterable
 from ...event.schemas import event_schema
 from ..config import parse_package_plugin_config
 from .model import ManifestGraphNode, ManifestRelationship, ManifestRelationshipGraph
-from .reports import registered_topics_for_graph, relationship_report_for_provider
+from .reports import registered_topics_for_graph, provider_relationship_report
 from ..manifest import PluginManifest, load_package_manifest
 
 __all__ = [
@@ -30,7 +30,7 @@ __all__ = [
     "dependency_errors",
     "provider_in_graph",
     "registered_topics_for_graph",
-    "relationship_report_for_provider",
+    "provider_relationship_report",
     "validate_manifest_dependencies",
 ]
 
@@ -136,7 +136,7 @@ def node_from_manifest(provider: str, manifest: PluginManifest) -> ManifestGraph
         trigger_topics=tuple(sorted_set(trigger.topic for trigger in manifest.triggers)),
         trigger_actions=tuple(sorted_set(trigger.action_command for trigger in manifest.triggers)),
         provider_variables=tuple(sorted_set(flatten(manifest.commandlet_provider_variables.values()))),
-        secret_provider_variables=tuple(sorted_set(flatten(manifest.commandlet_secret_provider_variables.values()))),
+        secret_provider_variables=tuple(sorted_set(flatten(manifest.commandlet_secret_vars.values()))),
         secret_options=tuple(sorted_set(flatten(manifest.commandlet_secret_options.values()))),
         traits=traits_from_manifest(manifest),
         roles=tuple(sorted(manifest.roles)),

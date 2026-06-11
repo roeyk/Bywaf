@@ -71,7 +71,7 @@ def audit_auto_loaded_dependencies(
         )
 
 
-def verify_catalog_entries_with_audit(
+def verify_catalog_with_audit(
     db: EventStore,
     plugin_root: Path,
     entries: list[str],
@@ -99,7 +99,7 @@ def verify_catalog_entries_with_audit(
         raise PluginTrustError(f"warning: refusing external plugin {plugin_dir}; catalog entry missing or hash mismatch")
 
 
-def load_entries_with_manifest_audit(
+def load_entries_with_audit(
     db: EventStore,
     registry: PluginRegistry,
     plugin_root: Path,

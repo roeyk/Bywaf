@@ -14,7 +14,7 @@ from bywaf.finding import candidate_payload
 from .models import HeaderProbeResult
 
 
-def missing_security_header_candidates(result: HeaderProbeResult) -> list[dict[str, object]]:
+def missing_sec_headers(result: HeaderProbeResult) -> list[dict[str, object]]:
     """Return finding candidates for missing high-value HTTP security headers.
 
     Called by: `command.run_http_headers()` after one header probe succeeds.
@@ -159,7 +159,7 @@ def weak_cookie_candidates(
 ) -> list[dict[str, object]]:
     """Return candidates for cookies missing common security attributes.
 
-    Called by: `missing_security_header_candidates()` when Set-Cookie exists.
+    Called by: `missing_sec_headers()` when Set-Cookie exists.
     """
     raw_cookie = headers.get("set-cookie", "")
     if not raw_cookie:
@@ -210,7 +210,7 @@ def cookie_attribute_tokens(raw_cookie: str) -> set[str]:
 def missing_framing_policy(headers: dict[str, str]) -> bool:
     """Return whether headers lack common browser framing controls.
 
-    Called by: `missing_security_header_candidates()`.
+    Called by: `missing_sec_headers()`.
     """
     if "x-frame-options" in headers:
         return False
@@ -222,7 +222,7 @@ def missing_framing_policy(headers: dict[str, str]) -> bool:
 def exposed_server_header(headers: dict[str, str]) -> str:
     """Return a server header value that looks implementation-specific.
 
-    Called by: `missing_security_header_candidates()`.
+    Called by: `missing_sec_headers()`.
     """
     server = str(headers.get("server") or "").strip()
     if not server:
@@ -243,7 +243,7 @@ def redirect_candidates(
 ) -> list[dict[str, object]]:
     """Return candidates for interesting redirect behavior.
 
-    Called by: `missing_security_header_candidates()` when Location is present.
+    Called by: `missing_sec_headers()` when Location is present.
     """
     if not location.strip():
         return []

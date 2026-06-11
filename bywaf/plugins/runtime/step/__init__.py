@@ -17,7 +17,7 @@ from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
 from bywaf.plugins.runtime.view import (
     apply_runtime_new_cursor,
-    filter_runtime_rows_by_events,
+    filter_rows_by_events,
     filter_runtime_rows_since,
     filter_view_run_rows,
     split_since_selector,
@@ -141,7 +141,7 @@ def visible_step_rows(
     rows = filter_runtime_rows_since(runtime, "step", rows, since)
     if filters:
         events = context.event_store("step")
-        rows = filter_runtime_rows_by_events(events, "step", rows, filters)
+        rows = filter_rows_by_events(events, "step", rows, filters)
     return rows
 
 

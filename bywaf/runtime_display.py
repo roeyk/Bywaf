@@ -26,7 +26,7 @@ from .runtime_tables import (
     style_table_cell as style_table_cell,
     style_table_header as style_table_header,
 )
-from .time_format import format_compact_runtime_timestamp, format_duration_between
+from .time_format import format_compact_runtime_ts, format_duration_between
 
 ACTIVE_LISTING_FORMAT_VAR = "listing.active-format"
 DEFAULT_ACTIVE_LISTING_FORMAT = "short"
@@ -111,7 +111,7 @@ def runtime_status_summary(statuses: str | list[str] | tuple[str, ...] | None) -
 
 def format_runtime_timestamp(value: str | None) -> str:
     """Render an ISO timestamp compactly for runtime listings."""
-    return format_compact_runtime_timestamp(value)
+    return format_compact_runtime_ts(value)
 
 
 def format_runtime_duration(start: str | None, end: str | None) -> str:
@@ -173,18 +173,18 @@ def runtime_sort_note(sort_key: str, *, label: str = "sorted by") -> str:
     return f"{label} {key} ascending (use sort=-{key} to sort descending)"
 
 
-def runtime_sort_completion_candidates(prefix: str, allowed_sort_keys: Sequence[str]) -> list[str]:
+def runtime_sort_candidates(prefix: str, allowed_sort_keys: Sequence[str]) -> list[str]:
     """Return ascending and descending `sort=` completion candidates."""
     candidates = [f"sort={key}" for key in allowed_sort_keys]
     candidates.extend(f"sort=-{key}" for key in allowed_sort_keys)
     return [candidate for candidate in candidates if candidate.startswith(prefix)]
 
 
-def runtime_view_completion_candidates(prefix: str, allowed_sort_keys: Sequence[str]) -> list[str]:
+def runtime_view_candidates(prefix: str, allowed_sort_keys: Sequence[str]) -> list[str]:
     """Return common runtime view selector completion candidates."""
     candidates = [*RUNTIME_FILTER_COMPLETIONS, "sort="]
     if prefix.startswith("sort="):
-        candidates = runtime_sort_completion_candidates(prefix, allowed_sort_keys)
+        candidates = runtime_sort_candidates(prefix, allowed_sort_keys)
     return [candidate for candidate in candidates if candidate.startswith(prefix)]
 
 

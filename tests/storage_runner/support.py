@@ -13,7 +13,7 @@ import unittest
 from unittest.mock import patch
 
 from bywaf.app import ShellState, make_runner, parse_save_spec, process_framework_requests
-from bywaf.artifacts import artifact_db_path, artifact_store_for_event_store
+from bywaf.artifacts import artifact_db_path, artifact_store_for_db
 from bywaf.command.parser import parse_invocation, parse_pipeline
 from bywaf.db import EventStore, Subscription, database_appears_encrypted, sqlcipher_available
 from bywaf.plugin import CommandContext

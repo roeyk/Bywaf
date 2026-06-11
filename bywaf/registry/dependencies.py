@@ -19,7 +19,7 @@ from .graph import build_manifest_graph, bundled_manifest_map, provider_in_graph
 from .manifest import PluginManifest, parse_plugin_manifest
 
 
-def filesystem_manifest_dependency_closure(
+def fs_manifest_dep_closure(
     plugin_root: Path,
     entries: list[str],
     *,
@@ -79,7 +79,7 @@ def filesystem_manifest_dependency_closure(
 def filesystem_manifest_path(plugin_root: Path, entry: str, provider: str) -> Path:
     """Return the most likely manifest path for a configured provider.
 
-    Called by: `filesystem_manifest_dependency_closure()`.
+    Called by: `fs_manifest_dep_closure()`.
     """
 
     manifest_path = plugin_root / provider / "bywaf.plugin.toml"
@@ -95,7 +95,7 @@ def topological_filesystem_entries(
 ) -> list[str]:
     """Order filesystem entries so required plugins load before dependents.
 
-    Called by: `filesystem_manifest_dependency_closure()`.
+    Called by: `fs_manifest_dep_closure()`.
     """
 
     ordered: list[str] = []

@@ -24,7 +24,7 @@ from ..trust import (
 )
 from ..trust_manifest import (
     PluginManifestTrust,
-    enforce_plugin_manifest_signature,
+    enforce_manifest_sig,
 )
 from .commandlets import parse_manifest_commandlets
 from .enforcement import enforce_plugin_manifest, enforce_trigger_manifest
@@ -59,7 +59,7 @@ def load_filesystem_plugin_package(
     manifest_path = plugin_dir / "bywaf.plugin.toml"
     if not manifest_path.exists():
         raise FileNotFoundError(f"{manifest_path} not found")
-    enforce_plugin_manifest_signature(manifest_path, trust_policy=trust_policy, manifest_trust=manifest_trust)
+    enforce_manifest_sig(manifest_path, trust_policy=trust_policy, manifest_trust=manifest_trust)
     manifest = parse_plugin_manifest(manifest_path)
     module = load_module_path(plugin_dir / "plugin.py")
     plugins = enforce_plugin_manifest(manifest, load_plugins(module), manifest_path)
@@ -143,7 +143,7 @@ def parse_plugin_manifest_data(data: dict[str, Any], source: str) -> PluginManif
         commandlet_arguments=commandlets.arguments,
         commandlet_secret_options=commandlets.secret_options,
         commandlet_provider_variables=commandlets.provider_variables,
-        commandlet_secret_provider_variables=commandlets.secret_provider_variables,
+        commandlet_secret_vars=commandlets.secret_provider_variables,
         event_schemas=event_schemas,
         default_commandlet=default_commandlet,
         library_backed=library_backed,

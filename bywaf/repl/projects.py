@@ -173,7 +173,7 @@ def switch_project(runner: Runner, state: ResourceState, project: ProjectPaths, 
                 f"cannot switch to project={project.name} while {len(active_jobs)} job(s) are active; "
                 f"use `project use name={project.name} --force` to hard-stop them and switch anyway"
             )
-        stop_active_jobs_for_project_switch(runner, active_jobs)
+        stop_project_jobs(runner, active_jobs)
     # Project switching is a coordinated DB/config/history boundary change.
     # Load the database first so subsequent config and secret hydration target
     # the new project.
@@ -191,7 +191,7 @@ def switch_project(runner: Runner, state: ResourceState, project: ProjectPaths, 
     print(f"using project={project.name}")
 
 
-def stop_active_jobs_for_project_switch(runner: Runner, jobs) -> None:
+def stop_project_jobs(runner: Runner, jobs) -> None:
     """Hard-stop active jobs before switching projects."""
     stopped: list[dict[str, object]] = []
     for job in jobs:

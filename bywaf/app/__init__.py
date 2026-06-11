@@ -14,22 +14,19 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from . import __version__
-from .app_dispatch import CLI_SUBCOMMAND_HANDLERS
-from .app_parser import build_parser, database_argument_is_explicit, extract_startup_project, route_direct_commandlet_argv
-from .app_startup import handle_setup_startup, startup_database_path, startup_project
-from .cli_trust import load_filesystem_registry, merge_filesystem_registry, plugin_trust_policy_from_args
-from .config import Settings
-from .db import EventStore, database_appears_encrypted
-from .projects import ProjectPaths
-from .registry import PluginRegistry, PluginTrustError, PluginTrustPolicy
-from .repl import (
+from .. import __version__
+from ..cli_trust import load_filesystem_registry, merge_filesystem_registry, trust_policy_from_args
+from ..config import Settings
+from ..db import EventStore, database_appears_encrypted
+from ..projects import ProjectPaths
+from ..registry import PluginRegistry, PluginTrustError, PluginTrustPolicy
+from ..repl import (
     ShellState,
     command_from_remainder,
     confirm_repl_exit,
     dispatch_repl_line,
     format_event,
-    format_history_entry_for_display,
+    format_history_entry,
     friendly_error,
     line_has_continuation,
     new_shell_state,
@@ -49,7 +46,7 @@ from .repl import (
     shutdown_runner,
     split_command_sequence,
 )
-from .repl.resources import (
+from ..repl.resources import (
     DEFAULT_DATABASE,
     apply_config,
     hydrate_persistent_secrets,
@@ -60,8 +57,11 @@ from .repl.resources import (
     resolve_resource_path,
     save_history,
 )
-from .repl.scripts import run_script, script_commands, strip_inline_comment
-from .runner import Runner
+from ..repl.scripts import run_script, script_commands, strip_inline_comment
+from ..runner import Runner
+from .dispatch import CLI_SUBCOMMAND_HANDLERS
+from .parser import build_parser, database_argument_is_explicit, extract_startup_project, route_direct_commandlet_argv
+from .startup import handle_setup_startup, startup_database_path, startup_project
 
 # Compatibility export list for code that imports helpers from `bywaf.app`.
 # The implementation has been split across REPL/resource/runner modules, but
@@ -75,7 +75,7 @@ __all__ = [
     "confirm_repl_exit",
     "dispatch_repl_line",
     "format_event",
-    "format_history_entry_for_display",
+    "format_history_entry",
     "friendly_error",
     "line_has_continuation",
     "load_history",
@@ -178,7 +178,7 @@ def main(argv: list[str] | None = None) -> int:
             plugin_catalog_key=args.plugin_catalog_key,
             plugin_manifest_key=args.plugin_manifest_key,
             forced_plugins=args.force_plugins,
-            plugin_trust_policy=plugin_trust_policy_from_args(args),
+            plugin_trust_policy=trust_policy_from_args(args),
             encrypted=args.encrypt or args.encrypted,
             project=project,
         )
@@ -191,9 +191,8 @@ def main(argv: list[str] | None = None) -> int:
         repl(runner)
         return 0
     try:
-        # This lookup uses the CLI_SUBCOMMAND_HANDLERS dispatch table from
-        # app_dispatch.py in place of an if/elif ladder over argparse
-        # subcommands.
+        # Dispatch table: app.dispatch defines CLI_SUBCOMMAND_HANDLERS so the
+        # top-level CLI can route subcommands without an if/elif ladder.
         handler = CLI_SUBCOMMAND_HANDLERS.get(args.subcommand)
         if handler is None:
             parser.error(f"unknown subcommand: {args.subcommand}")

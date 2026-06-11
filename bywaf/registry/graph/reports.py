@@ -12,7 +12,7 @@ from ...event.schemas import event_schema
 from .model import ManifestRelationshipGraph, edge_to_dict
 
 
-def relationship_report_for_provider(
+def provider_relationship_report(
     graph: ManifestRelationshipGraph,
     provider: str,
     *,

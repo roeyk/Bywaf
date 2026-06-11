@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from ..context import CommandContext
 
 
-def check_process_argv_for_secrets(context: CommandContext, argv: tuple[str, ...]) -> None:
+def check_argv_for_secrets(context: CommandContext, argv: tuple[str, ...]) -> None:
     """Warn when resolved in-memory secrets appear in process argv.
 
     Secrets in argv can be visible to process listings on many systems.  Bywaf

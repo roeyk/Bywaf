@@ -14,7 +14,7 @@ from datetime import datetime
 
 
 OPERATOR_TIMESTAMP_FORMAT = "%Y%m%d %H:%M:%S %Z"
-COMPACT_RUNTIME_TIMESTAMP_FORMAT = "%Y%m%d %H:%M:%S"
+COMPACT_RUNTIME_TS_FORMAT = "%Y%m%d %H:%M:%S"
 
 
 def format_operator_timestamp(value: datetime) -> str:
@@ -32,7 +32,7 @@ def bywaf_now_iso() -> str:
     return bywaf_now().isoformat()
 
 
-def format_compact_runtime_timestamp(value: str | None) -> str:
+def format_compact_runtime_ts(value: str | None) -> str:
     """Render an ISO timestamp compactly in the operator's local timezone."""
     if not value:
         return "unknown"
@@ -42,7 +42,7 @@ def format_compact_runtime_timestamp(value: str | None) -> str:
     parsed = parsed.astimezone()
     timezone = parsed.tzname()
     suffix = f" {timezone}" if timezone else ""
-    return f"{parsed.strftime(COMPACT_RUNTIME_TIMESTAMP_FORMAT)}{suffix}"
+    return f"{parsed.strftime(COMPACT_RUNTIME_TS_FORMAT)}{suffix}"
 
 
 def format_duration_between(start: str | None, end: str | None) -> str:
@@ -74,7 +74,7 @@ def parse_iso_timestamp(value: str) -> datetime | None:
         return None
 
 
-def normalize_history_timestamp_for_display(timestamp: str) -> str:
+def normalize_history_ts(timestamp: str) -> str:
     """Normalize known history timestamp layouts to `YYYYMMDD HH:MM:SS TZ`."""
     parts = timestamp.split()
     if len(parts) == 3 and len(parts[0]) == 10 and ":" in parts[2]:

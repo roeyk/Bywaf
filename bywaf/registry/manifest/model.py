@@ -39,7 +39,7 @@ class PluginManifest:
     commandlet_arguments: dict[str, tuple[ArgumentSpec, ...]] = field(default_factory=dict)
     commandlet_secret_options: dict[str, tuple[str, ...]] = field(default_factory=dict)
     commandlet_provider_variables: dict[str, tuple[str, ...]] = field(default_factory=dict)
-    commandlet_secret_provider_variables: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    commandlet_secret_vars: dict[str, tuple[str, ...]] = field(default_factory=dict)
     event_schemas: tuple[EventSchema, ...] = ()
     default_commandlet: str | None = None
     library_backed: bool = False

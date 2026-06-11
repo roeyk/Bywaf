@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from ..state import ShellState
 
 
-SUPPRESSED_COMMANDLET_OUTPUT_TOPICS = {"framework.file.page.requested", "report.rendered"}
+SUPPRESSED_OUTPUT_TOPICS = {"framework.file.page.requested", "report.rendered"}
 def handle_run_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
     """Execute the active commandlet context."""
     del line
@@ -63,7 +63,7 @@ def execute_repl_commandlet(runner: Runner, state: ShellState, command: str) -> 
 
 def visible_commandlet_events(events: list[Any]) -> list[Any]:
     """Return commandlet events that should be echoed after execution."""
-    return [event for event in events if event.topic not in SUPPRESSED_COMMANDLET_OUTPUT_TOPICS]
+    return [event for event in events if event.topic not in SUPPRESSED_OUTPUT_TOPICS]
 
 
 def reset_framework_request_cursor(state: ShellState) -> None:

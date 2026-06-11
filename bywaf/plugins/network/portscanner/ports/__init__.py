@@ -17,7 +17,7 @@ from bywaf.event.filters import filter_events_by_payload
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
 from bywaf.runtime_display import (
-    runtime_sort_completion_candidates,
+    runtime_sort_candidates,
     runtime_sort_key,
     runtime_sort_note,
 )
@@ -96,7 +96,7 @@ class Ports(CommandletBase):
             "sort=",
         ]
         if args and args[-1].startswith("sort="):
-            return runtime_sort_completion_candidates(args[-1], PORT_SORT_KEYS)
+            return runtime_sort_candidates(args[-1], PORT_SORT_KEYS)
         return [candidate for candidate in candidates if candidate.startswith(prefix)]
 
 

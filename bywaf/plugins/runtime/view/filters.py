@@ -19,10 +19,10 @@ from .cursor import (
     resolve_job_since,
     runtime_row_local_id,
 )
-from .events import EVENT_MATCHERS, filter_runtime_rows_by_events
+from .events import EVENT_MATCHERS, filter_rows_by_events
 from .metadata import (
-    command_run_metadata_by_id,
-    command_run_metadata_by_job_id,
+    run_meta_by_id,
+    run_meta_by_job,
     filter_view_job_rows,
     filter_view_run_rows,
     is_view_job_row,
@@ -34,9 +34,9 @@ from .metadata import (
 __all__ = [
     "EVENT_MATCHERS",
     "apply_runtime_new_cursor",
-    "command_run_metadata_by_id",
-    "command_run_metadata_by_job_id",
-    "filter_runtime_rows_by_events",
+    "run_meta_by_id",
+    "run_meta_by_job",
+    "filter_rows_by_events",
     "filter_runtime_rows_since",
     "filter_view_job_rows",
     "filter_view_run_rows",

@@ -119,7 +119,7 @@ class AppDispatchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
-            with patch("bywaf.repl.command.vars.load_or_create_fingerprint_key", return_value=b"k" * 32):
+            with patch("bywaf.repl.command.vars.load_fingerprint_key", return_value=b"k" * 32):
                 dispatch_repl_line(runner, "set --secret TOKEN=supersecret", state)
             dispatch_repl_line(runner, "set display.expansion=changed", state)
             output = io.StringIO()

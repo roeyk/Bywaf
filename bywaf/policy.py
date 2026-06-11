@@ -82,7 +82,7 @@ def apply_network_policy(
             else:
                 kept.append(target)
             continue
-        decision = network_policy_decision(target, allowed, denied)
+        decision = network_policy_for_target(target, allowed, denied)
         if decision:
             warnings.append(decision)
             continue
@@ -90,15 +90,15 @@ def apply_network_policy(
     return tuple(dict.fromkeys(kept)), warnings
 
 
-def network_policy_decision(target: str, allowed: tuple[Any, ...], denied: tuple[Any, ...]) -> str:
+def network_policy_for_target(target: str, allowed: tuple[Any, ...], denied: tuple[Any, ...]) -> str:
     """Return a warning string when one target is denied, otherwise empty."""
     target_network = target_as_network(target)
     if target_network is None:
-        return resolved_network_policy_decision(target, allowed, denied)
-    return network_policy_decision_for_network(str(target), target_network, allowed, denied)
+        return resolved_network_policy(target, allowed, denied)
+    return network_policy_for_network(str(target), target_network, allowed, denied)
 
 
-def resolved_network_policy_decision(target: str, allowed: tuple[Any, ...], denied: tuple[Any, ...]) -> str:
+def resolved_network_policy(target: str, allowed: tuple[Any, ...], denied: tuple[Any, ...]) -> str:
     """Return a warning when a hostname resolves outside configured policy."""
     try:
         addresses = resolve_target(target)
@@ -107,12 +107,12 @@ def resolved_network_policy_decision(target: str, allowed: tuple[Any, ...], deni
     warnings = [
         warning
         for address in addresses
-        if (warning := network_policy_decision_for_network(target, ipaddress.ip_network(address, strict=False), allowed, denied))
+        if (warning := network_policy_for_network(target, ipaddress.ip_network(address, strict=False), allowed, denied))
     ]
     return warnings[0] if warnings else ""
 
 
-def network_policy_decision_for_network(
+def network_policy_for_network(
     label: str,
     target_network: Any | None,
     allowed: tuple[Any, ...],
@@ -136,7 +136,7 @@ def target_as_network(target: str) -> Any | None:
         return None
 
 
-def publish_network_policy_evaluated(
+def publish_network_policy(
     context: CommandContext,
     *,
     decision: str,

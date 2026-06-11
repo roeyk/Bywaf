@@ -179,11 +179,11 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
 
     def test_format_history_entry_for_display_puts_timestamp_first(self):
         self.assertEqual(
-            format_history_entry_for_display("plugins  # 2026-05-17 10:00:00 EDT"),
+            format_history_entry("plugins  # 2026-05-17 10:00:00 EDT"),
             "20260517 10:00:00 EDT  plugins",
         )
         self.assertEqual(
-            format_history_entry_for_display("plugins  # 2026-05-17 EDT 10:00:00"),
+            format_history_entry("plugins  # 2026-05-17 EDT 10:00:00"),
             "20260517 10:00:00 EDT  plugins",
         )
 

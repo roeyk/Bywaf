@@ -127,15 +127,15 @@ class EventStoreProtocol(Protocol):
         """Return events associated with one local job id and topics."""
         ...
 
-    def job_ids_matching_payload_filters(self, filters: dict[str, str], *, limit: int = 100000) -> set[int]:
+    def job_ids_for_filters(self, filters: dict[str, str], *, limit: int = 100000) -> set[int]:
         """Return job ids with at least one associated event matching filters."""
         ...
 
-    def pipeline_ids_matching_payload_filters(self, filters: dict[str, str], *, limit: int = 100000) -> set[str]:
+    def pipeline_ids_for_filters(self, filters: dict[str, str], *, limit: int = 100000) -> set[str]:
         """Return pipeline serials with at least one matching event."""
         ...
 
-    def run_ids_matching_payload_filters(self, filters: dict[str, str], *, limit: int = 100000) -> set[str]:
+    def run_ids_for_filters(self, filters: dict[str, str], *, limit: int = 100000) -> set[str]:
         """Return command-run serials with at least one matching event."""
         ...
 

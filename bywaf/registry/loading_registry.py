@@ -22,7 +22,7 @@ from .config import (
     parse_package_plugin_config,
     parse_plugin_config,
 )
-from .dependencies import filesystem_manifest_dependency_closure
+from .dependencies import fs_manifest_dep_closure
 from .graph import build_manifest_graph, bundled_manifest_map, validate_manifest_dependencies
 from .loading import load_plugins, load_trigger_specs
 from .manifest import (
@@ -88,13 +88,13 @@ class PluginRegistryLoadingMixin:
         entries = parse_plugin_config(Path(config_file))
         plugin_root = Path(plugin_root)
         requested_entries = tuple(normalize_catalog_path(entry) for entry in entries)
-        entries, filesystem_manifests = filesystem_manifest_dependency_closure(plugin_root, entries)
+        entries, filesystem_manifests = fs_manifest_dep_closure(plugin_root, entries)
         load_order = tuple(normalize_catalog_path(entry) for entry in entries)
         requested_set = set(requested_entries)
         auto_loaded = tuple(provider for provider in load_order if provider not in requested_set)
         registry.filesystem_requested_providers = requested_entries
         registry.filesystem_load_order = load_order
-        registry.filesystem_auto_loaded_providers = auto_loaded
+        registry.fs_autoloaded_providers = auto_loaded
         registry.filesystem_auto_load_reasons = {provider: "requires_plugins" for provider in auto_loaded}
         graph = build_manifest_graph({**bundled_manifest_map(), **filesystem_manifests})
         validate_manifest_dependencies(

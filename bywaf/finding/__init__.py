@@ -10,7 +10,7 @@ Used by:
 from .grouping import finding_group_key, normalized_target_scope
 from .payloads import candidate_payload
 from .payloads import confirmed_payload
-from .payloads import missing_http_security_header_candidates
+from .payloads import missing_http_sec_headers
 from .payloads import stable_finding_id
 from .payloads import telnet_open_candidate
 from .severity import SEVERITY_CLASS_ORDER, severity_class
@@ -27,7 +27,7 @@ __all__ = [
     "finding_group_key",
     "infer_subjects",
     "known_finding_class",
-    "missing_http_security_header_candidates",
+    "missing_http_sec_headers",
     "normalized_target_scope",
     "severity_class",
     "stable_finding_id",

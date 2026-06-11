@@ -11,9 +11,9 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-from ..secret.store import load_or_create_fingerprint_key, redact_command_text
+from ..secret.store import load_fingerprint_key, redact_command_text
 from .resource_specs import DEFAULT_HISTORY
-from .state import DEFAULT_HISTORY_TIMESTAMP_FORMAT
+from .state import DEFAULT_HISTORY_TS_FORMAT
 
 HISTORY_SECRET_NAMES = frozenset(
     {
@@ -40,7 +40,7 @@ def record_command_history(
     history_command: str,
     path: Path = DEFAULT_HISTORY,
     session_history: list[str] | None = None,
-    timestamp_format: str = DEFAULT_HISTORY_TIMESTAMP_FORMAT,
+    timestamp_format: str = DEFAULT_HISTORY_TS_FORMAT,
 ) -> str | None:
     """Append a history-safe command to in-memory session history.
 
@@ -69,5 +69,5 @@ def redact_history_command(command: str) -> str:
     """
     if "=" not in command:
         return command
-    result = redact_command_text(command, key=load_or_create_fingerprint_key(), secret_names=HISTORY_SECRET_NAMES)
+    result = redact_command_text(command, key=load_fingerprint_key(), secret_names=HISTORY_SECRET_NAMES)
     return result.command

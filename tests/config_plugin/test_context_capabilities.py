@@ -164,7 +164,7 @@ class ConfigPluginContextCapabilityTests(unittest.TestCase):
             requests = db.events_for_topic("framework.process.run.requested")
             results = db.events_for_topic("process.run")
             used = db.events_for_topic("plugin.capability.used")
-            artifacts = artifact_store_for_event_store(db).list(command_run_id="run-1")
+            artifacts = artifact_store_for_db(db).list(command_run_id="run-1")
         self.assertTrue(result.ok)
         self.assertEqual(result.stdout, "hello\n")
         self.assertEqual(requests[0].payload["argv"], [sys.executable, "-c", "print('hello')"])
@@ -269,7 +269,7 @@ class ConfigPluginContextCapabilityTests(unittest.TestCase):
 
             missing = db.events_for_topic("plugin.capability.missing")
             results = db.events_for_topic("process.run")
-            artifacts = artifact_store_for_event_store(db).list(command_run_id="run-1")
+            artifacts = artifact_store_for_db(db).list(command_run_id="run-1")
         self.assertFalse(marker.exists())
         self.assertEqual(missing[0].payload["capability"], "artifact.write")
         self.assertEqual(results, [])

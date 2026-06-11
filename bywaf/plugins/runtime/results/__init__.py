@@ -19,7 +19,7 @@ from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
 from bywaf.plugins.network.portscanner.ports import PORT_SORT_KEYS
 from bywaf.runtime_display import (
-    runtime_sort_completion_candidates,
+    runtime_sort_candidates,
 )
 
 
@@ -72,7 +72,7 @@ class Results(CommandletBase):
         """Complete result scope selectors."""
         del context
         if args and args[-1].startswith("sort="):
-            return runtime_sort_completion_candidates(args[-1], PORT_SORT_KEYS)
+            return runtime_sort_candidates(args[-1], PORT_SORT_KEYS)
         candidates = ["--follow", "--page", "all=true", "interval=", "job=", "job=latest", "once=", "pipeline=", "step=", "sort="]
         return [candidate for candidate in candidates if candidate.startswith(prefix)]
 

@@ -45,7 +45,7 @@ def decision_payload_builders() -> dict[str, DecisionPayloadBuilder]:
         "new": new_decision_payload,
         "duplicate": duplicate_decision_payload,
         "updated": updated_decision_payload,
-        "merge_candidate": merge_candidate_decision_payload,
+        "merge_candidate": merge_candidate_payload,
     }
 
 
@@ -79,7 +79,7 @@ def updated_decision_payload(decision: dict[str, Any], finding_id: str) -> dict[
     }
 
 
-def merge_candidate_decision_payload(decision: dict[str, Any], finding_id: str) -> dict[str, Any]:
+def merge_candidate_payload(decision: dict[str, Any], finding_id: str) -> dict[str, Any]:
     """Return payload for a possible fuzzy merge candidate."""
     candidate = decision["candidate"]
     return {

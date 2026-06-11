@@ -6,9 +6,9 @@ from bywaf.event import Event
 from bywaf.plugin import CommandContext
 
 
-def new_events_for_topic_group(context: CommandContext, topics: tuple[str, ...], identity, *, limit: int) -> list[Event]:
+def new_topic_events(context: CommandContext, topics: tuple[str, ...], identity, *, limit: int) -> list[Event]:
     """Return facts from the latest productive scope that were not known before it."""
-    scoped = latest_events_for_topic_group(context, topics, limit=limit)
+    scoped = latest_topic_events(context, topics, limit=limit)
     if not scoped:
         return []
     first_id = min((event.id or 0) for event in scoped)
@@ -28,7 +28,7 @@ def new_events_for_topic_group(context: CommandContext, topics: tuple[str, ...],
     return result
 
 
-def latest_events_for_topic_group(context: CommandContext, topics: tuple[str, ...], *, limit: int) -> list[Event]:
+def latest_topic_events(context: CommandContext, topics: tuple[str, ...], *, limit: int) -> list[Event]:
     """Return events for the newest step that produced one of the given topics."""
     events = events_for_topics(context, topics, limit=limit)
     for event in reversed(events):

@@ -44,12 +44,12 @@ ASSIGNED_CAPABILITY_CODES = {
 
 def framework_request_capability(topic: str) -> str | None:
     """Map a framework request topic to the capability it uses."""
-    exact = framework_request_capability_map().get(topic)
+    exact = request_capability_map().get(topic)
     if exact is not None:
         return exact
     # Prefix mappings let plugin progress/job-control families grow without
     # adding a one-off entry for every event topic.
-    for prefix, capability in framework_request_prefix_capabilities().items():
+    for prefix, capability in request_prefix_caps().items():
         if topic.startswith(prefix):
             return capability
     if topic.startswith("framework.") and topic.endswith(".requested"):
@@ -57,7 +57,7 @@ def framework_request_capability(topic: str) -> str | None:
     return None
 
 
-def framework_request_capability_map() -> dict[str, str]:
+def request_capability_map() -> dict[str, str]:
     """Return exact framework request topic capability mappings."""
     return {
         "framework.console.output.requested": "framework.console.output",
@@ -70,7 +70,7 @@ def framework_request_capability_map() -> dict[str, str]:
     }
 
 
-def framework_request_prefix_capabilities() -> dict[str, str]:
+def request_prefix_caps() -> dict[str, str]:
     """Return prefix-based framework request capability mappings."""
     return {
         "plugin.progress.": "plugin.progress",
@@ -132,7 +132,7 @@ def capability_family_range(capability: str) -> str:
     return "C900-C999"
 
 
-def database_actions_for_capabilities(capabilities: Iterable[str]) -> tuple[str, ...]:
+def db_actions_for_caps(capabilities: Iterable[str]) -> tuple[str, ...]:
     """Infer coarse database actions from DB-related capability declarations."""
     actions: set[str] = set()
     for capability in capabilities:

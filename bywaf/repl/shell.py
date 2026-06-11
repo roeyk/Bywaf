@@ -30,7 +30,7 @@ from . import noninteractive
 from .parsing import line_has_continuation, remove_line_continuation
 from .preferences import apply_preferences, ensure_preferences_file, load_preferences, resolve_preferences_path
 from ..runner import Runner
-from .state import DEFAULT_HISTORY_TIMESTAMP_FORMAT, HISTORY_TIMESTAMP_FORMAT_VAR, ShellState, new_shell_state
+from .state import DEFAULT_HISTORY_TS_FORMAT, HISTORY_TIMESTAMP_FORMAT_VAR, ShellState, new_shell_state
 from ..triggers import disable_session_triggers, start_default_services, stop_session_services
 
 
@@ -77,8 +77,8 @@ def repl(runner: Runner) -> None:
                 state.session_history,
                 runner.registry.varstore.get(
                     HISTORY_TIMESTAMP_FORMAT_VAR,
-                    DEFAULT_HISTORY_TIMESTAMP_FORMAT,
-                ) or DEFAULT_HISTORY_TIMESTAMP_FORMAT,
+                    DEFAULT_HISTORY_TS_FORMAT,
+                ) or DEFAULT_HISTORY_TS_FORMAT,
             )
             if dispatch_repl_line(runner, line, state) == "exit":
                 return

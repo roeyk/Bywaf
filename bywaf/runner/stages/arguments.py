@@ -12,7 +12,7 @@ from typing import cast
 
 from ...plugin import CommandContext
 from ...plugin.capabilities import DATABASE_ACTIONS
-from ...secret.store import REDACTED_VALUE, fingerprint_secret, load_or_create_fingerprint_key
+from ...secret.store import REDACTED_VALUE, fingerprint_secret, load_fingerprint_key
 
 
 def normalize_valued_option_args(plugin, args: list[str]) -> list[str]:
@@ -107,7 +107,7 @@ def secret_arg_metadata(context: CommandContext, name: str, value: str) -> dict[
     return {
         "name": name,
         "option": name,
-        "fingerprint": fingerprint_secret(value, load_or_create_fingerprint_key()).format(),
+        "fingerprint": fingerprint_secret(value, load_fingerprint_key()).format(),
     }
 
 

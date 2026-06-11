@@ -17,7 +17,7 @@ DISPLAY_EXPANSION_VAR = "display.expansion"
 DISPLAY_EXPANSION_DEFAULT = "off"
 
 
-def publish_expanded_command_preview(
+def publish_command_preview(
     context: CommandContext,
     invocation: CommandInvocation,
     plugin,

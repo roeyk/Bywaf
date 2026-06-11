@@ -10,10 +10,10 @@ from ...runtime_display import commandlet_from_command_line, format_runtime_time
 from ...runner import Runner
 from .scan_events import (
     format_finding_event,
-    format_finding_merge_candidate_event,
+    format_merge_candidate_event,
     format_http_headers_event,
     format_tls_certificate_event,
-    format_tls_probe_error_event,
+    format_tls_error_event,
 )
 from .variables import subject_text
 
@@ -87,7 +87,7 @@ def format_console_alert_event(event) -> str:
     return f"{event.id}: {source} {level}: {message}".rstrip(": ")
 
 
-def format_console_alert_requested_event(event) -> str:
+def format_console_alert_request(event) -> str:
     """Render pending framework console alert requests."""
     payload = event.payload
     source = payload.get("source") or event.source
@@ -219,10 +219,10 @@ RUNNER_EVENT_FORMATTERS = {
     "finding.new": format_finding_event,
     "finding.confirmed": format_finding_event,
     "finding.updated": format_finding_event,
-    "finding.merge_candidate": format_finding_merge_candidate_event,
+    "finding.merge_candidate": format_merge_candidate_event,
     "http.headers": format_http_headers_event,
     "tls.certificate": format_tls_certificate_event,
-    "tls.probe.error": format_tls_probe_error_event,
+    "tls.probe.error": format_tls_error_event,
     "port.open": format_port_open_event,
     "host.found": format_host_found_event,
     "name.resolved": format_name_resolved_event,
@@ -233,7 +233,7 @@ RUNNER_EVENT_FORMATTERS = {
 # uses this as its second exact-topic dispatch table.
 SIMPLE_EVENT_FORMATTERS = {
     "console.alert": format_console_alert_event,
-    "framework.console.alert.requested": format_console_alert_requested_event,
+    "framework.console.alert.requested": format_console_alert_request,
     "plugin.capability.used": format_capability_event,
     "plugin.capability.missing": format_capability_event,
     "framework.process.run.requested": format_process_request_event,

@@ -16,7 +16,7 @@ import unittest
 import zipfile
 from unittest.mock import patch
 
-from bywaf.artifacts import artifact_store_for_event_store
+from bywaf.artifacts import artifact_store_for_db
 from bywaf.app import (
     ShellState,
     dispatch_repl_line,
@@ -123,7 +123,7 @@ class AppDispatchTests(unittest.TestCase):
             runner.db.publish("host.found", {"host": "127.0.0.1"}, "test")
             source = project_dir / "artifact.txt"
             source.write_text("artifact body", encoding="utf-8")
-            artifact_store_for_event_store(runner.db).attach_file(source, commandlet="test")
+            artifact_store_for_db(runner.db).attach_file(source, commandlet="test")
 
             archive = root / "client-a.zip"
             output = io.StringIO()

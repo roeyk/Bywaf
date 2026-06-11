@@ -8,7 +8,7 @@ import sys
 import tempfile
 import unittest
 
-from bywaf.artifacts import artifact_store_for_event_store
+from bywaf.artifacts import artifact_store_for_db
 from bywaf.config import Settings, default_settings
 from bywaf.db import EventStore
 from bywaf.event.schema_objects import OpenPort

@@ -11,7 +11,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import Callable
 
-from .repl import (
+from ..repl import (
     print_commandlets,
     print_history,
     print_plugin_graph,
@@ -19,7 +19,7 @@ from .repl import (
     run_commandlet_remainder,
     run_remainder,
 )
-from .runner import Runner
+from ..runner import Runner
 
 CliSubcommandHandler = Callable[[Runner, argparse.Namespace], int]
 

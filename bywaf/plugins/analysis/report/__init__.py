@@ -24,7 +24,7 @@ from bywaf.plugin import (
 )
 from bywaf.plugin import kv_to_args
 
-from .events import select_report_context_events, select_report_new_context_events, select_report_new_scope_events, select_report_scope_events
+from .events import select_report_context_events, select_new_context_events, select_new_scope_events, select_report_scope_events
 from .render import render_finding_report, render_network_report
 from .review import REVIEW_DECISIONS, review_report_groups
 from .saved import apply_saved_report_scope, save_report_scope
@@ -140,8 +140,8 @@ class Report(CommandletBase):
 
         input_findings = report_input_findings(context, input_events)
         if parsed.new and not input_findings:
-            events = select_report_new_scope_events(context, parsed)
-            context_events = select_report_new_context_events(context, parsed)
+            events = select_new_scope_events(context, parsed)
+            context_events = select_new_context_events(context, parsed)
         else:
             events = input_findings or select_report_scope_events(context, parsed)
             context_events = [] if input_findings else select_report_context_events(context, parsed)

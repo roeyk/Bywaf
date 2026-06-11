@@ -14,7 +14,7 @@ from collections.abc import Sequence
 
 from ...runner import Runner
 from ...style import ansi_color
-from ...time_format import normalize_history_timestamp_for_display
+from ...time_format import normalize_history_ts
 from .settings import (
     DEFAULT_HISTORY_COLOR_MODE,
     DEFAULT_HISTORY_TIMESTAMP_COLOR,
@@ -32,15 +32,15 @@ def print_history(
     window = history_time_window(selectors or {})
     for entry in entries:
         if history_entry_in_window(entry, window):
-            print(format_history_entry_for_display(entry, runner))
+            print(format_history_entry(entry, runner))
 
 
-def format_history_entry_for_display(entry: str, runner: Runner | None = None) -> str:
+def format_history_entry(entry: str, runner: Runner | None = None) -> str:
     """Display script-friendly history as timestamp-first for readability."""
     command, separator, timestamp = entry.rpartition("  # ")
     if not separator or not timestamp:
         return entry
-    display_timestamp = normalize_history_timestamp_for_display(timestamp)
+    display_timestamp = normalize_history_ts(timestamp)
     comment_style = runner.registry.varstore.get(DISPLAY_COMMENT_STYLE_VAR, "") if runner is not None else ""
     if runner is not None and comment_style:
         display_timestamp = ansi_color(display_timestamp, comment_style)

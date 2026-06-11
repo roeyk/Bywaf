@@ -165,7 +165,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
                     runner.execute(f"hostscanner @lines:{targets}")
             expansion = runner.db.events_for_topic("framework.argument.expanded")[0]
             self.assertIn("artifact_id", expansion.payload)
-            artifacts = artifact_store_for_event_store(runner.db).list(command_run_id=expansion.command_run_id)
+            artifacts = artifact_store_for_db(runner.db).list(command_run_id=expansion.command_run_id)
             self.assertEqual(artifacts[0].body, b"127.0.0.1\n")
 
     def test_at_file_double_at_escapes_literal_at(self):

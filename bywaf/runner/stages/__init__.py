@@ -36,7 +36,7 @@ from .preview import (
     DISPLAY_EXPANSION_DEFAULT,
     DISPLAY_EXPANSION_VAR,
     expansion_display_mode,
-    publish_expanded_command_preview,
+    publish_command_preview,
 )
 
 __all__ = [
@@ -50,7 +50,7 @@ __all__ = [
     "pipeline_visible_stage_events",
     "publish_command_run_arguments",
     "publish_command_run_lifecycle",
-    "publish_expanded_command_preview",
+    "publish_command_preview",
     "redact_commandlet_args",
     "redact_secret_reference_args",
     "run_stage_process",
@@ -126,7 +126,7 @@ def execute_stage(
             publish_command_run_lifecycle(context, "completed", emitted=0, skipped=True)
             return StageResult([])
         expanded_args = normalize_valued_option_args(plugin, planned_args)
-        publish_expanded_command_preview(context, invocation, plugin, expanded_args)
+        publish_command_preview(context, invocation, plugin, expanded_args)
         publish_command_run_arguments(context, plugin, expanded_args)
         for input_topic in sorted({event.topic for event in selected_input_events}):
             context.audit_capability(f"db.read:{input_topic}")

@@ -42,14 +42,14 @@ from bywaf.registry import (  # noqa: E402
     load_package_manifest,
     parse_plugin_manifest_data,
     registered_topics_for_graph,
-    relationship_report_for_provider,
-    verify_plugin_manifest_signature_data,
+    provider_relationship_report,
+    verify_manifest_sig_data,
 )
 from bywaf.toml_support import load_data_file  # noqa: E402
 from bywaf.tools.plugin_check import analyze_plugin_source  # noqa: E402
 from bywaf.tools.plugin_parser_contract import parser_contract_diagnostics  # noqa: E402
 from bywaf.tools.plugin_check.render import render_llm_feedback, render_text  # noqa: E402
-from bywaf.tools.plugin_submission import check_plugin_in_temp_checkout, materialized_plugin_submission  # noqa: E402
+from bywaf.tools.plugin_submission import check_plugin_checkout, materialized_plugin_submission  # noqa: E402
 
 
 def check_plugin(
@@ -239,7 +239,7 @@ def check_materialized_plugin(
         return report
     if manifest_key is not None:
         try:
-            verify_plugin_manifest_signature_data(load_data_file(plugin_dir / "bywaf.plugin.toml"), manifest_key, plugin_dir / "bywaf.plugin.toml")
+            verify_manifest_sig_data(load_data_file(plugin_dir / "bywaf.plugin.toml"), manifest_key, plugin_dir / "bywaf.plugin.toml")
         except Exception as exc:  # noqa: BLE001 - this is a CLI validation report.
             report["manifest_signature"] = "failed"
             report["errors"].append(str(exc))
@@ -270,7 +270,7 @@ def check_materialized_plugin(
 def filesystem_plugin_relationship_report(provider: str, manifest: PluginManifest) -> dict[str, object]:
     """Return relationship context for one filesystem plugin plus bundled manifests."""
     graph = build_manifest_graph({**bundled_manifest_map(), f"filesystem:{provider}": manifest})
-    return relationship_report_for_provider(
+    return provider_relationship_report(
         graph,
         f"filesystem:{provider}",
         registered_schemas=registered_topics_for_graph(graph),
@@ -379,7 +379,7 @@ def main(argv: list[str] | None = None) -> int:
     elif args.plugin is None:
         raise SystemExit("plugin path is required unless --all is used")
     elif args.temp_checkout and not args.no_temp_checkout:
-        report = check_plugin_in_temp_checkout(
+        report = check_plugin_checkout(
             args.plugin,
             checkout_source=ROOT,
             manifest_key=args.manifest_key,

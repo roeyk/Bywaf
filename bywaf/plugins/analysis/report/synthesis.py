@@ -55,7 +55,7 @@ def synthesize_report_findings(
     if not facts:
         return []
 
-    existing_by_marker = existing_report_findings_by_marker(context, limit=int(parsed.limit))
+    existing_by_marker = report_findings_by_marker(context, limit=int(parsed.limit))
     candidates: list[dict[str, object]] = []
     reusable: list[Event] = []
     seen_markers: set[tuple[str, str]] = set()
@@ -83,7 +83,7 @@ def synthesize_report_findings(
     return sort_unique_events([*reusable, *candidate_events, *dedupe_events])
 
 
-def existing_report_findings_by_marker(context: CommandContext, *, limit: int) -> dict[tuple[str, str], Event]:
+def report_findings_by_marker(context: CommandContext, *, limit: int) -> dict[tuple[str, str], Event]:
     """Return already stored report findings keyed by class and target scope."""
     existing: dict[tuple[str, str], Event] = {}
     for topic in REPORT_FINDING_TOPICS:

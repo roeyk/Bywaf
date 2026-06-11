@@ -27,7 +27,7 @@ from .store import (
     RedactionResult,
     SecretFingerprint,
     SecretRef,
-    load_or_create_fingerprint_key,
+    load_fingerprint_key,
     redact_command_text,
 )
 
@@ -46,7 +46,7 @@ __all__ = [
     "SecretFingerprint",
     "SecretRef",
     "effective_secret_input_mode",
-    "load_or_create_fingerprint_key",
+    "load_fingerprint_key",
     "normalize_secret_input_mode",
     "open_secret_assignment_name",
     "prompt_secret_key_bindings",

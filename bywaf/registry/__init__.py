@@ -22,7 +22,7 @@ from .config import (
     provider_name,
 )
 from .core import PluginRegistry
-from .dependencies import filesystem_manifest_dependency_closure
+from .dependencies import fs_manifest_dep_closure
 from .graph import (
     ManifestGraphNode,
     ManifestRelationship,
@@ -33,7 +33,7 @@ from .graph import (
     dependency_errors,
     provider_in_graph,
     registered_topics_for_graph,
-    relationship_report_for_provider,
+    provider_relationship_report,
     validate_manifest_dependencies,
 )
 from .loading import (
@@ -79,11 +79,11 @@ from .trust_manifest import (
     PluginManifestTrust,
     canonical_manifest_bytes,
     cryptography_signing_primitives,
-    enforce_plugin_manifest_signature,
+    enforce_manifest_sig,
     plugin_manifest_digest,
     plugin_manifest_signature_block,
     string_signature_field,
-    verify_plugin_manifest_signature_data,
+    verify_manifest_sig_data,
 )
 
 # Public registry facade.  Keeping this list explicit lets callers import the
@@ -111,10 +111,10 @@ __all__ = [
     "dependency_errors",
     "enforce_filesystem_plugin_trust",
     "enforce_plugin_manifest",
-    "enforce_plugin_manifest_signature",
+    "enforce_manifest_sig",
     "enforce_trigger_manifest",
     "first_existing",
-    "filesystem_manifest_dependency_closure",
+    "fs_manifest_dep_closure",
     "list_field",
     "load_defaults_file",
     "load_filesystem_plugin_package",
@@ -142,7 +142,7 @@ __all__ = [
     "plugin_manifest_signature_block",
     "provider_in_graph",
     "registered_topics_for_graph",
-    "relationship_report_for_provider",
+    "provider_relationship_report",
     "provider_name",
     "sha256_file",
     "string_field",
@@ -151,5 +151,5 @@ __all__ = [
     "table_value",
     "validate_manifest_dependencies",
     "verify_catalog_signature",
-    "verify_plugin_manifest_signature_data",
+    "verify_manifest_sig_data",
 ]

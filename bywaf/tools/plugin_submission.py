@@ -86,7 +86,7 @@ def copy_checkout(source: Path, destination: Path) -> None:
     shutil.copytree(source, destination, ignore=ignore)
 
 
-def check_plugin_in_temp_checkout(
+def check_plugin_checkout(
     submission: Path,
     *,
     checkout_source: Path,

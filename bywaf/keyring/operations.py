@@ -18,7 +18,7 @@ from .crypto import (
     crypto_ed25519_private_key,
     load_private_key,
     load_public_key,
-    load_public_key_from_private,
+    public_key_from_private,
     private_key_is_encrypted,
     public_key_fingerprint,
     serialize_private_key,
@@ -150,7 +150,7 @@ def test_key(name: str, passphrase: str | None = None, paths: KeyPaths | None = 
     # When private material exists, verify that it corresponds to the public key
     # rather than trusting the metadata paths.
     if record.private_path is not None:
-        private_public = load_public_key_from_private(record.private_path, passphrase)
+        private_public = public_key_from_private(record.private_path, passphrase)
         if public_key_fingerprint(private_public) != fingerprint:
             raise ValueError(f"private/public key mismatch for key: {name}")
     return signing_state_for_record(record, passphrase)

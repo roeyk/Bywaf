@@ -41,16 +41,16 @@ def completion_key_bindings(completer: Any):
     select_key = completion_select_key(completer)
 
     try:
-        register_select_completion_binding(bindings, select_key)
+        register_select_binding(bindings, select_key)
     except ValueError:
-        register_select_completion_binding(bindings, DEFAULT_COMPLETION_SELECT_KEY)
-    if completion_wasd_selection_enabled(completer):
-        register_wasd_completion_bindings(bindings)
+        register_select_binding(bindings, DEFAULT_COMPLETION_SELECT_KEY)
+    if wasd_selection_enabled(completer):
+        register_wasd_bindings(bindings)
 
     return bindings
 
 
-def register_select_completion_binding(bindings, select_key: str) -> None:
+def register_select_binding(bindings, select_key: str) -> None:
     """Register the configured completion-selection-mode key."""
 
     @bindings.add(select_key)
@@ -62,7 +62,7 @@ def register_select_completion_binding(bindings, select_key: str) -> None:
         apply_current_completion(event)
 
     @bindings.add("tab", filter=has_completions)
-    def _accept_completion_with_tab(event) -> None:
+    def _accept_with_tab(event) -> None:
         apply_current_completion(event)
 
     @bindings.add("right", filter=has_completions)
@@ -78,7 +78,7 @@ def register_select_completion_binding(bindings, select_key: str) -> None:
         cancel_completion_menu(event)
 
 
-def register_wasd_completion_bindings(bindings) -> None:
+def register_wasd_bindings(bindings) -> None:
     """Register optional WASD completion-menu navigation keys."""
 
     @bindings.add("w", filter=has_completions)
@@ -125,7 +125,7 @@ def enter_completion_selection_mode(event) -> None:
         buffer.go_to_completion(0)
 
 
-def completion_wasd_selection_enabled(completer: Any) -> bool:
+def wasd_selection_enabled(completer: Any) -> bool:
     """Return whether optional WASD completion navigation is enabled."""
     value = completer.registry.varstore.get(COMPLETION_WASD_SELECTION_VAR, "false")
     return framework_bool(value, default=False)

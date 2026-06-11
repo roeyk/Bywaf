@@ -13,7 +13,7 @@ Used by:
 from __future__ import annotations
 
 from .artifact_records import ARTIFACT_SCHEMA, Artifact, ArtifactVerification
-from .artifact_store import ArtifactStore, artifact_db_path, artifact_store_for_event_store
+from .artifact_store import ArtifactStore, artifact_db_path, artifact_store_for_db
 
 __all__ = [
     "ARTIFACT_SCHEMA",
@@ -21,5 +21,5 @@ __all__ = [
     "ArtifactStore",
     "ArtifactVerification",
     "artifact_db_path",
-    "artifact_store_for_event_store",
+    "artifact_store_for_db",
 ]

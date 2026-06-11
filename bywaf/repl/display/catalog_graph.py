@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 import json
 
-from ...registry import build_manifest_graph, registered_topics_for_graph, relationship_report_for_provider
+from ...registry import build_manifest_graph, registered_topics_for_graph, provider_relationship_report
 from ...rendering import Column, Table, render_console_table
 from ...runner import Runner
 
@@ -21,7 +21,7 @@ def print_plugin_graph(runner: Runner, *, json_output: bool = False, provider: s
         if provider not in graph.nodes:
             print(f"error: unknown provider {provider}")
             return
-        payload = relationship_report_for_provider(
+        payload = provider_relationship_report(
             graph,
             provider,
             registered_schemas=registered_topics_for_graph(graph),
@@ -35,7 +35,7 @@ def print_plugin_graph(runner: Runner, *, json_output: bool = False, provider: s
         }
     else:
         payload = graph.to_dict()
-        payload["filesystem_dependency_closure"] = filesystem_dependency_closure_payload(runner)
+        payload["filesystem_dependency_closure"] = fs_dep_closure_payload(runner)
     if json_output:
         print(json.dumps(payload, indent=2, sort_keys=True))
         return
@@ -45,7 +45,7 @@ def print_plugin_graph(runner: Runner, *, json_output: bool = False, provider: s
 def render_plugin_graph_payload(runner: Runner, payload: dict[str, object]) -> str:
     """Return a human-readable plugin graph report."""
     if "providers" in payload:
-        return render_full_plugin_graph_payload(runner, payload)
+        return render_full_plugin_graph(runner, payload)
     if "topic" in payload:
         return render_console_table(
             Table(
@@ -69,7 +69,7 @@ def render_plugin_graph_payload(runner: Runner, payload: dict[str, object]) -> s
     return render_provider_graph_payload(runner, payload)
 
 
-def render_full_plugin_graph_payload(runner: Runner, payload: dict[str, object]) -> str:
+def render_full_plugin_graph(runner: Runner, payload: dict[str, object]) -> str:
     """Return default human-readable plugin and schema graph sections."""
     edges = payload.get("edges")
     edge_rows = edges if isinstance(edges, list) else []
@@ -92,7 +92,7 @@ def render_full_plugin_graph_payload(runner: Runner, payload: dict[str, object])
     ]
     sections = ["Filesystem plugin load closure"]
     closure = payload.get("filesystem_dependency_closure")
-    closure_rows = filesystem_dependency_closure_rows(closure)
+    closure_rows = fs_dep_rows(closure)
     if closure_rows:
         sections.append(
             render_console_table(
@@ -148,18 +148,18 @@ def render_full_plugin_graph_payload(runner: Runner, payload: dict[str, object])
     return "\n".join(sections)
 
 
-def filesystem_dependency_closure_payload(runner: Runner) -> dict[str, object]:
+def fs_dep_closure_payload(runner: Runner) -> dict[str, object]:
     """Return configured and auto-loaded filesystem plugin closure metadata."""
     registry = runner.registry
     return {
         "requested": list(registry.filesystem_requested_providers),
-        "auto_loaded": list(registry.filesystem_auto_loaded_providers),
+        "auto_loaded": list(registry.fs_autoloaded_providers),
         "load_order": list(registry.filesystem_load_order),
         "auto_load_reasons": dict(registry.filesystem_auto_load_reasons),
     }
 
 
-def filesystem_dependency_closure_rows(closure: object) -> list[dict[str, str]]:
+def fs_dep_rows(closure: object) -> list[dict[str, str]]:
     """Return display rows for filesystem dependency closure metadata."""
     if not isinstance(closure, dict):
         return []

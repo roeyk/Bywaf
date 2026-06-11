@@ -38,7 +38,7 @@ def format_pipeline_artifacts(context: CommandContext, pipeline_id: str, shown_p
     )
 
 
-def format_pipeline_inspection_hints(context: CommandContext, pipeline_id: str) -> str:
+def format_pipeline_hints(context: CommandContext, pipeline_id: str) -> str:
     """Show the follow-up commands that inspect this pipeline's linked work."""
     runtime = context.runtime_store("pipeline show inspect")
     jobs = runtime.jobs_for_pipeline(pipeline_id)

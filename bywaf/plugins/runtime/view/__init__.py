@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from bywaf.runtime_display import runtime_sort_completion_candidates, runtime_view_completion_candidates
+from bywaf.runtime_display import runtime_sort_candidates, runtime_view_candidates
 
 from .classification import (
     MUTATING_ACTIONS as MUTATING_ACTIONS,
@@ -24,9 +24,9 @@ from .classification import (
 )
 from .filters import (
     apply_runtime_new_cursor as apply_runtime_new_cursor,
-    command_run_metadata_by_id as command_run_metadata_by_id,
-    command_run_metadata_by_job_id as command_run_metadata_by_job_id,
-    filter_runtime_rows_by_events as filter_runtime_rows_by_events,
+    run_meta_by_id as run_meta_by_id,
+    run_meta_by_job as run_meta_by_job,
+    filter_rows_by_events as filter_rows_by_events,
     filter_runtime_rows_since as filter_runtime_rows_since,
     filter_view_job_rows as filter_view_job_rows,
     filter_view_run_rows as filter_view_run_rows,
@@ -44,8 +44,8 @@ from .filters import (
 def view_selector_candidates(prefix: str, allowed_sort_keys: Sequence[str]) -> list[str]:
     """Return common runtime-view selector completions."""
     if prefix.startswith("sort="):
-        return runtime_sort_completion_candidates(prefix, allowed_sort_keys)
-    return runtime_view_completion_candidates(prefix, allowed_sort_keys)
+        return runtime_sort_candidates(prefix, allowed_sort_keys)
+    return runtime_view_candidates(prefix, allowed_sort_keys)
 
 
 def split_since_selector(command: str, tokens: Sequence[str]) -> tuple[list[str], str]:

@@ -81,9 +81,9 @@ class RegistryCompletionOptionTests(unittest.TestCase):
         self.registry.varstore.set(COMPLETION_SELECT_KEY_VAR, "c-j")
         self.assertEqual(completion_select_key(completer), "c-j")
         self.assertEqual(completion_select_key_display(completer), "Ctrl-J")
-        self.assertFalse(completion_wasd_selection_enabled(completer))
+        self.assertFalse(wasd_selection_enabled(completer))
         self.registry.varstore.set(COMPLETION_WASD_SELECTION_VAR, "true")
-        self.assertTrue(completion_wasd_selection_enabled(completer))
+        self.assertTrue(wasd_selection_enabled(completer))
 
     def test_control_completion_includes_run_selector(self):
         with tempfile.TemporaryDirectory() as tmp:

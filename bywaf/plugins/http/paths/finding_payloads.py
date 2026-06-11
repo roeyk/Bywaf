@@ -44,13 +44,13 @@ class PathFindingDetails:
 GIT_CONFIG_RECOMMENDATION = (
     "Remove the .git directory from deployed web roots and block access to source-control metadata paths."
 )
-SOURCE_CONTROL_METADATA_RECOMMENDATION = (
+SOURCE_META_RECOMMENDATION = (
     "Remove source-control metadata from deployed web roots and block access to revision-control metadata paths."
 )
 SOURCE_MAP_RECOMMENDATION = (
     "Publish production assets without source maps, or restrict source-map access to authorized debugging workflows."
 )
-DEPENDENCY_METADATA_RECOMMENDATION = (
+DEP_META_RECOMMENDATION = (
     "Remove dependency manifests and lockfiles from deployed web roots, or restrict access to build metadata."
 )
 SENSITIVE_CONFIG_RECOMMENDATION = (
@@ -103,7 +103,7 @@ def path_finding_details(path: str, observed: HttpPathObserved) -> PathFindingDe
             "high",
             origin_scope,
             cwe_538,
-            SOURCE_CONTROL_METADATA_RECOMMENDATION,
+            SOURCE_META_RECOMMENDATION,
         )
     exact_details = exact_path_finding_details(observed.path)
     if exact_details:
@@ -154,7 +154,7 @@ def artifact_path_finding_details(
             "medium",
             origin_scope,
             cwe_538,
-            DEPENDENCY_METADATA_RECOMMENDATION,
+            DEP_META_RECOMMENDATION,
         )
     if path in SENSITIVE_CONFIG_PATHS:
         return PathFindingDetails(

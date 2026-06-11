@@ -14,7 +14,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from bywaf.event.schemas import event_schema  # noqa: E402
-from bywaf.registry import build_package_manifest_graph, relationship_report_for_provider  # noqa: E402
+from bywaf.registry import build_package_manifest_graph, provider_relationship_report  # noqa: E402
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -34,7 +34,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.provider not in graph.nodes:
             print(f"error: unknown provider {args.provider}")
             return 1
-        report = relationship_report_for_provider(
+        report = provider_relationship_report(
             graph,
             args.provider,
             registered_schemas=registered_topics_for_graph(graph),

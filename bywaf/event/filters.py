@@ -75,7 +75,7 @@ def event_matches_payload_filters(event: Event, filters: dict[str, str]) -> bool
     return True
 
 
-def any_event_matches_payload_filters(events: Sequence[Event], filters: dict[str, str]) -> bool:
+def any_event_matches_filters(events: Sequence[Event], filters: dict[str, str]) -> bool:
     """Return whether any event in a runtime scope matches all payload filters."""
     if not filters:
         return True
@@ -131,7 +131,7 @@ def selector_value_matches(value: str, pattern: str) -> bool:
     """Return exact, CIDR, or IPv4 last-octet-range match for one value."""
     if value == pattern:
         return True
-    if ipv4_last_octet_range_matches(value, pattern):
+    if ipv4_octet_range_matches(value, pattern):
         return True
     if "/" not in pattern:
         return False
@@ -141,7 +141,7 @@ def selector_value_matches(value: str, pattern: str) -> bool:
         return False
 
 
-def ipv4_last_octet_range_matches(value: str, pattern: str) -> bool:
+def ipv4_octet_range_matches(value: str, pattern: str) -> bool:
     """Match compact IPv4 ranges like `192.168.50.1-128`."""
     if "-" not in pattern:
         return False

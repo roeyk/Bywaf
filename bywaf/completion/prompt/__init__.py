@@ -41,7 +41,7 @@ from .fragments import (
     append_assignment_key_fragments as append_assignment_key_fragments,
     append_quoted_value_fragments as append_quoted_value_fragments,
     append_styled_value_fragments as append_styled_value_fragments,
-    append_variable_reference_fragments as append_variable_reference_fragments,
+    append_var_refs as append_var_refs,
     assignment_key_start as assignment_key_start,
     is_variable_reference_char as is_variable_reference_char,
     next_unquoted_equals as next_unquoted_equals,
@@ -63,12 +63,12 @@ from .keys import (
     completion_key_bindings as completion_key_bindings,
     completion_select_key as completion_select_key,
     completion_select_key_display as completion_select_key_display,
-    completion_wasd_selection_enabled as completion_wasd_selection_enabled,
+    wasd_selection_enabled as wasd_selection_enabled,
     enter_completion_selection_mode as enter_completion_selection_mode,
     framework_bool as framework_bool,
     merge_prompt_key_bindings as merge_prompt_key_bindings,
-    register_select_completion_binding as register_select_completion_binding,
-    register_wasd_completion_bindings as register_wasd_completion_bindings,
+    register_select_binding as register_select_binding,
+    register_wasd_bindings as register_wasd_bindings,
 )
 
 
@@ -107,7 +107,7 @@ def secret_input_mode(completer: Any) -> str:
     return normalize_secret_input_mode(value)
 
 
-def effective_prompt_secret_input_mode(completer: Any) -> str:
+def prompt_secret_mode(completer: Any) -> str:
     """Return the secret input method active for the current environment."""
     value = completer.registry.varstore.get(SECRET_INPUT_MODE_VAR, DEFAULT_SECRET_INPUT_MODE)
     return effective_secret_input_mode(value)

@@ -10,9 +10,9 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from .operator_state import load_ad_hoc_active_database
-from .projects import ProjectPaths, create_project, require_project
-from .setup import first_run_notice_needed, print_first_run_notice, run_setup
+from ..operator_state import load_active_database
+from ..projects import ProjectPaths, create_project, require_project
+from ..setup import first_run_notice_needed, print_first_run_notice, run_setup
 
 
 def startup_database_path(project: ProjectPaths | None, database: str | Path, *, explicit_database: bool) -> Path:
@@ -25,7 +25,7 @@ def startup_database_path(project: ProjectPaths | None, database: str | Path, *,
         return project.database
     if explicit_database:
         return Path(database)
-    return load_ad_hoc_active_database() or Path(database)
+    return load_active_database() or Path(database)
 
 
 def handle_setup_startup(args: argparse.Namespace) -> int | None:

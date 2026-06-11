@@ -78,7 +78,7 @@ class TestSkeletonsRuntimePolicyTests(unittest.TestCase):
         for path in (root / "bywaf").rglob("*.py"):
             if path in allowed:
                 continue
-            if "artifact_store_for_event_store" in path.read_text(encoding="utf-8"):
+            if "artifact_store_for_db" in path.read_text(encoding="utf-8"):
                 offenders.append(str(path.relative_to(root)))
 
         self.assertEqual([], offenders)

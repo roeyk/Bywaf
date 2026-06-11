@@ -26,7 +26,7 @@ class StorageRunnerArtifactTests(unittest.TestCase):
                 runner.execute(f"artifact export step=run-1 file={output_path}")
                 process_framework_requests(runner, ShellState())
             self.assertEqual(output_path.read_text(), "<html>ok</html>")
-            artifacts = artifact_store_for_event_store(runner.db).list(command_run_id="run-1")
+            artifacts = artifact_store_for_db(runner.db).list(command_run_id="run-1")
             self.assertEqual(len(artifacts), 1)
             self.assertEqual(artifacts[0].name, "Landing page")
             self.assertEqual(artifacts[0].note, "site snapshot")
@@ -148,7 +148,7 @@ class StorageRunnerArtifactTests(unittest.TestCase):
             with contextlib.redirect_stdout(io.StringIO()):
                 runner.execute(f"artifact attach serial=run-1 file={source} name='Landing page'")
                 process_framework_requests(runner, ShellState())
-            artifact = artifact_store_for_event_store(runner.db).list(command_run_id="run-1")[0]
+            artifact = artifact_store_for_db(runner.db).list(command_run_id="run-1")[0]
             self.assertEqual(artifact.name, "Landing page")
             with contextlib.redirect_stdout(io.StringIO()):
                 runner.execute(f"artifact export serial={artifact.artifact_id} file={output_path}")
@@ -170,13 +170,13 @@ class StorageRunnerArtifactTests(unittest.TestCase):
             with contextlib.redirect_stdout(io.StringIO()):
                 runner.execute(f"artifact import file={source} name='Landing page'")
                 process_framework_requests(runner, ShellState())
-            imported = artifact_store_for_event_store(runner.db).list()[0]
+            imported = artifact_store_for_db(runner.db).list()[0]
             self.assertIsNone(imported.command_run_id)
             self.assertTrue(runner.db.events_for_topic("artifact.imported"))
             with contextlib.redirect_stdout(io.StringIO()):
                 runner.execute(f"artifact attach artifact={imported.id} step=run-1")
                 process_framework_requests(runner, ShellState())
-            attached = artifact_store_for_event_store(runner.db).list(command_run_id="run-1")[0]
+            attached = artifact_store_for_db(runner.db).list(command_run_id="run-1")[0]
             self.assertEqual(attached.id, imported.id)
             self.assertEqual(attached.name, "Landing page")
             self.assertTrue(runner.db.events_for_topic("artifact.attached"))
@@ -208,7 +208,7 @@ class StorageRunnerArtifactTests(unittest.TestCase):
             runner = make_runner(db_path, encrypted=True, passphrase="secret")
             with contextlib.redirect_stdout(io.StringIO()):
                 runner.execute(f"artifact attach step=run-1 file={first}")
-            artifact = artifact_store_for_event_store(runner.db).list(command_run_id="run-1")[0]
+            artifact = artifact_store_for_db(runner.db).list(command_run_id="run-1")[0]
             with self.assertRaisesRegex(ValueError, "artifacts are not attached to other artifacts"):
                 runner.execute(f"artifact attach serial={artifact.artifact_id} file={second}")
 
@@ -249,7 +249,7 @@ class StorageRunnerArtifactTests(unittest.TestCase):
             runner = make_runner(db_path, encrypted=True, passphrase="secret")
             with contextlib.redirect_stdout(io.StringIO()):
                 runner.execute(f"artifact attach step=run-1 file={first}")
-            artifact = artifact_store_for_event_store(runner.db).list(command_run_id="run-1")[0]
+            artifact = artifact_store_for_db(runner.db).list(command_run_id="run-1")[0]
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 runner.execute(f"artifact replace artifact={artifact.id} file={second}")
@@ -260,7 +260,7 @@ class StorageRunnerArtifactTests(unittest.TestCase):
                 process_framework_requests(runner, ShellState())
             self.assertIn("ok artifact=", output.getvalue())
             self.assertIn("removed artifact=", output.getvalue())
-            self.assertEqual(artifact_store_for_event_store(runner.db).list(command_run_id="run-1"), [])
+            self.assertEqual(artifact_store_for_db(runner.db).list(command_run_id="run-1"), [])
             self.assertTrue(runner.db.events_for_topic("artifact.replaced"))
             self.assertTrue(runner.db.events_for_topic("artifact.removed"))
 
@@ -294,6 +294,6 @@ class StorageRunnerArtifactTests(unittest.TestCase):
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with contextlib.redirect_stdout(io.StringIO()):
                 runner.execute(f"artifact attach step=run-1 file={source}")
-            artifacts = artifact_store_for_event_store(runner.db).list(command_run_id="run-1")
+            artifacts = artifact_store_for_db(runner.db).list(command_run_id="run-1")
             self.assertEqual(artifacts[0].body, b"secret")
             self.assertTrue(artifact_db_path(runner.db.path).exists())

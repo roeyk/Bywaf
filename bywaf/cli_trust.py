@@ -17,13 +17,13 @@ from .db import EventStore
 from .plugin_trust_audit import (
     audit_auto_loaded_dependencies,
     load_catalog_with_audit,
-    load_entries_with_manifest_audit,
-    verify_catalog_entries_with_audit,
+    load_entries_with_audit,
+    verify_catalog_with_audit,
 )
 from .registry import (
     PluginRegistry,
     PluginTrustPolicy,
-    filesystem_manifest_dependency_closure,
+    fs_manifest_dep_closure,
     normalize_catalog_path,
     parse_plugin_config,
 )
@@ -31,7 +31,7 @@ from .triggers import trigger_action_name
 from .varstore import VarStore
 
 
-def plugin_trust_policy_from_args(args: argparse.Namespace) -> PluginTrustPolicy:
+def trust_policy_from_args(args: argparse.Namespace) -> PluginTrustPolicy:
     """Return explicit plugin trust bypasses selected on the CLI."""
     if args.force_plugins:
         # --force-plugins is a development escape hatch that skips all plugin
@@ -64,19 +64,19 @@ def load_filesystem_registry(
     registry = PluginRegistry({}, varstore)
     policy = PluginTrustPolicy.developer_bypass() if forced_plugins else plugin_trust_policy
     requested_entries = parse_plugin_config(plugin_config)
-    entries, filesystem_manifests = filesystem_manifest_dependency_closure(plugin_root, requested_entries)
+    entries, filesystem_manifests = fs_manifest_dep_closure(plugin_root, requested_entries)
     requested_providers = tuple(normalize_catalog_path(entry) for entry in requested_entries)
     load_order = tuple(normalize_catalog_path(entry) for entry in entries)
     requested_set = set(requested_providers)
     auto_loaded = tuple(provider for provider in load_order if provider not in requested_set)
     registry.filesystem_requested_providers = requested_providers
     registry.filesystem_load_order = load_order
-    registry.filesystem_auto_loaded_providers = auto_loaded
+    registry.fs_autoloaded_providers = auto_loaded
     registry.filesystem_auto_load_reasons = {provider: "requires_plugins" for provider in auto_loaded}
     audit_auto_loaded_dependencies(db, plugin_root, requested_entries, entries)
-    verify_catalog_entries_with_audit(db, plugin_root, entries, catalog)
+    verify_catalog_with_audit(db, plugin_root, entries, catalog)
     registry.manifests.update(filesystem_manifests)
-    load_entries_with_manifest_audit(db, registry, plugin_root, entries, policy, catalog, plugin_manifest_key)
+    load_entries_with_audit(db, registry, plugin_root, entries, policy, catalog, plugin_manifest_key)
     return registry
 
 
@@ -100,6 +100,6 @@ def merge_filesystem_registry(registry: PluginRegistry, filesystem: PluginRegist
         registry.add_triggers(provider, (trigger,))
     registry.manifests.update(filesystem.manifests)
     registry.filesystem_requested_providers = filesystem.filesystem_requested_providers
-    registry.filesystem_auto_loaded_providers = filesystem.filesystem_auto_loaded_providers
+    registry.fs_autoloaded_providers = filesystem.fs_autoloaded_providers
     registry.filesystem_load_order = filesystem.filesystem_load_order
     registry.filesystem_auto_load_reasons.update(filesystem.filesystem_auto_load_reasons)

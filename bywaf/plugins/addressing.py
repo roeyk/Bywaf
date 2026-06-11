@@ -14,7 +14,7 @@ import shlex
 from collections.abc import Iterable
 
 
-def filter_addresses_for_ip_family(addresses: Iterable[str], arguments: str) -> tuple[str, ...]:
+def filter_by_ip_family(addresses: Iterable[str], arguments: str) -> tuple[str, ...]:
     """Return only addresses matching `-4` or `-6` flags in an argument string."""
     tokens = set(shlex.split(arguments))
     if "-4" in tokens and "-6" not in tokens:

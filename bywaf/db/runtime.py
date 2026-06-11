@@ -183,7 +183,7 @@ class EventStoreRuntimeMixin(EventStoreRuntimeStateMixin):
     def ensure_pipeline_aliases(self) -> None:
         """Allocate stable local IDs for known pipelines."""
         rows = sorted(
-            self.pipelines_without_alias_backfill(active_only=False),
+            self.pipelines_missing_alias(active_only=False),
             key=lambda row: (row["first_seen"] or "", row["pipeline_id"] or ""),
         )
         for row in rows:
@@ -271,7 +271,7 @@ class EventStoreRuntimeMixin(EventStoreRuntimeStateMixin):
                 )
             )
 
-    def pipelines_without_alias_backfill(self, *, active_only: bool = False) -> list[sqlite3.Row]:
+    def pipelines_missing_alias(self, *, active_only: bool = False) -> list[sqlite3.Row]:
         """Summarize pipelines without recursively allocating local IDs."""
         with self.connect() as conn:
             return list(

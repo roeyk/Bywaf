@@ -7,7 +7,7 @@ from collections.abc import Iterable
 from bywaf.stores import EventStoreProtocol
 
 from .classification import is_view_command_line, is_view_commandlet
-from .commands import command_run_metadata_by_id, command_run_metadata_by_job_id
+from .commands import run_meta_by_id, run_meta_by_job
 
 
 def filter_view_run_rows(db: EventStoreProtocol, rows: list[dict]) -> list[dict]:
@@ -15,7 +15,7 @@ def filter_view_run_rows(db: EventStoreProtocol, rows: list[dict]) -> list[dict]
 
     Called by: `step` listings to hide read-only view commands by default.
     """
-    metadata_by_run = command_run_metadata_by_id(db, (str(row["command_run_id"]) for row in rows))
+    metadata_by_run = run_meta_by_id(db, (str(row["command_run_id"]) for row in rows))
     return [row for row in rows if not is_view_run_row(row, metadata_by_run.get(str(row["command_run_id"]), {}))]
 
 
@@ -24,7 +24,7 @@ def filter_view_job_rows(db: EventStoreProtocol, rows: list[dict]) -> list[dict]
 
     Called by: `job` listings to hide read-only view commands by default.
     """
-    metadata_by_job = command_run_metadata_by_job_id(db, (int(row["id"]) for row in rows))
+    metadata_by_job = run_meta_by_job(db, (int(row["id"]) for row in rows))
     return [row for row in rows if not is_view_job_row(row, metadata_by_job.get(int(row["id"]), []))]
 
 
@@ -57,7 +57,7 @@ def view_run_ids(db: EventStoreProtocol, rows: Iterable[dict]) -> set[str]:
     Called by: pipeline and step view filtering.
     """
     row_list = list(rows)
-    metadata_by_run = command_run_metadata_by_id(db, (str(row["command_run_id"]) for row in row_list))
+    metadata_by_run = run_meta_by_id(db, (str(row["command_run_id"]) for row in row_list))
     return {
         str(row["command_run_id"])
         for row in row_list

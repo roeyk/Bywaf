@@ -16,7 +16,7 @@ from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet,
 
 from .command import header_targets, run_http_headers
 from .detect import fetch_headers
-from .findings import missing_security_header_candidates, result_payload
+from .findings import missing_sec_headers, result_payload
 from .models import HeaderProbeResult, HeaderTarget
 
 # Public compatibility surface for older imports and tests. The implementation
@@ -28,7 +28,7 @@ __all__ = [
     "HeaderTarget",
     "HttpHeaders",
     "fetch_headers",
-    "missing_security_header_candidates",
+    "missing_sec_headers",
     "plugin",
     "result_payload",
     "run_http_headers",

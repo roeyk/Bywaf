@@ -8,7 +8,7 @@ Used by:
 
 from __future__ import annotations
 
-from ...event.filters import any_event_matches_payload_filters
+from ...event.filters import any_event_matches_filters
 from ...runtime_display import (
     ACTIVE_LISTING_FORMAT_VAR,
     args_from_command_line,
@@ -62,13 +62,13 @@ def print_info(runner: Runner) -> None:
     print(f"Jobs ({len(runtime.jobs(active_only=True))})")
     # Reuse runtime commandlets so `info` does not maintain
     # a separate table format from the primary commands.
-    process_events_for_non_repl_info(runner, run_info_commandlet(runner, "job"))
+    process_events_for_info(runner, run_info_commandlet(runner, "job"))
     print()
     print(f"Pipelines ({len(runtime.pipelines(active_only=True))})")
-    process_events_for_non_repl_info(runner, run_info_commandlet(runner, "pipeline"))
+    process_events_for_info(runner, run_info_commandlet(runner, "pipeline"))
     print()
     print(f"Steps ({len(runtime.runs(active_only=True))})")
-    process_events_for_non_repl_info(runner, run_info_commandlet(runner, "step"))
+    process_events_for_info(runner, run_info_commandlet(runner, "step"))
 
 
 def run_info_commandlet(runner: Runner, command: str):
@@ -78,7 +78,7 @@ def run_info_commandlet(runner: Runner, command: str):
     return runner.events.events_matching(after_id=after_id, limit=1000)
 
 
-def process_events_for_non_repl_info(runner: Runner, events) -> None:
+def process_events_for_info(runner: Runner, events) -> None:
     """Print framework output events emitted by commandlets during `info`."""
     del runner
     for event in events:
@@ -94,7 +94,7 @@ def print_runs(runner: Runner, *, active_only: bool = True, filters: dict[str, s
         rows = [
             row
             for row in rows
-            if any_event_matches_payload_filters(
+            if any_event_matches_filters(
                 runner.events.events_matching(command_run_id=str(row["command_run_id"]), limit=10000),
                 filters,
             )

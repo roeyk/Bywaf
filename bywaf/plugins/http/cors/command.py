@@ -23,7 +23,7 @@ from bywaf.event import Event
 from bywaf.plugin import CommandContext, CommandletBase
 from bywaf.plugins.http.targets import (
     HttpTarget as CorsTarget,
-    http_target_from_port_event,
+    http_target_from_port,
     http_target_from_text,
     http_targets,
 )
@@ -121,7 +121,7 @@ def target_from_port_event(event: Event, scheme: str, path: str) -> CorsTarget:
 
     Re-exported for tests and compatibility imports.
     """
-    return http_target_from_port_event(event, scheme, path)
+    return http_target_from_port(event, scheme, path)
 
 
 def target_from_text(target: str, scheme: str, path: str) -> CorsTarget:

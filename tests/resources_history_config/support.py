@@ -12,7 +12,7 @@ from unittest.mock import patch
 from bywaf.app import (
     ShellState,
     dispatch_repl_line,
-    format_history_entry_for_display,
+    format_history_entry,
     line_has_continuation,
     load_history,
     make_runner,

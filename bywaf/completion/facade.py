@@ -37,14 +37,14 @@ from .prompt import (
     completion_key_bindings,
     completion_select_key,
     completion_select_key_display,
-    completion_wasd_selection_enabled,
+    wasd_selection_enabled,
     enter_completion_selection_mode,
-    effective_prompt_secret_input_mode,
+    prompt_secret_mode,
     framework_bool,
     merge_prompt_key_bindings,
     prompt_input_style,
-    register_select_completion_binding,
-    register_wasd_completion_bindings,
+    register_select_binding,
+    register_wasd_bindings,
     secret_input_bottom_toolbar,
     secret_input_mode,
 )
@@ -108,12 +108,12 @@ __all__ = [
     "completion_results",
     "completion_select_key",
     "completion_select_key_display",
-    "completion_wasd_selection_enabled",
+    "wasd_selection_enabled",
     "configure_readline_delimiters",
     "cancel_completion_menu",
     "display_label",
     "enter_completion_selection_mode",
-    "effective_prompt_secret_input_mode",
+    "prompt_secret_mode",
     "format_candidate",
     "framework_bool",
     "history_candidates",
@@ -125,8 +125,8 @@ __all__ = [
     "preserve_explicit_prefix",
     "print_completion_menu",
     "prompt_toolkit_available",
-    "register_select_completion_binding",
-    "register_wasd_completion_bindings",
+    "register_select_binding",
+    "register_wasd_bindings",
     "readline",
     "resource_candidates",
     "runtime_completion_target",
@@ -231,7 +231,7 @@ def build_prompt_session(completer: Completer):
     completion_bindings = completion_key_bindings(completer)
     secret_bindings = prompt_secret_key_bindings(
         secret_state,
-        enabled=lambda: effective_prompt_secret_input_mode(completer) == "block",
+        enabled=lambda: prompt_secret_mode(completer) == "block",
     )
     key_bindings = merge_prompt_key_bindings(completion_bindings, secret_bindings)
     session_kwargs = {

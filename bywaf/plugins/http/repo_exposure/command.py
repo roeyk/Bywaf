@@ -23,7 +23,7 @@ from bywaf.event import Event
 from bywaf.plugin import CommandContext, CommandletBase, parse_bool
 from bywaf.plugin import kv_to_args
 from bywaf.plugins.http.probe import build_opener, target_from_text
-from bywaf.plugins.http.nikto import filter_http_payloads_by_policy
+from bywaf.plugins.http.nikto import filter_http_by_policy
 
 from .detect import probe_git_config
 from .findings import candidate_from_detection, result_payload
@@ -63,7 +63,7 @@ def run_git_config_check(
 
     # Resolve explicit or upstream HTTP endpoints, then apply HTTP target
     # policy before any network probe runs.
-    for target in filter_http_payloads_by_policy(context, git_targets(explicit_targets, input_events)):
+    for target in filter_http_by_policy(context, git_targets(explicit_targets, input_events)):
         context.raise_if_cancelled()
 
         # Record actual runtime use of the declared network capability.

@@ -297,6 +297,6 @@ def artifact_db_path(main_db_path: Path | str) -> Path:
     return path.with_name(f"{path.stem}.artifacts.sqlite3")
 
 
-def artifact_store_for_event_store(db: EventStore) -> ArtifactStore:
+def artifact_store_for_db(db: EventStore) -> ArtifactStore:
     """Open the paired artifact store using the main DB encryption mode."""
     return ArtifactStore(artifact_db_path(db.path), passphrase=db.passphrase)

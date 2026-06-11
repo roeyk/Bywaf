@@ -11,7 +11,7 @@ from datetime import datetime
 import unittest
 
 from bywaf.runtime_display import display_runtime_serial, format_runtime_timestamp, render_table
-from bywaf.time_format import COMPACT_RUNTIME_TIMESTAMP_FORMAT
+from bywaf.time_format import COMPACT_RUNTIME_TS_FORMAT
 
 
 class RuntimeDisplayTests(unittest.TestCase):
@@ -95,7 +95,7 @@ def expected_local_runtime_timestamp(value: str) -> str:
     parsed = datetime.fromisoformat(value).astimezone()
     timezone_name = parsed.tzname()
     suffix = f" {timezone_name}" if timezone_name else ""
-    return f"{parsed.strftime(COMPACT_RUNTIME_TIMESTAMP_FORMAT)}{suffix}"
+    return f"{parsed.strftime(COMPACT_RUNTIME_TS_FORMAT)}{suffix}"
 
 
 if __name__ == "__main__":

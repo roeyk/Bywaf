@@ -14,7 +14,7 @@ from bywaf.plugins.runtime.job import cancel_job, kill_job
 from bywaf.plugins.runtime.pipeline.view import (
     format_pipeline,
     format_pipeline_artifacts,
-    format_pipeline_inspection_hints,
+    format_pipeline_hints,
     format_pipeline_jobs,
     format_pipeline_steps,
     print_pipelines,
@@ -71,7 +71,7 @@ def show_pipeline_action(context: CommandContext, parsed: Namespace) -> None:
             alias=alias,
             style_getter=style_getter,
         ),
-        format_pipeline_inspection_hints(context, str(row["pipeline_id"])),
+        format_pipeline_hints(context, str(row["pipeline_id"])),
         format_pipeline_artifacts(context, str(row["pipeline_id"]), alias or str(row["pipeline_id"])),
         format_pipeline_jobs(context, str(row["pipeline_id"])),
         format_pipeline_steps(context, str(row["pipeline_id"])),

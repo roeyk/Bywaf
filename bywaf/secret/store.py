@@ -124,7 +124,7 @@ class InMemorySecretStore:
         return bool(value and value.startswith(SECRET_REF_PREFIX) and value in self.refs)
 
 
-def load_or_create_fingerprint_key(path: Path | None = None) -> bytes:
+def load_fingerprint_key(path: Path | None = None) -> bytes:
     """Load the local HMAC key used for audit-only secret fingerprints."""
     key_path = path or default_settings().secret_fingerprint_key
     if key_path.exists():
@@ -198,7 +198,7 @@ def redact_explicit_vars_secret(tokens: list[str], *, key: bytes) -> RedactionRe
     """Redact explicit `set --secret name=value` command text."""
     if not has_explicit_secret_marker(tokens):
         return None
-    result = redact_trailing_secret_flag_assignment(tokens, key=key)
+    result = redact_secret_flag_tail(tokens, key=key)
     if result is not None:
         return result
     return redact_secret_flag_assignment(tokens, key=key)
@@ -223,7 +223,7 @@ def redact_secret_flag_assignment(tokens: list[str], *, key: bytes) -> Redaction
     return None
 
 
-def redact_trailing_secret_flag_assignment(tokens: list[str], *, key: bytes) -> RedactionResult | None:
+def redact_secret_flag_tail(tokens: list[str], *, key: bytes) -> RedactionResult | None:
     """Redact `set name=value --secret` style command text."""
     for index, token in enumerate(tokens[1:], start=1):
         if token != "--secret" or index == 1:

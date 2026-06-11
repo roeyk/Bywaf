@@ -35,7 +35,7 @@ def prompt_value_fragments(completer: Any, text: str):
     while index < len(text):
         equals = next_unquoted_equals(text, index)
         if equals is None:
-            append_variable_reference_fragments(fragments, text[index:], variable_style)
+            append_var_refs(fragments, text[index:], variable_style)
             break
         append_assignment_key_fragments(fragments, text[index:equals], variable_style)
         fragments.append(("", "="))
@@ -90,16 +90,16 @@ def append_styled_value_fragments(
     if not variable_style:
         fragments.append((value_style, text))
         return
-    append_text_with_variable_style(fragments, text, base_style=value_style, variable_style=variable_style)
+    append_var_styled_text(fragments, text, base_style=value_style, variable_style=variable_style)
 
 
 def append_assignment_key_fragments(fragments: list[tuple[str, str]], text: str, variable_style: str) -> None:
     """Append text before `=`, styling only the assignment key token."""
     if not variable_style:
-        append_variable_reference_fragments(fragments, text, variable_style)
+        append_var_refs(fragments, text, variable_style)
         return
     key_start = assignment_key_start(text)
-    append_variable_reference_fragments(fragments, text[:key_start], variable_style)
+    append_var_refs(fragments, text[:key_start], variable_style)
     fragments.append((variable_style, text[key_start:]))
 
 
@@ -111,15 +111,15 @@ def assignment_key_start(text: str) -> int:
     return index
 
 
-def append_variable_reference_fragments(fragments: list[tuple[str, str]], text: str, variable_style: str) -> None:
+def append_var_refs(fragments: list[tuple[str, str]], text: str, variable_style: str) -> None:
     """Append plain text while styling `$VAR` references when configured."""
     if not variable_style:
         fragments.append(("", text))
         return
-    append_text_with_variable_style(fragments, text, base_style="", variable_style=variable_style)
+    append_var_styled_text(fragments, text, base_style="", variable_style=variable_style)
 
 
-def append_text_with_variable_style(
+def append_var_styled_text(
     fragments: list[tuple[str, str]],
     text: str,
     *,

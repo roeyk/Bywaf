@@ -52,7 +52,7 @@ class CatalogCompletionMixin:
                     names.add(f"{scope}.{option}")
                 for option in manifest.commandlet_provider_variables.get(commandlet, ()):
                     names.add(f"{provider_path}.{option}")
-                for option in manifest.commandlet_secret_provider_variables.get(commandlet, ()):
+                for option in manifest.commandlet_secret_vars.get(commandlet, ()):
                     names.add(f"{provider_path}.{option}")
                 for name in default_names:
                     names.add(f"{scope}.{name}")

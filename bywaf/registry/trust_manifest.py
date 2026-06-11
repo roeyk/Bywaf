@@ -45,7 +45,7 @@ def plugin_manifest_digest(data: dict[str, Any]) -> str:
     return config_digest(data)
 
 
-def enforce_plugin_manifest_signature(
+def enforce_manifest_sig(
     manifest_path: Path,
     *,
     trust_policy: PluginTrustPolicy | None = None,
@@ -61,10 +61,10 @@ def enforce_plugin_manifest_signature(
     if policy.allow_unsigned_plugin_manifests:
         return
     data = load_data_file(manifest_path)
-    verify_plugin_manifest_signature_data(data, trust.public_key_path, manifest_path)
+    verify_manifest_sig_data(data, trust.public_key_path, manifest_path)
 
 
-def verify_plugin_manifest_signature_data(data: dict[str, Any], public_key_path: Path | None, source: Path) -> None:
+def verify_manifest_sig_data(data: dict[str, Any], public_key_path: Path | None, source: Path) -> None:
     """Verify one parsed manifest signature block against a trusted public key."""
     signature = data.get("bywaf_signature")
     if not isinstance(signature, dict):

@@ -30,7 +30,7 @@ from bywaf.plugin.process.artifacts import proc_artifact_ref
 from bywaf.plugin import kv_to_args, reject_option_equals
 from bywaf.plugins.http.nikto import (
     dedupe_targets,
-    filter_http_payloads_by_policy,
+    filter_http_by_policy,
     target_from_endpoint_event,
     target_payload_from_text,
 )
@@ -103,7 +103,7 @@ class EyeWitness(CommandletBase):
         # Resolve explicit URLs and/or upstream http.endpoint events, then
         # apply the global HTTP target policy before invoking the external
         # process.
-        targets = filter_http_payloads_by_policy(
+        targets = filter_http_by_policy(
             context,
             eyewitness_targets(parsed.targets, input_events, parsed.source),
         )

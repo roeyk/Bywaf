@@ -123,7 +123,7 @@ def exposure_candidate(
         finding_class=rule.finding_class,
         severity=rule.severity,
         confidence="medium",
-        confidence_basis=confidence_basis_for_source_topic(source_topic),
+        confidence_basis=confidence_for_source_topic(source_topic),
         finding_scope="service",
         target={"host": host, "port": str(port), "protocol": protocol},
         affected=[{"endpoint": endpoint}],
@@ -151,7 +151,7 @@ def web_exposure_candidate(
         finding_class=rule.finding_class,
         severity=rule.severity,
         confidence="medium",
-        confidence_basis=confidence_basis_for_source_topic(source_topic),
+        confidence_basis=confidence_for_source_topic(source_topic),
         finding_scope="web_origin",
         target={"scheme": scheme, "host": host, "port": str(port), "path": "/"},
         affected=[{"url": display_url}],
@@ -177,7 +177,7 @@ def web_finding_evidence(rule: ExposureRule, *, url: str, source_topic: str, evi
     return "; ".join(details)
 
 
-def confidence_basis_for_source_topic(source_topic: str) -> str:
+def confidence_for_source_topic(source_topic: str) -> str:
     """Return why a passive exposure finding received its confidence label."""
     return {
         "port.open": "port_indicator",

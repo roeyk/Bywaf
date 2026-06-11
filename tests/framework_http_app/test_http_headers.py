@@ -10,7 +10,7 @@ from unittest.mock import patch
 from bywaf.app import dispatch_repl_line, make_runner, process_framework_requests
 from bywaf.event import Event
 from bywaf.plugins.http.headers import HttpHeaders
-from bywaf.plugins.http.headers.findings import missing_security_header_candidates
+from bywaf.plugins.http.headers.findings import missing_sec_headers
 from bywaf.plugins.http.headers.models import HeaderProbeResult, HeaderTarget
 from bywaf.repl import ShellState
 
@@ -87,7 +87,7 @@ class TestHttpHeadersTests(unittest.TestCase):
             headers={"Strict-Transport-Security": "max-age=31536000", "X-Content-Type-Options": "nosniff"},
         )
 
-        classes = {candidate["class"] for candidate in missing_security_header_candidates(result)}
+        classes = {candidate["class"] for candidate in missing_sec_headers(result)}
 
         self.assertIn("web.header.missing_framing_policy", classes)
 
@@ -102,7 +102,7 @@ class TestHttpHeadersTests(unittest.TestCase):
             },
         )
 
-        classes = {candidate["class"] for candidate in missing_security_header_candidates(result)}
+        classes = {candidate["class"] for candidate in missing_sec_headers(result)}
 
         self.assertNotIn("web.header.missing_framing_policy", classes)
 
@@ -117,7 +117,7 @@ class TestHttpHeadersTests(unittest.TestCase):
             },
         )
 
-        classes = {candidate["class"] for candidate in missing_security_header_candidates(result)}
+        classes = {candidate["class"] for candidate in missing_sec_headers(result)}
 
         self.assertNotIn("web.header.missing_framing_policy", classes)
 
@@ -132,7 +132,7 @@ class TestHttpHeadersTests(unittest.TestCase):
             },
         )
 
-        classes = {candidate["class"] for candidate in missing_security_header_candidates(result)}
+        classes = {candidate["class"] for candidate in missing_sec_headers(result)}
 
         self.assertIn("web.header.missing_content_security_policy", classes)
         self.assertIn("web.header.missing_referrer_policy", classes)
@@ -150,7 +150,7 @@ class TestHttpHeadersTests(unittest.TestCase):
             },
         )
 
-        classes = {candidate["class"] for candidate in missing_security_header_candidates(result)}
+        classes = {candidate["class"] for candidate in missing_sec_headers(result)}
 
         self.assertNotIn("web.header.missing_content_security_policy", classes)
         self.assertNotIn("web.header.missing_referrer_policy", classes)

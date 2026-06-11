@@ -14,7 +14,7 @@ def render_llm_feedback(report: dict[str, Any]) -> str:
     """
 
     if "plugins" in report:
-        return render_plugin_collection_feedback(report)
+        return render_collection_feedback(report)
     lines = [f"{'PASSED' if report['ok'] else 'FAILED'}: Bywaf plugin check", f"Plugin: {report['plugin']}"]
     diagnostics = report.get("diagnostics") or []
     errors = report.get("errors") or []
@@ -59,7 +59,7 @@ def render_llm_feedback(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def render_plugin_collection_feedback(report: dict[str, Any]) -> str:
+def render_collection_feedback(report: dict[str, Any]) -> str:
     """Return collection feedback without importing the human text renderer.
 
     Called by: `render_llm_feedback()` for `--all`/collection reports.
@@ -115,10 +115,10 @@ def extend_llm_feedback_items(
         lines.extend(llm_warning_feedback(item_number, warning, capability_codes))
         item_number += 1
     for topic in missing_shared_emits:
-        lines.extend(llm_missing_shared_emit_feedback(item_number, topic))
+        lines.extend(llm_missing_emit_feedback(item_number, topic))
         item_number += 1
     for topic in unregistered_declared_emits:
-        lines.extend(llm_unregistered_declared_emit_feedback(item_number, topic))
+        lines.extend(llm_unreg_emit_feedback(item_number, topic))
         item_number += 1
     for capability in unused_capabilities:
         lines.extend(llm_unused_capability_feedback(item_number, capability, capability_codes))
@@ -169,7 +169,7 @@ def llm_warning_feedback(item_number: int, warning: dict[str, Any], capability_c
     ]
 
 
-def llm_missing_shared_emit_feedback(item_number: int, topic: str) -> list[str]:
+def llm_missing_emit_feedback(item_number: int, topic: str) -> list[str]:
     """Return LLM feedback lines for one missing shared-event declaration."""
     return [
         f"{item_number}. Missing shared event declaration: {topic}",
@@ -178,7 +178,7 @@ def llm_missing_shared_emit_feedback(item_number: int, topic: str) -> list[str]:
     ]
 
 
-def llm_unregistered_declared_emit_feedback(item_number: int, topic: str) -> list[str]:
+def llm_unreg_emit_feedback(item_number: int, topic: str) -> list[str]:
     """Return LLM feedback lines for one declared topic without a registered schema."""
     return [
         f"{item_number}. Unregistered declared event topic: {topic}",

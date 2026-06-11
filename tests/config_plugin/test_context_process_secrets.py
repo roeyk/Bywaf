@@ -73,7 +73,7 @@ class ConfigPluginContextProcessSecretTests(unittest.TestCase):
                 ]
             )
             event = db.events_for_topic("process.run")[0]
-            artifact = artifact_store_for_event_store(db).list(command_run_id="run-1")[0]
+            artifact = artifact_store_for_db(db).list(command_run_id="run-1")[0]
         self.assertIn("supersecret", result.stdout)
         self.assertNotIn("supersecret", str(event.payload))
         self.assertNotIn("supersecret", artifact.body.decode())

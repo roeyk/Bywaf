@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from .crypto import load_public_key_from_private
+from .crypto import public_key_from_private
 
 if TYPE_CHECKING:
     from .models import KeyRecord
@@ -30,7 +30,7 @@ def signing_state_for_record(record: KeyRecord, passphrase: str | None = None) -
     if not record.private_path.exists():
         return "invalid"
     try:
-        load_public_key_from_private(record.private_path, passphrase)
+        public_key_from_private(record.private_path, passphrase)
     except TypeError:
         return "locked"
     except ValueError as exc:

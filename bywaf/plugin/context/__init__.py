@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from ...artifacts import artifact_store_for_event_store
+from ...artifacts import artifact_store_for_db
 from ...db import EventStore
 from .output import ContextOutputMixin
 from .policy import ContextPolicyAuditMixin
@@ -173,7 +173,7 @@ class CommandContext(ContextOutputMixin, ContextPolicyAuditMixin):
             self.audit_capability("artifact.read")
         if write_access:
             self.audit_capability("artifact.write")
-        return artifact_store_for_event_store(self._db)
+        return artifact_store_for_db(self._db)
 
     def require_foreground(self, label: str | None = None) -> None:
         """Raise if a foreground-only commandlet is running in the background."""

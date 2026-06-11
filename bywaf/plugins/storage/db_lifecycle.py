@@ -18,7 +18,7 @@ from pathlib import Path
 
 from bywaf.config import Settings
 from bywaf.db import EventStore, export_encrypted_database, export_plaintext_database
-from bywaf.operator_state import save_ad_hoc_active_database
+from bywaf.operator_state import save_active_database
 from bywaf.plugin import CommandContext
 
 from .db_paths import database_related_paths
@@ -191,5 +191,5 @@ def replace_active_store(context: CommandContext, db: EventStore) -> None:
         replacer(db)
     runner = context.metadata.get("runner")
     if getattr(runner, "project", None) is None:
-        save_ad_hoc_active_database(db.path)
+        save_active_database(db.path)
     context.db = db

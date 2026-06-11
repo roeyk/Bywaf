@@ -6,7 +6,7 @@ cohesive sibling modules such as shell, commands, display, and resources."""
 
 from .display import display_var_value
 from .display import format_event
-from .display import format_history_entry_for_display
+from .display import format_history_entry
 from .display import friendly_error
 from .display import print_commandlets
 from .display import print_events
@@ -18,7 +18,7 @@ from .parsing import command_from_remainder
 from .parsing import line_has_continuation
 from .parsing import remove_line_continuation
 from .parsing import split_command_sequence
-from .state import DEFAULT_HISTORY_TIMESTAMP_FORMAT
+from .state import DEFAULT_HISTORY_TS_FORMAT
 from .state import HISTORY_TIMESTAMP_FORMAT_VAR
 from .state import ShellState
 from .state import new_shell_state
@@ -40,7 +40,7 @@ from .commands import set_prompt_pattern
 # separate modules, but `bywaf.app` and older tests import them from
 # `bywaf.repl` as the stable package boundary.
 __all__ = [
-    "DEFAULT_HISTORY_TIMESTAMP_FORMAT",
+    "DEFAULT_HISTORY_TS_FORMAT",
     "HISTORY_TIMESTAMP_FORMAT_VAR",
     "ShellState",
     "build_input_reader",
@@ -50,7 +50,7 @@ __all__ = [
     "display_var_value",
     "execute_and_print",
     "format_event",
-    "format_history_entry_for_display",
+    "format_history_entry",
     "friendly_error",
     "line_has_continuation",
     "new_shell_state",

@@ -98,6 +98,6 @@ def dedupe_targets(targets: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     return deduped
 
 
-def filter_http_payloads_by_policy(context: CommandContext, targets: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+def filter_http_by_policy(context: CommandContext, targets: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     """Return HTTP target payloads whose host passes framework policy."""
     return filter_targets_by_host(context, targets, lambda target: str(target.get("host") or ""))

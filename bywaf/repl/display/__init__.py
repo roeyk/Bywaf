@@ -21,7 +21,7 @@ from .catalog import (
 from .detail import print_event_info, print_run_variables
 from .events import format_event, friendly_error, print_events
 from .help import print_help
-from .history import format_history_entry_for_display, print_history
+from .history import format_history_entry, print_history
 from .runtime import print_info, print_job, print_jobs, print_runs
 from .variables import display_expansion_preview, display_var_value, format_var_assignment, subject_text
 
@@ -29,7 +29,7 @@ __all__ = [
     "display_expansion_preview",
     "display_var_value",
     "format_event",
-    "format_history_entry_for_display",
+    "format_history_entry",
     "format_var_assignment",
     "friendly_error",
     "page_generated_text",

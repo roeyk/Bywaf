@@ -35,7 +35,7 @@ class HeaderProbeResult:
     Constructed by: `detect.fetch_headers()`.
 
     Used by: `findings.result_payload()` and
-    `findings.missing_security_header_candidates()`.
+    `findings.missing_sec_headers()`.
     """
 
     # headers stays a plain dict so detect.py remains independently testable

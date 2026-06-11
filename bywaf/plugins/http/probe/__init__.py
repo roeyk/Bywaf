@@ -31,7 +31,7 @@ from bywaf.plugins.http.targets import (
     HttpTarget,
     build_url as build_url,
     choose_scheme as choose_scheme,
-    http_target_from_port_event,
+    http_target_from_port,
     http_target_from_text,
     http_targets,
 )
@@ -165,7 +165,7 @@ def probe_targets(
 
 def target_from_port_event(event: Event, scheme: str, path: str) -> ProbeTarget:
     """Convert one `port.open` event into an HTTP probe target."""
-    return _probe_target(http_target_from_port_event(event, scheme, path))
+    return _probe_target(http_target_from_port(event, scheme, path))
 
 
 def target_from_text(target: str, scheme: str, path: str) -> ProbeTarget:

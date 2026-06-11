@@ -67,12 +67,12 @@ def complete_resource_value(kind: str, value: str) -> list[str]:
         candidates = complete_path(value, DEFAULT_SETTINGS.plugin_dir)
         if not value:
             candidates.extend(root_shortcuts)
-            candidates.extend(local_plugin_directory_candidates())
+            candidates.extend(local_plugin_dirs())
         return sorted(dict.fromkeys(candidates))
     return complete_path(value)
 
 
-def local_plugin_directory_candidates() -> list[str]:
+def local_plugin_dirs() -> list[str]:
     """Return explicit local plugin directory candidates for `plugin load=`."""
     candidates: list[str] = []
     for child in Path(".").iterdir():

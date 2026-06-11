@@ -23,7 +23,7 @@ from bywaf.plugin import CommandContext, CommandletBase
 from bywaf.plugins.target_policy import filter_targets_by_host
 
 from .detect import fetch_headers
-from .findings import missing_security_header_candidates, result_payload
+from .findings import missing_sec_headers, result_payload
 from .models import HeaderTarget
 
 
@@ -77,7 +77,7 @@ def run_http_headers(
 
         # Promote reportable missing/weak header observations to durable
         # finding candidates before yielding the raw header fact.
-        for candidate in missing_security_header_candidates(result):
+        for candidate in missing_sec_headers(result):
             context.events.publish("finding.candidate", candidate)
         yield payload
 

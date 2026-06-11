@@ -89,7 +89,7 @@ def run_benchmark(
     database.parent.mkdir(parents=True, exist_ok=True)
     EventStore(database).checkpoint()
     started = time.perf_counter()
-    with ProcessPoolExecutor(max_workers=writers, mp_context=benchmark_multiprocessing_context()) as executor:
+    with ProcessPoolExecutor(max_workers=writers, mp_context=benchmark_mp_context()) as executor:
         futures = [
             executor.submit(
                 run_writer,
@@ -216,7 +216,7 @@ class SyntheticPortScannerEmitter:
         )
 
 
-def benchmark_multiprocessing_context() -> Any | None:
+def benchmark_mp_context() -> Any | None:
     """Return a multiprocessing context suitable for local contention benchmarks."""
     try:
         return mp.get_context("fork")

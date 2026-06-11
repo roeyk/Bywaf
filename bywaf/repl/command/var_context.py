@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from ..state import ShellState
 
 
-def warn_if_pending_catalog_variable(runner: Runner, key: str) -> None:
+def warn_pending_catalog_var(runner: Runner, key: str) -> None:
     """Warn when storing a commandlet-scoped variable before that commandlet is loaded.
 
     Called by: `set_var()` after storing a variable.

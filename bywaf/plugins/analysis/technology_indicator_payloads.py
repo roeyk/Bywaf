@@ -29,7 +29,7 @@ def candidate_for_rule(
         finding_class=rule.finding_class,
         severity=rule.severity,
         confidence="medium",
-        confidence_basis=confidence_basis_for_source_topic(source_topic),
+        confidence_basis=confidence_for_source_topic(source_topic),
         finding_scope=finding_scope_for_target(target),
         target=target,
         affected=affected,
@@ -114,7 +114,7 @@ def finding_scope_for_target(target: dict[str, object]) -> str:
     return "service"
 
 
-def confidence_basis_for_source_topic(source_topic: str) -> str:
+def confidence_for_source_topic(source_topic: str) -> str:
     """Return why this passive indicator received its confidence label.
 
     Called by: `candidate_for_rule()`.

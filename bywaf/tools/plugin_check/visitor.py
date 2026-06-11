@@ -17,7 +17,7 @@ from .helpers import (
     literal_bool_argument,
     literal_dict_payload,
     literal_string_argument,
-    literal_string_sequence_argument,
+    literal_string_sequence,
 )
 from .state import CapabilityAnalysisState
 
@@ -61,7 +61,7 @@ class CapabilityVisitor(CapabilityAnalysisState, AuthoringDiagnosticMixin, ast.N
         """Detect decorators accidentally attached to plugin() factories."""
         if node.name == "plugin":
             self.has_plugin_factory = True
-            self.inspect_plugin_factory_decorators(node)
+            self.inspect_factory_decorators(node)
         if node.name == "plugins":
             self.has_plugins_factory = True
         self.inspect_commandlet_decorator(node)
@@ -71,7 +71,7 @@ class CapabilityVisitor(CapabilityAnalysisState, AuthoringDiagnosticMixin, ast.N
         """Detect decorators accidentally attached to async plugin() factories."""
         if node.name == "plugin":
             self.has_plugin_factory = True
-            self.inspect_plugin_factory_decorators(node)
+            self.inspect_factory_decorators(node)
         if node.name == "plugins":
             self.has_plugins_factory = True
         self.inspect_commandlet_decorator(node)
@@ -118,13 +118,13 @@ class CapabilityVisitor(CapabilityAnalysisState, AuthoringDiagnosticMixin, ast.N
     def inspect_call(self, node: ast.Call, path: str) -> None:
         """Inspect one call path and record capability evidence."""
         self.inspect_authoring_call(node, path)
-        self.inspect_framework_capability_call(node, path)
+        self.inspect_capability_call(node, path)
         self.inspect_event_store_call(node, path)
         self.inspect_artifact_call(node, path)
         self.inspect_filesystem_call(node, path)
         self.inspect_direct_api_call(node, path)
 
-    def inspect_framework_capability_call(self, node: ast.Call, path: str) -> None:
+    def inspect_capability_call(self, node: ast.Call, path: str) -> None:
         """Infer capabilities from documented framework calls."""
         for framework_capability in framework_call_capabilities(path):
             self.add_evidence(framework_capability, "framework_call", node, path)
@@ -237,7 +237,7 @@ class CapabilityVisitor(CapabilityAnalysisState, AuthoringDiagnosticMixin, ast.N
 
     def add_event_topics_evidence(self, node: ast.Call, prefix: str) -> None:
         """Add event capability evidence for calls that accept topic sequences."""
-        topics = literal_string_sequence_argument(node, "topics", 0)
+        topics = literal_string_sequence(node, "topics", 0)
         if topics:
             for topic in topics:
                 self.add_evidence(f"{prefix}:{topic}", "framework_call", node, self.call_path(node.func) or "")

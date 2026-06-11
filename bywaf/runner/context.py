@@ -16,7 +16,7 @@ from .. import __version__ as BYWAF_VERSION
 from ..command.parser import CommandInvocation
 from ..db import EventStore, new_serial
 from ..event import Event
-from ..plugin import CommandContext, database_actions_for_capabilities, implied_capabilities
+from ..plugin import CommandContext, db_actions_for_caps, implied_capabilities
 from ..registry import PluginRegistry
 from ..varstore import VarStore
 
@@ -113,7 +113,7 @@ def effective_run_vars(varstore: VarStore, commandlet: str) -> dict[str, str]:
     work does not change under an operator's later `set` commands.
     """
     prefix = f"{commandlet}."
-    provider_prefix = f"{provider_scope_for_commandlet_scope(commandlet)}."
+    provider_prefix = f"{provider_scope_for_commandlet(commandlet)}."
     return {
         key: value
         for key, value in varstore.items()
@@ -124,7 +124,7 @@ def effective_run_vars(varstore: VarStore, commandlet: str) -> dict[str, str]:
     }
 
 
-def provider_scope_for_commandlet_scope(commandlet: str) -> str:
+def provider_scope_for_commandlet(commandlet: str) -> str:
     """Return provider scope for one commandlet variable scope."""
     if "/" not in commandlet:
         return commandlet
@@ -181,7 +181,7 @@ def build_context(
     plugin = registry.get(invocation.name)
     capabilities = implied_capabilities(plugin.spec)
     variable_scope = registry.variable_scope(invocation.name)
-    provider_scope = provider_scope_for_commandlet_scope(variable_scope)
+    provider_scope = provider_scope_for_commandlet(variable_scope)
     # Snapshot variables before constructing the context so plugin code sees a
     # consistent view even if execution moves to another process or the
     # operator changes variables while the step is running.
@@ -218,7 +218,7 @@ def build_context(
             "run_vars": run_vars,
             "capabilities": capabilities,
             "emits": plugin.spec.emits,
-            "database_actions": plugin.spec.database_actions or database_actions_for_capabilities(capabilities),
+            "database_actions": plugin.spec.database_actions or db_actions_for_caps(capabilities),
             "capability_mode": "enforce",
             "topic_contract_mode": "enforce",
             "unregistered_topic_mode": "audit",

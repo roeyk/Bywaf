@@ -76,7 +76,7 @@ CLOUD_APP_CONFIG_PATHS = frozenset(
         "/firebase.json",
     }
 )
-CLOUD_APP_CONFIG_MARKER_GROUPS = {
+CLOUD_CONFIG_MARKERS = {
     "/.aws/credentials": (("[default]", "[profile "), ("aws_access_key_id",), ("aws_secret_access_key",)),
     "/application.yaml": (("spring:", "server:", "datasource:", "database:"), ("password:", "url:", "username:")),
     "/application.yml": (("spring:", "server:", "datasource:", "database:"), ("password:", "url:", "username:")),
@@ -139,7 +139,7 @@ def is_interesting_path(path: str, result: dict[str, object]) -> bool:
     return (
         lowered in EXACT_EXPOSURE_PATHS
         or path_has_content_evidence(lowered, signals)
-        or sample_contains_global_exposure_marker(signals.sample)
+        or has_global_exposure_marker(signals.sample)
     )
 
 
@@ -147,16 +147,16 @@ def path_has_content_evidence(path: str, signals: PathResponseSignals) -> bool:
     """Return whether content-specific rules confirm a candidate path hit."""
     return (
         (path in ADMIN_PATHS and looks_like_admin_surface(signals.title, signals.sample))
-        or looks_like_exposed_backup_artifact(path, signals.content_type, signals.sample)
+        or looks_like_backup_artifact(path, signals.content_type, signals.sample)
         or looks_like_source_map(path, signals.sample)
         or looks_like_vcs_metadata(path, signals.sample)
         or looks_like_dependency_manifest(path, signals.sample)
         or looks_like_sensitive_config(path, signals.sample)
-        or looks_like_cloud_app_config(path, signals.sample)
+        or looks_like_cloud_config(path, signals.sample)
     )
 
 
-def sample_contains_global_exposure_marker(sample: str) -> bool:
+def has_global_exposure_marker(sample: str) -> bool:
     """Return whether generic response text contains high-signal exposure markers."""
     return any(marker in sample for marker in GLOBAL_SAMPLE_MARKERS)
 
@@ -167,7 +167,7 @@ def looks_like_admin_surface(title: str, sample: str) -> bool:
     return any(keyword in evidence for keyword in ADMIN_KEYWORDS)
 
 
-def looks_like_exposed_backup_artifact(path: str, content_type: str, sample: str) -> bool:
+def looks_like_backup_artifact(path: str, content_type: str, sample: str) -> bool:
     """Return whether response metadata looks like a downloadable backup artifact."""
     return (
         is_backup_archive_path(path) and any(content_type.startswith(item) for item in ARCHIVE_CONTENT_TYPES)
@@ -206,7 +206,7 @@ def looks_like_sensitive_config(path: str, sample: str) -> bool:
     return path in SENSITIVE_CONFIG_PATHS and any(marker in sample for marker in SENSITIVE_CONFIG_MARKERS)
 
 
-def looks_like_cloud_app_config(path: str, sample: str) -> bool:
+def looks_like_cloud_config(path: str, sample: str) -> bool:
     """Return whether response text looks like exposed cloud or app config."""
-    marker_groups = CLOUD_APP_CONFIG_MARKER_GROUPS.get(path)
+    marker_groups = CLOUD_CONFIG_MARKERS.get(path)
     return bool(marker_groups) and all(any(marker in sample for marker in group) for group in marker_groups)

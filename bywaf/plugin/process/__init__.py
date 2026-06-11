@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from .audit import audit_process_env
-from .audit import check_process_argv_for_secrets
+from .audit import check_argv_for_secrets
 from .audit import leaked_secret_arguments as leaked_secret_arguments
 from .audit import redact_known_secret_values
 from .audit import redact_process_argv
@@ -66,7 +66,7 @@ class ContextProcess:
     ) -> ProcessResult:
         """Run an external command through the framework audit path."""
         normalized = normalize_argv(argv)
-        check_process_argv_for_secrets(self.context, normalized)
+        check_argv_for_secrets(self.context, normalized)
         audit_argv = redact_process_argv(self.context, normalized)
         audit_env = audit_process_env(self.context, env)
         # Publish the request before starting the process.  If execution fails
@@ -136,7 +136,7 @@ class ContextProcess:
     ) -> StreamProcessState:
         """Publish stream request metadata and return normalized stream state."""
         normalized = normalize_argv(argv)
-        check_process_argv_for_secrets(self.context, normalized)
+        check_argv_for_secrets(self.context, normalized)
         audit_argv = redact_process_argv(self.context, normalized)
         cwd_text = str(Path(cwd).expanduser()) if cwd is not None else None
         payload = self.stream_request_payload(audit_argv, cwd_text, timeout, env)

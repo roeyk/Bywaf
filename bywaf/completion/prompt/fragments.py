@@ -29,7 +29,7 @@ from .value_render import (
     append_assignment_key_fragments as append_assignment_key_fragments,
     append_quoted_value_fragments as append_quoted_value_fragments,
     append_styled_value_fragments as append_styled_value_fragments,
-    append_variable_reference_fragments as append_variable_reference_fragments,
+    append_var_refs as append_var_refs,
     assignment_key_start as assignment_key_start,
     prompt_value_fragments as prompt_value_fragments,
 )
@@ -44,7 +44,7 @@ __all__ = [
     "append_assignment_key_fragments",
     "append_quoted_value_fragments",
     "append_styled_value_fragments",
-    "append_variable_reference_fragments",
+    "append_var_refs",
     "assignment_key_start",
     "is_variable_reference_char",
     "next_unquoted_equals",

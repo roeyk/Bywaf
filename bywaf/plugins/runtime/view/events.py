@@ -8,16 +8,16 @@ from bywaf.stores import EventStoreProtocol
 
 RuntimeEventMatcher = Callable[[EventStoreProtocol, dict[str, str]], set[int] | set[str]]
 
-# Dispatch table used by `filter_runtime_rows_by_events()` to replace a
+# Dispatch table used by `filter_rows_by_events()` to replace a
 # kind-specific `if`/`elif` ladder for payload-filter lookups.
 EVENT_MATCHERS: dict[str, RuntimeEventMatcher] = {
-    "job": lambda db, filters: db.job_ids_matching_payload_filters(filters),
-    "pipeline": lambda db, filters: db.pipeline_ids_matching_payload_filters(filters),
-    "step": lambda db, filters: db.run_ids_matching_payload_filters(filters),
+    "job": lambda db, filters: db.job_ids_for_filters(filters),
+    "pipeline": lambda db, filters: db.pipeline_ids_for_filters(filters),
+    "step": lambda db, filters: db.run_ids_for_filters(filters),
 }
 
 
-def filter_runtime_rows_by_events(db: EventStoreProtocol, kind: str, rows: list[dict], filters: dict[str, str]) -> list[dict]:
+def filter_rows_by_events(db: EventStoreProtocol, kind: str, rows: list[dict], filters: dict[str, str]) -> list[dict]:
     """Return runtime rows that have at least one associated matching event."""
     if not filters:
         return rows

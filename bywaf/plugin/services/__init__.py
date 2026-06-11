@@ -13,7 +13,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from ...artifacts import artifact_store_for_event_store
+from ...artifacts import artifact_store_for_db
 from ...db import EventStore
 from ...event import Event
 from ... import policy as network_policy
@@ -97,7 +97,7 @@ class ContextPolicy:
         if warnings:
             for warning in warnings:
                 self.context.alert(warning)
-            network_policy.publish_network_policy_evaluated(
+            network_policy.publish_network_policy(
                 self.context,
                 decision="warn",
                 warnings=warnings,
@@ -155,4 +155,4 @@ class CompletionContext:
         """Return artifact storage for completion helpers."""
         if self.db is None:
             raise ValueError(f"{label or 'completion'} requires active artifact storage")
-        return artifact_store_for_event_store(self.db)
+        return artifact_store_for_db(self.db)

@@ -18,7 +18,7 @@ import hashlib
 from pathlib import Path
 
 
-def load_public_key_from_private(path: Path, passphrase: str | None):
+def public_key_from_private(path: Path, passphrase: str | None):
     """Load the public half from private key material."""
     return load_private_key(path.read_bytes(), passphrase).public_key()
 

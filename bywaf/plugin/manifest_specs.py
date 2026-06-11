@@ -58,7 +58,7 @@ def spec_from_manifest(path: str | Path, commandlet_name: str) -> CommandSpec:
     )
 
 
-def manifest_arguments_from_manifest(path: str | Path, commandlet_name: str) -> tuple[dict[str, Any], ...]:
+def manifest_args_from_toml(path: str | Path, commandlet_name: str) -> tuple[dict[str, Any], ...]:
     """Return raw manifest argument rows for argparse-only fields like nargs."""
     data = tomllib.loads(Path(path).read_text(encoding="utf-8"))
     row = manifest_commandlet_row(data, commandlet_name)
@@ -146,7 +146,7 @@ def parse_manifest_bool(value: str | bool) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
-def key_value_args_to_options(args: Sequence[str], option_names: set[str]) -> list[str]:
+def kv_args_to_options(args: Sequence[str], option_names: set[str]) -> list[str]:
     """Convert `key=value` option args into argparse `--key=value` args."""
     # Only manifest-declared option names are rewritten. Positional arguments
     # containing `=` must pass through unchanged for the commandlet parser.

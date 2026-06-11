@@ -7,7 +7,7 @@ from collections.abc import Iterable
 from bywaf.stores import EventStoreProtocol
 
 
-def command_run_metadata_by_id(db: EventStoreProtocol, run_ids: Iterable[str]) -> dict[str, dict[str, object]]:
+def run_meta_by_id(db: EventStoreProtocol, run_ids: Iterable[str]) -> dict[str, dict[str, object]]:
     """Return latest recorded commandlet metadata keyed by command-run id.
 
     Called by: step/pipeline view row classifiers.
@@ -23,7 +23,7 @@ def command_run_metadata_by_id(db: EventStoreProtocol, run_ids: Iterable[str]) -
     return by_run
 
 
-def command_run_metadata_by_job_id(db: EventStoreProtocol, job_ids: Iterable[int]) -> dict[int, list[dict[str, object]]]:
+def run_meta_by_job(db: EventStoreProtocol, job_ids: Iterable[int]) -> dict[int, list[dict[str, object]]]:
     """Return recorded commandlet metadata grouped by job id.
 
     Called by: job view row classifiers.

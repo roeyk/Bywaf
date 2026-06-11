@@ -24,7 +24,7 @@ GETPASS_SECRET_INPUT_MODE = "getpass"
 PLAINTEXT_SECRET_INPUT_MODE = "plaintext"
 PLAIN_SECRET_INPUT_MODE = "plain"
 
-DEFAULT_EXTERNAL_ASKPASS_HELPERS = (
+DEFAULT_ASKPASS_HELPERS = (
     "ksshaskpass",
     "ssh-askpass",
     "ssh-askpass-fullscreen",
@@ -60,7 +60,7 @@ def external_askpass_command(environ: Mapping[str, str] | None = None) -> list[s
             return shlex.split(configured)
         except ValueError:
             return None
-    for helper in DEFAULT_EXTERNAL_ASKPASS_HELPERS:
+    for helper in DEFAULT_ASKPASS_HELPERS:
         path = shutil.which(helper)
         if path:
             return [path]

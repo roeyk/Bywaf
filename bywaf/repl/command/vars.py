@@ -16,9 +16,9 @@ from typing import TYPE_CHECKING
 from ...command.names import SET_COMMAND, SETG_COMMAND
 from ...runner import Runner
 from ...secret.input import SECRET_BLOCK_VALUE
-from ...secret.store import load_or_create_fingerprint_key
+from ...secret.store import load_fingerprint_key
 from ..display import format_var_assignment
-from .var_context import resolve_var_key, set_active_context, warn_if_pending_catalog_variable
+from .var_context import resolve_var_key, set_active_context, warn_pending_catalog_var
 from .var_secrets import configured_secret_input_mode, read_secret_value
 
 if TYPE_CHECKING:
@@ -111,7 +111,7 @@ def set_var(runner: Runner, state: ShellState, assignment: str, *, source: str =
         secret_ref = runner.registry.secrets.put(
             resolved_key,
             cleaned_value,
-            key=load_or_create_fingerprint_key(),
+            key=load_fingerprint_key(),
             source=source,
         )
         runner.registry.varstore.set(resolved_key, secret_ref.ref)
@@ -119,10 +119,10 @@ def set_var(runner: Runner, state: ShellState, assignment: str, *, source: str =
         if not runner.db.encrypted:
             print(f"warning: storing secret variable {resolved_key} in plaintext database {runner.db.path}")
         print(format_var_assignment(runner, resolved_key, secret_ref.ref))
-        warn_if_pending_catalog_variable(runner, resolved_key)
+        warn_pending_catalog_var(runner, resolved_key)
         return
     runner.registry.varstore.set(resolved_key, cleaned_value)
-    warn_if_pending_catalog_variable(runner, resolved_key)
+    warn_pending_catalog_var(runner, resolved_key)
 
 
 def clean_var_value(value: str) -> str:

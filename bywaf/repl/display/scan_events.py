@@ -19,7 +19,7 @@ def format_finding_event(event, runner: Runner | None = None) -> str:
     return f"{event.id}: {event.topic} {title}{suffix}".strip()
 
 
-def format_finding_merge_candidate_event(event, runner: Runner | None = None) -> str:
+def format_merge_candidate_event(event, runner: Runner | None = None) -> str:
     """Render a merge candidate as a compact finding comparison hint."""
     payload = event.payload
     candidate = payload.get("candidate")
@@ -93,7 +93,7 @@ def format_tls_certificate_event(event, runner: Runner | None = None) -> str:
     return f"{event.id}: tls.certificate {host}:{port}{suffix}".strip()
 
 
-def format_tls_probe_error_event(event, runner: Runner | None = None) -> str:
+def format_tls_error_event(event, runner: Runner | None = None) -> str:
     """Render TLS probe failures as compact endpoint errors."""
     payload = event.payload
     host = subject_text(runner, "host", payload.get("host", ""))

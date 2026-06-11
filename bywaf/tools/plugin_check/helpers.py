@@ -48,17 +48,17 @@ def literal_bool_argument(node: ast.Call, keyword: str) -> bool | None:
     return None
 
 
-def literal_string_sequence_argument(node: ast.Call, keyword: str, position: int) -> tuple[str, ...]:
+def literal_string_sequence(node: ast.Call, keyword: str, position: int) -> tuple[str, ...]:
     """Return literal strings from a tuple/list argument."""
     for item in node.keywords:
         if item.arg == keyword:
-            return literal_string_sequence(item.value)
+            return literal_string_values(item.value)
     if len(node.args) > position:
-        return literal_string_sequence(node.args[position])
+        return literal_string_values(node.args[position])
     return ()
 
 
-def literal_string_sequence(node: ast.AST) -> tuple[str, ...]:
+def literal_string_values(node: ast.AST) -> tuple[str, ...]:
     """Return strings from a literal list or tuple."""
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
         return (node.value,)
