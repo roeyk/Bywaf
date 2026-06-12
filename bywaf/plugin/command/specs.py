@@ -21,6 +21,9 @@ from ...specs import ArgumentSpec, CommandSpec, CompletionSpec, OptionSpec
 def manifest_path_for_function(func: Callable[..., Any]) -> Path:
     """Return the conventional sidecar manifest path for a plugin function.
 
+    Called by: manifest-backed commandlet decorators when plugin authors keep
+    most command metadata in TOML instead of Python decorator arguments.
+
     Package plugins use `bywaf.plugin.toml`; legacy single-file plugins use a
     sibling `*.plugin.toml` file.
     """
@@ -36,7 +39,12 @@ def manifest_path_for_function(func: Callable[..., Any]) -> Path:
 
 
 def manifest_name_for_function(func: Callable[..., Any], path: Path) -> str:
-    """Return the conventional manifest commandlet name for a plugin function."""
+    """Return the conventional manifest commandlet name for a plugin function.
+
+    Called by: manifest-backed decorator paths after locating the sidecar. A
+    package manifest may describe several commandlets by function name; a
+    legacy `name.plugin.toml` sidecar derives the commandlet name from the file.
+    """
     if path.name == "bywaf.plugin.toml":
         return func.__name__
     return path.stem.removesuffix(".plugin")
@@ -54,6 +62,10 @@ def spec_from_manifest(path: str | Path, commandlet_name: str) -> CommandSpec:
     # normalize that subtable before constructing the public command metadata.
     database = row.get("database", {})
     database_actions = database.get("actions", {}) if isinstance(database, dict) else {}
+    # CommandSpec is the public metadata consumed by registry, runner,
+    # completion, help text, plugin checking, and docs generation. Keep this
+    # constructor visibly parallel to the manifest fields so contract drift is
+    # easy to spot during code review.
     return CommandSpec(
         name=commandlet_name,
         description=str(row.get("description") or ""),
@@ -84,7 +96,11 @@ def manifest_args_from_toml(path: str | Path, commandlet_name: str) -> tuple[dic
 
 
 def manifest_commandlet_row(data: Mapping[str, Any], commandlet_name: str) -> Mapping[str, Any]:
-    """Return one commandlet manifest table by name."""
+    """Return one commandlet manifest table by name.
+
+    Called by: all manifest-to-spec helpers in this module before they parse
+    commandlet-specific fields.
+    """
     rows = data.get("commandlets", ())
     if not isinstance(rows, list):
         raise ValueError("manifest commandlets must be a sequence")
@@ -97,9 +113,15 @@ def manifest_commandlet_row(data: Mapping[str, Any], commandlet_name: str) -> Ma
 
 
 def option_spec_from_manifest(row: Mapping[str, Any]) -> OptionSpec:
-    """Build an OptionSpec from a manifest option table."""
+    """Build an OptionSpec from a manifest option table.
+
+    Called by: `spec_from_manifest()` for public metadata and by registry
+    manifest parsing when it needs the same `OptionSpec` contract.
+    """
     name = str(row["name"])
     completion = row.get("completion")
+    # Manifest `type` names become OptionSpec value_type strings. The actual
+    # parser callable is selected later by `manifest_option_cast()`.
     return OptionSpec(
         name=name,
         description=str(row.get("description") or ""),
@@ -112,8 +134,14 @@ def option_spec_from_manifest(row: Mapping[str, Any]) -> OptionSpec:
 
 
 def argument_spec_from_manifest(row: Mapping[str, Any]) -> ArgumentSpec:
-    """Build an ArgumentSpec from a manifest argument table."""
+    """Build an ArgumentSpec from a manifest argument table.
+
+    Called by: `spec_from_manifest()` to expose positional-argument metadata to
+    completion, help, and plugin-check output.
+    """
     completion = row.get("completion")
+    # argparse uses `?` and `*` for optional positional arguments. Convert that
+    # runtime parser detail into the simpler public ArgumentSpec.required flag.
     return ArgumentSpec(
         name=str(row["name"]),
         description=str(row.get("description") or ""),
@@ -123,7 +151,12 @@ def argument_spec_from_manifest(row: Mapping[str, Any]) -> ArgumentSpec:
 
 
 def manifest_default_to_string(value: Any) -> str | None:
-    """Normalize manifest defaults into CommandSpec string metadata."""
+    """Normalize manifest defaults into CommandSpec string metadata.
+
+    Used by: option parsing in both plugin-command and registry-manifest paths.
+    CommandSpec stores defaults for display/completion; argparse rehydrates
+    typed values later through `manifest_option_default()`.
+    """
     if value is None:
         return None
     if isinstance(value, bool):
@@ -132,7 +165,11 @@ def manifest_default_to_string(value: Any) -> str | None:
 
 
 def manifest_option_default(option_spec: OptionSpec) -> Any:
-    """Return a typed manifest default for argparse."""
+    """Return a typed manifest default for argparse.
+
+    Called by: commandlet parser construction when manifest-declared options
+    provide defaults.
+    """
     if option_spec.default is None:
         return None
     return manifest_option_cast(option_spec)(option_spec.default)
@@ -157,14 +194,22 @@ def manifest_option_cast(option_spec: OptionSpec):
 
 
 def optional_manifest_int(value: str | int | None) -> int | None:
-    """Parse optional integer manifest values."""
+    """Parse optional integer manifest values.
+
+    Used by: `manifest_option_cast()` for options that accept an empty value as
+    an unset integer.
+    """
     if value in (None, ""):
         return None
     return int(value)
 
 
 def parse_manifest_bool(value: str | bool) -> bool:
-    """Parse bool-like manifest/CLI values."""
+    """Parse bool-like manifest/CLI values.
+
+    Used by: `manifest_option_cast()` so TOML defaults and CLI values share the
+    same permissive boolean spelling rules.
+    """
     if isinstance(value, bool):
         return value
     return value.strip().lower() in {"1", "true", "yes", "on"}
@@ -185,18 +230,30 @@ def kv_args_to_options(args: Sequence[str], option_names: set[str]) -> list[str]
 
 
 def option_dest(name: str) -> str:
-    """Return a Python attribute-safe option destination."""
+    """Return a Python attribute-safe option destination.
+
+    Used by: argparse setup when manifest option names contain dashes but the
+    parsed namespace must expose underscore-safe Python attributes.
+    """
     return name.replace("-", "_")
 
 
 def split_var_values(value: str) -> list[str]:
-    """Split comma and whitespace separated variable values."""
+    """Split comma and whitespace separated variable values.
+
+    Used by: variable-backed option hydration when one stored variable supplies
+    a lightweight list of argument values.
+    """
     # This is deliberately simple and shell-agnostic; quoted parsing belongs in
     # the command parser, while variables are treated as lightweight lists.
     return [part for chunk in value.split(",") for part in chunk.split() if part]
 
 
 def format_table(rows: Sequence[Mapping[str, object] | Sequence[object]], columns: Sequence[str]) -> list[str]:
-    """Return aligned text rows for small commandlet tables."""
+    """Return aligned text rows for small commandlet tables.
+
+    Used by: commandlet helpers that need framework table rendering without
+    depending on REPL display modules.
+    """
     rendered = render_console_table(Table.from_rows(rows, columns))
     return rendered.splitlines() if rendered else []
