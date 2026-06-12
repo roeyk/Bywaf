@@ -17,6 +17,21 @@ from .network import host_overviews
 from .review import ReviewDecision, review_status
 
 
+ReportScope = tuple[str, str, str]
+
+# Ordered dispatch table consumed by `report_scope()`. It replaces repeated
+# if/elif ladders for report scope labels while making selector precedence
+# explicit: concrete runtime selectors win before derived "last/new" modes,
+# and the default inbox remains the final fallback.
+REPORT_SCOPE_RULES: tuple[tuple[str, str, str], ...] = (
+    ("job", "scope", "job={value}"),
+    ("pipeline", "scope", "pipeline={value}"),
+    ("step", "scope", "step={value}"),
+    ("last", "scope", "latest scan"),
+    ("new", "new", "since prior inventory"),
+)
+
+
 def empty_status_message(status: str) -> str:
     """Return a natural empty-state message for one report status filter.
 
@@ -36,27 +51,7 @@ def report_heading(parsed: Namespace, events: list[Event], groups: list[FindingG
 
     Called by: `analysis.report.render` before rendering finding rows.
     """
-    # Convert mutually exclusive report selectors into one operator-facing
-    # action/scope phrase. This keeps report headings consistent across inbox,
-    # explicit job/pipeline/step scopes, latest-scan, and new-delta views.
-    if parsed.job:
-        action = "scope"
-        scope = f"job={parsed.job}"
-    elif parsed.pipeline:
-        action = "scope"
-        scope = f"pipeline={parsed.pipeline}"
-    elif parsed.step:
-        action = "scope"
-        scope = f"step={parsed.step}"
-    elif getattr(parsed, "last", False):
-        action = "scope"
-        scope = "latest scan"
-    elif getattr(parsed, "new", False):
-        action = "new"
-        scope = "since prior inventory"
-    else:
-        action = "inbox"
-        scope = "latest scan"
+    action, scope, _network_scope = report_scope(parsed)
     event_count = len(events)
     group_count = len(groups)
     return (
@@ -71,25 +66,32 @@ def network_report_heading(parsed: Namespace, context_events: list[Event], findi
 
     Called by: network-focused report rendering before host/service sections.
     """
-    if parsed.job:
-        scope = f"job={parsed.job}"
-    elif parsed.pipeline:
-        scope = f"pipeline={parsed.pipeline}"
-    elif parsed.step:
-        scope = f"step={parsed.step}"
-    elif getattr(parsed, "last", False):
-        scope = "latest scan"
-    elif getattr(parsed, "new", False):
-        scope = "new since prior inventory"
-    else:
-        scope = "latest scan"
+    _action, _scope, network_scope = report_scope(parsed)
     event_count = len(context_events) + len(finding_events)
     host_count = len(host_overviews(context_events, finding_events))
     return (
-        f"Report network: {scope} "
+        f"Report network: {network_scope} "
         f"({host_count} host{'s' if host_count != 1 else ''}, "
         f"{event_count} event{'s' if event_count != 1 else ''})"
     )
+
+
+def report_scope(parsed: Namespace) -> ReportScope:
+    """Return report action, finding scope text, and network scope text.
+
+    Called by: report heading helpers. The function walks
+    `REPORT_SCOPE_RULES`, defined above, instead of repeating if/elif ladders.
+    """
+    for attr, action, template in REPORT_SCOPE_RULES:
+        value = getattr(parsed, attr, None)
+        if not value:
+            continue
+        scope = template.format(value=value)
+        # Network reports use a slightly different phrase for the delta view,
+        # but all selector precedence still comes from the same rule table.
+        network_scope = "new since prior inventory" if attr == "new" else scope
+        return action, scope, network_scope
+    return "inbox", "latest scan", "latest scan"
 
 
 def report_rendered_payload(
