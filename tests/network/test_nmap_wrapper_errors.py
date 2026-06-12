@@ -1,4 +1,7 @@
-"""Plugin-level diagnostics for nmap-backed wrappers."""
+"""Plugin-level diagnostics for nmap-backed wrappers.
+
+Coverage focus: network nmap wrapper errors regression behavior.
+"""
 
 from __future__ import annotations
 

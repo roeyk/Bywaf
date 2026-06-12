@@ -1,4 +1,7 @@
-"""Tests for compact REPL event formatting."""
+"""Tests for compact REPL event formatting.
+
+Coverage focus: app dispatch event formatting regression behavior.
+"""
 
 import unittest
 

@@ -1,4 +1,7 @@
-"""Plugin checker tests for test bundled reports."""
+"""Plugin checker tests for test bundled reports.
+
+Coverage focus: plugin check bundled reports regression behavior.
+"""
 
 import json
 import unittest

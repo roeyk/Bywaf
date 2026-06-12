@@ -1,4 +1,7 @@
-"""Framework HTTP app tests for test framework requests."""
+"""Framework HTTP app tests for test framework requests.
+
+Coverage focus: framework http app framework requests regression behavior.
+"""
 
 from pathlib import Path
 import contextlib

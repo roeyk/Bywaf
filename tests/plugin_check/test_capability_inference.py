@@ -1,4 +1,7 @@
-"""Plugin checker tests for test capability inference."""
+"""Plugin checker tests for test capability inference.
+
+Coverage focus: plugin check capability inference regression behavior.
+"""
 
 from pathlib import Path
 import tempfile

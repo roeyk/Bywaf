@@ -1,5 +1,8 @@
 # ruff: noqa: F403,F405
-"""Storage runner tests split by responsibility."""
+"""Storage runner tests split by responsibility.
+
+Coverage focus: storage runner background watchdog regression behavior.
+"""
 
 from datetime import datetime
 

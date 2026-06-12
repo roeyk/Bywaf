@@ -1,4 +1,7 @@
-"""Fixture-backed network probe wrapper coverage."""
+"""Fixture-backed network probe wrapper coverage.
+
+Coverage focus: network network probe wrapper matrix regression behavior.
+"""
 
 from __future__ import annotations
 

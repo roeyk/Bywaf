@@ -1,4 +1,7 @@
-"""Shared helpers for packaging install-path tests."""
+"""Shared helpers for packaging install-path tests.
+
+Coverage focus: shared fixtures and test doubles for packaging install tests.
+"""
 
 # pyright: reportMissingImports=false
 

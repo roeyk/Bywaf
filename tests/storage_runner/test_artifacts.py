@@ -1,5 +1,8 @@
 # ruff: noqa: F403,F405
-"""Storage runner tests split by responsibility."""
+"""Storage runner tests split by responsibility.
+
+Coverage focus: storage runner artifacts regression behavior.
+"""
 
 from tests.storage_runner.support import *  # noqa: F403,F405
 

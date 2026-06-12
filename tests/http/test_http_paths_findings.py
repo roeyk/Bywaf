@@ -1,4 +1,7 @@
-"""Focused HTTP path finding promotion tests."""
+"""Focused HTTP path finding promotion tests.
+
+Coverage focus: http http paths findings regression behavior.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,7 @@
-"""Plugin checker tests for test diagnostics."""
+"""Plugin checker tests for test diagnostics.
+
+Coverage focus: plugin check diagnostics regression behavior.
+"""
 
 from pathlib import Path
 import tempfile

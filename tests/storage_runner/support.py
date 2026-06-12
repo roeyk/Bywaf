@@ -1,5 +1,8 @@
 # ruff: noqa: F401,F811
-"""Shared helpers for storage runner tests."""
+"""Shared helpers for storage runner tests.
+
+Coverage focus: shared fixtures and test doubles for storage runner tests.
+"""
 
 from pathlib import Path
 import contextlib

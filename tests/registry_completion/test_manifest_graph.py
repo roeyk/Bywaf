@@ -1,4 +1,7 @@
-"""Tests for manifest-derived plugin relationship graphs."""
+"""Tests for manifest-derived plugin relationship graphs.
+
+Coverage focus: registry completion manifest graph regression behavior.
+"""
 
 from typing import Any, cast
 

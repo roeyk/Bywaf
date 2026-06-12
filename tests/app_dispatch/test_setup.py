@@ -1,4 +1,7 @@
-"""Tests for setup-specific CLI behavior."""
+"""Tests for setup-specific CLI behavior.
+
+Coverage focus: app dispatch setup regression behavior.
+"""
 
 from pathlib import Path
 import contextlib

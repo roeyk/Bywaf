@@ -1,4 +1,7 @@
-"""Framework HTTP app tests for HTTP method inspection."""
+"""Framework HTTP app tests for HTTP method inspection.
+
+Coverage focus: framework http app http methods regression behavior.
+"""
 
 import contextlib
 import io

@@ -1,4 +1,7 @@
-"""Plugin checker tests for test skeletons runtime policy."""
+"""Plugin checker tests for test skeletons runtime policy.
+
+Coverage focus: plugin check skeletons runtime policy regression behavior.
+"""
 
 from pathlib import Path
 import unittest

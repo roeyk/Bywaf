@@ -1,4 +1,7 @@
-"""Packaging version, key namespace, and install root tests."""
+"""Packaging version, key namespace, and install root tests.
+
+Coverage focus: packaging install versions and roots regression behavior.
+"""
 
 from pathlib import Path
 import contextlib

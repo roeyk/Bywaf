@@ -1,4 +1,7 @@
-"""Tests for the WafW00f wrapped-process plugin."""
+"""Tests for the WafW00f wrapped-process plugin.
+
+Coverage focus: http wafw00f regression behavior.
+"""
 
 from __future__ import annotations
 

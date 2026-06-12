@@ -1,4 +1,7 @@
-"""Framework HTTP app tests for test http headers."""
+"""Framework HTTP app tests for test http headers.
+
+Coverage focus: framework http app http headers regression behavior.
+"""
 
 import contextlib
 import io

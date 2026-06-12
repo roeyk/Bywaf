@@ -1,4 +1,7 @@
-"""TLS probe finding promotion tests."""
+"""TLS probe finding promotion tests.
+
+Coverage focus: http tls probe findings regression behavior.
+"""
 
 from __future__ import annotations
 

@@ -1,5 +1,8 @@
 # ruff: noqa: F401
-"""Shared helpers for report command tests."""
+"""Shared helpers for report command tests.
+
+Coverage focus: shared fixtures and test doubles for report tests.
+"""
 
 import contextlib
 import io

@@ -1,4 +1,7 @@
-"""Framework HTTP app tests for test context capability audit."""
+"""Framework HTTP app tests for test context capability audit.
+
+Coverage focus: framework http app context capability audit regression behavior.
+"""
 
 from pathlib import Path
 import tempfile

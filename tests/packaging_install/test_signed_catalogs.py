@@ -1,4 +1,7 @@
-"""Signed plugin catalog packaging install-path tests."""
+"""Signed plugin catalog packaging install-path tests.
+
+Coverage focus: packaging install signed catalogs regression behavior.
+"""
 
 from pathlib import Path
 import contextlib

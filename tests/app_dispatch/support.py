@@ -1,4 +1,7 @@
-"""Shared helpers for app dispatch tests."""
+"""Shared helpers for app dispatch tests.
+
+Coverage focus: shared fixtures and test doubles for app dispatch tests.
+"""
 
 
 class FakeHostResult:

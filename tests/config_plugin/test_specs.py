@@ -1,5 +1,8 @@
 # ruff: noqa: F403,F405
-"""Config/plugin tests split by responsibility."""
+"""Config/plugin tests split by responsibility.
+
+Coverage focus: config plugin specs regression behavior.
+"""
 
 from tests.config_plugin.support import *  # noqa: F403,F405
 class ConfigPluginSpecTests(unittest.TestCase):

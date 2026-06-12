@@ -1,4 +1,7 @@
-"""Framework HTTP app tests for HTTP CORS posture inspection."""
+"""Framework HTTP app tests for HTTP CORS posture inspection.
+
+Coverage focus: framework http app http cors regression behavior.
+"""
 
 from pathlib import Path
 import tempfile

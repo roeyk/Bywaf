@@ -4,6 +4,7 @@ Used by:
 - maintainers: validate the metrics that guide refactoring and documentation
   pressure reviews.
 - CI: keep the synthetic fixture behavior stable as the metric collector grows.
+Coverage focus: architecture metrics regression behavior.
 """
 
 from pathlib import Path

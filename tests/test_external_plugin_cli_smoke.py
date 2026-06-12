@@ -5,6 +5,7 @@ or user-visible behavior.
 
 Used by:
 - pytest and CI: detect regressions in this subsystem.
+Coverage focus: external plugin cli smoke regression behavior.
 - maintainers: document expected behavior through executable examples."""
 
 # pyright: reportMissingImports=false

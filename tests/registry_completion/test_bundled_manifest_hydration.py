@@ -1,5 +1,8 @@
 # ruff: noqa: F403,F405
-"""Bundled manifest hydration tests for lean Python commandlet specs."""
+"""Bundled manifest hydration tests for lean Python commandlet specs.
+
+Coverage focus: registry completion bundled manifest hydration regression behavior.
+"""
 
 from tests.registry_completion.support import *  # noqa: F403,F405
 

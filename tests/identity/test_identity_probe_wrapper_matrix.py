@@ -1,4 +1,7 @@
-"""Fixture-backed identity probe wrapper coverage."""
+"""Fixture-backed identity probe wrapper coverage.
+
+Coverage focus: identity identity probe wrapper matrix regression behavior.
+"""
 
 from __future__ import annotations
 

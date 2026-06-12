@@ -1,5 +1,8 @@
 # ruff: noqa: F403,F405
-"""Config/plugin tests split by responsibility."""
+"""Config/plugin tests split by responsibility.
+
+Coverage focus: config plugin context capabilities regression behavior.
+"""
 
 from unittest.mock import patch
 

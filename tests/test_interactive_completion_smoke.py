@@ -5,6 +5,7 @@ or user-visible behavior.
 
 Used by:
 - pytest and CI: detect regressions in this subsystem.
+Coverage focus: interactive completion smoke regression behavior.
 - maintainers: document expected behavior through executable examples."""
 
 import os

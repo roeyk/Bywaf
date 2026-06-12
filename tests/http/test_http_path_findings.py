@@ -1,4 +1,7 @@
-"""Direct tests for HTTP path finding classification helpers."""
+"""Direct tests for HTTP path finding classification helpers.
+
+Coverage focus: http http path findings regression behavior.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,7 @@
-"""Tests for public plugin selector parsing helpers."""
+"""Tests for public plugin selector parsing helpers.
+
+Coverage focus: config plugin selector api regression behavior.
+"""
 
 from __future__ import annotations
 

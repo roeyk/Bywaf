@@ -1,5 +1,8 @@
 # ruff: noqa: F403,F405
-"""Config/plugin tests split by responsibility."""
+"""Config/plugin tests split by responsibility.
+
+Coverage focus: config plugin messages progress signals regression behavior.
+"""
 
 from tests.config_plugin.support import *  # noqa: F403,F405
 class ConfigPluginMessagesProgressSignalTests(unittest.TestCase):

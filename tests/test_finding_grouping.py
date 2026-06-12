@@ -1,4 +1,7 @@
-"""Tests for finding class and report grouping helpers."""
+"""Tests for finding class and report grouping helpers.
+
+Coverage focus: finding grouping regression behavior.
+"""
 
 import unittest
 

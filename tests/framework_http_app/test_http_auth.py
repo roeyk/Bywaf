@@ -1,4 +1,7 @@
-"""Framework HTTP app tests for HTTP auth posture inspection."""
+"""Framework HTTP app tests for HTTP auth posture inspection.
+
+Coverage focus: framework http app http auth regression behavior.
+"""
 
 from pathlib import Path
 import tempfile

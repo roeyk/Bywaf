@@ -1,4 +1,7 @@
-"""Fixture-backed HTTP probe wrapper coverage."""
+"""Fixture-backed HTTP probe wrapper coverage.
+
+Coverage focus: http http probe wrapper matrix regression behavior.
+"""
 
 from __future__ import annotations
 

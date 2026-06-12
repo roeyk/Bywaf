@@ -6,6 +6,7 @@ or user-visible behavior.
 
 Used by:
 - pytest and CI: detect regressions in this subsystem.
+Coverage focus: scripted smoke flow for run user flow.
 - maintainers: document expected behavior through executable examples."""
 
 

@@ -1,4 +1,7 @@
-"""Shared fixtures for plugin-check tests."""
+"""Shared fixtures for plugin-check tests.
+
+Coverage focus: plugin check fixtures regression behavior.
+"""
 
 # pyright: reportMissingImports=false
 

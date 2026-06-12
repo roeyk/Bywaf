@@ -1,4 +1,7 @@
-"""Regression tests for traceroute wrapper failure diagnostics."""
+"""Regression tests for traceroute wrapper failure diagnostics.
+
+Coverage focus: network traceroute wrapper regression behavior.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,7 @@
-"""Tests for passive management exposure classification."""
+"""Tests for passive management exposure classification.
+
+Coverage focus: network management exposure regression behavior.
+"""
 
 from __future__ import annotations
 

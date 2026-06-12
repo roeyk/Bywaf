@@ -1,4 +1,7 @@
-"""Framework HTTP app tests for test app helpers."""
+"""Framework HTTP app tests for test app helpers.
+
+Coverage focus: framework http app app helpers regression behavior.
+"""
 
 from pathlib import Path
 import tempfile

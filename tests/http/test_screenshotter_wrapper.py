@@ -1,4 +1,7 @@
-"""Regression tests for the screenshotter EyeWitness wrapper alias."""
+"""Regression tests for the screenshotter EyeWitness wrapper alias.
+
+Coverage focus: http screenshotter wrapper regression behavior.
+"""
 
 from __future__ import annotations
 

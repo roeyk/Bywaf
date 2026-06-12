@@ -1,4 +1,7 @@
-"""Plugin checker tests for test submissions and output."""
+"""Plugin checker tests for test submissions and output.
+
+Coverage focus: plugin check submissions and output regression behavior.
+"""
 
 from pathlib import Path
 import importlib.util

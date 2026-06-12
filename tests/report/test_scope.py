@@ -1,5 +1,8 @@
 # ruff: noqa: F403,F405
-"""Report command tests split by responsibility."""
+"""Report command tests split by responsibility.
+
+Coverage focus: report scope regression behavior.
+"""
 
 from tests.report.support import *  # noqa: F403,F405
 

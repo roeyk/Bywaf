@@ -5,6 +5,7 @@ or user-visible behavior.
 
 Used by:
 - pytest and CI: detect regressions in this subsystem.
+Coverage focus: app dispatch runtime filters regression behavior.
 - maintainers: document expected behavior through executable examples."""
 
 from pathlib import Path

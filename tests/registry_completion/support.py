@@ -1,5 +1,8 @@
 # ruff: noqa: F401
-"""Shared helpers for registry and completion tests."""
+"""Shared helpers for registry and completion tests.
+
+Coverage focus: shared fixtures and test doubles for registry completion tests.
+"""
 
 from pathlib import Path
 import importlib

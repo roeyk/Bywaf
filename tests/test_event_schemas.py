@@ -5,6 +5,7 @@ plugin authors, views, and future validation hooks.
 
 Used by:
 - pytest and CI: catch drift in shared event topic expectations.
+Coverage focus: event schemas regression behavior.
 - maintainers: document event payload compatibility through examples."""
 
 import unittest

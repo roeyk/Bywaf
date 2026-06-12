@@ -1,4 +1,7 @@
-"""Fixture-backed recon probe wrapper coverage."""
+"""Fixture-backed recon probe wrapper coverage.
+
+Coverage focus: recon recon probe wrapper matrix regression behavior.
+"""
 
 from __future__ import annotations
 

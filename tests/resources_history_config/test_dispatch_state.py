@@ -1,5 +1,8 @@
 # ruff: noqa: F403,F405
-"""Resources/history/config tests split by responsibility."""
+"""Resources/history/config tests split by responsibility.
+
+Coverage focus: resources history config dispatch state regression behavior.
+"""
 
 from tests.resources_history_config.support import *  # noqa: F403,F405
 class ResourcesHistoryDispatchStateTests(unittest.TestCase):

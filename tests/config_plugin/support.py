@@ -1,5 +1,8 @@
 # ruff: noqa: F401
-"""Shared helpers for config/plugin tests."""
+"""Shared helpers for config/plugin tests.
+
+Coverage focus: shared fixtures and test doubles for config plugin tests.
+"""
 
 import contextlib
 import io

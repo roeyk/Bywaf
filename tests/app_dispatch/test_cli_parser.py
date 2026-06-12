@@ -1,4 +1,7 @@
-"""Tests for top-level CLI parsing and startup path selection."""
+"""Tests for top-level CLI parsing and startup path selection.
+
+Coverage focus: app dispatch cli parser regression behavior.
+"""
 
 from pathlib import Path
 import os

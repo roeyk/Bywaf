@@ -1,4 +1,7 @@
-"""Plugin checker tests for test manifest basics."""
+"""Plugin checker tests for test manifest basics.
+
+Coverage focus: plugin check manifest basics regression behavior.
+"""
 
 from pathlib import Path
 import tempfile

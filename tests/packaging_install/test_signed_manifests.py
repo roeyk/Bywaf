@@ -1,4 +1,7 @@
-"""Signed plugin manifest packaging install-path tests."""
+"""Signed plugin manifest packaging install-path tests.
+
+Coverage focus: packaging install signed manifests regression behavior.
+"""
 
 from pathlib import Path
 import contextlib

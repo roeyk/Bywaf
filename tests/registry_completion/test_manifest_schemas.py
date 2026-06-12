@@ -1,5 +1,8 @@
 # ruff: noqa: F403,F405
-"""Registry and completion tests split by responsibility."""
+"""Registry and completion tests split by responsibility.
+
+Coverage focus: registry completion manifest schemas regression behavior.
+"""
 
 from tests.registry_completion.support import *  # noqa: F403,F405
 class RegistryManifestSchemaTests(unittest.TestCase):

@@ -1,5 +1,8 @@
 # ruff: noqa: F401
-"""Shared helpers for resources, history, and config tests."""
+"""Shared helpers for resources, history, and config tests.
+
+Coverage focus: shared fixtures and test doubles for resources history config tests.
+"""
 
 from pathlib import Path
 import contextlib
