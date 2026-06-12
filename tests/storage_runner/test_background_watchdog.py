@@ -55,6 +55,7 @@ class StorageRunnerBackgroundWatchdogTests(unittest.TestCase):
             self.assertIn("job.finished", topics)
 
     def test_background_job_preserves_attached_stage_markers(self):
+        """Protect background job preserves attached stage markers behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with patch("bywaf.runner.core.mp.Process") as process_cls:

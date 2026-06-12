@@ -52,6 +52,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             self.assertIn('"value": 1', output.getvalue())
 
     def test_audit_list_capabilities_prints_inventory(self):
+        """Protect audit list capabilities prints inventory behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             # Seed the same capability telemetry that commandlet execution

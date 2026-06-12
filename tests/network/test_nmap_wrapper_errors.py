@@ -90,6 +90,7 @@ class NmapWrapperErrorTests(unittest.TestCase):
             self.assertEqual(error["message"], "permission denied")
 
     def test_portscanner_records_missing_backend_as_tool_error_and_failed_progress(self):
+        """Protect portscanner records missing backend as tool error and failed progress behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             context, db = make_context(
                 tmp,

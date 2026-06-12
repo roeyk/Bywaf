@@ -56,6 +56,7 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
             self.assertEqual(snapshot["global.proxy"], "http://127.0.0.1:8080")
 
     def test_background_job_uses_parent_var_snapshot(self):
+        """Protect background job uses parent var snapshot behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.registry.varstore.set("discovery/hostscanner.arguments", "-PE")

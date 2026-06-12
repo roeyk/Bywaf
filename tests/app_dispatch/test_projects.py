@@ -49,6 +49,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("no matching topics: plugins", output.getvalue())
 
     def test_dispatch_topics_filters_by_prefix(self):
+        """Protect dispatch topics filters by prefix behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.publish("host.found", {"host": "127.0.0.1"}, "test")

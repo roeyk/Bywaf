@@ -77,6 +77,7 @@ class HttpPathFindingTests(unittest.TestCase):
             self.assertIn("content-type=text/plain", finding["evidence"])
 
     def test_plain_login_path_without_admin_signal_is_not_a_finding(self):
+        """Protect plain login path without admin signal is not a finding behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(

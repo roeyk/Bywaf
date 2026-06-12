@@ -31,6 +31,7 @@ class StorageRunnerParsingPipelineTests(unittest.TestCase):
             self.assertEqual(runner.db.events_for_topic("downstream.marker"), [])
 
     def test_plugin_pipeline_stop_requires_declared_capability(self):
+        """Protect plugin pipeline stop requires declared capability behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.registry.register_commandlet("test", StopPipelineWithoutCapabilityPlugin(), origin="bundled")

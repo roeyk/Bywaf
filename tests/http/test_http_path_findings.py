@@ -51,6 +51,7 @@ class HttpPathFindingHelperTests(unittest.TestCase):
         )
 
     def test_is_interesting_path_requires_artifact_markers_for_explicit_paths(self):
+        """Protect is interesting path requires artifact markers for explicit paths behavior from regressions."""
         self.assertTrue(
             is_interesting_path(
                 "/package-lock.json",

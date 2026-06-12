@@ -38,6 +38,7 @@ class CliParserTests(unittest.TestCase):
         self.assertEqual(route_direct_commandlet_argv(["exec", "echo", "hello"]), ["exec", "echo", "hello"])
 
     def test_build_parser_accepts_cmds_page(self):
+        """Protect build parser accepts cmds page behavior from regressions."""
         parser = build_parser()
         args = parser.parse_args(["cmds", "--page"])
         self.assertEqual(args.subcommand, "cmds")

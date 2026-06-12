@@ -69,6 +69,7 @@ def runtime_import_nodes(tree: ast.AST) -> Iterable[ast.Import | ast.ImportFrom]
             self.imports: list[ast.Import | ast.ImportFrom] = []
 
         def visit_Import(self, node: ast.Import) -> None:  # noqa: N802
+            """Visit Import while collecting dependency information."""
             self.imports.append(node)
 
         def visit_ImportFrom(self, node: ast.ImportFrom) -> None:  # noqa: N802

@@ -58,6 +58,7 @@ class LibraryPluginTests(unittest.TestCase):
     def test_dns_lookup_publishes_records(self):
         # dnspython is represented by a tiny fake module so the test verifies
         # Bywaf payload construction rather than resolver behavior.
+        """Protect DNS lookup publishes records behavior from regressions."""
         class FakeRecord:
             def to_text(self):
                 return "127.0.0.1"

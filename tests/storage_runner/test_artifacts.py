@@ -90,6 +90,7 @@ class StorageRunnerArtifactTests(unittest.TestCase):
             self.assertIn("[truncated after 5 of 11 bytes", text)
 
     def test_artifact_cat_renders_binary_as_hex(self):
+        """Protect artifact cat renders binary as hex behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db_path = Path(tmp, "db.sqlite3")
             runner = make_runner(db_path)

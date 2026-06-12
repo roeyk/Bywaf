@@ -52,6 +52,7 @@ class EyeWitnessTests(unittest.TestCase):
         self.assertEqual(eyewitness_output_dir(context, ""), Path(".bywaf/eyewitness/run-1"))
 
     def test_eyewitness_emits_screenshot_events(self):
+        """Protect eyewitness emits screenshot events behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             output_dir = Path(tmp, "eye")

@@ -48,6 +48,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
             self.assertTrue(capabilities["db.write:host.found"])
 
     def test_hostscanner_uses_targets_variable_when_cli_target_missing(self):
+        """Protect hostscanner uses targets variable when CLI target missing behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]) as discover:
                 runner = make_runner(Path(tmp, "db.sqlite3"))

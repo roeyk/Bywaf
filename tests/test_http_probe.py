@@ -41,6 +41,7 @@ class HttpProbeTests(unittest.TestCase):
         self.assertEqual(choose_scheme(80, "https"), "https")
 
     def test_build_url_omits_default_ports(self):
+        """Protect build url omits default ports behavior from regressions."""
         self.assertEqual(build_url("http", "example.test", 80, "/"), "http://example.test/")
         self.assertEqual(build_url("https", "example.test", 443, "admin"), "https://example.test/admin")
         self.assertEqual(build_url("http", "example.test", 8080, "/"), "http://example.test:8080/")

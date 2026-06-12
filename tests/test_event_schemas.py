@@ -68,6 +68,7 @@ class EventSchemaTests(unittest.TestCase):
                 self.assertEqual(validate_event_payload(topic, payload), [])
 
     def test_invalid_shared_payloads_report_field_errors(self):
+        """Protect invalid shared payloads report field errors behavior from regressions."""
         self.assertEqual(
             validate_event_payload("port.open", {"host": "192.0.2.10", "port": "445"}),
             ["port.open.port must be int", "port.open.protocol is required"],

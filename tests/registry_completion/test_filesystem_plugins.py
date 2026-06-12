@@ -29,6 +29,7 @@ class RegistryFilesystemPluginTests(unittest.TestCase):
             self.assertEqual(parse_plugin_config(config), ["scanners/example"])
 
     def test_parse_toml_plugin_config(self):
+        """Protect parse toml plugin config behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             config = Path(tmp, "plugins.toml")
             config.write_text('default_plugins = ["scanners/example"]\n')

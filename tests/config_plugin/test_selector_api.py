@@ -29,6 +29,7 @@ class PluginSelectorApiTests(unittest.TestCase):
             parse_kvs(["other=value"], allowed_keys={"step"}, command="example")
 
     def test_parse_kv_requires_key_value_shape(self) -> None:
+        """Protect parse kv requires key value shape behavior from regressions."""
         with self.assertRaisesRegex(ValueError, "invalid example selector"):
             parse_kv("missing-value", command="example")
 

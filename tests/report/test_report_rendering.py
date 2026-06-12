@@ -88,6 +88,7 @@ class ReportRenderingTests(unittest.TestCase):
             self.assertIn("Finding status: confirmed", output.getvalue())
 
     def test_report_finding_rows_always_show_review_status(self):
+        """Protect report finding rows always show review status behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.publish(

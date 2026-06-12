@@ -38,6 +38,7 @@ class ConfigPluginVarsCommandletTests(unittest.TestCase):
         self.assertEqual(context.vars.get_global("proxy"), "global-proxy")
 
     def test_scoped_varstore_rejects_undeclared_provider_variable(self):
+        """Protect scoped varstore rejects undeclared provider variable behavior from regressions."""
         store = VarStore()
         store.set("http/repo_exposure.proxy", "http://127.0.0.1:8080")
         context = CommandContext(

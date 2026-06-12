@@ -66,6 +66,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("hostscanner 127.0.0.1", text)
 
     def test_job_listing_hides_view_command_jobs(self):
+        """Protect job listing hides view command jobs behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.record_job("hostscanner 127.0.0.1", 123, "finished")

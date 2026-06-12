@@ -23,6 +23,7 @@ class RegistryRuntimeCompletionTests(unittest.TestCase):
             self.assertIn("job=1", candidates)
 
     def test_events_completes_tail_selectors(self):
+        """Protect events completes tail selectors behavior from regressions."""
         completer = Completer(self.registry)
         self.assertIn("--tail", completer.candidates("events "))
         self.assertNotIn("tail", completer.candidates("events "))

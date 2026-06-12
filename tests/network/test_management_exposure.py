@@ -68,6 +68,7 @@ class ManagementExposureTests(unittest.TestCase):
         self.assertIn("source=web.fingerprint", finding["evidence"])
 
     def test_grafana_port_without_web_evidence_is_not_promoted(self):
+        """Protect grafana port without web evidence is not promoted behavior from regressions."""
         event = Event.new("port.open", {"host": "192.0.2.10", "port": 3000, "protocol": "tcp"}, "test")
 
         self.assertEqual(findings_from_event(event), [])

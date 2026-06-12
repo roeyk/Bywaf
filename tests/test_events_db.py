@@ -48,6 +48,7 @@ class EventDbTests(unittest.TestCase):
             self.assertEqual(fetched[0].command_run_id, "cmd-1")
 
     def test_fetch_can_scope_by_pipeline_and_command_run(self):
+        """Protect fetch can scope by pipeline and command run behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "events.sqlite3"))
             db.publish("host.found", {"host": "a"}, "test", pipeline_id="pipe-1", command_run_id="cmd-1")

@@ -30,6 +30,7 @@ class ResourcesHistoryDispatchStateTests(unittest.TestCase):
             self.assertIn("unrecognized arguments: --bad-option", error.getvalue())
 
     def test_dispatch_nmap_unavailable_does_not_exit_repl(self):
+        """Protect dispatch nmap unavailable does not exit repl behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()

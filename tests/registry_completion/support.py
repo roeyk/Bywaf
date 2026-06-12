@@ -61,6 +61,7 @@ class FakePromptBuffer:
         self.cursor_position = cursor_position
 
     def delete_before_cursor(self, count: int = 1) -> None:
+        """Test helper for delete before cursor."""
         start = max(0, self.cursor_position - count)
         self.text = self.text[:start] + self.text[self.cursor_position :]
         self.cursor_position = start

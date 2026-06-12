@@ -37,6 +37,7 @@ def test_bundled_manifest_graph_separates_consumers_and_producers():
 
 
 def test_bundled_manifest_graph_records_advisory_relationships():
+    """Protect bundled manifest graph records advisory relationships behavior from regressions."""
     graph = build_package_manifest_graph("bywaf.plugins", "plugins.toml")
     relationships = set(graph.relationships_for("http.auth"))
 

@@ -61,6 +61,7 @@ class FindingDedupeTests(unittest.TestCase):
             self.assertIn("identifier", duplicate["matched_on"])
 
     def test_target_scope_dedupes_and_preserves_affected_resources(self):
+        """Protect target scope dedupes and preserves affected resources behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             first = db.publish(

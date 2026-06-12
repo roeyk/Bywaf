@@ -21,6 +21,7 @@ class FakeHostResult:
 class FakePortScanner:
     """Test double used by this module's regression cases."""
     def scan(self, **kwargs):
+        """Test helper for scan."""
         self.kwargs = kwargs
 
     def all_hosts(self):

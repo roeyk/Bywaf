@@ -60,6 +60,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(job["status"], "cancelling")
 
     def test_pause_resume_stop_commands_accept_step_selector(self):
+        """Protect pause resume stop commands accept step selector behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("portscanner --listen", 123, "running")

@@ -78,6 +78,7 @@ class PromptSecretLexer(Lexer):
     def lex_document(self, document: Document):
         """Return a prompt-toolkit line lexer for the current document."""
         def get_line(lineno: int):
+            """Return the current prompt line for completion helpers."""
             text = document.lines[lineno]
             span = self.state.span
             if lineno != 0 or span is None:

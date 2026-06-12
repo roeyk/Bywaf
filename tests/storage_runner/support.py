@@ -68,6 +68,7 @@ class DownstreamMarkerPlugin:
     )
 
     def run(self, context, args, input_events):
+        """Test helper for run."""
         del context, args, input_events
         yield {"ran": True}
 

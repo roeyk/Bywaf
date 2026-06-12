@@ -66,6 +66,7 @@ class TlsProbeFindingTests(unittest.TestCase):
             self.assertIn("example.test", finding["evidence"])
 
     def test_http_tls_alias_reports_tls_findings(self):
+        """Protect HTTP TLS alias reports TLS findings behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             output = io.StringIO()

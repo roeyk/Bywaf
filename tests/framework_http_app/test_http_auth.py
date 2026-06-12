@@ -39,6 +39,7 @@ class TestHttpAuthTests(unittest.TestCase):
         self.assertEqual(targets, [("127.0.0.1", 443, "https", "/login")])
 
     def test_http_auth_normalizes_schemes_and_realms(self):
+        """Protect HTTP auth normalizes schemes and realms behavior from regressions."""
         challenges = ['Basic realm="Admin"', 'Digest realm="Users", nonce="abc"']
 
         self.assertEqual(normalize_schemes(challenges), ["BASIC", "DIGEST"])

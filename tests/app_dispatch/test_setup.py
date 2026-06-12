@@ -51,6 +51,7 @@ class SetupCliTests(unittest.TestCase):
                 self.assertTrue(Path(tmp, ".bywaf", "config.toml").exists())
 
     def test_interactive_setup_keyboard_interrupt_cancels_without_traceback(self):
+        """Protect interactive setup keyboard interrupt cancels without traceback behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             with patch.dict("os.environ", {"HOME": tmp}):
                 output = io.StringIO()

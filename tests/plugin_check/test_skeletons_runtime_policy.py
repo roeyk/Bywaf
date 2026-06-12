@@ -52,6 +52,7 @@ class TestSkeletonsRuntimePolicyTests(unittest.TestCase):
         self.assertEqual([], failures)
 
     def test_vulnerability_skeletons_keep_split_files_and_finding_helpers(self):
+        """Protect vulnerability skeletons keep split files and finding helpers behavior from regressions."""
         skeleton_root = Path(__file__).resolve().parents[2] / "docs" / "plugin_skeletons"
         required = {"plugin.py", "command.py", "detect.py", "findings.py", "models.py", "bywaf.plugin.toml"}
         failures: list[str] = []

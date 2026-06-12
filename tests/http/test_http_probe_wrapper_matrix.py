@@ -52,6 +52,7 @@ class FakeOpener:
         self.result = result
 
     def open(self, request, timeout: float):
+        """Test helper for open."""
         del request, timeout
         if isinstance(self.result, Exception):
             raise self.result

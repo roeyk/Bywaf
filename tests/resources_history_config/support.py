@@ -83,6 +83,7 @@ def write_console_external_plugin(root: Path, *, declare_output: bool) -> Path:
 
 
 def write_external_plugin_with_vars(root: Path) -> Path:
+    """Test helper for write external plugin with vars."""
     plugin_dir = root / "vars"
     plugin_dir.mkdir()
     (plugin_dir / "plugin.py").write_text(

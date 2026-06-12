@@ -17,6 +17,7 @@ class ConfigPluginMessagesProgressSignalTests(unittest.TestCase):
         self.assertEqual(Progress(run_id="1", status="x", total=4, completed=1).percent, 25)
 
     def test_context_progress_emits_structured_events(self):
+        """Protect context progress emits structured events behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))
             context = CommandContext(

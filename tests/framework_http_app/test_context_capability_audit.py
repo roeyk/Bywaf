@@ -40,6 +40,7 @@ class TestContextCapabilityAuditTests(unittest.TestCase):
             self.assertFalse(missing.payload["declared"])
 
     def test_context_events_publish_uses_scope_and_audits_write(self):
+        """Protect context events publish uses scope and audits write behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             context = CommandContext(

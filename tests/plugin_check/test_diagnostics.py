@@ -45,6 +45,7 @@ class TestDiagnosticsTests(unittest.TestCase):
             self.assertEqual(report["diagnostics"][0]["code"], "decorator-on-plugin-factory")
 
     def test_check_plugin_reports_missing_factory_for_decorated_commandlet(self):
+        """Protect check plugin reports missing factory for decorated commandlet behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = Path(tmp) / "example"
             plugin_dir.mkdir()

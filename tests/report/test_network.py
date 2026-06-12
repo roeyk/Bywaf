@@ -133,6 +133,7 @@ class ReportNetworkTests(unittest.TestCase):
             self.assertEqual(rendered.payload["rows"], 1)
 
     def test_report_defaults_to_latest_network_scope_without_findings(self):
+        """Protect report defaults to latest network scope without findings behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.publish(

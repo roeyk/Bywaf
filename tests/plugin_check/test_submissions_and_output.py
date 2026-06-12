@@ -35,6 +35,7 @@ class TestSubmissionsAndOutputTests(unittest.TestCase):
             self.assertEqual(data["commandlets"], ["example"])
 
     def test_check_plugin_accepts_zip_submission(self):
+        """Protect check plugin accepts zip submission behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             plugin_dir = write_plugin_fixture(tmp_path, capabilities=())

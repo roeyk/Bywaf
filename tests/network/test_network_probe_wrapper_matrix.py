@@ -37,6 +37,7 @@ class TcpBannerWrapperMatrixTests(TestCase):
 class SnmpGetWrapperMatrixTests(TestCase):
     """Groups regression coverage for fixture-backed network probe wrapper coverage."""
     def test_snmp_get_publishes_successful_value(self):
+        """Protect SNMP get publishes successful value behavior from regressions."""
         fake_hlapi = fake_snmp_hlapi((None, 0, 0, [("1.2.3", "router")]))
 
         with tempfile.TemporaryDirectory() as tmp:

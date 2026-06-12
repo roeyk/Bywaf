@@ -41,6 +41,7 @@ class TestHttpMethodsTests(unittest.TestCase):
         self.assertEqual(targets, [("127.0.0.1", 443, "https", "/")])
 
     def test_http_methods_normalizes_allow_header(self):
+        """Protect HTTP methods normalizes allow header behavior from regressions."""
         self.assertEqual(
             normalize_methods("get, POST, options, TRACE, PROPFIND"),
             ["GET", "OPTIONS", "POST", "PROPFIND", "TRACE"],

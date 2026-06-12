@@ -127,6 +127,7 @@ def argument(
 ):
     """Decorate a commandlet class with one positional argument metadata entry."""
     def decorate(cls):
+        """Attach the commandlet specification to the decorated class."""
         arguments = list(cast(tuple[ArgumentSpec, ...], getattr(cls, "_bywaf_arguments", ())))
         # Insert at the front for the same reason as options: decorator
         # execution order is bottom-up, but help text should read top-down.

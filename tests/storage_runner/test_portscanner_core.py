@@ -68,6 +68,7 @@ class StorageRunnerPortscannerCoreTests(unittest.TestCase):
             self.assertEqual([event.topic for event in events if event.topic == "port.open"], ["port.open"])
 
     def test_traceroute_prints_route_table(self):
+        """Protect traceroute prints route table behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()

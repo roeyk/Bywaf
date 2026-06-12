@@ -153,6 +153,7 @@ def read_tk_askpass_secret(prompt: str) -> str:
         root.quit()
 
     def cancel() -> None:
+        """Cancel secret entry and restore normal prompt input."""
         result["value"] = None
         root.quit()
 

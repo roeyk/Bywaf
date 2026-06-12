@@ -26,6 +26,7 @@ class ConfigPluginSpecTests(unittest.TestCase):
         self.assertFalse(option.secret)
 
     def test_command_spec_defaults(self):
+        """Protect command spec defaults behavior from regressions."""
         spec = CommandSpec("name", "description")
         self.assertEqual(spec.options, ())
         self.assertEqual(spec.arguments, ())

@@ -43,6 +43,7 @@ class AppDispatchTests(unittest.TestCase):
         self.assertIn("error: unknown commandlet: missing", output.getvalue())
 
     def test_main_exec_without_command_returns_error(self):
+        """Protect main exec without command returns error behavior from regressions."""
         with contextlib.redirect_stdout(io.StringIO()) as output:
             self.assertEqual(main(["exec"]), 1)
         self.assertIn("error: exec requires a command", output.getvalue())

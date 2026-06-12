@@ -120,6 +120,7 @@ class ReportScopeTests(unittest.TestCase):
             self.assertEqual(rendered[2].payload["groups"], ["apache-42013", "openssl-heartbleed"])
 
     def test_report_expands_related_cves_from_scoped_event_metadata(self):
+        """Protect report expands related cves from scoped event metadata behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             # The `+` suffix expands from related_cves attached to the scoped

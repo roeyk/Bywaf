@@ -35,6 +35,7 @@ class CompletionRegressionTests(unittest.TestCase):
                 self.assertIn(name, self.completer.candidates(prefix))
 
     def test_binary_declared_options_complete_as_flags(self):
+        """Protect binary declared options complete as flags behavior from regressions."""
         for name, plugin in self.registry.plugins.items():
             for option in plugin.spec.options:
                 if not option_is_binary(option.name):

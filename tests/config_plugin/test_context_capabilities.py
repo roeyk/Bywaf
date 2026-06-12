@@ -25,6 +25,7 @@ class ConfigPluginContextCapabilityTests(unittest.TestCase):
             context.vars.get("other.value")
 
     def test_command_context_does_not_expose_raw_varstore(self):
+        """Protect command context does not expose raw varstore behavior from regressions."""
         store = VarStore()
         store.set("other.secret", "hidden")
         context = CommandContext(db=None, source="test", _varstore=store)

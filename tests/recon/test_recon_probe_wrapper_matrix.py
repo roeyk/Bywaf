@@ -64,6 +64,7 @@ class DnsWrapperMatrixTests(TestCase):
 class ShodanWrapperMatrixTests(TestCase):
     """Groups regression coverage for fixture-backed recon probe wrapper coverage."""
     def test_shodan_lookup_publishes_missing_api_key_error(self):
+        """Protect shodan lookup publishes missing API key error behavior from regressions."""
         fake_shodan = SimpleNamespace(Shodan=Mock())
 
         with tempfile.TemporaryDirectory() as tmp:

@@ -237,6 +237,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("22/tcp ssh", text)
 
     def test_results_renders_route_hop_summaries(self):
+        """Protect results renders route hop summaries behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.record_job("network/traceroute 192.0.2.20", 123, "finished")

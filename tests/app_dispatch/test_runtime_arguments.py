@@ -76,6 +76,7 @@ class AppDispatchTests(unittest.TestCase):
                 self.assertEqual(effective_database_actions(plugin, args), expected)
 
     def test_result_alias_shows_generic_inserted_events(self):
+        """Protect result alias shows generic inserted events behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.record_job("hostscanner 192.0.2.10", 123, "finished")

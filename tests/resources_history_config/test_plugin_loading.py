@@ -55,6 +55,7 @@ class ResourcesHistoryPluginLoadingTests(unittest.TestCase):
             self.assertEqual(runner.db.events_for_serial(str(serial)), [loaded])
 
     def test_pload_loads_plugin_resource(self):
+        """Protect pload loads plugin resource behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             plugin_dir = Path(tmp, "example")

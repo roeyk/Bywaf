@@ -89,6 +89,7 @@ class ReportReviewTests(unittest.TestCase):
             )
 
     def test_report_hides_reviewed_findings(self):
+        """Protect report hides reviewed findings behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.record_command_run_vars(

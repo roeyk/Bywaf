@@ -49,6 +49,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(output.getvalue(), "file.txt\n")
 
     def test_dispatch_cat_and_less_print_files(self):
+        """Protect dispatch cat and less print files behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "file.txt")
             path.write_text("hello\n")

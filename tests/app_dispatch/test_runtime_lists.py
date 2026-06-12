@@ -89,6 +89,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("step-a", text)
 
     def test_runtime_filter_lists_include_finished_scopes(self):
+        """Protect runtime filter lists include finished scopes behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("portscanner host=192.0.2.20", 123, "finished")

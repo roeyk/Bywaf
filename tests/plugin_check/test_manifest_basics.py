@@ -40,6 +40,7 @@ class TestManifestBasicsTests(unittest.TestCase):
             self.assertIn("manifest [plugin].version is required", report["errors"])
 
     def test_check_plugin_rejects_unknown_top_level_manifest_table(self):
+        """Protect check plugin rejects unknown top level manifest table behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(Path(tmp), capabilities=())
             manifest = plugin_dir.joinpath("bywaf.plugin.toml")

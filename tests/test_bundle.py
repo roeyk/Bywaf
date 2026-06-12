@@ -38,6 +38,7 @@ class BundleTests(unittest.TestCase):
         self.assertIsNone(invocation.display_name)
 
     def test_bundle_uses_artifact_store_without_raw_db_capability(self):
+        """Protect bundle uses artifact store without raw database capability behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             evidence = root / "evidence.txt"

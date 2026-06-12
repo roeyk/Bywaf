@@ -61,6 +61,7 @@ class StorageRunnerPortscannerListenTests(unittest.TestCase):
                 list(PortScanner().run(context, ["--listen", "--listen-timeout", "0.01"], []))
 
     def test_portscanner_listen_prunes_out_of_scope_upstream_hosts(self):
+        """Protect portscanner listen prunes out of scope upstream hosts behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))
             db.publish(

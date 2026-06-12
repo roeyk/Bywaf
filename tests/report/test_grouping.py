@@ -94,6 +94,7 @@ class ReportGroupingTests(unittest.TestCase):
             self.assertEqual(rendered.payload["rows"], 1)
 
     def test_report_details_show_grouped_context(self):
+        """Protect report details show grouped context behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             first = runner.db.publish(

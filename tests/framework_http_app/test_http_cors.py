@@ -32,6 +32,7 @@ class TestHttpCorsTests(unittest.TestCase):
         self.assertEqual(targets, [("127.0.0.1", 443, "https", "/api")])
 
     def test_http_cors_probe_reads_response_headers(self):
+        """Protect HTTP cors probe reads response headers behavior from regressions."""
         target = CorsTarget("https://example.test/api", "example.test", 443, "https", "/api")
         with patch("bywaf.plugins.http.cors.http.client.HTTPSConnection", ReflectedConnection):
             result = probe_cors(

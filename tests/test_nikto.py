@@ -47,6 +47,7 @@ class NiktoTests(unittest.TestCase):
         self.assertIn("-Plugins", argv)
 
     def test_targets_accept_explicit_http_endpoint_and_webfin_events(self):
+        """Protect targets accept explicit HTTP endpoint and webfin events behavior from regressions."""
         http_event = Event.new(
             "http.endpoint",
             {"url": "http://example.test/", "host": "example.test", "port": 80, "scheme": "http"},

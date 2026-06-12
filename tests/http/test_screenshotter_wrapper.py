@@ -68,6 +68,7 @@ class ScreenshotterWrapperTests(unittest.TestCase):
             self.assertEqual(db.events_for_topic("web.screenshotted_host"), [])
 
     def test_timeout_records_tool_error_without_screenshot_facts(self):
+        """Protect timeout records tool error without screenshot facts behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             context, db = make_context(tmp)
             event = Event.new("http.endpoint", {"url": "https://example.test/"}, "http_probe")

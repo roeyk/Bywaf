@@ -24,6 +24,7 @@ class TestAppHelpersTests(unittest.TestCase):
         self.assertIn(">", rendered)
 
     def test_render_prompt_replaces_focus_placeholders(self):
+        """Protect render prompt replaces focus placeholders behavior from regressions."""
         rendered = render_prompt("%p|%c|%P|%F> ", active_context="http/repo_exposure/git_expose_check")
         self.assertEqual(rendered, "http/repo_exposure|git_expose_check|http/repo_exposure/git_expose_check| http/repo_exposure/git_expose_check> ")
         self.assertEqual(render_prompt("%F> "), "> ")

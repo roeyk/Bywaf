@@ -43,6 +43,7 @@ def cryptography_available() -> bool:
 class KeyringTests(unittest.TestCase):
     """Groups regression coverage for keyring behavior."""
     def test_generate_key_writes_encrypted_private_and_public_metadata(self):
+        """Protect generate key writes encrypted private and public metadata behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             with patch.dict(os.environ, {"BYWAF_KEY_ROOT": tmp}):
                 record = generate_key("firm-evidence", "passphrase")

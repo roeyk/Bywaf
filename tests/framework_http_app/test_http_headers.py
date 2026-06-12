@@ -37,6 +37,7 @@ class TestHttpHeadersTests(unittest.TestCase):
         self.assertEqual(targets, [("127.0.0.1", 443, True)])
 
     def test_http_headers_promotes_missing_security_headers(self):
+        """Protect HTTP headers promotes missing security headers behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with patch("bywaf.plugins.http.headers.detect.http.client.HTTPSConnection", FakeHttpConnection):

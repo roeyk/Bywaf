@@ -56,6 +56,7 @@ class FindingReportTests(unittest.TestCase):
             self.assertEqual(row["cve"], "CVE-2026-0001")
 
     def test_report_falls_back_to_raw_tool_findings(self):
+        """Protect report falls back to raw tool findings behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             event = db.publish(

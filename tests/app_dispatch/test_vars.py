@@ -68,6 +68,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertGreater(text.index("discovery/hostscanner.alpha=1"), active_index)
 
     def test_vars_name_prints_one_variable_value(self):
+        """Protect vars name prints one variable value behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()

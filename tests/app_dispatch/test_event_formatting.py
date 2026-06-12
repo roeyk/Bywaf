@@ -40,6 +40,7 @@ class EventFormattingTests(unittest.TestCase):
         self.assertNotIn("{", text)
 
     def test_format_event_shows_open_port_readably(self):
+        """Protect format event shows open port readably behavior from regressions."""
         event = Event.new(
             "port.open",
             {"host": "192.0.2.10", "port": 443, "protocol": "tcp", "service": "https"},

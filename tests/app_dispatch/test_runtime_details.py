@@ -78,6 +78,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("ART", text)
 
     def test_job_show_includes_recorded_commandlet_arguments(self):
+        """Protect job show includes recorded commandlet arguments behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("network/portscanner", 123, "failed")

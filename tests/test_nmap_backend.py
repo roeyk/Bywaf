@@ -35,6 +35,7 @@ class NmapBackendTests(unittest.TestCase):
     """
 
     def test_load_backend_prefers_nmaplib(self):
+        """Protect load backend prefers nmaplib behavior from regressions."""
         fake = types.SimpleNamespace(PortScanner=object)
 
         def import_module(name):

@@ -30,6 +30,7 @@ class TestBundledReportsTests(unittest.TestCase):
         self.assertEqual(report["errors"], [])
 
     def test_check_bundled_plugins_strict_inference_passes(self):
+        """Protect check bundled plugins strict inference passes behavior from regressions."""
         report = check_bundled_plugins(strict_inference=True)
 
         self.assertTrue(report["ok"])

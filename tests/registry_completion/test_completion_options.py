@@ -59,6 +59,7 @@ class RegistryCompletionOptionTests(unittest.TestCase):
         self.assertIn("sort=host", completer.candidates("report sort=h"))
 
     def test_commandlet_topics_complete_only_in_from_selector_context(self):
+        """Protect commandlet topics complete only in from selector context behavior from regressions."""
         completer = Completer(self.registry)
         self.assertNotIn("host.found", completer.candidates("hostscanner h"))
         self.assertIn("topic=host.found", completer.candidates("portscanner --from topic=h"))

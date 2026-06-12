@@ -83,6 +83,7 @@ def test_architecture_metrics_ignores_type_checking_imports(tmp_path: Path) -> N
 
 
 def test_architecture_metrics_text_report_names_pressure_points(tmp_path: Path) -> None:
+    """Protect architecture metrics text report names pressure points behavior from regressions."""
     root = tmp_path / "pkg"
     write(root / "__init__.py", "")
     write(root / "hub.py", "import pkg.leaf\n")

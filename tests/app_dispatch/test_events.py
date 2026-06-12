@@ -55,6 +55,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("'n': 4", text)
 
     def test_event_follow_once_reads_step_scope(self):
+        """Protect event follow once reads step scope behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.publish("port.open", {"host": "192.0.2.10", "port": 80}, "portscanner", pipeline_id="p", command_run_id="r")

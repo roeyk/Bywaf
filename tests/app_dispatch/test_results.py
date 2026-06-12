@@ -126,6 +126,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("console.alert", text)
 
     def test_results_renders_shared_schema_summaries(self):
+        """Protect results renders shared schema summaries behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.record_job("http_probe", 123, "finished")

@@ -40,6 +40,7 @@ class TracerouteWrapperTests(unittest.TestCase):
             )
 
             def fake_run(argv, *, cwd=None, env=None, timeout=None):
+                """Test helper for fake run."""
                 del argv, cwd, env, timeout
                 return subprocess.CompletedProcess([], 1, stdout="", stderr="name lookup failed")
 

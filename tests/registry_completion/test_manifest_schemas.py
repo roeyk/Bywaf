@@ -52,6 +52,7 @@ class RegistryManifestSchemaTests(unittest.TestCase):
                 load_filesystem_plugin_package(plugin_dir, manifest_trust=PluginManifestTrust(catalog_verified=True))
 
     def test_plugin_manifest_tool_generates_trigger_specs(self):
+        """Protect plugin manifest tool generates trigger specs behavior from regressions."""
         class Example:
             spec = CommandSpec("example", "example plugin")
 

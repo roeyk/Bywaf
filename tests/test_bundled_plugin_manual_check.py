@@ -22,6 +22,7 @@ def write_manifest(path: Path, commandlets: tuple[str, ...]) -> None:
 
 
 def manual_text(*, analysis_count: int = 1, commandlet_count: int = 2) -> str:
+    """Test helper for manual text."""
     return f"""# Bundled Plugin Manual
 
 ## Table Of Contents

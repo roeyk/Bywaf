@@ -80,6 +80,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("192.0.2.20", text)
 
     def test_result_follow_alias_uses_results_follow(self):
+        """Protect result follow alias uses results follow behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
 

@@ -173,6 +173,7 @@ def write_external_plugin(root: Path, entry: str, commandlet: str, source: str) 
 
 
 def write_signed_catalog(tmp_path: Path, plugin_root: Path, config: Path) -> tuple[Path, Path]:
+    """Test helper for write signed catalog."""
     catalog = tmp_path / "catalog.json"
     signed = tmp_path / "catalog.signed.json"
     private_path, public_path = write_signing_key(tmp_path, "catalog-signing")

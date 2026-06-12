@@ -110,6 +110,7 @@ class MvpPluginSuiteTests(unittest.TestCase):
                 }
 
             def fake_probe_git_config(opener, endpoint, *, timeout, user_agent):
+                """Test helper for fake probe git config."""
                 del opener, timeout, user_agent
                 checked_url = f"{endpoint['url'].rstrip('/')}/.git/config"
                 checked_urls.append(checked_url)

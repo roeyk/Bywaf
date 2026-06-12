@@ -43,6 +43,7 @@ class TestCapabilityInferenceTests(unittest.TestCase):
             self.assertEqual(report["evidence"][0]["kind"], "framework_call")
 
     def test_check_plugin_infers_artifact_store_access_capabilities(self):
+        """Protect check plugin infers artifact store access capabilities behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(
                 Path(tmp),

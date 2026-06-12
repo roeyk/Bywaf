@@ -47,6 +47,7 @@ class ApiTests(unittest.TestCase):
             self.assertIn("job.finished", session.topics())
 
     def test_session_starts_background_command(self):
+        """Protect session starts background command behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             session = BywafSession.open(Path(tmp, "db.sqlite3"))
             event = session.run_background("job")

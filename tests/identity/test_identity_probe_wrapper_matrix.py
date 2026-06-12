@@ -62,6 +62,7 @@ class LdapProbeWrapperMatrixTests(TestCase):
 class SmbProbeWrapperMatrixTests(TestCase):
     """Groups regression coverage for fixture-backed identity probe wrapper coverage."""
     def test_smb_probe_preserves_connection_failure_as_server_error(self):
+        """Protect SMB probe preserves connection failure as server error behavior from regressions."""
         fake_smb = SimpleNamespace(SMBConnection=Mock(side_effect=RuntimeError("connection refused")))
 
         with tempfile.TemporaryDirectory() as tmp:

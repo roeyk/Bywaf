@@ -22,6 +22,7 @@ class FindingGroupingTests(unittest.TestCase):
             validate_finding_class("Missing HSTS")
 
     def test_same_cve_and_web_origin_group_despite_different_pages(self):
+        """Protect same CVE and web origin group despite different pages behavior from regressions."""
         first = {
             "class": "web.xss.reflected",
             "target_scope": {"kind": "web_origin", "value": "https://example.test"},

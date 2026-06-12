@@ -46,6 +46,7 @@ class PackagingInstallVersionAndRootTests(unittest.TestCase):
         self.assertIn("not a public key", key_placeholder.read_text(encoding="utf-8"))
 
     def test_user_local_shaped_plugin_root_loads_from_config(self):
+        """Protect user local shaped plugin root loads from config behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp, "home", "alice")
             root = home / ".bywaf" / "plugins"

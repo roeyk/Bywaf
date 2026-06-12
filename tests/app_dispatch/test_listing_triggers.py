@@ -59,6 +59,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("List files in a local directory.", text)
 
     def test_dispatch_triggers_lists_provider_rules(self):
+        """Protect dispatch triggers lists provider rules behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()

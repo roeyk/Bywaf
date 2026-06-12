@@ -40,6 +40,7 @@ class RegistryCompletionCoreTests(unittest.TestCase):
         self.assertEqual(Completer(self.registry).candidates("prompt "), [])
 
     def test_exec_does_not_complete_commandlet_pipeline_names(self):
+        """Protect exec does not complete commandlet pipeline names behavior from regressions."""
         self.assertEqual(Completer(self.registry).candidates("exec host"), [])
 
     def test_step_completes_step_ids(self):

@@ -63,6 +63,7 @@ class RegistryBundledPluginTests(unittest.TestCase):
         self.assertIn("watchdog", self.registry.names())
 
     def test_bundled_plugins_are_loaded_from_config_list(self):
+        """Protect bundled plugins are loaded from config list behavior from regressions."""
         entries = parse_package_plugin_config("bywaf.plugins", "plugins.toml")
         self.assertEqual(
             entries,

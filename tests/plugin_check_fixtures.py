@@ -96,6 +96,7 @@ def write_parser_mismatch_fixture(root: Path) -> Path:
 
 
 def write_decorated_factory_fixture(root: Path) -> Path:
+    """Test helper for write decorated factory fixture."""
     plugin_dir = write_plugin_fixture(root, capabilities=())
     plugin_dir.joinpath("plugin.py").write_text(
         "from bywaf.plugin import CommandSpec, commandlet\n"

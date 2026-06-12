@@ -56,6 +56,7 @@ class ConfigPluginContextProcessSecretTests(unittest.TestCase):
         self.assertEqual(request.payload["secrets"][0]["name"], "test.password")
 
     def test_command_context_process_run_redacts_secret_output_events(self):
+        """Protect command context process run redacts secret output events behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             secrets = InMemorySecretStore()

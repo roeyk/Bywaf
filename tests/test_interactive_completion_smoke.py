@@ -42,6 +42,7 @@ class InteractiveCompletionSmokeTests(unittest.TestCase):
         )
 
     def expect_prompt(self, child) -> None:
+        """Test helper for expect prompt."""
         child.expect(r"\d{8} \d{2}:\d{2}:\d{2} [A-Z]+> ")
 
     def close_repl(self, child) -> None:
