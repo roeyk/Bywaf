@@ -19,7 +19,12 @@ from typing import Iterable
 
 @dataclass(frozen=True, slots=True)
 class DocumentMetric:
-    """Metrics for one Markdown document."""
+    """Metrics for one Markdown document.
+
+    Constructed by: `collect_documentation_metrics()`.
+    Consumed by: `bywaf.tools.documentation_report` when it ranks oversized,
+    over-linked, stale, or audience-mixed documentation.
+    """
 
     path: str
     nonblank_lines: int
@@ -34,7 +39,12 @@ class DocumentMetric:
 
 @dataclass(frozen=True, slots=True)
 class DocumentationMetrics:
-    """Repository-level documentation pressure metrics."""
+    """Repository-level documentation pressure metrics.
+
+    Constructed by: `collect_documentation_metrics()`.
+    Consumed by: architecture metrics formatting, which combines this summary
+    with source-code complexity and coupling signals.
+    """
 
     document_count: int
     link_count: int
@@ -44,7 +54,11 @@ class DocumentationMetrics:
 
 @dataclass(frozen=True, slots=True)
 class DocumentImpact:
-    """One related document for a documentation impact query."""
+    """One related document for a documentation impact query.
+
+    Constructed by: `collect_documentation_impact()` for each likely follow-up
+    document a maintainer should inspect after changing one Markdown file.
+    """
 
     path: str
     score: int
@@ -53,7 +67,12 @@ class DocumentImpact:
 
 @dataclass(frozen=True, slots=True)
 class DocumentationImpact:
-    """Ranked documents to inspect after changing one Markdown file."""
+    """Ranked documents to inspect after changing one Markdown file.
+
+    Constructed by: `collect_documentation_impact()`.
+    Consumed by: documentation review workflows that need a short, ranked list
+    instead of scanning every Markdown file manually.
+    """
 
     source: str
     related: tuple[DocumentImpact, ...]
@@ -242,7 +261,11 @@ def collect_documentation_impact(
 
 
 def linked_paths(source: Path, document_paths: set[Path]) -> set[Path]:
-    """Return local Markdown documents linked by source."""
+    """Return local Markdown documents linked by source.
+
+    Used by: `collect_documentation_impact()` to score direct outgoing and
+    incoming documentation relationships.
+    """
     linked = set()
     text = source.read_text(encoding="utf-8")
     for target in markdown_links(text):
@@ -255,33 +278,52 @@ def linked_paths(source: Path, document_paths: set[Path]) -> set[Path]:
 def important_doc_terms(text: str) -> set[str]:
     """Return repeated or domain-looking terms useful for impact ranking.
 
+    Used by: `collect_documentation_impact()` to identify conceptual coupling
+    between docs even when they do not link to each other.
+
     This intentionally favors code spans, paths, dotted names, and repeated
     nouns. It is a heuristic for reviewer attention, not a natural-language
     classifier.
     """
     terms: defaultdict[str, int] = defaultdict(int)
     for term in re.findall(r"`([^`]+)`|([A-Za-z][A-Za-z0-9_./=-]{2,})", text):
+        # Each regex match has either a code-span group or a prose-token group.
+        # Normalize the present group before applying stop-word and URL filters.
         value = normalize_doc_term(term[0] or term[1])
         if not value or value in GENERIC_DOC_WORDS or value.startswith("http"):
             continue
         terms[value] += 1
+    # Keep repeated terms plus symbol/path-like terms. Single ordinary words are
+    # too noisy to be useful as impact signals.
     return {term for term, count in terms.items() if count > 1 or "." in term or "/" in term or "_" in term or "=" in term}
 
 
 def normalize_doc_term(term: str) -> str:
-    """Normalize one extracted doc term for impact comparison."""
+    """Normalize one extracted doc term for impact comparison.
+
+    Used by: `important_doc_terms()` before counting candidate vocabulary.
+    """
     value = term.casefold().strip().strip(".,;:()[]{}<>\"'")
     return value if any(character.isalnum() for character in value) else ""
 
 
 def stale_terms_in(text: str) -> set[str]:
-    """Return stale terminology markers present in text."""
+    """Return stale terminology markers present in text.
+
+    Used by: `collect_documentation_impact()` so related documents with the
+    same obsolete wording can be reviewed together.
+    """
     lowered = text.casefold()
     return {term for term in STALE_DOC_TERMS if term in lowered}
 
 
 def markdown_documents(repo_root: Path, docs_root: Path) -> set[Path]:
-    """Return Markdown documents that form the primary docs surface."""
+    """Return Markdown documents that form the primary docs surface.
+
+    Called by: documentation metric and impact collectors. Top-level Markdown
+    files are included with the recursive `docs/` tree because both are public
+    documentation surfaces.
+    """
     paths = set()
     for root in (docs_root, repo_root):
         if not root.exists():
@@ -297,24 +339,39 @@ def markdown_documents(repo_root: Path, docs_root: Path) -> set[Path]:
 
 
 def markdown_links(text: str) -> Iterable[str]:
-    """Yield Markdown links that point to local files or anchors."""
+    """Yield Markdown links that point to local files or anchors.
+
+    Used by: documentation metric and impact collectors before resolving links
+    relative to their source file.
+    """
     for match in MARKDOWN_LINK_RE.finditer(text):
         target = match.group(1).strip()
+        # External links do not create repository maintenance coupling, so the
+        # metric keeps them out of broken-link and impact calculations.
         if not target or "://" in target or target.startswith("mailto:"):
             continue
         yield target
 
 
 def resolve_markdown_link(source: Path, target: str) -> Path | None:
-    """Resolve a Markdown link target to a local path when it names a file."""
+    """Resolve a Markdown link target to a local path when it names a file.
+
+    Used by: link counting, broken-link detection, and impact ranking.
+    """
     target = target.split("#", 1)[0]
+    # Pure anchor links stay inside the current document; they do not point at a
+    # separate file to include in cross-document metrics.
     if not target:
         return None
     return (source.parent / target).resolve()
 
 
 def normalized_headings(text: str) -> tuple[str, ...]:
-    """Return lowercase heading text for duplicate-heading checks."""
+    """Return lowercase heading text for duplicate-heading checks.
+
+    Used by: metrics and impact ranking to detect repeated sections and shared
+    structural headings across docs.
+    """
     headings = []
     for line in text.splitlines():
         match = HEADING_RE.match(line)
