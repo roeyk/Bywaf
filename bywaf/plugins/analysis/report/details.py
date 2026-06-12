@@ -36,13 +36,21 @@ __all__ = [
 
 
 def render_group_details(context: CommandContext, groups: list[FindingGroup]) -> str:
-    """Return compact per-group details for the currently displayed rows."""
+    """Return compact per-group details for the currently displayed rows.
+
+    Called by: `render_finding_report()` when the user runs `report detail ...`
+    or the shorthand `report <row>`.
+    """
     lines = [report_text(context, "section", "Details")]
     for index, group in enumerate(groups, start=1):
+        # Keep all payloads for aggregate fields, but use the representative to
+        # choose the row title so detail headings match the summary table.
         payloads = [effective_finding_payload(event) for event in group.events]
         representative = effective_finding_payload(group.representative)
         title = str(representative.get("title") or representative.get("class") or group.finding_id)
         lines.append(f"{report_text(context, 'index', f'{index}.')} {finding_text(context, 'title', title)}")
+        # Each detail line is optional. Empty values are omitted so a sparse
+        # finding stays readable instead of showing placeholder-heavy output.
         append_detail_line(context, lines, "Finding status", finding_status_values(group))
         append_detail_line(context, lines, "Confidence basis", confidence_basis_values(payloads))
         append_detail_line(context, lines, "Affected", affected_values(payloads))
@@ -51,6 +59,9 @@ def render_group_details(context: CommandContext, groups: list[FindingGroup]) ->
         artifacts = artifact_values(context, group)
         append_detail_line(context, lines, "Artifacts", artifacts)
         if artifacts:
+            # When artifacts exist, show both grouping context and exact
+            # follow-up commands so the operator can inspect evidence without
+            # reverse-engineering artifact selectors from event payloads.
             append_detail_line(context, lines, "Artifact groups", artifact_group_values(context, group))
             append_detail_line(context, lines, "Inspect artifacts with", artifact_commands(context, group))
         append_detail_line(context, lines, "Provenance", provenance_values(context, group))
@@ -60,7 +71,10 @@ def render_group_details(context: CommandContext, groups: list[FindingGroup]) ->
 
 
 def finding_status_values(group: FindingGroup) -> list[str]:
-    """Return candidate/confirmed status labels represented in one group."""
+    """Return candidate/confirmed status labels represented in one group.
+
+    Called by: `render_group_details()` for the Finding status line.
+    """
     values = [
         "confirmed" if event.topic == "finding.confirmed" else str(effective_finding_payload(event).get("status") or "")
         for event in group.events
@@ -69,7 +83,10 @@ def finding_status_values(group: FindingGroup) -> list[str]:
 
 
 def confidence_basis_values(payloads: list[Mapping[str, Any]]) -> list[str]:
-    """Return human-readable confidence basis labels from finding payloads."""
+    """Return human-readable confidence basis labels from finding payloads.
+
+    Called by: `render_group_details()` for the Confidence basis line.
+    """
     return unique_compact_values(
         str(payload.get("confidence_basis") or "").replace("_", " ")
         for payload in payloads
@@ -84,7 +101,10 @@ def append_detail_line(
     *,
     limit: int = 5,
 ) -> None:
-    """Append one formatted detail line, truncating long value lists."""
+    """Append one formatted detail line, truncating long value lists.
+
+    Called by: `render_group_details()` for every optional detail row.
+    """
     if not values:
         return
     shown = values[:limit]
@@ -94,7 +114,10 @@ def append_detail_line(
 
 
 def evidence_values(payloads: list[Mapping[str, Any]]) -> list[str]:
-    """Return unique evidence snippets from all payloads in a group."""
+    """Return unique evidence snippets from all payloads in a group.
+
+    Called by: `render_group_details()` for the Evidence line.
+    """
     return unique_compact_values(
         compact_table_text(payload.get("evidence") or payload.get("description") or "")
         for payload in payloads
@@ -102,20 +125,28 @@ def evidence_values(payloads: list[Mapping[str, Any]]) -> list[str]:
 
 
 def source_values(group: FindingGroup) -> list[str]:
-    """Return unique source descriptions from payload and event provenance."""
+    """Return unique source descriptions from payload and event provenance.
+
+    Called by: `render_group_details()` for the Sources line.
+    """
     values: list[str] = []
     for event in group.events:
         payload = effective_finding_payload(event)
         raw_sources = payload.get("sources")
         if isinstance(raw_sources, list):
             for source in raw_sources:
+                # Prefer plugin-provided source metadata when present, then add
+                # event provenance below so legacy payloads still show origin.
                 values.append(compact_source_value(source))
         values.append(f"{event.source}:{event.topic}")
     return unique_compact_values(values)
 
 
 def compact_source_value(raw: object) -> str:
-    """Return a compact source string."""
+    """Return a compact source string.
+
+    Called by: `source_values()` for each payload-provided source object.
+    """
     if not isinstance(raw, Mapping):
         return str(raw) if raw else ""
     tool = raw.get("tool") or raw.get("source") or raw.get("name")
@@ -128,7 +159,10 @@ def compact_source_value(raw: object) -> str:
 
 
 def provenance_values(context: CommandContext, group: FindingGroup) -> list[str]:
-    """Return event, pipeline, and step provenance strings for one group."""
+    """Return event, pipeline, and step provenance strings for one group.
+
+    Called by: `render_group_details()` for the Provenance line.
+    """
     event_ids = [str(event.id) for event in group.events if event.id is not None]
     pipelines = unique_compact_values(event.pipeline_id or "" for event in group.events)
     steps = unique_compact_values(event.command_run_id or "" for event in group.events)
