@@ -125,6 +125,7 @@ class TestHttpHeadersTests(unittest.TestCase):
         self.assertNotIn("web.header.missing_framing_policy", classes)
 
     def test_http_headers_accepts_x_frame_options_as_framing_policy(self):
+        """Protect HTTP headers accepts x frame options as framing policy behavior from regressions."""
         result = HeaderProbeResult(
             target=HeaderTarget("example.test", 443, True),
             status=200,

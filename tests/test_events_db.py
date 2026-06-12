@@ -107,6 +107,7 @@ class EventDbTests(unittest.TestCase):
             self.assertEqual(db.resolve_pipeline_serial("2"), "pipe-b")
 
     def test_job_serials_are_searchable_serials(self):
+        """Protect job serials are searchable serials behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "events.sqlite3"))
             job_id = db.record_job("job list", 123, "running")

@@ -115,6 +115,7 @@ class ConfigPluginContextCapabilityTests(unittest.TestCase):
             self.assertEqual([event.payload["request_event_id"] for event in used], [1, 2])
 
     def test_command_context_enforces_database_action_policy(self):
+        """Protect command context enforces database action policy behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(

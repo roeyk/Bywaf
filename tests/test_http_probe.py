@@ -77,6 +77,7 @@ class HttpProbeTests(unittest.TestCase):
         self.assertIn("http_probe <run-1>: discovered HTTP endpoint", output.getvalue())
 
     def test_http_probe_silent_suppresses_alert(self):
+        """Protect HTTP probe silent suppresses alert behavior from regressions."""
         context = CommandContext(db=None, source="http_probe", metadata={"command_run_id": "run-1"})
         output = io.StringIO()
         with (

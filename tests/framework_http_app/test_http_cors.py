@@ -129,6 +129,7 @@ class FakeResponse:
     headers: dict[str, str] = {}
 
     def getheader(self, name):
+        """Test helper for getheader."""
         return self.headers.get(name, "")
 
 

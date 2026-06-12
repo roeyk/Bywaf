@@ -81,6 +81,7 @@ class PluginCatalogTests(unittest.TestCase):
             self.assertEqual(catalog["plugins"][0]["triggers"][0]["name"], "example-trigger")
 
     def test_catalog_reads_event_schemas_from_manifest_without_importing_plugin(self):
+        """Protect catalog reads event schemas from manifest without importing plugin behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             plugin_root = root / "plugins"

@@ -155,6 +155,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("expanded: network/portscanner --host 192.0.2.20 --port 80", output.getvalue())
 
     def test_repl_strips_inline_comments_before_dispatch(self):
+        """Protect REPL strips inline comments before dispatch behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             dispatch_repl_line(runner, "set A=192.0.2.20 # operator note")

@@ -150,6 +150,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("198.51.100.10", text)
 
     def test_step_without_id_lists_steps(self):
+        """Protect step without ID lists steps behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()

@@ -161,6 +161,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("error: signal serial= must resolve to a job or run, not a pipeline", output.getvalue())
 
     def test_job_end_defaults_to_cooperative_cancel(self):
+        """Protect job end defaults to cooperative cancel behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("sleep", 99999, "running")

@@ -161,6 +161,7 @@ class RegistryBundledPluginTests(unittest.TestCase):
         self.assertEqual(raw_users, {"audit", "db"})
 
     def test_canonical_manifest_bytes_ignore_order_and_signature_block(self):
+        """Protect canonical manifest bytes ignore order and signature block behavior from regressions."""
         first = {
             "plugin": {"roles": ["beta", "alpha"], "native": True},
             "trusted_keys": ["key-b", "key-a"],

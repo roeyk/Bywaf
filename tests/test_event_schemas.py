@@ -147,6 +147,7 @@ class EventSchemaTests(unittest.TestCase):
         self.assertEqual(PluginPrivateSession.from_event(event), session)
 
     def test_schema_object_deserializes_event_into_plugin_object(self):
+        """Protect schema object deserializes event into plugin object behavior from regressions."""
         event = Event.new(
             "port.open",
             {

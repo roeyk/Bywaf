@@ -117,6 +117,7 @@ class FindingGroupingTests(unittest.TestCase):
         self.assertEqual(payload["subjects"]["title"], "finding.title")
 
     def test_normalized_target_scope_supports_host_port(self):
+        """Protect normalized target scope supports host port behavior from regressions."""
         scope = normalized_target_scope(
             {
                 "finding_scope": "host_port",

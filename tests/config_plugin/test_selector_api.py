@@ -58,6 +58,7 @@ class PluginSelectorApiTests(unittest.TestCase):
                 self.assertFalse(parse_bool(value))
 
     def test_kv_to_args_converts_declared_keys_only(self) -> None:
+        """Protect kv to args converts declared keys only behavior from regressions."""
         self.assertEqual(
             kv_to_args(["target=example.test", "raw=a=b"], {"target"}),
             ["--target", "example.test", "raw=a=b"],

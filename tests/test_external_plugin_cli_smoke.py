@@ -36,6 +36,7 @@ def cryptography_available() -> bool:
 class ExternalPluginCliSmokeTests(unittest.TestCase):
     """Groups regression coverage for external plugin cli smoke behavior."""
     def test_plugin_check_script_accepts_valid_plugin(self):
+        """Protect plugin check script accepts valid plugin behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "plugins"
             plugin_dir = write_external_plugin(root, "myplugin", "smokeprobe", "cli-check")

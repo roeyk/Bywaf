@@ -81,5 +81,6 @@ class ConfigPluginSpecTests(unittest.TestCase):
             normalize_argv([])
 
     def test_format_table_aligns_mapping_rows(self):
+        """Protect format table aligns mapping rows behavior from regressions."""
         lines = format_table([{"name": "one", "value": 1}], ("name", "value"))
         self.assertEqual(lines, ["name  value", "----  -----", "one   1    "])

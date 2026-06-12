@@ -131,6 +131,7 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertEqual(db.events_for_topic("ssh.service")[0].payload["auth"], "failed")
 
     def test_tcp_banner_targets_use_port_open_events(self):
+        """Protect tcp banner targets use port open events behavior from regressions."""
         targets = banner_targets(
             [],
             None,

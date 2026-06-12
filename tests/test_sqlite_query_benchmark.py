@@ -54,6 +54,7 @@ class SQLiteQueryBenchmarkTests(unittest.TestCase):
         )
 
     def test_database_size_includes_database_file(self):
+        """Protect database size includes database file behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             database = Path(tmp, "query.sqlite3")
             populate_database(database, events=len(REPORT_CONTEXT_TOPICS), payload_bytes=0)

@@ -100,6 +100,7 @@ class RegistryCompletionCoreTests(unittest.TestCase):
         self.assertNotIn("--secret", completer.candidates("set --secret "))
 
     def test_secret_input_mode_accepts_plain_modes(self):
+        """Protect secret input mode accepts plain modes behavior from regressions."""
         completer = Completer(self.registry)
         self.assertEqual(secret_input_mode(completer), "auto")
         self.registry.varstore.set("secret.input-mode", "plain")

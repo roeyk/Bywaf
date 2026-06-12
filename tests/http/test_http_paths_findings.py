@@ -214,6 +214,7 @@ class HttpPathFindingTests(unittest.TestCase):
             self.assertIn("source-map access", finding["recommendation"])
 
     def test_source_map_named_html_page_is_not_a_finding_without_map_markers(self):
+        """Protect source map named HTML page is not a finding without map markers behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(

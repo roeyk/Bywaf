@@ -113,6 +113,7 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
             self.assertIn("error: unknown command: missing", output.getvalue())
 
     def test_resolve_resource_path_uses_root_for_plain_plugin_names(self):
+        """Protect resolve resource path uses root for plain plugin names behavior from regressions."""
         self.assertEqual(resolve_resource_path("foo", Path(".bywaf/plugins")), Path(".bywaf/plugins/foo"))
 
     def test_resolve_resource_path_can_use_current_directory_root(self):

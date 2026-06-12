@@ -53,6 +53,7 @@ class WebFingerprintTests(unittest.TestCase):
         self.assertEqual(infer_technologies("nginx nginx", "", "", {}), ["nginx"])
 
     def test_endpoint_payloads_use_http_endpoint_events(self):
+        """Protect endpoint payloads use HTTP endpoint events behavior from regressions."""
         event = Event.new(
             "http.endpoint",
             {"url": "http://127.0.0.1/", "host": "127.0.0.1", "port": 80, "status": 200},

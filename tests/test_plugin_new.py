@@ -87,6 +87,7 @@ class PluginNewTests(unittest.TestCase):
             self.assertEqual(plugin_dir.joinpath("keep.txt").read_text(encoding="utf-8"), "user data")
 
     def test_plugin_new_rejects_invalid_names(self):
+        """Protect plugin new rejects invalid names behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             result = run_script(
                 "scripts/plugin_new.py",

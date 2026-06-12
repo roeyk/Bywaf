@@ -181,6 +181,7 @@ class NiktoTests(unittest.TestCase):
             self.assertTrue(db.events_for_topic("artifact.attached"))
 
     def test_missing_json_output_is_reported_without_findings(self):
+        """Protect missing JSON output is reported without findings behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(

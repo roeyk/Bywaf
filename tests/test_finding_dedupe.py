@@ -234,6 +234,7 @@ class FindingDedupeTests(unittest.TestCase):
             self.assertEqual(candidate["matched_on"], ["target", "class", "fuzzy_text"])
 
     def test_summary_file_is_attached(self):
+        """Protect summary file is attached behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             db = EventStore(root / "bywaf.sqlite3")

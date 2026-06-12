@@ -142,6 +142,7 @@ class TestSubmissionsAndOutputTests(unittest.TestCase):
             self.assertEqual(graph["database_writes"], ["example.topic"])
 
     def test_check_plugin_graph_text_output_shows_known_producers(self):
+        """Protect check plugin graph text output shows known producers behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(
                 Path(tmp),

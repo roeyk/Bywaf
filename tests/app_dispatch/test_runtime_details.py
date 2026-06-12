@@ -236,6 +236,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("args:", selector_output.getvalue())
 
     def test_job_show_numeric_serial_prefix_falls_back_after_missing_local_id(self):
+        """Protect job show numeric serial prefix falls back after missing local ID behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("hostscanner 127.0.0.1", 123, "running")

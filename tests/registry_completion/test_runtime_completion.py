@@ -122,6 +122,7 @@ class RegistryRuntimeCompletionTests(unittest.TestCase):
         self.assertIn("project", completer.candidates("? pro"))
 
     def test_cancel_completion_menu_dismisses_active_popup(self):
+        """Protect cancel completion menu dismisses active popup behavior from regressions."""
         class Buffer:
             cancelled = False
 

@@ -63,6 +63,7 @@ class RenderingTests(unittest.TestCase):
         self.assertIn("…", rendered)
 
     def test_console_renderer_applies_table_styles(self):
+        """Protect console renderer applies table styles behavior from regressions."""
         table = Table.from_rows(({"id": "1", "value": "plain"},), ("id", "value"))
         rendered = render_table(table, "console")
         self.assertNotIn("\x1b[", rendered)

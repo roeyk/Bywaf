@@ -132,6 +132,7 @@ class TestCapabilityInferenceTests(unittest.TestCase):
             self.assertIn("direct network.connect (C401) use detected", render_llm_feedback(report))
 
     def test_check_plugin_does_not_warn_on_urllib_parse_after_urllib_request_import(self):
+        """Protect check plugin does not warn on urllib parse after urllib request import behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(
                 Path(tmp),

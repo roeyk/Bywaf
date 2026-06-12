@@ -109,6 +109,7 @@ class StorageRunnerBackgroundWatchdogTests(unittest.TestCase):
             self.assertEqual(started_at.utcoffset(), datetime.now().astimezone().utcoffset())
 
     def test_watchdog_emits_timeout_and_stall_warnings(self):
+        """Protect watchdog emits timeout and stall warnings behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))
             job_id = db.record_job("hostscanner 127.0.0.1", 123, "running")

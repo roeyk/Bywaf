@@ -98,6 +98,7 @@ class ResourcesHistoryConfigPreferenceTests(unittest.TestCase):
             self.assertEqual(runner.registry.varstore.get("test.value"), "kept")
 
     def test_config_theme_accepts_structured_foreground_background_styles(self):
+        """Protect config theme accepts structured foreground background styles behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             theme = Path(tmp, "theme.toml")

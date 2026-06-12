@@ -155,6 +155,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(events[-1].payload["file"], str(archive))
 
     def test_project_archive_requires_active_project(self):
+        """Protect project archive requires active project behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "adhoc.sqlite3"))
             output = io.StringIO()

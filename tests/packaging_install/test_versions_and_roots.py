@@ -163,6 +163,7 @@ class PackagingInstallVersionAndRootTests(unittest.TestCase):
             self.assertIn("requires_plugins", text)
 
     def test_cli_plugin_graph_json_includes_filesystem_dependency_closure(self):
+        """Protect CLI plugin graph JSON includes filesystem dependency closure behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "home", "alice", ".bywaf", "plugins")
             write_plugin(root, "local/provider", "provider", "provider")

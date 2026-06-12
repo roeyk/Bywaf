@@ -152,6 +152,7 @@ class RegistryFilesystemPluginTests(unittest.TestCase):
             self.assertEqual(registry.varstore.get("scanners/example.answer"), "42")
 
     def test_filesystem_manifest_is_authoritative(self):
+        """Protect filesystem manifest is authoritative behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "plugins")
             plugin_dir = root / "scanners" / "example"

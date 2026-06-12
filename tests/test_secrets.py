@@ -65,6 +65,7 @@ class SecretTests(unittest.TestCase):
         self.assertNotIn("top secret", result.command)
 
     def test_redact_command_text_uses_declared_secret_names(self):
+        """Protect redact command text uses declared secret names behavior from regressions."""
         result = redact_command_text("cmd client-token=abc timeout=1", key=b"k" * 32, secret_names={"client-token"})
         self.assertEqual(result.command, f"cmd client-token={REDACTED_VALUE} timeout=1")
         self.assertEqual(result.secrets[0].name, "client-token")

@@ -10,6 +10,7 @@ class RegistryManifestSchemaTests(unittest.TestCase):
     def test_plugin_manifest_tool_infers_secret_options(self):
         """Protect plugin manifest tool infers secret options behavior from regressions."""
         class Example:
+            """Group regression coverage for `Example` behavior."""
             spec = CommandSpec(
                 "example",
                 "example plugin",

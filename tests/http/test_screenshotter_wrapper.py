@@ -104,6 +104,7 @@ class ScreenshotterWrapperTests(unittest.TestCase):
             event = Event.new("http.endpoint", {"url": "https://example.test/"}, "http_probe")
 
             def fake_run(argv, *, cwd=None, env=None, timeout=None):
+                """Test helper for fake run."""
                 del cwd, env, timeout
                 screenshot_dir = Path(argv[argv.index("-d") + 1]) / "screens"
                 screenshot_dir.mkdir(parents=True)

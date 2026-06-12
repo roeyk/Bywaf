@@ -124,6 +124,7 @@ class TestFrameworkRequestsTests(unittest.TestCase):
             self.assertEqual(output.getvalue(), "hello\n")
 
     def test_framework_request_page_ignores_pager_keyboard_interrupt(self):
+        """Protect framework request page ignores pager keyboard interrupt behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "file.txt")
             path.write_text("hello\n")

@@ -139,6 +139,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIsNone(runner.registry.varstore.get("password"))
 
     def test_vars_explicit_secret_assignment_is_redacted(self):
+        """Protect vars explicit secret assignment is redacted behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()

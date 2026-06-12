@@ -42,6 +42,7 @@ class TimeFormatTests(unittest.TestCase):
         )
 
     def test_bywaf_now_uses_operator_local_timezone(self):
+        """Protect bywaf now uses operator local timezone behavior from regressions."""
         now = bywaf_now()
         self.assertIsNotNone(now.tzinfo)
         self.assertEqual(now.utcoffset(), datetime.now().astimezone().utcoffset())

@@ -166,6 +166,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertRegex(text, r"\n2\s+completed/finished\s+")
 
     def test_job_list_styles_active_row_and_status_column(self):
+        """Protect job list styles active row and status column behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.registry.varstore.set("display/style.table.active_row", "green")

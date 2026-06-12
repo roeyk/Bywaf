@@ -365,6 +365,7 @@ class ReportGroupingTests(unittest.TestCase):
             self.assertIn("Provenance: events=", text)
 
     def test_report_splits_same_cve_when_target_scope_is_route_specific(self):
+        """Protect report splits same CVE when target scope is route specific behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             first = runner.db.publish(

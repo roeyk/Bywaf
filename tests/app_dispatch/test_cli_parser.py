@@ -95,6 +95,7 @@ class CliParserTests(unittest.TestCase):
         self.assertTrue(parser.parse_args(["--encrypted"]).encrypted)
 
     def test_build_parser_accepts_force_plugins(self):
+        """Protect build parser accepts force plugins behavior from regressions."""
         parser = build_parser()
         self.assertTrue(parser.parse_args(["--force-plugins"]).force_plugins)
         self.assertTrue(parser.parse_args(["--allow-untrusted-plugins"]).allow_untrusted_plugins)

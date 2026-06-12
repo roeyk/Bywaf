@@ -94,6 +94,7 @@ class ResourcesHistoryDispatchStateTests(unittest.TestCase):
             self.assertEqual(runner.registry.varstore.get("custom.value"), "abc")
 
     def test_dispatch_topics_and_show_use_database_events(self):
+        """Protect dispatch topics and show use database events behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]):

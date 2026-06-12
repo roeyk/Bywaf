@@ -80,6 +80,7 @@ class TechnologyIndicatorsTests(unittest.TestCase):
         self.assertEqual(finding["confidence_basis"], "fingerprint_indicator")
 
     def test_unlisted_apache_version_is_not_promoted(self):
+        """Protect unlisted apache version is not promoted behavior from regressions."""
         event = Event.new(
             "http.endpoint",
             {"host": "example.test", "port": 443, "scheme": "https", "server": "Apache/2.4.58"},

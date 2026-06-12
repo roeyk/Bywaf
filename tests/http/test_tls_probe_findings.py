@@ -106,6 +106,7 @@ class TlsProbeFindingTests(unittest.TestCase):
             output = io.StringIO()
 
             def fake_fetch(host, port, timeout):
+                """Test helper for fake fetch."""
                 del host, port, timeout
                 return {
                     "subject": "commonName=example.test",

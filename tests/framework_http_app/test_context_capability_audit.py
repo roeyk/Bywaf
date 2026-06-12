@@ -135,6 +135,7 @@ class TestContextCapabilityAuditTests(unittest.TestCase):
             self.assertEqual(runner.db.events_for_topic("framework.console.alert.requested"), [])
 
     def test_context_events_publish_audits_declared_unregistered_topic(self):
+        """Protect context events publish audits declared unregistered topic behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             context = CommandContext(

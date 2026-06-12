@@ -267,6 +267,7 @@ class ReportReviewTests(unittest.TestCase):
             self.assertIn("Confirmed finding", output.getvalue())
 
     def test_report_accepts_selection_ranges_and_lists(self):
+        """Protect report accepts selection ranges and lists behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             for index in range(1, 6):

@@ -81,6 +81,7 @@ class StoreProtocolTests(unittest.TestCase):
                     self.assertIsNot(first, second)
 
     def test_artifact_store_satisfies_artifact_protocol(self):
+        """Protect artifact store satisfies artifact protocol behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             artifact_path = Path(tmp, "example.txt")
             artifact_path.write_text("artifact body", encoding="utf-8")

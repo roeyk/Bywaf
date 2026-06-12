@@ -97,6 +97,7 @@ class TestHttpMethodsTests(unittest.TestCase):
         self.assertIn("connection refused", str(result["error"]))
 
     def test_http_methods_runner_publishes_fact_and_findings(self):
+        """Protect HTTP methods runner publishes fact and findings behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with patch("bywaf.plugins.http.methods.http.client.HTTPSConnection", RiskyConnection):

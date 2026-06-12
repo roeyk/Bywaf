@@ -137,6 +137,7 @@ class FindingReportTests(unittest.TestCase):
             self.assertEqual(runner.db.events_for_topic("finding.new")[0].command_run_id, request.parent_command_run_id)
 
     def test_pipeline_report_preserves_deduped_affected_resources(self):
+        """Protect pipeline report preserves deduped affected resources behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.publish(

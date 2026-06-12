@@ -151,6 +151,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(len(runner.db.events_for_topic("framework.trigger.enabled")), 1)
 
     def test_start_default_services_does_not_rewrite_idle_trigger_state(self):
+        """Protect start default services does not rewrite idle trigger state behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             start_default_services(runner)

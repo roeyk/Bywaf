@@ -95,6 +95,7 @@ class CompletionRegressionTests(unittest.TestCase):
                 os.chdir(cwd)
 
     def test_explicit_named_arguments_complete_key_value_values(self):
+        """Protect explicit named arguments complete key value values behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             Path(tmp, "report.md").write_text("")
             cwd = Path.cwd()

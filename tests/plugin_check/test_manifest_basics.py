@@ -124,6 +124,7 @@ class TestManifestBasicsTests(unittest.TestCase):
             self.assertIn("event_schemas entry 1 has unknown key(s): description", report["errors"][0])
 
     def test_check_plugin_rejects_invalid_event_schema_type_names(self):
+        """Protect check plugin rejects invalid event schema type names behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(
                 Path(tmp),

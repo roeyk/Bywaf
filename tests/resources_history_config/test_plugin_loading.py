@@ -130,6 +130,7 @@ class ResourcesHistoryPluginLoadingTests(unittest.TestCase):
             self.assertEqual(state.active_context, "multi/second")
 
     def test_plugin_load_rejects_value_carrying_use_flag(self):
+        """Protect plugin load rejects value carrying use flag behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()

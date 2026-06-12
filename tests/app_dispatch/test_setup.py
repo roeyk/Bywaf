@@ -173,6 +173,7 @@ class SetupCliTests(unittest.TestCase):
                 )
 
     def test_interactive_setup_key_generation_failure_does_not_publish_setup_event(self):
+        """Protect interactive setup key generation failure does not publish setup event behavior from regressions."""
         def fail_generate_key(name: str, passphrase: str, *, scope: str = "user"):
             del name, passphrase, scope
             raise RuntimeError("key backend unavailable")

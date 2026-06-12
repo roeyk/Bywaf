@@ -132,6 +132,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("error: unknown command or commandlet", output.getvalue())
 
     def test_dispatch_help_alias(self):
+        """Protect dispatch help alias behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()

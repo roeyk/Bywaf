@@ -108,6 +108,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
             self.assertEqual(note.payload["job_id"], runner.db.job()[0]["id"])
 
     def test_framework_note_attaches_to_each_pipeline_stage(self):
+        """Protect framework note attaches to each pipeline stage behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             with (
                 patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]),

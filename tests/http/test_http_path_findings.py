@@ -169,6 +169,7 @@ class HttpPathFindingHelperTests(unittest.TestCase):
         self.assertIsNone(finding_for_path(observed))
 
     def test_path_evidence_includes_present_response_metadata(self):
+        """Protect path evidence includes present response metadata behavior from regressions."""
         observed = HttpPathObserved(
             url="https://example.test/.npmrc",
             host="example.test",

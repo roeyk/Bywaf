@@ -320,6 +320,7 @@ class ReportScopeTests(unittest.TestCase):
             self.assertNotIn("Old finding", text)
 
     def test_report_new_renders_composite_inventory_delta(self):
+        """Protect report new renders composite inventory delta behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             # Build an old/new inventory timeline with both host facts and

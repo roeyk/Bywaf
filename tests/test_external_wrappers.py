@@ -154,6 +154,7 @@ class EyeWitnessTests(unittest.TestCase):
 class WifiScanTests(unittest.TestCase):
     """Groups regression coverage for external wrappers behavior."""
     def test_kismet_argv_is_shell_free(self):
+        """Protect kismet argv is shell free behavior from regressions."""
         argv = kismet_argv("kismet", "wlan0mon", Path("/tmp/kismet"), "kismet,json")
         self.assertEqual(argv[:4], ["kismet", "-c", "wlan0mon", "--no-ncurses"])
         self.assertIn("--log-prefix", argv)

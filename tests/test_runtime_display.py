@@ -38,6 +38,7 @@ class RuntimeDisplayTests(unittest.TestCase):
         self.assertEqual(format_runtime_timestamp(None), "unknown")
 
     def test_format_runtime_timestamp_leaves_malformed_value_visible(self):
+        """Protect format runtime timestamp leaves malformed value visible behavior from regressions."""
         self.assertEqual(format_runtime_timestamp("not-a-time"), "not-a-time")
 
     def test_display_runtime_serial_strips_noisy_runtime_prefixes(self):

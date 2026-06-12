@@ -83,6 +83,7 @@ class StorageRunnerParsingPipelineTests(unittest.TestCase):
         self.assertFalse(should_run_stage_processes(pipeline.commands))
 
     def test_fully_background_pipeline_splits_stages(self):
+        """Protect fully background pipeline splits stages behavior from regressions."""
         pipeline = parse_pipeline("hostscanner 192.168.0.1-2 & | portscanner &")
         self.assertTrue(should_run_stage_processes(pipeline.commands))
 

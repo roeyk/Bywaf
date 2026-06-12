@@ -115,6 +115,7 @@ class HttpProbeWrapperMatrixTests(TestCase):
             self.assertEqual(db.events_for_topic("web.waf.detected"), [])
 
     def test_tls_probe_emits_error_event_without_certificate(self):
+        """Protect TLS probe emits error event without certificate behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(db=db, source="tls_probe", metadata={"capabilities": tls_probe.spec.capabilities})

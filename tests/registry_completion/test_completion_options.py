@@ -121,6 +121,7 @@ class RegistryCompletionOptionTests(unittest.TestCase):
             self.assertIn("targets=", completer.candidates("signal step=run-1 prune "))
 
     def test_pipeline_attach_completion_prefers_action_then_scope(self):
+        """Protect pipeline attach completion prefers action then scope behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))
             # Seed one pipeline/step so completion can offer both a local

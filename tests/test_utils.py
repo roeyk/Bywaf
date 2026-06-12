@@ -37,6 +37,7 @@ class UtilsTests(unittest.TestCase):
         self.assertEqual(parse_ports("80,443,80,8000-8002"), (80, 443, 8000, 8001, 8002))
 
     def test_parse_ports_rejects_out_of_range(self):
+        """Protect parse ports rejects out of range behavior from regressions."""
         with self.assertRaises(ValueError):
             parse_ports("0")
 

@@ -68,6 +68,7 @@ class RepoExposureTests(unittest.TestCase):
         self.assertEqual(events[0]["checked_url"], "http://127.0.0.1:8088/.git/config")
 
     def test_pipeline_targets_use_http_endpoint_events(self):
+        """Protect pipeline targets use HTTP endpoint events behavior from regressions."""
         event = Event.new("http.endpoint", {"url": "https://example.test/", "host": "example.test", "port": 443}, "test")
         self.assertEqual(git_targets([], [event]), [event.payload])
 
