@@ -11,6 +11,8 @@ from bywaf.runtime_display import command_context_style_getter, render_table, te
 
 def render_http_endpoints_section(context: CommandContext, events: list[Event]) -> str:
     """Render reachable HTTP endpoints as a compact result table."""
+    # Keep endpoint rows sorted by URL so repeated result views remain stable
+    # even when events arrived from parallel or background jobs.
     rows = [
         (
             event.payload.get("url", ""),
@@ -71,6 +73,8 @@ def missing_header_summary(value: object) -> str:
     if not isinstance(value, dict):
         return ""
     observed = {str(header).lower() for header in value}
+    # This is intentionally a short, opinionated checklist for the results
+    # overview. Detailed header dictionaries remain available in raw events.
     expected = ("strict-transport-security", "x-content-type-options")
     missing = [header for header in expected if header not in observed]
     return ", ".join(missing)
@@ -78,6 +82,8 @@ def missing_header_summary(value: object) -> str:
 
 def render_http_paths_section(context: CommandContext, events: list[Event]) -> str:
     """Render HTTP path observations."""
+    # Path probes can produce many rows; the overview highlights title and
+    # interesting-state rather than every response header or body snippet.
     rows = [
         (
             event.payload.get("url", ""),
@@ -127,6 +133,8 @@ def observation_summary(value: object) -> str:
     if not isinstance(value, list) or not value:
         return ""
     severities: Counter[str] = Counter()
+    # Observations are reduced by severity so the result table can show signal
+    # density without expanding the full web fingerprint payload.
     for item in value:
         if isinstance(item, dict):
             severity = str(item.get("severity") or "unknown")
@@ -138,6 +146,8 @@ def observation_summary(value: object) -> str:
 
 def render_waf_section(context: CommandContext, events: list[Event]) -> str:
     """Render WAF or edge protection fingerprints."""
+    # WAF rows preserve the primary evidence string because the same vendor can
+    # be detected by very different headers, cookies, or response bodies.
     rows = [
         (
             event.payload.get("url", ""),

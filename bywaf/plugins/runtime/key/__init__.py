@@ -1,6 +1,7 @@
 """Runtime key commandlet.
 
-Provides a bundled plugin implementation and CommandSpec metadata. Manages signing and verification keys from inside Bywaf.
+Provides a bundled plugin implementation and CommandSpec metadata. Manages
+signing and verification keys from inside Bywaf.
 
 Used by:
 - PluginRegistry discovery: loads this module as a commandlet provider.
@@ -91,11 +92,15 @@ class Key(CommandletBase):
             return [action for action in KEY_ACTIONS if action.startswith(prefix)]
         action = args[0]
         if prefix.startswith("name="):
+            # Action-specific name completion hides keys that cannot be used
+            # for that operation, such as non-verification keys for `test`.
             value_prefix = prefix.split("=", 1)[1]
             return [f"name={name}" for name in key_names_for_action(action) if name.startswith(value_prefix)]
         if prefix.startswith("file="):
             from bywaf.utils import complete_path
 
+            # file= values are completed after the selector prefix so callers
+            # can insert the returned token directly into the command line.
             value_prefix = prefix.split("=", 1)[1]
             return [f"file={candidate}" for candidate in complete_path(value_prefix or ".")]
         if action == "import" and len(args) == 1:
@@ -279,6 +284,8 @@ def selector(args: list[str], key: str, *, required: bool = False) -> str:
 
 def selector_candidates(action: str, prefix: str) -> list[str]:
     """Return selector candidates for a key action."""
+    # Keep the selector vocabulary near the action dispatch table so adding a
+    # new key subcommand does not require hunting through the completion layer.
     candidates = {
         "generate": ["name=", "scope=user", "scope=project"],
         "show": ["name="],
@@ -294,6 +301,8 @@ def selector_candidates(action: str, prefix: str) -> list[str]:
 def key_names_for_action(action: str) -> list[str]:
     """Return key-name completion candidates for one action."""
     if action == "test":
+        # `key test` needs material usable for verification/signing checks,
+        # not every record in the keyring.
         return verification_key_names()
     return [record.name for record in load_key_records()]
 

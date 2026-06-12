@@ -18,6 +18,10 @@ from typing import Any
 PLUGIN_HEADING_RE = re.compile(r"^### `([^`]+)`$")
 COMMANDLET_HEADING_RE = re.compile(r"^#### Commandlets?: (.+)$")
 FAMILY_HEADING_RE = re.compile(r"^## ([A-Za-z]+)$")
+
+# These patterns parse generated HTML fragments embedded in
+# BUNDLED_PLUGIN_MANUAL.md. `parse_manual()` uses them as a small state machine
+# for the collapsible top-level plugin table of contents.
 TOC_SUMMARY_RE = re.compile(
     r'<summary id="toc-([^"]+)"><span class="toc-count">(\d+)</span>.*?'
     r'<span class="toc-name">([^<]+)</span></summary>'
@@ -28,10 +32,16 @@ TOC_ENTRY_RE = re.compile(
 )
 BACKTICK_NAME_RE = re.compile(r"`([^`]+)`")
 
+# The checker treats this exact header as part of the generated-manual
+# contract. If it disappears, the manual still has sections but loses the
+# operator-friendly count legend.
 TOC_HEADER = (
     '<div class="toc-header"><span class="toc-count">Plugins (Commandlets)</span>'
     '<span class="toc-name">Name</span></div>'
 )
+
+# These are manual section headings, not package namespaces. display_family()
+# maps a manifest's top-level package to one of these display families.
 FAMILY_NAMES = {
     "Analysis",
     "Discovery",
@@ -48,7 +58,12 @@ FAMILY_NAMES = {
 
 @dataclass(frozen=True, slots=True)
 class PluginManualEntry:
-    """Manifest-derived bundled plugin shape."""
+    """Manifest-derived bundled plugin shape.
+
+    Constructed by: `entry_from_manifest()`.
+    Consumed by: `check_manual()` when comparing generated documentation with
+    bundled plugin sidecars.
+    """
 
     family: str
     plugin: str
@@ -57,7 +72,12 @@ class PluginManualEntry:
 
 @dataclass(frozen=True, slots=True)
 class ManualShape:
-    """Manual-derived bundled plugin shape."""
+    """Manual-derived bundled plugin shape.
+
+    Constructed by: `parse_manual()`.
+    Consumed by: `check_manual()` to compare top TOC counts, plugin sections,
+    and commandlet headings against manifest-derived expectations.
+    """
 
     toc_counts: dict[str, int]
     toc_plugins: dict[str, dict[str, int]]
@@ -70,6 +90,8 @@ def collect_bundled_plugins(plugin_root: Path) -> tuple[PluginManualEntry, ...]:
     """Return bundled plugin metadata from manifests under `plugin_root`."""
     entries: list[PluginManualEntry] = []
     for manifest_path in sorted(plugin_root.rglob("*.plugin.toml")):
+        # The checker scans manifests only; importing plugin modules would make
+        # documentation drift checks slower and sensitive to optional tools.
         plugin = plugin_name_for_manifest(plugin_root, manifest_path)
         entries.append(entry_from_manifest(manifest_path, plugin))
     return tuple(sorted(entries, key=lambda entry: entry.plugin))
@@ -78,6 +100,8 @@ def collect_bundled_plugins(plugin_root: Path) -> tuple[PluginManualEntry, ...]:
 def plugin_name_for_manifest(plugin_root: Path, manifest_path: Path) -> str:
     """Return dotted plugin name for a bundled manifest path."""
     relative = manifest_path.relative_to(plugin_root)
+    # Package-local manifests are named bywaf.plugin.toml and use their parent
+    # package path as the plugin id; legacy flat manifests use their stem.
     if relative.name == "bywaf.plugin.toml":
         parts = relative.parent.parts
     else:
@@ -93,6 +117,8 @@ def entry_from_manifest(manifest_path: Path, plugin: str) -> PluginManualEntry:
         raise ValueError(f"{manifest_path} must declare at least one [[commandlets]] entry")
     commandlets: list[str] = []
     for index, row in enumerate(rows, start=1):
+        # Keep validation strict here because a malformed commandlet row would
+        # make the generated manual ambiguous.
         if not isinstance(row, dict):
             raise ValueError(f"{manifest_path} commandlets entry {index} must be a table")
         name = row.get("name")
@@ -126,6 +152,8 @@ def parse_manual(path: Path) -> ManualShape:
     has_toc_header = TOC_HEADER in lines
 
     for line in lines:
+        # First parse the generated top TOC. current_toc_family tracks the
+        # enclosing <details> section until its closing tag is seen.
         summary_match = TOC_SUMMARY_RE.match(line)
         if summary_match:
             _anchor, count, family = summary_match.groups()
@@ -142,6 +170,8 @@ def parse_manual(path: Path) -> ManualShape:
             toc_plugins.setdefault(current_toc_family, {})[plugin] = int(count)
             continue
 
+        # Then parse the Markdown body. current_section_family and
+        # current_plugin identify which heading owns the next commandlet row.
         family_match = FAMILY_HEADING_RE.match(line)
         if family_match and family_match.group(1) in FAMILY_NAMES:
             current_section_family = family_match.group(1)
@@ -183,6 +213,8 @@ def check_manual(
     toc_plugins = {plugin for plugins in manual.toc_plugins.values() for plugin in plugins}
     expected_plugins = set(expected_by_plugin)
 
+    # Presence checks catch missing or stale plugin sections before comparing
+    # per-plugin details.
     errors.extend(compare_sets("manual plugin sections", expected_plugins, section_plugins))
     errors.extend(compare_sets("top TOC plugins", expected_plugins, toc_plugins))
 
@@ -195,6 +227,8 @@ def check_manual(
         )
 
     for plugin, entry in expected_by_plugin.items():
+        # Family placement, TOC counts, and commandlet headings are compared
+        # independently so the report points at the exact drift.
         section_family = manual.sections.get(plugin)
         if section_family is not None and section_family != entry.family:
             errors.append(f"{plugin} section is under {section_family}, expected {entry.family}")
