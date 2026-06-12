@@ -12,11 +12,16 @@ from .shared import add_value, host_sort_value, join_values, sort_note, split_so
 
 
 def render_screenshots_inventory(context: CommandContext, events: list[Event], scope: str, sort: str = "host") -> str:
-    """Render screenshot artifact inventory."""
+    """Render screenshot artifact inventory.
+
+    Called by: runtime inventory commandlets for the `screenshots` view.
+    """
     screenshot_events = [event for event in events if event.topic == "web.screenshotted_host"]
     if not screenshot_events:
         return "Screenshots: no screenshot inventory"
     sort_key, descending = split_sort(sort, "host")
+    # Each event may carry multiple URLs and screenshot artifact references.
+    # Keep the inventory row compact so hosts remain easy to compare.
     rows = [
         (
             event.payload.get("host", ""),
@@ -37,7 +42,10 @@ def render_screenshots_inventory(context: CommandContext, events: list[Event], s
     return f"Screenshots: {scope} ({len(rows)} hosts)\n{sort_note(sort, 'host')}\n{table}"
 
 def screenshot_sort_key(event: Event, key: str) -> Any:
-    """Return a sortable screenshot event value."""
+    """Return a sortable screenshot event value.
+
+    Called by: `render_screenshots_inventory()`.
+    """
     payload = event.payload
     if key == "shots":
         return (len(payload.get("screenshots", [])), host_sort_value(str(payload.get("host") or "")))
@@ -46,7 +54,11 @@ def screenshot_sort_key(event: Event, key: str) -> Any:
     return (host_sort_value(str(payload.get("host") or "")), event.id or 0)
 
 def screenshot_refs(event: Event) -> str:
-    """Return compact screenshot artifact references."""
+    """Return compact screenshot artifact references.
+
+    Called by: `render_screenshots_inventory()` to keep artifact evidence
+    visible without expanding the full nested screenshot payload.
+    """
     refs: set[str] = set()
     screenshots = event.payload.get("screenshots", [])
     if not isinstance(screenshots, list):
@@ -57,7 +69,10 @@ def screenshot_refs(event: Event) -> str:
     return join_values(refs)
 
 def screenshot_event_keys(event: Event) -> set[tuple[str, str]]:
-    """Return stable screenshot identity keys for one event."""
+    """Return stable screenshot identity keys for one event.
+
+    Called by: inventory delta/key helpers.
+    """
     if event.topic != "web.screenshotted_host":
         return set()
     host = str(event.payload.get("host") or "")

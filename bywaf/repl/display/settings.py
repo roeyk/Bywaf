@@ -22,7 +22,8 @@ DISPLAY_EXPANSION_VAR = "display.expansion"
 DISPLAY_EXPANSION_DEFAULT = "off"
 
 # These are fallbacks only. Operators can override them through `display.*` and
-# `display/style.*` variables or preference/theme files.
+# `display/style.*` variables or preference/theme files. Display helpers import
+# these constants rather than duplicating variable names.
 DEFAULT_VAR_COLOR_MODE = "auto"
 DEFAULT_VAR_NAME_COLOR = "cyan"
 DEFAULT_VAR_VALUE_COLOR = "green"

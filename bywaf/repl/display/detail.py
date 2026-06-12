@@ -27,7 +27,10 @@ from .detail_format import (
 
 
 def print_event_info(runner: Runner, event_id_text: str) -> None:
-    """Print one event with runtime context and readable payload fields."""
+    """Print one event with runtime context and readable payload fields.
+
+    Called by: REPL `event <id>` handling and event-detail display paths.
+    """
     try:
         event_id = int(event_id_text)
     except ValueError:

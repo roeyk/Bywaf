@@ -17,18 +17,26 @@ from .state import new_shell_state
 
 
 def execute_and_print(runner: Runner, command: str) -> int:
-    """Execute one command line for top-level `bywaf exec` callers."""
+    """Execute one command line for top-level `bywaf exec` callers.
+
+    Called by: CLI app dispatch for explicit `exec` mode.
+    """
     return execute_shell_command(runner, command)
 
 
 def execute_commandlet_and_print(runner: Runner, command: str) -> int:
-    """Execute one commandlet line for direct non-interactive CLI callers."""
+    """Execute one commandlet line for direct non-interactive CLI callers.
+
+    Called by: CLI app dispatch when the first token is a commandlet.
+    """
     try:
         state = new_shell_state(runner)
         events = runner.execute(command)
         process_framework_requests(runner, state)
         from .display import print_events
 
+        # Direct commandlet invocation should behave like a one-shot REPL line:
+        # execute, process framework render requests, then print visible events.
         print_events(visible_commandlet_events(events), runner)
     except SystemExit as exc:
         if exc.code in (0, None):
@@ -45,7 +53,10 @@ def execute_commandlet_and_print(runner: Runner, command: str) -> int:
 
 
 def run_remainder(runner: Runner, tokens: list[str]) -> int:
-    """Validate and run the token remainder from `bywaf exec ...`."""
+    """Validate and run the token remainder from `bywaf exec ...`.
+
+    Called by: CLI app dispatch after parsing global options.
+    """
     try:
         command = command_from_remainder(tokens)
     except ValueError as exc:
@@ -55,7 +66,10 @@ def run_remainder(runner: Runner, tokens: list[str]) -> int:
 
 
 def run_commandlet_remainder(runner: Runner, tokens: list[str]) -> int:
-    """Validate and run direct non-interactive commandlet arguments."""
+    """Validate and run direct non-interactive commandlet arguments.
+
+    Called by: CLI app dispatch for direct commandlet mode.
+    """
     try:
         command = command_from_remainder(tokens)
     except ValueError:
@@ -63,6 +77,8 @@ def run_commandlet_remainder(runner: Runner, tokens: list[str]) -> int:
         return 1
     status = 0
     for one_command in split_command_sequence(command) or [command]:
+        # Preserve shell-style command chaining: stop at the first failing
+        # commandlet so scripts see a meaningful exit status.
         status = execute_commandlet_and_print(runner, one_command)
         if status != 0:
             return status

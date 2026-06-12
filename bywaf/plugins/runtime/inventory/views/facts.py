@@ -1,4 +1,8 @@
-"""Compatibility facade for single-topic inventory renderers."""
+"""Compatibility facade for single-topic inventory renderers.
+
+Used by: inventory commandlets and tests that import the grouped fact renderers
+from one stable module.
+"""
 
 from __future__ import annotations
 
@@ -9,6 +13,7 @@ from .routes import render_routes_inventory, route_event_keys
 from .screenshots import render_screenshots_inventory, screenshot_event_keys
 from .shares import render_shares_inventory, share_event_keys
 
+# Stable re-export list for the small single-topic inventory renderers.
 __all__ = [
     "banner_event_keys",
     "cert_event_keys",

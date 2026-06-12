@@ -8,7 +8,11 @@ from bywaf.runtime_display import command_context_style_getter, render_table, te
 
 
 def render_smb_shares_section(context: CommandContext, events: list[Event]) -> str:
-    """Render SMB shares as a compact result table."""
+    """Render SMB shares as a compact result table.
+
+    Called by: runtime results section rendering for `smb.share.found` events.
+    """
+    # Sort by host/share/id so repeated scans produce stable row order.
     rows = [
         (
             event.payload.get("host", ""),
@@ -37,7 +41,10 @@ def render_smb_shares_section(context: CommandContext, events: list[Event]) -> s
 
 
 def format_bool(value: object) -> str:
-    """Format optional bools for result tables."""
+    """Format optional bools for result tables.
+
+    Called by: `render_smb_shares_section()`.
+    """
     if value is True:
         return "yes"
     if value is False:

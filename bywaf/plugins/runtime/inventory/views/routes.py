@@ -12,11 +12,16 @@ from .shared import host_sort_value, sort_note, split_sort
 
 
 def render_routes_inventory(context: CommandContext, events: list[Event], scope: str, sort: str = "target") -> str:
-    """Render route hop inventory."""
+    """Render route hop inventory.
+
+    Called by: runtime inventory commandlets for the `routes` view.
+    """
     route_events = [event for event in events if event.topic == "network.route.hop"]
     if not route_events:
         return "Routes: no route inventory"
     sort_key, descending = split_sort(sort, "target")
+    # Route events describe hop-by-hop observations. Missing hosts are shown as
+    # status text so failed/time-out hops remain visible.
     rows = [
         (
             event.payload.get("target", ""),
@@ -37,7 +42,10 @@ def render_routes_inventory(context: CommandContext, events: list[Event], scope:
     return f"Routes: {scope} ({len(rows)} hops)\n{sort_note(sort, 'target')}\n{table}"
 
 def route_sort_key(event: Event, key: str) -> Any:
-    """Return a sortable route event value."""
+    """Return a sortable route event value.
+
+    Called by: `render_routes_inventory()`.
+    """
     payload = event.payload
     if key == "hop":
         return (int(payload.get("hop") or 0), str(payload.get("target") or ""))
@@ -50,7 +58,10 @@ def route_sort_key(event: Event, key: str) -> Any:
     return (str(payload.get("target") or ""), int(payload.get("hop") or 0))
 
 def format_rtt(value: object) -> str:
-    """Format a route hop round-trip value."""
+    """Format a route hop round-trip value.
+
+    Called by: route inventory and result renderers.
+    """
     if value in (None, ""):
         return ""
     if isinstance(value, (int, float)):
@@ -58,7 +69,10 @@ def format_rtt(value: object) -> str:
     return str(value)
 
 def route_event_keys(event: Event) -> set[tuple[str, str, int]]:
-    """Return stable route hop identity keys for one event."""
+    """Return stable route hop identity keys for one event.
+
+    Called by: inventory delta/key helpers.
+    """
     if event.topic != "network.route.hop":
         return set()
     target = str(event.payload.get("target") or "")

@@ -12,7 +12,14 @@ from bywaf.style import styled_subject_text
 
 
 def render_artifacts_section(context: CommandContext, events: list[Event], scope: Namespace | None = None) -> str:
-    """Render attached artifacts as a compact result table."""
+    """Render attached artifacts as a compact result table.
+
+    Called by: results section dispatch when artifact attachment events are
+    part of the selected scope.
+    """
+    # Results output shows artifact metadata and an equivalent artifact-list
+    # command. The artifact body stays in the artifact store until the operator
+    # explicitly asks to inspect or export it.
     rows = [
         (
             format_artifact_reference(context, event),
@@ -38,7 +45,10 @@ def render_artifacts_section(context: CommandContext, events: list[Event], scope
 
 
 def render_tool_errors_section(context: CommandContext, events: list[Event]) -> str:
-    """Render wrapper/tool problems without falling back to raw event payloads."""
+    """Render wrapper/tool problems without falling back to raw event payloads.
+
+    Called by: results section dispatch for tool.error-style events.
+    """
     sorted_events = sorted(events, key=lambda event: event.id or 0)
     rows = [
         (
@@ -64,21 +74,31 @@ def render_tool_errors_section(context: CommandContext, events: list[Event]) -> 
 
 
 def compact_target(value: object) -> str:
-    """Return a compact target string from a tool-error payload."""
+    """Return a compact target string from a tool-error payload.
+
+    Called by: `render_tool_errors_section()`.
+    """
     if not isinstance(value, dict):
         return str(value or "")
     return str(value.get("url") or value.get("host") or value.get("target") or "")
 
 
 def artifact_reference_from_payload(context: CommandContext, event: Event) -> str:
-    """Return artifact reference text when an event carries artifact metadata."""
+    """Return artifact reference text when an event carries artifact metadata.
+
+    Called by: `render_tool_errors_section()`.
+    """
     if event.payload.get("artifact_id") or event.payload.get("artifact_row_id"):
         return format_artifact_reference(context, event)
     return ""
 
 
 def inspect_artifact_commands(context: CommandContext, events: list[Event]) -> list[str]:
-    """Return styled artifact-show commands for tool-error evidence."""
+    """Return styled artifact-show commands for tool-error evidence.
+
+    Called by: `render_tool_errors_section()` to point operators at captured
+    stderr/stdout or raw tool output artifacts.
+    """
     commands: list[str] = []
     style_getter = command_context_style_getter(context)
     for event in events:
@@ -91,6 +111,9 @@ def inspect_artifact_commands(context: CommandContext, events: list[Event]) -> l
 
 
 def equivalent_artifact_command(scope: Namespace) -> str:
-    """Return the artifact-list command for the current results scope."""
+    """Return the artifact-list command for the current results scope.
+
+    Called by: `render_artifacts_section()`.
+    """
     selectors = [f"{key}={value}" for key, value in scope.scope.items() if key != "all"]
     return "artifact list " + " ".join(selectors) if selectors else "artifact list"

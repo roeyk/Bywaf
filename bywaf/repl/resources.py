@@ -83,7 +83,10 @@ __all__ = [
 
 
 def load_repl_resource(runner: Runner, spec: str, state: ResourceState | None = None) -> None:
-    """Handle `plugin load=<path>` resources from the REPL."""
+    """Handle `plugin load=<path>` resources from the REPL.
+
+    Called by: REPL resource/plugin command handlers after parsing user input.
+    """
     state = state or default_resource_state(runner)
     forced, resource, catalog_path = parse_load_spec(spec)
     key, value = parse_resource_assignment(resource)
@@ -112,7 +115,10 @@ def load_plugin_resource(
     *,
     catalog_path: str | None = None,
 ) -> list[str]:
-    """Load a filesystem plugin resource."""
+    """Load a filesystem plugin resource.
+
+    Called by: `load_repl_resource()` and plugin-loading command handlers.
+    """
     del state
     plugin_path = resolve_resource_path(value, DEFAULT_PLUGIN_DIR)
     # The filesystem path is where the plugin lives on disk. catalog_path, when
@@ -121,6 +127,8 @@ def load_plugin_resource(
     provider = catalog_path or plugin_path.name
     commandlets = runner.registry.provider_commandlet_names(provider)
     manifest_details = plugin_manifest_audit_details(plugin_path)
+    # Loading a plugin is a resource mutation, so publish an audit event that
+    # records both the filesystem source and logical provider/commandlet names.
     event = publish_resource_loaded(
         runner,
         "plugin",
@@ -137,8 +145,8 @@ def load_plugin_resource(
 
 
 # `load <kind>=...` is a small resource-dispatch surface. load_resource() uses
-# this dispatch table so each loadable resource kind can validate and publish its own
-# audit event without growing a branch ladder.
+# this dispatch table so each loadable resource kind can validate and publish
+# its own audit event without growing a branch ladder.
 LOAD_RESOURCE_HANDLERS: dict[str, LoadResourceHandler] = {
     "plugin": load_plugin_resource,
 }

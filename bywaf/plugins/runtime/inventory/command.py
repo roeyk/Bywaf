@@ -37,7 +37,10 @@ class InventoryCommand(CommandletBase):
     identity: InventoryIdentity = staticmethod(lambda event: set())
 
     def complete(self, context: CompletionContext, args: list[str], prefix: str) -> list[str]:
-        """Complete common inventory selectors."""
+        """Complete common inventory selectors.
+
+        Called by: framework completion for all inventory commandlets.
+        """
         del context, args
         candidates = [
             "--last",
@@ -54,7 +57,10 @@ class InventoryCommand(CommandletBase):
         return [candidate for candidate in candidates if candidate.startswith(prefix)]
 
     def selected_events(self, context: CommandContext, args: list[str]) -> tuple[Namespace, list[Event], bool]:
-        """Parse scope selectors and return matching events."""
+        """Parse scope selectors and return matching events.
+
+        Called by: `render_inventory()` before invoking the concrete renderer.
+        """
         parser = self.parser()
         parser.usage = self.spec.usage
         parser.add_argument("--last", action="store_true")
@@ -62,6 +68,8 @@ class InventoryCommand(CommandletBase):
         parser.add_argument("--page", action="store_true")
         parser.add_argument("selectors", nargs="*", metavar="key=value")
         parsed = parser.parse_args(args)
+        # All inventory commands share the same scope grammar, while each
+        # subclass contributes topic sets, identity keys, and sort keys.
         selectors = parse_inventory_selectors(
             parsed.selectors,
             last=parsed.last,
@@ -79,7 +87,10 @@ class InventoryCommand(CommandletBase):
         input_events: Iterable[Event],
         renderer: InventoryRenderer,
     ) -> tuple[()]:
-        """Render one inventory view after applying common selector behavior."""
+        """Render one inventory view after applying common selector behavior.
+
+        Called by: concrete inventory commandlet `run()` methods.
+        """
         del input_events
         selectors, events, page = self.selected_events(context, args)
         output = renderer(context, events, inventory_scope_label(selectors), selectors.sort)

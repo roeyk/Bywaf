@@ -16,6 +16,8 @@ from .views.services import service_event_keys, render_services_inventory
 from .views.shares import render_shares_inventory, share_event_keys
 from .views.web import render_wafs_inventory, render_web_inventory, waf_event_keys, web_event_keys
 
+# Stable inventory rendering facade exports. Concrete inventory commandlets use
+# this surface so individual view modules can stay focused by topic.
 __all__ = [
     "banner_event_keys",
     "cert_event_keys",

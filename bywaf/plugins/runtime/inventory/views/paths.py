@@ -12,11 +12,16 @@ from .shared import host_sort_value, sort_note, split_sort
 
 
 def render_paths_inventory(context: CommandContext, events: list[Event], scope: str, sort: str = "host") -> str:
-    """Render HTTP path inventory."""
+    """Render HTTP path inventory.
+
+    Called by: runtime inventory commandlets for the `paths` view.
+    """
     path_events = [event for event in events if event.topic == "http.path"]
     if not path_events:
         return "Paths: no path inventory"
     sort_key, descending = split_sort(sort, "host")
+    # Interesting paths are already classified by the probing plugin; inventory
+    # only presents that fact without promoting it to a finding.
     rows = [
         (
             event.payload.get("host", ""),
@@ -37,7 +42,10 @@ def render_paths_inventory(context: CommandContext, events: list[Event], scope: 
     return f"Paths: {scope} ({len(rows)} paths)\n{sort_note(sort, 'host')}\n{table}"
 
 def path_sort_key(event: Event, key: str) -> Any:
-    """Return a sortable path event value."""
+    """Return a sortable path event value.
+
+    Called by: `render_paths_inventory()`.
+    """
     payload = event.payload
     if key == "path":
         return (str(payload.get("path") or ""), host_sort_value(str(payload.get("host") or "")))
@@ -48,7 +56,10 @@ def path_sort_key(event: Event, key: str) -> Any:
     return (host_sort_value(str(payload.get("host") or "")), str(payload.get("path") or ""))
 
 def path_event_keys(event: Event) -> set[tuple[str, str]]:
-    """Return stable HTTP path identity keys for one event."""
+    """Return stable HTTP path identity keys for one event.
+
+    Called by: inventory delta/key helpers.
+    """
     if event.topic != "http.path":
         return set()
     url = str(event.payload.get("url") or "")

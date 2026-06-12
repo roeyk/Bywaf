@@ -37,55 +37,79 @@ ReplCommandHandler = Callable[[Runner, Any, str | None, str], str | None]
 
 
 def handle_exit_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
-    """Exit the REPL."""
+    """Exit the REPL.
+
+    Called by: `REPL_COMMAND_HANDLERS` for `exit`, `quit`, and `q`.
+    """
     del runner, state, rest, line
     return "exit"
 
 
 def handle_help_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
-    """Print general or command-specific help."""
+    """Print general or command-specific help.
+
+    Called by: `REPL_COMMAND_HANDLERS` for `help` and `?`.
+    """
     del state, line
     print_help(runner, rest)
     return None
 
 
 def handle_plugins_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
-    """Print loaded plugin providers."""
+    """Print loaded plugin providers.
+
+    Called by: `REPL_COMMAND_HANDLERS` for `plugins`.
+    """
     del state, rest, line
     print_plugins(runner)
     return None
 
 
 def handle_cmds_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
-    """Print commandlets, optionally through the pager."""
+    """Print commandlets, optionally through the pager.
+
+    Called by: `REPL_COMMAND_HANDLERS` for `cmds`.
+    """
     del state, line
     print_commandlets(runner, page=rest == "--page")
     return None
 
 
 def handle_triggers_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
-    """Print trigger rules."""
+    """Print trigger rules.
+
+    Called by: `REPL_COMMAND_HANDLERS` for `triggers`.
+    """
     del state, rest, line
     print_triggers(runner)
     return None
 
 
 def handle_info_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
-    """Print runtime overview."""
+    """Print runtime overview.
+
+    Called by: `REPL_COMMAND_HANDLERS` for `info`.
+    """
     del state, rest, line
     print_info(runner)
     return None
 
 
 def handle_topics_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
-    """Print event topics."""
+    """Print event topics.
+
+    Called by: `REPL_COMMAND_HANDLERS` for `topics`.
+    """
     del state, line
     print_topics(runner, rest or "")
     return None
 
 
 def handle_prompt_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
-    """Show or set the prompt pattern."""
+    """Show or set the prompt pattern.
+
+    Called by: `REPL_COMMAND_HANDLERS` for `prompt`.
+    """
     del line
     if rest is None:
         print(state.prompt_pattern)
@@ -95,7 +119,10 @@ def handle_prompt_command(runner: Runner, state: ShellState, rest: str | None, l
 
 
 def set_prompt_pattern(runner: Runner, state: ShellState, pattern: str, *, source: str) -> None:
-    """Set the REPL prompt and record the change as an auditable event."""
+    """Set the REPL prompt and record the change as an auditable event.
+
+    Called by: prompt command handling and config/resource application.
+    """
     old_prompt = state.prompt_pattern
     state.prompt_pattern = pattern
     runner.events.publish(
@@ -106,8 +133,8 @@ def set_prompt_pattern(runner: Runner, state: ShellState, pattern: str, *, sourc
 
 
 # Built-in REPL commands are handled before plugin commandlets. The REPL
-# dispatcher uses this dispatch table to keep shell-local actions, resource commands,
-# and plugin execution on separate paths.
+# dispatcher uses this dispatch table to keep shell-local actions, resource
+# commands, and plugin execution on separate paths.
 REPL_COMMAND_HANDLERS: dict[str, ReplCommandHandler] = {
     "?": handle_help_command,
     "cmds": handle_cmds_command,

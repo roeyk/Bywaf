@@ -23,10 +23,15 @@ from .selectors import resolve_artifact_scope, single_value
 
 
 def select_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> list[Artifact]:
-    """Return artifacts selected by id, provenance, serial, or topic."""
+    """Return artifacts selected by id, provenance, serial, or topic.
+
+    Called by: artifact list/show/cat/export/remove/replace/verify paths.
+    """
     store = context.artifact_store("artifact", read_access=True)
     artifact_id = single_value(selectors, "artifact")
     if artifact_id is not None:
+        # Direct artifact selection is fastest and bypasses provenance scope
+        # lookup; topic filters can still narrow the selected artifact.
         artifacts = [store.get(artifact_id)]
         return filter_artifacts_by_topic(context, artifacts, selectors.get("topic", []))
     serial = single_value(selectors, "serial")
@@ -34,6 +39,8 @@ def select_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
         artifacts = [store.get(serial)]
         return filter_artifacts_by_topic(context, artifacts, selectors.get("topic", []))
     scope = resolve_artifact_scope(context, selectors)
+    # Scope selection maps user-facing job/pipeline/step selectors to artifact
+    # provenance columns.
     artifacts = store.list(
         job_id=scope.job_id,
         pipeline_id=scope.pipeline_id,
@@ -43,7 +50,10 @@ def select_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
 
 
 def search_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> list[Artifact]:
-    """Return artifacts matching search/regexp query selectors."""
+    """Return artifacts matching search/regexp query selectors.
+
+    Called by: standalone artifact search commandlet.
+    """
     store = context.artifact_store("search", read_access=True)
     artifact_id = single_value(selectors, "artifact")
     if artifact_id is not None:
@@ -53,6 +63,8 @@ def search_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
         if serial is not None and serial.startswith("artifact-"):
             artifacts = [store.get(serial)]
         else:
+            # Search can be scoped first, then filtered by metadata/content and
+            # time windows in memory.
             scope = resolve_artifact_scope(context, selectors)
             artifacts = store.list(
                 job_id=scope.job_id,
@@ -75,7 +87,10 @@ def filter_artifacts_by_topic(
     artifacts: list[Artifact],
     topics: list[str],
 ) -> list[Artifact]:
-    """Filter artifacts by main-DB artifact event topics."""
+    """Filter artifacts by main-DB artifact event topics.
+
+    Called by: `select_artifacts()`.
+    """
     if not topics:
         return artifacts
     allowed_ids = artifact_ids_for_topics(context, topics)
@@ -83,7 +98,10 @@ def filter_artifacts_by_topic(
 
 
 def artifact_ids_for_topics(context: CommandContext, topics: list[str]) -> set[str]:
-    """Return artifact durable ids referenced by selected artifact topics."""
+    """Return artifact durable ids referenced by selected artifact topics.
+
+    Called by: `filter_artifacts_by_topic()`.
+    """
     ids: set[str] = set()
     events = context.event_store("artifact topic selector")
     for topic in topics:
@@ -100,13 +118,19 @@ def filter_artifact_search(
     *,
     use_regexp: bool,
 ) -> list[Artifact]:
-    """Filter artifacts by field-specific query selectors."""
+    """Filter artifacts by field-specific query selectors.
+
+    Called by: `search_artifacts()`.
+    """
     queries = artifact_search_queries(selectors, use_regexp=use_regexp)
     return [artifact for artifact in artifacts if all(query_matches_artifact(query, artifact) for query in queries)]
 
 
 def filter_artifact_serials(artifacts: list[Artifact], serials: list[str]) -> list[Artifact]:
-    """Filter artifacts by exact durable serial selectors."""
+    """Filter artifacts by exact durable serial selectors.
+
+    Called by: bundle/artifact selector paths that already loaded candidates.
+    """
     if not serials:
         return artifacts
     wanted = set(serials)
@@ -114,7 +138,10 @@ def filter_artifact_serials(artifacts: list[Artifact], serials: list[str]) -> li
 
 
 def artifact_serials(artifact: Artifact) -> set[str]:
-    """Return durable serials associated with one artifact."""
+    """Return durable serials associated with one artifact.
+
+    Called by: `filter_artifact_serials()`.
+    """
     return {
         value
         for value in {
@@ -128,12 +155,17 @@ def artifact_serials(artifact: Artifact) -> set[str]:
 
 
 def artifact_search_queries(selectors: dict[str, list[str]], *, use_regexp: bool) -> list[tuple[str, str | re.Pattern[str]]]:
-    """Compile search query selectors for artifact metadata/content fields."""
+    """Compile search query selectors for artifact metadata/content fields.
+
+    Called by: `filter_artifact_search()`.
+    """
     queries: list[tuple[str, str | re.Pattern[str]]] = []
     for field in SEARCH_FIELDS:
         for value in selectors.get(field, []):
             if use_regexp:
                 try:
+                    # Regex mode compiles each field-specific query once before
+                    # iterating artifacts.
                     queries.append((field, re.compile(value, re.IGNORECASE)))
                 except re.error as exc:
                     raise ValueError(f"invalid search --regexp pattern for {field}=: {exc}") from exc
@@ -143,7 +175,10 @@ def artifact_search_queries(selectors: dict[str, list[str]], *, use_regexp: bool
 
 
 def query_matches_artifact(query: tuple[str, str | re.Pattern[str]], artifact: Artifact) -> bool:
-    """Return whether one field query matches one artifact."""
+    """Return whether one field query matches one artifact.
+
+    Called by: `filter_artifact_search()`.
+    """
     field, expected = query
     value = artifact_field_value(artifact, field)
     if isinstance(expected, re.Pattern):
@@ -152,7 +187,11 @@ def query_matches_artifact(query: tuple[str, str | re.Pattern[str]], artifact: A
 
 
 def artifact_field_value(artifact: Artifact, field: str) -> str:
-    """Return one searchable artifact field as text."""
+    """Return one searchable artifact field as text.
+
+    Called by: `query_matches_artifact()`.
+    """
+    # Field lookup table used by this function in place of a branch ladder.
     fields = {
         "name": artifact.name,
         "filename": Path(artifact.source_path or "").name,
@@ -166,7 +205,10 @@ def artifact_field_value(artifact: Artifact, field: str) -> str:
 
 
 def artifact_text_content(artifact: Artifact) -> str:
-    """Decode artifact body for content searches."""
+    """Decode artifact body for content searches.
+
+    Called by: `artifact_field_value()`.
+    """
     return artifact.body.decode("utf-8", errors="ignore")
 
 
@@ -176,7 +218,10 @@ def filter_artifact_time_window(
     since: str | None,
     until: str | None,
 ) -> list[Artifact]:
-    """Filter artifacts by created_at time window."""
+    """Filter artifacts by created_at time window.
+
+    Called by: `search_artifacts()`.
+    """
     since_time = parse_compact_time(since, until=False) if since is not None else None
     until_time = parse_compact_time(until, until=True) if until is not None else None
     return [
@@ -192,6 +237,9 @@ def artifact_in_time_window(
     since: datetime | None,
     until: datetime | None,
 ) -> bool:
-    """Return whether artifact creation time is within an optional window."""
+    """Return whether artifact creation time is within an optional window.
+
+    Called by: `filter_artifact_time_window()`.
+    """
     created = datetime.fromisoformat(artifact.created_at).replace(tzinfo=None)
     return (since is None or created >= since) and (until is None or created <= until)

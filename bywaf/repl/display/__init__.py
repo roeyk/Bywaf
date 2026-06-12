@@ -25,6 +25,9 @@ from .history import format_history_entry, print_history
 from .runtime import print_info, print_job, print_jobs, print_runs
 from .variables import display_expansion_preview, display_var_value, format_var_assignment, subject_text
 
+# Stable display facade exports. REPL command modules import from here so
+# concrete display helpers can move between focused modules without changing
+# every command handler.
 __all__ = [
     "display_expansion_preview",
     "display_var_value",

@@ -19,9 +19,14 @@ from .common import AUDIT_LIST_SELECTORS, AUDIT_LIST_TARGETS, AUDIT_SELECTORS
 
 
 def parse_selectors(tokens: list[str]) -> dict[str, str]:
-    """Parse key=value selector tokens into a dictionary."""
+    """Parse key=value selector tokens into a dictionary.
+
+    Called by: `audit show` command handlers before event-store selection.
+    """
     selectors: dict[str, str] = {}
     for token in tokens:
+        # Audit selectors are intentionally strict. A typo such as `pipline=`
+        # should fail early instead of silently widening the audit query.
         if "=" not in token:
             raise ValueError(f"invalid audit selector: {token}")
         key, value = token.split("=", 1)
@@ -34,7 +39,11 @@ def parse_selectors(tokens: list[str]) -> dict[str, str]:
 
 
 def parse_list_selectors(tokens: list[str]) -> dict[str, str]:
-    """Parse `audit list <target> [key=value]` selectors."""
+    """Parse `audit list <target> [key=value]` selectors.
+
+    Called by: `audit list` command handlers before listing topics, plugins,
+    policies, or other audit facets.
+    """
     if not tokens:
         raise ValueError("audit list requires a target")
     target, *rest = tokens
@@ -42,6 +51,8 @@ def parse_list_selectors(tokens: list[str]) -> dict[str, str]:
         raise ValueError(f"unknown audit list target: {target}")
     selectors = {"_target": target}
     for token in rest:
+        # List selectors use a smaller allow-list than `audit show` because the
+        # target decides which filters are meaningful.
         if "=" not in token:
             raise ValueError(f"invalid audit list selector: {token}")
         key, value = token.split("=", 1)
@@ -54,7 +65,10 @@ def parse_list_selectors(tokens: list[str]) -> dict[str, str]:
 
 
 def require_selector(selectors: dict[str, str], name: str) -> str:
-    """Return a required selector value or raise a user-facing error."""
+    """Return a required selector value or raise a user-facing error.
+
+    Called by: audit subcommands that require one specific selector.
+    """
     try:
         return selectors[name]
     except KeyError as exc:
@@ -62,7 +76,10 @@ def require_selector(selectors: dict[str, str], name: str) -> str:
 
 
 def selected_events(context: CommandContext, selectors: dict[str, str], limit: int) -> list[Event]:
-    """Fetch events matching audit selectors."""
+    """Fetch events matching audit selectors.
+
+    Called by: audit show/export paths after parsing user selectors.
+    """
     events_store = context.event_store("audit")
     # serial= and job= require helper lookups because they may span several
     # event columns. Direct topic/step/pipeline selection can use the generic
@@ -86,7 +103,10 @@ def audit_window(
     context: CommandContext,
     selectors: dict[str, str],
 ) -> tuple[int | None, int | None, datetime | None, datetime | None]:
-    """Resolve since/until selectors to event-id or timestamp bounds."""
+    """Resolve since/until selectors to event-id or timestamp bounds.
+
+    Called by: `selected_events()` before applying in-memory window filtering.
+    """
     since_id, since_time = resolve_bound(context, selectors.get("since"), since=True)
     until_id, until_time = resolve_bound(context, selectors.get("until"), since=False)
     return since_id, until_id, since_time, until_time
@@ -98,7 +118,10 @@ def resolve_bound(
     *,
     since: bool,
 ) -> tuple[int | None, datetime | None]:
-    """Resolve one audit time-window bound."""
+    """Resolve one audit time-window bound.
+
+    Called by: `audit_window()` for `since=` and `until=`.
+    """
     if value is None:
         return None, None
     kind, raw = split_bound(value)
@@ -115,7 +138,10 @@ AuditBoundResolver = Callable[..., tuple[int | None, datetime | None]]
 
 
 def audit_bound_resolvers() -> dict[str, AuditBoundResolver]:
-    """Return audit since/until bound resolvers keyed by selector type."""
+    """Return audit since/until bound resolvers keyed by selector type.
+
+    Dispatch table used by: `resolve_bound()` in place of a kind ladder.
+    """
     return {
         "job": resolve_job_bound,
         "pipeline": resolve_pipeline_bound,
@@ -125,13 +151,19 @@ def audit_bound_resolvers() -> dict[str, AuditBoundResolver]:
 
 
 def resolve_time_bound(context: CommandContext, raw: str, *, since: bool) -> tuple[int | None, datetime | None]:
-    """Resolve a compact timestamp audit bound."""
+    """Resolve a compact timestamp audit bound.
+
+    Called by: `resolve_bound()` for `time:` or unqualified bounds.
+    """
     del context
     return None, parse_compact_time(raw, until=not since)
 
 
 def resolve_run_bound(context: CommandContext, raw: str, *, since: bool) -> tuple[int | None, datetime | None]:
-    """Resolve a step-relative audit bound."""
+    """Resolve a step-relative audit bound.
+
+    Called by: `resolve_bound()` for `step:` bounds.
+    """
     return entity_event_id(
         context,
         command_run_id=context.runtime_store("audit").resolve_run_serial(raw),
@@ -140,7 +172,10 @@ def resolve_run_bound(context: CommandContext, raw: str, *, since: bool) -> tupl
 
 
 def resolve_pipeline_bound(context: CommandContext, raw: str, *, since: bool) -> tuple[int | None, datetime | None]:
-    """Resolve a pipeline-relative audit bound."""
+    """Resolve a pipeline-relative audit bound.
+
+    Called by: `resolve_bound()` for `pipeline:` bounds.
+    """
     return entity_event_id(
         context,
         pipeline_id=context.runtime_store("audit").resolve_pipeline_serial(raw),
@@ -149,7 +184,10 @@ def resolve_pipeline_bound(context: CommandContext, raw: str, *, since: bool) ->
 
 
 def resolve_job_bound(context: CommandContext, raw: str, *, since: bool) -> tuple[int | None, datetime | None]:
-    """Resolve a job-relative audit bound."""
+    """Resolve a job-relative audit bound.
+
+    Called by: `resolve_bound()` for `job:` bounds.
+    """
     events = context.event_store("audit").events_for_job(resolve_job_selector(context, raw), limit=100000)
     if not events:
         raise ValueError(f"unknown audit job bound: {raw}")
@@ -157,7 +195,10 @@ def resolve_job_bound(context: CommandContext, raw: str, *, since: bool) -> tupl
 
 
 def resolve_job_selector(context: CommandContext, value: str) -> int:
-    """Resolve a local job id or durable job serial to a local job id."""
+    """Resolve a local job id or durable job serial to a local job id.
+
+    Called by: audit event selection and job-relative bounds.
+    """
     try:
         return int(value)
     except ValueError:
@@ -168,7 +209,10 @@ def resolve_job_selector(context: CommandContext, value: str) -> int:
 
 
 def split_bound(value: str) -> tuple[str, str]:
-    """Split `kind:value`, defaulting unqualified values to `time`."""
+    """Split `kind:value`, defaulting unqualified values to `time`.
+
+    Called by: `resolve_bound()`.
+    """
     if ":" not in value:
         return "time", value
     kind, raw = value.split(":", 1)
@@ -178,10 +222,16 @@ def split_bound(value: str) -> tuple[str, str]:
 
 
 def parse_compact_time(value: str, *, until: bool) -> datetime:
-    """Parse yyyymmdd[HH[MM[SS]]] into a datetime bound."""
+    """Parse yyyymmdd[HH[MM[SS]]] into a datetime bound.
+
+    Called by: `resolve_time_bound()`.
+    """
     digits = "".join(char for char in value if char.isdigit())
     if len(digits) not in {8, 10, 12, 14}:
         raise ValueError("audit time must be yyyymmdd[HH[MM[SS]]]")
+    # Partial date/time values expand to the start or end of the requested
+    # window so `since=20260612` means the start of the day and
+    # `until=20260612` means the end of the day.
     year = int(digits[:4])
     month = int(digits[4:6])
     day = int(digits[6:8])
@@ -198,7 +248,10 @@ def entity_event_id(
     pipeline_id: str | None = None,
     first: bool,
 ) -> int:
-    """Return the first or last event ID for a step or pipeline bound."""
+    """Return the first or last event ID for a step or pipeline bound.
+
+    Called by: step/pipeline bound resolvers.
+    """
     events = context.event_store("audit").events_matching(
         command_run_id=command_run_id,
         pipeline_id=pipeline_id,
@@ -214,14 +267,20 @@ def entity_event_id(
 
 
 def resolve_run_selector(context: CommandContext, value: str | None) -> str | None:
-    """Resolve a user-facing step id to a durable step serial."""
+    """Resolve a user-facing step id to a durable step serial.
+
+    Called by: direct audit event selection.
+    """
     if value is None:
         return None
     return context.runtime_store("audit").resolve_run_serial(value)
 
 
 def resolve_pipeline_selector(context: CommandContext, value: str | None) -> str | None:
-    """Resolve a user-facing pipeline id to a durable pipeline serial."""
+    """Resolve a user-facing pipeline id to a durable pipeline serial.
+
+    Called by: direct audit event selection.
+    """
     if value is None:
         return None
     return context.runtime_store("audit").resolve_pipeline_serial(value)
@@ -231,7 +290,10 @@ def event_in_window(
     event: Event,
     window: tuple[int | None, int | None, datetime | None, datetime | None],
 ) -> bool:
-    """Return whether an event falls within resolved audit bounds."""
+    """Return whether an event falls within resolved audit bounds.
+
+    Called by: `selected_events()` after broad event-store retrieval.
+    """
     since_id, until_id, since_time, until_time = window
     event_id = event.id or 0
     created = event.created_at.replace(tzinfo=None)

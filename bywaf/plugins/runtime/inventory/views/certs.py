@@ -12,11 +12,16 @@ from .shared import host_sort_value, sort_note, split_sort
 
 
 def render_certs_inventory(context: CommandContext, events: list[Event], scope: str, sort: str = "host") -> str:
-    """Render TLS certificate inventory."""
+    """Render TLS certificate inventory.
+
+    Called by: runtime inventory commandlets for the `certs` view.
+    """
     cert_events = [event for event in events if event.topic == "tls.certificate"]
     if not cert_events:
         return "Certificates: no certificate inventory"
     sort_key, descending = split_sort(sort, "host")
+    # Certificate inventory surfaces endpoint and validity metadata; deeper
+    # certificate hygiene findings are produced by analysis plugins.
     rows = [
         (
             event.payload.get("host", ""),
@@ -37,7 +42,10 @@ def render_certs_inventory(context: CommandContext, events: list[Event], scope: 
     return f"Certificates: {scope} ({len(rows)} certificates)\n{sort_note(sort, 'host')}\n{table}"
 
 def cert_sort_key(event: Event, key: str) -> Any:
-    """Return a sortable certificate event value."""
+    """Return a sortable certificate event value.
+
+    Called by: `render_certs_inventory()`.
+    """
     payload = event.payload
     if key == "port":
         return (int(payload.get("port") or 0), host_sort_value(str(payload.get("host") or "")))
@@ -50,7 +58,10 @@ def cert_sort_key(event: Event, key: str) -> Any:
     return (host_sort_value(str(payload.get("host") or "")), int(payload.get("port") or 0))
 
 def cert_event_keys(event: Event) -> set[tuple[str, str, int]]:
-    """Return stable certificate identity keys for one event."""
+    """Return stable certificate identity keys for one event.
+
+    Called by: inventory delta/key helpers.
+    """
     if event.topic != "tls.certificate":
         return set()
     host = str(event.payload.get("host") or "")

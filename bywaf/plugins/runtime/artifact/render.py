@@ -13,7 +13,13 @@ from bywaf.artifacts import Artifact
 
 
 def artifact_event_payload(artifact: Artifact) -> dict[str, object]:
-    """Return public artifact metadata for audit events."""
+    """Return public artifact metadata for audit events.
+
+    Called by: artifact attach/import/replace/export action handlers and bundle
+    metadata construction.
+    """
+    # Keep this payload metadata-only; artifact bodies remain in the artifact
+    # store and are referenced by row id/durable artifact serial.
     return {
         "artifact_id": artifact.artifact_id,
         "artifact_row_id": artifact.id,
@@ -33,7 +39,10 @@ def artifact_event_payload(artifact: Artifact) -> dict[str, object]:
 
 
 def format_artifact_row(artifact: Artifact) -> str:
-    """Return one timestamp-first artifact listing row."""
+    """Return one timestamp-first artifact listing row.
+
+    Called by: artifact list output paths.
+    """
     return (
         f"{artifact.created_at} artifact={artifact.id} artifact_id={artifact.artifact_id} "
         f"name={artifact.name} size={artifact.size} sha256={artifact.sha256} "
@@ -43,6 +52,11 @@ def format_artifact_row(artifact: Artifact) -> str:
 
 
 def safe_artifact_filename(artifact: Artifact) -> str:
-    """Build a stable export filename for a stored artifact."""
+    """Build a stable export filename for a stored artifact.
+
+    Called by: artifact export and detail follow-up command rendering.
+    """
+    # Replace unsafe path characters but keep common extension/separator
+    # characters so exported evidence remains recognizable.
     clean = "".join(char if char.isalnum() or char in {".", "-", "_"} else "_" for char in artifact.name).strip("_")
     return f"{artifact.id}-{clean or artifact.artifact_id}"

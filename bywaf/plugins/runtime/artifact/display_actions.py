@@ -21,23 +21,34 @@ from .selectors import single_value
 
 
 def show_artifact(context: CommandContext, selectors: dict[str, list[str]]) -> None:
-    """Show a readable detail view for exactly one artifact."""
+    """Show a readable detail view for exactly one artifact.
+
+    Called by: the artifact command dispatch table for `artifact show`.
+    """
     artifact = single_selected_artifact(context, selectors, "artifact show")
     context.output(format_artifact_detail(context, artifact))
 
 
 def cat_artifact(context: CommandContext, selectors: dict[str, list[str]]) -> None:
-    """Render one artifact body as text or hex."""
+    """Render one artifact body as text or hex.
+
+    Called by: the artifact command dispatch table for `artifact cat`.
+    """
     artifact = single_selected_artifact(context, selectors, "artifact cat")
     limit = artifact_cat_limit(selectors)
     encoding = single_value(selectors, "encoding") or "utf-8"
     preview = format_artifact_preview(artifact, limit=limit, encoding=encoding)
+    # `page` is consumed by page_text below; removing it keeps later selector
+    # validation from treating it as an artifact filter.
     pop_selector_flag(selectors, "page")
     context.page_text(preview, suffix=artifact_preview_suffix(artifact))
 
 
 def export_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> None:
-    """Export selected artifacts back to the filesystem."""
+    """Export selected artifacts back to the filesystem.
+
+    Called by: the artifact command dispatch table for `artifact export`.
+    """
     artifacts = select_artifacts(context, selectors)
     if not artifacts:
         context.output("no artifacts matched")
@@ -49,6 +60,8 @@ def export_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
     if output_file:
         if len(artifacts) != 1:
             raise ValueError("artifact export file= matched multiple artifacts; use dir= to export a set")
+        # file= is intentionally single-artifact so a selector typo cannot
+        # silently overwrite one path with several artifact bodies.
         write_artifact(context, artifacts[0], Path(output_file).expanduser())
         return
     if output_dir is None:
@@ -60,7 +73,12 @@ def export_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
 
 
 def format_artifact_detail(context: CommandContext, artifact: Artifact) -> str:
-    """Return a compact artifact detail block with provenance and next commands."""
+    """Return a compact artifact detail block with provenance and next commands.
+
+    Called by: `show_artifact()`.
+    """
+    # The top block is a stable operator summary; optional provenance fields are
+    # appended only when the artifact carries those runtime identifiers.
     rows = [
         ("artifact", styled_artifact_value(context, "artifact", artifact.id)),
         ("serial", styled_artifact_value(context, "serial", artifact.artifact_id)),
@@ -85,6 +103,8 @@ def format_artifact_detail(context: CommandContext, artifact: Artifact) -> str:
     if artifact.note:
         rows.append(("note", artifact.note))
     lines = ["Artifact summary", *[f"  {label}: {value}" for label, value in rows]]
+    # These commands are intentionally copy-pasteable follow-ups for the exact
+    # artifact being viewed.
     commands = [
         styled_artifact_value(context, "command_line", f"artifact cat artifact={artifact.id}"),
         styled_artifact_value(context, "command_line", f"artifact export artifact={artifact.id} file={safe_artifact_filename(artifact)}"),
@@ -110,16 +130,25 @@ def format_artifact_detail(context: CommandContext, artifact: Artifact) -> str:
 
 
 def styled_artifact_value(context: CommandContext, subject: str, value: object) -> str:
-    """Return an artifact detail value using the operator's subject style."""
+    """Return an artifact detail value using the operator's subject style.
+
+    Called by: artifact detail/export display helpers.
+    """
     return styled_subject_text(command_context_style_getter(context), subject, value)
 
 
 def artifact_provenance_events(context: CommandContext, artifact: Artifact) -> list:
-    """Return main-DB provenance events for one artifact."""
+    """Return main-DB provenance events for one artifact.
+
+    Called by: `format_artifact_detail()`.
+    """
     events = context.event_store("artifact show")
     matches = []
     for topic in ("artifact.attached", "artifact.imported", "artifact.replaced", "artifact.exported", "artifact.removed"):
         for event in events.events_matching(topic=topic, limit=100000):
+            # Match both durable artifact serials and legacy row-id references
+            # so detail views keep working across artifact replacement/import
+            # events.
             if str(event.payload.get("artifact_id") or "") == artifact.artifact_id:
                 matches.append(event)
             elif str(event.payload.get("artifact_row_id") or "") == str(artifact.id):
@@ -128,10 +157,15 @@ def artifact_provenance_events(context: CommandContext, artifact: Artifact) -> l
 
 
 def write_artifact(context: CommandContext, artifact: Artifact, path: Path) -> None:
-    """Write one artifact body to disk and audit the export."""
+    """Write one artifact body to disk and audit the export.
+
+    Called by: `export_artifacts()` after selector validation.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     context.audit_capability("filesystem.write")
     path.write_bytes(artifact.body)
+    # Exporting an artifact is a side effect outside the database, so write a
+    # main-store audit event that ties the filesystem path back to the artifact.
     context.event_store("artifact").publish(
         "artifact.exported",
         {

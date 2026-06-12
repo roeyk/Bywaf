@@ -25,6 +25,8 @@ def follow_results(context: CommandContext, selectors: Namespace) -> None:
             scope = select_result_scope(context, selectors)
             signature = result_scope_signature(scope.events)
             if signature != last_signature:
+                # Re-render only when the selected event set changes. This keeps
+                # follow mode readable while background jobs are quiet.
                 if scope.events:
                     print(render_results(context, scope), flush=True)
                 else:
@@ -34,6 +36,8 @@ def follow_results(context: CommandContext, selectors: Namespace) -> None:
                     return
             elif selectors.once:
                 return
+            # The interval is user-configurable so operators can tune noisy
+            # local scans differently from slower wrapped tools.
             time.sleep(selectors.interval)
     except KeyboardInterrupt:
         print("stopped following results")

@@ -12,7 +12,11 @@ from bywaf.runtime_display import command_context_style_getter, render_table, te
 
 
 def render_screenshots_section(context: CommandContext, events: list[Event]) -> str:
-    """Render screenshot artifact references as a compact result table."""
+    """Render screenshot artifact references as a compact result table.
+
+    Called by: network results section dispatch when screenshot events are in
+    scope.
+    """
     # Screenshot events may include several URLs and artifact records; keep the
     # table scannable by showing the first URLs, screenshot count, and compact
     # artifact references.
@@ -39,7 +43,10 @@ def render_screenshots_section(context: CommandContext, events: list[Event]) -> 
 
 
 def screenshot_artifact_refs(event: Event) -> str:
-    """Return compact artifact references for one screenshot event."""
+    """Return compact artifact references for one screenshot event.
+
+    Called by: `render_screenshots_section()`.
+    """
     refs: list[str] = []
     screenshots = event.payload.get("screenshots", [])
     if not isinstance(screenshots, list):
@@ -54,7 +61,13 @@ def screenshot_artifact_refs(event: Event) -> str:
 
 
 def render_route_hops_section(context: CommandContext, events: list[Event]) -> str:
-    """Render route traces as a compact result table."""
+    """Render route traces as a compact result table.
+
+    Called by: network results section dispatch for route-hop events.
+    """
+    # Route-hop events are naturally ordered by target and hop number. Preserve
+    # that order so the result table reads like a trace path rather than a bag
+    # of unrelated observations.
     rows = [
         (
             event.payload.get("target", ""),
@@ -83,7 +96,10 @@ def render_route_hops_section(context: CommandContext, events: list[Event]) -> s
 
 
 def format_rtt(value: object) -> str:
-    """Format one route hop round-trip time."""
+    """Format one route hop round-trip time.
+
+    Called by: `render_route_hops_section()`.
+    """
     if value in (None, ""):
         return ""
     if isinstance(value, (int, float)):

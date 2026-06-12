@@ -12,6 +12,7 @@ from bywaf.runtime_display import parse_runtime_sort
 
 
 RESULT_SCOPE_KEYS = {"all", "interval", "job", "once", "pipeline", "step", "sort"}
+"""Selector keys accepted by the runtime results command."""
 
 
 def parse_results_selectors(tokens: list[str]) -> Namespace:
@@ -25,6 +26,8 @@ def parse_results_selectors(tokens: list[str]) -> Namespace:
     interval = 1.0
     once = False
     for token in tokens:
+        # Results intentionally use key=value selectors rather than argparse
+        # flags so scope syntax matches job/pipeline/step/report commands.
         if token.startswith("--"):
             raise ValueError(f"results uses selector syntax; use key=value, not {token}")
         key, separator, value = token.partition("=")
@@ -39,6 +42,8 @@ def parse_results_selectors(tokens: list[str]) -> Namespace:
         elif key == "sort":
             sort_key = parse_runtime_sort(value, PORT_SORT_KEYS, "results")
         else:
+            # Scope selectors are validated together below so ambiguous
+            # combinations produce one consistent error path.
             scope[key] = value
     validate_results_scope(scope)
     return Namespace(scope=scope, sort=sort_key, interval=interval, once=once)
@@ -80,6 +85,8 @@ def validate_results_scope(scope: dict[str, str]) -> None:
     if all_value not in {"true", "false"}:
         raise ValueError("results all= must be true or false")
     explicit_scopes = [key for key in ("job", "pipeline", "step") if key in scope]
+    # Results can render the latest productive scope, all events, or one
+    # explicit runtime entity. Mixing these would make follow behavior unclear.
     if all_value == "true" and explicit_scopes:
         raise ValueError("results all=true cannot be combined with job=, pipeline=, or step=")
     if len(explicit_scopes) > 1:
