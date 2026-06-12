@@ -100,6 +100,7 @@ class NiktoTests(unittest.TestCase):
         self.assertEqual(findings[0]["artifact_id"], "artifact-1")
 
     def test_run_uses_framework_process_and_emits_normalized_events(self):
+        """Protect run uses framework process and emits normalized events behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(

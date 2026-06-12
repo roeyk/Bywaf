@@ -75,6 +75,7 @@ class TestCapabilityInferenceTests(unittest.TestCase):
             self.assertEqual(report["warnings"][0]["confidence"], "high")
 
     def test_check_plugin_strict_inference_fails_on_missing_capabilities(self):
+        """Protect check plugin strict inference fails on missing capabilities behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(
                 Path(tmp),

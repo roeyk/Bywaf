@@ -146,6 +146,7 @@ def write_multi_external_plugin(root: Path, *, default_commandlet: str | None = 
 class FakeHostResult:
     """Test double used by this module's regression cases."""
     def state(self):
+        """Test helper for state."""
         return "up"
 
     def all_protocols(self):

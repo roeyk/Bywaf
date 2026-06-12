@@ -106,6 +106,7 @@ class RegistryManifestSchemaTests(unittest.TestCase):
         self.assertIn('allowed = ["read", "write"]', text)
 
     def test_plugin_manifest_parses_plugin_owned_event_schemas(self):
+        """Protect plugin manifest parses plugin owned event schemas behavior from regressions."""
         manifest = parse_plugin_manifest_data(
             {
                 "commandlets": [{"name": "example"}],

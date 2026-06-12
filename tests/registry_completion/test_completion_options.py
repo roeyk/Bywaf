@@ -86,6 +86,7 @@ class RegistryCompletionOptionTests(unittest.TestCase):
         self.assertIn("content=", completer.candidates("search "))
 
     def test_prompt_toolkit_completer_hides_repeated_key_prefix_in_display(self):
+        """Protect prompt toolkit completer hides repeated key prefix in display behavior from regressions."""
         Document = importlib.import_module("prompt_toolkit.document").Document
 
         completer = PromptToolkitCompleter(Completer(self.registry))

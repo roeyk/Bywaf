@@ -98,6 +98,7 @@ class EyeWitnessTests(unittest.TestCase):
             self.assertEqual(errors[0].payload["message"], "EyeWitness executable not found")
 
     def test_eyewitness_nonzero_exit_links_process_output_artifact(self):
+        """Protect eyewitness nonzero exit links process output artifact behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(

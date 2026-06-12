@@ -75,6 +75,7 @@ class ConfigPluginVarsCommandletTests(unittest.TestCase):
         self.assertNotIn("identity.email", snapshot)
 
     def test_varstore_items_sorted(self):
+        """Protect varstore items sorted behavior from regressions."""
         store = VarStore()
         store.set("b", 2)
         store.set("a", 1)

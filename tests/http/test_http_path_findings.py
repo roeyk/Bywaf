@@ -97,6 +97,7 @@ class HttpPathFindingHelperTests(unittest.TestCase):
         )
 
     def test_finding_for_path_preserves_origin_scope_and_group_key(self):
+        """Protect finding for path preserves origin scope and group key behavior from regressions."""
         observed = HttpPathObserved(
             url="https://example.test/app/.git/config",
             host="example.test",

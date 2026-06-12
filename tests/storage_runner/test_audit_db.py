@@ -91,6 +91,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             self.assertEqual(row["Code"], "C102.224929")
 
     def test_audit_list_policy_prints_policy_decisions(self):
+        """Protect audit list policy prints policy decisions behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             # This fixture mirrors a scope policy repair: one target was

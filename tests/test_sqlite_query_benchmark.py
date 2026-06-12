@@ -18,6 +18,7 @@ from bywaf.tools.sqlite_query_benchmark import (
 class SQLiteQueryBenchmarkTests(unittest.TestCase):
     """Groups regression coverage for sQLite query benchmark helpers."""
     def test_populate_database_creates_requested_events(self):
+        """Protect populate database creates requested events behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             database = Path(tmp, "query.sqlite3")
             populate_seconds = populate_database(database, events=12, payload_bytes=8)

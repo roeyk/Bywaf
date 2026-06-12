@@ -41,6 +41,7 @@ class RepoExposureTests(unittest.TestCase):
         self.assertEqual(git_config_url("https://example.test/app/index.html"), "https://example.test/.git/config")
 
     def test_looks_like_git_config_requires_core_and_repository_format(self):
+        """Protect looks like git config requires core and repository format behavior from regressions."""
         self.assertTrue(looks_like_git_config("[core]\n\trepositoryformatversion = 0\n"))
         self.assertFalse(looks_like_git_config("[core]\n\tbare = false\n"))
 

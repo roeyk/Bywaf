@@ -89,6 +89,7 @@ class ManagementExposureTests(unittest.TestCase):
         self.assertIn("observed=grafana", finding["evidence"])
 
     def test_commandlet_dedupes_equivalent_service_findings(self):
+        """Protect commandlet dedupes equivalent service findings behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(

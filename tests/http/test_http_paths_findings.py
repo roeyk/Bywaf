@@ -131,6 +131,7 @@ class HttpPathFindingTests(unittest.TestCase):
             self.assertIn("length=2048", finding["evidence"])
 
     def test_database_dump_path_with_sql_markers_becomes_candidate(self):
+        """Protect database dump path with sql markers becomes candidate behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(

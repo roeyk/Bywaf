@@ -41,6 +41,7 @@ class PluginSelectorApiTests(unittest.TestCase):
         )
 
     def test_require_one_selector_rejects_ambiguous_scope(self) -> None:
+        """Protect require one selector rejects ambiguous scope behavior from regressions."""
         with self.assertRaisesRegex(ValueError, "requires exactly one"):
             require_one_selector({"job": "1", "step": "2"}, ("job", "pipeline", "step"), command="example")
 

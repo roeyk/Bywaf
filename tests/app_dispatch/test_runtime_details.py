@@ -145,6 +145,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertRegex(text, r"\n1\s+completed/finished\s+network/portscanner\s+")
 
     def test_runtime_detail_views_show_artifact_summaries(self):
+        """Protect runtime detail views show artifact summaries behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("network/portscanner host=192.0.2.10 ports=80,443", 123, "finished")

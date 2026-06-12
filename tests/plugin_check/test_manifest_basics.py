@@ -64,6 +64,7 @@ class TestManifestBasicsTests(unittest.TestCase):
             self.assertIn("plugin has unknown key(s): author, name", report["errors"][0])
 
     def test_check_plugin_rejects_unknown_argument_keys(self):
+        """Protect check plugin rejects unknown argument keys behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(
                 Path(tmp),

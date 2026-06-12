@@ -177,6 +177,7 @@ def run_script(*args: str) -> subprocess.CompletedProcess[str]:
 
 
 def scaffold_env(plugin_dir: Path | None = None) -> dict[str, str]:
+    """Test helper for scaffold env."""
     env = os.environ.copy()
     paths = [str(ROOT)]
     if plugin_dir is not None:

@@ -55,6 +55,7 @@ class CompletionRegressionTests(unittest.TestCase):
                     self.assertIn(f"{option.name}=", self.completer.candidates(f"{name} {key_prefix}"))
 
     def test_commandlet_completion_does_not_advertise_undeclared_framework_options(self):
+        """Protect commandlet completion does not advertise undeclared framework options behavior from regressions."""
         for name in self.registry.plugins:
             with self.subTest(commandlet=name):
                 candidates = self.completer.candidates(f"{name} --")

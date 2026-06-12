@@ -95,6 +95,7 @@ class FindingReportTests(unittest.TestCase):
             self.assertEqual(db.events_for_topic("artifact.attached")[0].payload["name"], "findings.csv")
 
     def test_export_format_is_inferred_from_suffix(self):
+        """Protect export format is inferred from suffix behavior from regressions."""
         self.assertEqual(infer_export_format(Path("report.docx"), "md"), "docx")
         self.assertEqual(infer_export_format(Path("report.xlsx"), "md"), "xlsx")
         self.assertEqual(infer_export_format(Path("report.json"), "md"), "jsonl")

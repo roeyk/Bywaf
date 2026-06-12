@@ -77,6 +77,7 @@ def runtime_import_nodes(tree: ast.AST) -> Iterable[ast.Import | ast.ImportFrom]
             self.imports.append(node)
 
         def visit_If(self, node: ast.If) -> None:  # noqa: N802
+            """Visit If while collecting dependency information."""
             if is_type_checking_guard(node.test):
                 # TYPE_CHECKING bodies affect static typing, not runtime import
                 # coupling; still visit `else` because that branch is runtime.

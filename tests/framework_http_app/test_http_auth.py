@@ -70,6 +70,7 @@ class TestHttpAuthTests(unittest.TestCase):
         )
 
     def test_http_auth_probe_reads_www_authenticate_header(self):
+        """Protect HTTP auth probe reads www authenticate header behavior from regressions."""
         target = AuthTarget("https://example.test/admin", "example.test", 443, "https", "/admin")
         with patch("bywaf.plugins.http.auth.http.client.HTTPSConnection", BasicConnection):
             result = probe_auth(target, method="HEAD", timeout=2)

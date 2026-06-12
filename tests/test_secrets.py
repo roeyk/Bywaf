@@ -35,6 +35,7 @@ class SecretTests(unittest.TestCase):
         self.assertNotEqual(fingerprint_secret("secret", key), fingerprint_secret("secret", b"z" * 32))
 
     def test_load_or_create_fingerprint_key_writes_restrictive_file(self):
+        """Protect load or create fingerprint key writes restrictive file behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "secret.key")
             key = load_fingerprint_key(path)

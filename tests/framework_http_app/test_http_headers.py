@@ -80,6 +80,7 @@ class TestHttpHeadersTests(unittest.TestCase):
             self.assertNotIn("{'headers':", text)
 
     def test_http_headers_promotes_cookie_redirect_and_server_findings(self):
+        """Protect HTTP headers promotes cookie redirect and server findings behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with patch(

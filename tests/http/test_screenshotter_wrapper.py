@@ -96,6 +96,7 @@ class ScreenshotterWrapperTests(unittest.TestCase):
             self.assertEqual(error["message"], "no HTTP endpoints selected for EyeWitness")
 
     def test_successful_run_emits_screenshotter_sourced_artifacts(self):
+        """Protect successful run emits screenshotter sourced artifacts behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             context, db = make_context(tmp)
             output_dir = Path(tmp, "eye")

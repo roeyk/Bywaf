@@ -66,6 +66,7 @@ class EventFormattingTests(unittest.TestCase):
         self.assertNotIn("{", text)
 
     def test_format_event_shows_common_operator_events_without_dict_dump(self):
+        """Protect format event shows common operator events without dict dump behavior from regressions."""
         cases = [
             (
                 "host.found",

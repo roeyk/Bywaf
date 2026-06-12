@@ -48,6 +48,7 @@ class RegistryRuntimeCompletionTests(unittest.TestCase):
             self.assertEqual(completer.candidates("job cancel "), ["1"])
 
     def test_pipeline_and_control_complete_ids(self):
+        """Protect pipeline and control complete IDs behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))
             job_id = db.record_job("hostscanner 127.0.0.1", 123, "running")

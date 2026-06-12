@@ -149,6 +149,7 @@ class ReportRenderingTests(unittest.TestCase):
             self.assertIn("Confidence basis: version indicator", output.getvalue())
 
     def test_report_compacts_multiline_evidence_in_table_rows(self):
+        """Protect report compacts multiline evidence in table rows behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.publish(

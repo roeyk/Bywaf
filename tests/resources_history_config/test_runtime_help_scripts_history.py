@@ -83,6 +83,7 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
             self.assertIn("--limit", text)
 
     def test_help_plugin_matches_plugin_help_argument(self):
+        """Protect help plugin matches plugin help argument behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             help_output = io.StringIO()

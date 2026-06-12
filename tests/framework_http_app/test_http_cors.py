@@ -62,6 +62,7 @@ class TestHttpCorsTests(unittest.TestCase):
         self.assertIn("connection refused", str(result["error"]))
 
     def test_http_cors_promotes_reflected_origin_with_credentials(self):
+        """Protect HTTP cors promotes reflected origin with credentials behavior from regressions."""
         payload = {
             "url": "https://example.test/api",
             "host": "example.test",

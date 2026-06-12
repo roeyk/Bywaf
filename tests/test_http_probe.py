@@ -53,6 +53,7 @@ class HttpProbeTests(unittest.TestCase):
         self.assertEqual(target.url, "http://example.test:8080/")
 
     def test_probe_targets_from_port_events(self):
+        """Protect probe targets from port events behavior from regressions."""
         event = Event.new("port.open", {"host": "127.0.0.1", "port": 443, "protocol": "tcp"}, "test")
         targets = probe_targets([], [event], "auto", "/")
         self.assertEqual(targets[0].url, "https://127.0.0.1/")

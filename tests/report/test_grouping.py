@@ -210,6 +210,7 @@ class ReportGroupingTests(unittest.TestCase):
             self.assertEqual(rendered.payload["rows"], 0)
 
     def test_report_derives_group_key_from_class_scope_and_cve(self):
+        """Protect report derives group key from class scope and CVE behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             first = runner.db.publish(

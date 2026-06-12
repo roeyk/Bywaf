@@ -53,6 +53,7 @@ class ConfigPluginContextCapabilityTests(unittest.TestCase):
         self.assertEqual(context.vars.get_global("proxy"), "run-proxy")
 
     def test_command_context_resolves_secret_references(self):
+        """Protect command context resolves secret references behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             secrets = InMemorySecretStore()

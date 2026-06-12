@@ -89,6 +89,7 @@ class ResourcesHistoryPluginLoadingTests(unittest.TestCase):
             self.assertEqual(state.active_context, "example")
 
     def test_plugin_load_prints_declared_variable_stubs(self):
+        """Protect plugin load prints declared variable stubs behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()

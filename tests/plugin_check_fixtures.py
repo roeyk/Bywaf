@@ -139,6 +139,7 @@ def write_multifile_plugin_fixture(root: Path) -> Path:
 
 
 def write_manifest_signing_key(tmp_path: Path) -> tuple[Path, Path]:
+    """Test helper for write manifest signing key."""
     from cryptography.hazmat.primitives import serialization
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 

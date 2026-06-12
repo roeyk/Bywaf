@@ -99,6 +99,7 @@ class InspectPipelineApiPlugin:
 class FakeHostResult:
     """Test double used by this module's regression cases."""
     def state(self):
+        """Test helper for state."""
         return "up"
 
     def all_protocols(self):

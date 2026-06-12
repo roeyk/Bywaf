@@ -52,6 +52,7 @@ class CliParserTests(unittest.TestCase):
         self.assertTrue(database_argument_is_explicit(["--database=client.sqlite3", "repl"]))
 
     def test_startup_uses_persisted_ad_hoc_database_without_explicit_override(self):
+        """Protect startup uses persisted ad hoc database without explicit override behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             cwd = Path.cwd()
             try:

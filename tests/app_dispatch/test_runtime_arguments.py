@@ -112,6 +112,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("192.0.2.20:443", output.getvalue())
 
     def test_builtin_expansion_preview_honors_display_mode(self):
+        """Protect builtin expansion preview honors display mode behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.publish("port.open", {"host": "192.0.2.20", "port": 443}, "portscanner")

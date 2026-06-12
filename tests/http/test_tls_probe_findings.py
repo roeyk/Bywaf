@@ -28,6 +28,7 @@ class TlsProbeFindingTests(unittest.TestCase):
             context = CommandContext(db=db, source="tls_probe", metadata={"capabilities": tls_probe.spec.capabilities})
 
             def fake_fetch(host, port, timeout):
+                """Test helper for fake fetch."""
                 del host, port, timeout
                 return {
                     "subject": "commonName=example.test",

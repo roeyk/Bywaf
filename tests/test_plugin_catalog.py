@@ -37,6 +37,7 @@ def cryptography_available() -> bool:
 class PluginCatalogTests(unittest.TestCase):
     """Groups regression coverage for plugin catalog behavior."""
     def test_built_catalog_matches_current_tree(self):
+        """Protect built catalog matches current tree behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             catalog_path = Path(tmp, "catalog.json")
             write_json(catalog_path, build_catalog())

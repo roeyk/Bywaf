@@ -124,6 +124,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("192.0.2.10", text)
 
     def test_results_does_not_fall_back_when_latest_work_found_nothing(self):
+        """Protect results does not fall back when latest work found nothing behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             old_job = runner.db.record_job("network/portscanner host=192.0.2.10 port=80", 123, "finished")

@@ -72,6 +72,7 @@ class TestContextCapabilityAuditTests(unittest.TestCase):
             self.assertEqual(runner.db.events_for_topic("port.open"), [])
 
     def test_context_events_publish_enforces_declared_emits(self):
+        """Protect context events publish enforces declared emits behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             context = CommandContext(

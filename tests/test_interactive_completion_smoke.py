@@ -54,6 +54,7 @@ class InteractiveCompletionSmokeTests(unittest.TestCase):
         child.expect(pexpect.EOF)
 
     def test_tab_completes_command_after_pipe(self):
+        """Protect tab completes command after pipe behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             child = self.spawn_bywaf(Path(tmp))
             try:

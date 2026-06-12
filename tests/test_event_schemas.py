@@ -103,6 +103,7 @@ class EventSchemaTests(unittest.TestCase):
         self.assertEqual(validate_event_payload("smb_enum.raw_share_acl", {"any": object()}), [])
 
     def test_plugin_owned_schema_registration_validates_payloads(self):
+        """Protect plugin owned schema registration validates payloads behavior from regressions."""
         topic = "plugin.session.observed"
         self.addCleanup(unregister_event_schema, topic)
         register_event_schema(

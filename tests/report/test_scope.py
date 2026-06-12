@@ -200,6 +200,7 @@ class ReportScopeTests(unittest.TestCase):
                 runner.execute("report pipeline=pipeline-a status=all cve=CVE-2021-41773+")
 
     def test_finding_review_filters_by_cve_wildcard(self):
+        """Protect finding review filters by CVE wildcard behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.publish(

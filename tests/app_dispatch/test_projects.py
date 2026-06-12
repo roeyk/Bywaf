@@ -70,6 +70,7 @@ class AppDispatchTests(unittest.TestCase):
         self.assertEqual(argv, ["--new"])
 
     def test_project_use_refuses_active_jobs_and_mentions_force(self):
+        """Protect project use refuses active jobs and mentions force behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             with patch.dict("os.environ", {"HOME": tmp}):
                 runner = make_runner(Path(tmp, "adhoc.sqlite3"))

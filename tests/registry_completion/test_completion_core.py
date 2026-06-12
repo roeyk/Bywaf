@@ -52,6 +52,7 @@ class RegistryCompletionCoreTests(unittest.TestCase):
             self.assertIn("1", completer.candidates("step "))
 
     def test_use_completes_contexts(self):
+        """Protect use completes contexts behavior from regressions."""
         completer = Completer(self.registry)
         top_level = completer.candidates("use ")
         self.assertIn("analysis/", top_level)

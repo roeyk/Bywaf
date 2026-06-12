@@ -93,6 +93,7 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertEqual(db.events_for_topic("host.found")[0].payload["name"], "example.test")
 
     def test_shodan_lookup_host_mode_publishes_host(self):
+        """Protect shodan lookup host mode publishes host behavior from regressions."""
         fake_api = Mock()
         fake_api.host.return_value = {"ip_str": "8.8.8.8"}
         fake_shodan = SimpleNamespace(Shodan=Mock(return_value=fake_api))

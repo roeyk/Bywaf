@@ -109,6 +109,7 @@ class TestDiagnosticsTests(unittest.TestCase):
             self.assertEqual(report["diagnostics"][0]["code"], "invalid-candidate-payload-keyword")
 
     def test_check_plugin_accepts_candidate_payload_subjects_keyword(self):
+        """Protect check plugin accepts candidate payload subjects keyword behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(
                 Path(tmp),

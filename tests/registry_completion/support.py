@@ -78,6 +78,7 @@ class FakePromptOutput:
         self.shown = False
 
     def show_cursor(self) -> None:
+        """Test helper for show cursor."""
         self.shown = True
 
 

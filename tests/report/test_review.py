@@ -166,6 +166,7 @@ class ReportReviewTests(unittest.TestCase):
             self.assertEqual(rendered.payload["groups"], ["finding-3"])
 
     def test_report_status_all_shows_reviewed_and_unreviewed_findings(self):
+        """Protect report status all shows reviewed and unreviewed findings behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.publish(

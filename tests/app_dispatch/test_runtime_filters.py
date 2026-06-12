@@ -120,6 +120,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("custom_write", text)
 
     def test_job_listing_filters_by_status_and_commandlet_rows(self):
+        """Protect job listing filters by status and commandlet rows behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.record_job("missing", 123, "failed")

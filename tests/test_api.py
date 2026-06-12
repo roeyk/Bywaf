@@ -62,6 +62,7 @@ class ApiTests(unittest.TestCase):
             self.assertIn("job", session.commandlets()["runtime"])
 
     def test_session_config_round_trip(self):
+        """Protect session config round trip behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             session = BywafSession.open(Path(tmp, "db.sqlite3"))
             session.set_var("http/http_probe.cookie-file", "/tmp/cookies.txt")

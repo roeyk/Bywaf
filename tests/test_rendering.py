@@ -34,6 +34,7 @@ class RenderingTests(unittest.TestCase):
         self.assertEqual(table.rows[0]["host"], "127.0.0.1")
 
     def test_table_from_sequence_rows_uses_columns(self):
+        """Protect table from sequence rows uses columns behavior from regressions."""
         table = Table.from_rows((("127.0.0.1", 80),), ("host", "port"))
         self.assertEqual(table.rows[0], {"host": "127.0.0.1", "port": 80})
 

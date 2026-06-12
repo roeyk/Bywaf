@@ -102,6 +102,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("signal requested for step=run-1 action=prune mode=soft", output.getvalue())
 
     def test_signal_pause_applies_framework_control(self):
+        """Protect signal pause applies framework control behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("portscanner --listen", 123, "running")

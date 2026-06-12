@@ -92,6 +92,7 @@ class TestSkeletonsRuntimePolicyTests(unittest.TestCase):
         self.assertEqual([], offenders)
 
     def test_runtime_artifact_store_access_declares_access_intent(self):
+        """Protect runtime artifact store access declares access intent behavior from regressions."""
         root = Path(__file__).resolve().parents[2]
         completion_exception = root / "bywaf" / "plugins" / "runtime" / "artifact" / "completion.py"
         offenders: list[str] = []

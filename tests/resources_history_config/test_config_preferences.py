@@ -63,6 +63,7 @@ class ResourcesHistoryConfigPreferenceTests(unittest.TestCase):
             self.assertEqual(runner.registry.varstore.get("test.value"), "default")
 
     def test_load_legacy_json_config(self):
+        """Protect load legacy JSON config behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             config = Path(tmp, "vars.json")

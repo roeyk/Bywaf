@@ -71,6 +71,7 @@ class SnmpGetWrapperMatrixTests(TestCase):
 def fake_snmp_hlapi(result):
     """Test helper for fake snmp hlapi."""
     class Constructor:
+        """Group regression coverage for `Constructor` behavior."""
         def __call__(self, *args, **kwargs):
             del kwargs
             return args[0] if args else object()

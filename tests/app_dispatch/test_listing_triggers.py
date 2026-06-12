@@ -90,6 +90,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(run.call_args.kwargs["env"]["LESSSECURE"], "1")
 
     def test_dispatch_cmds_page_ignores_pager_keyboard_interrupt(self):
+        """Protect dispatch cmds page ignores pager keyboard interrupt behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with (

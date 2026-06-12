@@ -24,6 +24,7 @@ class DnsWrapperMatrixTests(TestCase):
     def test_dns_lookup_preserves_resolver_failure_as_dns_error(self):
         """Protect dns lookup preserves resolver failure as dns error behavior from regressions."""
         class FakeResolver:
+            """Test double for `FakeResolver` scenarios in this module."""
             lifetime = 0
             timeout = 0
             nameservers = []

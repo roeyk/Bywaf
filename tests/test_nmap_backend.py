@@ -53,6 +53,7 @@ class NmapBackendTests(unittest.TestCase):
                 load_backend()
 
     def test_discover_live_hosts_uses_portscanner_backend(self):
+        """Protect discover live hosts uses portscanner backend behavior from regressions."""
         with patch("bywaf.plugins.network.nmap_backend.load_backend", return_value=("nmaplib", FakeNmapModule)):
             self.assertEqual(discover_live_hosts("127.0.0.1"), ["127.0.0.1"])
 

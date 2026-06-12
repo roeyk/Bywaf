@@ -76,6 +76,7 @@ class TestFrameworkRequestsTests(unittest.TestCase):
             self.assertEqual(runner.db.events_for_topic("console.alert"), [])
 
     def test_framework_request_denies_invalid_console_alert(self):
+        """Protect framework request denies invalid console alert behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()

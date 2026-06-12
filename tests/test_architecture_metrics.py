@@ -131,6 +131,7 @@ def test_architecture_metrics_reports_documentation_pressure(tmp_path: Path) -> 
 
 
 def test_documentation_metrics_can_run_without_python_package(tmp_path: Path) -> None:
+    """Protect documentation metrics can run without python package behavior from regressions."""
     docs = tmp_path / "docs"
     write(docs / "a.md", "# A\n\nSee [B](b.md).\n")
     write(docs / "b.md", "# B\n")

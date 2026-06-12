@@ -42,6 +42,7 @@ class SQLiteContentionBenchmarkTests(unittest.TestCase):
         self.assertEqual(result.write_latency_ms["p50"], 3.0)
 
     def test_tiny_benchmark_exercises_event_store_path(self):
+        """Protect tiny benchmark exercises event store path behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             result = run_benchmark(
                 Path(tmp, "bench.sqlite3"),

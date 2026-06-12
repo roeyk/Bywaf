@@ -58,6 +58,7 @@ class FindingGroupingTests(unittest.TestCase):
         self.assertNotEqual(finding_group_key(first), finding_group_key(second))
 
     def test_candidate_payload_derives_target_scope_and_group_key(self):
+        """Protect candidate payload derives target scope and group key behavior from regressions."""
         payload = candidate_payload(
             title="Missing HTTP Strict Transport Security",
             finding_class="web.header.missing_hsts",

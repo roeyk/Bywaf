@@ -150,6 +150,7 @@ class FindingDedupeTests(unittest.TestCase):
             self.assertEqual(db.events_for_topic("finding.duplicate"), [])
 
     def test_status_upgrade_publishes_updated(self):
+        """Protect status upgrade publishes updated behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             potential = db.publish(

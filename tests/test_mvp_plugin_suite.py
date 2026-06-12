@@ -189,6 +189,7 @@ class MvpPluginSuiteTests(unittest.TestCase):
                 }
 
             def fake_probe_path(url, timeout, user_agent):
+                """Test helper for fake probe path."""
                 del timeout, user_agent
                 if url.endswith("/.git/config"):
                     return {

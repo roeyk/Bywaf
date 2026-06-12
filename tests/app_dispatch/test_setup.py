@@ -79,6 +79,7 @@ class SetupCliTests(unittest.TestCase):
                 self.assertFalse(Path(tmp, ".bywaf", "config.toml").exists())
 
     def test_interactive_setup_accepts_project_name_and_declines_encryption(self):
+        """Protect interactive setup accepts project name and declines encryption behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             with patch.dict("os.environ", {"HOME": tmp}):
                 output = io.StringIO()

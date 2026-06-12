@@ -57,6 +57,7 @@ class AppDispatchTests(unittest.TestCase):
             checkpoint.assert_called_once_with()
 
     def test_repl_checkpoints_on_exit(self):
+        """Protect REPL checkpoints on exit behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with (

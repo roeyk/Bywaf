@@ -105,6 +105,7 @@ class ConfigPluginContextProcessSecretTests(unittest.TestCase):
         self.assertEqual(secret_args[0]["option"], "password")
 
     def test_command_context_events_follow_stops_after_parent_completion(self):
+        """Protect command context events follow stops after parent completion behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(

@@ -39,6 +39,7 @@ class ConfigPluginSpecTests(unittest.TestCase):
         self.assertEqual(argument.completion, CompletionSpec())
 
     def test_commandlet_decorators_build_spec(self):
+        """Protect commandlet decorators build spec behavior from regressions."""
         @commandlet(
             name="hello",
             description="say hello",

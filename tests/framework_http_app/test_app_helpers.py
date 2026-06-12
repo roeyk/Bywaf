@@ -57,6 +57,7 @@ class TestAppHelpersTests(unittest.TestCase):
             self.assertIn("external", runner.registry.names())
 
     def test_friendly_error_strips_keyerror_quotes(self):
+        """Protect friendly error strips keyerror quotes behavior from regressions."""
         self.assertEqual(friendly_error(KeyError("unknown commandlet: x")), "unknown commandlet: x")
 
 

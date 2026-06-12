@@ -98,6 +98,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("192.0.2.20", text)
 
     def test_event_filters_topic_by_payload_host(self):
+        """Protect event filters topic by payload host behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.publish("port.open", {"host": "192.0.2.10", "port": 80, "protocol": "tcp"}, "test")

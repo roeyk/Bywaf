@@ -208,6 +208,7 @@ def write_signing_key(tmp_path: Path, name: str) -> tuple[Path, Path]:
 
 
 def run_python_script(*args: str) -> subprocess.CompletedProcess[str]:
+    """Test helper for run python script."""
     return subprocess.run(
         [sys.executable, *args],
         cwd=ROOT,

@@ -98,6 +98,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("global.proxy=http://127.0.0.1:8080", output.getvalue())
 
     def test_pending_catalog_variable_warns_and_survives_default_load(self):
+        """Protect pending catalog variable warns and survives default load behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()

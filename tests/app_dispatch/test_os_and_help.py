@@ -83,6 +83,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(run.call_args.kwargs["env"]["LESSSECURE"], "1")
 
     def test_list_action_page_uses_system_pager_for_generated_output(self):
+        """Protect list action page uses system pager for generated output behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             for index in range(8):

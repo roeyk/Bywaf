@@ -73,6 +73,7 @@ class PackagingInstallVersionAndRootTests(unittest.TestCase):
             self.assertEqual(runner.registry.varstore.get("site/systemprobe.origin"), "system-wide")
 
     def test_filesystem_config_validates_declared_plugin_dependencies_before_import(self):
+        """Protect filesystem config validates declared plugin dependencies before import behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "home", "alice", ".bywaf", "plugins")
             write_plugin(root, "local/provider", "provider", "provider")

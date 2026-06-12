@@ -72,6 +72,7 @@ class HttpProbeWrapperMatrixTests(TestCase):
         self.assertEqual(result["final_url"], "https://example.test/final")
 
     def test_probe_url_treats_http_error_as_response_metadata(self):
+        """Protect probe URL treats HTTP error as response metadata behavior from regressions."""
         headers = Message()
         headers["Server"] = "cloudflare"
         headers["Content-Type"] = "text/html"

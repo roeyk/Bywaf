@@ -20,6 +20,7 @@ from bywaf.plugins.analysis.technology_indicators import findings_from_event, te
 class TechnologyIndicatorsTests(unittest.TestCase):
     """Groups regression coverage for passive technology/version indicator findings."""
     def test_apache_httpd_249_server_header_becomes_version_indicator(self):
+        """Protect apache httpd 249 server header becomes version indicator behavior from regressions."""
         event = Event.new(
             "http.endpoint",
             {

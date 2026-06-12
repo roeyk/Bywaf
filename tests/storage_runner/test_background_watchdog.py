@@ -75,6 +75,7 @@ class StorageRunnerBackgroundWatchdogTests(unittest.TestCase):
         run_background_job(str(missing_path), None, 1, "job", "pipeline-test", ())
 
     def test_background_job_records_failure_without_reraising(self):
+        """Protect background job records failure without reraising behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))
             job_id = db.record_job("missing", None, "queued")

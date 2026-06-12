@@ -296,6 +296,7 @@ class StorageRunnerArtifactTests(unittest.TestCase):
             self.assertIn("main-db sha256 mismatch", output.getvalue())
 
     def test_artifact_attach_uses_plaintext_store_for_plaintext_database(self):
+        """Protect artifact attach uses plaintext store for plaintext database behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             source = Path(tmp, "note.txt")
             source.write_text("secret")

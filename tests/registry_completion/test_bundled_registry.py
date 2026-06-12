@@ -133,6 +133,7 @@ class RegistryBundledPluginTests(unittest.TestCase):
         self.assertEqual(aliases["web_fingerprint"], "webfin")
 
     def test_bundled_sidecar_manifest_traits(self):
+        """Protect bundled sidecar manifest traits behavior from regressions."""
         manifest = load_package_manifest("bywaf.plugins", "http.nikto")
         self.assertIsNotNone(manifest)
         assert manifest is not None

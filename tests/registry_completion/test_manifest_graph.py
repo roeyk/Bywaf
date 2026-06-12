@@ -60,6 +60,7 @@ def test_bundled_manifest_graph_marks_requires_bywaf_as_hard_edge():
 
 
 def test_bundled_manifest_graph_serializes_for_reports():
+    """Protect bundled manifest graph serializes for reports behavior from regressions."""
     graph = build_package_manifest_graph("bywaf.plugins", "plugins.toml")
     data = graph.to_dict()
     providers = cast(dict[str, dict[str, Any]], data["providers"])

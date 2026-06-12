@@ -64,6 +64,7 @@ class ConfigPluginMessagesProgressSignalTests(unittest.TestCase):
             self.assertEqual(len(progress_events), 4)
 
     def test_context_signals_filters_and_responds(self):
+        """Protect context signals filters and responds behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))
             request = db.publish(

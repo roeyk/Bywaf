@@ -67,6 +67,7 @@ class TimeFormatTests(unittest.TestCase):
 
 
 def expected_local_runtime_timestamp(value: str) -> str:
+    """Test helper for expected local runtime timestamp."""
     parsed = datetime.fromisoformat(value).astimezone()
     timezone_name = parsed.tzname()
     suffix = f" {timezone_name}" if timezone_name else ""

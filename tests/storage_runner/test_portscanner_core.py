@@ -117,6 +117,7 @@ class StorageRunnerPortscannerCoreTests(unittest.TestCase):
             self.assertEqual(ports[0].payload["port"], 8080)
 
     def test_portscanner_does_not_emit_events_for_closed_scanned_ports(self):
+        """Protect portscanner does not emit events for closed scanned ports behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with patch("bywaf.plugins.network.portscanner.scan_open_ports", return_value=[]):

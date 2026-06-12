@@ -203,6 +203,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("Representative events", text)
 
     def test_results_renders_http_headers_summary(self):
+        """Protect results renders HTTP headers summary behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.record_job("http_headers example.test", 123, "finished")

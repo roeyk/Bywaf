@@ -124,6 +124,7 @@ class StorageRunnerPortscannerListenTests(unittest.TestCase):
             self.assertEqual(events[0]["host"], "203.0.113.1")
 
     def test_pipeline_portscanner_auto_listens_to_upstream_scope(self):
+        """Protect pipeline portscanner auto listens to upstream scope behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))
             db.publish(

@@ -96,6 +96,7 @@ class TestSubmissionsAndOutputTests(unittest.TestCase):
             self.assertEqual(report["manifest_signature"], "verified")
 
     def test_check_plugin_verify_requires_manifest_key(self):
+        """Protect check plugin verify requires manifest key behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(Path(tmp), capabilities=())
 

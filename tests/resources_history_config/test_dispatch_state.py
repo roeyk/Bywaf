@@ -62,6 +62,7 @@ class ResourcesHistoryDispatchStateTests(unittest.TestCase):
             self.assertIn("error: permission denied", output.getvalue())
 
     def test_dispatch_unexpected_plugin_error_does_not_exit_repl(self):
+        """Protect dispatch unexpected plugin error does not exit REPL behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()

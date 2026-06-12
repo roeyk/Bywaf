@@ -70,6 +70,7 @@ class TestHttpMethodsTests(unittest.TestCase):
         )
 
     def test_http_methods_probe_uses_allow_header(self):
+        """Protect HTTP methods probe uses allow header behavior from regressions."""
         target = MethodTarget("https://example.test/", "example.test", 443, "https", "/")
         with patch("bywaf.plugins.http.methods.http.client.HTTPSConnection", AllowConnection):
             result = probe_methods(target, timeout=2)

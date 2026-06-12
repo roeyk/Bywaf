@@ -134,6 +134,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("PIPELINE", text)
 
     def test_ports_defaults_to_latest_productive_portscanner_job(self):
+        """Protect ports defaults to latest productive portscanner job behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             old_job = runner.db.record_job("network/portscanner host=192.0.2.10 port=80", 123, "finished")

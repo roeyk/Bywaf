@@ -77,6 +77,7 @@ class KeyringTests(unittest.TestCase):
                 self.assertEqual(validate_key("reviewer"), "verify-only")
 
     def test_key_commandlet_generates_audited_key(self):
+        """Protect key commandlet generates audited key behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db_path = Path(tmp, "bywaf.sqlite3")
             key_root = Path(tmp, "keys")
