@@ -31,7 +31,7 @@ Use focused checks while editing a specific area:
 PYTHONPATH=. pytest -q tests/test_plugin_check.py
 PYTHONPATH=. pytest -q tests/registry_completion tests/test_completion_regression.py
 PYTHONPATH=. pytest -q tests/test_events_db.py tests/storage_runner
-PYTHONPATH=. pytest -q tests/test_report.py tests/test_finding_grouping.py
+PYTHONPATH=. pytest -q tests/test_report.py tests/finding
 ```
 
 Run Ruff on changed Python paths:
@@ -117,8 +117,7 @@ Use these suites as starting points for common framework changes:
   `tests/storage_runner/`,
   `tests/test_resources_history_config.py`.
 - Findings and reports:
-  `tests/test_finding_grouping.py`, `tests/test_finding_report.py`,
-  `tests/test_finding_dedupe.py`, `tests/test_report.py`.
+  `tests/finding/`, `tests/test_report.py`.
 - Secrets, keys, and bundles:
   `tests/test_secrets.py`, `tests/test_keyring.py`, `tests/test_bundle.py`.
 - Built-in plugins:

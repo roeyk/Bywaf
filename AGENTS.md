@@ -199,7 +199,7 @@ treat them as passed.
 - Events, storage, jobs, runtime state:
   `PYTHONPATH=. pytest -q tests/test_events_db.py tests/test_store_protocols.py tests/storage_runner`
 - Findings and reports:
-  `PYTHONPATH=. pytest -q tests/test_report.py tests/test_finding_report.py tests/test_finding_grouping.py tests/test_finding_dedupe.py`
+  `PYTHONPATH=. pytest -q tests/test_report.py tests/finding`
 - Shared architecture or large refactor: focused tests plus
   `PYTHONPATH=. pytest -q tests/test_architecture_metrics.py` and
   `python3 scripts/architecture_metrics.py --top 12`
