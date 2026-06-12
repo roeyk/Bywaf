@@ -90,6 +90,7 @@ class TechnologyIndicatorsTests(unittest.TestCase):
         self.assertEqual(findings_from_event(event), [])
 
     def test_nginx_140_server_header_becomes_version_indicator(self):
+        """Protect nginx 140 server header becomes version indicator behavior from regressions."""
         event = Event.new(
             "http.endpoint",
             {"host": "example.test", "port": 80, "scheme": "http", "server": "nginx/1.4.0"},

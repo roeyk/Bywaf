@@ -111,6 +111,7 @@ class RegistryCompletionCoreTests(unittest.TestCase):
         self.assertEqual(secret_input_mode(completer), "askpass")
 
     def test_effective_secret_input_auto_uses_desktop_askpass_when_available(self):
+        """Protect effective secret input auto uses desktop askpass when available behavior from regressions."""
         completer = Completer(self.registry)
         with patch("bywaf.secret.input.desktop_askpass_available", return_value=True):
             self.assertEqual(prompt_secret_mode(completer), "askpass")

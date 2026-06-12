@@ -160,6 +160,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("no steps", text)
 
     def test_exec_without_shell_command_prints_help(self):
+        """Protect exec without shell command prints help behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()

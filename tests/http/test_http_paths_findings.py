@@ -240,6 +240,7 @@ class HttpPathFindingTests(unittest.TestCase):
             self.assertEqual(db.events_for_topic("finding.candidate"), [])
 
     def test_legacy_vcs_metadata_path_becomes_origin_scoped_candidate(self):
+        """Protect legacy vcs metadata path becomes origin scoped candidate behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(

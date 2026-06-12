@@ -48,6 +48,7 @@ class TimeFormatTests(unittest.TestCase):
         self.assertEqual(now.utcoffset(), datetime.now().astimezone().utcoffset())
 
     def test_format_duration_between_formats_human_runtime_duration(self):
+        """Protect format duration between formats human runtime duration behavior from regressions."""
         self.assertEqual(
             format_duration_between("2026-05-18T12:00:00+00:00", "2026-05-18T13:05:00+00:00"),
             "1h 5m",

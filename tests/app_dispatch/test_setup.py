@@ -195,6 +195,7 @@ class SetupCliTests(unittest.TestCase):
                 self.assertFalse(database.exists())
 
     def test_interactive_setup_refuses_to_encrypt_existing_project_database(self):
+        """Protect interactive setup refuses to encrypt existing project database behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp, ".bywaf", "projects", "default")
             project.mkdir(parents=True)

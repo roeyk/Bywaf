@@ -162,6 +162,7 @@ class AppDispatchTests(unittest.TestCase):
             update.assert_not_called()
 
     def test_start_default_services_ignores_inactive_network_capability_event(self):
+        """Protect start default services ignores inactive network capability event behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("hostscanner 127.0.0.1", None, "finished")

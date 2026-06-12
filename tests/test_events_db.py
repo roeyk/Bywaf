@@ -122,6 +122,7 @@ class EventDbTests(unittest.TestCase):
             self.assertEqual(db.events_for_serial(short_serial)[0].payload["job_id"], job_id)
 
     def test_events_for_job_topic_matches_scoped_and_payload_job_events(self):
+        """Protect events for job topic matches scoped and payload job events behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "events.sqlite3"))
             job_id = db.record_job("network/portscanner", 123, "finished")

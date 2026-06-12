@@ -89,6 +89,7 @@ class HttpProbeTests(unittest.TestCase):
         self.assertEqual(output.getvalue(), "")
 
     def test_http_probe_uses_cookie_file_var(self):
+        """Protect HTTP probe uses cookie file var behavior from regressions."""
         context = CommandContext(db=None, source="http_probe")
         context.vars.set("cookie-file", "/tmp/cookies.txt")
         with (

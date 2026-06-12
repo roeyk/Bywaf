@@ -130,6 +130,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
             self.assertEqual(notes[1].command_run_id, events[-1].command_run_id)
 
     def test_inline_names_attach_to_pipeline_and_run(self):
+        """Protect inline names attach to pipeline and run behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]):
                 runner = make_runner(Path(tmp, "db.sqlite3"))

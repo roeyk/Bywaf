@@ -100,6 +100,7 @@ class PluginNewTests(unittest.TestCase):
             self.assertIn("lowercase snake_case", result.stderr)
 
     def test_plugin_new_quotes_free_text_manifest_values(self):
+        """Protect plugin new quotes free text manifest values behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = Path(tmp) / "quote_probe"
 

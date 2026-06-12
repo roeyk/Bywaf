@@ -42,6 +42,7 @@ class UtilsTests(unittest.TestCase):
             parse_ports("0")
 
     def test_host_candidates_expands_cidr(self):
+        """Protect host candidates expands cidr behavior from regressions."""
         self.assertEqual(host_candidates("127.0.0.0/30"), ("127.0.0.1", "127.0.0.2"))
 
     def test_host_candidates_keeps_hostname(self):

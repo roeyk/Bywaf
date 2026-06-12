@@ -142,6 +142,7 @@ class ResourcesHistoryPluginLoadingTests(unittest.TestCase):
             self.assertIn("usage: plugin load=<path>", output.getvalue())
 
     def test_plugin_load_path_places_provider_in_catalog(self):
+        """Protect plugin load path places provider in catalog behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()

@@ -121,6 +121,7 @@ class StorageRunnerBackgroundWatchdogTests(unittest.TestCase):
             self.assertEqual(db.events_for_topic("watchdog.stalled")[0].payload["job_id"], job_id)
 
     def test_watchdog_emits_error_rate_warning(self):
+        """Protect watchdog emits error rate warning behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))
             job_id = db.record_job("hostscanner 127.0.0.1", 123, "running")

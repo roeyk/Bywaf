@@ -141,6 +141,7 @@ class TestHttpHeadersTests(unittest.TestCase):
         self.assertNotIn("web.header.missing_framing_policy", classes)
 
     def test_http_headers_promotes_missing_csp_and_referrer_policy(self):
+        """Protect HTTP headers promotes missing csp and referrer policy behavior from regressions."""
         result = HeaderProbeResult(
             target=HeaderTarget("example.test", 443, True),
             status=200,

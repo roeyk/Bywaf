@@ -110,6 +110,7 @@ class ResourcesHistoryDispatchStateTests(unittest.TestCase):
             self.assertIn("127.0.0.1", shown.getvalue())
 
     def test_dispatch_show_job_prints_matching_job(self):
+        """Protect dispatch show job prints matching job behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("hostscanner 127.0.0.1", 123, "running")

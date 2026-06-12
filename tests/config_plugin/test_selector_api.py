@@ -65,6 +65,7 @@ class PluginSelectorApiTests(unittest.TestCase):
         )
 
     def test_reject_option_equals_rejects_declared_long_options(self) -> None:
+        """Protect reject option equals rejects declared long options behavior from regressions."""
         with self.assertRaisesRegex(ValueError, "usage"):
             reject_option_equals(["--target=example.test"], {"target"}, usage="usage")
 

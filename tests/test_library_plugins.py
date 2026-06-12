@@ -144,6 +144,7 @@ class LibraryPluginTests(unittest.TestCase):
         self.assertEqual(targets[0].port, 22)
 
     def test_tcp_banner_parses_explicit_targets(self):
+        """Protect tcp banner parses explicit targets behavior from regressions."""
         self.assertEqual(target_from_text("192.0.2.10:2222", None).port, 2222)
         self.assertEqual(target_from_text("192.0.2.10", 22).port, 22)
         with self.assertRaisesRegex(ValueError, "require port="):

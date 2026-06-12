@@ -84,6 +84,7 @@ class NmapBackendTests(unittest.TestCase):
         self.assertEqual(discover_live_hosts_libnmap(backend, "127.0.0.1", "-sn"), ["127.0.0.1"])
 
     def test_scan_open_ports_supports_libnmap_backend(self):
+        """Protect scan open ports supports libnmap backend behavior from regressions."""
         service = FakeLibService(443, "tcp", "open", "https", "syn-ack")
         backend = fake_libnmap_backend(FakeReport([FakeLibHost("127.0.0.1", "up", [service])]))
         self.assertEqual(

@@ -209,6 +209,7 @@ class StorageRunnerPortscannerCoreTests(unittest.TestCase):
             self.assertIn("confirm service identity", candidates[0].payload["evidence"])
 
     def test_commandlet_can_use_events_from_prior_run(self):
+        """Protect commandlet can use events from prior run behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.publish(

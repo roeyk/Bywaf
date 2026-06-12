@@ -183,6 +183,7 @@ class TestDiagnosticsTests(unittest.TestCase):
             self.assertIn("port.open.protocol is required", report["diagnostics"][0]["message"])
 
     def test_check_plugin_validates_assigned_literal_shared_event_payload(self):
+        """Protect check plugin validates assigned literal shared event payload behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(
                 Path(tmp),

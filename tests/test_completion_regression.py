@@ -109,6 +109,7 @@ class CompletionRegressionTests(unittest.TestCase):
                 os.chdir(cwd)
 
     def test_variable_expansion_completion_for_filespec_parameters(self):
+        """Protect variable expansion completion for filespec parameters behavior from regressions."""
         registry = PluginRegistry.discover()
         registry.varstore.set("analysis/finding/report/finding_report.report_path", "report.md")
         registry.varstore.set("global.shared_path", "shared.md")

@@ -184,6 +184,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("\x1b[", completed_row)
 
     def test_job_listing_fits_terminal_width(self):
+        """Protect job listing fits terminal width behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.record_job(

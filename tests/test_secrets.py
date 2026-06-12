@@ -71,6 +71,7 @@ class SecretTests(unittest.TestCase):
         self.assertEqual(result.secrets[0].name, "client-token")
 
     def test_redact_command_text_redacts_scoped_declared_secret_names(self):
+        """Protect redact command text redacts scoped declared secret names behavior from regressions."""
         result = redact_command_text("set ssh_probe.password=abc timeout=1", key=b"k" * 32, secret_names={"password"})
         self.assertEqual(result.command, f"set ssh_probe.password={REDACTED_VALUE} timeout=1")
         self.assertEqual(result.secrets[0].name, "ssh_probe.password")

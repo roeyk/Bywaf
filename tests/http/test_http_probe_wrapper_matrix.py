@@ -132,6 +132,7 @@ class HttpProbeWrapperMatrixTests(TestCase):
 class WafFetchHeaderTests(TestCase):
     """Groups regression coverage for fixture-backed HTTP probe wrapper coverage."""
     def test_unsupported_url_scheme_returns_error_fixture(self):
+        """Protect unsupported URL scheme returns error fixture behavior from regressions."""
         from bywaf.plugins.http.waf_detect import fetch_headers
 
         result = fetch_headers("file:///tmp/x", 5, "Bywaf/0.9")

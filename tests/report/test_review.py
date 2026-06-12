@@ -298,6 +298,7 @@ class ReportReviewTests(unittest.TestCase):
             self.assertTrue(any(event.payload.get("capability") == "finding.review" for event in capabilities))
 
     def test_report_accept_all_marks_visible_unreviewed_findings(self):
+        """Protect report accept all marks visible unreviewed findings behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             for index in range(1, 4):

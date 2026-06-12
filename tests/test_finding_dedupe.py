@@ -249,6 +249,7 @@ class FindingDedupeTests(unittest.TestCase):
             self.assertEqual(db.events_for_topic("artifact.attached")[0].payload["name"], "summary.json")
 
     def test_argparse_usage_uses_bywaf_key_value_style(self):
+        """Protect argparse usage uses bywaf key value style behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             stderr = io.StringIO()

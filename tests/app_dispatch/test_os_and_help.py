@@ -143,6 +143,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("script", output.getvalue())
 
     def test_plugins_graph_cli_prints_dependency_sections(self):
+        """Protect plugins graph CLI prints dependency sections behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             output = io.StringIO()
             with contextlib.redirect_stdout(output):

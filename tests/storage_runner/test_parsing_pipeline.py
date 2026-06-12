@@ -88,6 +88,7 @@ class StorageRunnerParsingPipelineTests(unittest.TestCase):
         self.assertTrue(should_run_stage_processes(pipeline.commands))
 
     def test_trailing_background_pipeline_preserves_pipe_flow(self):
+        """Protect trailing background pipeline preserves pipe flow behavior from regressions."""
         pipeline = parse_pipeline("hostscanner 192.168.0.1-2 | portscanner &")
         self.assertTrue(pipeline.background)
         self.assertEqual([command.background for command in pipeline.commands], [False, True])

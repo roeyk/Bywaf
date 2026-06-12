@@ -101,6 +101,7 @@ class CliParserTests(unittest.TestCase):
         self.assertTrue(parser.parse_args(["--allow-untrusted-plugins"]).allow_untrusted_plugins)
 
     def test_build_parser_accepts_setup_and_quiet(self):
+        """Protect build parser accepts setup and quiet behavior from regressions."""
         parser = build_parser()
         args = parser.parse_args(["--setup", "--quiet"])
         self.assertTrue(args.setup)

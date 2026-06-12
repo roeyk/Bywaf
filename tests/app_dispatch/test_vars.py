@@ -162,6 +162,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("session.ticket=[REDACTED#", text)
 
     def test_vars_trailing_secret_flag_marks_assignment_secret(self):
+        """Protect vars trailing secret flag marks assignment secret behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()

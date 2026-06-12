@@ -112,6 +112,7 @@ class PluginCatalogTests(unittest.TestCase):
             self.assertEqual(catalog["plugins"][0]["event_schemas"][0]["fields"][0]["name"], "host")
 
     def test_catalog_treats_single_segment_filesystem_entry_as_plugin_directory(self):
+        """Protect catalog treats single segment filesystem entry as plugin directory behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             plugin_root = root / "plugins"

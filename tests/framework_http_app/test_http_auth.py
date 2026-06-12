@@ -129,6 +129,7 @@ class FakeResponse:
     headers: list[tuple[str, str]] = []
 
     def getheaders(self):
+        """Test helper for getheaders."""
         return self.headers
 
 

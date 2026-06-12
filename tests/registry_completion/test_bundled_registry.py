@@ -203,6 +203,7 @@ class RegistryBundledPluginTests(unittest.TestCase):
         self.assertEqual(plugin_manifest_digest(first), plugin_manifest_digest(second))
 
     def test_canonical_manifest_digest_changes_when_values_change(self):
+        """Protect canonical manifest digest changes when values change behavior from regressions."""
         first = {"commandlets": [{"name": "example", "capabilities": ["network.connect"]}]}
         second = {"commandlets": [{"name": "example", "capabilities": ["filesystem.read"]}]}
 

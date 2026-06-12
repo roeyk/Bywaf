@@ -54,6 +54,7 @@ class ConfigPluginSpecTests(unittest.TestCase):
         @argument("suffix", "suffix", required=False)
         @argument("name", "name to greet", required=False, completion="plugin")
         class Hello:
+            """Group regression coverage for `Hello` behavior."""
             pass
 
         spec = getattr(Hello, "spec")

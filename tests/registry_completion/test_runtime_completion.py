@@ -137,6 +137,7 @@ class RegistryRuntimeCompletionTests(unittest.TestCase):
         self.assertTrue(event.current_buffer.cancelled)
 
     def test_readline_delimiters_keep_hyphen_and_equals_in_completion_word(self):
+        """Protect readline delimiters keep hyphen and equals in completion word behavior from regressions."""
         with (
             patch("bywaf.completion.readline.get_completer_delims", return_value=" \t\n-="),
             patch("bywaf.completion.readline.set_completer_delims") as set_delims,

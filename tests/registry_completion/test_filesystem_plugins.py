@@ -196,6 +196,7 @@ class RegistryFilesystemPluginTests(unittest.TestCase):
             self.assertFalse(manifest.native)
 
     def test_filesystem_manifest_rejects_missing_commandlet(self):
+        """Protect filesystem manifest rejects missing commandlet behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "plugins")
             plugin_dir = root / "scanners" / "example"

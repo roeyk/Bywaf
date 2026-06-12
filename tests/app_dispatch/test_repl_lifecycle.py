@@ -135,6 +135,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("Quit Bywaf?", output.getvalue())
 
     def test_repl_exits_after_confirmed_eof(self):
+        """Protect REPL exits after confirmed eof behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             answers = iter([EOFError, "yes"])

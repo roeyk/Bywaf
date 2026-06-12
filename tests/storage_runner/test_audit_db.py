@@ -191,6 +191,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             self.assertIn("unregistered", text)
 
     def test_audit_list_topics_reports_no_matches(self):
+        """Protect audit list topics reports no matches behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()

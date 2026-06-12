@@ -374,6 +374,7 @@ class ReportScopeTests(unittest.TestCase):
             self.assertNotIn("Old finding", text)
 
     def test_report_repl_does_not_echo_rendered_audit_event(self):
+        """Protect report REPL does not echo rendered audit event behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.publish(

@@ -175,6 +175,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(job["status"], "cancelling")
 
     def test_job_kill_hard_sends_kill(self):
+        """Protect job kill hard sends kill behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("sleep", 99999, "running")

@@ -83,6 +83,7 @@ class RenderingTests(unittest.TestCase):
         self.assertIn("\x1b[32mplain", styled)
 
     def test_markdown_renderer_escapes_pipes(self):
+        """Protect markdown renderer escapes pipes behavior from regressions."""
         table = Table.from_rows(({"name": "a|b"},), ("name",))
         self.assertIn("a\\|b", render_table(table, "md"))
 

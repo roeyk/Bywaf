@@ -144,6 +144,7 @@ class RegistryCompletionOptionTests(unittest.TestCase):
             )
 
     def test_does_not_complete_exact_option_to_itself(self):
+        """Protect does not complete exact option to itself behavior from regressions."""
         completer = Completer(self.registry)
         self.assertNotIn("--ports", completer.candidates("portscanner --ports"))
 

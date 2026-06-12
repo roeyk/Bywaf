@@ -55,6 +55,7 @@ class RegistryManifestSchemaTests(unittest.TestCase):
     def test_plugin_manifest_tool_generates_trigger_specs(self):
         """Protect plugin manifest tool generates trigger specs behavior from regressions."""
         class Example:
+            """Group regression coverage for `Example` behavior."""
             spec = CommandSpec("example", "example plugin")
 
             def run(self, context, args, input_events):

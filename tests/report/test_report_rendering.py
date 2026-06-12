@@ -262,6 +262,7 @@ class ReportRenderingTests(unittest.TestCase):
             self.assertIn("\x1b[1;31mhigh", text)
 
     def test_report_prints_inline_by_default_and_can_page(self):
+        """Protect report prints inline by default and can page behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.publish(

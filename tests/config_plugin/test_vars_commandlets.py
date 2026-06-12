@@ -104,6 +104,7 @@ class ConfigPluginVarsCommandletTests(unittest.TestCase):
         context = CommandContext(None, source="example", _varstore=store)
 
         class Example(CommandletBase):
+            """Group regression coverage for `Example` behavior."""
             spec = CommandSpec("example", "example")
 
         commandlet = Example()

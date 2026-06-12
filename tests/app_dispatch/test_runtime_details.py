@@ -251,6 +251,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("command line: hostscanner 127.0.0.1", output.getvalue())
 
     def test_event_job_selector_accepts_durable_serial(self):
+        """Protect event job selector accepts durable serial behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("hostscanner 127.0.0.1", 123, "running")

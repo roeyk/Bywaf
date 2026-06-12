@@ -146,6 +146,7 @@ class TestFrameworkRequestsTests(unittest.TestCase):
             self.assertEqual(len(runner.db.events_for_topic("console.page")), 1)
 
     def test_framework_request_denies_background_file_page(self):
+        """Protect framework request denies background file page behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "file.txt")
             path.write_text("hello\n")

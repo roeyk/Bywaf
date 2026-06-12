@@ -203,6 +203,7 @@ class NiktoTests(unittest.TestCase):
             self.assertEqual(db.events_for_topic("finding.candidate"), [])
 
     def test_nonzero_exit_attaches_process_output_artifact(self):
+        """Protect nonzero exit attaches process output artifact behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(

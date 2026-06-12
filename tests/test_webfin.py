@@ -63,6 +63,7 @@ class WebFingerprintTests(unittest.TestCase):
         self.assertEqual(payloads[0]["url"], "http://127.0.0.1/")
 
     def test_endpoint_payloads_probe_explicit_targets(self):
+        """Protect endpoint payloads probe explicit targets behavior from regressions."""
         context = CommandContext(None, "webfin")
         with patch("bywaf.plugins.http.webfin.probe_url", return_value={"ok": True, "status": 200}) as probe:
             payloads = endpoint_payloads(["example.test:8080"], [], 5, "Bywaf/0.9", context)

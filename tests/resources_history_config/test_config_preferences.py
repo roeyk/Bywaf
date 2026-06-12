@@ -125,6 +125,7 @@ bold = true
             )
 
     def test_subject_style_accepts_direct_structured_variables(self):
+        """Protect subject style accepts direct structured variables behavior from regressions."""
         values = {
             "display/style.host.bold": "true",
             "display/style.host.foreground": "cyan",

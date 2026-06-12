@@ -153,6 +153,7 @@ class ReflectedConnection:
         self.timeout = timeout
 
     def request(self, method, path, headers=None):
+        """Test helper for request."""
         self.method = method
         self.path = path
         self.headers = headers or {}

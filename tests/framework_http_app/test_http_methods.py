@@ -119,6 +119,7 @@ class TestHttpMethodsTests(unittest.TestCase):
             self.assertTrue(all(event.pipeline_id for event in candidates))
 
     def test_http_methods_deduped_findings_appear_in_report(self):
+        """Protect HTTP methods deduped findings appear in report behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with patch("bywaf.plugins.http.methods.http.client.HTTPSConnection", RiskyConnection):

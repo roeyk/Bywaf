@@ -204,6 +204,7 @@ class PackagingInstallVersionAndRootTests(unittest.TestCase):
             self.assertEqual(closure["auto_load_reasons"], {"local/provider": "requires_plugins"})
 
     def test_filesystem_config_rejects_dependency_chain_when_nested_dependency_is_missing(self):
+        """Protect filesystem config rejects dependency chain when nested dependency is missing behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "home", "alice", ".bywaf", "plugins")
             provider = write_plugin(root, "local/provider", "provider", "provider")

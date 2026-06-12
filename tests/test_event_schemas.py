@@ -168,6 +168,7 @@ class EventSchemaTests(unittest.TestCase):
         )
 
     def test_schema_object_rejects_invalid_event_payload(self):
+        """Protect schema object rejects invalid event payload behavior from regressions."""
         event = Event.new("port.open", {"host": "192.0.2.10", "port": "445"}, "test")
 
         with self.assertRaisesRegex(ValueError, "port.open.port must be int"):

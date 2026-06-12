@@ -132,6 +132,7 @@ class ConfigPluginContextCapabilityTests(unittest.TestCase):
                 context.audit_capability("db.write:port.open")
 
     def test_command_context_alert_prints_without_database(self):
+        """Protect command context alert prints without database behavior from regressions."""
         context = CommandContext(db=None, source="test", metadata={"command_run_id": "run-1"})
         output = io.StringIO()
         with contextlib.redirect_stdout(output):

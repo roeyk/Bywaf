@@ -156,6 +156,7 @@ class TestContextCapabilityAuditTests(unittest.TestCase):
             self.assertEqual(policy.payload["decision"], "audit")
 
     def test_context_events_publish_can_enforce_unregistered_topic_policy(self):
+        """Protect context events publish can enforce unregistered topic policy behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             context = CommandContext(

@@ -145,6 +145,7 @@ class TestManifestBasicsTests(unittest.TestCase):
             self.assertIn("type must be one of: any, bool, dict, int, list, number, str", report["errors"][0])
 
     def test_llm_feedback_gives_manifest_version_fix(self):
+        """Protect llm feedback gives manifest version fix behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(Path(tmp), capabilities=("network.connect",))
             manifest = plugin_dir.joinpath("bywaf.plugin.toml")

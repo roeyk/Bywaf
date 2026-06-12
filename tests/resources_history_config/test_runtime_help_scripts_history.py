@@ -117,6 +117,7 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
         self.assertEqual(resolve_resource_path("foo", Path(".bywaf/plugins")), Path(".bywaf/plugins/foo"))
 
     def test_resolve_resource_path_can_use_current_directory_root(self):
+        """Protect resolve resource path can use current directory root behavior from regressions."""
         self.assertEqual(resolve_resource_path("foo.bywaf", Path(".")), Path("foo.bywaf"))
 
     def test_resolve_resource_path_preserves_explicit_paths(self):

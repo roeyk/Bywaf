@@ -49,6 +49,7 @@ class ExternalPluginCliSmokeTests(unittest.TestCase):
             self.assertEqual(report["commandlets"], ["smokeprobe"])
 
     def test_plugin_graph_script_reports_bundled_topic_relationships(self):
+        """Protect plugin graph script reports bundled topic relationships behavior from regressions."""
         result = run_python_script("scripts/plugin_graph.py", "--topic", "port.open")
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

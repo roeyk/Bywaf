@@ -73,6 +73,7 @@ class RepoExposureTests(unittest.TestCase):
         self.assertEqual(git_targets([], [event]), [event.payload])
 
     def test_candidate_payload_uses_normalized_finding_shape(self):
+        """Protect candidate payload uses normalized finding shape behavior from regressions."""
         result = base_result(
             {"url": "https://example.test/", "host": "example.test", "port": 443, "scheme": "https"},
             "https://example.test/.git/config",

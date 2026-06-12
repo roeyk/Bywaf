@@ -161,6 +161,7 @@ class WifiScanTests(unittest.TestCase):
         self.assertIn("--log-types", argv)
 
     def test_default_wifi_output_dir_is_durable_bywaf_state(self):
+        """Protect default wifi output dir is durable bywaf state behavior from regressions."""
         context = CommandContext(None, "wifi_scan", metadata={"command_run_id": "run-1"})
         self.assertEqual(wifi_output_dir(context, ""), Path(".bywaf/wireless/run-1"))
 

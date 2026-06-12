@@ -94,6 +94,7 @@ class StoreProtocolTests(unittest.TestCase):
             self.assertTrue(store.verify([artifact])[0].ok)
 
     def test_varstore_satisfies_variable_store_protocol(self):
+        """Protect varstore satisfies variable store protocol behavior from regressions."""
         store = VarStore()
         self.assertIsInstance(store, VariableStoreProtocol)
         store.set("global.example", "value")
