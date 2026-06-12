@@ -70,7 +70,11 @@ STRUCTURED_STYLE_FLAGS = frozenset(ANSI_STYLE_TOKENS)
 
 
 def ansi_color(text: str, style: str) -> str:
-    """Wrap text in ANSI SGR escapes when the requested style is known."""
+    """Wrap text in ANSI SGR escapes when the requested style is known.
+
+    Called by: REPL display helpers, report rendering, runtime table rendering,
+    and subject-styling helpers whenever user-configured styles are applied.
+    """
     code = ansi_style_code(style)
     if code is None:
         return text
@@ -78,7 +82,10 @@ def ansi_color(text: str, style: str) -> str:
 
 
 def ansi_style_code(style: str) -> str | None:
-    """Return one combined ANSI SGR sequence for color plus attributes."""
+    """Return one combined ANSI SGR sequence for color plus attributes.
+
+    Used by: `ansi_color()` and tests that validate the display-style language.
+    """
     # Style strings are whitespace-separated tokens. Each token can contribute
     # an attribute code, a foreground color, or be ignored if it is unknown.
     codes: list[str] = []
@@ -96,7 +103,11 @@ def ansi_style_code(style: str) -> str | None:
 
 
 def ansi_color_code(color: str) -> str | None:
-    """Return an SGR color code for a named, 256-color, or truecolor setting."""
+    """Return an SGR color code for a named, 256-color, or truecolor setting.
+
+    Used by: `ansi_style_code()` for foreground tokens and by callers that need
+    to validate one foreground color token directly.
+    """
     normalized = color.strip().casefold().replace("_", "-")
     if not normalized:
         return None
@@ -128,7 +139,11 @@ def ansi_color_code(color: str) -> str | None:
 
 
 def ansi_background_color_code(color: str) -> str | None:
-    """Return an SGR background color code for named, indexed, or truecolor input."""
+    """Return an SGR background color code for named, indexed, or truecolor input.
+
+    Used by: `ansi_color_code()` for `bg:` tokens and tests that validate
+    background-color parsing independently.
+    """
     normalized = color.strip().casefold().replace("_", "-")
     if not normalized:
         return None
@@ -150,9 +165,13 @@ def ansi_background_color_code(color: str) -> str | None:
 
 
 def parse_hex_color(raw: str) -> tuple[int, int, int] | None:
-    """Parse CSS-style `#RRGGBB` and `#RGB` colors for truecolor output."""
+    """Parse CSS-style `#RRGGBB` and `#RGB` colors for truecolor output.
+
+    Used by: foreground and background ANSI color parsers.
+    """
     value = raw.strip().removeprefix("#")
     if len(value) == 3:
+        # CSS short hex expands each nibble: #0f8 -> #00ff88.
         value = "".join(component * 2 for component in value)
     if len(value) != 6 or any(char not in "0123456789abcdef" for char in value):
         return None
@@ -160,10 +179,15 @@ def parse_hex_color(raw: str) -> tuple[int, int, int] | None:
 
 
 def parse_rgb_color(raw: str) -> tuple[int, int, int] | None:
-    """Parse `R,G,B` values for truecolor terminal output."""
+    """Parse `R,G,B` values for truecolor terminal output.
+
+    Used by: foreground and background `rgb:` token parsing.
+    """
     parts = raw.split(",")
     if len(parts) != 3:
         return None
+    # Parse each channel through the same bounded helper used by ANSI-256
+    # indexes so invalid or out-of-range channels reject the whole color.
     red = parse_color_int(parts[0], 0, 255)
     green = parse_color_int(parts[1], 0, 255)
     blue = parse_color_int(parts[2], 0, 255)
@@ -173,7 +197,10 @@ def parse_rgb_color(raw: str) -> tuple[int, int, int] | None:
 
 
 def parse_color_int(raw: str, minimum: int, maximum: int) -> int | None:
-    """Parse one bounded color integer."""
+    """Parse one bounded color integer.
+
+    Used by: ANSI-256 and truecolor parsing helpers.
+    """
     try:
         value = int(raw.strip())
     except ValueError:
@@ -207,7 +234,11 @@ def subject_style(getter, subject: str) -> str:
 
 
 def structured_subject_style(getter, key: str) -> str:
-    """Return a style assembled from `.foreground`, `.background`, and flags."""
+    """Return a style assembled from `.foreground`, `.background`, and flags.
+
+    Called by: `subject_style()` when a direct `display/style.<subject>` value
+    is absent but structured theme variables exist.
+    """
     tokens: list[str] = []
     # Structured variables are merged into the same token language accepted by
     # ansi_style_code(), keeping config storage and rendering paths unified.
@@ -224,14 +255,22 @@ def structured_subject_style(getter, key: str) -> str:
 
 
 def truthy_style_flag(value: object) -> bool:
-    """Return whether a structured style flag is enabled."""
+    """Return whether a structured style flag is enabled.
+
+    Used by: `structured_subject_style()` for `.bold`, `.underline`, and other
+    structured style flag variables.
+    """
     if isinstance(value, bool):
         return value
     return str(value).strip().casefold() in {"1", "true", "yes", "on"}
 
 
 def inherited_color_value(value: object) -> str:
-    """Return a color token, treating transparent-like values as inherited."""
+    """Return a color token, treating transparent-like values as inherited.
+
+    Used by: `structured_subject_style()` so theme authors can explicitly leave
+    foreground/background unset without emitting invalid color tokens.
+    """
     text = str(value).strip()
     if text.casefold() in {"", "transparent", "none", "inherit"}:
         return ""
@@ -239,7 +278,11 @@ def inherited_color_value(value: object) -> str:
 
 
 def styled_subject_text(getter, subject: str, value: object) -> str:
-    """Render a value using the style configured for its semantic subject."""
+    """Render a value using the style configured for its semantic subject.
+
+    Called by: runtime display paths that know the semantic subject but should
+    not duplicate style lookup and ANSI wrapping logic.
+    """
     text = str(value)
     style = subject_style(getter, subject)
     return ansi_color(text, style) if style else text
