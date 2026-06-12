@@ -32,11 +32,14 @@ def handle_plan_if_needed(
             context.output(f"{plugin.spec.name}: no plan available")
             return None
         return args
+    # plan() is a pre-execution hook: commandlets return a PlanReport that
+    # describes intended side effects before network/process work starts.
     report = planner(context, args, input_events)
     if not isinstance(report, PlanReport):
         raise ValueError(f"{plugin.spec.name} plan() must return PlanReport")
     must_approve = report.requires_confirmation or bool(report.warnings)
     if not invocation.plan_only and not must_approve:
+        # Safe, warning-free plans do not interrupt normal foreground flow.
         return args
     # From this point onward, the plan is visible to the operator or policy
     # layer, so publish a durable request before prompting or applying repairs.
@@ -45,6 +48,8 @@ def handle_plan_if_needed(
     context.output(format_plan_report(report))
     repaired_args = maybe_apply_plan_repair(context, request, report, invocation)
     if invocation.plan_only:
+        # --test/plan-only mode stops after audit and display. The commandlet
+        # never receives repaired or original execution args.
         return None
     if not must_approve:
         return repaired_args or args
@@ -54,6 +59,8 @@ def handle_plan_if_needed(
         publish_plan_decision(context, request, True, "cli-yes", "--yes")
         return repaired_args or args
     if context.background:
+        # Background jobs cannot prompt. Requiring --yes keeps unattended scans
+        # from silently accepting risky or repaired plans.
         publish_plan_decision(context, request, False, "background", "missing --yes")
         raise ValueError(f"{plugin.spec.name} plan requires --yes for background execution")
     answer = input("Approve this plan? type YES: ")
@@ -77,9 +84,13 @@ def maybe_apply_plan_repair(
     # considered until the UX supports choosing among multiple alternatives.
     repair = report.repairs[0]
     if invocation.approved:
+        # With --yes, accepting the plan also accepts the first suggested
+        # repair. This is the non-interactive path used by CI/background jobs.
         publish_plan_repair(context, request, repair, approved=True, method="cli-yes", answer="--yes")
         return list(repair.patched_args)
     if invocation.plan_only or context.background:
+        # Plan-only displays repair suggestions without changing args;
+        # background execution already failed above unless --yes was present.
         return None
     answer = input(f"Apply suggested repair '{repair.name}'? type YES: ")
     approved = answer == "YES"
@@ -91,6 +102,8 @@ def publish_plan_requested(context: CommandContext, report: PlanReport) -> Event
     """Persist the plan report shown to the operator."""
     if context._db is None:
         raise ValueError("plan auditing requires an active database")
+    # Store the rendered plan as structured evidence so later `audit` and
+    # `report` commands can explain what was approved or denied.
     return context._db.publish(
         "plan.requested",
         {
@@ -127,6 +140,8 @@ def publish_policy_evaluated(context: CommandContext, request: Event, report: Pl
     """Persist the framework policy decision for a plan."""
     if context._db is None:
         raise ValueError("policy auditing requires an active database")
+    # The current policy model is binary at this layer: warning-bearing plans
+    # are still allowed to proceed, but require explicit approval.
     decision = "warn" if report.warnings else "allow"
     return context._db.publish(
         "policy.evaluated",
@@ -205,6 +220,8 @@ def format_plan_report(report: PlanReport) -> str:
     """Return a compact human-readable plan report."""
     lines = [f"Plan: {report.action}", report.summary]
     if report.items:
+        # Items are usually targets or intended operations; keep them one per
+        # line so an operator can scan exactly what will be touched.
         lines.append("Items:")
         lines.extend(f"  {item.kind}: {item.value}" for item in report.items)
     if report.warnings:
