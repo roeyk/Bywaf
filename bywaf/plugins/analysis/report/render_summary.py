@@ -108,6 +108,10 @@ def report_rendered_payload(
     """
     # Keep the audit payload compact and referential: store event IDs and group
     # IDs rather than repeating full finding payloads already in the event log.
+    #
+    # The action field is derived from the mutually exclusive selector state:
+    # explicit job/pipeline/step selectors are "show", the delta view is "new",
+    # and the default view is the operator's report inbox.
     return {
         "action": action or ("show" if any((parsed.job, parsed.pipeline, parsed.step)) else "new" if getattr(parsed, "new", False) else "inbox"),
         "job": parsed.job,
@@ -136,8 +140,14 @@ def order_report_groups(
     # optional orderings only promote review states without re-sorting the whole
     # report by unrelated fields.
     if getattr(parsed, "accepted_first", False):
+        # Sort key shape: accepted groups first, then original event chronology.
+        # This lets a reviewer confirm what has already been accepted without
+        # losing the stable ordering inside that bucket.
         return sorted(groups, key=lambda group: (review_status(group, decisions) != "accepted", first_group_event_id(group)))
     if getattr(parsed, "candidates_first", False):
+        # Sort key shape: candidate/potential groups first, then original event
+        # chronology. Confirmed findings are not demoted by severity here; this
+        # mode is specifically for triaging uncertain evidence.
         return sorted(groups, key=lambda group: (not group_has_candidate_status(group), first_group_event_id(group)))
     return groups
 
@@ -161,6 +171,8 @@ def first_group_event_id(group: FindingGroup) -> int:
     Used by: optional report ordering modes to preserve original chronology
     inside promoted review-state buckets.
     """
+    # Event IDs are assigned by the store, so the minimum event ID is the
+    # earliest persisted evidence in the group.
     return min((event.id or 0) for event in group.events)
 
 
@@ -169,6 +181,9 @@ def group_has_candidate_status(group: FindingGroup) -> bool:
 
     Used by: `order_report_groups()` when `candidates_first` is selected.
     """
+    # A group can be candidate-like either by its event topic or by a normalized
+    # status field inside the effective finding payload. Checking both keeps
+    # older and newer finding producers compatible with report ordering.
     return any(
         event.topic in {"finding.candidate", "finding.merge_candidate"}
         or str(effective_finding_payload(event).get("status") or "").casefold() in {"candidate", "potential"}
@@ -197,6 +212,8 @@ def review_summary_line(
         return summary
     # Severity classes are appended only when useful so simple reports do not
     # grow an empty second summary line.
+    # The class order is fixed by `SEVERITY_CLASS_ORDER`, which keeps report
+    # summaries visually stable even when dict insertion order varies upstream.
     class_summary = ", ".join(
         f"{severity_counts[item]} {item}"
         for item in SEVERITY_CLASS_ORDER
@@ -233,6 +250,8 @@ def resume_focus_line(groups: list[FindingGroup], decisions: Mapping[str, Review
     if not open_groups:
         return ""
     counts = severity_class_counts(open_groups)
+    # Use broad classes rather than exact severities so the line stays short
+    # enough to act as a prompt for the next review action.
     class_summary = ", ".join(
         f"{counts[item]} {item}"
         for item in SEVERITY_CLASS_ORDER

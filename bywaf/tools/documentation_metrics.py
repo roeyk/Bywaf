@@ -222,6 +222,14 @@ def collect_documentation_impact(
         reasons: list[str] = []
         score = 0
 
+        # Impact scoring is intentionally additive and explainable. Each score
+        # contribution adds a reason string so the caller can show why a related
+        # doc was suggested instead of presenting an opaque similarity number.
+        #
+        # Direct links dominate the score because they are explicit maintainer
+        # intent. Shared headings/terms/stale terms are weaker hints that catch
+        # drift in docs that discuss the same concepts without linking.
+
         # Direct links are the strongest evidence that two docs should be
         # reviewed together after one changes.
         if path in source_links:
@@ -331,9 +339,14 @@ def markdown_documents(repo_root: Path, docs_root: Path) -> set[Path]:
         if root.is_file() and root.suffix == ".md":
             paths.add(root.resolve())
             continue
+        # Top-level Markdown files are public documentation too, but only one
+        # level is scanned at repo root so private support trees or generated
+        # artifacts outside `docs/` do not pollute the public-doc metrics.
         for path in root.glob("*.md"):
             paths.add(path.resolve())
     if docs_root.exists():
+        # The `docs/` tree is intentionally recursive because role guides,
+        # plugin-author docs, and subsystem references live below it.
         paths.update(path.resolve() for path in docs_root.rglob("*.md"))
     return paths
 

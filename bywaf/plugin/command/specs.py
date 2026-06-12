@@ -66,6 +66,10 @@ def spec_from_manifest(path: str | Path, commandlet_name: str) -> CommandSpec:
     # completion, help text, plugin checking, and docs generation. Keep this
     # constructor visibly parallel to the manifest fields so contract drift is
     # easy to spot during code review.
+    #
+    # Important boundary: this function intentionally does not build argparse
+    # parser behavior. It exposes stable public metadata; parser-only details
+    # such as `nargs` are handled separately by `manifest_args_from_toml()`.
     return CommandSpec(
         name=commandlet_name,
         description=str(row.get("description") or ""),
@@ -92,6 +96,9 @@ def manifest_args_from_toml(path: str | Path, commandlet_name: str) -> tuple[dic
     """
     data = tomllib.loads(Path(path).read_text(encoding="utf-8"))
     row = manifest_commandlet_row(data, commandlet_name)
+    # Return raw dict rows because argparse needs fields that the public
+    # ArgumentSpec deliberately hides, especially nargs and future parser-only
+    # extensions. Keeping this raw path separate avoids bloating CommandSpec.
     return tuple(item for item in row.get("arguments", ()) if isinstance(item, dict))
 
 
@@ -172,6 +179,9 @@ def manifest_option_default(option_spec: OptionSpec) -> Any:
     """
     if option_spec.default is None:
         return None
+    # CommandSpec stores defaults as strings for display and plugin-check
+    # stability. argparse gets the typed version here, using the same cast path
+    # as command-line values.
     return manifest_option_cast(option_spec)(option_spec.default)
 
 
@@ -182,6 +192,9 @@ def manifest_option_cast(option_spec: OptionSpec):
     values consistent with manifest type declarations.
     """
     value_type = option_spec.value_type
+    # This is the manifest type dispatch table in compact if-form. It is kept
+    # small because plugin manifests intentionally expose only a few primitive
+    # option types; richer validation belongs in commandlet code.
     if value_type == "int":
         return int
     if value_type == "optional-int":
@@ -223,6 +236,10 @@ def kv_args_to_options(args: Sequence[str], option_names: set[str]) -> list[str]
     for arg in args:
         key, separator, value = arg.partition("=")
         if separator and key in option_names:
+            # argparse only recognizes optional values with a leading `--`, but
+            # Bywaf's operator-facing syntax is key=value. Rewriting here lets
+            # commandlets use normal argparse declarations without exposing
+            # argparse syntax as the public CLI contract.
             converted.append(f"--{key}={value}")
         else:
             converted.append(arg)
