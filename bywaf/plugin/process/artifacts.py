@@ -2,6 +2,9 @@
 
 Provides small query helpers for wrapper plugins that need to link their
 operational error events back to framework-mediated process transcripts.
+
+Used by:
+- plugin authors, command contexts, plugin checks, and runner commandlet execution.
 """
 
 from __future__ import annotations

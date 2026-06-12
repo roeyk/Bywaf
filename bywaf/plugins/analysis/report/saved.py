@@ -1,4 +1,8 @@
-"""Saved report scope helpers."""
+"""Saved report scope helpers.
+
+Used by:
+- bundled plugin providers and commandlets that publish or consume framework events.
+"""
 
 from __future__ import annotations
 

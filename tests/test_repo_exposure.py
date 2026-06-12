@@ -4,7 +4,10 @@ Provides pytest coverage for bundled source-control metadata exposure plugins.
 
 Used by:
 - pytest and CI: detect regressions in HTTP repository exposure checks.
-- maintainers: document expected event and finding payload behavior."""
+- maintainers: document expected event and finding payload behavior.
+
+Coverage focus: repo exposure regression behavior.
+"""
 
 from __future__ import annotations
 

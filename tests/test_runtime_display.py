@@ -5,7 +5,10 @@ or user-visible behavior.
 
 Used by:
 - pytest and CI: detect regressions in this subsystem.
-- maintainers: document expected behavior through executable examples."""
+- maintainers: document expected behavior through executable examples.
+
+Coverage focus: runtime display regression behavior.
+"""
 
 from datetime import datetime
 import unittest

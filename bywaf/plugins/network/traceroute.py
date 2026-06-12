@@ -10,6 +10,9 @@ Emits:
 - `host.found` for the traced target, so downstream commandlets can continue
   working on the intended host.
 - `network.route.hop` events, one per hop and target.
+
+Used by:
+- bundled plugin providers and commandlets that publish or consume framework events.
 """
 
 from __future__ import annotations

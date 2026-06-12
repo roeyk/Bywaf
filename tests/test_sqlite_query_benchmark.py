@@ -1,4 +1,7 @@
-"""Tests for SQLite query benchmark helpers."""
+"""Tests for SQLite query benchmark helpers.
+
+Coverage focus: sqlite query benchmark regression behavior.
+"""
 
 from pathlib import Path
 import tempfile

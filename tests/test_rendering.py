@@ -5,7 +5,10 @@ or user-visible behavior.
 
 Used by:
 - pytest and CI: detect regressions in this subsystem.
-- maintainers: document expected behavior through executable examples."""
+- maintainers: document expected behavior through executable examples.
+
+Coverage focus: rendering regression behavior.
+"""
 
 import contextlib
 import io

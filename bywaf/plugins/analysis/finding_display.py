@@ -1,4 +1,8 @@
-"""Shared compact display helpers for finding-oriented reports."""
+"""Shared compact display helpers for finding-oriented reports.
+
+Used by:
+- bundled plugin providers and commandlets that publish or consume framework events.
+"""
 
 from __future__ import annotations
 

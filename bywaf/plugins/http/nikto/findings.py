@@ -1,4 +1,8 @@
-"""Nikto finding normalization and publication helpers."""
+"""Nikto finding normalization and publication helpers.
+
+Used by:
+- bundled plugin providers and commandlets that publish or consume framework events.
+"""
 
 from __future__ import annotations
 

@@ -32,6 +32,7 @@ OPTION_KEYS = {"password", "port", "timeout", "username"}
 @option("timeout", "connection timeout seconds", "5")
 @option("username", "SSH username")
 class SshProbe(CommandletBase):
+    """Commandlet that probes SSH endpoints and emits authentication/service facts."""
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Probe SSH hosts from args or upstream port events."""
         parser = self.parser()

@@ -32,6 +32,7 @@ OPTION_KEYS = {"community", "oid", "port", "timeout"}
 @option("port", "SNMP UDP port", "161")
 @option("timeout", "timeout seconds", "5")
 class SnmpGet(CommandletBase):
+    """Commandlet that reads SNMP OIDs and emits structured SNMP values."""
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Read one OID from one or more hosts."""
         del input_events

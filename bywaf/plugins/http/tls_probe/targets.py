@@ -1,4 +1,8 @@
-"""Target resolution helpers for the TLS probe commandlet."""
+"""Target resolution helpers for the TLS probe commandlet.
+
+Used by:
+- bundled plugin providers and commandlets that publish or consume framework events.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,8 @@
-"""Prompt-toolkit completion keybinding helpers."""
+"""Prompt-toolkit completion keybinding helpers.
+
+Used by:
+- completion engines and prompt UI helpers for interactive command entry.
+"""
 
 # pyright: reportMissingImports=false, reportGeneralTypeIssues=false
 

@@ -3,6 +3,9 @@
 Called by: `BuiltinCompletionMixin.vars_candidates()` and
 `BuiltinCompletionMixin.setg_candidates()` to keep variable-scope completion
 separate from command/resource completion logic.
+
+Used by:
+- completion engines and prompt UI helpers for interactive command entry.
 """
 
 from __future__ import annotations

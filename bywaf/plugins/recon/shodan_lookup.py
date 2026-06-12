@@ -31,6 +31,7 @@ OPTION_KEYS = {"api-key", "limit", "mode"}
 @option("limit", "maximum search results", "10")
 @option("mode", "lookup mode", "host", ("host", "search"))
 class ShodanLookup(CommandletBase):
+    """Commandlet that queries Shodan and emits host/search facts."""
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Run a Shodan host lookup or search query."""
         del input_events

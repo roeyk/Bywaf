@@ -5,7 +5,10 @@ across REPL, audit, notes, and runtime listings.
 
 Used by:
 - pytest and CI: detect formatting drift across user-facing commands.
-- maintainers: document the canonical timestamp shapes."""
+- maintainers: document the canonical timestamp shapes.
+
+Coverage focus: time format regression behavior.
+"""
 
 from datetime import datetime, timezone
 import unittest

@@ -1,7 +1,11 @@
 """Bywaf package metadata.
 
 Provides package-level version information and marks the source tree as the
-importable `bywaf` package."""
+importable `bywaf` package.
+
+Used by:
+- Bywaf application code and tests that import this public module surface.
+"""
 
 
 __version__ = "0.13.0"

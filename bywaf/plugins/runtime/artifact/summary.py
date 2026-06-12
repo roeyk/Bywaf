@@ -1,4 +1,8 @@
-"""Compact artifact summaries for operator-facing detail views."""
+"""Compact artifact summaries for operator-facing detail views.
+
+Used by:
+- bundled plugin providers and commandlets that publish or consume framework events.
+"""
 
 from __future__ import annotations
 

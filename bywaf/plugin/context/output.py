@@ -1,4 +1,8 @@
-"""Output, progress, and paging helpers for CommandContext."""
+"""Output, progress, and paging helpers for CommandContext.
+
+Used by:
+- plugin authors, command contexts, plugin checks, and runner commandlet execution.
+"""
 
 # pyright: reportAttributeAccessIssue=false, reportArgumentType=false
 

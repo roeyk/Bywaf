@@ -1,4 +1,8 @@
-"""Result models for framework-mediated process execution."""
+"""Result models for framework-mediated process execution.
+
+Used by:
+- plugin authors, command contexts, plugin checks, and runner commandlet execution.
+"""
 
 from __future__ import annotations
 

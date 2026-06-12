@@ -2,6 +2,9 @@
 
 Converts port, banner, HTTP, and TLS facts into a common `service.detected`
 view for downstream reporting and follow-up plugins.
+
+Used by:
+- bundled plugin providers and commandlets that publish or consume framework events.
 """
 
 from __future__ import annotations

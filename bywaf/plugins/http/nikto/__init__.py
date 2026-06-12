@@ -78,6 +78,7 @@ DEFAULTS = {
 @option("timeout", "seconds per target", "300")
 @option("tuning", "Nikto tuning selector")
 class Nikto(CommandletBase):
+    """Wrapped-process commandlet for Nikto web vulnerability scans."""
     def run(
         self,
         context: CommandContext,

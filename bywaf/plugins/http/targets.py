@@ -3,6 +3,9 @@
 This module is the common parsing boundary for simple HTTP-family plugins. It
 keeps URL/host/port/scheme decisions out of individual commandlets so wrappers
 such as WafW00f, Nikto, and HTTP probes can share the same target behavior.
+
+Used by:
+- bundled plugin providers and commandlets that publish or consume framework events.
 """
 
 from __future__ import annotations

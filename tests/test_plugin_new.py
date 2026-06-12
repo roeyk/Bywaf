@@ -1,4 +1,7 @@
-"""Tests for the filesystem plugin scaffold command."""
+"""Tests for the filesystem plugin scaffold command.
+
+Coverage focus: plugin new regression behavior.
+"""
 
 from __future__ import annotations
 

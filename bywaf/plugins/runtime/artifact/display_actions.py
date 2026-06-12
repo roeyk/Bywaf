@@ -2,6 +2,9 @@
 
 Called by: `runtime.artifact.actions` compatibility exports and the bundled
 `artifact` command dispatch table for show/cat/export behavior.
+
+Used by:
+- bundled plugin providers and commandlets that publish or consume framework events.
 """
 
 from __future__ import annotations

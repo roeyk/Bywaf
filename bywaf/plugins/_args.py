@@ -1,4 +1,8 @@
-"""Compatibility imports for bundled plugin argument helpers."""
+"""Compatibility imports for bundled plugin argument helpers.
+
+Used by:
+- bundled plugin providers and commandlets that publish or consume framework events.
+"""
 
 
 from __future__ import annotations

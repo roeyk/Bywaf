@@ -65,6 +65,7 @@ class ExpandedTargets:
 @option("limit", "maximum live hosts to emit", "256")
 @option("silent", "suppress discovery alerts", "false")
 class HostScanner(CommandletBase):
+    """Commandlet that discovers live hosts and emits host facts."""
     def plan(
         self,
         context: CommandContext,

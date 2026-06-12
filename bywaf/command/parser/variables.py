@@ -1,4 +1,8 @@
-"""Variable expansion helpers for command parsing."""
+"""Variable expansion helpers for command parsing.
+
+Used by:
+- command parsing and pipeline dispatch code before commandlets execute.
+"""
 
 from __future__ import annotations
 

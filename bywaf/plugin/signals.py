@@ -1,4 +1,8 @@
-"""Plugin-facing live-control signal helpers."""
+"""Plugin-facing live-control signal helpers.
+
+Used by:
+- plugin authors, command contexts, plugin checks, and runner commandlet execution.
+"""
 
 from __future__ import annotations
 

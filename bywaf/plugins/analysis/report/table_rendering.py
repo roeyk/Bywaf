@@ -2,6 +2,9 @@
 
 Called by: `analysis.report.render` after `report.tables` builds a `Table`
 model for finding-grouped or host-grouped rows.
+
+Used by:
+- bundled plugin providers and commandlets that publish or consume framework events.
 """
 
 from __future__ import annotations

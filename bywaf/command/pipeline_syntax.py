@@ -1,4 +1,8 @@
-"""Pipeline-level command syntax helpers."""
+"""Pipeline-level command syntax helpers.
+
+Used by:
+- command parsing and pipeline dispatch code before commandlets execute.
+"""
 
 from __future__ import annotations
 

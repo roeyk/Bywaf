@@ -1,3 +1,7 @@
+"""Test bundled plugin manual check.
+
+Coverage focus: bundled plugin manual check regression behavior.
+"""
 from pathlib import Path
 
 from bywaf.tools.bundled_plugin_manual_check import check_manual

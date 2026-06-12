@@ -1,4 +1,7 @@
-"""Tests for SQLite contention benchmark helpers."""
+"""Tests for SQLite contention benchmark helpers.
+
+Coverage focus: sqlite contention benchmark regression behavior.
+"""
 
 from pathlib import Path
 import tempfile

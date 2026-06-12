@@ -3,6 +3,9 @@
 Called by: `report.details.render_group_details()` when a selected finding
 group has step or pipeline artifacts that should be shown alongside evidence
 and provenance.
+
+Used by:
+- bundled plugin providers and commandlets that publish or consume framework events.
 """
 
 from __future__ import annotations

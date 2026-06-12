@@ -2,6 +2,9 @@
 
 This package-local module keeps the large built-in topic table separate from
 the validation and object-conversion helpers exported by `bywaf.event.schemas`.
+
+Used by:
+- EventStore, schema validation, and runtime/report display helpers.
 """
 
 from __future__ import annotations

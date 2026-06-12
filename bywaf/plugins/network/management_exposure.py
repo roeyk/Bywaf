@@ -2,6 +2,9 @@
 
 Promotes existing service, port, banner, and web fingerprint facts into
 candidate findings when they indicate exposed administrative surfaces.
+
+Used by:
+- bundled plugin providers and commandlets that publish or consume framework events.
 """
 
 from __future__ import annotations

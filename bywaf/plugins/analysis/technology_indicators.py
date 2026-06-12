@@ -2,6 +2,9 @@
 
 Promotes existing banner, service, endpoint, and web fingerprint facts into
 candidate findings when they match a small curated vulnerable-version table.
+
+Used by:
+- bundled plugin providers and commandlets that publish or consume framework events.
 """
 
 from __future__ import annotations

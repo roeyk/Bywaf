@@ -1,4 +1,8 @@
-"""Runtime event selector completion helpers."""
+"""Runtime event selector completion helpers.
+
+Used by:
+- completion engines and prompt UI helpers for interactive command entry.
+"""
 
 from __future__ import annotations
 

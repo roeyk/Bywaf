@@ -2,6 +2,9 @@
 
 Provides the event value object, shared event schemas, schema-backed objects,
 and payload-filter helpers used by stores, plugins, reports, and REPL views.
+
+Used by:
+- EventStore, schema validation, and runtime/report display helpers.
 """
 
 from .model import Event

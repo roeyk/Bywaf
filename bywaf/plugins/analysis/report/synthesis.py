@@ -2,6 +2,9 @@
 
 Runs approved fact-only analyzers before report rendering without moving their
 rule logic into the report commandlet.
+
+Used by:
+- bundled plugin providers and commandlets that publish or consume framework events.
 """
 
 from __future__ import annotations

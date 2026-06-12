@@ -2,6 +2,9 @@
 
 Provides stable imports for key management commandlets, bundle signing, and
 completion while implementation lives in focused keyring modules.
+
+Used by:
+- Bywaf application code and tests that import this public module surface.
 """
 
 from __future__ import annotations

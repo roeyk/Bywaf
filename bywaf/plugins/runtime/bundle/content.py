@@ -1,4 +1,8 @@
-"""Bundle manifest and content selection helpers."""
+"""Bundle manifest and content selection helpers.
+
+Used by:
+- bundled plugin providers and commandlets that publish or consume framework events.
+"""
 
 from __future__ import annotations
 

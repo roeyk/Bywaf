@@ -1,4 +1,8 @@
 """Reconnaissance plugin package.
 
 Groups bundled commandlets that enrich targets through external or DNS-based
-reconnaissance."""
+reconnaissance.
+
+Used by:
+- bundled plugin providers and commandlets that publish or consume framework events.
+"""

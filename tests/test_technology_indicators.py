@@ -1,4 +1,7 @@
-"""Tests for passive technology/version indicator findings."""
+"""Tests for passive technology/version indicator findings.
+
+Coverage focus: technology indicators regression behavior.
+"""
 
 from __future__ import annotations
 

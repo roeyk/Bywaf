@@ -1,4 +1,8 @@
-"""Small parsing helpers for plugin commandlets."""
+"""Small parsing helpers for plugin commandlets.
+
+Used by:
+- plugin authors, command contexts, plugin checks, and runner commandlet execution.
+"""
 
 from __future__ import annotations
 

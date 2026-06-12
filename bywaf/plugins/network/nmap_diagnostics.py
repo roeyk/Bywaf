@@ -1,4 +1,8 @@
-"""Structured diagnostics for nmap-backed plugins."""
+"""Structured diagnostics for nmap-backed plugins.
+
+Used by:
+- bundled plugin providers and commandlets that publish or consume framework events.
+"""
 
 from __future__ import annotations
 

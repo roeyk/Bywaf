@@ -1,4 +1,8 @@
-"""Delta selection helpers for report inventory views."""
+"""Delta selection helpers for report inventory views.
+
+Used by:
+- bundled plugin providers and commandlets that publish or consume framework events.
+"""
 
 from __future__ import annotations
 

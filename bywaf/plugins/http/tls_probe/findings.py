@@ -1,4 +1,8 @@
-"""Safe TLS certificate hygiene finding synthesis."""
+"""Safe TLS certificate hygiene finding synthesis.
+
+Used by:
+- bundled plugin providers and commandlets that publish or consume framework events.
+"""
 
 from __future__ import annotations
 

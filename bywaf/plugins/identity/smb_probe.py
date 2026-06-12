@@ -32,6 +32,7 @@ OPTION_KEYS = {"domain", "password", "port", "timeout", "username"}
 @option("timeout", "connection timeout seconds", "5")
 @option("username", "SMB username")
 class SmbProbe(CommandletBase):
+    """Commandlet that probes SMB endpoints and emits share/server facts."""
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Connect to SMB and publish server metadata."""
         del input_events

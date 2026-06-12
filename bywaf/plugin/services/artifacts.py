@@ -1,4 +1,8 @@
-"""Artifact service helpers for plugin command contexts."""
+"""Artifact service helpers for plugin command contexts.
+
+Used by:
+- plugin authors, command contexts, plugin checks, and runner commandlet execution.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,8 @@
-"""Curated passive vulnerable-version indicator rules."""
+"""Curated passive vulnerable-version indicator rules.
+
+Used by:
+- bundled plugin providers and commandlets that publish or consume framework events.
+"""
 
 from __future__ import annotations
 

@@ -6,6 +6,8 @@ without live internet dependencies.
 Used by:
 - pytest and CI: keep the bundled plugin suite composable.
 - maintainers: document the expected event flow through the MVP chain.
+
+Coverage focus: mvp plugin suite regression behavior.
 """
 
 from __future__ import annotations

@@ -29,6 +29,7 @@ OPTION_KEYS = {"rule"}
 )
 @option("rule", "YARA rule file", completion="path")
 class YaraScan(CommandletBase):
+    """Commandlet that runs YARA rules and emits match events."""
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Compile a YARA rule file and scan files."""
         del input_events

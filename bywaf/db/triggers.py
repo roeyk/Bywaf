@@ -16,6 +16,7 @@ from ..time_format import bywaf_now_iso
 from .backends import DatabaseConnection
 
 class EventStoreTriggerMixin:
+    """Adds trigger state persistence methods to `EventStore`."""
     @contextmanager
     def connect(self) -> Iterator[DatabaseConnection]:
         """Implemented by EventStore."""

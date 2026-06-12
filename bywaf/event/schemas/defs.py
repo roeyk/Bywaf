@@ -3,6 +3,9 @@
 These small immutable objects are used by the framework schema catalog,
 plugin manifest parsing, runtime schema views, and plugin-check diagnostics.
 The heavier registry and validation helpers live in `bywaf.event.schemas`.
+
+Used by:
+- EventStore, schema validation, and runtime/report display helpers.
 """
 
 from __future__ import annotations

@@ -60,6 +60,7 @@ DEFAULTS = {
 @option("port", "optional comma/range port list; omit for nmap top ports")
 @option("silent", "suppress discovery alerts", "false")
 class PortScanner(CommandletBase):
+    """Commandlet that scans target ports and emits open-port facts."""
     def run(
         self,
         context: CommandContext,

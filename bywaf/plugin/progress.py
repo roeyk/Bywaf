@@ -1,4 +1,8 @@
-"""Progress payload and throttle helpers for command contexts."""
+"""Progress payload and throttle helpers for command contexts.
+
+Used by:
+- plugin authors, command contexts, plugin checks, and runner commandlet execution.
+"""
 
 from __future__ import annotations
 

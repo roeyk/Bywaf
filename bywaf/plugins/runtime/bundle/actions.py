@@ -1,4 +1,8 @@
-"""Action handlers and completion helpers for the runtime `bundle` command."""
+"""Action handlers and completion helpers for the runtime `bundle` command.
+
+Used by:
+- bundled plugin providers and commandlets that publish or consume framework events.
+"""
 
 from __future__ import annotations
 

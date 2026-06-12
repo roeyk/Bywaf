@@ -2,6 +2,9 @@
 
 Called by: `paths.findings.finding_for_path()` exports and `http_paths` when an
 observed path should become a structured finding.
+
+Used by:
+- bundled plugin providers and commandlets that publish or consume framework events.
 """
 
 from __future__ import annotations

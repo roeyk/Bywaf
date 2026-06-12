@@ -72,6 +72,7 @@ DEFAULTS = {
 @option("timeout", "request timeout seconds", "5")
 @option("user-agent", "HTTP User-Agent", "Bywaf/0.9")
 class HttpProbe(CommandletBase):
+    """Commandlet that probes HTTP endpoints and emits endpoint facts."""
     def run(
         self,
         context: CommandContext,
@@ -223,6 +224,7 @@ def extract_title(body: bytes) -> str:
 
 
 class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """urllib handler used by `HttpProbe` to observe redirects without following them."""
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         """Tell urllib not to follow redirects by returning None."""
         return None

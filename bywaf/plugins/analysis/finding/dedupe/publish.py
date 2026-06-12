@@ -1,4 +1,8 @@
-"""Publication and summary helpers for finding deduplication."""
+"""Publication and summary helpers for finding deduplication.
+
+Used by:
+- bundled plugin providers and commandlets that publish or consume framework events.
+"""
 
 from __future__ import annotations
 

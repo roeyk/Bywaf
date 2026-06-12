@@ -1,4 +1,8 @@
-"""HTTP path probing commandlet."""
+"""HTTP path probing commandlet.
+
+Used by:
+- bundled plugin providers and commandlets that publish or consume framework events.
+"""
 
 from __future__ import annotations
 

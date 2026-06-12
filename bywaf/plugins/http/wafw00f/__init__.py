@@ -3,6 +3,9 @@
 This plugin wraps the external `wafw00f` binary and normalizes its output into
 Bywaf's shared `web.waf.detected` schema. Raw stdout/stderr are retained by the
 framework process service as process transcript artifacts.
+
+Used by:
+- bundled plugin providers and commandlets that publish or consume framework events.
 """
 
 from __future__ import annotations

@@ -33,6 +33,7 @@ OPTION_KEYS = {"base-dn", "password", "port", "ssl", "timeout", "username"}
 @option("timeout", "connection timeout seconds", "5")
 @option("username", "LDAP username")
 class LdapProbe(CommandletBase):
+    """Commandlet that probes LDAP endpoints and emits directory service facts."""
     def run(self, context: CommandContext, args: list[str], input_events: Iterable[Event]):
         """Bind to LDAP and publish server metadata."""
         del input_events
