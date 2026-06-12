@@ -52,6 +52,7 @@ class TestManifestBasicsTests(unittest.TestCase):
             self.assertIn("manifest has unknown key(s): capabilities", report["errors"][0])
 
     def test_check_plugin_rejects_unknown_plugin_keys(self):
+        """Protect check plugin rejects unknown plugin keys behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(Path(tmp), capabilities=())
             manifest = plugin_dir.joinpath("bywaf.plugin.toml")

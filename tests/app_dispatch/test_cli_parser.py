@@ -46,6 +46,7 @@ class CliParserTests(unittest.TestCase):
         self.assertEqual(args.database, ".bywaf/bywaf.sqlite3")
 
     def test_database_argument_detection(self):
+        """Protect database argument detection behavior from regressions."""
         self.assertFalse(database_argument_is_explicit(["repl"]))
         self.assertTrue(database_argument_is_explicit(["--database", "client.sqlite3", "repl"]))
         self.assertTrue(database_argument_is_explicit(["--database=client.sqlite3", "repl"]))

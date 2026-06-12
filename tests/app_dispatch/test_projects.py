@@ -61,6 +61,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("port.open", output.getvalue())
 
     def test_extract_startup_project_peels_project_selector(self):
+        """Protect extract startup project peels project selector behavior from regressions."""
         project, argv = extract_startup_project(["project=client-a", "--new", "repl"])
         self.assertEqual(project, "client-a")
         self.assertEqual(argv, ["--new", "repl"])

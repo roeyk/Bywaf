@@ -73,6 +73,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("192.0.2.20", text)
 
     def test_event_follow_once_reads_job_scope(self):
+        """Protect event follow once reads job scope behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("portscanner", 123, "running")

@@ -33,6 +33,7 @@ class ConfigPluginSpecTests(unittest.TestCase):
         self.assertEqual(spec.emits, ())
 
     def test_argument_spec_defaults(self):
+        """Protect argument spec defaults behavior from regressions."""
         argument = ArgumentSpec("path")
         self.assertTrue(argument.required)
         self.assertEqual(argument.completion, CompletionSpec())

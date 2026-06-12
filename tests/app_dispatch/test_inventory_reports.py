@@ -276,6 +276,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("Representative events", text)
 
     def test_results_renders_screenshots_smb_shares_and_artifacts(self):
+        """Protect results renders screenshots SMB shares and artifacts behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.record_job("web/screenshotter 192.0.2.20", 123, "finished")

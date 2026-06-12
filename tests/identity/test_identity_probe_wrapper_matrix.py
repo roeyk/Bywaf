@@ -77,6 +77,7 @@ class SmbProbeWrapperMatrixTests(TestCase):
             self.assertIn("connection refused", server["error"])
 
     def test_smb_probe_preserves_login_failure_as_server_error(self):
+        """Protect SMB probe preserves login failure as server error behavior from regressions."""
         fake_conn = Mock()
         fake_conn.login.side_effect = RuntimeError("logon failure")
         fake_smb = SimpleNamespace(SMBConnection=Mock(return_value=fake_conn))

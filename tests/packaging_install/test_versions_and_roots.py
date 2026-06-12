@@ -60,6 +60,7 @@ class PackagingInstallVersionAndRootTests(unittest.TestCase):
             self.assertEqual(runner.registry.varstore.get("local/userprobe.origin"), "user-local")
 
     def test_system_wide_shaped_plugin_root_loads_from_config(self):
+        """Protect system wide shaped plugin root loads from config behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "usr", "share", "bywaf", "plugins")
             write_plugin(root, "site/systemprobe", "systemprobe", "system-wide")

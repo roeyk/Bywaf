@@ -77,6 +77,7 @@ class RegistryManifestSchemaTests(unittest.TestCase):
         self.assertIn('payload_equals = { kind = "demo" }', text)
 
     def test_plugin_manifest_tool_can_render_event_schemas(self):
+        """Protect plugin manifest tool can render event schemas behavior from regressions."""
         class Example:
             spec = CommandSpec("example", "example plugin")
 

@@ -159,6 +159,7 @@ class ReportGroupingTests(unittest.TestCase):
             self.assertIn("Latest update:", text)
 
     def test_report_review_marker_matches_raw_finding_id_inside_group_key_group(self):
+        """Protect report review marker matches raw finding id inside group key group behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.publish(

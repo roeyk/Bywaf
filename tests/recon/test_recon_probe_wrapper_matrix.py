@@ -79,6 +79,7 @@ class ShodanWrapperMatrixTests(TestCase):
             self.assertEqual(error["message"], "missing Shodan API key")
 
     def test_shodan_lookup_preserves_api_failure_as_tool_error(self):
+        """Protect shodan lookup preserves API failure as tool error behavior from regressions."""
         fake_api = Mock()
         fake_api.host.side_effect = RuntimeError("quota exceeded")
         fake_shodan = SimpleNamespace(Shodan=Mock(return_value=fake_api))

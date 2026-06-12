@@ -189,6 +189,7 @@ class StorageRunnerArtifactTests(unittest.TestCase):
             self.assertTrue(runner.db.events_for_topic("artifact.attached"))
 
     def test_artifact_list_filters_by_topic_selector(self):
+        """Protect artifact list filters by topic selector behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db_path = Path(tmp, "db.sqlite3")
             source = Path(tmp, "snapshot.html")

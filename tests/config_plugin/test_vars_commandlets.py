@@ -54,6 +54,7 @@ class ConfigPluginVarsCommandletTests(unittest.TestCase):
             context.vars.get_provider("proxy")
 
     def test_effective_run_vars_include_immediate_provider_only(self):
+        """Protect effective run vars include immediate provider only behavior from regressions."""
         store = VarStore()
         store.set("cloud/aws.region", "us-east-1")
         store.set("cloud/aws/s3.bucket-list", "common.txt")

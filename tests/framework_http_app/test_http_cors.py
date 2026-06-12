@@ -48,6 +48,7 @@ class TestHttpCorsTests(unittest.TestCase):
         self.assertTrue(result["credentials_allowed"])
 
     def test_http_cors_probe_returns_error_payload(self):
+        """Protect HTTP cors probe returns error payload behavior from regressions."""
         target = CorsTarget("http://example.test/", "example.test", 80, "http", "/")
         with patch("bywaf.plugins.http.cors.http.client.HTTPConnection", ErrorConnection):
             result = probe_cors(

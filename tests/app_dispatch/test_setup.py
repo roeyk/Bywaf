@@ -65,6 +65,7 @@ class SetupCliTests(unittest.TestCase):
                 self.assertFalse(Path(tmp, ".bywaf", "projects", "default", "bywaf.sqlite3").exists())
 
     def test_interactive_setup_eof_cancels_without_traceback(self):
+        """Protect interactive setup eof cancels without traceback behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             with patch.dict("os.environ", {"HOME": tmp}):
                 output = io.StringIO()

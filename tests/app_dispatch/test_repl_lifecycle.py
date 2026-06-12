@@ -49,6 +49,7 @@ class AppDispatchTests(unittest.TestCase):
         self.assertIn("error: exec requires a command", output.getvalue())
 
     def test_shutdown_runner_checkpoints_database(self):
+        """Protect shutdown runner checkpoints database behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with patch.object(runner.db, "checkpoint") as checkpoint:

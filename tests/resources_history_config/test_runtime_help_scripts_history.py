@@ -71,6 +71,7 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
             self.assertEqual(snapshot["discovery/hostscanner.arguments"], "-PE")
 
     def test_dispatch_help_for_plugin(self):
+        """Protect dispatch help for plugin behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()

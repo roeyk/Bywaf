@@ -64,6 +64,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(less_output.getvalue(), "hello\n")
 
     def test_less_uses_system_pager_when_interactive(self):
+        """Protect less uses system pager when interactive behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "file.txt")
             path.write_text("hello\n")

@@ -165,6 +165,7 @@ class PluginNewTests(unittest.TestCase):
 
 
 def run_script(*args: str) -> subprocess.CompletedProcess[str]:
+    """Test helper for run script."""
     return subprocess.run(
         [sys.executable, *args],
         cwd=ROOT,

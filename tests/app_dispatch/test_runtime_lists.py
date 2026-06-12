@@ -113,6 +113,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("STEP", text)
 
     def test_runtime_filters_match_foreground_portscanner_events(self):
+        """Protect runtime filters match foreground portscanner events behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()

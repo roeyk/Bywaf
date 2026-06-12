@@ -62,6 +62,7 @@ class FakeOpener:
 class HttpProbeWrapperMatrixTests(TestCase):
     """Groups regression coverage for fixture-backed HTTP probe wrapper coverage."""
     def test_probe_url_extracts_success_metadata(self):
+        """Protect probe url extracts success metadata behavior from regressions."""
         result = probe_url(FakeOpener(FakeHttpResponse()), "https://example.test/", "GET", 5, "Bywaf/0.9")
 
         self.assertTrue(result["ok"])

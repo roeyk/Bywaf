@@ -94,6 +94,7 @@ class TestDiagnosticsTests(unittest.TestCase):
             self.assertIn("plugin().run(...)", feedback)
 
     def test_check_plugin_reports_invalid_candidate_payload_keyword(self):
+        """Protect check plugin reports invalid candidate payload keyword behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(
                 Path(tmp),

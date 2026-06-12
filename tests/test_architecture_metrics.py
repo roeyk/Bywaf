@@ -100,6 +100,7 @@ def test_architecture_metrics_text_report_names_pressure_points(tmp_path: Path) 
 
 
 def test_architecture_metrics_reports_documentation_pressure(tmp_path: Path) -> None:
+    """Protect architecture metrics reports documentation pressure behavior from regressions."""
     root = tmp_path / "pkg"
     docs = tmp_path / "docs"
     write(root / "__init__.py", "")

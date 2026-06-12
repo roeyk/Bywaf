@@ -114,6 +114,7 @@ def write_external_plugin_with_vars(root: Path) -> Path:
 
 
 def write_multi_external_plugin(root: Path, *, default_commandlet: str | None = None) -> Path:
+    """Test helper for write multi external plugin."""
     plugin_dir = root / "multi"
     plugin_dir.mkdir()
     (plugin_dir / "plugin.py").write_text(

@@ -74,6 +74,7 @@ class ManagementExposureTests(unittest.TestCase):
         self.assertEqual(findings_from_event(event), [])
 
     def test_grafana_service_label_is_promoted_without_port_match(self):
+        """Protect grafana service label is promoted without port match behavior from regressions."""
         event = Event.new(
             "service.detected",
             {"host": "192.0.2.10", "port": 8443, "protocol": "tcp", "service": "grafana"},

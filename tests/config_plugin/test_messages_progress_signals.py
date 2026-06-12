@@ -39,6 +39,7 @@ class ConfigPluginMessagesProgressSignalTests(unittest.TestCase):
             self.assertEqual(updated.payload["job_id"], 7)
 
     def test_context_progress_throttle_is_framework_enforced(self):
+        """Protect context progress throttle is framework enforced behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))
             store = VarStore()

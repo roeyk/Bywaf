@@ -73,6 +73,7 @@ def runtime_import_nodes(tree: ast.AST) -> Iterable[ast.Import | ast.ImportFrom]
             self.imports.append(node)
 
         def visit_ImportFrom(self, node: ast.ImportFrom) -> None:  # noqa: N802
+            """Visit ImportFrom while collecting dependency information."""
             self.imports.append(node)
 
         def visit_If(self, node: ast.If) -> None:  # noqa: N802

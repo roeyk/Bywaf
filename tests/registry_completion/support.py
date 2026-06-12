@@ -67,6 +67,7 @@ class FakePromptBuffer:
         self.cursor_position = start
 
     def delete(self, count: int = 1) -> None:
+        """Test helper for delete."""
         end = min(len(self.text), self.cursor_position + count)
         self.text = self.text[: self.cursor_position] + self.text[end:]
 

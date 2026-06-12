@@ -117,6 +117,7 @@ class FindingDedupeTests(unittest.TestCase):
             self.assertIn({"tool": "repo_exposure", "topic": "repo.git_config.checked"}, finding["sources"])
 
     def test_same_target_and_cwe_different_classes_are_distinct_findings(self):
+        """Protect same target and cwe different classes are distinct findings behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             first = db.publish(

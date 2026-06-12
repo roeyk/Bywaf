@@ -59,6 +59,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
             discover.assert_called_once_with("127.0.0.1", "-sn")
 
     def test_hostscanner_accepts_host_selector(self):
+        """Protect hostscanner accepts host selector behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]) as discover:
                 runner = make_runner(Path(tmp, "db.sqlite3"))

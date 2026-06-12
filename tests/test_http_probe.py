@@ -47,6 +47,7 @@ class HttpProbeTests(unittest.TestCase):
         self.assertEqual(build_url("http", "example.test", 8080, "/"), "http://example.test:8080/")
 
     def test_target_from_text_accepts_url_and_host_port(self):
+        """Protect target from text accepts url and host port behavior from regressions."""
         self.assertEqual(target_from_text("https://example.test/a", "auto", "/").port, 443)
         target = target_from_text("example.test:8080", "auto", "/")
         self.assertEqual(target.url, "http://example.test:8080/")

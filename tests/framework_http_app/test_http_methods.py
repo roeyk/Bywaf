@@ -48,6 +48,7 @@ class TestHttpMethodsTests(unittest.TestCase):
         )
 
     def test_http_methods_promotes_trace_write_and_webdav_methods(self):
+        """Protect HTTP methods promotes trace write and webdav methods behavior from regressions."""
         payload = {
             "url": "https://example.test/",
             "host": "example.test",

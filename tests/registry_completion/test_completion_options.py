@@ -65,6 +65,7 @@ class RegistryCompletionOptionTests(unittest.TestCase):
         self.assertIn("topic=host.found", completer.candidates("portscanner --from topic=h"))
 
     def test_artifact_completion_prefers_actions_first(self):
+        """Protect artifact completion prefers actions first behavior from regressions."""
         completer = Completer(self.registry)
         # Artifact has an action-first grammar. Completion should suggest
         # subcommands before selector keys, then switch to action-specific args.

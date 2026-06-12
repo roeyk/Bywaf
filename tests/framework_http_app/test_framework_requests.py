@@ -59,6 +59,7 @@ class TestFrameworkRequestsTests(unittest.TestCase):
             self.assertEqual(output.getvalue(), "plugin <run-1>: hello\n")
 
     def test_new_shell_state_ignores_historical_framework_requests(self):
+        """Protect new shell state ignores historical framework requests behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.publish(

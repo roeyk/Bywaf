@@ -124,6 +124,7 @@ class NmapWrapperErrorTests(unittest.TestCase):
             self.assertEqual(failed["error"], "missing nmap backend")
 
     def test_portscanner_records_scan_failure_without_finding_candidates(self):
+        """Protect portscanner records scan failure without finding candidates behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             context, db = make_context(
                 tmp,

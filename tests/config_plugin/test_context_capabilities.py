@@ -34,6 +34,7 @@ class ConfigPluginContextCapabilityTests(unittest.TestCase):
         self.assertIsNone(context.vars.get("secret"))
 
     def test_command_context_vars_prefer_run_snapshot(self):
+        """Protect command context vars prefer run snapshot behavior from regressions."""
         store = VarStore()
         store.set("test.value", "session")
         store.set("global.proxy", "session-proxy")

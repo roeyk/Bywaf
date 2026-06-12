@@ -69,6 +69,7 @@ class NiktoTests(unittest.TestCase):
         ])
 
     def test_extracts_and_normalizes_findings_with_standard_identifiers(self):
+        """Protect extracts and normalizes findings with standard identifiers behavior from regressions."""
         data = {
             "host": "example.test",
             "vulnerabilities": [

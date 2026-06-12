@@ -72,6 +72,7 @@ class TestSkeletonsRuntimePolicyTests(unittest.TestCase):
         self.assertEqual([], failures)
 
     def test_runtime_code_uses_context_for_artifact_store_access(self):
+        """Protect runtime code uses context for artifact store access behavior from regressions."""
         root = Path(__file__).resolve().parents[2]
         allowed = {
             root / "bywaf" / "artifact_store.py",

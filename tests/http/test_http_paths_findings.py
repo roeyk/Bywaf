@@ -103,6 +103,7 @@ class HttpPathFindingTests(unittest.TestCase):
             self.assertEqual(db.events_for_topic("finding.candidate"), [])
 
     def test_backup_archive_path_with_archive_content_type_becomes_candidate(self):
+        """Protect backup archive path with archive content type becomes candidate behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(

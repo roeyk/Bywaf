@@ -30,6 +30,7 @@ class TestAppHelpersTests(unittest.TestCase):
         self.assertEqual(render_prompt("%F> "), "> ")
 
     def test_make_runner_loads_external_plugin_config(self):
+        """Protect make runner loads external plugin config behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "plugins")
             plugin_dir = root / "scanners" / "external"

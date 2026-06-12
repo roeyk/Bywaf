@@ -96,6 +96,7 @@ class TlsProbeFindingTests(unittest.TestCase):
             self.assertIn("TLS certificate hostname mismatch", output.getvalue())
 
     def test_tls_probe_repl_output_is_compact(self):
+        """Protect TLS probe REPL output is compact behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             state = ShellState()

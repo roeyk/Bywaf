@@ -127,6 +127,7 @@ class RegistryBundledPluginTests(unittest.TestCase):
                 self.assertIsNotNone(load_package_manifest("bywaf.plugins", entry))
 
     def test_bundled_commandlet_aliases_are_loaded_from_config(self):
+        """Protect bundled commandlet aliases are loaded from config behavior from regressions."""
         aliases = parse_package_plugin_aliases("bywaf.plugins", "plugins.toml")
         self.assertEqual(aliases["http_tls"], "tls_probe")
         self.assertEqual(aliases["web_fingerprint"], "webfin")

@@ -50,6 +50,7 @@ def manual_text(*, analysis_count: int = 1, commandlet_count: int = 2) -> str:
 
 
 def test_bundled_plugin_manual_check_accepts_matching_manual(tmp_path: Path) -> None:
+    """Protect bundled plugin manual check accepts matching manual behavior from regressions."""
     plugin_root = tmp_path / "bywaf" / "plugins"
     write_manifest(plugin_root / "analysis" / "example.plugin.toml", ("alpha", "beta"))
     manual = tmp_path / "docs" / "BUNDLED_PLUGIN_MANUAL.md"

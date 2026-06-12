@@ -55,6 +55,7 @@ class ApiTests(unittest.TestCase):
             self.assertIn(wait_for_session_jobs(session)[0]["status"], TERMINAL_JOB_STATUSES)
 
     def test_session_lists_plugins_and_commandlets(self):
+        """Protect session lists plugins and commandlets behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             session = BywafSession.open(Path(tmp, "db.sqlite3"))
             self.assertIn("runtime", session.plugins())

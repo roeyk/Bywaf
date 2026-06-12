@@ -44,6 +44,7 @@ class RegistryCompletionCoreTests(unittest.TestCase):
         self.assertEqual(Completer(self.registry).candidates("exec host"), [])
 
     def test_step_completes_step_ids(self):
+        """Protect step completes step ids behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "events.sqlite3"))
             db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", command_run_id="run-1")

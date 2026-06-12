@@ -74,6 +74,7 @@ class HttpPathFindingHelperTests(unittest.TestCase):
         )
 
     def test_is_interesting_path_requires_cloud_app_config_markers(self):
+        """Protect is interesting path requires cloud app config markers behavior from regressions."""
         self.assertTrue(
             is_interesting_path(
                 "/.aws/credentials",

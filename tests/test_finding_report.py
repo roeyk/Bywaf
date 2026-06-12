@@ -74,6 +74,7 @@ class FindingReportTests(unittest.TestCase):
             self.assertIn("directory", row["recommendation"].lower())
 
     def test_export_infers_format_and_attaches_artifact(self):
+        """Protect export infers format and attaches artifact behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             db = EventStore(root / "bywaf.sqlite3")

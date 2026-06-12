@@ -70,6 +70,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("plugin.capability", text)
 
     def test_dispatch_cmds_page_uses_system_pager_for_generated_output(self):
+        """Protect dispatch cmds page uses system pager for generated output behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with (

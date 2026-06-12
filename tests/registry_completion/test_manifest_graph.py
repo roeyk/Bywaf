@@ -52,6 +52,7 @@ def test_bundled_manifest_graph_records_advisory_relationships():
 
 
 def test_bundled_manifest_graph_marks_requires_bywaf_as_hard_edge():
+    """Protect bundled manifest graph marks requires bywaf as hard edge behavior from regressions."""
     graph = build_package_manifest_graph("bywaf.plugins", "plugins.toml")
     hard_edges = [edge for edge in graph.edges if edge.kind == "requires_bywaf"]
 

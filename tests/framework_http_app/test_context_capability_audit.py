@@ -61,6 +61,7 @@ class TestContextCapabilityAuditTests(unittest.TestCase):
             self.assertTrue(used.payload["declared"])
 
     def test_context_events_publish_validates_schema_backed_topic_by_default(self):
+        """Protect context events publish validates schema backed topic by default behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             context = CommandContext(runner.db, source="plugin")

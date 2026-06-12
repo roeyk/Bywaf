@@ -99,6 +99,7 @@ class EventSchemaTests(unittest.TestCase):
         )
 
     def test_plugin_private_topics_are_free_form(self):
+        """Protect plugin private topics are free form behavior from regressions."""
         self.assertEqual(validate_event_payload("smb_enum.raw_share_acl", {"any": object()}), [])
 
     def test_plugin_owned_schema_registration_validates_payloads(self):

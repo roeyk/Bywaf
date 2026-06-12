@@ -69,6 +69,7 @@ class StorageRunnerBackgroundWatchdogTests(unittest.TestCase):
             self.assertIsNone(process_cls.call_args.kwargs["args"][1])
 
     def test_background_job_exits_quietly_when_database_is_gone(self):
+        """Protect background job exits quietly when database is gone behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             missing_path = Path(tmp, "deleted", "db.sqlite3")
         run_background_job(str(missing_path), None, 1, "job", "pipeline-test", ())

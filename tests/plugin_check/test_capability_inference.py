@@ -60,6 +60,7 @@ class TestCapabilityInferenceTests(unittest.TestCase):
             self.assertIn("artifact.write", report["missing_capabilities"])
 
     def test_check_plugin_warns_on_unspecified_artifact_store_access(self):
+        """Protect check plugin warns on unspecified artifact store access behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(
                 Path(tmp),

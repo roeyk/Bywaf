@@ -34,6 +34,7 @@ class PluginSelectorApiTests(unittest.TestCase):
             parse_kv("missing-value", command="example")
 
     def test_require_one_selector_returns_present_key(self) -> None:
+        """Protect require one selector returns present key behavior from regressions."""
         self.assertEqual(
             require_one_selector({"pipeline": "7"}, ("job", "pipeline", "step"), command="example"),
             "pipeline",

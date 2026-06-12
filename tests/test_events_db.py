@@ -60,6 +60,7 @@ class EventDbTests(unittest.TestCase):
             self.assertEqual([event.payload["host"] for event in fetched], ["a"])
 
     def test_fetch_respects_after_id_and_topic(self):
+        """Protect fetch respects after id and topic behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "events.sqlite3"))
             first = db.publish("a", {"n": 1}, "test")

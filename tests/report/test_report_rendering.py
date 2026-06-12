@@ -114,6 +114,7 @@ class ReportRenderingTests(unittest.TestCase):
             self.assertIn("unreviewed", text)
 
     def test_report_marks_confidence_basis_for_indicator_findings(self):
+        """Protect report marks confidence basis for indicator findings behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.publish(

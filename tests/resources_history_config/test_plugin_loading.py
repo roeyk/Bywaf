@@ -79,6 +79,7 @@ class ResourcesHistoryPluginLoadingTests(unittest.TestCase):
             self.assertIn("example", runner.registry.names())
 
     def test_plugin_load_use_selects_single_commandlet(self):
+        """Protect plugin load use selects single commandlet behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()

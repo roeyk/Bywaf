@@ -58,6 +58,7 @@ class TestHttpHeadersTests(unittest.TestCase):
             self.assertTrue(all(event.pipeline_id for event in candidates))
 
     def test_http_headers_repl_output_is_compact(self):
+        """Protect HTTP headers REPL output is compact behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()

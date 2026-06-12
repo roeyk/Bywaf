@@ -50,6 +50,7 @@ class ResourcesHistoryConfigPreferenceTests(unittest.TestCase):
             self.assertIn('"test.value" = "default"', default_config.read_text())
 
     def test_load_config_empty_value_uses_default_path(self):
+        """Protect load config empty value uses default path behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             default_config = Path(tmp, "default.toml")

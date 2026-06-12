@@ -273,6 +273,7 @@ class PluginCatalogTests(unittest.TestCase):
 
 
 def write_catalog_fixture(tmp: str, manifest: str) -> tuple[Path, Path]:
+    """Test helper for write catalog fixture."""
     root = Path(tmp)
     plugin_root = root / "plugins"
     plugin_dir = plugin_root / "myplugin"

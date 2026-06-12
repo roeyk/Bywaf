@@ -45,6 +45,7 @@ class StorageRunnerParsingPipelineTests(unittest.TestCase):
             self.assertEqual(runner.db.events_for_topic("downstream.marker"), [])
 
     def test_plugin_pipeline_context_does_not_expose_topology(self):
+        """Protect plugin pipeline context does not expose topology behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.registry.register_commandlet("test", InspectPipelineApiPlugin(), origin="bundled")

@@ -46,6 +46,7 @@ class InteractiveCompletionSmokeTests(unittest.TestCase):
         child.expect(r"\d{8} \d{2}:\d{2}:\d{2} [A-Z]+> ")
 
     def close_repl(self, child) -> None:
+        """Test helper for close REPL."""
         if pexpect is None:
             return
         child.sendcontrol("u")

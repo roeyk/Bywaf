@@ -87,6 +87,7 @@ class StorageRunnerPortscannerCoreTests(unittest.TestCase):
             self.assertEqual([event.topic for event in events if event.topic == "network.route.hop"], ["network.route.hop"])
 
     def test_background_pipeline_with_single_marker_preserves_stage_output(self):
+        """Protect background pipeline with single marker preserves stage output behavior from regressions."""
         command_line = "hostscanner 127.0.0.1 & | portscanner port=8080"
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))

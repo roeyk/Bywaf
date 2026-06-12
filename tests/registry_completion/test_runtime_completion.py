@@ -30,6 +30,7 @@ class RegistryRuntimeCompletionTests(unittest.TestCase):
         self.assertIn("last=", completer.candidates("events "))
 
     def test_job_completes_actions_and_job_ids(self):
+        """Protect job completes actions and job ids behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))
             db.record_job("hostscanner 127.0.0.1", 123, "running")

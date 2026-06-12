@@ -88,6 +88,7 @@ class ConfigPluginContextProcessSecretTests(unittest.TestCase):
         self.assertEqual(event.payload["stderr"], "[REDACTED]\n")
 
     def test_commandlet_secret_args_are_redacted_with_secret_identity(self):
+        """Protect commandlet secret args are redacted with secret identity behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             secrets = InMemorySecretStore()

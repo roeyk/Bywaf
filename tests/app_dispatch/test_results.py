@@ -159,6 +159,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("https://example.test/", text)
 
     def test_results_renders_web_fingerprint_summary(self):
+        """Protect results renders web fingerprint summary behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.record_job("webfin https://example.test/", 123, "finished")

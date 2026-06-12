@@ -87,6 +87,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(job["status"], "running")
 
     def test_signal_records_plugin_scoped_live_control_request(self):
+        """Protect signal records plugin scoped live control request behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()

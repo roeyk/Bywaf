@@ -94,6 +94,7 @@ class StorageRunnerPortscannerListenTests(unittest.TestCase):
             self.assertEqual(policy.payload["after"], {"targets": []})
 
     def test_background_portscanner_auto_listens_to_upstream_scope(self):
+        """Protect background portscanner auto listens to upstream scope behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))
             db.publish(

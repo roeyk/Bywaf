@@ -46,6 +46,7 @@ class TestHttpAuthTests(unittest.TestCase):
         self.assertEqual(challenge_realms(challenges), ["Admin", "Users"])
 
     def test_http_auth_promotes_basic_over_http_admin_and_missing_realm(self):
+        """Protect HTTP auth promotes basic over HTTP admin and missing realm behavior from regressions."""
         payload = {
             "url": "http://example.test/admin",
             "host": "example.test",

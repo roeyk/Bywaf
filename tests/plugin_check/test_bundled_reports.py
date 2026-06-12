@@ -37,6 +37,7 @@ class TestBundledReportsTests(unittest.TestCase):
         self.assertEqual(report["errors"], [])
 
     def test_check_bundled_plugins_registers_manifest_event_schemas_before_topic_warning(self):
+        """Protect check bundled plugins registers manifest event schemas before topic warning behavior from regressions."""
         report = check_bundled_plugins()
 
         by_entry = {item["entry"]: item for item in report["plugins"]}

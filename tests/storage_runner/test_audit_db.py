@@ -75,6 +75,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             self.assertIn("observed", text)
 
     def test_audit_list_capabilities_prints_topic_subcode(self):
+        """Protect audit list capabilities prints topic subcode behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             event = runner.db.publish(

@@ -25,6 +25,7 @@ class FakePortScanner:
         self.kwargs = kwargs
 
     def all_hosts(self):
+        """Test helper for all hosts."""
         return ["127.0.0.1"]
 
     def __getitem__(self, host):

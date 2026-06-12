@@ -112,6 +112,7 @@ def write_decorated_factory_fixture(root: Path) -> Path:
 
 
 def write_multifile_plugin_fixture(root: Path) -> Path:
+    """Test helper for write multifile plugin fixture."""
     plugin_dir = root / "example"
     plugin_dir.mkdir()
     plugin_dir.joinpath("plugin.py").write_text(

@@ -83,6 +83,7 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertEqual(record["value"], "127.0.0.1")
 
     def test_dns_enum_publishes_name_and_host_facts(self):
+        """Protect DNS enum publishes name and host facts behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(db=db, source="dns_enum", metadata={"capabilities": dns_enum.spec.capabilities})

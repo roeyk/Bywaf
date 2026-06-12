@@ -111,6 +111,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("'arguments=\"-Pn -sT\"'", text)
 
     def test_pipeline_show_includes_attached_jobs_and_steps(self):
+        """Protect pipeline show includes attached jobs and steps behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("network/portscanner host=192.0.2.10 ports=80,443", 123, "finished")

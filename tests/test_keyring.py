@@ -60,6 +60,7 @@ class KeyringTests(unittest.TestCase):
                 self.assertEqual(load_key_records()[0].fingerprint, record.fingerprint)
 
     def test_export_and_import_public_key_creates_verify_only_record(self):
+        """Protect export and import public key creates verify only record behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             export_path = Path(tmp, "exported.pub")
             first_root = Path(tmp, "first")

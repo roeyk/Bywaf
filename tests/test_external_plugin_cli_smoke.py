@@ -184,6 +184,7 @@ def write_signed_catalog(tmp_path: Path, plugin_root: Path, config: Path) -> tup
 
 
 def write_signing_key(tmp_path: Path, name: str) -> tuple[Path, Path]:
+    """Test helper for write signing key."""
     from cryptography.hazmat.primitives import serialization
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 

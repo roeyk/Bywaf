@@ -87,6 +87,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("error: variable not set: discovery/hostscanner.missing", text)
 
     def test_setg_sets_global_variable(self):
+        """Protect setg sets global variable behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()

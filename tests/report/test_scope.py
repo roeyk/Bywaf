@@ -176,6 +176,7 @@ class ReportScopeTests(unittest.TestCase):
             self.assertEqual(rendered[0].payload["groups"], ["apache-advisory", "apache-variant"])
 
     def test_report_related_cve_selector_requires_scoped_metadata(self):
+        """Protect report related CVE selector requires scoped metadata behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.publish(

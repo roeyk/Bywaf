@@ -101,6 +101,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("192.0.2.10", text)
 
     def test_builtin_filters_expand_variables(self):
+        """Protect builtin filters expand variables behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.publish("port.open", {"host": "192.0.2.20", "port": 443}, "portscanner")

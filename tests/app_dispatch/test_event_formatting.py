@@ -49,6 +49,7 @@ class EventFormattingTests(unittest.TestCase):
         self.assertEqual(format_event(event), "None: port.open 192.0.2.10:443/tcp https")
 
     def test_format_event_shows_console_alert_readably(self):
+        """Protect format event shows console alert readably behavior from regressions."""
         event = Event.new(
             "console.alert",
             {

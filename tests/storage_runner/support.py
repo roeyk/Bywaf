@@ -82,6 +82,7 @@ class InspectPipelineApiPlugin:
     )
 
     def run(self, context, args, input_events):
+        """Test helper for run."""
         del args, input_events
         public_names = sorted(name for name in dir(context.pipeline) if not name.startswith("_"))
         yield {

@@ -91,6 +91,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("command line: report status=all", text)
 
     def test_job_listing_uses_recorded_database_actions_for_view_filtering(self):
+        """Protect job listing uses recorded database actions for view filtering behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             view_job = runner.db.record_job("custom_view", 123, "finished")

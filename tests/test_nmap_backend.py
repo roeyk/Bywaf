@@ -47,6 +47,7 @@ class NmapBackendTests(unittest.TestCase):
             self.assertEqual(load_backend(), ("nmaplib", fake))
 
     def test_load_backend_raises_when_missing(self):
+        """Protect load backend raises when missing behavior from regressions."""
         with patch("bywaf.plugins.network.nmap_backend.importlib.import_module", side_effect=ImportError):
             with self.assertRaises(NmapUnavailableError):
                 load_backend()

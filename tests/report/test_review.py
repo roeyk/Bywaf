@@ -117,6 +117,7 @@ class ReportReviewTests(unittest.TestCase):
             self.assertIn("no open findings", output.getvalue())
 
     def test_report_summarizes_review_state_and_shows_unreviewed_by_default(self):
+        """Protect report summarizes review state and shows unreviewed by default behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             # Seed three findings and review two of them so the default open

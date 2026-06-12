@@ -41,6 +41,7 @@ class FindingGroupingTests(unittest.TestCase):
         self.assertEqual(finding_group_key(first), finding_group_key(second))
 
     def test_endpoint_scope_keeps_different_routes_separate(self):
+        """Protect endpoint scope keeps different routes separate behavior from regressions."""
         first = {
             "class": "web.xss.reflected",
             "finding_scope": "web_route",

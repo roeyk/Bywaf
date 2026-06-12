@@ -36,6 +36,7 @@ class RegistryFilesystemPluginTests(unittest.TestCase):
             self.assertEqual(parse_plugin_config(config), ["scanners/example"])
 
     def test_loads_filesystem_plugin_and_defaults(self):
+        """Protect loads filesystem plugin and defaults behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "plugins")
             plugin_dir = root / "scanners" / "example"

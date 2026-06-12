@@ -53,6 +53,7 @@ class SnmpGetWrapperMatrixTests(TestCase):
             self.assertEqual(value["value"], "router")
 
     def test_snmp_get_preserves_iterator_failure_as_value_error(self):
+        """Protect SNMP get preserves iterator failure as value error behavior from regressions."""
         fake_hlapi = fake_snmp_hlapi(RuntimeError("transport failed"))
 
         with tempfile.TemporaryDirectory() as tmp:

@@ -82,6 +82,7 @@ class ScreenshotterWrapperTests(unittest.TestCase):
             self.assertEqual(db.events_for_topic("web.screenshotted_host"), [])
 
     def test_no_selected_endpoints_records_warning(self):
+        """Protect no selected endpoints records warning behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             context, db = make_context(tmp)
 

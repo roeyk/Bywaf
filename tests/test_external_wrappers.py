@@ -80,6 +80,7 @@ class EyeWitnessTests(unittest.TestCase):
             self.assertTrue(db.events_for_topic("framework.process.run.requested"))
 
     def test_eyewitness_missing_binary_fails_after_audit_event(self):
+        """Protect eyewitness missing binary fails after audit event behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(
