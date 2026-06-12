@@ -41,15 +41,57 @@ ASSIGNED_CAPABILITY_CODES = {
     "plugin.progress": "C801",
 }
 
+# REQUEST_CAPABILITY_MAP is the exact-topic lookup table consumed by
+# framework_request_capability(). It is kept at module scope so the request
+# policy path does not rebuild the same static mapping for every framework
+# message a plugin publishes.
+REQUEST_CAPABILITY_MAP = {
+    "framework.console.output.requested": "framework.console.output",
+    "framework.console.alert.requested": "framework.console.alert",
+    "framework.file.page.requested": "framework.file.page",
+    "framework.process.run.requested": "framework.process.run",
+    "framework.process.stream.requested": "framework.process.stream",
+    "framework.render.table.requested": "framework.render.table",
+    "shell.prompt.requested": "framework.prompt.change",
+}
+
+# REQUEST_PREFIX_CAPS is the prefix dispatch table consumed by
+# framework_request_capability() after exact lookup misses. The prefixes cover
+# request families whose topic names include runtime-specific suffixes.
+REQUEST_PREFIX_CAPS = {
+    "plugin.progress.": "plugin.progress",
+    "framework.job.": "framework.job.control",
+    "framework.pipeline.": "framework.pipeline.control",
+}
+
+# CAPABILITY_FAMILY_RANGES is the ordered prefix dispatch table consumed by
+# capability_family_range(). Order matters: topic-specific DB capabilities must
+# match before the broader db.* family.
+CAPABILITY_FAMILY_RANGES = (
+    (("db.read:", "db.write:"), "C100-C199"),
+    (("db.", "artifact."), "C200-C299"),
+    (("process.", "filesystem."), "C300-C399"),
+    (("network.",), "C400-C499"),
+    (("framework.secret",), "C500-C599"),
+    (("framework.job", "framework.pipeline"), "C600-C699"),
+    (("framework.render",), "C700-C799"),
+    (("plugin.",), "C800-C899"),
+    (("framework.",), "C001-C099"),
+)
+
 
 def framework_request_capability(topic: str) -> str | None:
-    """Map a framework request topic to the capability it uses."""
-    exact = request_capability_map().get(topic)
+    """Map a framework request topic to the capability it uses.
+
+    Called by: `CommandPolicy.require_request_allowed()` when a commandlet asks
+    the framework to perform a service action on its behalf.
+    """
+    exact = REQUEST_CAPABILITY_MAP.get(topic)
     if exact is not None:
         return exact
-    # Prefix mappings let plugin progress/job-control families grow without
-    # adding a one-off entry for every event topic.
-    for prefix, capability in request_prefix_caps().items():
+    # This uses REQUEST_PREFIX_CAPS as a prefix dispatch table instead of a
+    # ladder so adding a request family is a one-line data change.
+    for prefix, capability in REQUEST_PREFIX_CAPS.items():
         if topic.startswith(prefix):
             return capability
     if topic.startswith("framework.") and topic.endswith(".requested"):
@@ -58,25 +100,21 @@ def framework_request_capability(topic: str) -> str | None:
 
 
 def request_capability_map() -> dict[str, str]:
-    """Return exact framework request topic capability mappings."""
-    return {
-        "framework.console.output.requested": "framework.console.output",
-        "framework.console.alert.requested": "framework.console.alert",
-        "framework.file.page.requested": "framework.file.page",
-        "framework.process.run.requested": "framework.process.run",
-        "framework.process.stream.requested": "framework.process.stream",
-        "framework.render.table.requested": "framework.render.table",
-        "shell.prompt.requested": "framework.prompt.change",
-    }
+    """Return exact framework request topic capability mappings.
+
+    Called by: public plugin API callers that need a copy of the current exact
+    request-to-capability map for diagnostics or documentation.
+    """
+    return dict(REQUEST_CAPABILITY_MAP)
 
 
 def request_prefix_caps() -> dict[str, str]:
-    """Return prefix-based framework request capability mappings."""
-    return {
-        "plugin.progress.": "plugin.progress",
-        "framework.job.": "framework.job.control",
-        "framework.pipeline.": "framework.pipeline.control",
-    }
+    """Return prefix-based framework request capability mappings.
+
+    Called by: public plugin API callers that need a copy of the family-level
+    request mappings used by `framework_request_capability()`.
+    """
+    return dict(REQUEST_PREFIX_CAPS)
 
 
 def capability_declared(capability: str, declarations: Iterable[str]) -> bool:
@@ -110,25 +148,17 @@ def topic_capability_code(family_code: str, topic: str) -> str:
 
 
 def capability_family_range(capability: str) -> str:
-    """Return the accepted capability-code family range for a capability."""
-    if capability.startswith("db.read:") or capability.startswith("db.write:"):
-        return "C100-C199"
-    if capability.startswith("db.") or capability.startswith("artifact."):
-        return "C200-C299"
-    if capability.startswith("process.") or capability.startswith("filesystem."):
-        return "C300-C399"
-    if capability.startswith("network."):
-        return "C400-C499"
-    if capability.startswith("framework.secret"):
-        return "C500-C599"
-    if capability.startswith("framework.job") or capability.startswith("framework.pipeline"):
-        return "C600-C699"
-    if capability.startswith("framework.render"):
-        return "C700-C799"
-    if capability.startswith("plugin."):
-        return "C800-C899"
-    if capability.startswith("framework."):
-        return "C001-C099"
+    """Return the accepted capability-code family range for a capability.
+
+    Called by: `capability_code_label()` when a capability has no exact C###
+    assignment and is not a topic-specific DB read/write capability.
+    """
+    # This uses CAPABILITY_FAMILY_RANGES as a prefix dispatch table in place of
+    # the old family ladder. The first matching prefix group determines the
+    # audit range displayed to plugin authors and reviewers.
+    for prefixes, range_label in CAPABILITY_FAMILY_RANGES:
+        if capability.startswith(prefixes):
+            return range_label
     return "C900-C999"
 
 
