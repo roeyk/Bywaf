@@ -1,4 +1,8 @@
-"""HTTP and web result sections for the results command."""
+"""HTTP and web result sections for the results command.
+
+Used by: `runtime.results.render` to turn HTTP, web fingerprint, and WAF
+event topics into compact operator-facing `results` sections.
+"""
 
 from __future__ import annotations
 
@@ -10,7 +14,10 @@ from bywaf.runtime_display import command_context_style_getter, render_table, te
 
 
 def render_http_endpoints_section(context: CommandContext, events: list[Event]) -> str:
-    """Render reachable HTTP endpoints as a compact result table."""
+    """Render reachable HTTP endpoints as a compact result table.
+
+    Called by: `render_results()` for the `http.endpoint` topic.
+    """
     # Keep endpoint rows sorted by URL so repeated result views remain stable
     # even when events arrived from parallel or background jobs.
     rows = [
@@ -33,7 +40,10 @@ def render_http_endpoints_section(context: CommandContext, events: list[Event]) 
 
 
 def render_http_headers_section(context: CommandContext, events: list[Event]) -> str:
-    """Render HTTP header probe results."""
+    """Render HTTP header probe results.
+
+    Called by: `render_results()` for the `http.headers` topic.
+    """
     # Header events can carry large dictionaries; this section reduces them to
     # count plus high-value missing-header summary before table rendering.
     rows = [
@@ -64,12 +74,19 @@ def render_http_headers_section(context: CommandContext, events: list[Event]) ->
 
 
 def header_count(value: object) -> int | str:
-    """Return the number of observed headers."""
+    """Return the number of observed headers.
+
+    Called by: `render_http_headers_section()` while building table rows.
+    """
     return len(value) if isinstance(value, dict) else ""
 
 
 def missing_header_summary(value: object) -> str:
-    """Return missing high-value headers from an observed header mapping."""
+    """Return missing high-value headers from an observed header mapping.
+
+    Called by: `render_http_headers_section()` to keep the headers table
+    readable without dumping the full response-header dictionary.
+    """
     if not isinstance(value, dict):
         return ""
     observed = {str(header).lower() for header in value}
@@ -81,7 +98,10 @@ def missing_header_summary(value: object) -> str:
 
 
 def render_http_paths_section(context: CommandContext, events: list[Event]) -> str:
-    """Render HTTP path observations."""
+    """Render HTTP path observations.
+
+    Called by: `render_results()` for the `http.path` topic.
+    """
     # Path probes can produce many rows; the overview highlights title and
     # interesting-state rather than every response header or body snippet.
     rows = [
@@ -104,7 +124,10 @@ def render_http_paths_section(context: CommandContext, events: list[Event]) -> s
 
 
 def render_web_fingerprints_section(context: CommandContext, events: list[Event]) -> str:
-    """Render web technology fingerprints."""
+    """Render web technology fingerprints.
+
+    Called by: `render_results()` for the `web.fingerprint` topic.
+    """
     # Fingerprint payloads can be noisy, so the results view caps displayed
     # technologies and collapses observation details into severity counts.
     rows = [
@@ -129,7 +152,11 @@ def render_web_fingerprints_section(context: CommandContext, events: list[Event]
 
 
 def observation_summary(value: object) -> str:
-    """Summarize webfin observation lists for compact result views."""
+    """Summarize webfin observation lists for compact result views.
+
+    Called by: `render_web_fingerprints_section()` to collapse many
+    fingerprint observations into severity/count pairs.
+    """
     if not isinstance(value, list) or not value:
         return ""
     severities: Counter[str] = Counter()
@@ -145,7 +172,10 @@ def observation_summary(value: object) -> str:
 
 
 def render_waf_section(context: CommandContext, events: list[Event]) -> str:
-    """Render WAF or edge protection fingerprints."""
+    """Render WAF or edge protection fingerprints.
+
+    Called by: `render_results()` for the `web.waf.detected` topic.
+    """
     # WAF rows preserve the primary evidence string because the same vendor can
     # be detected by very different headers, cookies, or response bodies.
     rows = [

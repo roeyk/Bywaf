@@ -38,6 +38,9 @@ def render_results(context: CommandContext, scope: Namespace) -> str:
     """Render result-like events with specialized views where possible."""
     sections = [render_results_header(scope)]
     events_by_topic = group_events_by_topic(scope.events)
+    # Dispatch table used by `render_results()` instead of a growing
+    # topic-by-topic if/elif ladder. Each entry maps one event topic to the
+    # section renderer that knows how to summarize that topic for operators.
     section_renderers = (
         ("host.found", render_hosts_section),
         ("name.resolved", render_name_resolution_section),

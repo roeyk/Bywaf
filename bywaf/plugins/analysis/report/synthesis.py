@@ -19,7 +19,6 @@ from bywaf.plugins.analysis.technology_indicators import findings_from_event
 
 from .model import sort_unique_events
 
-REPORT_ANALYZE_CHOICES = ("off", "passive")
 PASSIVE_SYNTHESIS_TOPICS = ("service.detected", "tcp.banner", "http.endpoint", "web.fingerprint")
 
 

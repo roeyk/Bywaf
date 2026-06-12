@@ -25,17 +25,14 @@ from bywaf.plugin import (
 from bywaf.plugin import kv_to_args
 
 from .events import select_report_context_events, select_new_context_events, select_new_scope_events, select_report_scope_events
+from .options import REPORT_ANALYZE_CHOICES, REPORT_OPTION_KEYS, REPORT_SORT_CHOICES, REPORT_STATUS_CHOICES
 from .render import render_finding_report, render_network_report
 from .review import REVIEW_DECISIONS, review_report_groups
 from .saved import apply_saved_report_scope, save_report_scope
-from .synthesis import REPORT_ANALYZE_CHOICES, report_input_findings, synthesize_report_findings
 
 REPORT_ACTIONS = ("accept", "confirm", "defer", "reject", "unconfirm", "create", "detail", "network", "show", "update")
 REPORT_REVIEW_ACTIONS = tuple(REVIEW_DECISIONS)
 REPORT_SAVE_ACTIONS = ("create", "update")
-REPORT_OPTION_KEYS = {"analyze", "cve", "job", "pipeline", "step", "limit", "name", "note", "page", "sort", "status"}
-REPORT_STATUS_CHOICES = ("all", "accepted", "confirmed", "deferred", "open", "rejected", "unreviewed")
-REPORT_SORT_CHOICES = ("finding", "host")
 
 
 @commandlet(
@@ -137,6 +134,11 @@ class Report(CommandletBase):
             return ()
         if parsed.action == "show":
             apply_saved_report_scope(context, parsed)
+
+        # Import synthesis lazily so finding/technology commandlets can import
+        # report submodules for shared scope helpers without pulling in the
+        # passive-analysis dependency chain during module initialization.
+        from .synthesis import report_input_findings, synthesize_report_findings
 
         input_findings = report_input_findings(context, input_events)
         if parsed.new and not input_findings:
