@@ -19,7 +19,11 @@ from .variables import subject_text
 
 
 def format_event(event, runner: Runner | None = None) -> str:
-    """Render one event row for human-readable console output."""
+    """Render one event row for human-readable console output.
+
+    Called by: `print_events()`, `bywaf.app.format_event`, and runtime results
+    fallback rendering when an event topic has no richer section renderer.
+    """
     # Prefer topic-specific summaries for high-volume operational events. The
     # fallback still exposes the raw payload for unknown third-party topics.
     if event.topic in CONSOLE_OUTPUT_TOPICS:
@@ -39,7 +43,11 @@ def format_event(event, runner: Runner | None = None) -> str:
 
 
 def format_port_open_event(event, runner: Runner | None = None) -> str:
-    """Render an open port as operator-facing evidence."""
+    """Render an open port as operator-facing evidence.
+
+    Used by: `RUNNER_EVENT_FORMATTERS` when event listings include
+    `port.open` facts from scanners.
+    """
     payload = event.payload
     host = subject_text(runner, "host", payload.get("host", ""))
     port = subject_text(runner, "port", payload.get("port", ""))
@@ -52,7 +60,10 @@ def format_port_open_event(event, runner: Runner | None = None) -> str:
 
 
 def format_host_found_event(event, runner: Runner | None = None) -> str:
-    """Render a discovered host as operator-facing evidence."""
+    """Render a discovered host as operator-facing evidence.
+
+    Used by: `RUNNER_EVENT_FORMATTERS` for `host.found` discovery facts.
+    """
     payload = event.payload
     host = subject_text(runner, "host", payload.get("host", ""))
     name = payload.get("name", "")
@@ -64,7 +75,11 @@ def format_host_found_event(event, runner: Runner | None = None) -> str:
 
 
 def format_name_resolved_event(event, runner: Runner | None = None) -> str:
-    """Render DNS resolution provenance for scan targets."""
+    """Render DNS resolution provenance for scan targets.
+
+    Used by: `RUNNER_EVENT_FORMATTERS` for `name.resolved` facts. It supports
+    both one-address and many-address payload shapes from resolver plugins.
+    """
     payload = event.payload
     name = subject_text(runner, "host.name", payload.get("name", ""))
     if "host" in payload:
@@ -79,7 +94,10 @@ def format_name_resolved_event(event, runner: Runner | None = None) -> str:
 
 
 def format_console_alert_event(event) -> str:
-    """Render framework console alerts as readable operator messages."""
+    """Render framework console alerts as readable operator messages.
+
+    Used by: `SIMPLE_EVENT_FORMATTERS` for committed alert events.
+    """
     payload = event.payload
     source = payload.get("source") or event.source
     level = payload.get("level", "alert")
@@ -88,7 +106,11 @@ def format_console_alert_event(event) -> str:
 
 
 def format_console_alert_request(event) -> str:
-    """Render pending framework console alert requests."""
+    """Render pending framework console alert requests.
+
+    Used by: `SIMPLE_EVENT_FORMATTERS` before the framework service turns a
+    plugin request into a committed console alert event.
+    """
     payload = event.payload
     source = payload.get("source") or event.source
     level = payload.get("level", "alert")
@@ -97,7 +119,11 @@ def format_console_alert_request(event) -> str:
 
 
 def format_console_output_event(event) -> str:
-    """Render console output events without dumping large text payload dicts."""
+    """Render console output events without dumping large text payload dicts.
+
+    Called by: `format_event()` for both committed and requested console output
+    topics before exact-topic dispatch tables are consulted.
+    """
     payload = event.payload
     source = payload.get("source") or event.source
     text = summarize_text(str(payload.get("text", "")))
@@ -106,7 +132,11 @@ def format_console_output_event(event) -> str:
 
 
 def summarize_text(text: str, *, limit: int = 100) -> str:
-    """Return the first non-empty line of console text, shortened for event tails."""
+    """Return the first non-empty line of console text, shortened for event tails.
+
+    Used by: console-output and process-request formatters to keep event lists
+    one-line and scan-friendly.
+    """
     first_line = next((line.strip() for line in text.splitlines() if line.strip()), "")
     if len(first_line) <= limit:
         return first_line
@@ -114,7 +144,11 @@ def summarize_text(text: str, *, limit: int = 100) -> str:
 
 
 def format_capability_event(event) -> str:
-    """Render capability audit events compactly."""
+    """Render capability audit events compactly.
+
+    Used by: `SIMPLE_EVENT_FORMATTERS` for capability usage and missing-capability
+    audit topics.
+    """
     payload = event.payload
     commandlet = payload.get("commandlet") or event.source
     capability = payload.get("capability", "")
@@ -126,12 +160,18 @@ def format_capability_event(event) -> str:
 
 
 def format_progress_event(event) -> str:
-    """Render progress events without dumping the full payload."""
+    """Render progress events without dumping the full payload.
+
+    Used by: `PREFIX_EVENT_FORMATTERS` for the `plugin.progress.*` topic family.
+    """
     payload = event.payload
     commandlet = payload.get("commandlet") or event.source
     status = payload.get("status") or event.topic.rsplit(".", 1)[-1]
     phase = payload.get("phase", "")
     message = payload.get("message", "")
+    # Progress payloads are sparse: scanners may report current/total,
+    # percentage, open-port counts, or only a free-form message. Build optional
+    # fragments independently so absent fields do not produce noisy placeholders.
     summary_parts = [
         f"{payload.get('current')}/{payload.get('total')} {payload.get('unit')}"
         if payload.get("current") is not None and payload.get("total") is not None and payload.get("unit")
@@ -145,7 +185,10 @@ def format_progress_event(event) -> str:
 
 
 def format_command_run_event(event) -> str:
-    """Render pipeline-step lifecycle events compactly."""
+    """Render pipeline-step lifecycle events compactly.
+
+    Used by: `PREFIX_EVENT_FORMATTERS` for the `command.run.*` lifecycle family.
+    """
     payload = event.payload
     commandlet = payload.get("commandlet") or event.source
     status = payload.get("status") or event.topic.rsplit(".", 1)[-1]
@@ -155,7 +198,10 @@ def format_command_run_event(event) -> str:
 
 
 def format_job_event(event) -> str:
-    """Render job lifecycle events compactly."""
+    """Render job lifecycle events compactly.
+
+    Used by: `PREFIX_EVENT_FORMATTERS` for background-job lifecycle topics.
+    """
     payload = event.payload
     job_id = payload.get("job_id", "")
     command = payload.get("command", "")
@@ -170,7 +216,10 @@ def format_job_event(event) -> str:
 
 
 def format_trigger_event(event) -> str:
-    """Render trigger lifecycle events compactly."""
+    """Render trigger lifecycle events compactly.
+
+    Used by: `PREFIX_EVENT_FORMATTERS` for `framework.trigger.*` events.
+    """
     payload = event.payload
     action = event.topic.removeprefix("framework.trigger.")
     trigger = payload.get("trigger_id") or payload.get("name") or ""
@@ -183,7 +232,10 @@ def format_trigger_event(event) -> str:
 
 
 def format_process_request_event(event) -> str:
-    """Render framework process requests without dumping argv arrays."""
+    """Render framework process requests without dumping argv arrays.
+
+    Used by: `SIMPLE_EVENT_FORMATTERS` for wrapped-process service requests.
+    """
     payload = event.payload
     source = payload.get("source") or event.source
     argv = payload.get("argv", [])
@@ -194,7 +246,11 @@ def format_process_request_event(event) -> str:
 
 
 def format_error_event(event) -> str:
-    """Render tool/system error events as a single readable line."""
+    """Render tool/system error events as a single readable line.
+
+    Called by: `format_event()` for common framework, tool, web, and network
+    error topics before exact-topic dispatch tables are consulted.
+    """
     payload = event.payload
     source = payload.get("tool") or payload.get("source") or event.source
     severity = payload.get("severity", "error")
@@ -203,7 +259,11 @@ def format_error_event(event) -> str:
 
 
 def format_runtime_name_event(event) -> str:
-    """Render runtime naming events."""
+    """Render runtime naming events.
+
+    Used by: `SIMPLE_EVENT_FORMATTERS` when operators assign friendly names to
+    runtime objects such as jobs, pipelines, or events.
+    """
     payload = event.payload
     target_type = payload.get("target_type", "")
     target_id = payload.get("target_id", "")
