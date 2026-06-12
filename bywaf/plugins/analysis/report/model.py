@@ -38,7 +38,11 @@ class FindingGroup:
 
 
 def group_finding_events(events: list[Event]) -> list[FindingGroup]:
-    """Return derived finding groups keyed by normalized finding id."""
+    """Return derived finding groups keyed by normalized finding id.
+
+    Called by: report rendering, review actions, and status filtering before
+    assigning operator-facing row numbers.
+    """
     grouped: dict[str, list[Event]] = {}
     ordered_keys: list[str] = []
     for event in events:
@@ -57,18 +61,27 @@ def group_finding_events(events: list[Event]) -> list[FindingGroup]:
 
 
 def finding_group_key(event: Event) -> str:
-    """Return the stable grouping key for one finding event."""
+    """Return the stable grouping key for one finding event.
+
+    Called by: `group_finding_events()` for every reportable finding event.
+    """
     payload = effective_finding_payload(event)
     key = derive_finding_group_key(payload, fallback="")
     if key:
         return key
+    # Some tests and transitional payloads may not have a derived finding key.
+    # Use event id when available so grouping stays stable across render/review.
     if event.id is not None:
         return f"event:{event.id}"
     return f"event:{id(event)}"
 
 
 def effective_finding_payload(event: Event) -> Mapping[str, Any]:
-    """Return the reportable finding payload for raw or merge-candidate events."""
+    """Return the reportable finding payload for raw or merge-candidate events.
+
+    Called by: report model, tables, detail rendering, summary rendering, and
+    review filtering helpers.
+    """
     if event.topic == "finding.merge_candidate":
         candidate = event.payload.get("candidate")
         if isinstance(candidate, Mapping):
@@ -77,12 +90,18 @@ def effective_finding_payload(event: Event) -> Mapping[str, Any]:
 
 
 def events_for_groups(groups: list[FindingGroup]) -> list[Event]:
-    """Return sorted events from the selected report groups."""
+    """Return sorted events from the selected report groups.
+
+    Called by: review/report helpers that need raw events after row selection.
+    """
     return sort_unique_events(event for group in groups for event in group.events)
 
 
 def filter_groups_by_cve(groups: list[FindingGroup], selector: str) -> list[FindingGroup]:
-    """Return finding groups matching comma-separated CVE selectors."""
+    """Return finding groups matching comma-separated CVE selectors.
+
+    Called by: report status filtering and finding review selection.
+    """
     patterns = cve_patterns(selector, groups)
     if not patterns:
         return groups
@@ -90,7 +109,11 @@ def filter_groups_by_cve(groups: list[FindingGroup], selector: str) -> list[Find
 
 
 def cve_patterns(selector: str, groups: list[FindingGroup] | None = None) -> tuple[str, ...]:
-    """Return normalized CVE selector patterns."""
+    """Return normalized CVE selector patterns.
+
+    Called by: `filter_groups_by_cve()` after parsing the user `cve=`
+    selector.
+    """
     patterns: list[str] = []
     for item in selector.split(","):
         pattern = item.strip().upper()
@@ -100,10 +123,15 @@ def cve_patterns(selector: str, groups: list[FindingGroup] | None = None) -> tup
 
 
 def expand_cve_pattern(pattern: str, groups: Iterable[FindingGroup]) -> tuple[str, ...]:
-    """Expand one CVE selector pattern."""
+    """Expand one CVE selector pattern.
+
+    Called by: `cve_patterns()` for exact, wildcard, and related-CVE selectors.
+    """
     if not pattern.endswith("+"):
         return (pattern,)
     root = pattern[:-1]
+    # The + suffix means "this exact CVE plus related CVEs found in the scoped
+    # finding/advisory events"; wildcard+ would be ambiguous and expensive.
     if not root or "*" in root:
         raise ValueError("cve=...+ requires one exact CVE before the + suffix")
     expanded = related_cve_patterns(root, groups)
@@ -113,7 +141,10 @@ def expand_cve_pattern(pattern: str, groups: Iterable[FindingGroup]) -> tuple[st
 
 
 def related_cve_patterns(root: str, groups: Iterable[FindingGroup]) -> tuple[str, ...]:
-    """Return one root CVE plus related CVEs found in scoped event metadata."""
+    """Return one root CVE plus related CVEs found in scoped event metadata.
+
+    Called by: `expand_cve_pattern()` for `CVE-...+` selectors.
+    """
     values = [root]
     seen = {root}
     for group in groups:
@@ -130,7 +161,10 @@ def related_cve_patterns(root: str, groups: Iterable[FindingGroup]) -> tuple[str
 
 
 def group_matches_cve(group: FindingGroup, patterns: tuple[str, ...]) -> bool:
-    """Return whether one group has any CVE matching the requested patterns."""
+    """Return whether one group has any CVE matching the requested patterns.
+
+    Called by: `filter_groups_by_cve()`.
+    """
     values = group_cve_values(group)
     if not values:
         return False
@@ -138,7 +172,10 @@ def group_matches_cve(group: FindingGroup, patterns: tuple[str, ...]) -> bool:
 
 
 def group_cve_values(group: FindingGroup) -> tuple[str, ...]:
-    """Return normalized CVE identifiers from all events in a group."""
+    """Return normalized CVE identifiers from all events in a group.
+
+    Called by: `group_matches_cve()`.
+    """
     values: list[str] = []
     seen: set[str] = set()
     for event in group.events:
@@ -150,12 +187,18 @@ def group_cve_values(group: FindingGroup) -> tuple[str, ...]:
 
 
 def cve_value_matches(value: str, pattern: str) -> bool:
-    """Return whether a CVE value matches an exact or wildcard selector."""
+    """Return whether a CVE value matches an exact or wildcard selector.
+
+    Called by: `group_matches_cve()` for each candidate CVE/pattern pair.
+    """
     return fnmatchcase(value.upper(), pattern.upper())
 
 
 def payload_cve_values(payload: Mapping[str, Any]) -> tuple[str, ...]:
-    """Return normalized primary CVEs from a finding or advisory payload."""
+    """Return normalized primary CVEs from a finding or advisory payload.
+
+    Called by: group CVE matching and related-CVE expansion.
+    """
     identifiers = payload.get("identifiers")
     if not isinstance(identifiers, Mapping):
         return ()
@@ -163,7 +206,10 @@ def payload_cve_values(payload: Mapping[str, Any]) -> tuple[str, ...]:
 
 
 def payload_related_cves(payload: Mapping[str, Any]) -> tuple[str, ...]:
-    """Return normalized related CVEs from a finding or advisory payload."""
+    """Return normalized related CVEs from a finding or advisory payload.
+
+    Called by: `related_cve_patterns()`.
+    """
     identifiers = payload.get("identifiers")
     if isinstance(identifiers, Mapping):
         values = normalized_values(
@@ -178,7 +224,10 @@ def payload_related_cves(payload: Mapping[str, Any]) -> tuple[str, ...]:
 
 
 def normalized_values(raw_values: Any) -> tuple[str, ...]:
-    """Return normalized unique string values from scalar or iterable metadata."""
+    """Return normalized unique string values from scalar or iterable metadata.
+
+    Called by: CVE and related-CVE payload readers.
+    """
     if isinstance(raw_values, str):
         raw_values = (raw_values,)
     if not isinstance(raw_values, Iterable):
@@ -194,10 +243,17 @@ def normalized_values(raw_values: Any) -> tuple[str, ...]:
 
 
 def sort_unique_events(events: Iterable[Event]) -> list[Event]:
-    """Return events de-duplicated by id and ordered chronologically."""
+    """Return events de-duplicated by id and ordered chronologically.
+
+    Called by: report event selection, synthesis, artifact detail, and review
+    helpers before rendering or row selection.
+    """
     by_id: dict[int, Event] = {}
     no_id: list[Event] = []
     for event in events:
+        # Real DB events de-duplicate by persistent id. Synthetic test events
+        # without ids are retained in input order because there is no stable
+        # persisted identity to collapse on.
         if event.id is None:
             no_id.append(event)
         else:
