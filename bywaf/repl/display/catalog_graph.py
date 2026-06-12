@@ -49,7 +49,12 @@ def print_plugin_graph(runner: Runner, *, json_output: bool = False, provider: s
 
 
 def render_plugin_graph_payload(runner: Runner, payload: dict[str, object]) -> str:
-    """Return a human-readable plugin graph report."""
+    """Return a human-readable plugin graph report.
+
+    Called by: `print_plugin_graph()` after it builds the JSON-compatible graph
+    payload. The same payload shapes are used for both `--json` and text output,
+    so this function routes by keys already present in the payload.
+    """
     # Dispatch on payload shape rather than an external mode enum because JSON
     # output and text output are both built from the same graph payloads.
     if "providers" in payload:
@@ -78,7 +83,11 @@ def render_plugin_graph_payload(runner: Runner, payload: dict[str, object]) -> s
 
 
 def render_full_plugin_graph(runner: Runner, payload: dict[str, object]) -> str:
-    """Return default human-readable plugin and schema graph sections."""
+    """Return default human-readable plugin and schema graph sections.
+
+    Used by: full `plugins graph` display, where operators need both the
+    filesystem auto-load closure and manifest relationship graph in one report.
+    """
     edges = payload.get("edges")
     edge_rows = edges if isinstance(edges, list) else []
     # Split the manifest graph into operator-facing sections so plugin
@@ -103,6 +112,8 @@ def render_full_plugin_graph(runner: Runner, payload: dict[str, object]) -> str:
     sections = ["Filesystem plugin load closure"]
     closure = payload.get("filesystem_dependency_closure")
     closure_rows = fs_dep_rows(closure)
+    # Section 1: show the resolved local-filesystem plugin load order. This is
+    # the apt-like dependency closure the registry computed before loading.
     if closure_rows:
         sections.append(
             render_console_table(
@@ -122,6 +133,8 @@ def render_full_plugin_graph(runner: Runner, payload: dict[str, object]) -> str:
         sections.append("no filesystem plugin closure loaded")
     sections.append("")
     sections.append("Plugin dependency graph")
+    # Section 2: show only hard plugin-to-plugin requirements declared as
+    # `requires_plugins`, separate from schema/topic data contracts.
     if plugin_rows:
         sections.append(
             render_console_table(
@@ -139,6 +152,8 @@ def render_full_plugin_graph(runner: Runner, payload: dict[str, object]) -> str:
         sections.append("no explicit plugin dependencies")
     sections.append("")
     sections.append("Schema dependency graph")
+    # Section 3: show schema ownership and topic production/consumption edges.
+    # These are data-contract relationships, not automatic plugin load edges.
     if schema_rows:
         sections.append(
             render_console_table(
@@ -159,7 +174,11 @@ def render_full_plugin_graph(runner: Runner, payload: dict[str, object]) -> str:
 
 
 def fs_dep_closure_payload(runner: Runner) -> dict[str, object]:
-    """Return configured and auto-loaded filesystem plugin closure metadata."""
+    """Return configured and auto-loaded filesystem plugin closure metadata.
+
+    Called by: `print_plugin_graph()` for the full graph payload. The registry
+    populates these fields while resolving local filesystem plugin dependencies.
+    """
     registry = runner.registry
     return {
         "requested": list(registry.filesystem_requested_providers),
@@ -170,7 +189,12 @@ def fs_dep_closure_payload(runner: Runner) -> dict[str, object]:
 
 
 def fs_dep_rows(closure: object) -> list[dict[str, str]]:
-    """Return display rows for filesystem dependency closure metadata."""
+    """Return display rows for filesystem dependency closure metadata.
+
+    Used by: `render_full_plugin_graph()` to turn registry load metadata into a
+    stable table. Invalid or absent closure payloads intentionally render as no
+    rows instead of raising in the operator-facing display path.
+    """
     if not isinstance(closure, dict):
         return []
     load_order = closure.get("load_order")
@@ -216,7 +240,12 @@ def schema_edge_label(kind: str) -> str:
 
 
 def render_provider_graph_payload(runner: Runner, payload: dict[str, object]) -> str:
-    """Return a table for one provider graph report."""
+    """Return a table for one provider graph report.
+
+    Used by: `plugins graph provider=<name>` text output. The provider payload
+    is produced by `provider_relationship_report()` and contains both scalar
+    manifest fields and expanded topic context rows.
+    """
     rows = []
     # Scalar manifest fields are shown first, followed by expanded consume/emit
     # topic context that includes known producers, consumers, and schema owners.
@@ -254,7 +283,12 @@ def render_provider_graph_payload(runner: Runner, payload: dict[str, object]) ->
 
 
 def topic_context_text(item: dict[str, object], *, include_consumers: bool) -> str:
-    """Return compact text for one topic relationship."""
+    """Return compact text for one topic relationship.
+
+    Called by: `render_provider_graph_payload()` for consumed and emitted
+    topics. Emitted topics include consumer context; consumed topics omit it to
+    keep the provider row focused on the upstream data source.
+    """
     parts = [str(item.get("topic", "")), f"schema={item.get('schema_status', '')}"]
     schema_providers = item.get("schema_providers") or ()
     producers = item.get("known_producers") or ()
@@ -269,7 +303,11 @@ def topic_context_text(item: dict[str, object], *, include_consumers: bool) -> s
 
 
 def comma_join(values: object) -> str:
-    """Return comma-separated display text for a sequence-like value."""
+    """Return comma-separated display text for a sequence-like value.
+
+    Used by: every graph renderer that collapses list-like manifest fields into
+    a single table cell.
+    """
     if not values:
         return "-"
     if isinstance(values, (str, bytes)):
@@ -278,7 +316,11 @@ def comma_join(values: object) -> str:
 
 
 def object_sequence(values: object) -> Iterable[object]:
-    """Return an iterable view for display payload sequence fields."""
+    """Return an iterable view for display payload sequence fields.
+
+    Used by: graph display helpers before iterating optional payload fields.
+    Strings are treated as scalar values, not sequences of characters.
+    """
     if values is None or isinstance(values, (str, bytes)):
         return ()
     if isinstance(values, Iterable):
