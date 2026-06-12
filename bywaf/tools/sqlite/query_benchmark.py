@@ -20,10 +20,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Callable
 
-from ..db import EventStore
-from ..event import Event
-from ..subscriptions import Subscription
-from .sqlite_contention_benchmark import latency_summary
+from ...db import EventStore
+from ...event import Event
+from ...subscriptions import Subscription
+from .contention_benchmark import latency_summary
 
 
 REPORT_CONTEXT_TOPICS = (

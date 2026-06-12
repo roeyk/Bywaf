@@ -20,8 +20,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
-from ..db import EventStore
-from ..plugin import CommandContext
+from ...db import EventStore
+from ...plugin import CommandContext
 
 
 BENCHMARK_TOPIC = "benchmark.event"

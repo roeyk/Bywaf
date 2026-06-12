@@ -7,7 +7,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from bywaf.tools.sqlite_query_benchmark import (
+from bywaf.tools.sqlite.query_benchmark import (
     REPORT_CONTEXT_TOPICS,
     database_size,
     populate_database,

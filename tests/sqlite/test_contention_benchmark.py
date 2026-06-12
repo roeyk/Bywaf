@@ -7,7 +7,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from bywaf.tools.sqlite_contention_benchmark import (
+from bywaf.tools.sqlite.contention_benchmark import (
     PLUGIN_WORKLOAD,
     WorkerResult,
     aggregate_results,

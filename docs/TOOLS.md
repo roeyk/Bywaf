@@ -435,8 +435,8 @@ tool modules.
 | `plugin_manifest.py` | manifest generation workflows | Manifest generation helpers. |
 | `plugin_parser_contract.py` | `scripts/plugin_check.py` | Parser-vs-metadata diagnostics for commandlet arguments and options. |
 | `plugin_submission.py` | `scripts/plugin_check.py` | Zip/directory submission materialization in temporary checkouts. |
-| `sqlite_contention_benchmark.py` | `scripts/sqlite_contention_benchmark.py` | SQLite contention benchmark implementation. |
-| `sqlite_query_benchmark.py` | `scripts/sqlite_query_benchmark.py` | SQLite query benchmark implementation. |
+| `sqlite/contention_benchmark.py` | `scripts/sqlite_contention_benchmark.py` | SQLite contention benchmark implementation. |
+| `sqlite/query_benchmark.py` | `scripts/sqlite_query_benchmark.py` | SQLite query benchmark implementation. |
 
 ## Adding A New Tool
 
