@@ -21,10 +21,16 @@ TOPIC_POLICY_REASONS = ("undeclared", "unregistered")
 
 
 def topic_policy_rows(context: CommandContext, selectors: dict[str, str]) -> list[dict[str, str]]:
-    """Return printable rows for recorded topic-contract policy decisions."""
+    """Return printable rows for recorded topic-contract policy decisions.
+
+    Called by: `runtime.audit` when handling `audit list topics`.
+    """
     unsupported = set(selectors) - TOPIC_POLICY_SELECTOR_KEYS
     if unsupported:
         raise ValueError(f"unsupported audit topics selector: {sorted(unsupported)[0]}")
+    # selected_events() owns runtime selectors such as job/pipeline/step/time
+    # bounds. Topic-policy-specific selectors are applied below against payload
+    # fields after the event query returns.
     query = {key: value for key, value in selectors.items() if key in {"job", "pipeline", "serial", "since", "step", "until"}}
     query["topic"] = "plugin.topic.policy"
     events = selected_events(context, query, limit=100000)
@@ -32,19 +38,28 @@ def topic_policy_rows(context: CommandContext, selectors: dict[str, str]) -> lis
 
 
 def topic_policy_candidates(context: object, prefix: str) -> list[str]:
-    """Return `audit list topics` selector value completions."""
+    """Return `audit list topics` selector value completions.
+
+    Called by: the audit commandlet completion path.
+    """
     db = getattr(context, "db", None)
     if db is None:
         return []
     key, separator, value_prefix = prefix.partition("=")
     if separator != "=":
+        # No selector value yet: complete selector keys in `key=` form.
         return [f"{candidate}=" for candidate in sorted(TOPIC_POLICY_SELECTOR_KEYS) if f"{candidate}=".startswith(prefix)]
+    # A selector key is present: complete values from built-in enums and
+    # observed audit events.
     values = topic_policy_selector_values(db, key)
     return [f"{key}={value}" for value in values if value.startswith(value_prefix)]
 
 
 def topic_policy_selector_values(db: object, key: str) -> list[str]:
-    """Return value candidates for one topic-contract report selector."""
+    """Return value candidates for one topic-contract report selector.
+
+    Called by: `topic_policy_candidates()` after parsing `key=value_prefix`.
+    """
     if key == "decision":
         return sorted({*TOPIC_POLICY_DECISIONS, *topic_policy_payload_values(db, "decision")})
     if key == "reason":
@@ -65,17 +80,30 @@ def topic_policy_selector_values(db: object, key: str) -> list[str]:
 
 
 def topic_policy_payload_values(db: object, key: str) -> list[str]:
-    """Return observed topic-policy payload values for one key."""
+    """Return observed topic-policy payload values for one key.
+
+    Called by: completion helpers for selectors whose values are mostly learned
+    from prior `plugin.topic.policy` events.
+    """
     return sorted({str(event.payload.get(key)) for event in topic_policy_events(db) if event.payload.get(key)})
 
 
 def topic_policy_events(db: object) -> list[Event]:
-    """Return topic-policy audit events."""
+    """Return topic-policy audit events.
+
+    Called by: completion value helpers. The audit list command uses
+    `selected_events()` instead so runtime scope selectors remain consistent
+    with other audit reports.
+    """
     return list(getattr(db, "events_for_topic")("plugin.topic.policy", limit=100000))
 
 
 def topic_policy_event_matches(event: Event, selectors: dict[str, str]) -> bool:
-    """Return whether a topic-policy event matches operator report selectors."""
+    """Return whether a topic-policy event matches operator report selectors.
+
+    Called by: `topic_policy_rows()` after runtime selectors have already
+    narrowed the event query.
+    """
     if (decision := selectors.get("decision")) and str(event.payload.get("decision", "")) != decision:
         return False
     if (reason := selectors.get("reason")) and str(event.payload.get("reason", "")) != reason:
@@ -88,7 +116,10 @@ def topic_policy_event_matches(event: Event, selectors: dict[str, str]) -> bool:
 
 
 def topic_policy_row(event: Event) -> dict[str, str]:
-    """Build one printable topic-policy report row."""
+    """Build one printable topic-policy report row.
+
+    Called by: `topic_policy_rows()` for each matching policy event.
+    """
     payload = event.payload
     return {
         "Time": format_operator_timestamp(event.created_at),
@@ -103,14 +134,23 @@ def topic_policy_row(event: Event) -> dict[str, str]:
 
 
 def topic_policy_commandlet(event: Event) -> str:
-    """Return the commandlet associated with a topic-policy decision."""
+    """Return the commandlet associated with a topic-policy decision.
+
+    Called by: filtering, completion, and row rendering. The payload commandlet
+    wins; event source is the fallback for older or manually seeded events.
+    """
     return str(event.payload.get("commandlet") or event.source or "-")
 
 
 def format_topic_policy_rows(rows: list[dict[str, str]]) -> str:
-    """Return a fixed-width topic-contract policy table."""
+    """Return a fixed-width topic-contract policy table.
+
+    Called by: `runtime.audit` after `topic_policy_rows()`.
+    """
     if not rows:
         return "No topic policy decisions matched."
     columns = ["Time", "Decision", "Reason", "Topic", "Commandlet", "Message", "Step", "Job"]
+    # Keep column order explicit instead of relying on dict iteration; audit
+    # reports are easier to compare when the table shape is stable.
     table_rows = [tuple(row[column] for column in columns) for row in rows]
     return render_table(tuple(columns), table_rows, max_width=max(terminal_table_width(), 180))
