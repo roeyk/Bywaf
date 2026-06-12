@@ -18,7 +18,10 @@ from .review import ReviewDecision, review_status
 
 
 def empty_status_message(status: str) -> str:
-    """Return a natural empty-state message for one report status filter."""
+    """Return a natural empty-state message for one report status filter.
+
+    Called by: report rendering when the filtered finding set is empty.
+    """
     if status == "open":
         return "no open findings"
     if status == "unreviewed":
@@ -29,7 +32,13 @@ def empty_status_message(status: str) -> str:
 
 
 def report_heading(parsed: Namespace, events: list[Event], groups: list[FindingGroup]) -> str:
-    """Return a compact heading for one report view."""
+    """Return a compact heading for one report view.
+
+    Called by: `analysis.report.render` before rendering finding rows.
+    """
+    # Convert mutually exclusive report selectors into one operator-facing
+    # action/scope phrase. This keeps report headings consistent across inbox,
+    # explicit job/pipeline/step scopes, latest-scan, and new-delta views.
     if parsed.job:
         action = "scope"
         scope = f"job={parsed.job}"
@@ -58,7 +67,10 @@ def report_heading(parsed: Namespace, events: list[Event], groups: list[FindingG
 
 
 def network_report_heading(parsed: Namespace, context_events: list[Event], finding_events: list[Event]) -> str:
-    """Return a compact heading for the network report view."""
+    """Return a compact heading for the network report view.
+
+    Called by: network-focused report rendering before host/service sections.
+    """
     if parsed.job:
         scope = f"job={parsed.job}"
     elif parsed.pipeline:
@@ -116,7 +128,10 @@ def order_report_groups(
     decisions: Mapping[str, ReviewDecision],
     parsed: Namespace,
 ) -> list[FindingGroup]:
-    """Return report groups in the requested operator-priority order."""
+    """Return report groups in the requested operator-priority order.
+
+    Called by: report rendering after grouping and review-decision collection.
+    """
     # The default order is established earlier by grouping/synthesis. These
     # optional orderings only promote review states without re-sorting the whole
     # report by unrelated fields.
@@ -128,7 +143,11 @@ def order_report_groups(
 
 
 def report_order(parsed: Namespace) -> str:
-    """Return the report row ordering label for audit payloads."""
+    """Return the report row ordering label for audit payloads.
+
+    Used by: `report_rendered_payload()` so audit events record which optional
+    ordering mode shaped the displayed report.
+    """
     if getattr(parsed, "accepted_first", False):
         return "accepted-first"
     if getattr(parsed, "candidates_first", False):
@@ -137,12 +156,19 @@ def report_order(parsed: Namespace) -> str:
 
 
 def first_group_event_id(group: FindingGroup) -> int:
-    """Return a stable chronological key for one finding group."""
+    """Return a stable chronological key for one finding group.
+
+    Used by: optional report ordering modes to preserve original chronology
+    inside promoted review-state buckets.
+    """
     return min((event.id or 0) for event in group.events)
 
 
 def group_has_candidate_status(group: FindingGroup) -> bool:
-    """Return whether a group represents candidate or potential finding evidence."""
+    """Return whether a group represents candidate or potential finding evidence.
+
+    Used by: `order_report_groups()` when `candidates_first` is selected.
+    """
     return any(
         event.topic in {"finding.candidate", "finding.merge_candidate"}
         or str(effective_finding_payload(event).get("status") or "").casefold() in {"candidate", "potential"}
@@ -154,7 +180,10 @@ def review_summary_line(
     counts: Mapping[str, int],
     severity_counts: Mapping[str, int] | None = None,
 ) -> str:
-    """Return a compact review-state summary for the report heading."""
+    """Return a compact review-state summary for the report heading.
+
+    Called by: report rendering after review counts are computed.
+    """
     summary = (
         f"Findings: {counts.get('total', 0)} total\n"
         "Review: "
@@ -177,7 +206,10 @@ def review_summary_line(
 
 
 def resume_summary_line(counts: Mapping[str, int]) -> str:
-    """Return a short field-resume summary for open report work."""
+    """Return a short field-resume summary for open report work.
+
+    Called by: report rendering to show whether operator review work remains.
+    """
     open_count = counts.get("confirmed", 0) + counts.get("unreviewed", 0)
     if not open_count:
         return "Resume: no open findings need review"
@@ -191,7 +223,10 @@ def resume_summary_line(counts: Mapping[str, int]) -> str:
 
 
 def resume_focus_line(groups: list[FindingGroup], decisions: Mapping[str, ReviewDecision]) -> str:
-    """Return severity focus for findings still needing operator attention."""
+    """Return severity focus for findings still needing operator attention.
+
+    Called by: report rendering after grouping and review-status resolution.
+    """
     # Resume guidance ignores accepted/deferred/rejected groups; the goal is to
     # orient an operator toward work still pending in the current scope.
     open_groups = [group for group in groups if review_status(group, decisions) in {"confirmed", "unreviewed"}]
@@ -207,14 +242,22 @@ def resume_focus_line(groups: list[FindingGroup], decisions: Mapping[str, Review
 
 
 def report_grouping_line(parsed: Namespace) -> str:
-    """Return the report grouping mode and the inverse selector hint."""
+    """Return the report grouping mode and the inverse selector hint.
+
+    Called by: report rendering near the top of the output so operators can
+    switch between finding-first and host-first views without checking help.
+    """
     if parsed.sort == "host":
         return "Report: grouped by host\nUse sort=finding to group affected hosts under each finding."
     return "Report: grouped by finding\nUse sort=host to group findings under each host."
 
 
 def severity_class_counts(groups: list[FindingGroup]) -> dict[str, int]:
-    """Count finding groups by broad operational severity class."""
+    """Count finding groups by broad operational severity class.
+
+    Used by: summary and resume-focus lines to collapse raw severities into the
+    project’s operator-facing severity classes.
+    """
     counts = {key: 0 for key in SEVERITY_CLASS_ORDER}
     for group in groups:
         # Count each finding group once using the representative payload chosen
@@ -225,7 +268,10 @@ def severity_class_counts(groups: list[FindingGroup]) -> dict[str, int]:
 
 
 def render_status_heading(parsed: Namespace) -> str:
-    """Return the subheading shown before filtered report rows."""
+    """Return the subheading shown before filtered report rows.
+
+    Called by: report rendering immediately before the row body.
+    """
     status = parsed.status
     if parsed.action == "detail":
         selection = parsed.selection or ""
