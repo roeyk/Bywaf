@@ -29,8 +29,8 @@ Use focused checks while editing a specific area:
 
 ```bash
 PYTHONPATH=. pytest -q tests/test_plugin_check.py
-PYTHONPATH=. pytest -q tests/test_registry_completion.py tests/test_completion_regression.py
-PYTHONPATH=. pytest -q tests/test_events_db.py tests/test_storage_runner_plugins.py
+PYTHONPATH=. pytest -q tests/registry_completion tests/test_completion_regression.py
+PYTHONPATH=. pytest -q tests/test_events_db.py tests/storage_runner
 PYTHONPATH=. pytest -q tests/test_report.py tests/test_finding_grouping.py
 ```
 
@@ -110,11 +110,11 @@ Use these suites as starting points for common framework changes:
 - App dispatch, command parsing, and REPL flows:
   `tests/app_dispatch/`, `tests/test_user_flows.py`.
 - Completion:
-  `tests/test_registry_completion.py`, `tests/test_completion_regression.py`,
+  `tests/registry_completion/`, `tests/test_completion_regression.py`,
   `tests/test_interactive_completion_smoke.py`.
 - Runtime, DB, jobs, steps, and events:
   `tests/test_events_db.py`, `tests/test_store_protocols.py`,
-  `tests/test_storage_runner_plugins.py`,
+  `tests/storage_runner/`,
   `tests/test_resources_history_config.py`.
 - Findings and reports:
   `tests/test_finding_grouping.py`, `tests/test_finding_report.py`,
@@ -123,7 +123,7 @@ Use these suites as starting points for common framework changes:
   `tests/test_secrets.py`, `tests/test_keyring.py`, `tests/test_bundle.py`.
 - Built-in plugins:
   `tests/test_nmap_backend.py`, `tests/test_repo_exposure.py`,
-  `tests/test_framework_http_app.py`.
+  `tests/framework_http_app/`.
 - Architecture metrics:
   `tests/test_architecture_metrics.py`.
 

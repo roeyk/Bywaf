@@ -282,8 +282,8 @@ Useful checks:
 
 ```bash
 PYTHONPATH=. pytest -q tests/test_plugin_check.py
-PYTHONPATH=. pytest -q tests/test_registry_completion.py
-PYTHONPATH=. pytest -q tests/test_storage_runner_plugins.py
+PYTHONPATH=. pytest -q tests/registry_completion
+PYTHONPATH=. pytest -q tests/storage_runner
 python3 scripts/bundled_plugin_manual_check.py
 ```
 
