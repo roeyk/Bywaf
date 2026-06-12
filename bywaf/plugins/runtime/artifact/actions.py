@@ -48,7 +48,10 @@ __all__ = [
 
 
 def attach_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> None:
-    """Attach existing artifacts or import-and-attach files to provenance."""
+    """Attach existing artifacts or import-and-attach files to provenance.
+
+    Called by: the artifact command action dispatch for `artifact attach`.
+    """
     files = selectors.get("file", [])
     artifact_selector = single_value(selectors, "artifact")
     if artifact_selector is not None and files:
@@ -94,7 +97,10 @@ def attach_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
 
 
 def import_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> None:
-    """Import one or more files into the artifact DB without external provenance."""
+    """Import one or more files into the artifact DB without external provenance.
+
+    Called by: the artifact command action dispatch for `artifact import`.
+    """
     files = require_values(selectors, "file")
     if len(files) > 1 and "name" in selectors:
         raise ValueError("artifact import name= is only valid with one file=")
@@ -103,6 +109,8 @@ def import_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
     context.audit_capability("filesystem.read")
     imported: list[Artifact] = []
     for file_name in files:
+        # Import stores the body in the artifact DB but intentionally does not
+        # attach it to a runtime job/pipeline/step; users can attach it later.
         artifact = store.attach_file(
             Path(file_name),
             name=single_value(selectors, "name"),
@@ -116,7 +124,10 @@ def import_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
 
 
 def list_artifacts(context: CommandContext, selectors: dict[str, list[str]], *, page: bool = False) -> None:
-    """List artifacts matching optional selectors."""
+    """List artifacts matching optional selectors.
+
+    Called by: the artifact command action dispatch for `artifact list`.
+    """
     lines = [format_artifact_row(artifact) for artifact in select_artifacts(context, selectors)]
     if page and lines:
         context.page_text("\n".join(lines))
@@ -126,7 +137,10 @@ def list_artifacts(context: CommandContext, selectors: dict[str, list[str]], *, 
 
 
 def remove_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> None:
-    """Remove selected artifacts and audit each deletion."""
+    """Remove selected artifacts and audit each deletion.
+
+    Called by: the artifact command action dispatch for `artifact remove`.
+    """
     artifacts = select_artifacts(context, selectors)
     if not artifacts:
         context.output("no artifacts matched")
@@ -134,6 +148,8 @@ def remove_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
     events = context.event_store("artifact")
     store = context.artifact_store("artifact", write_access=True)
     for artifact in artifacts:
+        # Removal affects the artifact store first, then writes a main-DB audit
+        # event preserving the runtime provenance that the row used to carry.
         store.remove(artifact)
         events.publish(
             "artifact.removed",
@@ -147,7 +163,10 @@ def remove_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
 
 
 def replace_artifact(context: CommandContext, selectors: dict[str, list[str]]) -> None:
-    """Replace one artifact body with a new filesystem file."""
+    """Replace one artifact body with a new filesystem file.
+
+    Called by: the artifact command action dispatch for `artifact replace`.
+    """
     artifact = single_selected_artifact(context, selectors, "artifact replace")
     file_name = single_value(selectors, "file")
     if file_name is None:
@@ -172,6 +191,9 @@ def replace_artifact(context: CommandContext, selectors: dict[str, list[str]]) -
         command_run_id=replacement.command_run_id,
         parent_command_run_id=replacement.parent_command_run_id,
     )
+    # Replacement creates a new artifact row for immutable evidence bodies. Also
+    # publish artifact.attached so result/detail views can discover the new
+    # artifact through the same topic they use for ordinary attachments.
     events.publish(
         "artifact.attached",
         artifact_event_payload(replacement),
@@ -184,7 +206,10 @@ def replace_artifact(context: CommandContext, selectors: dict[str, list[str]]) -
 
 
 def verify_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -> None:
-    """Verify artifact body integrity and main-DB provenance links."""
+    """Verify artifact body integrity and main-DB provenance links.
+
+    Called by: the artifact command action dispatch for `artifact verify`.
+    """
     events = context.event_store("artifact")
     store = context.artifact_store("artifact", read_access=True)
     artifacts = select_artifacts(context, selectors)
@@ -219,7 +244,10 @@ def verify_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
 
 
 def search_artifact_command(context: CommandContext, selectors: dict[str, list[str]]) -> None:
-    """Run artifact metadata search from the namespaced artifact command."""
+    """Run artifact metadata search from the namespaced artifact command.
+
+    Called by: the artifact command action dispatch for `artifact search`.
+    """
     artifacts = search_artifacts(context, selectors)
     if not artifacts:
         context.output("no artifacts matched")
