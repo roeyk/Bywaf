@@ -25,7 +25,7 @@ from unittest.mock import patch
 from scripts.plugin_catalog import build_catalog, sign_catalog, write_json
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def cryptography_available() -> bool:
