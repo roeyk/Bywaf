@@ -61,7 +61,11 @@ def print_pipelines(
     since: str = "",
     sort_key: str = "",
 ) -> None:
-    """Print active pipelines by default, or all pipelines when requested."""
+    """Print active pipelines by default, or all pipelines when requested.
+
+    Called by: the runtime `pipeline` commandlet list path after argument
+    parsing has separated list/show/control modes.
+    """
     runtime = context.runtime_store("pipeline list")
     # Start from runtime rows, then apply visibility filtering, since/event
     # selectors, the per-command "new" cursor, and optional user sorting.
@@ -86,6 +90,9 @@ def print_pipelines(
     table_rows: list[tuple[object, ...]] = []
     row_subjects: list[str] = []
     for row in rows:
+        # Convert each runtime-store row into the stable display shape expected
+        # by render_table(). Keep alias/name lookup here so lower-level table
+        # rendering stays unaware of runtime serial conventions.
         statuses = row["job_statuses"] or "unknown"
         state = runtime_state_label(statuses)
         table_rows.append(
@@ -101,6 +108,9 @@ def print_pipelines(
                 names.get(("pipeline", str(row["pipeline_id"])), ""),
             )
         )
+        # Mark rows active when their job status is active/in-progress or when
+        # --new selected the current newest pipeline alias. render_table() uses
+        # this row subject to style the STATUS column.
         row_subjects.append(
             "table.active_row"
             if state in {"active", "in progress"} or int(aliases.get(str(row["pipeline_id"]), "0")) == newest_alias
@@ -126,13 +136,21 @@ def print_pipelines(
 
 
 def filter_view_only_pipelines(context: CommandContext, rows: list[dict]) -> list[dict]:
-    """Return pipelines with at least one project-modifying step."""
+    """Return pipelines with at least one project-modifying step.
+
+    Called by: `print_pipelines()` so operator pipeline lists do not fill with
+    helper/view command pipelines that only inspected existing data.
+    """
     if not rows:
         return rows
     pipeline_ids = {str(row["pipeline_id"]) for row in rows}
+    # Load all runs for the candidate pipelines once, then ask runtime.view to
+    # classify which command runs were display-only helper commands.
     runs = [row for row in context.runtime_store("pipeline list runs").runs(active_only=False) if str(row["pipeline_id"]) in pipeline_ids]
     view_runs = view_run_ids(context.event_store("pipeline list runs"), runs)
     pipelines_with_runs = {str(row["pipeline_id"]) for row in runs}
+    # Pipelines without run rows are retained because older databases may have
+    # pipeline summary rows without enough step metadata to classify them.
     modifying_pipeline_ids = {
         str(row["pipeline_id"])
         for row in runs
@@ -146,7 +164,10 @@ def filter_view_only_pipelines(context: CommandContext, rows: list[dict]) -> lis
 
 
 def sort_pipeline_rows(rows: list[dict], sort_key: str) -> list[dict]:
-    """Return pipeline rows ordered by the requested operator-facing column."""
+    """Return pipeline rows ordered by the requested operator-facing column.
+
+    Called by: `print_pipelines()` after filtering and --new cursor handling.
+    """
     display_key = runtime_sort_key(sort_key)
     # Dispatch table for sort_pipeline_rows(): translates public sort keys into
     # concrete row values used by Python's stable sorter.
