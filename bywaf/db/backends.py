@@ -37,7 +37,11 @@ class DatabaseBackendCapabilities:
 
 
 class DatabaseCursor(Protocol):
-    """Minimal cursor API used by EventStore mixins."""
+    """Minimal cursor API used by EventStore mixins.
+
+    Implemented by: sqlite/sqlcipher cursors and future backend adapters.
+    Consumed by: event, job, trigger, maintenance, and runtime store mixins.
+    """
 
     lastrowid: int | None
     rowcount: int
@@ -56,7 +60,11 @@ class DatabaseCursor(Protocol):
 
 
 class DatabaseConnection(Protocol):
-    """Minimal DB-API connection surface used by the store layer."""
+    """Minimal DB-API connection surface used by the store layer.
+
+    Implemented by: sqlite/sqlcipher connections and future backend adapters.
+    Consumed by: `EventStore.connect()` callers through the store mixins.
+    """
 
     def execute(self, sql: str, parameters: Any = ...) -> DatabaseCursor:
         """Execute one statement and return a cursor-like object."""
@@ -80,7 +88,11 @@ class DatabaseConnection(Protocol):
 
 
 class DatabaseBackend(Protocol):
-    """Backend responsible for opening configured database connections."""
+    """Backend responsible for opening configured database connections.
+
+    Implemented by: `SQLiteBackend` and future storage backends.
+    Consumed by: `EventStore`, which delegates connection and initialization.
+    """
 
     path: Path
     passphrase: str | None
@@ -101,9 +113,15 @@ class DatabaseBackend(Protocol):
 
 
 class SQLiteBackend:
-    """SQLite/SQLCipher implementation of the database backend contract."""
+    """SQLite/SQLCipher implementation of the database backend contract.
+
+    Constructed by: `EventStore` when no custom backend is supplied.
+    Used by: local project databases and tests that exercise backend injection.
+    """
 
     def __init__(self, path: Path | str, *, passphrase: str | None = None) -> None:
+        # Keep only configuration here. Actual DB-API connections are opened
+        # per operation by `connect()` so processes never share handles.
         self.path = Path(path)
         self.passphrase = passphrase
 
@@ -133,7 +151,11 @@ class SQLiteBackend:
         conn = driver.connect(str(self.path), timeout=30, isolation_level=None)
         conn.row_factory = driver.Row
         if self.passphrase is not None:
+            # SQLCipher requires the key before schema access or PRAGMA setup.
             set_sqlcipher_key(conn, self.passphrase)
+        # WAL and busy_timeout are the default local-runtime compromise: they
+        # let foreground commands and background jobs coordinate through SQLite
+        # without long-lived shared connections.
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA busy_timeout=30000")
         try:
@@ -145,6 +167,9 @@ class SQLiteBackend:
         """Create the SQLite schema and apply compatibility migrations."""
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.connect() as conn:
+            # Schema creation and compatibility migrations share the same
+            # configured connection so encrypted databases are initialized with
+            # the active passphrase.
             conn.executescript(SCHEMA)
             ensure_event_columns(conn)
 
