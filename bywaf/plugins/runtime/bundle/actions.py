@@ -42,7 +42,10 @@ def bundle_action_handlers() -> dict[str, BundleHandler]:
 
 
 def bundle_completion_selectors(action: str, prefix: str) -> list[str]:
-    """Return selector candidates for a bundle action."""
+    """Return selector candidates for a bundle action.
+
+    Called by: `complete_bundle_action()` after the action token is known.
+    """
     candidates = {
         "create": ["name="],
         "add": ["name=", *BUNDLE_CONTENT_KINDS, "topic=", "step=", "pipeline=", "job=", "serial=", "since=", "until=", "commandlet="],
@@ -56,15 +59,22 @@ def bundle_completion_selectors(action: str, prefix: str) -> list[str]:
 
 
 def completion_values(context: CompletionContext, kind: str, prefix: str) -> list[str]:
-    """Use the framework completer for dynamic values when available."""
+    """Use the framework completer for dynamic values when available.
+
+    Called by: `complete_bundle_action()` for bundle names and signing keys.
+    """
     completer = context.metadata.get("completer")
     if completer is not None:
+        # Prefer the central completion engine when present so aliases and
+        # keyring-backed signing-key completions match the rest of the REPL.
         return [value for value in completer.complete_by_spec(CompletionSpec(kind), prefix) if value.startswith(prefix)]
     if kind == "bundle":
         try:
             events = context.event_store("bundle completion")
         except ValueError:
             return []
+        # Fallback path for lightweight completion contexts: reconstruct bundle
+        # names directly from bundle.created events.
         return [
             str(event.payload["name"])
             for event in events.events_matching(topic="bundle.created", limit=100000)
@@ -74,7 +84,10 @@ def completion_values(context: CompletionContext, kind: str, prefix: str) -> lis
 
 
 def complete_bundle_action(context: CompletionContext, args: list[str], prefix: str, actions: tuple[str, ...]) -> list[str]:
-    """Complete bundle actions, selectors, file paths, and signing keys."""
+    """Complete bundle actions, selectors, file paths, and signing keys.
+
+    Called by: `BundleCommand.complete()`.
+    """
     if not args:
         return list(actions)
     if len(args) == 1 and args[0] not in actions:
@@ -91,7 +104,10 @@ def complete_bundle_action(context: CompletionContext, args: list[str], prefix: 
 
 
 def create_bundle(context: CommandContext, tokens: list[str]) -> None:
-    """Create a named bundle record."""
+    """Create a named bundle record.
+
+    Called by: `BundleCommand.run()` through `bundle_action_handlers()`.
+    """
     selectors = parse_bundle_selectors(tokens)
     name = require_selector(selectors, "name")
     if bundle_by_name(context, name) is not None:
@@ -105,7 +121,10 @@ def create_bundle(context: CommandContext, tokens: list[str]) -> None:
 
 
 def add_bundle_item(context: CommandContext, tokens: list[str]) -> None:
-    """Add an audit/artifact selector to a bundle."""
+    """Add an audit/artifact selector to a bundle.
+
+    Called by: `BundleCommand.run()` through `bundle_action_handlers()`.
+    """
     if not tokens:
         raise ValueError("usage: bundle add name=<bundle> <audit|evidence|reports> [selectors]")
     selectors = parse_bundle_selectors(tokens)
@@ -134,7 +153,10 @@ def add_bundle_item(context: CommandContext, tokens: list[str]) -> None:
 
 
 def seal_bundle(context: CommandContext, tokens: list[str]) -> None:
-    """Seal and optionally sign a bundle manifest."""
+    """Seal and optionally sign a bundle manifest.
+
+    Called by: `BundleCommand.run()` through `bundle_action_handlers()`.
+    """
     selectors = parse_bundle_selectors(tokens)
     name = require_selector(selectors, "name")
     key = selectors.get("key")
@@ -153,6 +175,9 @@ def seal_bundle(context: CommandContext, tokens: list[str]) -> None:
         "items": len(bundle.items),
     }
     if key is not None:
+        # Signing is intentionally interactive here: private key material is
+        # held by the local keyring, and only the detached signature metadata is
+        # persisted in the bundle.sealed event.
         passphrase = getpass.getpass(f"Passphrase for key {key}: ")
         payload["signature"] = sign_bytes(key, canonical, passphrase)
     event = context.events.publish("bundle.sealed", payload)
@@ -160,7 +185,10 @@ def seal_bundle(context: CommandContext, tokens: list[str]) -> None:
 
 
 def verify_bundle(context: CommandContext, tokens: list[str]) -> None:
-    """Verify a bundle hash and signature against current bundle contents."""
+    """Verify a bundle hash and signature against current bundle contents.
+
+    Called by: `BundleCommand.run()` through `bundle_action_handlers()`.
+    """
     selectors = parse_bundle_selectors(tokens)
     name = require_selector(selectors, "name")
     bundle = require_bundle(context, name)
@@ -170,6 +198,8 @@ def verify_bundle(context: CommandContext, tokens: list[str]) -> None:
     canonical = canonical_json(manifest)
     digest = hashlib.sha256(canonical).hexdigest()
     expected = str(bundle.sealed.get("sha256", ""))
+    # Verification recomputes the seal from current selectors. If a selected
+    # artifact/event set changed after sealing, the manifest hash will differ.
     if digest != expected:
         context.output(f"failed bundle name={name} sha256={digest} expected={expected}")
         return
@@ -183,13 +213,18 @@ def verify_bundle(context: CommandContext, tokens: list[str]) -> None:
 
 
 def export_bundle(context: CommandContext, tokens: list[str]) -> None:
-    """Write a bundle manifest and selected content to a JSON file."""
+    """Write a bundle manifest and selected content to a JSON file.
+
+    Called by: `BundleCommand.run()` through `bundle_action_handlers()`.
+    """
     selectors = parse_bundle_selectors(tokens)
     name = require_selector(selectors, "name")
     file_name = require_selector(selectors, "file")
     bundle = require_bundle(context, name)
     manifest = bundle_manifest(context, bundle, include_bodies=True)
     path = Path(file_name).expanduser()
+    # Export materializes the saved selectors into concrete records and artifact
+    # bodies. Unlike sealing, this file is a transport artifact for review.
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(canonical_json(manifest) + b"\n")
     context.events.publish(
@@ -205,7 +240,10 @@ def export_bundle(context: CommandContext, tokens: list[str]) -> None:
 
 
 def list_bundles(context: CommandContext, tokens: list[str]) -> None:
-    """List known bundles."""
+    """List known bundles.
+
+    Called by: `BundleCommand.run()` through `bundle_action_handlers()`.
+    """
     if tokens:
         raise ValueError("bundle list takes no selectors")
     bundles = sorted(all_bundles(context).values(), key=lambda bundle: bundle.name)
@@ -218,7 +256,10 @@ def list_bundles(context: CommandContext, tokens: list[str]) -> None:
 
 
 def show_bundle(context: CommandContext, tokens: list[str]) -> None:
-    """Show one bundle."""
+    """Show one bundle.
+
+    Called by: `BundleCommand.run()` through `bundle_action_handlers()`.
+    """
     selectors = parse_bundle_selectors(tokens)
     bundle = require_bundle(context, require_selector(selectors, "name"))
     context.output(json.dumps(bundle_manifest(context, bundle, include_bodies=False), sort_keys=True, indent=2))
