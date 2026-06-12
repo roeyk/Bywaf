@@ -46,6 +46,7 @@ class StorageRunnerPortscannerCoreTests(unittest.TestCase):
                 self.assertEqual(len(runner.db.events_for_topic("port.open")), 1)
 
     def test_traceroute_pipeline_scans_original_target_not_route_hops(self):
+        """Protect traceroute pipeline scans original target not route hops behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()

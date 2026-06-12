@@ -145,6 +145,7 @@ class ExternalPluginCliSmokeTests(unittest.TestCase):
 
 
 def write_external_plugin(root: Path, entry: str, commandlet: str, source: str) -> Path:
+    """Test helper for write external plugin."""
     plugin_dir = root / entry
     plugin_dir.mkdir(parents=True)
     class_name = "".join(part.capitalize() for part in commandlet.split("_"))

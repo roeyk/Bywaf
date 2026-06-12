@@ -37,6 +37,7 @@ class ManagementExposureTests(unittest.TestCase):
         self.assertIn("Bind Redis", finding["recommendation"])
 
     def test_grafana_web_fingerprint_becomes_web_origin_finding(self):
+        """Protect grafana web fingerprint becomes web origin finding behavior from regressions."""
         event = Event.new(
             "web.fingerprint",
             {

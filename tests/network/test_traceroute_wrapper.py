@@ -51,6 +51,7 @@ class TracerouteWrapperTests(unittest.TestCase):
             self.assertIn("artifact_id", error)
 
     def test_timeout_records_tool_error_without_route_hops(self):
+        """Protect timeout records tool error without route hops behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(

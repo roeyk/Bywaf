@@ -37,6 +37,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(main(["--version"]), 0)
 
     def test_main_direct_unknown_commandlet_returns_error(self):
+        """Protect main direct unknown commandlet returns error behavior from regressions."""
         with contextlib.redirect_stdout(io.StringIO()) as output:
             self.assertEqual(main(["missing"]), 1)
         self.assertIn("error: unknown commandlet: missing", output.getvalue())

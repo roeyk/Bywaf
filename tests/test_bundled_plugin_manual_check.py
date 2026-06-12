@@ -14,6 +14,7 @@ def write(path: Path, text: str) -> None:
 
 
 def write_manifest(path: Path, commandlets: tuple[str, ...]) -> None:
+    """Test helper for write manifest."""
     rows = ["[plugin]", 'version = "0.1.0"', ""]
     for commandlet in commandlets:
         rows.extend(("[[commandlets]]", f'name = "{commandlet}"', ""))

@@ -24,6 +24,7 @@ class TestCapabilityInferenceTests(unittest.TestCase):
             self.assertIn("capabilities mismatch", report["errors"][0])
 
     def test_check_plugin_reports_ast_inferred_missing_capabilities(self):
+        """Protect check plugin reports ast inferred missing capabilities behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(
                 Path(tmp),

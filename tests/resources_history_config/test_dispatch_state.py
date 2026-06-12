@@ -18,6 +18,7 @@ class ResourcesHistoryDispatchStateTests(unittest.TestCase):
             self.assertIn("usage: portscanner", output.getvalue())
 
     def test_dispatch_bad_plugin_argument_does_not_exit_repl(self):
+        """Protect dispatch bad plugin argument does not exit repl behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()

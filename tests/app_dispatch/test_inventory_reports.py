@@ -175,6 +175,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("sorted by hop ascending (use sort=-hop to sort descending)", sorted_text)
 
     def test_inventory_new_filters_to_latest_new_facts(self):
+        """Protect inventory new filters to latest new facts behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             # Old/new duplicate facts plus one genuinely new host/port verify

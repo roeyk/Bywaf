@@ -95,6 +95,7 @@ class MvpPluginSuiteTests(unittest.TestCase):
             checked_urls: list[str] = []
 
             def fake_probe_url(opener, url, method, timeout, user_agent):
+                """Test helper for fake probe url."""
                 del opener, method, timeout, user_agent
                 return {
                     "ok": True,

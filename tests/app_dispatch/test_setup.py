@@ -41,6 +41,7 @@ class SetupCliTests(unittest.TestCase):
                 self.assertEqual(events[0].payload["project"], "default")
 
     def test_quiet_setup_suppresses_summary_but_creates_state(self):
+        """Protect quiet setup suppresses summary but creates state behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             with patch.dict("os.environ", {"HOME": tmp}):
                 output = io.StringIO()

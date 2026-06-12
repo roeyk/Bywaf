@@ -17,6 +17,7 @@ class EventFormattingTests(unittest.TestCase):
         self.assertIn("topic", format_event(event))
 
     def test_format_event_shows_portscanner_summary_readably(self):
+        """Protect format event shows portscanner summary readably behavior from regressions."""
         event = Event.new(
             "plugin.progress.completed",
             {

@@ -13,6 +13,7 @@ class ConfigPluginMessagesProgressSignalTests(unittest.TestCase):
         self.assertEqual(Host.from_json(host.to_json()), host)
 
     def test_progress_percent(self):
+        """Protect progress percent behavior from regressions."""
         self.assertEqual(Progress(run_id="1", status="x", total=4, completed=1).percent, 25)
 
     def test_context_progress_emits_structured_events(self):

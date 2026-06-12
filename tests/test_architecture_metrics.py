@@ -54,6 +54,7 @@ def test_architecture_metrics_counts_internal_imports_and_cycles(tmp_path: Path)
 
 
 def test_architecture_metrics_ignores_type_checking_imports(tmp_path: Path) -> None:
+    """Protect architecture metrics ignores type checking imports behavior from regressions."""
     root = tmp_path / "pkg"
     write(root / "__init__.py", "")
     # TYPE_CHECKING imports are documentation/type hints, not runtime edges,

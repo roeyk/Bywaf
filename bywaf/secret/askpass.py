@@ -148,6 +148,7 @@ def read_tk_askpass_secret(prompt: str) -> str:
     )
 
     def accept() -> None:
+        """Accept the captured secret and exit secret-entry mode."""
         result["value"] = secret_var.get()
         root.quit()
 

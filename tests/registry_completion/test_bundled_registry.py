@@ -12,6 +12,7 @@ class RegistryBundledPluginTests(unittest.TestCase):
         self.registry = PluginRegistry.discover()
 
     def test_discovers_bundled_plugins(self):
+        """Protect discovers bundled plugins behavior from regressions."""
         self.assertIn("hostscanner", self.registry.names())
         self.assertIn("dns_lookup", self.registry.names())
         self.assertIn("ldap_probe", self.registry.names())

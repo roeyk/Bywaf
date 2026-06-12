@@ -51,6 +51,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("failed/stale", output.getvalue())
 
     def test_job_lists_by_default(self):
+        """Protect job lists by default behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.record_job("hostscanner 127.0.0.1", 123, "running")

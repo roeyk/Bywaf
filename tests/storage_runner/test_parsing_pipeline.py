@@ -15,6 +15,7 @@ class StorageRunnerParsingPipelineTests(unittest.TestCase):
         self.assertEqual(invocation.args, ["127.0.0.1"])
 
     def test_plugin_can_stop_pipeline_before_downstream_stage(self):
+        """Protect plugin can stop pipeline before downstream stage behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.registry.register_commandlet("test", StopPipelinePlugin(), origin="bundled")

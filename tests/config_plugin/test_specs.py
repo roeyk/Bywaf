@@ -20,6 +20,7 @@ class ConfigPluginSpecTests(unittest.TestCase):
         self.assertEqual(settings.config_dir.as_posix(), ".bywaf/config")
 
     def test_option_spec_defaults(self):
+        """Protect option spec defaults behavior from regressions."""
         option = OptionSpec("ports", "ports to scan")
         self.assertEqual(option.choices, ())
         self.assertFalse(option.secret)

@@ -34,6 +34,7 @@ class PackagingInstallVersionAndRootTests(unittest.TestCase):
         self.assertIn(f"dist/bywaf-{version}-py3-none-any.whl", readme)
 
     def test_packaged_key_namespace_contains_public_key_policy_docs(self):
+        """Protect packaged key namespace contains public key policy docs behavior from regressions."""
         key_docs = importlib.resources.files("bywaf.keys").joinpath("README.md")
         key_placeholder = importlib.resources.files("bywaf.keys").joinpath(
             "plugin-manifest.pub.pem.example"

@@ -30,6 +30,7 @@ class TestFrameworkRequestsTests(unittest.TestCase):
             self.assertEqual(updated.payload["request_event_id"], request.id)
 
     def test_framework_request_denies_invalid_prompt_request(self):
+        """Protect framework request denies invalid prompt request behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()

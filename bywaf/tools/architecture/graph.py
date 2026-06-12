@@ -151,6 +151,7 @@ def strongly_connected_components(adjacency: dict[str, set[str]]) -> list[set[st
     components: list[set[str]] = []
 
     def visit(node: str) -> None:
+        """Visit one node while collecting dependency information."""
         nonlocal index
         # Tarjan assigns a discovery index and a lowlink. A node starts a cycle
         # component when its lowlink points back to itself.

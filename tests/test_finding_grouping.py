@@ -17,6 +17,7 @@ class FindingGroupingTests(unittest.TestCase):
         self.assertEqual(validate_finding_class("web.header.missing_hsts"), "web.header.missing_hsts")
 
     def test_validate_finding_class_rejects_display_text(self):
+        """Protect validate finding class rejects display text behavior from regressions."""
         with self.assertRaises(ValueError):
             validate_finding_class("Missing HSTS")
 

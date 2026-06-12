@@ -22,6 +22,7 @@ class RegistryFilesystemPluginTests(unittest.TestCase):
             load_plugin(module)
 
     def test_parse_simple_yaml_plugin_config(self):
+        """Protect parse simple YAML plugin config behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             config = Path(tmp, "plugins.yaml")
             config.write_text("default_plugins:\n  - scanners/example\n")

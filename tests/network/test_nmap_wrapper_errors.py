@@ -63,6 +63,7 @@ class NmapWrapperErrorTests(unittest.TestCase):
             self.assertEqual(error["message"], "missing nmap backend")
 
     def test_hostscanner_records_scan_failure_as_tool_error(self):
+        """Protect hostscanner records scan failure as tool error behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             context, db = make_context(
                 tmp,

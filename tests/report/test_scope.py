@@ -60,6 +60,7 @@ class ReportScopeTests(unittest.TestCase):
             self.assertEqual(rendered.payload["rows"], 1)
 
     def test_report_filters_by_cve_exact_wildcard_and_comma_list(self):
+        """Protect report filters by CVE exact wildcard and comma list behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             # Publish three independent finding groups so each CVE selector

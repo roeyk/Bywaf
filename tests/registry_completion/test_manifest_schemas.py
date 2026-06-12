@@ -30,6 +30,7 @@ class RegistryManifestSchemaTests(unittest.TestCase):
         self.assertIn('emits = ["port.open"]', text)
 
     def test_filesystem_manifest_rejects_emits_mismatch_when_declared(self):
+        """Protect filesystem manifest rejects emits mismatch when declared behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = Path(tmp)
             plugin_dir.joinpath("plugin.py").write_text(

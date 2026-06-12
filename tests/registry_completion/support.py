@@ -112,6 +112,7 @@ def write_trigger_plugin(plugin_dir: Path) -> None:
 
 
 def write_trigger_manifest(plugin_dir: Path, *, action_command: str = "example") -> None:
+    """Test helper for write trigger manifest."""
     (plugin_dir / "bywaf.plugin.toml").write_text(
         "[plugin]\n"
         'version = "0.1.0"\n\n'

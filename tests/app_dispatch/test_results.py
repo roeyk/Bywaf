@@ -80,6 +80,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("report.rendered", text)
 
     def test_results_hides_framework_alert_noise(self):
+        """Protect results hides framework alert noise behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("network/portscanner host=192.0.2.20 port=443", 123, "finished")

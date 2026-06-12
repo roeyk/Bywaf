@@ -54,6 +54,7 @@ class StorageRunnerPortscannerListenTests(unittest.TestCase):
             self.assertEqual(scan.call_args.args[0], ["192.0.2.1"])
 
     def test_portscanner_listen_requires_upstream_pipeline_scope(self):
+        """Protect portscanner listen requires upstream pipeline scope behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             context = CommandContext(EventStore(Path(tmp, "db.sqlite3")), source="portscanner")
             with self.assertRaisesRegex(ValueError, "pipeline scope"):

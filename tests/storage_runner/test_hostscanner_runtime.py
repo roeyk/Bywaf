@@ -21,6 +21,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
             parse_invocation("")
 
     def test_run_hostscanner_publishes_host_event(self):
+        """Protect run hostscanner publishes host event behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]) as discover:
                 runner = make_runner(Path(tmp, "db.sqlite3"))

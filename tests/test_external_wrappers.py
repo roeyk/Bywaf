@@ -47,6 +47,7 @@ class EyeWitnessTests(unittest.TestCase):
             self.assertIn("https://two.test/", target_file.read_text())
 
     def test_default_eyewitness_output_dir_is_durable_bywaf_state(self):
+        """Protect default eyewitness output dir is durable bywaf state behavior from regressions."""
         context = CommandContext(None, "eyewitness", metadata={"command_run_id": "run-1"})
         self.assertEqual(eyewitness_output_dir(context, ""), Path(".bywaf/eyewitness/run-1"))
 

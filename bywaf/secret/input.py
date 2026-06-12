@@ -109,6 +109,7 @@ class SecretCursorOutput:
             self.wrapped.show_cursor()
 
     def hide_cursor(self) -> None:
+        """Hide cursor during terminal secret input."""
         self.wrapped.hide_cursor()
 
     def __getattr__(self, name: str):

@@ -87,6 +87,7 @@ class BywafPromptLexer(Lexer):
         secret_get_line = self.secret_lexer.lex_document(document)
 
         def get_line(lineno: int):
+            """Return the current prompt line for completion helpers."""
             fragments = prompt_value_fragments(self.completer, document.lines[lineno])
             return overlay_secret_fragments(fragments, secret_get_line(lineno))
 

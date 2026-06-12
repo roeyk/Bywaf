@@ -17,6 +17,7 @@ class TestAppHelpersTests(unittest.TestCase):
         self.assertNotIn("%T", render_prompt("%T> "))
 
     def test_render_prompt_replaces_dollar_placeholders(self):
+        """Protect render prompt replaces dollar placeholders behavior from regressions."""
         rendered = render_prompt("$u $Y-$M-$D $h:$m:$s $Z> ")
         for placeholder in ("$u", "$Y", "$M", "$D", "$h", "$m", "$s", "$Z"):
             self.assertNotIn(placeholder, rendered)

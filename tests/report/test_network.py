@@ -75,6 +75,7 @@ class ReportNetworkTests(unittest.TestCase):
             self.assertIn("Missing HSTS", text)
 
     def test_report_network_renders_network_only_scope(self):
+        """Protect report network renders network only scope behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             host_event = runner.db.publish(

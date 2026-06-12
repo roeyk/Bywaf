@@ -31,6 +31,7 @@ def cryptography_available() -> bool:
 class BundleTests(unittest.TestCase):
     """Groups regression coverage for bundle behavior."""
     def test_parse_invocation_preserves_bundle_name_selector(self):
+        """Protect parse invocation preserves bundle name selector behavior from regressions."""
         invocation = parse_invocation("bundle create name=client-a")
         self.assertEqual(invocation.name, "bundle")
         self.assertEqual(invocation.args, ["create", "name=client-a"])

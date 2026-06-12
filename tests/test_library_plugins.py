@@ -47,6 +47,7 @@ class LibraryPluginTests(unittest.TestCase):
     """
 
     def test_optional_module_publishes_tool_error_when_missing(self):
+        """Protect optional module publishes tool error when missing behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(db=db, source="test")

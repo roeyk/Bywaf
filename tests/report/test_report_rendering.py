@@ -52,6 +52,7 @@ class ReportRenderingTests(unittest.TestCase):
             self.assertEqual(rendered.payload["rows"], 1)
 
     def test_report_marks_confirmed_findings(self):
+        """Protect report marks confirmed findings behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.publish(

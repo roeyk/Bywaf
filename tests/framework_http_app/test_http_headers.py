@@ -31,6 +31,7 @@ class TestHttpHeadersTests(unittest.TestCase):
         self.assertEqual(targets, [("example.test", 80, False)])
 
     def test_http_headers_targets_from_events(self):
+        """Protect HTTP headers targets from events behavior from regressions."""
         event = Event.new("port.open", {"host": "127.0.0.1", "port": 443}, "test")
         targets = HttpHeaders().targets(None, None, False, [event])
         self.assertEqual(targets, [("127.0.0.1", 443, True)])

@@ -53,6 +53,7 @@ class StopPipelineWithoutCapabilityPlugin:
     spec = CommandSpec("stop_pipeline_undeclared", "stop the current pipeline without declaring control")
 
     def run(self, context, args, input_events):
+        """Test helper for run."""
         del args, input_events
         context.pipeline.stop("undeclared")
         return ()

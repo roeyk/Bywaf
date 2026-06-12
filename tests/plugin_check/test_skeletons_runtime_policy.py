@@ -25,6 +25,7 @@ class TestSkeletonsRuntimePolicyTests(unittest.TestCase):
         self.assertEqual([], failures)
 
     def test_plugin_skeletons_do_not_drift_to_legacy_api(self):
+        """Protect plugin skeletons do not drift to legacy api behavior from regressions."""
         skeleton_root = Path(__file__).resolve().parents[2] / "docs" / "plugin_skeletons"
         legacy_tokens = (
             "bywaf.findings",

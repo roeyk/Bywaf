@@ -26,6 +26,7 @@ class ImmediateProcess:
 class StorageRunnerBackgroundWatchdogTests(unittest.TestCase):
     """Groups regression coverage for storage runner tests split by responsibility."""
     def test_background_command_records_job_and_event(self):
+        """Protect background command records job and event behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db_path = Path(tmp, "db.sqlite3")
             runner = make_runner(db_path)

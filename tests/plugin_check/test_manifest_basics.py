@@ -28,6 +28,7 @@ class TestManifestBasicsTests(unittest.TestCase):
             self.assertEqual(report["errors"], [])
 
     def test_check_plugin_requires_plugin_version(self):
+        """Protect check plugin requires plugin version behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(Path(tmp), capabilities=("network.connect",))
             manifest = plugin_dir.joinpath("bywaf.plugin.toml")

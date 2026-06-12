@@ -51,6 +51,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("grouped by port ascending", text)
 
     def test_results_follow_once_renders_current_results(self):
+        """Protect results follow once renders current results behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.record_job("network/portscanner host=192.0.2.20 port=443", 123, "finished")

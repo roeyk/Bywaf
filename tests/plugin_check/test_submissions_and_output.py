@@ -24,6 +24,7 @@ def cryptography_available() -> bool:
 class TestSubmissionsAndOutputTests(unittest.TestCase):
     """Groups regression coverage for plugin checker tests for test submissions and output."""
     def test_check_plugin_json_output(self):
+        """Protect check plugin JSON output behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(Path(tmp), capabilities=())
 

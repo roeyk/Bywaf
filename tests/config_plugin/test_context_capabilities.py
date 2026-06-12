@@ -15,6 +15,7 @@ class ConfigPluginContextCapabilityTests(unittest.TestCase):
         self.assertEqual(context.metadata, {})
 
     def test_command_context_exposes_scoped_vars(self):
+        """Protect command context exposes scoped vars behavior from regressions."""
         context = CommandContext(db=None, source="test")
         context.vars.set("value", "abc")
         self.assertEqual(context.vars.get("value"), "abc")

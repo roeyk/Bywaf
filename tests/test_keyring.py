@@ -35,6 +35,7 @@ from bywaf.registry import PluginRegistry
 
 
 def cryptography_available() -> bool:
+    """Return whether cryptography-backed signing checks can run."""
     return importlib.util.find_spec("cryptography") is not None
 
 

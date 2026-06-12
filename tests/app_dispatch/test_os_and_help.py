@@ -38,6 +38,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("file.txt", output.getvalue())
 
     def test_dispatch_ls_file_prints_filename(self):
+        """Protect dispatch ls file prints filename behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "file.txt")
             path.write_text("x")

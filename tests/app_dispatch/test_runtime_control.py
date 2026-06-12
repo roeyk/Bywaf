@@ -38,6 +38,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn(f"cancel requested for job {job_id}", output.getvalue())
 
     def test_pause_resume_stop_commands_record_job_state(self):
+        """Protect pause resume stop commands record job state behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("portscanner --listen", 123, "running")

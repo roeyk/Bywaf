@@ -36,6 +36,7 @@ class RegistryCompletionCoreTests(unittest.TestCase):
         )
 
     def test_prompt_has_no_argument_completion(self):
+        """Protect prompt has no argument completion behavior from regressions."""
         self.assertEqual(Completer(self.registry).candidates("prompt "), [])
 
     def test_exec_does_not_complete_commandlet_pipeline_names(self):

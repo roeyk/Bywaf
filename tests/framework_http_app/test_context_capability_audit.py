@@ -30,6 +30,7 @@ class TestContextCapabilityAuditTests(unittest.TestCase):
             self.assertEqual(runner.db.events_for_topic("plugin.capability.missing"), [])
 
     def test_context_records_missing_capability_use(self):
+        """Protect context records missing capability use behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             context = CommandContext(runner.db, source="plugin")

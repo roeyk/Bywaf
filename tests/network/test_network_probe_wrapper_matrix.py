@@ -20,6 +20,7 @@ from bywaf.plugins.network.tcp_banner import tcp_banner
 class TcpBannerWrapperMatrixTests(TestCase):
     """Groups regression coverage for fixture-backed network probe wrapper coverage."""
     def test_tcp_banner_emits_error_payload_for_socket_failure(self):
+        """Protect tcp banner emits error payload for socket failure behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(db=db, source="tcp_banner", metadata={"capabilities": tcp_banner.spec.capabilities})

@@ -32,6 +32,7 @@ class EventDbTests(unittest.TestCase):
         self.assertEqual(event.payload_json(), '{"a":1,"b":2}')
 
     def test_publish_and_fetch_round_trip(self):
+        """Protect publish and fetch round trip behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "events.sqlite3"))
             published = db.publish(

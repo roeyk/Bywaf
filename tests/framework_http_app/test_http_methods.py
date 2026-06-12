@@ -35,6 +35,7 @@ class TestHttpMethodsTests(unittest.TestCase):
         self.assertEqual(targets, [("example.test", 8080, "http", "/admin")])
 
     def test_http_methods_targets_from_events(self):
+        """Protect HTTP methods targets from events behavior from regressions."""
         event = Event.new("port.open", {"host": "127.0.0.1", "port": 443}, "test")
         targets = HttpMethods().targets([], "auto", "/", [event])
         self.assertEqual(targets, [("127.0.0.1", 443, "https", "/")])

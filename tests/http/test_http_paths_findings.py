@@ -48,6 +48,7 @@ class HttpPathFindingTests(unittest.TestCase):
             self.assertIn("content-type=text/html", finding["evidence"])
 
     def test_git_config_path_uses_repo_exposure_finding_class_and_origin_scope(self):
+        """Protect git config path uses repo exposure finding class and origin scope behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(

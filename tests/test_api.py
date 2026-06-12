@@ -37,6 +37,7 @@ def wait_for_session_jobs(session: BywafSession, *, timeout: float = 5.0):
 class ApiTests(unittest.TestCase):
     """Groups regression coverage for api behavior."""
     def test_session_runs_command_and_exposes_events(self):
+        """Protect session runs command and exposes events behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             session = BywafSession.open(Path(tmp, "db.sqlite3"))
             with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]):

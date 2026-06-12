@@ -41,6 +41,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(runner.registry.varstore.get("target"), "global")
 
     def test_set_lists_active_context_vars_separately(self):
+        """Protect set lists active context vars separately behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()

@@ -40,6 +40,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("error: unknown command or commandlet", output.getvalue())
 
     def test_dispatch_topics_accepts_prefix_on_empty_db(self):
+        """Protect dispatch topics accepts prefix on empty database behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()

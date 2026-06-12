@@ -42,6 +42,7 @@ class FakeHttpResponse:
         return self.body
 
     def geturl(self) -> str:
+        """Test helper for geturl."""
         return "https://example.test/final"
 
 

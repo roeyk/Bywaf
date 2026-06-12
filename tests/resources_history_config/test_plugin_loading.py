@@ -24,6 +24,7 @@ class ResourcesHistoryPluginLoadingTests(unittest.TestCase):
             self.assertEqual(commands[1].payload["command"], "set loaded.value=yes")
 
     def test_load_plugin_records_auditable_serial(self):
+        """Protect load plugin records auditable serial behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             plugin_dir = Path(tmp, "example")

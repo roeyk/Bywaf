@@ -58,6 +58,7 @@ def write_simple_external_plugin(root: Path, name: str) -> Path:
 
 
 def write_console_external_plugin(root: Path, *, declare_output: bool) -> Path:
+    """Test helper for write console external plugin."""
     plugin_dir = root / "external_console"
     plugin_dir.mkdir()
     (plugin_dir / "plugin.py").write_text(

@@ -23,6 +23,7 @@ class ResourcesHistoryConfigPreferenceTests(unittest.TestCase):
             self.assertEqual(runner.db.events_for_topic("framework.variable.expanded")[0].payload["variables"], ["discovery/hostscanner.targets"])
 
     def test_save_and_load_config(self):
+        """Protect save and load config behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             config = Path(tmp, "vars.toml")

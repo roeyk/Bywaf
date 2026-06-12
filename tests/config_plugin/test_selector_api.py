@@ -24,6 +24,7 @@ class PluginSelectorApiTests(unittest.TestCase):
         self.assertEqual(selectors, {"step": "1", "text": "validated manually"})
 
     def test_parse_kvs_rejects_unknown_keys(self) -> None:
+        """Protect parse key/value selectors rejects unknown keys behavior from regressions."""
         with self.assertRaisesRegex(ValueError, "unknown example selector: other"):
             parse_kvs(["other=value"], allowed_keys={"step"}, command="example")
 

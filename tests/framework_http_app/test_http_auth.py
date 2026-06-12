@@ -33,6 +33,7 @@ class TestHttpAuthTests(unittest.TestCase):
         self.assertEqual(targets, [("example.test", 8080, "http", "/admin")])
 
     def test_http_auth_targets_from_events(self):
+        """Protect HTTP auth targets from events behavior from regressions."""
         event = Event.new("port.open", {"host": "127.0.0.1", "port": 443}, "test")
         targets = HttpAuth().targets([], "auto", "/login", [event])
         self.assertEqual(targets, [("127.0.0.1", 443, "https", "/login")])

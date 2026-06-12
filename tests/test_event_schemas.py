@@ -46,6 +46,7 @@ class EventSchemaTests(unittest.TestCase):
         self.assertEqual(EVENT_SCHEMAS["finding.confirmed"].required_fields, ("title", "class"))
 
     def test_valid_shared_payloads_pass(self):
+        """Protect valid shared payloads pass behavior from regressions."""
         cases = [
             ("host.found", {"host": "192.0.2.10", "status": "up", "scanner": "nmap"}),
             ("port.open", {"host": "192.0.2.10", "port": 445, "protocol": "tcp", "service": "microsoft-ds"}),

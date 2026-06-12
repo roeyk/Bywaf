@@ -64,6 +64,7 @@ def write_plugin_fixture(
 
 
 def write_parser_mismatch_fixture(root: Path) -> Path:
+    """Test helper for write parser mismatch fixture."""
     plugin_dir = root / "example"
     plugin_dir.mkdir()
     plugin_dir.joinpath("plugin.py").write_text(

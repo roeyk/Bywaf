@@ -41,6 +41,7 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
             self.assertIn("127.0.0.1", pipe_output.getvalue())
 
     def test_runner_snapshots_command_run_vars(self):
+        """Protect runner snapshots command run vars behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.registry.varstore.set("discovery/hostscanner.arguments", "-PE")

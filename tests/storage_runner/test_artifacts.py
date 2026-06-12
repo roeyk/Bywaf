@@ -70,6 +70,7 @@ class StorageRunnerArtifactTests(unittest.TestCase):
             self.assertIn("\x1b[38;5;245m", text)
 
     def test_artifact_cat_renders_text_preview(self):
+        """Protect artifact cat renders text preview behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db_path = Path(tmp, "db.sqlite3")
             runner = make_runner(db_path)

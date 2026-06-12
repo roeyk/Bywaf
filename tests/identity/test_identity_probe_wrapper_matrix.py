@@ -40,6 +40,7 @@ class LdapProbeWrapperMatrixTests(TestCase):
             self.assertEqual(server["naming_contexts"], ["dc=example,dc=test"])
 
     def test_ldap_probe_preserves_bind_failure_as_server_error(self):
+        """Protect ldap probe preserves bind failure as server error behavior from regressions."""
         fake_ldap = SimpleNamespace(
             ALL="ALL",
             Server=Mock(return_value=SimpleNamespace(info=None)),

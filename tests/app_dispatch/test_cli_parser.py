@@ -31,6 +31,7 @@ class CliParserTests(unittest.TestCase):
         self.assertEqual(args.command, ["echo", "hello"])
 
     def test_route_direct_commandlet_argv(self):
+        """Protect route direct commandlet argv behavior from regressions."""
         from bywaf.app import route_direct_commandlet_argv
 
         self.assertEqual(route_direct_commandlet_argv(["hostscanner", "127.0.0.1"]), ["cmd", "hostscanner", "127.0.0.1"])

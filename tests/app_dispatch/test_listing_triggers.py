@@ -44,6 +44,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("Host and target discovery commandlets.", text)
 
     def test_dispatch_cmds_lists_commandlets_grouped_by_plugin(self):
+        """Protect dispatch cmds lists commandlets grouped by plugin behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()

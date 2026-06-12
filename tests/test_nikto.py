@@ -33,6 +33,7 @@ from bywaf.plugins.http.nikto import (
 class NiktoTests(unittest.TestCase):
     """Groups regression coverage for nikto behavior."""
     def test_builds_shell_free_json_argv(self):
+        """Protect shell-free Nikto JSON argv construction from regressions."""
         argv = nikto_argv(
             binary="nikto",
             url="https://example.test/",

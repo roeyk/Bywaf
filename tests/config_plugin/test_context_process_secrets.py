@@ -33,6 +33,7 @@ class ConfigPluginContextProcessSecretTests(unittest.TestCase):
         self.assertEqual(warnings[0].payload["argv"][-1], "password=[REDACTED]")
 
     def test_command_context_process_run_audits_redacted_secret_env(self):
+        """Protect command context process run audits redacted secret env behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             secrets = InMemorySecretStore()

@@ -19,6 +19,7 @@ class ConfigPluginVarsCommandletTests(unittest.TestCase):
         self.assertNotEqual(one.get("secret"), "b")
 
     def test_scoped_varstore_reads_provider_scope_explicitly(self):
+        """Protect scoped varstore reads provider scope explicitly behavior from regressions."""
         store = VarStore()
         store.set("http/repo_exposure.proxy", "http://127.0.0.1:8080")
         store.set("global.proxy", "global-proxy")

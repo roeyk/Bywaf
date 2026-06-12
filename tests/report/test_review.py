@@ -54,6 +54,7 @@ class ReportReviewTests(unittest.TestCase):
             self.assertIn("Manually validated issue", text)
 
     def test_finding_confirm_and_unconfirm_use_report_rows(self):
+        """Protect finding confirm and unconfirm use report rows behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.publish(

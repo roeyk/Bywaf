@@ -22,6 +22,7 @@ class TestBundledReportsTests(unittest.TestCase):
         self.assertTrue(any(item["entry"] == "http.webfin" for item in data["plugins"]))
 
     def test_check_bundled_plugins_report_shape(self):
+        """Protect check bundled plugins report shape behavior from regressions."""
         report = check_bundled_plugins()
 
         self.assertTrue(report["ok"])

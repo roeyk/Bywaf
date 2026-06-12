@@ -42,6 +42,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(events[-1].payload["bywaf_version"], bywaf.__version__)
 
     def test_mixed_commandlets_classify_effective_database_actions(self):
+        """Protect mixed commandlets classify effective database actions behavior from regressions."""
         from bywaf.plugins.analysis.report import Report
         from bywaf.plugins.runtime.artifact import ArtifactCommand, SearchCommand
         from bywaf.plugins.runtime.bundle import BundleCommand

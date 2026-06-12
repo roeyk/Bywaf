@@ -26,6 +26,7 @@ class TestHttpCorsTests(unittest.TestCase):
         self.assertEqual(targets, [("example.test", 8080, "http", "/api")])
 
     def test_http_cors_targets_from_events(self):
+        """Protect HTTP cors targets from events behavior from regressions."""
         event = Event.new("port.open", {"host": "127.0.0.1", "port": 443}, "test")
         targets = HttpCors().targets([], "auto", "/api", [event])
         self.assertEqual(targets, [("127.0.0.1", 443, "https", "/api")])

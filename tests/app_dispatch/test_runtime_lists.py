@@ -56,6 +56,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(text.count("hostscanner"), 1)
 
     def test_runtime_lists_filter_by_host_payload(self):
+        """Protect runtime lists filter by host payload behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_one = runner.db.record_job("hostscanner 192.0.2.10", 123, "running")

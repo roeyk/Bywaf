@@ -32,6 +32,7 @@ def context_for(db: EventStore) -> CommandContext:
 class FindingReportTests(unittest.TestCase):
     """Groups regression coverage for finding report behavior."""
     def test_report_renders_deduped_findings_as_framework_table(self):
+        """Protect report renders deduped findings as framework table behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             finding = db.publish(

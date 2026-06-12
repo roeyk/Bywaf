@@ -14,6 +14,7 @@ class BundledManifestHydrationTests(unittest.TestCase):
         self.registry = PluginRegistry.discover()
 
     def test_bundled_sidecar_hydrates_runtime_security_metadata(self):
+        """Protect bundled sidecar hydrates runtime security metadata behavior from regressions."""
         from bywaf.plugins.analysis.finding import Finding
         from bywaf.plugins.analysis.finding.dedupe import FINDING_INPUT_TOPICS, FINDING_OUTPUT_TOPICS, FindingDedupe
         from bywaf.plugins.analysis.finding.report import REPORT_FINDING_TOPICS, FindingReport

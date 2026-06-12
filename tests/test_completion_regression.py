@@ -28,6 +28,7 @@ class CompletionRegressionTests(unittest.TestCase):
         self.completer = Completer(self.registry)
 
     def test_every_commandlet_name_is_top_level_completable(self):
+        """Protect every commandlet name is top level completable behavior from regressions."""
         for name in self.registry.names():
             with self.subTest(commandlet=name):
                 prefix = name[: max(1, min(4, len(name) - 1))]

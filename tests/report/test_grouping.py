@@ -49,6 +49,7 @@ class ReportGroupingTests(unittest.TestCase):
             self.assertEqual(rendered.payload["rows"], 1)
 
     def test_report_groups_by_explicit_group_key_before_finding_id(self):
+        """Protect report groups by explicit group key before finding id behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             first = runner.db.publish(

@@ -46,6 +46,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("ART", text)
 
     def test_runtime_names_display_in_listings(self):
+        """Protect runtime names display in listings behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("hostscanner 127.0.0.1", 123, "running")

@@ -97,6 +97,7 @@ def option(
 ):
     """Decorate a commandlet class with one option metadata entry."""
     def decorate(cls):
+        """Attach the commandlet specification to the decorated class."""
         options = list(cast(tuple[OptionSpec, ...], getattr(cls, "_bywaf_options", ())))
         # Insert at the front so stacked decorators preserve source order in the
         # resulting CommandSpec.

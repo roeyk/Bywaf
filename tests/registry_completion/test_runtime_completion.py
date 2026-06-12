@@ -12,6 +12,7 @@ class RegistryRuntimeCompletionTests(unittest.TestCase):
         self.registry = PluginRegistry.discover()
 
     def test_event_completes_topics_and_jobs(self):
+        """Protect event completes topics and jobs behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))
             db.publish("custom.topic", {"ok": True}, "test")

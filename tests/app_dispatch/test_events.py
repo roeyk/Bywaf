@@ -41,6 +41,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("'n': 29", text)
 
     def test_events_tail_accepts_last_selector(self):
+        """Protect events tail accepts last selector behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             for number in range(5):

@@ -40,6 +40,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             self.assertEqual(argument_events[-1].payload["database_actions"], ["view"])
 
     def test_audit_show_prints_matching_events(self):
+        """Protect audit show prints matching events behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.publish("topic", {"value": 1}, "test")

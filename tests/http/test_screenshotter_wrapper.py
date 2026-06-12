@@ -49,6 +49,7 @@ class ScreenshotterWrapperTests(unittest.TestCase):
             self.assertEqual(db.events_for_topic("web.screenshotted_host"), [])
 
     def test_nonzero_exit_links_process_output_without_screenshot_facts(self):
+        """Protect nonzero exit links process output without screenshot facts behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             context, db = make_context(tmp)
             event = Event.new("http.endpoint", {"url": "https://example.test/"}, "http_probe")

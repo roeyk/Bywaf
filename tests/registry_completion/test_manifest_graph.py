@@ -28,6 +28,7 @@ def test_bundled_manifest_graph_indexes_schema_providers_without_importing_plugi
 
 
 def test_bundled_manifest_graph_separates_consumers_and_producers():
+    """Protect bundled manifest graph separates consumers and producers behavior from regressions."""
     graph = build_package_manifest_graph("bywaf.plugins", "plugins.toml")
 
     assert "http.auth" in graph.consumers_for_topic("port.open")

@@ -35,6 +35,7 @@ class TestDiagnosticsTests(unittest.TestCase):
             self.assertIn("Put argparse behavior such as nargs", feedback)
 
     def test_check_plugin_reports_decorator_on_plugin_factory(self):
+        """Protect check plugin reports decorator on plugin factory behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_decorated_factory_fixture(Path(tmp))
 

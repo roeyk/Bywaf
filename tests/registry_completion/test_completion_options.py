@@ -36,6 +36,7 @@ class RegistryCompletionOptionTests(unittest.TestCase):
         self.assertIn("method=", completer.candidates("http_probe me"))
 
     def test_inventory_and_report_completion_exposes_last_new_selectors(self):
+        """Protect inventory and report completion exposes last new selectors behavior from regressions."""
         completer = Completer(self.registry)
         # All inventory/report views should expose the same runtime scope
         # selectors, while each view can still contribute its own sort keys.

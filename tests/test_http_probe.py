@@ -35,6 +35,7 @@ from bywaf.plugins.http.probe import (
 class HttpProbeTests(unittest.TestCase):
     """Groups regression coverage for http probe behavior."""
     def test_choose_scheme_auto_uses_https_for_443(self):
+        """Protect choose scheme auto uses https for 443 behavior from regressions."""
         self.assertEqual(choose_scheme(443, "auto"), "https")
         self.assertEqual(choose_scheme(80, "auto"), "http")
         self.assertEqual(choose_scheme(80, "https"), "https")

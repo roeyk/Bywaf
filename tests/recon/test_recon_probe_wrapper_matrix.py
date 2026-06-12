@@ -47,6 +47,7 @@ class DnsWrapperMatrixTests(TestCase):
             self.assertIn("NXDOMAIN", error["error"])
 
     def test_dns_enum_preserves_resolution_failure_as_dns_error(self):
+        """Protect dns enum preserves resolution failure as dns error behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(db=db, source="dns_enum", metadata={"capabilities": dns_enum.spec.capabilities})

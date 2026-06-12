@@ -28,6 +28,7 @@ class HttpPathFindingHelperTests(unittest.TestCase):
         )
 
     def test_is_interesting_path_requires_admin_evidence_for_admin_paths(self):
+        """Protect is interesting path requires admin evidence for admin paths behavior from regressions."""
         self.assertTrue(
             is_interesting_path(
                 "/admin/",
