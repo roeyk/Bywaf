@@ -60,6 +60,9 @@ class Key(CommandletBase):
     def database_actions_for_args(self, args: list[str]) -> tuple[str, ...]:
         """Classify key inspection separately from key mutations/tests."""
         action = args[0] if args else ""
+        # `key export`, `key list`, and `key show` read existing key metadata or
+        # public material. All other actions can create, delete, import, or test
+        # private key material, so they require write permission.
         return ("view",) if action in {"export", "list", "show"} else ("write",)
 
     def run(
@@ -89,6 +92,9 @@ class Key(CommandletBase):
         if not args:
             return list(KEY_ACTIONS)
         if len(args) == 1 and not args[0].startswith("name="):
+            # First token completion is action-oriented. Once the operator has
+            # started typing selectors, completion switches to action-specific
+            # selector/value candidates below.
             return [action for action in KEY_ACTIONS if action.startswith(prefix)]
         action = args[0]
         if prefix.startswith("name="):
@@ -144,6 +150,9 @@ def generate_key_action(context: CommandContext, args: list[str]) -> None:
     """Generate a new encrypted private key and matching public key."""
     name = selector(args, "name", required=True)
     scope = selector(args, "scope") or "user"
+    # Generate always creates encrypted private material; require a fresh
+    # passphrase before touching the keyring so empty/mismatched input fails
+    # before files are written.
     passphrase = prompt_new_passphrase(name)
     record = generate_key(name, passphrase, scope=scope)
     context.events.publish("key.generated", key_event_payload(record))
@@ -192,6 +201,8 @@ def export_key_action(context: CommandContext, args: list[str]) -> None:
 def remove_key_action(context: CommandContext, args: list[str]) -> None:
     """Remove key metadata, optionally deleting files."""
     name = selector(args, "name", required=True)
+    # Default removal forgets the key record but leaves files alone. Operators
+    # must opt into destructive file deletion with an explicit flag.
     delete_files = "--delete-files" in args
     record = remove_key(name, delete_files=delete_files)
     context.events.publish("key.removed", {**key_event_payload(record), "delete_files": delete_files})
@@ -274,6 +285,8 @@ def selector(args: list[str], key: str, *, required: bool = False) -> str:
     prefix = f"{key}="
     for arg in args:
         if arg.startswith(prefix):
+            # Empty selector values are treated as absent so required selectors
+            # produce the same clear error for `name=` and missing `name=`.
             value = arg.split("=", 1)[1]
             if value:
                 return value

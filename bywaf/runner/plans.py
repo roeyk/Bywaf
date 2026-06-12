@@ -43,6 +43,8 @@ def handle_plan_if_needed(
         return args
     # From this point onward, the plan is visible to the operator or policy
     # layer, so publish a durable request before prompting or applying repairs.
+    # This ordering matters: even denied plans are audit-visible, and any repair
+    # decision below links back to the request event.
     request = publish_plan_requested(context, report)
     publish_policy_evaluated(context, request, report)
     context.output(format_plan_report(report))
@@ -56,6 +58,9 @@ def handle_plan_if_needed(
     if invocation.approved:
         # --yes approves both the plan and any selected repair without an
         # interactive prompt, which is required for background execution.
+        # The approval event is separate from `policy.evaluated`; policy says
+        # the plan may proceed with confirmation, while this records who/what
+        # provided that confirmation.
         publish_plan_decision(context, request, True, "cli-yes", "--yes")
         return repaired_args or args
     if context.background:
@@ -65,6 +70,8 @@ def handle_plan_if_needed(
         raise ValueError(f"{plugin.spec.name} plan requires --yes for background execution")
     answer = input("Approve this plan? type YES: ")
     approved = answer == "YES"
+    # Store the literal answer for auditability. Only the exact all-caps YES is
+    # accepted so accidental Enter/yes/y input remains a denial.
     publish_plan_decision(context, request, approved, "interactive", answer)
     if not approved:
         raise ValueError("plan denied")
@@ -86,6 +93,8 @@ def maybe_apply_plan_repair(
     if invocation.approved:
         # With --yes, accepting the plan also accepts the first suggested
         # repair. This is the non-interactive path used by CI/background jobs.
+        # The separate repair event lets audit views distinguish approving the
+        # plan from accepting a framework-suggested argument rewrite.
         publish_plan_repair(context, request, repair, approved=True, method="cli-yes", answer="--yes")
         return list(repair.patched_args)
     if invocation.plan_only or context.background:
@@ -94,6 +103,8 @@ def maybe_apply_plan_repair(
         return None
     answer = input(f"Apply suggested repair '{repair.name}'? type YES: ")
     approved = answer == "YES"
+    # A denied repair does not deny the whole plan. It simply means execution
+    # continues with original args if the plan itself is later approved.
     publish_plan_repair(context, request, repair, approved=approved, method="interactive", answer=answer)
     return list(repair.patched_args) if approved else None
 
@@ -225,6 +236,8 @@ def format_plan_report(report: PlanReport) -> str:
         lines.append("Items:")
         lines.extend(f"  {item.kind}: {item.value}" for item in report.items)
     if report.warnings:
+        # Warnings are displayed before repairs because they explain why the
+        # plan needs explicit confirmation at all.
         lines.append("Warnings:")
         lines.extend(f"  {warning}" for warning in report.warnings)
     if report.repairs:

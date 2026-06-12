@@ -28,6 +28,9 @@ def print_plugin_graph(runner: Runner, *, json_output: bool = False, provider: s
     # The command has three report shapes: one provider, one topic, or the full
     # plugin/schema graph plus filesystem auto-load closure.
     if provider:
+        # Provider mode is a focused diagnostic: fail early on unknown provider
+        # names instead of rendering an empty relationship table that could be
+        # mistaken for "known provider with no relationships".
         if provider not in graph.nodes:
             print(f"error: unknown provider {provider}")
             return
@@ -37,6 +40,8 @@ def print_plugin_graph(runner: Runner, *, json_output: bool = False, provider: s
             registered_schemas=registered_topics_for_graph(graph),
         )
     elif topic:
+        # Topic mode answers "who owns/produces/consumes this data contract?"
+        # without requiring the operator to inspect every plugin edge.
         payload = {
             "topic": topic,
             "schema_providers": graph.providers_for_schema(topic),
@@ -64,6 +69,8 @@ def render_plugin_graph_payload(runner: Runner, payload: dict[str, object]) -> s
     if "providers" in payload:
         return render_full_plugin_graph(runner, payload)
     if "topic" in payload:
+        # Topic payloads are intentionally a single-row table. This keeps schema
+        # ownership, producers, and consumers visually adjacent for one topic.
         return render_console_table(
             Table(
                 (
@@ -96,6 +103,8 @@ def render_full_plugin_graph(runner: Runner, payload: dict[str, object]) -> str:
     edge_rows = edges if isinstance(edges, list) else []
     # Split the manifest graph into operator-facing sections so plugin
     # dependencies and topic/schema relationships do not blur together.
+    # `requires_plugin` is a load-order relationship; schema/topic edges are
+    # data-contract relationships and should not imply auto-loading by name.
     plugin_rows = [
         {
             "source": str(edge.get("source", "")),
@@ -267,9 +276,13 @@ def render_provider_graph_payload(runner: Runner, payload: dict[str, object]) ->
             rows.append({"relationship": label.replace("_", " "), "values": comma_join(values)})
     for item in object_sequence(payload.get("consumes")):
         if isinstance(item, dict):
+            # Consumes rows show upstream context. Consumer context is omitted
+            # here because this provider is itself the consumer.
             rows.append({"relationship": "consumes", "values": topic_context_text(item, include_consumers=False)})
     for item in object_sequence(payload.get("emits")):
         if isinstance(item, dict):
+            # Emits rows include downstream consumers so authors can see who may
+            # be affected by a topic payload or schema change.
             rows.append({"relationship": "emits", "values": topic_context_text(item, include_consumers=True)})
     if not rows:
         rows.append({"relationship": "provider", "values": str(payload.get("provider", ""))})
