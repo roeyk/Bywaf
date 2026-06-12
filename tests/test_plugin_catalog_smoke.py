@@ -16,6 +16,7 @@ from pathlib import Path
 
 
 class PluginCatalogSmokeTests(unittest.TestCase):
+    """Groups regression coverage for plugin catalog smoke behavior."""
     @unittest.skipUnless(importlib.util.find_spec("cryptography") is not None, "cryptography is not installed")
     def test_plugin_catalog_signing_cli_smoke_script_passes(self):
         root = Path(__file__).resolve().parents[1]

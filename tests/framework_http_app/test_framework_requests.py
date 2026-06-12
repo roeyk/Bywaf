@@ -14,6 +14,7 @@ from bywaf.artifacts import artifact_store_for_db
 
 
 class TestFrameworkRequestsTests(unittest.TestCase):
+    """Groups regression coverage for framework HTTP app tests for test framework requests."""
     def test_framework_request_updates_prompt_and_records_audit_event(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

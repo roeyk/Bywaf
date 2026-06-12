@@ -20,6 +20,12 @@ from .support import ACTIVE_JOB_STATUSES, new_serial, process_exists, resolve_se
 
 
 class EventStoreJobMixin:
+    """Adds background job persistence methods to `EventStore`.
+
+    Constructed by: multiple inheritance in `db.EventStore`.
+    Used by: runner background execution and runtime job/control commandlets.
+    """
+
     @contextmanager
     def connect(self) -> Iterator[DatabaseConnection]:
         """Implemented by EventStore."""

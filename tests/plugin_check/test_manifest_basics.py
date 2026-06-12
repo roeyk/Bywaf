@@ -10,6 +10,7 @@ from tests.plugin_check_fixtures import write_multifile_plugin_fixture, write_pl
 
 
 class TestManifestBasicsTests(unittest.TestCase):
+    """Groups regression coverage for plugin checker tests for test manifest basics."""
     def test_check_plugin_accepts_valid_package(self):
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(Path(tmp), capabilities=("network.connect",))

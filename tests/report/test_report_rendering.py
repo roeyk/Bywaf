@@ -3,6 +3,7 @@
 
 from tests.report.support import *  # noqa: F403,F405
 class ReportRenderingTests(unittest.TestCase):
+    """Groups regression coverage for report command tests split by responsibility."""
     def test_report_sort_host_groups_findings_under_hosts(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))

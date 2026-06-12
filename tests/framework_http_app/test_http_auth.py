@@ -122,16 +122,19 @@ class FakeResponse:
 
 
 class BasicResponse(FakeResponse):
+    """Test double used by this module's regression cases."""
     headers = [("WWW-Authenticate", 'Basic realm="Admin"')]
 
 
 class ProxyResponse(FakeResponse):
+    """Test double used by this module's regression cases."""
     status = 407
     reason = "Proxy Authentication Required"
     headers = [("Proxy-Authenticate", "Negotiate")]
 
 
 class RiskyResponse(FakeResponse):
+    """Test double used by this module's regression cases."""
     headers = [("WWW-Authenticate", "Basic")]
 
 
@@ -157,10 +160,12 @@ class BasicConnection:
 
 
 class ProxyConnection(BasicConnection):
+    """Test double used by this module's regression cases."""
     response = ProxyResponse()
 
 
 class RiskyConnection(BasicConnection):
+    """Test double used by this module's regression cases."""
     response = RiskyResponse()
 
 

@@ -18,6 +18,12 @@ from ..secret.store import SecretFingerprint, SecretRef
 
 
 class EventStoreSecretMixin:
+    """Adds persisted secret-reference methods to `EventStore`.
+
+    Constructed by: multiple inheritance in `db.EventStore`.
+    Used by: app/API startup hydration and secret-aware command execution.
+    """
+
     @contextmanager
     def connect(self) -> Iterator[DatabaseConnection]:
         """Implemented by EventStore."""

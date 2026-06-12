@@ -26,6 +26,7 @@ from bywaf.registry import PluginRegistry
 
 
 class MvpPluginSuiteTests(unittest.TestCase):
+    """Groups regression coverage for the first useful MVP pentest plugin chain."""
     def test_mvp_chain_specs_stay_composable_after_manifest_hydration(self):
         """Keep the documented MVP chain wired by hydrated sidecar metadata."""
         registry = PluginRegistry.discover()

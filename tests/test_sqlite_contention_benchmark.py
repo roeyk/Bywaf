@@ -13,6 +13,7 @@ from bywaf.tools.sqlite_contention_benchmark import (
 
 
 class SQLiteContentionBenchmarkTests(unittest.TestCase):
+    """Groups regression coverage for sQLite contention benchmark helpers."""
     def test_aggregate_results_counts_failures_and_latency(self):
         result = aggregate_results(
             Path("bench.sqlite3"),

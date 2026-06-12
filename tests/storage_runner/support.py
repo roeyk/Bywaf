@@ -31,6 +31,7 @@ from bywaf.varstore import VarStore
 
 
 class StopPipelinePlugin:
+    """Test double used by this module's regression cases."""
     spec = CommandSpec(
         "stop_pipeline",
         "stop the current pipeline",
@@ -44,6 +45,7 @@ class StopPipelinePlugin:
 
 
 class StopPipelineWithoutCapabilityPlugin:
+    """Test double used by this module's regression cases."""
     spec = CommandSpec("stop_pipeline_undeclared", "stop the current pipeline without declaring control")
 
     def run(self, context, args, input_events):
@@ -53,6 +55,7 @@ class StopPipelineWithoutCapabilityPlugin:
 
 
 class DownstreamMarkerPlugin:
+    """Test double used by this module's regression cases."""
     spec = CommandSpec(
         "downstream_marker",
         "mark downstream execution",
@@ -65,6 +68,7 @@ class DownstreamMarkerPlugin:
 
 
 class InspectPipelineApiPlugin:
+    """Test double used by this module's regression cases."""
     spec = CommandSpec(
         "inspect_pipeline_api",
         "inspect the plugin-facing pipeline API",
@@ -86,6 +90,7 @@ class InspectPipelineApiPlugin:
 
 
 class FakeHostResult:
+    """Test double used by this module's regression cases."""
     def state(self):
         return "up"
 
@@ -97,6 +102,7 @@ class FakeHostResult:
 
 
 class FakePortScanner:
+    """Test double used by this module's regression cases."""
     def scan(self, **kwargs):
         self.kwargs = kwargs
 
@@ -108,4 +114,5 @@ class FakePortScanner:
 
 
 class FakeNmapModule:
+    """Test double used by this module's regression cases."""
     PortScanner = FakePortScanner

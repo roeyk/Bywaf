@@ -4,6 +4,7 @@
 from tests.storage_runner.support import *  # noqa: F403,F405
 
 class StorageRunnerArtifactTests(unittest.TestCase):
+    """Groups regression coverage for storage runner tests split by responsibility."""
     @unittest.skipUnless(sqlcipher_available(), "sqlcipher3-binary is not installed")
     def test_artifact_attach_list_save_and_verify(self):
         with tempfile.TemporaryDirectory() as tmp:

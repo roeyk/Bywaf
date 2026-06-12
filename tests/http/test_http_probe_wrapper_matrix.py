@@ -42,6 +42,7 @@ class FakeHttpResponse:
 
 
 class FakeOpener:
+    """Test double used by this module's regression cases."""
     def __init__(self, result) -> None:
         self.result = result
 
@@ -53,6 +54,7 @@ class FakeOpener:
 
 
 class HttpProbeWrapperMatrixTests(TestCase):
+    """Groups regression coverage for fixture-backed HTTP probe wrapper coverage."""
     def test_probe_url_extracts_success_metadata(self):
         result = probe_url(FakeOpener(FakeHttpResponse()), "https://example.test/", "GET", 5, "Bywaf/0.9")
 
@@ -117,6 +119,7 @@ class HttpProbeWrapperMatrixTests(TestCase):
 
 
 class WafFetchHeaderTests(TestCase):
+    """Groups regression coverage for fixture-backed HTTP probe wrapper coverage."""
     def test_unsupported_url_scheme_returns_error_fixture(self):
         from bywaf.plugins.http.waf_detect import fetch_headers
 

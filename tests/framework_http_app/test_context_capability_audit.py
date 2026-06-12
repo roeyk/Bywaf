@@ -10,6 +10,7 @@ from bywaf.varstore import VarStore
 
 
 class TestContextCapabilityAuditTests(unittest.TestCase):
+    """Groups regression coverage for framework HTTP app tests for test context capability audit."""
     def test_context_records_declared_capability_use(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

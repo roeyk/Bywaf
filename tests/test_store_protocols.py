@@ -32,6 +32,7 @@ def event_store_backend_cases(tmp: str) -> tuple[tuple[str, EventStore], ...]:
 
 
 class StoreProtocolTests(unittest.TestCase):
+    """Groups regression coverage for store protocols behavior."""
     def test_event_store_backends_satisfy_event_runtime_and_maintenance_protocols(self):
         with tempfile.TemporaryDirectory() as tmp:
             for backend_name, store in event_store_backend_cases(tmp):

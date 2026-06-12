@@ -15,6 +15,7 @@ from bywaf.plugins.identity.smb_probe import SmbProbe
 
 
 class LdapProbeWrapperMatrixTests(TestCase):
+    """Groups regression coverage for fixture-backed identity probe wrapper coverage."""
     def test_ldap_probe_publishes_bound_server_metadata(self):
         fake_server = SimpleNamespace(info=SimpleNamespace(naming_contexts=["dc=example,dc=test"]))
         fake_ldap = SimpleNamespace(
@@ -54,6 +55,7 @@ class LdapProbeWrapperMatrixTests(TestCase):
 
 
 class SmbProbeWrapperMatrixTests(TestCase):
+    """Groups regression coverage for fixture-backed identity probe wrapper coverage."""
     def test_smb_probe_preserves_connection_failure_as_server_error(self):
         fake_smb = SimpleNamespace(SMBConnection=Mock(side_effect=RuntimeError("connection refused")))
 

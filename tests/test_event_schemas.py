@@ -18,6 +18,7 @@ from bywaf.event import Event
 
 @dataclass(frozen=True)
 class PluginPrivateSession(EventSchemaObject):
+    """Test double used by this module's regression cases."""
     __topic__ = "smb.session.observed"
 
     host: str
@@ -26,6 +27,7 @@ class PluginPrivateSession(EventSchemaObject):
 
 
 class EventSchemaTests(unittest.TestCase):
+    """Groups regression coverage for shared event payload schemas."""
     def test_shared_schemas_define_required_fields(self):
         self.assertIn("host.found", EVENT_SCHEMAS)
         self.assertEqual(EVENT_SCHEMAS["host.found"].required_fields, ("host",))

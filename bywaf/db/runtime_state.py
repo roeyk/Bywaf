@@ -18,6 +18,13 @@ RUN_ASSOCIATION_NAME = "__bywaf.run"
 
 
 class EventStoreRuntimeStateMixin:
+    """Adds cancellation and variable-snapshot methods to `EventStore`.
+
+    Constructed by: multiple inheritance in `db.EventStore`.
+    Used by: runner cancellation checks, background jobs, and runtime detail
+    views that explain commandlet execution context.
+    """
+
     @contextmanager
     def connect(self) -> Iterator[DatabaseConnection]:
         """Implemented by EventStore."""

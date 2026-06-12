@@ -17,6 +17,12 @@ from .support import sql_literal
 
 
 class EventStoreMaintenanceMixin:
+    """Adds maintenance and encryption-state methods to `EventStore`.
+
+    Constructed by: multiple inheritance in `db.EventStore`.
+    Used by: database status, checkpoint, vacuum, and rekey command paths.
+    """
+
     path: Path
 
     @property

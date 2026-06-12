@@ -17,6 +17,7 @@ from tests.packaging_install.support import write_plugin
 
 
 class PackagingInstallVersionAndRootTests(unittest.TestCase):
+    """Groups regression coverage for packaging version, key namespace, and install root tests."""
     def test_release_package_versions_are_aligned(self):
         version = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
         rpm_spec = Path("packaging/rpm/bywaf.spec").read_text(encoding="utf-8")

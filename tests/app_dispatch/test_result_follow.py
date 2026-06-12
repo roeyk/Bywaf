@@ -20,6 +20,7 @@ from bywaf.app import (
 
 
 class AppDispatchTests(unittest.TestCase):
+    """Groups regression coverage for app result follow behavior."""
     def test_results_passes_sort_to_embedded_ports_view(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

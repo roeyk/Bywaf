@@ -3,6 +3,7 @@
 
 from tests.registry_completion.support import *  # noqa: F403,F405
 class RegistryManifestSchemaTests(unittest.TestCase):
+    """Groups regression coverage for registry and completion tests split by responsibility."""
     def test_plugin_manifest_tool_infers_secret_options(self):
         class Example:
             spec = CommandSpec(

@@ -9,6 +9,7 @@ from tests.plugin_check_fixtures import write_plugin_fixture
 
 
 class TestCapabilityInferenceTests(unittest.TestCase):
+    """Groups regression coverage for plugin checker tests for test capability inference."""
     def test_check_plugin_reports_manifest_drift(self):
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(Path(tmp), capabilities=("network.connect",), manifest_capabilities=())

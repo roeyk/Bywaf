@@ -52,6 +52,7 @@ from bywaf.tools.plugin_manifest import manifest_from_plugins
 
 
 class FakePromptBuffer:
+    """Test double used by this module's regression cases."""
     def __init__(self, text: str, cursor_position: int) -> None:
         self.text = text
         self.cursor_position = cursor_position
@@ -67,6 +68,7 @@ class FakePromptBuffer:
 
 
 class FakePromptOutput:
+    """Test double used by this module's regression cases."""
     def __init__(self) -> None:
         self.shown = False
 
@@ -75,6 +77,7 @@ class FakePromptOutput:
 
 
 class FakePromptApp:
+    """Test double used by this module's regression cases."""
     def __init__(self) -> None:
         self.output = FakePromptOutput()
         self.invalidated = False

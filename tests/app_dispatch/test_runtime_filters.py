@@ -25,6 +25,7 @@ from bywaf.db import EventStore
 
 
 class AppDispatchTests(unittest.TestCase):
+    """Groups regression coverage for app runtime filters behavior."""
     def test_make_runner_marks_dead_runtime_jobs_stale_on_startup(self):
         with tempfile.TemporaryDirectory() as tmp:
             db_path = Path(tmp, "db.sqlite3")

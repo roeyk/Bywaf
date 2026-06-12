@@ -24,6 +24,7 @@ from bywaf.event import Event
 
 
 class EventDbTests(unittest.TestCase):
+    """Groups regression coverage for events db behavior."""
     def test_event_serializes_payload(self):
         event = Event.new("topic", {"b": 2, "a": 1}, "test")
         self.assertEqual(event.payload_json(), '{"a":1,"b":2}')

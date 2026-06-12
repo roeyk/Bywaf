@@ -23,6 +23,7 @@ except ImportError:  # pragma: no cover - depends on developer environment.
 
 
 class InteractiveCompletionSmokeTests(unittest.TestCase):
+    """Groups regression coverage for interactive completion smoke behavior."""
     def spawn_bywaf(self, cwd: Path) -> Any:
         if pexpect is None:
             self.skipTest("pexpect is not installed")

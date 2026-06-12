@@ -17,6 +17,7 @@ from tests.packaging_install.support import (
 
 
 class PackagingInstallSignedManifestTests(unittest.TestCase):
+    """Groups regression coverage for signed plugin manifest packaging install-path tests."""
     @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
     def test_cli_run_loads_external_plugin_with_signed_manifest(self):
         with tempfile.TemporaryDirectory() as tmp:

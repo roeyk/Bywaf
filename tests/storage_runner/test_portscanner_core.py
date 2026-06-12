@@ -4,6 +4,7 @@
 from tests.storage_runner.support import *  # noqa: F403,F405
 
 class StorageRunnerPortscannerCoreTests(unittest.TestCase):
+    """Groups regression coverage for storage runner tests split by responsibility."""
     def test_pipeline_scans_open_local_port(self):
         with tempfile.TemporaryDirectory() as tmp:
             with (

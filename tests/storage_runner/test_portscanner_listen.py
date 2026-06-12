@@ -4,6 +4,7 @@
 from tests.storage_runner.support import *  # noqa: F403,F405
 
 class StorageRunnerPortscannerListenTests(unittest.TestCase):
+    """Groups regression coverage for storage runner tests split by responsibility."""
     def test_portscanner_listen_scopes_to_upstream_command_run(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))

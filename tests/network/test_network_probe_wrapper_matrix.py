@@ -15,6 +15,7 @@ from bywaf.plugins.network.tcp_banner import tcp_banner
 
 
 class TcpBannerWrapperMatrixTests(TestCase):
+    """Groups regression coverage for fixture-backed network probe wrapper coverage."""
     def test_tcp_banner_emits_error_payload_for_socket_failure(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
@@ -30,6 +31,7 @@ class TcpBannerWrapperMatrixTests(TestCase):
 
 
 class SnmpGetWrapperMatrixTests(TestCase):
+    """Groups regression coverage for fixture-backed network probe wrapper coverage."""
     def test_snmp_get_publishes_successful_value(self):
         fake_hlapi = fake_snmp_hlapi((None, 0, 0, [("1.2.3", "router")]))
 

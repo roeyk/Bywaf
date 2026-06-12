@@ -21,6 +21,7 @@ from bywaf.time_format import (
 
 
 class TimeFormatTests(unittest.TestCase):
+    """Groups regression coverage for shared timestamp formatting helpers."""
     def test_format_operator_timestamp_uses_date_time_timezone_order(self):
         text = format_operator_timestamp(datetime(2026, 5, 22, 12, 28, 32, tzinfo=timezone.utc))
         self.assertRegex(text, r"20260522 \d{2}:\d{2}:\d{2} [A-Z]+")

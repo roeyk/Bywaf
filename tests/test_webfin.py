@@ -23,6 +23,7 @@ from bywaf.plugins.http.webfin import (
 
 
 class WebFingerprintTests(unittest.TestCase):
+    """Groups regression coverage for webfin behavior."""
     def test_fingerprint_endpoint_infers_technology_and_observations(self):
         payload = fingerprint_endpoint(
             {

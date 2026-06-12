@@ -37,6 +37,7 @@ def cryptography_available() -> bool:
 
 @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
 class KeyringTests(unittest.TestCase):
+    """Groups regression coverage for keyring behavior."""
     def test_generate_key_writes_encrypted_private_and_public_metadata(self):
         with tempfile.TemporaryDirectory() as tmp:
             with patch.dict(os.environ, {"BYWAF_KEY_ROOT": tmp}):

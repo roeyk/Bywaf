@@ -27,6 +27,7 @@ def context_for(db: EventStore) -> CommandContext:
 
 
 class FindingDedupeTests(unittest.TestCase):
+    """Groups regression coverage for finding dedupe behavior."""
     def test_identifier_match_publishes_new_then_duplicate(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))

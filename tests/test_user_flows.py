@@ -16,6 +16,7 @@ from pathlib import Path
 
 
 class UserFlowTests(unittest.TestCase):
+    """Groups regression coverage for user flows behavior."""
     def test_user_flow_scripts_pass(self):
         root = Path(__file__).resolve().parents[1]
         runner = root / "tests" / "scripts" / "run_user_flow.py"

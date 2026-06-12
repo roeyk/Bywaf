@@ -28,6 +28,7 @@ from bywaf.plugins.http.nikto import (
 
 
 class NiktoTests(unittest.TestCase):
+    """Groups regression coverage for nikto behavior."""
     def test_builds_shell_free_json_argv(self):
         argv = nikto_argv(
             binary="nikto",

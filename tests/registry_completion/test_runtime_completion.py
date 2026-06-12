@@ -3,6 +3,7 @@
 
 from tests.registry_completion.support import *  # noqa: F403,F405
 class RegistryRuntimeCompletionTests(unittest.TestCase):
+    """Groups regression coverage for registry and completion tests split by responsibility."""
     def setUp(self):
         self.registry = PluginRegistry.discover()
 

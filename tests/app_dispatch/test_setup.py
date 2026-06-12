@@ -13,6 +13,7 @@ from bywaf.keyring import KeyRecord
 
 
 class SetupCliTests(unittest.TestCase):
+    """Groups regression coverage for setup-specific CLI behavior."""
     def test_setup_creates_user_config_default_project_and_audit_event(self):
         with tempfile.TemporaryDirectory() as tmp:
             with patch.dict("os.environ", {"HOME": tmp}):

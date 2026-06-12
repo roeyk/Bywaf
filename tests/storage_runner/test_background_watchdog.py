@@ -7,6 +7,7 @@ from tests.storage_runner.support import *  # noqa: F403,F405
 
 
 class ImmediateProcess:
+    """Test double used by this module's regression cases."""
     pid = 123
 
     def __init__(self, *, target, args, daemon):
@@ -19,6 +20,7 @@ class ImmediateProcess:
 
 
 class StorageRunnerBackgroundWatchdogTests(unittest.TestCase):
+    """Groups regression coverage for storage runner tests split by responsibility."""
     def test_background_command_records_job_and_event(self):
         with tempfile.TemporaryDirectory() as tmp:
             db_path = Path(tmp, "db.sqlite3")

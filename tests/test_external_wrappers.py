@@ -22,6 +22,7 @@ from bywaf.plugins.wireless.wifi_scan import WifiScan, extract_networks, kismet_
 
 
 class EyeWitnessTests(unittest.TestCase):
+    """Groups regression coverage for external wrappers behavior."""
     def test_eyewitness_argv_uses_single_or_target_file(self):
         one, target_file = eyewitness_argv(
             "eyewitness",
@@ -143,6 +144,7 @@ class EyeWitnessTests(unittest.TestCase):
 
 
 class WifiScanTests(unittest.TestCase):
+    """Groups regression coverage for external wrappers behavior."""
     def test_kismet_argv_is_shell_free(self):
         argv = kismet_argv("kismet", "wlan0mon", Path("/tmp/kismet"), "kismet,json")
         self.assertEqual(argv[:4], ["kismet", "-c", "wlan0mon", "--no-ncurses"])

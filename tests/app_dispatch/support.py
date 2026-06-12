@@ -2,6 +2,7 @@
 
 
 class FakeHostResult:
+    """Test double used by this module's regression cases."""
     def state(self):
         return "up"
 
@@ -13,6 +14,7 @@ class FakeHostResult:
 
 
 class FakePortScanner:
+    """Test double used by this module's regression cases."""
     def scan(self, **kwargs):
         self.kwargs = kwargs
 
@@ -24,4 +26,5 @@ class FakePortScanner:
 
 
 class FakeNmapModule:
+    """Test double used by this module's regression cases."""
     PortScanner = FakePortScanner

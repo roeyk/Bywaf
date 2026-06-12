@@ -3,6 +3,7 @@
 
 from tests.config_plugin.support import *  # noqa: F403,F405
 class ConfigPluginContextProcessSecretTests(unittest.TestCase):
+    """Groups regression coverage for config/plugin tests split by responsibility."""
     def test_command_context_process_run_redacts_secret_argv(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))

@@ -32,6 +32,7 @@ from bywaf.plugins.http.repo_exposure import (
 
 
 class RepoExposureTests(unittest.TestCase):
+    """Groups regression coverage for repository exposure checks."""
     def test_git_config_url_uses_root_metadata_path(self):
         self.assertEqual(git_config_url("https://example.test/app/index.html"), "https://example.test/.git/config")
 

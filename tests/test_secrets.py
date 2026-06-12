@@ -23,6 +23,7 @@ from bywaf.secret.store import (
 
 
 class SecretTests(unittest.TestCase):
+    """Groups regression coverage for secrets behavior."""
     def test_fingerprint_is_stable_and_keyed(self):
         key = b"k" * 32
         self.assertEqual(fingerprint_secret("secret", key), fingerprint_secret("secret", key))

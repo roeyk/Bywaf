@@ -8,6 +8,7 @@ from bywaf.app import friendly_error, make_runner, render_prompt
 
 
 class TestAppHelpersTests(unittest.TestCase):
+    """Groups regression coverage for framework HTTP app tests for test app helpers."""
     def test_render_prompt_replaces_time_placeholder(self):
         self.assertNotIn("%T", render_prompt("%T> "))
 

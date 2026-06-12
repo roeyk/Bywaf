@@ -27,6 +27,7 @@ from bywaf.triggers import start_default_services
 
 
 class AppDispatchTests(unittest.TestCase):
+    """Groups regression coverage for app listing triggers behavior."""
     def test_dispatch_plugins_lists_plugins(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

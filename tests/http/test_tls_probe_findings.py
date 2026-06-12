@@ -17,6 +17,7 @@ from bywaf.repl import ShellState
 
 
 class TlsProbeFindingTests(unittest.TestCase):
+    """Groups regression coverage for tLS probe finding promotion tests."""
     def test_tls_probe_promotes_expired_certificate(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))

@@ -24,6 +24,7 @@ from bywaf.plugins.network.nmap_backend import NmapPort
 
 
 class AppDispatchTests(unittest.TestCase):
+    """Groups regression coverage for app runtime lists behavior."""
     def test_dispatch_steps_lists_command_runs(self):
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))

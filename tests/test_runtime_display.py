@@ -15,6 +15,7 @@ from bywaf.time_format import COMPACT_RUNTIME_TS_FORMAT
 
 
 class RuntimeDisplayTests(unittest.TestCase):
+    """Groups regression coverage for runtime display behavior."""
     def test_format_runtime_timestamp_shows_operator_local_time(self):
         self.assertEqual(
             format_runtime_timestamp("2026-05-18T12:34:56+00:00"),

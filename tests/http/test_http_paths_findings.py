@@ -13,6 +13,7 @@ from bywaf.plugins.http.paths import http_paths
 
 
 class HttpPathFindingTests(unittest.TestCase):
+    """Groups regression coverage for focused HTTP path finding promotion tests."""
     def test_admin_login_surface_becomes_low_severity_candidate(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))

@@ -169,6 +169,7 @@ if __name__ == "__main__":
 
 
 class FakeHostResult:
+    """Test double used by this module's regression cases."""
     def state(self):
         return "up"
 
@@ -237,4 +238,5 @@ class FakePortScanner:
 
 
 class FakeNmapModule:
+    """Test double used by this module's regression cases."""
     PortScanner = FakePortScanner

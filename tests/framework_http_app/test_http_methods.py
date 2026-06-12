@@ -174,14 +174,17 @@ class FakeResponse:
 
 
 class AllowResponse(FakeResponse):
+    """Test double used by this module's regression cases."""
     headers = {"Allow": "GET, OPTIONS, TRACE"}
 
 
 class PublicResponse(FakeResponse):
+    """Test double used by this module's regression cases."""
     headers = {"Public": "GET, OPTIONS"}
 
 
 class RiskyResponse(FakeResponse):
+    """Test double used by this module's regression cases."""
     headers = {"Allow": "GET, OPTIONS, PUT, PROPFIND, TRACE"}
 
 
@@ -207,10 +210,12 @@ class AllowConnection:
 
 
 class PublicConnection(AllowConnection):
+    """Test double used by this module's regression cases."""
     response = PublicResponse()
 
 
 class RiskyConnection(AllowConnection):
+    """Test double used by this module's regression cases."""
     response = RiskyResponse()
 
 

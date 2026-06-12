@@ -13,6 +13,7 @@ from tests.packaging_install.support import cryptography_available, write_plugin
 
 
 class PackagingInstallSignedCatalogTests(unittest.TestCase):
+    """Groups regression coverage for signed plugin catalog packaging install-path tests."""
     @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
     def test_cli_run_loads_external_plugin_with_signed_catalog(self):
         with tempfile.TemporaryDirectory() as tmp:

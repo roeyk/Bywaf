@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from tests.config_plugin.support import *  # noqa: F403,F405
 class ConfigPluginContextCapabilityTests(unittest.TestCase):
+    """Groups regression coverage for config/plugin tests split by responsibility."""
     def test_command_context_metadata_default(self):
         context = CommandContext(db=None, source="test")
         self.assertEqual(context.metadata, {})

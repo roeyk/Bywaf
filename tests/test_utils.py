@@ -22,6 +22,7 @@ from bywaf.utils import (
 
 
 class UtilsTests(unittest.TestCase):
+    """Groups regression coverage for utils behavior."""
     def test_split_pipeline_detects_background(self):
         parts, background = split_pipeline("hostscanner 127.0.0.1 | portscanner &")
         self.assertEqual(parts, ["hostscanner 127.0.0.1", "portscanner"])

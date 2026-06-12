@@ -28,6 +28,7 @@ def context_for(db: EventStore) -> CommandContext:
 
 
 class FindingReportTests(unittest.TestCase):
+    """Groups regression coverage for finding report behavior."""
     def test_report_renders_deduped_findings_as_framework_table(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))

@@ -19,6 +19,7 @@ from bywaf.db import EventStore
 
 
 class CliParserTests(unittest.TestCase):
+    """Groups regression coverage for top-level CLI parsing and startup path selection."""
     def test_build_parser_accepts_exec(self):
         parser = build_parser()
         args = parser.parse_args(["exec", "echo", "hello"])

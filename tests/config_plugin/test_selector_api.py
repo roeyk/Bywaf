@@ -8,6 +8,7 @@ from bywaf.plugin import kv_to_args, parse_bool, parse_kv, parse_kvs, reject_opt
 
 
 class PluginSelectorApiTests(unittest.TestCase):
+    """Groups regression coverage for public plugin selector parsing helpers."""
     def test_parse_kvs_supports_final_text_selector(self) -> None:
         selectors = parse_kvs(
             ["step=1", "text=validated", "manually"],

@@ -23,6 +23,7 @@ from bywaf.rendering import Column, Table, render_table
 
 
 class RenderingTests(unittest.TestCase):
+    """Groups regression coverage for rendering behavior."""
     def test_table_from_mapping_rows_infers_columns(self):
         table = Table.from_rows(({"host": "127.0.0.1", "port": 80},))
         self.assertEqual(tuple(column.key for column in table.columns), ("host", "port"))

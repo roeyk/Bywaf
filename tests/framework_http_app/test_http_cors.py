@@ -16,6 +16,7 @@ from bywaf.plugins.http.cors import (
 
 
 class TestHttpCorsTests(unittest.TestCase):
+    """Groups regression coverage for framework HTTP app tests for HTTP CORS posture inspection."""
     def test_http_cors_targets_from_arg(self):
         targets = HttpCors().targets(["example.test:8080"], "auto", "/api", [])
         self.assertEqual(targets, [("example.test", 8080, "http", "/api")])
@@ -112,6 +113,7 @@ class TestHttpCorsTests(unittest.TestCase):
 
 
 class FakeResponse:
+    """Test double used by this module's regression cases."""
     status = 204
     reason = "No Content"
     headers: dict[str, str] = {}
@@ -121,6 +123,7 @@ class FakeResponse:
 
 
 class ReflectedResponse(FakeResponse):
+    """Test double used by this module's regression cases."""
     headers = {
         "Access-Control-Allow-Origin": "https://evil.example",
         "Access-Control-Allow-Credentials": "true",
@@ -130,6 +133,7 @@ class ReflectedResponse(FakeResponse):
 
 
 class ReflectedConnection:
+    """Test double used by this module's regression cases."""
     response = ReflectedResponse()
 
     def __init__(self, host, port=None, timeout=None):
@@ -150,6 +154,7 @@ class ReflectedConnection:
 
 
 class ErrorConnection(ReflectedConnection):
+    """Test double used by this module's regression cases."""
     def request(self, method, path, headers=None):
         raise OSError("connection refused")
 

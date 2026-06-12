@@ -7,6 +7,7 @@ from scripts.plugin_check import check_plugin, render_text
 
 
 class TestSkeletonsRuntimePolicyTests(unittest.TestCase):
+    """Groups regression coverage for plugin checker tests for test skeletons runtime policy."""
     def test_plugin_skeletons_validate(self):
         skeleton_root = Path(__file__).resolve().parents[2] / "docs" / "plugin_skeletons"
         failures: list[str] = []

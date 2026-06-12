@@ -8,6 +8,7 @@ from bywaf.finding import candidate_payload, confirmed_payload, subject_value
 
 
 class FindingGroupingTests(unittest.TestCase):
+    """Groups regression coverage for finding class and report grouping helpers."""
     def test_validate_finding_class_accepts_dotted_lowercase_classes(self):
         self.assertEqual(validate_finding_class("web.header.missing_hsts"), "web.header.missing_hsts")
 

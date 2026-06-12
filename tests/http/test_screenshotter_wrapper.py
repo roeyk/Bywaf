@@ -29,6 +29,7 @@ def make_context(tmp: str) -> tuple[CommandContext, EventStore]:
 
 
 class ScreenshotterWrapperTests(unittest.TestCase):
+    """Groups regression coverage for the screenshotter EyeWitness wrapper alias."""
     def test_missing_binary_records_system_error_and_raises(self):
         with tempfile.TemporaryDirectory() as tmp:
             context, db = make_context(tmp)
