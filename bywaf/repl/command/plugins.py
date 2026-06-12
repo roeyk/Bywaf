@@ -24,7 +24,10 @@ if TYPE_CHECKING:
 
 
 def handle_plugin_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
-    """Load filesystem plugins."""
+    """Load filesystem plugins.
+
+    Called by: REPL command dispatch for the explicit `plugin load=...` form.
+    """
     del line
     if rest is None:
         print("usage: plugin load=<path> [path=<catalog/path>] [--force] [--use|use=<commandlet>]")
@@ -58,7 +61,10 @@ def handle_plugin_command(runner: Runner, state: ShellState, rest: str | None, l
 
 
 def handle_pload_command(runner: Runner, state: ShellState, rest: str | None, line: str) -> str | None:
-    """Short alias for loading filesystem plugins."""
+    """Short alias for loading filesystem plugins.
+
+    Called by: REPL command dispatch for the shorter `pload ...` form.
+    """
     del line
     if rest is None:
         print("usage: pload <path> [path=<catalog/path>] [--force] [--use|use=<commandlet>]")
@@ -96,7 +102,10 @@ def handle_pload_command(runner: Runner, state: ShellState, rest: str | None, li
 
 
 def print_loaded_plugin_vars(runner: Runner, commandlets: Sequence[str]) -> None:
-    """Print compact assignable variable names exposed by loaded commandlets."""
+    """Print compact assignable variable names exposed by loaded commandlets.
+
+    Called by: both plugin-loading handlers after registry load completes.
+    """
     stubs = loaded_plugin_var_stubs(runner, commandlets)
     if not stubs:
         return
@@ -106,10 +115,15 @@ def print_loaded_plugin_vars(runner: Runner, commandlets: Sequence[str]) -> None
 
 
 def loaded_plugin_var_stubs(runner: Runner, commandlets: Sequence[str]) -> list[str]:
-    """Return alphabetized `var=` stubs for variables declared by commandlets."""
+    """Return alphabetized `var=` stubs for variables declared by commandlets.
+
+    Called by: `print_loaded_plugin_vars()`.
+    """
     stubs: set[str] = set()
     for commandlet in commandlets:
         plugin = runner.registry.get(commandlet)
+        # Commandlet options are written as bare option= stubs; provider
+        # variables are scoped so users can paste them directly into `vars set`.
         stubs.update(f"{option.name}=" for option in plugin.spec.options)
         provider_scope = provider_scope_for(runner.registry.variable_scope(commandlet))
         stubs.update(f"{provider_scope}.{name}=" for name in plugin.spec.provider_variables)
@@ -118,13 +132,18 @@ def loaded_plugin_var_stubs(runner: Runner, commandlets: Sequence[str]) -> list[
 
 
 def format_var_stub_columns(stubs: Sequence[str], *, columns: int = 3, width: int | None = None) -> list[str]:
-    """Render variable stubs in compact columns that fit the terminal width."""
+    """Render variable stubs in compact columns that fit the terminal width.
+
+    Called by: `print_loaded_plugin_vars()`.
+    """
     if not stubs:
         return []
     terminal_width = width or shutil.get_terminal_size(fallback=(80, 24)).columns
     column_count = min(columns, len(stubs))
     while column_count > 1:
         column_width = max(len(stub) for stub in stubs) + 3
+        # Reduce columns until every row fits the terminal; this keeps plugin
+        # load output readable on narrow SSH sessions.
         if column_width * column_count <= terminal_width:
             break
         column_count -= 1
@@ -143,7 +162,10 @@ def maybe_use_loaded_commandlet(
     commandlets: Sequence[str],
     target: str | None,
 ) -> None:
-    """Optionally switch active context after loading a plugin provider."""
+    """Optionally switch active context after loading a plugin provider.
+
+    Called by: both plugin-loading handlers after printing exposed variables.
+    """
     if target is None:
         # Loading does not implicitly change `use`; print the likely next step
         # while avoiding surprises for providers with multiple commandlets.
