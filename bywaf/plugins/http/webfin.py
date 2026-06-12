@@ -30,6 +30,7 @@ DEFAULTS = {
     "timeout": 5,
     "user-agent": "Bywaf/0.9",
 }
+# Default provider variables exposed by the bundled `webfin` commandlet.
 
 
 @commandlet(
@@ -46,13 +47,22 @@ DEFAULTS = {
 @option("timeout", "request timeout seconds", "5")
 @option("user-agent", "HTTP User-Agent", "Bywaf/0.9")
 class WebFingerprint(CommandletBase):
+    """HTTP technology fingerprinting commandlet.
+
+    Constructed by: bundled plugin registry through `plugin()`.
+    Consumed by: runner/REPL dispatch and pipelines after `http_probe`.
+    """
+
     def run(
         self,
         context: CommandContext,
         args: list[str],
         input_events: Iterable[Event],
     ):
-        """Fingerprint explicit targets or upstream `http.endpoint` events."""
+        """Fingerprint explicit targets or upstream `http.endpoint` events.
+
+        Called by: framework commandlet execution.
+        """
         parser = self.parser()
         parser.add_argument("targets", nargs="*")
         parser.add_argument("-s", "--silent", action="store_true", default=self.var_default(context, "silent", False, cast=parse_bool))
@@ -62,6 +72,8 @@ class WebFingerprint(CommandletBase):
 
         endpoints = endpoint_payloads(parsed.targets, input_events, parsed.timeout, parsed.user_agent, context)
         for endpoint in endpoints:
+            # `webfin` emits facts; user-facing alerts are a convenience preview
+            # and are suppressed in quiet/report-oriented chains with `-s`.
             fingerprint = fingerprint_endpoint(endpoint)
             context.alert(
                 fingerprint_alert(fingerprint),
@@ -72,7 +84,12 @@ class WebFingerprint(CommandletBase):
 
 @dataclass(frozen=True, slots=True)
 class Observation:
-    """One operator-facing observation about a web endpoint."""
+    """One operator-facing observation about a web endpoint.
+
+    Constructed by: `infer_observations()`.
+    Used by: `fingerprint_endpoint()` payloads and downstream report/results
+    renderers as triage hints, not reviewed findings.
+    """
 
     kind: str
     severity: str
@@ -80,7 +97,10 @@ class Observation:
     evidence: str = ""
 
     def as_payload(self) -> dict[str, str]:
-        """Return a stable JSON-serializable representation."""
+        """Return a stable JSON-serializable representation.
+
+        Called by: `fingerprint_endpoint()` when building `web.fingerprint`.
+        """
         return {
             "kind": self.kind,
             "severity": self.severity,
@@ -96,7 +116,10 @@ def endpoint_payloads(
     user_agent: str,
     context: CommandContext,
 ) -> list[dict[str, Any]]:
-    """Resolve endpoint payloads from explicit targets or upstream events."""
+    """Resolve endpoint payloads from explicit targets or upstream events.
+
+    Called by: `WebFingerprint.run()`.
+    """
     if targets:
         # Explicit targets have not necessarily passed through http_probe, so do
         # a lightweight GET here to collect title/header evidence for inference.
@@ -104,6 +127,8 @@ def endpoint_payloads(
         payloads: list[dict[str, Any]] = []
         for target in filter_targets_by_host(context, targets, lambda target: target_from_text(target, "auto", "/").host):
             parsed = target_from_text(target, "auto", "/")
+            # Explicit targets are the only webfin path that opens the network;
+            # piped http.endpoint events reuse existing probe facts.
             context.audit_capability("network.connect")
             result = probe_url(opener, parsed.url, "GET", timeout, user_agent)
             payloads.append(
@@ -116,11 +141,18 @@ def endpoint_payloads(
                 }
             )
         return payloads
+    # Pipeline mode is pure interpretation: use upstream http_probe payloads and
+    # avoid any extra network work.
     return [dict(event.payload) for event in input_events if event.topic == "http.endpoint"]
 
 
 def fingerprint_endpoint(endpoint: dict[str, Any]) -> dict[str, Any]:
-    """Build a structured fingerprint payload for one endpoint."""
+    """Build a structured fingerprint payload for one endpoint.
+
+    Called by: `WebFingerprint.run()` and focused webfin tests.
+    """
+    # Normalize metadata from both http_probe payloads and explicit probe
+    # results; upstream events may include either top-level fields or headers.
     headers = normalized_headers(endpoint.get("headers", {}))
     server = str(endpoint.get("server") or headers.get("server", ""))
     content_type = str(endpoint.get("content_type") or headers.get("content-type", ""))
@@ -147,7 +179,10 @@ def fingerprint_endpoint(endpoint: dict[str, Any]) -> dict[str, Any]:
 
 
 def normalized_headers(raw_headers: object) -> dict[str, str]:
-    """Normalize response headers to lowercase string keys."""
+    """Normalize response headers to lowercase string keys.
+
+    Called by: `fingerprint_endpoint()` before matching rules inspect headers.
+    """
     if not isinstance(raw_headers, dict):
         return {}
     return {str(key).lower(): str(value) for key, value in raw_headers.items()}
@@ -159,10 +194,15 @@ def infer_technologies(
     title: str,
     headers: dict[str, str],
 ) -> list[str]:
-    """Infer lightweight technology tags from common HTTP metadata."""
+    """Infer lightweight technology tags from common HTTP metadata.
+
+    Called by: `fingerprint_endpoint()`.
+    """
     # Keep rules intentionally shallow. This is a fast triage signal, not a full
     # Wappalyzer-style signature engine.
     evidence = " ".join([server, content_type, title, " ".join(headers.values())]).lower()
+    # Lightweight dispatch table used by this function: each technology maps to
+    # text needles that may appear in headers, content type, title, or server.
     rules = (
         ("nginx", ("nginx",)),
         ("apache", ("apache",)),
@@ -175,6 +215,8 @@ def infer_technologies(
         ("jquery", ("jquery",)),
         ("json-api", ("application/json",)),
     )
+    # dict.fromkeys preserves first-seen order while removing duplicate matches
+    # from overlapping needles; sorting keeps payloads stable for tests/reports.
     found = [name for name, needles in rules if any(needle in evidence for needle in needles)]
     return sorted(dict.fromkeys(found))
 
@@ -186,12 +228,18 @@ def infer_observations(
     title: str,
     headers: dict[str, str],
 ) -> list[Observation]:
-    """Generate simple native observations from endpoint metadata."""
+    """Generate simple native observations from endpoint metadata.
+
+    Called by: `fingerprint_endpoint()`.
+    """
     observations: list[Observation] = []
+    # Status observations describe endpoint behavior without guessing an
+    # exploitability finding.
     if isinstance(status, int) and status in {401, 403}:
         observations.append(Observation("access-control", "info", f"restricted endpoint returned HTTP {status}", str(status)))
     if isinstance(status, int) and status >= 500:
         observations.append(Observation("server-error", "medium", f"server returned HTTP {status}", str(status)))
+    # Header observations are triage hints for report/results views.
     if server:
         observations.append(Observation("server-header", "info", "server header is exposed", server))
     if "x-powered-by" in headers:
@@ -207,24 +255,36 @@ def infer_observations(
 
 
 def canonical_header(header: str) -> str:
-    """Return display casing for a lowercase header name."""
+    """Return display casing for a lowercase header name.
+
+    Called by: `infer_observations()` for missing-header messages.
+    """
     return "-".join(part.capitalize() for part in header.split("-"))
 
 
 def fingerprint_alert(payload: dict[str, Any]) -> str:
-    """Build a concise console alert for a fingerprint payload."""
+    """Build a concise console alert for a fingerprint payload.
+
+    Called by: `WebFingerprint.run()` for optional operator preview output.
+    """
     technologies = ",".join(payload.get("technologies", [])) or "unknown"
     observations = payload.get("observations", [])
     return f"fingerprinted {payload.get('url')} tech={technologies} observations={len(observations)}"
 
 
 def scheme_from_url(url: str) -> str:
-    """Infer URL scheme from a URL string."""
+    """Infer URL scheme from a URL string.
+
+    Called by: `fingerprint_endpoint()` and `default_port()`.
+    """
     return "https" if url.startswith("https://") else "http"
 
 
 def default_port(scheme: str, url: str) -> int:
-    """Return the default port from scheme or URL."""
+    """Return the default port from scheme or URL.
+
+    Called by: `fingerprint_endpoint()` when endpoint payloads omit port.
+    """
     selected = scheme or scheme_from_url(url)
     return 443 if selected == "https" else 80
 
