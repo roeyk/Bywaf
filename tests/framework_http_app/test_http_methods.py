@@ -148,6 +148,7 @@ class TestHttpMethodsTests(unittest.TestCase):
             self.assertIn("WebDAV HTTP methods enabled", text)
 
     def test_http_methods_report_pipeline_implies_dedupe_analysis(self):
+        """Protect HTTP methods report pipeline implies dedupe analysis behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()
@@ -182,6 +183,7 @@ class FakeResponse:
     headers: dict[str, str] = {}
 
     def getheader(self, name):
+        """Test helper for getheader."""
         return self.headers.get(name, "")
 
 
@@ -211,13 +213,16 @@ class AllowConnection:
         self.timeout = timeout
 
     def request(self, method, path):
+        """Test helper for request."""
         self.method = method
         self.path = path
 
     def getresponse(self):
+        """Test helper for getresponse."""
         return self.response
 
     def close(self):
+        """Test helper for close."""
         return None
 
 
@@ -235,6 +240,7 @@ class ErrorConnection(AllowConnection):
     """Connection fake for transport failure payload tests."""
 
     def request(self, method, path):
+        """Test helper for request."""
         raise OSError("connection refused")
 
 

@@ -21,6 +21,7 @@ class RegistryManifestSchemaTests(unittest.TestCase):
             )
 
             def run(self, context, args, input_events):
+                """Test helper for run."""
                 yield {"ok": True}
 
         text = manifest_from_plugins((Example(),))
@@ -59,6 +60,7 @@ class RegistryManifestSchemaTests(unittest.TestCase):
             spec = CommandSpec("example", "example plugin")
 
             def run(self, context, args, input_events):
+                """Test helper for run."""
                 yield {"ok": True}
 
         trigger = TriggerSpec(
@@ -81,9 +83,11 @@ class RegistryManifestSchemaTests(unittest.TestCase):
     def test_plugin_manifest_tool_can_render_event_schemas(self):
         """Protect plugin manifest tool can render event schemas behavior from regressions."""
         class Example:
+            """Group regression coverage for `Example` behavior."""
             spec = CommandSpec("example", "example plugin")
 
             def run(self, context, args, input_events):
+                """Test helper for run."""
                 yield {"ok": True}
 
         text = manifest_from_plugins(

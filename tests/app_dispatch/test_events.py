@@ -171,6 +171,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("Usage:   exec <argv...>", text)
 
     def test_exec_runs_argv_without_shell(self):
+        """Protect exec runs argv without shell behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             completed = subprocess.CompletedProcess(["echo", "hello world"], 0)
@@ -184,6 +185,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(events[-1].payload["argv"], ["echo", "hello world"])
 
     def test_foreground_commandlet_does_not_print_completion_footer(self):
+        """Protect foreground commandlet does not print completion footer behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()
@@ -192,6 +194,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("done:", output.getvalue())
 
     def test_background_commandlet_does_not_print_completion_footer(self):
+        """Protect background commandlet does not print completion footer behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             event = Event.new(
@@ -206,6 +209,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("done:", output.getvalue())
 
     def test_step_inspects_command_run(self):
+        """Protect step inspects command run behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", pipeline_id="p", command_run_id="r")
@@ -227,6 +231,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("host.found 127.0.0.1", text)
 
     def test_step_show_summarizes_captured_console_output(self):
+        """Protect step show summarizes captured console output behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.record_command_run_vars(
@@ -260,6 +265,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("2     completed", text)
 
     def test_step_show_points_to_job_when_completion_is_missing(self):
+        """Protect step show points to job when completion is missing behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("hostscanner host=192.0.2.0/24", 123, "stale")
@@ -287,6 +293,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn(f"No step completion event was recorded; inspect owning job with `job {job_id}`.", text)
 
     def test_events_colors_event_ids_when_enabled(self):
+        """Protect events colors event IDs when enabled behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.registry.varstore.set("display.events.color", "always")
@@ -299,6 +306,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("\x1b[1;33mhostscanner\x1b[0m", text)
 
     def test_events_use_semantic_display_roles(self):
+        """Protect events use semantic display roles behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.registry.varstore.set("display/style.host", "bold green")
@@ -309,6 +317,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("\x1b[1;32m192.0.2.10\x1b[0m:443/tcp", output.getvalue())
 
     def test_events_accept_escaped_hex_display_style(self):
+        """Protect events accept escaped hex display style behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.publish("port.open", {"host": "192.0.2.10", "port": 443, "protocol": "tcp"}, "test")
@@ -319,6 +328,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("\x1b[38;2;0;255;0m192.0.2.10\x1b[0m:443/tcp", output.getvalue())
 
     def test_events_accept_quoted_hex_display_style(self):
+        """Protect events accept quoted hex display style behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.publish("port.open", {"host": "192.0.2.10", "port": 443, "protocol": "tcp"}, "test")
@@ -329,6 +339,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("\x1b[38;2;0;255;0m192.0.2.10\x1b[0m:443/tcp", output.getvalue())
 
     def test_events_style_quoted_string_spans(self):
+        """Protect events style quoted string spans behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.registry.varstore.set("display/style.string", "bold yellow")
@@ -339,6 +350,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("\x1b[1;33m'quoted value'\x1b[0m", output.getvalue())
 
     def test_event_id_prints_event_runtime_context(self):
+        """Protect event ID prints event runtime context behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("hostscanner 127.0.0.1", 123, "running")
@@ -364,6 +376,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("error: boom", text)
 
     def test_event_id_reports_unknown_event_id(self):
+        """Protect event ID reports unknown event ID behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()
@@ -372,6 +385,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("error: unknown event: 999", output.getvalue())
 
     def test_event_id_colors_detail_keys_when_enabled(self):
+        """Protect event ID colors detail keys when enabled behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.registry.varstore.set("display.events.color", "always")

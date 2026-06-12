@@ -158,6 +158,7 @@ class TestHttpHeadersTests(unittest.TestCase):
         self.assertIn("web.header.missing_referrer_policy", classes)
 
     def test_http_headers_accepts_csp_and_referrer_policy(self):
+        """Protect HTTP headers accepts csp and referrer policy behavior from regressions."""
         result = HeaderProbeResult(
             target=HeaderTarget("example.test", 443, True),
             status=200,
@@ -183,9 +184,11 @@ if __name__ == "__main__":
 class FakeHostResult:
     """Test double used by this module's regression cases."""
     def state(self):
+        """Test helper for state."""
         return "up"
 
     def all_protocols(self):
+        """Test helper for all protocols."""
         return ["tcp"]
 
     def __getitem__(self, protocol):
@@ -208,13 +211,16 @@ class FakeHttpConnection:
         self.timeout = timeout
 
     def request(self, method, path):
+        """Test helper for request."""
         self.method = method
         self.path = path
 
     def getresponse(self):
+        """Test helper for getresponse."""
         return FakeHttpResponse()
 
     def close(self):
+        """Test helper for close."""
         return None
 
 
@@ -233,6 +239,7 @@ class WeakHeaderConnection(FakeHttpConnection):
     """Connection fake returning weak header posture."""
 
     def getresponse(self):
+        """Test helper for getresponse."""
         return WeakHeaderResponse()
 
 
@@ -240,9 +247,11 @@ class FakePortScanner:
     """Legacy fake retained for older target-resolution helper tests."""
 
     def scan(self, **kwargs):
+        """Test helper for scan."""
         self.kwargs = kwargs
 
     def all_hosts(self):
+        """Test helper for all hosts."""
         return ["127.0.0.1"]
 
     def __getitem__(self, host):

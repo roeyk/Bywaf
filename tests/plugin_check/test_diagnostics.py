@@ -203,6 +203,7 @@ class TestDiagnosticsTests(unittest.TestCase):
             self.assertIn("port.open.protocol is required", report["diagnostics"][0]["message"])
 
     def test_check_plugin_validates_literal_plugin_owned_event_payload(self):
+        """Protect check plugin validates literal plugin owned event payload behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(
                 Path(tmp),
@@ -232,6 +233,7 @@ class TestDiagnosticsTests(unittest.TestCase):
             self.assertIn("example.session.observed.username is required", report["diagnostics"][0]["message"])
 
     def test_check_plugin_reports_boolean_option_without_default(self):
+        """Protect check plugin reports boolean option without default behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(
                 Path(tmp),
@@ -248,6 +250,7 @@ class TestDiagnosticsTests(unittest.TestCase):
             self.assertIn("explicit string default and choices", feedback)
 
     def test_check_plugin_reports_declared_option_missing_from_parser(self):
+        """Protect check plugin reports declared option missing from parser behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_parser_mismatch_fixture(Path(tmp))
 

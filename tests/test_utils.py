@@ -46,29 +46,35 @@ class UtilsTests(unittest.TestCase):
         self.assertEqual(host_candidates("127.0.0.0/30"), ("127.0.0.1", "127.0.0.2"))
 
     def test_host_candidates_keeps_hostname(self):
+        """Protect host candidates keeps hostname behavior from regressions."""
         self.assertEqual(host_candidates("example.test"), ("example.test",))
 
     def test_host_candidates_expands_last_octet_range(self):
+        """Protect host candidates expands last octet range behavior from regressions."""
         self.assertEqual(
             host_candidates("192.168.0.1-3"),
             ("192.168.0.1", "192.168.0.2", "192.168.0.3"),
         )
 
     def test_host_candidates_expands_multiple_octet_ranges(self):
+        """Protect host candidates expands multiple octet ranges behavior from regressions."""
         self.assertEqual(
             host_candidates("192.168.1-2.1-2"),
             ("192.168.1.1", "192.168.1.2", "192.168.2.1", "192.168.2.2"),
         )
 
     def test_expand_ipv4_range_rejects_descending_octet_range(self):
+        """Protect expand ipv4 range rejects descending octet range behavior from regressions."""
         with self.assertRaises(ValueError):
             expand_ipv4_range("192.168.3-1.1")
 
     def test_parse_octet_range_rejects_bad_octet(self):
+        """Protect parse octet range rejects bad octet behavior from regressions."""
         with self.assertRaises(ValueError):
             parse_octet_range("256")
 
     def test_complete_path_returns_matching_files(self):
+        """Protect complete path returns matching files behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             Path(tmp, "alpha.txt").write_text("x")
             Path(tmp, "beta.txt").write_text("x")

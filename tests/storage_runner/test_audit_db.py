@@ -201,6 +201,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             self.assertIn("No topic policy decisions matched.", output.getvalue())
 
     def test_audit_show_filters_since_until_time(self):
+        """Protect audit show filters since until time behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             first = runner.db.publish("topic", {"value": "old"}, "test")
@@ -218,6 +219,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             self.assertIn('"value": "new"', output.getvalue())
 
     def test_audit_show_filters_since_step_bound(self):
+        """Protect audit show filters since step bound behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             # Step-relative bounds are operator shortcuts for "show events from
@@ -232,6 +234,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             self.assertIn('"value": "new"', output.getvalue())
 
     def test_audit_export_writes_jsonl(self):
+        """Protect audit export writes jsonl behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "audit.jsonl")
             runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -246,6 +249,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             self.assertEqual(records[0]["payload"]["value"], 1)
 
     def test_audit_export_writes_sqlite_copy(self):
+        """Protect audit export writes sqlite copy behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "audit.sqlite3")
             runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -258,6 +262,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             self.assertEqual(EventStore(path).events_for_topic("topic")[0].payload["value"], 1)
 
     def test_audit_export_writes_pdf(self):
+        """Protect audit export writes PDF behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "audit.pdf")
             runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -268,6 +273,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             self.assertTrue(path.read_bytes().startswith(b"%PDF-1.4"))
 
     def test_audit_export_encrypted_pdf_requires_qpdf(self):
+        """Protect audit export encrypted PDF requires qpdf behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "audit.pdf")
             runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -279,6 +285,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
                     runner.execute(f"audit export --encrypt file={path}")
 
     def test_db_new_file_creates_and_switches_active_database(self):
+        """Protect database new file creates and switches active database behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             first = Path(tmp, "first.sqlite3")
             second = Path(tmp, "second.sqlite3")
@@ -294,6 +301,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             self.assertEqual(EventStore(first).events_for_topic("topic")[0].payload["value"], 1)
 
     def test_db_new_refuses_existing_file_without_force(self):
+        """Protect database new refuses existing file without force behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             first = Path(tmp, "first.sqlite3")
             second = Path(tmp, "second.sqlite3")
@@ -305,6 +313,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             self.assertEqual(EventStore(second).table_counts()["events"], 1)
 
     def test_db_new_rejects_value_carrying_file_flag(self):
+        """Protect database new rejects value carrying file flag behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             first = Path(tmp, "first.sqlite3")
             second = Path(tmp, "second.sqlite3")
@@ -314,6 +323,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             self.assertEqual(runner.db.path, first)
 
     def test_db_new_force_backs_up_existing_file(self):
+        """Protect database new force backs up existing file behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             first = Path(tmp, "first.sqlite3")
             second = Path(tmp, "second.sqlite3")
@@ -331,6 +341,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             self.assertEqual(EventStore(backups[0]).table_counts()["events"], 1)
 
     def test_db_new_default_path_uses_bywaf_db_directory(self):
+        """Protect database new default path uses bywaf database directory behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             cwd = Path.cwd()
             try:
@@ -346,6 +357,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
                 os.chdir(cwd)
 
     def test_db_new_persists_ad_hoc_active_database_for_next_startup(self):
+        """Protect database new persists ad hoc active database for next startup behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             cwd = Path.cwd()
             try:
@@ -365,6 +377,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
                 os.chdir(cwd)
 
     def test_db_stats_reports_main_and_artifact_database_counts(self):
+        """Protect database stats reports main and artifact database counts behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db_path = Path(tmp, "db.sqlite3")
             runner = make_runner(db_path)

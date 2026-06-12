@@ -64,6 +64,7 @@ class EyeWitnessTests(unittest.TestCase):
             event = Event.new("http.endpoint", {"url": "https://example.test/"}, "test")
 
             def fake_run(argv, *, cwd=None, env=None, timeout=None):
+                """Test helper for fake run."""
                 screenshot_dir = Path(argv[argv.index("-d") + 1]) / "screens"
                 screenshot_dir.mkdir(parents=True)
                 Path(screenshot_dir, "example.png").write_bytes(b"png")
@@ -109,6 +110,7 @@ class EyeWitnessTests(unittest.TestCase):
             event = Event.new("http.endpoint", {"url": "https://example.test/"}, "test")
 
             def fake_run(argv, *, cwd=None, env=None, timeout=None):
+                """Test helper for fake run."""
                 del argv, cwd, env, timeout
                 return subprocess.CompletedProcess([], 3, stdout="partial stdout", stderr="fatal stderr")
 
@@ -166,6 +168,7 @@ class WifiScanTests(unittest.TestCase):
         self.assertEqual(wifi_output_dir(context, ""), Path(".bywaf/wireless/run-1"))
 
     def test_extract_networks_normalizes_kismet_like_records(self):
+        """Protect extract networks normalizes kismet like records behavior from regressions."""
         networks = extract_networks(
             {
                 "devices": [
@@ -182,6 +185,7 @@ class WifiScanTests(unittest.TestCase):
         self.assertEqual(networks[0]["channel"], "6")
 
     def test_wifi_scan_emits_network_events(self):
+        """Protect wifi scan emits network events behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             output_dir = Path(tmp, "wifi")
@@ -192,6 +196,7 @@ class WifiScanTests(unittest.TestCase):
             )
 
             def fake_run(argv, *, cwd=None, env=None, timeout=None):
+                """Test helper for fake run."""
                 log_prefix = Path(argv[argv.index("--log-prefix") + 1])
                 log_prefix.parent.mkdir(parents=True, exist_ok=True)
                 Path(f"{log_prefix}.json").write_text(
@@ -209,6 +214,7 @@ class WifiScanTests(unittest.TestCase):
             self.assertTrue(db.events_for_topic("kismet.network"))
 
     def test_wifi_scan_nonzero_exit_links_process_output_artifact(self):
+        """Protect wifi scan nonzero exit links process output artifact behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(
@@ -218,6 +224,7 @@ class WifiScanTests(unittest.TestCase):
             )
 
             def fake_run(argv, *, cwd=None, env=None, timeout=None):
+                """Test helper for fake run."""
                 del argv, cwd, env, timeout
                 return subprocess.CompletedProcess([], 2, stdout="scan stdout", stderr="scan stderr")
 
@@ -230,6 +237,7 @@ class WifiScanTests(unittest.TestCase):
             self.assertIn("scan stderr", error["stderr"])
 
     def test_wifi_scan_timeout_is_informational_stop_without_networks(self):
+        """Protect wifi scan timeout is informational stop without networks behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(

@@ -121,6 +121,7 @@ class ResourcesHistoryDispatchStateTests(unittest.TestCase):
             self.assertIn("args=127.0.0.1", output.getvalue())
 
     def test_dispatch_prompt_sets_pattern(self):
+        """Protect dispatch prompt sets pattern behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -129,6 +130,7 @@ class ResourcesHistoryDispatchStateTests(unittest.TestCase):
             self.assertEqual(runner.db.events_for_topic("shell.prompt.updated")[0].payload["source"], "user")
 
     def test_set_prompt_pattern_records_audit_event(self):
+        """Protect set prompt pattern records audit event behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()

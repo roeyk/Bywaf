@@ -177,6 +177,7 @@ class TestContextCapabilityAuditTests(unittest.TestCase):
             self.assertEqual(runner.db.events_for_topic("test.topic"), [])
 
     def test_context_events_publish_schema_validation_can_be_disabled(self):
+        """Protect context events publish schema validation can be disabled behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             store = VarStore()
@@ -189,6 +190,7 @@ class TestContextCapabilityAuditTests(unittest.TestCase):
             self.assertEqual(runner.db.events_for_topic("port.open")[0].payload["port"], "80")
 
     def test_context_events_fetch_audits_read(self):
+        """Protect context events fetch audits read behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.publish("test.topic", {"ok": True}, "test")
@@ -204,6 +206,7 @@ class TestContextCapabilityAuditTests(unittest.TestCase):
             self.assertTrue(used.payload["declared"])
 
     def test_context_events_does_not_audit_raw_db_access(self):
+        """Protect context events does not audit raw database access behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             context = CommandContext(
@@ -219,6 +222,7 @@ class TestContextCapabilityAuditTests(unittest.TestCase):
             self.assertEqual(capabilities, ["db.write:test.topic"])
 
     def test_narrow_store_accessors_do_not_audit_raw_db_access(self):
+        """Protect narrow store accessors do not audit raw database access behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             context = CommandContext(runner.db, source="plugin")
@@ -227,6 +231,7 @@ class TestContextCapabilityAuditTests(unittest.TestCase):
             self.assertEqual(runner.db.events_for_topic("plugin.capability.used"), [])
 
     def test_artifact_store_accessor_audits_artifact_access_not_raw_db(self):
+        """Protect artifact store accessor audits artifact access not raw database behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             context = CommandContext(
@@ -242,6 +247,7 @@ class TestContextCapabilityAuditTests(unittest.TestCase):
             self.assertEqual(capabilities, ["artifact.read", "artifact.write"])
 
     def test_maintenance_store_accessor_audits_raw_db_access(self):
+        """Protect maintenance store accessor audits raw database access behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             context = CommandContext(
@@ -255,6 +261,7 @@ class TestContextCapabilityAuditTests(unittest.TestCase):
             self.assertTrue(used.payload["declared"])
 
     def test_raw_context_db_access_audits_db_raw(self):
+        """Protect raw context database access audits database raw behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             context = CommandContext(
@@ -268,6 +275,7 @@ class TestContextCapabilityAuditTests(unittest.TestCase):
             self.assertTrue(used.payload["declared"])
 
     def test_raw_context_db_access_is_denied_in_enforce_mode_without_capability(self):
+        """Protect raw context database access is denied in enforce mode without capability behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             context = CommandContext(

@@ -117,17 +117,20 @@ class RegistryCompletionCoreTests(unittest.TestCase):
             self.assertEqual(prompt_secret_mode(completer), "askpass")
 
     def test_effective_secret_input_auto_uses_block_when_desktop_prompt_unavailable(self):
+        """Protect effective secret input auto uses block when desktop prompt unavailable behavior from regressions."""
         completer = Completer(self.registry)
         with patch("bywaf.secret.input.desktop_askpass_available", return_value=False):
             self.assertEqual(prompt_secret_mode(completer), "block")
 
     def test_effective_secret_input_respects_explicit_block_in_desktop(self):
+        """Protect effective secret input respects explicit block in desktop behavior from regressions."""
         completer = Completer(self.registry)
         self.registry.varstore.set("secret.input-mode", "block")
         with patch("bywaf.secret.input.desktop_askpass_available", return_value=True):
             self.assertEqual(prompt_secret_mode(completer), "block")
 
     def test_secret_input_block_opens_only_for_var_secret_assignments(self):
+        """Protect secret input block opens only for var secret assignments behavior from regressions."""
         self.assertEqual(open_secret_assignment_name("set --secret ssh_probe.password="), "ssh_probe.password")
         self.assertEqual(open_secret_assignment_name("set ssh_probe.password= --secret"), "ssh_probe.password")
         self.assertIsNone(open_secret_assignment_name("vars --secret ssh_probe.password="))
@@ -135,6 +138,7 @@ class RegistryCompletionCoreTests(unittest.TestCase):
         self.assertIsNone(open_secret_assignment_name("set ssh_probe.password --secret="))
 
     def test_secret_input_block_drops_when_assignment_prefix_is_edited(self):
+        """Protect secret input block drops when assignment prefix is edited behavior from regressions."""
         text = f"set --secret pw={SECRET_BLOCK_VALUE}"
         span_start = text.index(SECRET_BLOCK_VALUE)
         state = PromptSecretInputState()
@@ -149,6 +153,7 @@ class RegistryCompletionCoreTests(unittest.TestCase):
         self.assertIsNone(state.span)
 
     def test_secret_input_block_drops_when_assignment_prefix_is_forward_deleted(self):
+        """Protect secret input block drops when assignment prefix is forward deleted behavior from regressions."""
         text = f"set --secret pw={SECRET_BLOCK_VALUE}"
         span_start = text.index(SECRET_BLOCK_VALUE)
         state = PromptSecretInputState()
@@ -161,6 +166,7 @@ class RegistryCompletionCoreTests(unittest.TestCase):
         self.assertIsNone(state.span)
 
     def test_secret_input_escape_semantics_leave_after_and_preserve_value(self):
+        """Protect secret input escape semantics leave after and preserve value behavior from regressions."""
         text = f"set --secret pw={SECRET_BLOCK_VALUE}"
         span_start = text.index(SECRET_BLOCK_VALUE)
         state = PromptSecretInputState()
@@ -177,6 +183,7 @@ class RegistryCompletionCoreTests(unittest.TestCase):
         self.assertTrue(app.invalidated)
 
     def test_secret_input_toolbar_only_shows_while_secret_block_is_focused(self):
+        """Protect secret input toolbar only shows while secret block is focused behavior from regressions."""
         state = PromptSecretInputState()
         self.assertIsNone(secret_input_bottom_toolbar(state))
         state.span = PromptSecretSpan("pw", 16, 16 + len(SECRET_BLOCK_VALUE), "secret")
@@ -185,11 +192,13 @@ class RegistryCompletionCoreTests(unittest.TestCase):
         self.assertIsNone(secret_input_bottom_toolbar(state))
 
     def test_completes_history_time_window_selectors(self):
+        """Protect completes history time window selectors behavior from regressions."""
         completer = Completer(self.registry)
         self.assertEqual(completer.candidates("history si"), ["since="])
         self.assertEqual(completer.candidates("history u"), ["until="])
 
     def test_completes_file_commands(self):
+        """Protect completes file commands behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             Path(tmp, "file.txt").write_text("x")
             cwd = Path.cwd()
@@ -204,6 +213,7 @@ class RegistryCompletionCoreTests(unittest.TestCase):
                 os.chdir(cwd)
 
     def test_at_file_completion_preserves_operator_prefixes(self):
+        """Protect at file completion preserves operator prefixes behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             Path(tmp, "targets.txt").write_text("127.0.0.1\n")
             cwd = Path.cwd()
@@ -220,18 +230,23 @@ class RegistryCompletionCoreTests(unittest.TestCase):
                 os.chdir(cwd)
 
     def test_file_command_completion_is_declared_by_plugin_specs(self):
+        """Protect file command completion is declared by plugin specs behavior from regressions."""
         for name in ("cat", "less", "ls"):
             commandlet = self.registry.get(name)
             self.assertEqual(commandlet.spec.arguments[0].completion.kind, "file" if name in ("cat", "less") else "path")
 
     def test_completes_from_custom_plugin_completer(self):
+        """Protect completes from custom plugin completer behavior from regressions."""
         class Custom:
+            """Group regression coverage for `Custom` behavior."""
             spec = CommandSpec("custom", "custom completion")
 
             def run(self, context, args, input_events):
+                """Test helper for run."""
                 return ()
 
             def complete(self, context, args, prefix):
+                """Test helper for complete."""
                 return ["alpha", "beta"]
 
         self.registry.plugins["custom"] = Custom()
@@ -239,7 +254,9 @@ class RegistryCompletionCoreTests(unittest.TestCase):
         self.assertEqual(completer.candidates("custom a"), ["alpha"])
 
     def test_completion_spec_can_complete_loaded_plugins(self):
+        """Protect completion spec can complete loaded plugins behavior from regressions."""
         class UsesPlugin:
+            """Group regression coverage for `UsesPlugin` behavior."""
             spec = CommandSpec(
                 "uses_plugin",
                 "plugin completion",
@@ -247,6 +264,7 @@ class RegistryCompletionCoreTests(unittest.TestCase):
             )
 
             def run(self, context, args, input_events):
+                """Test helper for run."""
                 return ()
 
         self.registry.plugins["uses_plugin"] = UsesPlugin()
@@ -254,6 +272,7 @@ class RegistryCompletionCoreTests(unittest.TestCase):
         self.assertIn("hostscanner", completer.candidates("uses_plugin host"))
 
     def test_completes_framework_context_values(self):
+        """Protect completes framework context values behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))
             db.publish(
@@ -273,6 +292,7 @@ class RegistryCompletionCoreTests(unittest.TestCase):
             self.assertIn("topic=host.found", completer.candidates("portscanner --from topic="))
 
     def test_show_completes_selector_values(self):
+        """Protect show completes selector values behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))
             db.publish(
@@ -292,6 +312,7 @@ class RegistryCompletionCoreTests(unittest.TestCase):
             self.assertIn("topic=host.found", completer.candidates("event topic="))
 
     def test_audit_policy_completes_selector_values(self):
+        """Protect audit policy completes selector values behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))
             db.publish(
@@ -325,6 +346,7 @@ class RegistryCompletionCoreTests(unittest.TestCase):
             self.assertIn("serial=pipeline-1", completer.candidates("audit list policy serial="))
 
     def test_audit_topic_policy_completes_selector_values(self):
+        """Protect audit topic policy completes selector values behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))
             db.publish(
@@ -358,6 +380,7 @@ class RegistryCompletionCoreTests(unittest.TestCase):
             self.assertIn("serial=pipeline-1", completer.candidates("audit list topics serial="))
 
     def test_runtime_completion_metadata_includes_artifact_counts(self):
+        """Protect runtime completion metadata includes artifact counts behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))
             db.publish(
@@ -383,4 +406,5 @@ class RegistryCompletionCoreTests(unittest.TestCase):
             self.assertEqual(completer.completion_meta("pipeline=pr", "report pipeline=pr", "pipeline=pr"), "")
 
     def test_tokens_after_last_pipe(self):
+        """Protect tokens after last pipe behavior from regressions."""
         self.assertEqual(tokens_after_last_pipe(["hostscanner", "x", "|", "por"]), ["por"])

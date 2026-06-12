@@ -273,6 +273,7 @@ class HttpPathFindingTests(unittest.TestCase):
             self.assertEqual(finding["identifiers"], {"cwe": ["CWE-538"]})
 
     def test_dependency_lockfile_path_with_markers_becomes_candidate(self):
+        """Protect dependency lockfile path with markers becomes candidate behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(
@@ -306,6 +307,7 @@ class HttpPathFindingTests(unittest.TestCase):
             self.assertIn("dependency manifests", finding["recommendation"])
 
     def test_dependency_lockfile_named_html_page_is_not_a_finding_without_markers(self):
+        """Protect dependency lockfile named HTML page is not a finding without markers behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(
@@ -331,6 +333,7 @@ class HttpPathFindingTests(unittest.TestCase):
             self.assertEqual(db.events_for_topic("finding.candidate"), [])
 
     def test_sensitive_config_path_with_secret_markers_becomes_candidate(self):
+        """Protect sensitive config path with secret markers becomes candidate behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(
@@ -364,6 +367,7 @@ class HttpPathFindingTests(unittest.TestCase):
             self.assertIn("rotate", finding["recommendation"])
 
     def test_sensitive_config_named_html_page_is_not_a_finding_without_markers(self):
+        """Protect sensitive config named HTML page is not a finding without markers behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(
@@ -389,6 +393,7 @@ class HttpPathFindingTests(unittest.TestCase):
             self.assertEqual(db.events_for_topic("finding.candidate"), [])
 
     def test_cloud_app_config_path_with_markers_becomes_candidate(self):
+        """Protect cloud app config path with markers becomes candidate behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(

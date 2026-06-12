@@ -252,6 +252,7 @@ class PackagingInstallVersionAndRootTests(unittest.TestCase):
             self.assertFalse(consumer_marker.exists())
 
     def test_filesystem_config_rejects_missing_declared_plugin_dependency_before_import(self):
+        """Protect filesystem config rejects missing declared plugin dependency before import behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "home", "alice", ".bywaf", "plugins")
             consumer = write_plugin(root, "local/consumer", "consumer", "consumer")
@@ -270,6 +271,7 @@ class PackagingInstallVersionAndRootTests(unittest.TestCase):
                 make_runner(Path(tmp, "db.sqlite3"), plugin_root=root, plugin_config=config, forced_plugins=True)
 
     def test_cli_run_uses_explicit_plugin_root_and_config(self):
+        """Protect CLI run uses explicit plugin root and config behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "home", "alice", ".bywaf", "plugins")
             write_plugin(root, "local/userprobe", "userprobe", "user-local")
@@ -296,6 +298,7 @@ class PackagingInstallVersionAndRootTests(unittest.TestCase):
             self.assertIn("'source': 'user-local'", output.getvalue())
 
     def test_cli_run_rejects_unsigned_manifest_without_manifest_bypass(self):
+        """Protect CLI run rejects unsigned manifest without manifest bypass behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "home", "alice", ".bywaf", "plugins")
             write_plugin(root, "local/userprobe", "userprobe", "user-local")

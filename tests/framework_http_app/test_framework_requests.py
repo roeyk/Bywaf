@@ -162,6 +162,7 @@ class TestFrameworkRequestsTests(unittest.TestCase):
             self.assertEqual(denied.payload["request_event_id"], request.id)
 
     def test_framework_request_runs_external_process(self):
+        """Protect framework request runs external process behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -181,6 +182,7 @@ class TestFrameworkRequestsTests(unittest.TestCase):
             self.assertIn("stdout:\nhello\n", artifact.body.decode())
 
     def test_framework_request_denies_invalid_process_argv(self):
+        """Protect framework request denies invalid process argv behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -194,6 +196,7 @@ class TestFrameworkRequestsTests(unittest.TestCase):
             self.assertEqual(denied.payload["request_event_id"], request.id)
 
     def test_framework_request_skips_already_handled_process_request(self):
+        """Protect framework request skips already handled process request behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -206,6 +209,7 @@ class TestFrameworkRequestsTests(unittest.TestCase):
             self.assertEqual(runner.db.events_for_topic("process.run"), [])
 
     def test_framework_request_denies_unhandled_process_stream_request(self):
+        """Protect framework request denies unhandled process stream request behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -219,6 +223,7 @@ class TestFrameworkRequestsTests(unittest.TestCase):
         self.assertEqual(denied.payload["request_event_id"], request.id)
 
     def test_framework_request_is_processed_once_per_shell_state(self):
+        """Protect framework request is processed once per shell state behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()

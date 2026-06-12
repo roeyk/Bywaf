@@ -124,12 +124,15 @@ class RegistryRuntimeCompletionTests(unittest.TestCase):
     def test_cancel_completion_menu_dismisses_active_popup(self):
         """Protect cancel completion menu dismisses active popup behavior from regressions."""
         class Buffer:
+            """Test double for `Buffer` scenarios in this module."""
             cancelled = False
 
             def cancel_completion(self):
+                """Test helper for cancel completion."""
                 self.cancelled = True
 
         class Event:
+            """Group regression coverage for `Event` behavior."""
             current_buffer = Buffer()
 
         event = Event()

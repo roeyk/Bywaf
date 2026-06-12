@@ -401,6 +401,7 @@ class ReportScopeTests(unittest.TestCase):
             self.assertEqual(len(runner.db.events_for_topic("report.rendered")), 1)
 
     def test_report_pipeline_renders_candidate_findings(self):
+        """Protect report pipeline renders candidate findings behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             candidate = runner.db.publish(
@@ -429,6 +430,7 @@ class ReportScopeTests(unittest.TestCase):
             self.assertEqual(rendered.payload["groups"], ["candidate-1"])
 
     def test_report_defaults_to_latest_completed_pipeline(self):
+        """Protect report defaults to latest completed pipeline behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.record_command_run_vars(
@@ -473,6 +475,7 @@ class ReportScopeTests(unittest.TestCase):
             self.assertNotIn("Old finding", text)
 
     def test_report_job_accepts_multiple_jobs(self):
+        """Protect report job accepts multiple jobs behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             first_job = runner.db.record_job("scanner a", None, "completed")

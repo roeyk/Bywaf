@@ -267,6 +267,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn(f"serial={serial}", output.getvalue())
 
     def test_dispatch_steps_lists_historical_steps_by_default(self):
+        """Protect dispatch steps lists historical steps by default behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("hostscanner done", 123, "finished")
@@ -288,6 +289,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertRegex(output.getvalue(), r"\n1\s+completed/finished\s+1\s+hostscanner\s+1\s+0\s+")
 
     def test_step_listing_hides_view_command_steps(self):
+        """Protect step listing hides view command steps behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             view_job = runner.db.record_job("step --all", 123, "finished")
@@ -329,6 +331,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("runtime/step", text)
 
     def test_pipeline_listing_hides_view_only_pipelines(self):
+        """Protect pipeline listing hides view only pipelines behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             view_job = runner.db.record_job("step --all", 123, "finished")

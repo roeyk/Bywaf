@@ -126,6 +126,7 @@ class PluginNewTests(unittest.TestCase):
             self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
 
     def test_plugin_new_generates_bundled_native_package(self):
+        """Protect plugin new generates bundled native package behavior from regressions."""
         family_dir = ROOT / "bywaf" / "plugins" / "scaffoldtest"
         plugin_dir = family_dir / "generated_bundle"
         shutil.rmtree(family_dir, ignore_errors=True)

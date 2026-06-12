@@ -183,6 +183,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("session.ticket=[REDACTED#", text)
 
     def test_vars_secret_equals_flag_is_rejected(self):
+        """Protect vars secret equals flag is rejected behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()
@@ -192,6 +193,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("usage: set [--secret] name=value", output.getvalue())
 
     def test_vars_empty_explicit_secret_prompts_and_redacts(self):
+        """Protect vars empty explicit secret prompts and redacts behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -217,6 +219,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("pw=[REDACTED#", text)
 
     def test_vars_empty_explicit_secret_uses_askpass_and_redacts(self):
+        """Protect vars empty explicit secret uses askpass and redacts behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -240,6 +243,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("pw=[REDACTED#", text)
 
     def test_vars_askpass_failure_warns_and_falls_back_to_getpass(self):
+        """Protect vars askpass failure warns and falls back to getpass behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -266,6 +270,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("askpass secret input unavailable", errors.getvalue())
 
     def test_vars_unknown_secret_input_mode_warns_and_falls_back(self):
+        """Protect vars unknown secret input mode warns and falls back behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -289,6 +294,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(runner.registry.secrets.get(stored), "fallback-secret")
 
     def test_vars_redacted_block_uses_hidden_secret_value(self):
+        """Protect vars redacted block uses hidden secret value behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState(secret_values={"pw": "block-secret"})
@@ -311,6 +317,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("pw=[REDACTED#", text)
 
     def test_vars_empty_trailing_secret_flag_prompts_and_redacts(self):
+        """Protect vars empty trailing secret flag prompts and redacts behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -334,6 +341,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("session.ticket=[REDACTED#", text)
 
     def test_vars_can_color_names_and_values(self):
+        """Protect vars can color names and values behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -348,6 +356,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("\x1b[33mtarget\x1b[0m=\x1b[94m127.0.0.1\x1b[0m", output.getvalue())
 
     def test_vars_accept_extended_color_specs(self):
+        """Protect vars accept extended color specs behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -361,6 +370,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("\x1b[38;2;80;180;90mtarget\x1b[0m=\x1b[38;5;34m127.0.0.1\x1b[0m", output.getvalue())
 
     def test_vars_ignore_invalid_extended_color_specs(self):
+        """Protect vars ignore invalid extended color specs behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -375,6 +385,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("\x1b[", output.getvalue())
 
     def test_vars_secret_redaction_uses_warning_style_when_colored(self):
+        """Protect vars secret redaction uses warning style when colored behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -389,6 +400,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("supersecret", output.getvalue())
 
     def test_vars_secret_assignment_respects_active_context(self):
+        """Protect vars secret assignment respects active context behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -404,6 +416,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertTrue(runner.registry.secrets.is_ref(stored))
 
     def test_vars_secret_assignment_persists_and_hydrates_from_database(self):
+        """Protect vars secret assignment persists and hydrates from database behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db_path = Path(tmp, "db.sqlite3")
             first = make_runner(db_path)

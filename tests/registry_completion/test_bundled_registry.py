@@ -210,6 +210,7 @@ class RegistryBundledPluginTests(unittest.TestCase):
         self.assertNotEqual(plugin_manifest_digest(first), plugin_manifest_digest(second))
 
     def test_bundled_watchdog_provides_network_trigger(self):
+        """Protect bundled watchdog provides network trigger behavior from regressions."""
         triggers = {trigger.name: trigger for trigger in self.registry.triggers}
         trigger = triggers["network-access-starts-watchdog"]
         self.assertEqual(trigger.topic, "plugin.capability.used")
@@ -219,12 +220,14 @@ class RegistryBundledPluginTests(unittest.TestCase):
         self.assertTrue(trigger.active_job)
 
     def test_bundled_sidecar_manifest_declares_secret_options(self):
+        """Protect bundled sidecar manifest declares secret options behavior from regressions."""
         manifest = load_package_manifest("bywaf.plugins", "network.ssh_probe")
         self.assertIsNotNone(manifest)
         assert manifest is not None
         self.assertEqual(manifest.commandlet_secret_options["ssh_probe"], ("password",))
 
     def test_bundled_sidecar_manifest_declares_database_actions(self):
+        """Protect bundled sidecar manifest declares database actions behavior from regressions."""
         manifest = load_package_manifest("bywaf.plugins", "network.portscanner")
         self.assertIsNotNone(manifest)
         assert manifest is not None
@@ -240,6 +243,7 @@ class RegistryBundledPluginTests(unittest.TestCase):
         self.assertEqual(report_manifest.commandlet_database_actions["report"], ("view", "write"))
 
     def test_registry_tracks_provider_groups(self):
+        """Protect registry tracks provider groups behavior from regressions."""
         self.assertEqual(
             self.registry.grouped_names()["analysis"],
             ["finding", "finding_dedupe", "finding_report", "report", "tech_review", "technology_indicators", "yara_scan"],
@@ -291,6 +295,7 @@ class RegistryBundledPluginTests(unittest.TestCase):
         self.assertEqual(self.registry.grouped_names()["storage"], ["db"])
 
     def test_registry_tracks_provider_qualified_commandlet_aliases(self):
+        """Protect registry tracks provider qualified commandlet aliases behavior from regressions."""
         self.assertIn("http/http_probe", self.registry.commandlet_aliases())
         self.assertIs(self.registry.get("http/http_probe"), self.registry.get("http_probe"))
         self.assertEqual(self.registry.resolve_commandlet_name("http/http_probe"), "http_probe")
@@ -299,6 +304,7 @@ class RegistryBundledPluginTests(unittest.TestCase):
         self.assertEqual(self.registry.resolve_commandlet_name("analysis/technology_indicators/tech_review"), "tech_review")
 
     def test_web_fingerprint_alias_resolves_to_webfin(self):
+        """Protect web fingerprint alias resolves to webfin behavior from regressions."""
         self.assertIn("web_fingerprint", self.registry.commandlet_aliases())
         self.assertIs(self.registry.get("web_fingerprint"), self.registry.get("webfin"))
         self.assertEqual(self.registry.resolve_commandlet_name("web_fingerprint"), "webfin")
@@ -306,6 +312,7 @@ class RegistryBundledPluginTests(unittest.TestCase):
         self.assertEqual(self.registry.variable_scope("web_fingerprint"), "http/webfin")
 
     def test_http_tls_alias_resolves_to_tls_probe(self):
+        """Protect HTTP TLS alias resolves to TLS probe behavior from regressions."""
         self.assertIn("http_tls", self.registry.commandlet_aliases())
         self.assertIs(self.registry.get("http_tls"), self.registry.get("tls_probe"))
         self.assertEqual(self.registry.resolve_commandlet_name("http_tls"), "tls_probe")
@@ -313,8 +320,10 @@ class RegistryBundledPluginTests(unittest.TestCase):
         self.assertEqual(self.registry.variable_scope("http_tls"), "http/tls_probe")
 
     def test_loads_package_defaults_into_varstore(self):
+        """Protect loads package defaults into varstore behavior from regressions."""
         self.assertEqual(self.registry.varstore.get("network/portscanner.port"), "")
 
     def test_get_unknown_raises_clear_key_error(self):
+        """Protect get unknown raises clear key error behavior from regressions."""
         with self.assertRaisesRegex(KeyError, "unknown commandlet"):
             self.registry.get("missing")

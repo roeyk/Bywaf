@@ -71,6 +71,7 @@ class WebFingerprintTests(unittest.TestCase):
         self.assertEqual(probe.call_args.args[2], "GET")
 
     def test_webfin_emits_payload_and_alert(self):
+        """Protect webfin emits payload and alert behavior from regressions."""
         context = CommandContext(db=None, source="webfin", metadata={"command_run_id": "run-1"})
         event = Event.new(
             "http.endpoint",
@@ -91,6 +92,7 @@ class WebFingerprintTests(unittest.TestCase):
         self.assertIn("webfin <run-1>: fingerprinted", output.getvalue())
 
     def test_webfin_silent_suppresses_alert(self):
+        """Protect webfin silent suppresses alert behavior from regressions."""
         context = CommandContext(db=None, source="webfin", metadata={"command_run_id": "run-1"})
         event = Event.new("http.endpoint", {"url": "http://127.0.0.1/"}, "test")
         output = io.StringIO()

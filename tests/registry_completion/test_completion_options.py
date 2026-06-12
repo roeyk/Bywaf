@@ -149,6 +149,7 @@ class RegistryCompletionOptionTests(unittest.TestCase):
         self.assertNotIn("--ports", completer.candidates("portscanner --ports"))
 
     def test_double_dash_only_lists_options(self):
+        """Protect double dash only lists options behavior from regressions."""
         completer = Completer(self.registry)
         self.assertEqual(
             completer.candidates("portscanner --"),
@@ -159,23 +160,28 @@ class RegistryCompletionOptionTests(unittest.TestCase):
         )
 
     def test_option_completion_does_not_append_space(self):
+        """Protect option completion does not append space behavior from regressions."""
         completer = Completer(self.registry)
         self.assertEqual(completer.format_candidate("--ports"), "--ports")
 
     def test_completes_plugin_option_choices(self):
+        """Protect completes plugin option choices behavior from regressions."""
         completer = Completer(self.registry)
         self.assertEqual(completer.candidates("http_headers --ssl "), ["false", "true"])
 
     def test_completes_plugin_option_default_value(self):
+        """Protect completes plugin option default value behavior from regressions."""
         completer = Completer(self.registry)
         self.assertIn("-sT", completer.candidates("portscanner --arguments "))
 
     def test_plugin_without_space_completes_command_name(self):
+        """Protect plugin without space completes command name behavior from regressions."""
         completer = Completer(self.registry)
         self.assertEqual(completer.candidates("plu"), ["plugin", "plugins"])
         self.assertEqual(completer.candidates("plugin"), ["plugins"])
 
     def test_load_plugin_equals_completes_filesystem_paths(self):
+        """Protect load plugin equals completes filesystem paths behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             Path(tmp, ".bywaf", "plugins", "plugin_dir").mkdir(parents=True)
             cwd = Path.cwd()
@@ -187,6 +193,7 @@ class RegistryCompletionOptionTests(unittest.TestCase):
                 os.chdir(cwd)
 
     def test_load_plugin_explicit_path_completes_local_filesystem(self):
+        """Protect load plugin explicit path completes local filesystem behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             Path(tmp, "local_plugin").mkdir()
             cwd = Path.cwd()
@@ -198,6 +205,7 @@ class RegistryCompletionOptionTests(unittest.TestCase):
                 os.chdir(cwd)
 
     def test_load_plugin_equals_completes_local_plugin_directories(self):
+        """Protect load plugin equals completes local plugin directories behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             local_plugin = Path(tmp, "local_plugin")
             local_plugin.mkdir()
@@ -216,6 +224,7 @@ class RegistryCompletionOptionTests(unittest.TestCase):
                 os.chdir(cwd)
 
     def test_load_plugin_equals_offers_plugin_root_shortcuts(self):
+        """Protect load plugin equals offers plugin root shortcuts behavior from regressions."""
         completer = Completer(self.registry)
         candidates = completer.candidates("plugin load=")
         self.assertIn("load=./", candidates)
@@ -225,10 +234,12 @@ class RegistryCompletionOptionTests(unittest.TestCase):
         self.assertIn("load=/usr/share/bywaf/plugins/", candidates)
 
     def test_load_plugin_equals_filters_plugin_root_shortcuts(self):
+        """Protect load plugin equals filters plugin root shortcuts behavior from regressions."""
         completer = Completer(self.registry)
         self.assertEqual(completer.candidates("plugin load=/usr/"), ["load=/usr/local/share/bywaf/plugins/", "load=/usr/share/bywaf/plugins/"])
 
     def test_pload_completes_plugin_paths(self):
+        """Protect pload completes plugin paths behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             Path(tmp, ".bywaf", "plugins", "plugin_dir").mkdir(parents=True)
             cwd = Path.cwd()
@@ -242,12 +253,14 @@ class RegistryCompletionOptionTests(unittest.TestCase):
                 os.chdir(cwd)
 
     def test_load_resource_keywords_complete_from_prefix(self):
+        """Protect load resource keywords complete from prefix behavior from regressions."""
         completer = Completer(self.registry)
         self.assertEqual(completer.candidates("plugin lo"), ["load="])
         self.assertEqual(completer.candidates("plugin load --f"), ["--force"])
         self.assertIn("path=", completer.candidates("plugin load "))
 
     def test_set_completion_reads_unloaded_catalog_manifest_variables(self):
+        """Protect set completion reads unloaded catalog manifest variables behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = Path(tmp, ".bywaf", "plugins", "cloud", "aws", "s3", "public_bucket")
             plugin_dir.mkdir(parents=True)
@@ -272,12 +285,14 @@ class RegistryCompletionOptionTests(unittest.TestCase):
             self.assertIn("cloud/aws/s3/public_bucket.proxy=", provider_candidates)
 
     def test_domain_resource_keywords_complete_from_prefix(self):
+        """Protect domain resource keywords complete from prefix behavior from regressions."""
         completer = Completer(self.registry)
         self.assertIn("save", completer.candidates("config sa"))
         self.assertIn("load", completer.candidates("history lo"))
         self.assertIn("file=", completer.candidates("script save "))
 
     def test_load_script_equals_completes_filesystem_paths(self):
+        """Protect load script equals completes filesystem paths behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             Path(tmp, "script.bywaf").write_text("ls\n")
             cwd = Path.cwd()
@@ -289,6 +304,7 @@ class RegistryCompletionOptionTests(unittest.TestCase):
                 os.chdir(cwd)
 
     def test_load_history_equals_completes_filesystem_paths(self):
+        """Protect load history equals completes filesystem paths behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             Path(tmp, "history.bywaf").write_text("ls\n")
             cwd = Path.cwd()
@@ -300,16 +316,19 @@ class RegistryCompletionOptionTests(unittest.TestCase):
                 os.chdir(cwd)
 
     def test_multiple_file_matches_complete_common_base_first(self):
+        """Protect multiple file matches complete common base first behavior from regressions."""
         candidates = ["bywaf.sqlite3", "bywaf/"]
         self.assertEqual(common_completion_prefix("load byw", candidates), "bywaf")
         self.assertEqual(completion_results("load byw", candidates)[0], "bywaf")
 
     def test_key_value_file_matches_complete_common_base_first(self):
+        """Protect key value file matches complete common base first behavior from regressions."""
         candidates = ["load=bywaf.sqlite3", "load=bywaf/"]
         self.assertEqual(common_completion_prefix("plugin load=byw", candidates), "load=bywaf")
         self.assertEqual(completion_results("plugin load=byw", candidates)[0], "load=bywaf")
 
     def test_complete_returns_common_prefix_before_key_value_menu(self):
+        """Protect complete returns common prefix before key value menu behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = Path(tmp, ".bywaf", "plugins")
             plugin_dir.mkdir(parents=True)
@@ -325,10 +344,12 @@ class RegistryCompletionOptionTests(unittest.TestCase):
                 os.chdir(cwd)
 
     def test_key_value_completion_display_strips_key_prefix(self):
+        """Protect key value completion display strips key prefix behavior from regressions."""
         self.assertEqual(display_label("script=README.md"), "README.md")
         self.assertEqual(display_label("plugin=bywaf/"), "bywaf/")
 
     def test_key_value_completion_uses_custom_menu(self):
+        """Protect key value completion uses custom menu behavior from regressions."""
         self.assertTrue(
             should_print_completion_menu(
                 "script load file=",

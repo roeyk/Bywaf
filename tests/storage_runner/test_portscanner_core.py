@@ -229,6 +229,7 @@ class StorageRunnerPortscannerCoreTests(unittest.TestCase):
             self.assertEqual(scan.call_args.args[0], ["127.0.0.1"])
 
     def test_commandlet_can_use_events_from_prior_job(self):
+        """Protect commandlet can use events from prior job behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("hostscanner 127.0.0.1", 123, "finished")
@@ -247,6 +248,7 @@ class StorageRunnerPortscannerCoreTests(unittest.TestCase):
             self.assertEqual(scan.call_args.args[0], ["127.0.0.1"])
 
     def test_portscanner_port_variable_is_default_but_cli_overrides(self):
+        """Protect portscanner port variable is default but CLI overrides behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.registry.varstore.set("network/portscanner.port", "22")
@@ -266,6 +268,7 @@ class StorageRunnerPortscannerCoreTests(unittest.TestCase):
             self.assertEqual(scan.call_args.args[1], "80")
 
     def test_portscanner_accepts_key_value_host_list_and_port(self):
+        """Protect portscanner accepts key value host list and port behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with patch(
@@ -279,6 +282,7 @@ class StorageRunnerPortscannerCoreTests(unittest.TestCase):
             self.assertEqual(events[0].payload["port"], 33169)
 
     def test_portscanner_prunes_explicit_out_of_scope_hosts_before_nmap(self):
+        """Protect portscanner prunes explicit out of scope hosts before nmap behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.registry.varstore.set("global.policy.network.allow", "192.0.2.0/24")
@@ -296,6 +300,7 @@ class StorageRunnerPortscannerCoreTests(unittest.TestCase):
             self.assertIn("198.51.100.10 is outside allowed network scope", policy.payload["warnings"])
 
     def test_portscanner_skips_nmap_when_policy_prunes_all_explicit_hosts(self):
+        """Protect portscanner skips nmap when policy prunes all explicit hosts behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.registry.varstore.set("global.policy.network.allow", "192.0.2.0/24")
@@ -309,6 +314,7 @@ class StorageRunnerPortscannerCoreTests(unittest.TestCase):
             self.assertEqual(policy.payload["after"], {"targets": []})
 
     def test_portscanner_keeps_cidr_and_ip_range_targets_unresolved(self):
+        """Protect portscanner keeps cidr and IP range targets unresolved behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with (
@@ -323,6 +329,7 @@ class StorageRunnerPortscannerCoreTests(unittest.TestCase):
             self.assertCountEqual(scan.call_args.args[0], ["192.0.2.0/24", "192.0.3.1-5"])
 
     def test_portscanner_accepts_singular_host_and_records_resolution(self):
+        """Protect portscanner accepts singular host and records resolution behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with (
@@ -341,6 +348,7 @@ class StorageRunnerPortscannerCoreTests(unittest.TestCase):
             self.assertEqual(resolved[0].payload["host"], "192.0.2.55")
 
     def test_portscanner_filters_resolved_addresses_for_ipv4_arguments(self):
+        """Protect portscanner filters resolved addresses for ipv4 arguments behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with (
@@ -358,6 +366,7 @@ class StorageRunnerPortscannerCoreTests(unittest.TestCase):
             self.assertEqual(resolved[0].payload["host"], "192.0.2.55")
 
     def test_portscanner_filters_resolved_addresses_for_ipv6_arguments(self):
+        """Protect portscanner filters resolved addresses for ipv6 arguments behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with (
@@ -375,6 +384,7 @@ class StorageRunnerPortscannerCoreTests(unittest.TestCase):
             self.assertEqual(resolved[0].payload["host"], "2001:db8::55")
 
     def test_portscanner_except_skips_hosts(self):
+        """Protect portscanner except skips hosts behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with patch(
@@ -386,6 +396,7 @@ class StorageRunnerPortscannerCoreTests(unittest.TestCase):
             self.assertEqual(scan.call_args.args[0], ["127.0.0.1"])
 
     def test_portscanner_silent_suppresses_alert(self):
+        """Protect portscanner silent suppresses alert behavior from regressions."""
         context = CommandContext(db=None, source="portscanner", metadata={"command_run_id": "run-1"})
         output = io.StringIO()
         with (
@@ -400,6 +411,7 @@ class StorageRunnerPortscannerCoreTests(unittest.TestCase):
         self.assertEqual(output.getvalue(), "")
 
     def test_portscanner_quiet_alias_suppresses_alert(self):
+        """Protect portscanner quiet alias suppresses alert behavior from regressions."""
         context = CommandContext(db=None, source="portscanner", metadata={"command_run_id": "run-1"})
         output = io.StringIO()
         with (

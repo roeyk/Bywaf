@@ -135,6 +135,7 @@ class PluginCatalogTests(unittest.TestCase):
             self.assertEqual(catalog["plugins"][0]["manifest"], "plugins/myplugin/bywaf.plugin.toml")
 
     def test_catalog_supports_bundled_package_plugin_layout(self):
+        """Protect catalog supports bundled package plugin layout behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             plugin_root = root / "bywaf" / "plugins"
@@ -157,6 +158,7 @@ class PluginCatalogTests(unittest.TestCase):
             self.assertEqual(catalog["plugins"][0]["manifest"], "bywaf/plugins/http/example/bywaf.plugin.toml")
 
     def test_catalog_rejects_string_boolean_metadata(self):
+        """Protect catalog rejects string boolean metadata behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root, plugin_root = write_catalog_fixture(
                 tmp,
@@ -170,6 +172,7 @@ class PluginCatalogTests(unittest.TestCase):
                 build_catalog(root, plugin_root=plugin_root, plugin_config=root / "plugins.toml", source="test")
 
     def test_catalog_rejects_non_string_capability_metadata(self):
+        """Protect catalog rejects non string capability metadata behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root, plugin_root = write_catalog_fixture(
                 tmp,
@@ -182,6 +185,7 @@ class PluginCatalogTests(unittest.TestCase):
                 build_catalog(root, plugin_root=plugin_root, plugin_config=root / "plugins.toml", source="test")
 
     def test_catalog_rejects_non_string_trigger_metadata(self):
+        """Protect catalog rejects non string trigger metadata behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root, plugin_root = write_catalog_fixture(
                 tmp,
@@ -198,6 +202,7 @@ class PluginCatalogTests(unittest.TestCase):
                 build_catalog(root, plugin_root=plugin_root, plugin_config=root / "plugins.toml", source="test")
 
     def test_catalog_check_reports_tampered_hash(self):
+        """Protect catalog check reports tampered hash behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             catalog = build_catalog()
             catalog["plugins"][0]["module_sha256"] = "0" * 64

@@ -58,6 +58,7 @@ class ExternalPluginCliSmokeTests(unittest.TestCase):
         self.assertIn("consumers:", result.stdout)
 
     def test_plugin_catalog_build_script_accepts_single_segment_external_plugin(self):
+        """Protect plugin catalog build script accepts single segment external plugin behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             plugin_root = tmp_path / "plugins"

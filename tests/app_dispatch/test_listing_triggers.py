@@ -183,6 +183,7 @@ class AppDispatchTests(unittest.TestCase):
             start.assert_not_called()
 
     def test_start_default_services_advances_trigger_cursor_past_non_matches(self):
+        """Protect start default services advances trigger cursor past non matches behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             inactive_job = runner.db.record_job("hostscanner old", None, "finished")
@@ -222,6 +223,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertGreater(runner.trigger_event_cursors["runtime.watchdog.network-access-starts-watchdog"], cursor)
 
     def test_trigger_payload_equals_predicate_and_foreground_action(self):
+        """Protect trigger payload equals predicate and foreground action behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.registry.triggers = [
@@ -243,6 +245,7 @@ class AppDispatchTests(unittest.TestCase):
             execute.assert_called_once_with("finding_dedupe")
 
     def test_trigger_background_action_starts_each_matching_event(self):
+        """Protect trigger background action starts each matching event behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.registry.triggers = [
@@ -265,6 +268,7 @@ class AppDispatchTests(unittest.TestCase):
             start.assert_called_once_with("finding_report")
 
     def test_provider_scoped_trigger_ids_prevent_cursor_collisions(self):
+        """Protect provider scoped trigger IDs prevent cursor collisions behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             first_trigger = TriggerSpec(
@@ -298,6 +302,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("provider.b.same-local-name", states)
 
     def test_trigger_suppresses_self_trigger_loop_by_default(self):
+        """Protect trigger suppresses self trigger loop by default behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.registry.triggers = [
@@ -314,6 +319,7 @@ class AppDispatchTests(unittest.TestCase):
             execute.assert_not_called()
 
     def test_shutdown_runner_audits_trigger_disabled(self):
+        """Protect shutdown runner audits trigger disabled behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with patch.object(runner.db, "checkpoint"):

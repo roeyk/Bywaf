@@ -114,6 +114,7 @@ class NiktoTests(unittest.TestCase):
             )
 
             def fake_run(argv, *, cwd=None, env=None, timeout=None):
+                """Test helper for fake run."""
                 output_path = Path(argv[argv.index("-output") + 1])
                 output_path.write_text(
                     json.dumps(
@@ -168,6 +169,7 @@ class NiktoTests(unittest.TestCase):
             )
 
             def fake_run(argv, *, cwd=None, env=None, timeout=None):
+                """Test helper for fake run."""
                 output_path = Path(argv[argv.index("-output") + 1])
                 output_path.write_text("{not json", encoding="utf-8")
                 return subprocess.CompletedProcess(argv, 0, stdout="ok", stderr="")
@@ -191,6 +193,7 @@ class NiktoTests(unittest.TestCase):
             )
 
             def fake_run(argv, *, cwd=None, env=None, timeout=None):
+                """Test helper for fake run."""
                 return subprocess.CompletedProcess(argv, 0, stdout="warning only", stderr="")
 
             with patch("bywaf.plugin.process.run_process_argv", side_effect=fake_run):
@@ -213,6 +216,7 @@ class NiktoTests(unittest.TestCase):
             )
 
             def fake_run(argv, *, cwd=None, env=None, timeout=None):
+                """Test helper for fake run."""
                 return subprocess.CompletedProcess(argv, 2, stdout="partial stdout", stderr="fatal stderr")
 
             with patch("bywaf.plugin.process.run_process_argv", side_effect=fake_run):

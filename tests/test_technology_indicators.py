@@ -104,6 +104,7 @@ class TechnologyIndicatorsTests(unittest.TestCase):
         self.assertEqual(finding["confidence_basis"], "version_indicator")
 
     def test_nginx_unlisted_version_is_not_promoted(self):
+        """Protect nginx unlisted version is not promoted behavior from regressions."""
         event = Event.new(
             "http.endpoint",
             {"host": "example.test", "port": 80, "scheme": "http", "server": "nginx/1.4.1"},
@@ -113,6 +114,7 @@ class TechnologyIndicatorsTests(unittest.TestCase):
         self.assertEqual(findings_from_event(event), [])
 
     def test_iis_60_server_header_becomes_version_indicator(self):
+        """Protect iis 60 server header becomes version indicator behavior from regressions."""
         event = Event.new(
             "http.endpoint",
             {"host": "legacy.example.test", "port": 80, "scheme": "http", "server": "Microsoft-IIS/6.0"},
@@ -126,6 +128,7 @@ class TechnologyIndicatorsTests(unittest.TestCase):
         self.assertEqual(finding["identifiers"], {"cve": ["CVE-2017-7269"]})
 
     def test_openssl_101f_banner_becomes_version_indicator(self):
+        """Protect openssl 101f banner becomes version indicator behavior from regressions."""
         event = Event.new(
             "tcp.banner",
             {"host": "192.0.2.10", "port": 443, "protocol": "tcp", "banner": "OpenSSL/1.0.1f"},
@@ -139,6 +142,7 @@ class TechnologyIndicatorsTests(unittest.TestCase):
         self.assertEqual(finding["target_scope"], {"kind": "service", "value": "192.0.2.10:443/tcp"})
 
     def test_openssl_fixed_version_is_not_promoted(self):
+        """Protect openssl fixed version is not promoted behavior from regressions."""
         event = Event.new(
             "tcp.banner",
             {"host": "192.0.2.10", "port": 443, "protocol": "tcp", "banner": "OpenSSL/1.0.1g"},
@@ -148,6 +152,7 @@ class TechnologyIndicatorsTests(unittest.TestCase):
         self.assertEqual(findings_from_event(event), [])
 
     def test_vsftpd_234_banner_becomes_backdoor_indicator(self):
+        """Protect vsftpd 234 banner becomes backdoor indicator behavior from regressions."""
         event = Event.new(
             "tcp.banner",
             {"host": "192.0.2.21", "port": 21, "protocol": "tcp", "banner": "220 (vsFTPd 2.3.4)"},
@@ -162,6 +167,7 @@ class TechnologyIndicatorsTests(unittest.TestCase):
         self.assertEqual(finding["target_scope"], {"kind": "service", "value": "192.0.2.21:21/tcp"})
 
     def test_unrealircd_3281_banner_becomes_backdoor_indicator(self):
+        """Protect unrealircd 3281 banner becomes backdoor indicator behavior from regressions."""
         event = Event.new(
             "tcp.banner",
             {"host": "192.0.2.66", "port": 6667, "protocol": "tcp", "banner": ":irc.example.test 004 user UnrealIRCd-3.2.8.1 iowghraAsORTVSxNCWqBzvdHtGp"},
@@ -175,6 +181,7 @@ class TechnologyIndicatorsTests(unittest.TestCase):
         self.assertEqual(finding["identifiers"], {"cve": ["CVE-2010-2075"]})
 
     def test_commandlet_dedupes_same_class_and_target(self):
+        """Protect commandlet dedupes same class and target behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(
@@ -192,6 +199,7 @@ class TechnologyIndicatorsTests(unittest.TestCase):
             self.assertEqual(len(db.events_for_topic("finding.candidate")), 1)
 
     def test_tech_review_promotes_and_dedupes_candidates(self):
+        """Protect tech review promotes and dedupes candidates behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(
@@ -224,6 +232,7 @@ class TechnologyIndicatorsTests(unittest.TestCase):
             self.assertEqual(deduped[0].payload["target_scope"], {"kind": "web_origin", "value": "https://example.test"})
 
     def test_webfin_tech_review_report_chain_groups_indicator(self):
+        """Protect webfin tech review report chain groups indicator behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             endpoint = runner.db.publish(
@@ -254,6 +263,7 @@ class TechnologyIndicatorsTests(unittest.TestCase):
             self.assertEqual(rendered[0].payload["rows"], 1)
 
     def test_webfin_report_runs_passive_technology_synthesis(self):
+        """Protect webfin report runs passive technology synthesis behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             endpoint = runner.db.publish(
@@ -284,6 +294,7 @@ class TechnologyIndicatorsTests(unittest.TestCase):
             self.assertEqual(rendered[0].payload["rows"], 1)
 
     def test_report_analyze_off_does_not_run_passive_technology_synthesis(self):
+        """Protect report analyze off does not run passive technology synthesis behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             endpoint = runner.db.publish(
@@ -309,6 +320,7 @@ class TechnologyIndicatorsTests(unittest.TestCase):
             self.assertEqual(runner.db.events_for_topic("report.rendered")[0].payload["rows"], 0)
 
     def test_report_passive_synthesis_reuses_existing_finding(self):
+        """Protect report passive synthesis reuses existing finding behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.publish(
@@ -337,6 +349,7 @@ class TechnologyIndicatorsTests(unittest.TestCase):
             self.assertEqual(rendered[1].payload["rows"], 1)
 
     def test_webfin_report_synthesizes_nginx_indicator(self):
+        """Protect webfin report synthesizes nginx indicator behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             endpoint = runner.db.publish(
@@ -363,6 +376,7 @@ class TechnologyIndicatorsTests(unittest.TestCase):
             self.assertEqual(deduped[0].payload["identifiers"], {"cve": ["CVE-2013-2028"]})
 
     def test_report_synthesizes_vsftpd_banner_indicator(self):
+        """Protect report synthesizes vsftpd banner indicator behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.publish(

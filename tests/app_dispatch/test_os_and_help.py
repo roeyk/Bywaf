@@ -154,6 +154,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("Schema dependency graph", text)
 
     def test_plugins_graph_cli_can_emit_json(self):
+        """Protect plugins graph CLI can emit JSON behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
@@ -165,6 +166,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("http/probe", data["providers"])
 
     def test_manifest_commandlet_help_uses_key_value_options(self):
+        """Protect manifest commandlet help uses key value options behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()
@@ -180,6 +182,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("--timeout", text)
 
     def test_commandlet_alias_help_uses_canonical_commandlet(self):
+        """Protect commandlet alias help uses canonical commandlet behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()
@@ -191,6 +194,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("--user-agent", text)
 
     def test_cmds_lists_web_fingerprint_alias(self):
+        """Protect cmds lists web fingerprint alias behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()
@@ -203,6 +207,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("web_fingerprint", text)
 
     def test_web_fingerprint_alias_dispatch_keeps_canonical_audit_identity(self):
+        """Protect web fingerprint alias dispatch keeps canonical audit identity behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with contextlib.redirect_stdout(io.StringIO()):
@@ -215,6 +220,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(job_events[-1].payload["command"], "web_fingerprint")
 
     def test_signal_help_and_missing_args_show_usage(self):
+        """Protect signal help and missing args show usage behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()
@@ -229,6 +235,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("signal requires target and action", text)
 
     def test_inventory_help_shows_common_scope_arguments(self):
+        """Protect inventory help shows common scope arguments behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()
@@ -245,6 +252,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("all=true", text)
 
     def test_wafs_inventory_renders_waf_signals(self):
+        """Protect wafs inventory renders waf signals behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.record_job("waf_detect https://example.test/", 123, "finished")
@@ -280,6 +288,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("https://example.test/", text)
 
     def test_web_inventory_includes_fingerprint_technology(self):
+        """Protect web inventory includes fingerprint technology behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.record_job("webfin https://example.test/", 123, "finished")
@@ -319,6 +328,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("jquery", text)
 
     def test_schemas_view_lists_versions_and_usage(self):
+        """Protect schemas view lists versions and usage behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
 
@@ -335,6 +345,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("wafs", text)
 
     def test_schemas_detail_shows_plugin_owned_fields(self):
+        """Protect schemas detail shows plugin owned fields behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
 
@@ -352,6 +363,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("webfin", text)
 
     def test_wafs_new_shows_latest_new_waf_signal(self):
+        """Protect wafs new shows latest new waf signal behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.publish(
@@ -379,6 +391,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("https://old.example.test/", text)
 
     def test_dispatch_help_colors_commands_when_enabled(self):
+        """Protect dispatch help colors commands when enabled behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.registry.varstore.set("display.help.color", "always")

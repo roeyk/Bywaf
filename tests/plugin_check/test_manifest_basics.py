@@ -158,6 +158,7 @@ class TestManifestBasicsTests(unittest.TestCase):
             self.assertNotIn("correct the plugin so scripts/plugin_check.py can import", feedback)
 
     def test_check_plugin_rejects_incompatible_bywaf_requirement(self):
+        """Protect check plugin rejects incompatible bywaf requirement behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(Path(tmp), capabilities=("network.connect",))
             manifest = plugin_dir.joinpath("bywaf.plugin.toml")
@@ -171,6 +172,7 @@ class TestManifestBasicsTests(unittest.TestCase):
             self.assertIn("requires Bywaf >99.0.0", report["errors"][0])
 
     def test_check_plugin_accepts_explicit_schema_and_plugin_dependencies(self):
+        """Protect check plugin accepts explicit schema and plugin dependencies behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(
                 Path(tmp),
@@ -197,6 +199,7 @@ class TestManifestBasicsTests(unittest.TestCase):
             self.assertTrue(report["ok"], report["errors"])
 
     def test_check_plugin_rejects_missing_required_plugin(self):
+        """Protect check plugin rejects missing required plugin behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(Path(tmp), capabilities=())
             manifest = plugin_dir.joinpath("bywaf.plugin.toml")
@@ -213,6 +216,7 @@ class TestManifestBasicsTests(unittest.TestCase):
             self.assertIn("missing required plugin: missing.provider", report["errors"])
 
     def test_check_plugin_rejects_missing_required_schema(self):
+        """Protect check plugin rejects missing required schema behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(Path(tmp), capabilities=())
             manifest = plugin_dir.joinpath("bywaf.plugin.toml")
@@ -229,6 +233,7 @@ class TestManifestBasicsTests(unittest.TestCase):
             self.assertIn("missing required schema: missing.schema", report["errors"])
 
     def test_check_plugin_accepts_multifile_relative_imports(self):
+        """Protect check plugin accepts multifile relative imports behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_multifile_plugin_fixture(Path(tmp))
 
@@ -239,6 +244,7 @@ class TestManifestBasicsTests(unittest.TestCase):
             self.assertEqual(report["errors"], [])
 
     def test_source_analysis_accepts_single_file_plugin_modules(self):
+        """Protect source analysis accepts single file plugin modules behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "single.py"
             path.write_text('def run(context):\n    context.output("ok")\n')

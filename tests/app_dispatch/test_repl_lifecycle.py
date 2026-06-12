@@ -75,6 +75,7 @@ class AppDispatchTests(unittest.TestCase):
             answers = iter([KeyboardInterrupt, "n", "q"])
 
             def reader(prompt=""):
+                """Test helper for reader."""
                 print(prompt, end="")
                 answer = next(answers)
                 if answer is KeyboardInterrupt:
@@ -97,6 +98,7 @@ class AppDispatchTests(unittest.TestCase):
             answers = iter([KeyboardInterrupt, "yes"])
 
             def reader(prompt=""):
+                """Test helper for reader."""
                 print(prompt, end="")
                 answer = next(answers)
                 if answer is KeyboardInterrupt:
@@ -119,6 +121,7 @@ class AppDispatchTests(unittest.TestCase):
             answers = iter([EOFError, "n", "q"])
 
             def reader(prompt=""):
+                """Test helper for reader."""
                 print(prompt, end="")
                 answer = next(answers)
                 if answer is EOFError:
@@ -141,6 +144,7 @@ class AppDispatchTests(unittest.TestCase):
             answers = iter([EOFError, "yes"])
 
             def reader(prompt=""):
+                """Test helper for reader."""
                 print(prompt, end="")
                 answer = next(answers)
                 if answer is EOFError:
@@ -157,9 +161,11 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("Quit Bywaf?", output.getvalue())
 
     def test_confirm_repl_exit_reprompts_until_yes_or_no(self):
+        """Protect confirm REPL exit reprompts until yes or no behavior from regressions."""
         answers = iter(["maybe", "Y"])
 
         def reader(prompt):
+            """Test helper for reader."""
             print(prompt, end="")
             return next(answers)
 
@@ -169,18 +175,21 @@ class AppDispatchTests(unittest.TestCase):
         self.assertIn("please answer yes or no", output.getvalue())
 
     def test_confirm_repl_exit_accepts_single_yes_keypress(self):
+        """Protect confirm REPL exit accepts single yes keypress behavior from regressions."""
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
             self.assertTrue(confirm_repl_exit(key_reader=lambda: "y"))
         self.assertIn("Quit Bywaf? [y/N] y", output.getvalue())
 
     def test_confirm_repl_exit_accepts_single_no_keypress(self):
+        """Protect confirm REPL exit accepts single no keypress behavior from regressions."""
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
             self.assertFalse(confirm_repl_exit(key_reader=lambda: "n"))
         self.assertIn("Quit Bywaf? [y/N] n", output.getvalue())
 
     def test_confirm_repl_exit_reprompts_single_keypress_until_yes_or_no(self):
+        """Protect confirm REPL exit reprompts single keypress until yes or no behavior from regressions."""
         answers = iter(["x", "y"])
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
@@ -188,6 +197,7 @@ class AppDispatchTests(unittest.TestCase):
         self.assertIn("please press y or n", output.getvalue())
 
     def test_shell_suspend_handler_announces_and_suspends_process_group(self):
+        """Protect shell suspend handler announces and suspends process group behavior from regressions."""
         output = io.StringIO()
         with (
             contextlib.redirect_stdout(output),
@@ -205,6 +215,7 @@ class AppDispatchTests(unittest.TestCase):
         self.assertEqual(signal_handler.call_args_list[1].args[1], suspend_to_shell)
 
     def test_shell_suspend_handler_installs_only_for_interactive_tty(self):
+        """Protect shell suspend handler installs only for interactive tty behavior from regressions."""
         with (
             patch("bywaf.repl.shell.sys.stdin.isatty", return_value=True),
             patch("bywaf.repl.shell.sys.stdout.isatty", return_value=True),
@@ -218,6 +229,7 @@ class AppDispatchTests(unittest.TestCase):
         self.assertEqual(signal_handler.call_args_list[1].args[1], "old")
 
     def test_read_logical_input_joins_backslash_continuations(self):
+        """Protect read logical input joins backslash continuations behavior from regressions."""
         state = ShellState()
         with patch("builtins.input", side_effect=["hostscanner \\", "127.0.0.1"]):
             self.assertEqual(read_logical_input(state), "hostscanner \n127.0.0.1")

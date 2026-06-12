@@ -161,13 +161,16 @@ class BasicConnection:
         self.timeout = timeout
 
     def request(self, method, path):
+        """Test helper for request."""
         self.method = method
         self.path = path
 
     def getresponse(self):
+        """Test helper for getresponse."""
         return self.response
 
     def close(self):
+        """Test helper for close."""
         return None
 
 
@@ -185,6 +188,7 @@ class ErrorConnection(BasicConnection):
     """Connection fake for transport failure payload tests."""
 
     def request(self, method, path):
+        """Test helper for request."""
         raise OSError("connection refused")
 
 

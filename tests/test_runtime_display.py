@@ -48,9 +48,11 @@ class RuntimeDisplayTests(unittest.TestCase):
         self.assertEqual(display_runtime_serial("job-0123456789ABCDEFGHJKMNPQRST"), "01234567")
 
     def test_display_runtime_serial_keeps_commandlet_prefixed_runs(self):
+        """Protect display runtime serial keeps commandlet prefixed runs behavior from regressions."""
         self.assertEqual(display_runtime_serial("hostscanner-abc123"), "hostscanner-abc123")
 
     def test_render_table_styles_subject_cells_after_alignment(self):
+        """Protect render table styles subject cells after alignment behavior from regressions."""
         rendered = render_table(
             ("JOB", "SERIAL"),
             ((1, "ABC12345"),),
@@ -61,12 +63,14 @@ class RuntimeDisplayTests(unittest.TestCase):
         self.assertIn("1    \x1b[36mABC12345", rendered)
 
     def test_render_table_truncates_to_max_width(self):
+        """Protect render table truncates to max width behavior from regressions."""
         rendered = render_table(("ID", "COMMAND"), ((1, "x" * 80),), max_width=24)
 
         self.assertTrue(all(len(line) <= 24 for line in rendered.splitlines()))
         self.assertIn("…", rendered)
 
     def test_render_table_applies_header_index_and_body_styles(self):
+        """Protect render table applies header index and body styles behavior from regressions."""
         rendered = render_table(
             ("ID", "VALUE"),
             ((1, "plain"),),
@@ -82,6 +86,7 @@ class RuntimeDisplayTests(unittest.TestCase):
         self.assertIn("\x1b[32mplain", rendered)
 
     def test_render_table_applies_active_row_and_column_styles(self):
+        """Protect render table applies active row and column styles behavior from regressions."""
         rendered = render_table(
             ("JOB", "STATUS", "COMMAND"),
             ((1, "active/running", "scan"), (2, "completed/finished", "report")),

@@ -100,6 +100,7 @@ class RepoExposureTests(unittest.TestCase):
         self.assertIn("sample=[core]", candidate["evidence"])
 
     def test_run_publishes_candidate_for_exposed_git_config(self):
+        """Protect run publishes candidate for exposed git config behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))
             context = CommandContext(
@@ -126,6 +127,7 @@ class RepoExposureTests(unittest.TestCase):
             self.assertEqual(output.getvalue(), "")
 
     def test_family_commandlet_marks_payload_with_family_and_check(self):
+        """Protect family commandlet marks payload with family and check behavior from regressions."""
         context = CommandContext(db=None, source="repo_exposure", metadata={"command_run_id": "run-1"})
         event = Event.new("http.endpoint", {"url": "https://example.test/", "host": "example.test", "port": 443}, "test")
         result = base_result(
@@ -141,6 +143,7 @@ class RepoExposureTests(unittest.TestCase):
         self.assertEqual(events[0]["check"], "git_config")
 
     def test_silent_suppresses_exposure_alert(self):
+        """Protect silent suppresses exposure alert behavior from regressions."""
         context = CommandContext(db=None, source="git_expose_check", metadata={"command_run_id": "run-1"})
         output = io.StringIO()
         with contextlib.redirect_stdout(output):

@@ -159,15 +159,18 @@ class ReflectedConnection:
         self.headers = headers or {}
 
     def getresponse(self):
+        """Test helper for getresponse."""
         return self.response
 
     def close(self):
+        """Test helper for close."""
         return None
 
 
 class ErrorConnection(ReflectedConnection):
     """Test double used by this module's regression cases."""
     def request(self, method, path, headers=None):
+        """Test helper for request."""
         raise OSError("connection refused")
 
 

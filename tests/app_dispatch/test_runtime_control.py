@@ -189,6 +189,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(job["status"], "killed")
 
     def test_pipeline_cancel_records_soft_cancellation(self):
+        """Protect pipeline cancel records soft cancellation behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("pipeline", 123, "running")
@@ -207,6 +208,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("cancel requested for pipeline pipe-1", output.getvalue())
 
     def test_pipeline_kill_defaults_to_cooperative_cancel(self):
+        """Protect pipeline kill defaults to cooperative cancel behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("pipeline", 99999, "running")
@@ -227,6 +229,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(job["status"], "cancelling")
 
     def test_convenience_end_and_kill_selectors(self):
+        """Protect convenience end and kill selectors behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("sleep", 99999, "running")

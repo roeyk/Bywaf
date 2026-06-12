@@ -104,12 +104,14 @@ class SetupCliTests(unittest.TestCase):
         outer = self
 
         class FakeStore:
+            """Test double for `FakeStore` scenarios in this module."""
             def __init__(self, path: Path, *, passphrase: str | None = None):
                 calls.append((path, passphrase))
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.touch()
 
             def publish(self, topic: str, payload: dict[str, object], source: str):
+                """Test helper for publish."""
                 outer.assertEqual(topic, "setup.completed")
                 outer.assertEqual(source, "framework")
                 published.append(payload)
@@ -137,6 +139,7 @@ class SetupCliTests(unittest.TestCase):
         generated_names: list[str] = []
 
         def fake_generate_key(name: str, passphrase: str, *, scope: str = "user"):
+            """Test helper for fake generate key."""
             generated_names.append(name)
             self.assertEqual(passphrase, "key-passphrase")
             self.assertEqual(scope, "user")
@@ -175,6 +178,7 @@ class SetupCliTests(unittest.TestCase):
     def test_interactive_setup_key_generation_failure_does_not_publish_setup_event(self):
         """Protect interactive setup key generation failure does not publish setup event behavior from regressions."""
         def fail_generate_key(name: str, passphrase: str, *, scope: str = "user"):
+            """Test helper for fail generate key."""
             del name, passphrase, scope
             raise RuntimeError("key backend unavailable")
 
@@ -211,6 +215,7 @@ class SetupCliTests(unittest.TestCase):
                 self.assertIn("cannot enable encryption during setup because project database already exists", output.getvalue())
 
     def test_interactive_repl_startup_shows_first_run_notice(self):
+        """Protect interactive REPL startup shows first run notice behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             with patch.dict("os.environ", {"HOME": tmp}):
                 output = io.StringIO()
@@ -225,6 +230,7 @@ class SetupCliTests(unittest.TestCase):
                 self.assertIn("Run `bywaf --setup` to create one, or continue with defaults.", output.getvalue())
 
     def test_quiet_repl_startup_suppresses_first_run_notice(self):
+        """Protect quiet REPL startup suppresses first run notice behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             with patch.dict("os.environ", {"HOME": tmp}):
                 output = io.StringIO()
@@ -238,6 +244,7 @@ class SetupCliTests(unittest.TestCase):
                 self.assertNotIn("No Bywaf configuration found.", output.getvalue())
 
     def test_non_interactive_repl_startup_suppresses_first_run_notice(self):
+        """Protect non interactive REPL startup suppresses first run notice behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             with patch.dict("os.environ", {"HOME": tmp}):
                 output = io.StringIO()
@@ -251,9 +258,11 @@ class SetupCliTests(unittest.TestCase):
                 self.assertNotIn("No Bywaf configuration found.", output.getvalue())
 
     def test_hidden_plugin_signing_setup_option_generates_plugin_keys(self):
+        """Protect hidden plugin signing setup option generates plugin keys behavior from regressions."""
         generated_names: list[str] = []
 
         def fake_generate_key(name: str, passphrase: str, *, scope: str = "user"):
+            """Test helper for fake generate key."""
             generated_names.append(name)
             self.assertEqual(passphrase, "plugin-passphrase")
             self.assertEqual(scope, "user")

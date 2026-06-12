@@ -325,6 +325,7 @@ class ReportReviewTests(unittest.TestCase):
             self.assertTrue(all(event.payload["decision"] == "accepted" for event in reviews))
 
     def test_report_defer_records_note_text(self):
+        """Protect report defer records note text behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.publish(
@@ -347,6 +348,7 @@ class ReportReviewTests(unittest.TestCase):
             self.assertEqual(review.payload["note"], "needs manual validation")
 
     def test_report_accept_defer_reject_flow_uses_deduped_findings(self):
+        """Protect report accept defer reject flow uses deduped findings behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             for index, (title, host) in enumerate(
@@ -414,6 +416,7 @@ class ReportReviewTests(unittest.TestCase):
             self.assertIn("Rejected issue", all_text)
 
     def test_report_latest_review_decision_wins(self):
+        """Protect report latest review decision wins behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.publish(

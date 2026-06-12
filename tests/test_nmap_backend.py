@@ -39,6 +39,7 @@ class NmapBackendTests(unittest.TestCase):
         fake = types.SimpleNamespace(PortScanner=object)
 
         def import_module(name):
+            """Test helper for import module."""
             if name == "nmaplib":
                 return fake
             raise ImportError(name)
@@ -70,6 +71,8 @@ class NmapBackendTests(unittest.TestCase):
         scanner = FakeScanner()
 
         class Module:
+            """Group regression coverage for `Module` behavior."""
+
             @staticmethod
             def PortScanner():
                 return scanner
@@ -93,21 +96,25 @@ class NmapBackendTests(unittest.TestCase):
         )
 
     def test_libnmap_port_scan_passes_multiple_targets_as_sequence(self):
+        """Protect libnmap port scan passes multiple targets as sequence behavior from regressions."""
         backend = fake_libnmap_backend(FakeReport([]))
         scan_open_ports_libnmap(backend, ["192.0.2.10", "192.0.2.11"], "80,443", "-Pn -sT")
         self.assertEqual(backend["process"].last_targets, ["192.0.2.10", "192.0.2.11"])
 
     def test_libnmap_scan_omits_p_option_without_ports(self):
+        """Protect libnmap scan omits p option without ports behavior from regressions."""
         backend = fake_libnmap_backend(FakeReport([]))
         scan_open_ports_libnmap(backend, ["127.0.0.1"], None, "-sT")
         self.assertEqual(backend["process"].last_options, "-sT")
 
     def test_libnmap_scan_failure_raises(self):
+        """Protect libnmap scan failure raises behavior from regressions."""
         backend = fake_libnmap_backend(FakeReport([]), failed=True, stderr="permission denied")
         with self.assertRaisesRegex(NmapScanError, "permission denied"):
             discover_live_hosts_libnmap(backend, "127.0.0.1", "-sn")
 
     def test_collect_open_ports_ignores_closed_ports(self):
+        """Protect collect open ports ignores closed ports behavior from regressions."""
         self.assertEqual(
             collect_open_ports(FakeScanner({"tcp": {80: {"state": "closed"}}})),
             [],
@@ -121,9 +128,11 @@ class FakeHostResult:
         self.protocols = protocols or {"tcp": {22: {"state": "open", "name": "ssh", "reason": "syn-ack"}}}
 
     def state(self):
+        """Test helper for state."""
         return "up"
 
     def all_protocols(self):
+        """Test helper for all protocols."""
         return list(self.protocols)
 
     def __getitem__(self, protocol):
@@ -137,9 +146,11 @@ class FakeScanner:
         self.protocols = protocols
 
     def scan(self, **kwargs):
+        """Test helper for scan."""
         self.kwargs = kwargs
 
     def all_hosts(self):
+        """Test helper for all hosts."""
         return ["127.0.0.1"]
 
     def __getitem__(self, host):
@@ -200,15 +211,19 @@ def fake_libnmap_backend(report, failed=False, stderr=""):
                 self.stderr = stderr
 
             def run(self):
+                """Return a process exit code matching the requested fake outcome."""
                 return 0 if not failed else 1
 
             def has_failed(self):
+                """Return whether the fake process should behave as failed."""
                 return failed
 
     class ParserModule:
         """Fake libnmap.parser module returning the supplied report."""
 
         class NmapParser:
+            """Test double for the libnmap parser entrypoint."""
+
             @staticmethod
             def parse(stdout):
                 return report

@@ -146,6 +146,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
             self.assertEqual(names[("run", events[0].command_run_id or "")], "localhost sweep")
 
     def test_name_command_assigns_posthoc_names(self):
+        """Protect name command assigns posthoc names behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", pipeline_id="pipe-1", command_run_id="run-1")
@@ -159,6 +160,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
             self.assertIn("step=run-1 name=localhost sweep", output.getvalue())
 
     def test_name_command_accepts_text_keyed_name(self):
+        """Protect name command accepts text keyed name behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", pipeline_id="pipe-1", command_run_id="run-1")
@@ -168,6 +170,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
             self.assertEqual(runner.db.runtime_names()[("run", "run-1")], "localhost sweep")
 
     def test_at_file_lines_expands_before_commandlet_args(self):
+        """Protect at file lines expands before commandlet args behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             targets = Path(tmp, "targets.txt")
             targets.write_text("127.0.0.1\n127.0.0.2\n\n")
@@ -197,11 +200,13 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
             self.assertEqual(artifacts[0].body, b"127.0.0.1\n")
 
     def test_at_file_double_at_escapes_literal_at(self):
+        """Protect at file double at escapes literal at behavior from regressions."""
         values, expansion = expand_at_file_arg("@@literal")
         self.assertEqual(values, ["@literal"])
         self.assertIsNone(expansion)
 
     def test_at_file_text_expands_as_one_argument(self):
+        """Protect at file text expands as one argument behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "value.txt")
             path.write_text("one\ntwo\n")
@@ -212,6 +217,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
         self.assertEqual(expansion.produced, 1)
 
     def test_note_command_shows_run_notes_with_timestamp_first(self):
+        """Protect note command shows run notes with timestamp first behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]):
                 runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -227,6 +233,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
             self.assertIn(f"step={events[0].command_run_id}", line)
 
     def test_note_command_saves_job_notes_to_file(self):
+        """Protect note command saves job notes to file behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "notes.txt")
             with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]):
@@ -244,6 +251,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
             self.assertIn(f"saved 1 notes to {path}", output.getvalue())
 
     def test_note_add_appends_multiple_run_notes(self):
+        """Protect note add appends multiple run notes behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]):
                 runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -262,6 +270,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
             self.assertIn("second note", lines[1])
 
     def test_note_add_reads_text_from_file(self):
+        """Protect note add reads text from file behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             note_file = Path(tmp, "note.txt")
             note_file.write_text("file-backed posthoc note\n")
@@ -277,6 +286,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
             self.assertIn("file-backed posthoc note", output.getvalue())
 
     def test_foreground_command_records_job_lifecycle(self):
+        """Protect foreground command records job lifecycle behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]):
                 runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -293,6 +303,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
             self.assertEqual(runner.db.job()[0]["status"], "finished")
 
     def test_hostscanner_silent_suppresses_alert(self):
+        """Protect hostscanner silent suppresses alert behavior from regressions."""
         context = CommandContext(db=None, source="hostscanner", metadata={"command_run_id": "run-1"})
         output = io.StringIO()
         with (
@@ -306,6 +317,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
         self.assertEqual(output.getvalue(), "")
 
     def test_hostscanner_expands_range_before_nmap(self):
+        """Protect hostscanner expands range before nmap behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             with patch(
                 "bywaf.plugins.discovery.hostscanner.discover_live_hosts",
@@ -321,6 +333,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
     def test_hostscanner_resolves_name_before_nmap(self):
         # Duplicate DNS answers are common; the policy layer should preserve
         # order while removing repeats before scanner invocation.
+        """Protect hostscanner resolves name before nmap behavior from regressions."""
         address_info = [
             (2, 1, 6, "", ("203.0.113.10", 0)),
             (2, 1, 6, "", ("203.0.113.11", 0)),
@@ -352,6 +365,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
             self.assertEqual([event.payload["host"] for event in resolved], ["203.0.113.10", "203.0.113.11"])
 
     def test_hostscanner_rejects_unresolved_name(self):
+        """Protect hostscanner rejects unresolved name behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             with patch(
                 "bywaf.policy.socket.getaddrinfo",
@@ -363,6 +377,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
                         runner.execute("hostscanner missing.test")
 
     def test_hostscanner_except_removes_targets_before_nmap(self):
+        """Protect hostscanner except removes targets before nmap behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["192.168.0.1"]) as discover:
                 runner = make_runner(Path(tmp, "db.sqlite3"))
@@ -373,6 +388,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
             discover.assert_called_once_with("192.168.0.1", "-sn")
 
     def test_hostscanner_except_supports_at_file_value(self):
+        """Protect hostscanner except supports at file value behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             excluded = Path(tmp, "excluded.txt")
             excluded.write_text("192.168.0.2\n")
@@ -383,6 +399,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
             discover.assert_called_once_with("192.168.0.1", "-sn")
 
     def test_hostscanner_plan_shows_intended_targets_without_scanning(self):
+        """Protect hostscanner plan shows intended targets without scanning behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()
@@ -401,6 +418,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
             self.assertEqual(runner.db.events_for_topic("policy.evaluated")[0].payload["decision"], "allow")
 
     def test_hostscanner_plan_yes_applies_prune_repair_and_audits_approval(self):
+        """Protect hostscanner plan yes applies prune repair and audits approval behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.registry.varstore.set("global.policy.network.allow", "192.168.0.0/24")
@@ -416,5 +434,6 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
             self.assertTrue(repair.payload["approved_by"])
 
     def test_expand_targets_enforces_limit(self):
+        """Protect expand targets enforces limit behavior from regressions."""
         with self.assertRaisesRegex(ValueError, "exceeds limit"):
             expand_targets(["192.168.0.1-3"], 2)

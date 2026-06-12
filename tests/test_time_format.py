@@ -56,10 +56,12 @@ class TimeFormatTests(unittest.TestCase):
         self.assertEqual(format_duration_between("2026-05-18T12:00:00+00:00", None), "ongoing")
 
     def test_format_compact_runtime_timestamp_handles_missing_and_malformed_values(self):
+        """Protect format compact runtime timestamp handles missing and malformed values behavior from regressions."""
         self.assertEqual(format_compact_runtime_ts(None), "unknown")
         self.assertEqual(format_compact_runtime_ts("not-a-time"), "not-a-time")
 
     def test_normalize_history_timestamp_moves_timezone_after_time(self):
+        """Protect normalize history timestamp moves timezone after time behavior from regressions."""
         self.assertEqual(
             normalize_history_ts("2026-05-17 EDT 10:00:00"),
             "20260517 10:00:00 EDT",

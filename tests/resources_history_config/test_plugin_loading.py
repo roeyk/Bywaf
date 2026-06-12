@@ -154,6 +154,7 @@ class ResourcesHistoryPluginLoadingTests(unittest.TestCase):
             self.assertTrue(runner.registry.has_commandlet("lab/tools/example"))
 
     def test_use_provider_selects_manifest_default_commandlet(self):
+        """Protect use provider selects manifest default commandlet behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -164,6 +165,7 @@ class ResourcesHistoryPluginLoadingTests(unittest.TestCase):
             self.assertEqual(state.active_context, "lab/multi/second")
 
     def test_use_provider_without_default_lists_choices(self):
+        """Protect use provider without default lists choices behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -178,6 +180,7 @@ class ResourcesHistoryPluginLoadingTests(unittest.TestCase):
             self.assertIn("second", output.getvalue())
 
     def test_use_accepts_provider_qualified_commandlet_alias(self):
+        """Protect use accepts provider qualified commandlet alias behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -188,6 +191,7 @@ class ResourcesHistoryPluginLoadingTests(unittest.TestCase):
             self.assertEqual(state.active_context, "multi/second")
 
     def test_dispatch_accepts_provider_qualified_commandlet_alias(self):
+        """Protect dispatch accepts provider qualified commandlet alias behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -200,6 +204,7 @@ class ResourcesHistoryPluginLoadingTests(unittest.TestCase):
             self.assertEqual(events[0].source, "example")
 
     def test_external_plugin_enforces_declared_capabilities_by_default(self):
+        """Protect external plugin enforces declared capabilities by default behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -215,6 +220,7 @@ class ResourcesHistoryPluginLoadingTests(unittest.TestCase):
             self.assertEqual(runner.db.events_for_topic("framework.console.output.requested"), [])
 
     def test_external_plugin_declared_capability_runs_under_default_enforcement(self):
+        """Protect external plugin declared capability runs under default enforcement behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -228,6 +234,7 @@ class ResourcesHistoryPluginLoadingTests(unittest.TestCase):
             self.assertEqual(runner.db.events_for_topic("plugin.capability.missing"), [])
 
     def test_operator_can_downgrade_external_plugin_capability_enforcement(self):
+        """Protect operator can downgrade external plugin capability enforcement behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.registry.varstore.set("global.capabilities.mode", "audit")
@@ -243,6 +250,7 @@ class ResourcesHistoryPluginLoadingTests(unittest.TestCase):
             self.assertEqual(missing[0].payload["capability"], "framework.console.output")
 
     def test_fully_qualified_commandlet_ignores_active_use_context(self):
+        """Protect fully qualified commandlet ignores active use context behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -258,6 +266,7 @@ class ResourcesHistoryPluginLoadingTests(unittest.TestCase):
             self.assertEqual(len(runner.db.events_for_topic("beta.done")), 1)
 
     def test_script_fully_qualified_commandlet_ignores_active_use_context(self):
+        """Protect script fully qualified commandlet ignores active use context behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -274,6 +283,7 @@ class ResourcesHistoryPluginLoadingTests(unittest.TestCase):
             self.assertEqual(len(runner.db.events_for_topic("beta.done")), 1)
 
     def test_run_executes_active_commandlet(self):
+        """Protect run executes active commandlet behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -286,6 +296,7 @@ class ResourcesHistoryPluginLoadingTests(unittest.TestCase):
             self.assertEqual(events[0].payload["ok"], True)
 
     def test_run_requires_active_commandlet(self):
+        """Protect run requires active commandlet behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()
@@ -294,6 +305,7 @@ class ResourcesHistoryPluginLoadingTests(unittest.TestCase):
             self.assertIn("no active commandlet", output.getvalue())
 
     def test_load_plugin_refuses_without_force(self):
+        """Protect load plugin refuses without force behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             plugin_dir = Path(tmp, "example")
@@ -314,6 +326,7 @@ class ResourcesHistoryPluginLoadingTests(unittest.TestCase):
             self.assertNotIn("example", runner.registry.names())
 
     def test_load_plugin_audits_manifest_metadata(self):
+        """Protect load plugin audits manifest metadata behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             plugin_dir = Path(tmp, "example")

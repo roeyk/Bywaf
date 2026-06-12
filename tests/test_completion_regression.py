@@ -122,6 +122,7 @@ class CompletionRegressionTests(unittest.TestCase):
         )
 
     def test_common_manual_regression_cases(self):
+        """Protect common manual regression cases behavior from regressions."""
         cases = (
             ("hostscanner 127.0.0.1 | por", "portscanner"),
             ("finding_report exp", "export="),
@@ -136,6 +137,7 @@ class CompletionRegressionTests(unittest.TestCase):
                 self.assertIn(expected, self.completer.candidates(line))
 
     def test_runtime_selector_regression_cases(self):
+        """Protect runtime selector regression cases behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))
             db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", pipeline_id="pipe-1", command_run_id="run-1")
@@ -157,6 +159,7 @@ class CompletionRegressionTests(unittest.TestCase):
                     self.assertIn(expected, completer.candidates(line))
 
     def test_filespec_parameter_completion_matrix(self):
+        """Protect filespec parameter completion matrix behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / ".bywaf" / "plugins" / "plugin_dir").mkdir(parents=True)
@@ -198,12 +201,14 @@ class CompletionRegressionTests(unittest.TestCase):
                 os.chdir(cwd)
 
     def test_double_dash_does_not_duplicate_or_show_named_arguments(self):
+        """Protect double dash does not duplicate or show named arguments behavior from regressions."""
         candidates = self.completer.candidates("finding_report --")
         self.assertEqual(candidates, [])
         self.assertNotIn("export=", candidates)
         self.assertNotIn("--", completion_results("finding_report --", candidates))
 
     def test_prompt_toolkit_key_value_display_hides_key_prefix(self):
+        """Protect prompt toolkit key value display hides key prefix behavior from regressions."""
         try:
             Document = importlib.import_module("prompt_toolkit.document").Document
         except ImportError:
@@ -221,6 +226,7 @@ class CompletionRegressionTests(unittest.TestCase):
         self.assertNotIn("export=report.md", display_texts)
 
     def test_prompt_lexer_styles_values_and_quoted_strings(self):
+        """Protect prompt lexer styles values and quoted strings behavior from regressions."""
         try:
             Document = importlib.import_module("prompt_toolkit.document").Document
         except ImportError:
@@ -240,6 +246,7 @@ class CompletionRegressionTests(unittest.TestCase):
         self.assertIn(("ansicyan", "$A"), fragments)
 
     def test_prompt_lexer_does_not_style_variables_inside_single_quotes(self):
+        """Protect prompt lexer does not style variables inside single quotes behavior from regressions."""
         try:
             Document = importlib.import_module("prompt_toolkit.document").Document
         except ImportError:

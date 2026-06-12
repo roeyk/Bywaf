@@ -203,6 +203,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertTrue(all(len(line) <= 72 for line in lines), output.getvalue())
 
     def test_runtime_views_accept_sort_selector_and_reject_sort_flag(self):
+        """Protect runtime views accept sort selector and reject sort flag behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("hostscanner 127.0.0.1", 123, "running")
@@ -231,6 +232,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("error: pipeline uses selector syntax; use sort=<key>, not --sort=events", text)
 
     def test_runtime_view_filters_share_event_matching(self):
+        """Protect runtime view filters share event matching behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             first_job = runner.db.record_job("portscanner host=192.0.2.10", 123, "finished")
@@ -268,6 +270,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("portscanner host=192.0.2.10", text)
 
     def test_runtime_views_filter_since_local_ids(self):
+        """Protect runtime views filter since local IDs behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             first_job = runner.db.record_job("portscanner host=192.0.2.10", 123, "finished")
@@ -305,6 +308,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("portscanner host=192.0.2.10", text)
 
     def test_runtime_views_new_uses_operator_cursors(self):
+        """Protect runtime views new uses operator cursors behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("portscanner host=192.0.2.20", 123, "finished")
@@ -342,6 +346,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertTrue(Path(tmp, "view-cursors.json").exists())
 
     def test_db_new_resets_repl_framework_request_cursor(self):
+        """Protect database new resets REPL framework request cursor behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "old.sqlite3"))
             for index in range(5):
@@ -358,6 +363,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("hostscanner", text)
 
     def test_job_listing_keeps_state_short_when_long_active_format_is_set(self):
+        """Protect job listing keeps state short when long active format is set behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.registry.varstore.set("global.listing.active-format", "long")
@@ -369,6 +375,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertRegex(output.getvalue(), r"\n1\s+active/running\s+")
 
     def test_pipeline_lists_by_default(self):
+        """Protect pipeline lists by default behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("hostscanner 127.0.0.1", 123, "running")
@@ -387,6 +394,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertRegex(text, rf"\n1\s+active/running\s+{job_id}\s+1\s+0\s+0\s+")
 
     def test_pipeline_list_lists_historical_pipelines_by_default(self):
+        """Protect pipeline list lists historical pipelines by default behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("hostscanner done", 123, "finished")

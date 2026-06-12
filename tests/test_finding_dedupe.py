@@ -263,6 +263,7 @@ class FindingDedupeTests(unittest.TestCase):
             self.assertNotIn("--threshold", text)
 
     def test_normalizer_extracts_embedded_identifiers(self):
+        """Protect normalizer extracts embedded identifiers behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             event = db.publish(

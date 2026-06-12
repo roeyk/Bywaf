@@ -101,6 +101,7 @@ class HttpProbeTests(unittest.TestCase):
         self.assertEqual(build_opener.call_args.args[0], "/tmp/cookies.txt")
 
     def test_http_probe_remembers_explicit_cookie_file(self):
+        """Protect HTTP probe remembers explicit cookie file behavior from regressions."""
         context = CommandContext(db=None, source="http_probe")
         with (
             patch("bywaf.plugins.http.probe.build_opener"),
@@ -111,6 +112,7 @@ class HttpProbeTests(unittest.TestCase):
         self.assertEqual(context.vars.get("cookie-file"), "/tmp/cookies.txt")
 
     def test_http_probe_prunes_targets_outside_policy_before_connecting(self):
+        """Protect HTTP probe prunes targets outside policy before connecting behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             store = VarStore()
@@ -129,6 +131,7 @@ class HttpProbeTests(unittest.TestCase):
             self.assertEqual(policy.payload["after"], {"targets": ["192.0.2.10"]})
 
     def test_load_firefox_cookies_reads_sqlite(self):
+        """Protect load firefox cookies reads sqlite behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = Path(tmp, "cookies.sqlite")
             conn = sqlite3.connect(db)

@@ -108,6 +108,7 @@ class CliParserTests(unittest.TestCase):
         self.assertTrue(args.quiet)
 
     def test_build_parser_accepts_plugin_trust_bypasses(self):
+        """Protect build parser accepts plugin trust bypasses behavior from regressions."""
         parser = build_parser()
         args = parser.parse_args(
             [
@@ -123,6 +124,7 @@ class CliParserTests(unittest.TestCase):
         self.assertTrue(args.allow_mismatched_plugin_keys)
 
     def test_plugin_trust_policy_tracks_unsigned_manifest_bypass(self):
+        """Protect plugin trust policy tracks unsigned manifest bypass behavior from regressions."""
         parser = build_parser()
         args = parser.parse_args(["--allow-unsigned-plugin-manifests"])
 
@@ -132,6 +134,7 @@ class CliParserTests(unittest.TestCase):
         self.assertTrue(policy.allow_unsigned_plugin_manifests)
 
     def test_build_parser_accepts_plugin_catalog_trust_inputs(self):
+        """Protect build parser accepts plugin catalog trust inputs behavior from regressions."""
         parser = build_parser()
         args = parser.parse_args(
             [
@@ -148,26 +151,31 @@ class CliParserTests(unittest.TestCase):
         self.assertEqual(args.plugin_manifest_key, "manifest.pub")
 
     def test_build_parser_rejects_direct_os_commandlets(self):
+        """Protect build parser rejects direct OS commandlets behavior from regressions."""
         parser = build_parser()
         with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
             parser.parse_args(["ls"])
 
     def test_command_from_remainder_quotes_tokens(self):
+        """Protect command from remainder quotes tokens behavior from regressions."""
         self.assertEqual(command_from_remainder(["cat", "file name.txt"]), "cat 'file name.txt'")
 
     def test_parse_load_spec_accepts_force_before_resource(self):
+        """Protect parse load spec accepts force before resource behavior from regressions."""
         forced, resource, catalog_path = parse_load_spec("--force plugin=example")
         self.assertTrue(forced)
         self.assertEqual(resource, "plugin=example")
         self.assertIsNone(catalog_path)
 
     def test_parse_load_spec_accepts_catalog_path(self):
+        """Protect parse load spec accepts catalog path behavior from regressions."""
         forced, resource, catalog_path = parse_load_spec("--force plugin=example path=lab/example")
         self.assertTrue(forced)
         self.assertEqual(resource, "plugin=example")
         self.assertEqual(catalog_path, "lab/example")
 
     def test_command_from_remainder_preserves_single_quoted_pipeline(self):
+        """Protect command from remainder preserves single quoted pipeline behavior from regressions."""
         self.assertEqual(
             command_from_remainder(["ls bywaf/plugins/os | cat README.md"]),
             "ls bywaf/plugins/os | cat README.md",

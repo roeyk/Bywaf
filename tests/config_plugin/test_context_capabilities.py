@@ -140,6 +140,7 @@ class ConfigPluginContextCapabilityTests(unittest.TestCase):
         self.assertEqual(output.getvalue(), "test <run-1>: hello\n")
 
     def test_command_context_alert_requests_framework_event_when_silent(self):
+        """Protect command context alert requests framework event when silent behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(db=db, source="test", metadata={"command_run_id": "run-1"})
@@ -153,6 +154,7 @@ class ConfigPluginContextCapabilityTests(unittest.TestCase):
         self.assertEqual(requests[0].command_run_id, "run-1")
 
     def test_command_context_output_requests_framework_event(self):
+        """Protect command context output requests framework event behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(db=db, source="test", metadata={"command_run_id": "run-1"})
@@ -163,6 +165,7 @@ class ConfigPluginContextCapabilityTests(unittest.TestCase):
         self.assertEqual(requests[0].command_run_id, "run-1")
 
     def test_command_context_process_run_records_request_and_result(self):
+        """Protect command context process run records request and result behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(
@@ -189,6 +192,7 @@ class ConfigPluginContextCapabilityTests(unittest.TestCase):
         self.assertTrue(used[0].payload["declared"])
 
     def test_command_context_events_publish_and_read_schema_objects(self):
+        """Protect command context events publish and read schema objects behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(
@@ -206,6 +210,7 @@ class ConfigPluginContextCapabilityTests(unittest.TestCase):
         self.assertEqual(context.events.objects(events, OpenPort), (OpenPort("192.0.2.10", 443, "tcp", service="https"),))
 
     def test_context_policy_filter_logs_only_pruned_targets(self):
+        """Protect context policy filter logs only pruned targets behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             store = VarStore()
@@ -222,6 +227,7 @@ class ConfigPluginContextCapabilityTests(unittest.TestCase):
             self.assertIn("198.51.100.10 is outside allowed network scope", policy.payload["warnings"])
 
     def test_context_policy_allowed_targets_do_not_emit_policy_event(self):
+        """Protect context policy allowed targets do not emit policy event behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             store = VarStore()
@@ -234,6 +240,7 @@ class ConfigPluginContextCapabilityTests(unittest.TestCase):
             self.assertEqual(db.events_for_topic("policy.evaluated"), [])
 
     def test_context_policy_resolves_hostnames_for_allow_scope(self):
+        """Protect context policy resolves hostnames for allow scope behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             store = VarStore()
@@ -247,6 +254,7 @@ class ConfigPluginContextCapabilityTests(unittest.TestCase):
             self.assertEqual(db.events_for_topic("policy.evaluated"), [])
 
     def test_command_context_process_run_audits_missing_capability(self):
+        """Protect command context process run audits missing capability behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(db=db, source="test")
@@ -255,6 +263,7 @@ class ConfigPluginContextCapabilityTests(unittest.TestCase):
         self.assertEqual(missing[0].payload["capability"], "framework.process.run")
 
     def test_process_run_enforce_mode_requires_artifact_write_before_launch(self):
+        """Protect process run enforce mode requires artifact write before launch behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             store = VarStore()
@@ -289,6 +298,7 @@ class ConfigPluginContextCapabilityTests(unittest.TestCase):
         self.assertEqual(artifacts, [])
 
     def test_capability_enforce_mode_denies_missing_declarations(self):
+        """Protect capability enforce mode denies missing declarations behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             store = VarStore()
@@ -304,6 +314,7 @@ class ConfigPluginContextCapabilityTests(unittest.TestCase):
         self.assertEqual(requests, [])
 
     def test_capability_mode_uses_context_default_when_unset(self):
+        """Protect capability mode uses context default when unset behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(db=db, source="test", metadata={"capability_mode": "enforce"})
@@ -315,6 +326,7 @@ class ConfigPluginContextCapabilityTests(unittest.TestCase):
         self.assertEqual(missing[0].payload["capability"], "framework.console.output")
 
     def test_global_capability_mode_overrides_context_default(self):
+        """Protect global capability mode overrides context default behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             store = VarStore()
@@ -329,6 +341,7 @@ class ConfigPluginContextCapabilityTests(unittest.TestCase):
         self.assertEqual(len(requests), 1)
 
     def test_capability_off_mode_suppresses_capability_audit(self):
+        """Protect capability off mode suppresses capability audit behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             store = VarStore()

@@ -77,31 +77,37 @@ class SecretTests(unittest.TestCase):
         self.assertEqual(result.secrets[0].name, "ssh_probe.password")
 
     def test_redact_command_text_does_not_guess_secret_names(self):
+        """Protect redact command text does not guess secret names behavior from regressions."""
         result = redact_command_text("set ssh_probe.password=abc timeout=1", key=b"k" * 32)
         self.assertEqual(result.command, "set ssh_probe.password=abc timeout=1")
         self.assertEqual(result.secrets, ())
 
     def test_redact_command_text_redacts_explicit_secret_assignment(self):
+        """Protect redact command text redacts explicit secret assignment behavior from regressions."""
         result = redact_command_text("set --secret session.ticket=abc timeout=1", key=b"k" * 32)
         self.assertEqual(result.command, f"set --secret session.ticket={REDACTED_VALUE} timeout=1")
         self.assertEqual(result.secrets[0].name, "session.ticket")
 
     def test_redact_command_text_redacts_trailing_secret_flag(self):
+        """Protect redact command text redacts trailing secret flag behavior from regressions."""
         result = redact_command_text("set session.ticket=abc --secret timeout=1", key=b"k" * 32)
         self.assertEqual(result.command, f"set session.ticket={REDACTED_VALUE} --secret timeout=1")
         self.assertEqual(result.secrets[0].name, "session.ticket")
 
     def test_redact_command_text_does_not_treat_secret_equals_as_flag(self):
+        """Protect redact command text does not treat secret equals as flag behavior from regressions."""
         result = redact_command_text("set session.ticket --secret=abc timeout=1", key=b"k" * 32)
         self.assertEqual(result.command, "set session.ticket --secret=abc timeout=1")
         self.assertEqual(result.secrets, ())
 
     def test_redact_command_text_redacts_empty_explicit_secret_marker(self):
+        """Protect redact command text redacts empty explicit secret marker behavior from regressions."""
         result = redact_command_text("set --secret pw=", key=b"k" * 32)
         self.assertEqual(result.command, f"set --secret pw={REDACTED_VALUE}")
         self.assertEqual(result.secrets, ())
 
     def test_in_memory_secret_store_returns_opaque_reference(self):
+        """Protect in memory secret store returns opaque reference behavior from regressions."""
         store = InMemorySecretStore()
         ref = store.put("ssh_probe.password", "supersecret", key=b"k" * 32)
         self.assertTrue(ref.ref.startswith(SECRET_REF_PREFIX))
@@ -111,6 +117,7 @@ class SecretTests(unittest.TestCase):
         self.assertNotIn("supersecret", ref.ref)
 
     def test_in_memory_secret_store_remembers_existing_reference(self):
+        """Protect in memory secret store remembers existing reference behavior from regressions."""
         first = InMemorySecretStore()
         ref = first.put("ssh_probe.password", "supersecret", key=b"k" * 32)
         second = InMemorySecretStore()

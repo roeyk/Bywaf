@@ -95,6 +95,7 @@ class StorageRunnerParsingPipelineTests(unittest.TestCase):
         self.assertFalse(should_run_stage_processes(pipeline.commands))
 
     def test_parse_attached_background_markers(self):
+        """Protect parse attached background markers behavior from regressions."""
         pipeline = parse_pipeline("hostscanner 127.0.0.1& | portscanner&")
         self.assertTrue(pipeline.background)
         self.assertEqual([command.name for command in pipeline.commands], ["hostscanner", "portscanner"])
@@ -102,6 +103,7 @@ class StorageRunnerParsingPipelineTests(unittest.TestCase):
         self.assertEqual([command.background for command in pipeline.commands], [True, True])
 
     def test_parse_framework_context_selectors(self):
+        """Protect parse framework context selectors behavior from regressions."""
         invocation = parse_invocation(
             "portscanner --from step=host-run pipeline=pipe job=7 topic=host.found port=80"
         )
@@ -112,33 +114,39 @@ class StorageRunnerParsingPipelineTests(unittest.TestCase):
         self.assertEqual(invocation.args, ["port=80"])
 
     def test_from_selector_requires_replay_scope(self):
+        """Protect from selector requires replay scope behavior from regressions."""
         with self.assertRaisesRegex(ValueError, "topic= only narrows"):
             parse_invocation("portscanner --from topic=host.found port=80")
 
     def test_parse_invocation_strips_final_unquoted_note(self):
+        """Protect parse invocation strips final unquoted note behavior from regressions."""
         invocation = parse_invocation("hostscanner 127.0.0.1 note=client approved target")
         self.assertEqual(invocation.name, "hostscanner")
         self.assertEqual(invocation.args, ["127.0.0.1"])
         self.assertEqual(invocation.note, "client approved target")
 
     def test_parse_invocation_strips_final_unquoted_name(self):
+        """Protect parse invocation strips final unquoted name behavior from regressions."""
         invocation = parse_invocation("hostscanner 127.0.0.1 name=localhost sweep")
         self.assertEqual(invocation.name, "hostscanner")
         self.assertEqual(invocation.args, ["127.0.0.1"])
         self.assertEqual(invocation.display_name, "localhost sweep")
 
     def test_parse_invocation_preserves_plugin_owned_name_selector(self):
+        """Protect parse invocation preserves plugin owned name selector behavior from regressions."""
         invocation = parse_invocation("key show name=firm-evidence")
         self.assertEqual(invocation.name, "key")
         self.assertEqual(invocation.args, ["show", "name=firm-evidence"])
         self.assertIsNone(invocation.display_name)
 
     def test_parse_invocation_strips_quoted_note(self):
+        """Protect parse invocation strips quoted note behavior from regressions."""
         invocation = parse_invocation('hostscanner 127.0.0.1 note="client approved target"')
         self.assertEqual(invocation.args, ["127.0.0.1"])
         self.assertEqual(invocation.note, "client approved target")
 
     def test_parse_pipeline_keeps_stage_notes_separate(self):
+        """Protect parse pipeline keeps stage notes separate behavior from regressions."""
         pipeline = parse_pipeline("hostscanner 127.0.0.1 note=scope approved | portscanner note=top ports")
         self.assertEqual(pipeline.commands[0].args, ["127.0.0.1"])
         self.assertEqual(pipeline.commands[0].note, "scope approved")
@@ -146,26 +154,31 @@ class StorageRunnerParsingPipelineTests(unittest.TestCase):
         self.assertEqual(pipeline.commands[1].note, "top ports")
 
     def test_parse_pipeline_accepts_name_prefix(self):
+        """Protect parse pipeline accepts name prefix behavior from regressions."""
         pipeline = parse_pipeline("client subnet scan: hostscanner 127.0.0.1 | portscanner")
         self.assertEqual(pipeline.display_name, "client subnet scan")
         self.assertEqual([command.name for command in pipeline.commands], ["hostscanner", "portscanner"])
 
     def test_parse_pipeline_does_not_treat_url_colon_as_name(self):
+        """Protect parse pipeline does not treat URL colon as name behavior from regressions."""
         pipeline = parse_pipeline("http_probe http://127.0.0.1")
         self.assertIsNone(pipeline.display_name)
         self.assertEqual(pipeline.commands[0].args, ["http://127.0.0.1"])
 
     def test_parse_invocation_keeps_background_marker_with_note(self):
+        """Protect parse invocation keeps background marker with note behavior from regressions."""
         invocation = parse_invocation("hostscanner 127.0.0.1& note=background scan")
         self.assertTrue(invocation.background)
         self.assertEqual(invocation.args, ["127.0.0.1"])
         self.assertEqual(invocation.note, "background scan")
 
     def test_parse_invocation_expands_variables_outside_single_quotes(self):
+        """Protect parse invocation expands variables outside single quotes behavior from regressions."""
         store = VarStore()
         store.set("hostscanner.targets", "127.0.0.1 127.0.0.2")
         store.set("global.target", "example.test")
         def scope(name: str) -> str:
+            """Test helper for scope."""
             return name
 
         unquoted = parse_invocation("hostscanner $targets", varstore=store, command_scope_resolver=scope)
@@ -180,10 +193,12 @@ class StorageRunnerParsingPipelineTests(unittest.TestCase):
         self.assertEqual(single_quoted.variable_expansions, ())
 
     def test_parse_invocation_rejects_unknown_variable(self):
+        """Protect parse invocation rejects unknown variable behavior from regressions."""
         with self.assertRaisesRegex(ValueError, "unknown variable"):
             parse_invocation("hostscanner $missing", varstore=VarStore())
 
     def test_parse_save_spec_accepts_encrypt_before_resource(self):
+        """Protect parse save spec accepts encrypt before resource behavior from regressions."""
         encrypt, resource = parse_save_spec("--encrypt db=client.sqlite3")
         self.assertTrue(encrypt)
         self.assertEqual(resource, "db=client.sqlite3")

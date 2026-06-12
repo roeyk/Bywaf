@@ -121,13 +121,16 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
         self.assertEqual(resolve_resource_path("foo.bywaf", Path(".")), Path("foo.bywaf"))
 
     def test_resolve_resource_path_preserves_explicit_paths(self):
+        """Protect resolve resource path preserves explicit paths behavior from regressions."""
         self.assertEqual(resolve_resource_path("./foo", Path(".bywaf/plugins")), Path("foo"))
         self.assertEqual(resolve_resource_path("~/foo", Path(".bywaf/plugins")), Path("~/foo").expanduser())
 
     def test_resolve_resource_path_uses_default_for_empty_values(self):
+        """Protect resolve resource path uses default for empty values behavior from regressions."""
         self.assertEqual(resolve_resource_path("", Path(".bywaf/db"), Path(".bywaf/bywaf.sqlite3")), Path(".bywaf/bywaf.sqlite3"))
 
     def test_script_commands_ignores_comments_and_blank_lines(self):
+        """Protect script commands ignores comments and blank lines behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "script.bywaf")
             path.write_text("# comment\n\nls  # timestamp\n  topics  \n")
@@ -136,14 +139,17 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
     def test_script_commands_preserves_quoted_hashes(self):
         # Hashes inside quotes are user data; only unquoted hashes start
         # comments in script/history files.
+        """Protect script commands preserves quoted hashes behavior from regressions."""
         self.assertEqual(strip_inline_comment("set name='a # b' # later").strip(), "set name='a # b'")
         self.assertEqual(strip_inline_comment('set color="#dc2626" # later').strip(), 'set color="#dc2626"')
 
     def test_script_commands_treats_hash_as_comment_and_allows_escaped_hashes(self):
+        """Protect script commands treats hash as comment and allows escaped hashes behavior from regressions."""
         self.assertEqual(strip_inline_comment("set color=#dc2626"), "set color=")
         self.assertEqual(strip_inline_comment(r"set color=\#dc2626"), "set color=#dc2626")
 
     def test_split_command_sequence_respects_quoted_separators(self):
+        """Protect split command sequence respects quoted separators behavior from regressions."""
         self.assertEqual(
             split_command_sequence("set a=1; set b='two; still two'; topics"),
             ["set a=1", "set b='two; still two'", "topics"],
@@ -158,11 +164,13 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
         )
 
     def test_line_continuation_helpers(self):
+        """Protect line continuation helpers behavior from regressions."""
         self.assertTrue(line_has_continuation("hostscanner \\"))
         self.assertFalse(line_has_continuation(r"echo two\\"))
         self.assertEqual(remove_line_continuation("hostscanner \\"), "hostscanner ")
 
     def test_script_commands_joins_continuations_and_splits_semicolons(self):
+        """Protect script commands joins continuations and splits semicolons behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "script.bywaf")
             path.write_text("set first=one; set second=two\nhostscanner \\\n  127.0.0.1\n")
@@ -176,6 +184,7 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
             )
 
     def test_record_command_history_records_session_history_only(self):
+        """Protect record command history records session history only behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, ".bywaf", "history.bywaf")
             session_history = []
@@ -187,6 +196,7 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
             self.assertEqual(session_history, [entry])
 
     def test_record_command_history_uses_configured_timestamp_format(self):
+        """Protect record command history uses configured timestamp format behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, ".bywaf", "history.bywaf")
             entry = record_command_history("plugins", path, timestamp_format="%Y/%m/%d")
@@ -194,6 +204,7 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
             self.assertRegex(entry or "", r"^plugins  # \d{4}/\d{2}/\d{2}$")
 
     def test_record_command_history_accepts_safe_command(self):
+        """Protect record command history accepts safe command behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, ".bywaf", "history.bywaf")
             entry = record_command_history("set scope=lab", path)
@@ -201,11 +212,13 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
             self.assertIn("set scope=lab", entry or "")
 
     def test_redact_history_command_redacts_common_secret_names_by_default(self):
+        """Protect redact history command redacts common secret names by default behavior from regressions."""
         redacted = redact_history_command("set password=supersecret")
 
         self.assertEqual(redacted, "set password=[REDACTED]")
 
     def test_format_history_entry_for_display_puts_timestamp_first(self):
+        """Protect format history entry for display puts timestamp first behavior from regressions."""
         self.assertEqual(
             format_history_entry("plugins  # 2026-05-17 10:00:00 EDT"),
             "20260517 10:00:00 EDT  plugins",
@@ -216,6 +229,7 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
         )
 
     def test_dispatch_history_prints_session_history_only(self):
+        """Protect dispatch history prints session history only behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             history_path = Path(tmp, ".bywaf", "history.bywaf")
             record_command_history("old-command", history_path)
@@ -228,6 +242,7 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
             self.assertNotIn("old-command", output.getvalue())
 
     def test_dispatch_history_colors_timestamp_when_enabled(self):
+        """Protect dispatch history colors timestamp when enabled behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.registry.varstore.set("display.history.color", "always")
@@ -238,6 +253,7 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
             self.assertIn("\x1b[32m20260517 10:00:00 EDT\x1b[0m  plugins", output.getvalue())
 
     def test_dispatch_history_uses_semantic_comment_style_when_set(self):
+        """Protect dispatch history uses semantic comment style when set behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.registry.varstore.set("display/style.comment", "bold color245")
@@ -248,6 +264,7 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
             self.assertIn("\x1b[1;38;5;245m20260517 10:00:00 EDT\x1b[0m  plugins", output.getvalue())
 
     def test_dispatch_history_filters_since_until(self):
+        """Protect dispatch history filters since until behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState(
@@ -265,6 +282,7 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
             self.assertNotIn("set", output.getvalue())
 
     def test_dispatch_history_accepts_explicit_time_prefix(self):
+        """Protect dispatch history accepts explicit time prefix behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState(session_history=["plugins  # 2026/05/17 10:00:00"])
@@ -274,6 +292,7 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
             self.assertIn("plugins", output.getvalue())
 
     def test_save_and_load_history(self):
+        """Protect save and load history behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "history.bywaf")
             state = ShellState(session_history=["plugins  # now"])
@@ -286,6 +305,7 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
             self.assertEqual(loaded.history_path, path)
 
     def test_dispatch_save_and_load_history(self):
+        """Protect dispatch save and load history behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             cwd = Path.cwd()
             try:
@@ -302,6 +322,7 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
                 os.chdir(cwd)
 
     def test_load_script_executes_commands_sequentially(self):
+        """Protect load script executes commands sequentially behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             script = Path(tmp, "script.bywaf")
@@ -313,6 +334,7 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
             self.assertIn("test.value=abc", output.getvalue())
 
     def test_load_script_executes_semicolon_commands(self):
+        """Protect load script executes semicolon commands behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             script = Path(tmp, "script.bywaf")
@@ -323,6 +345,7 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
             self.assertEqual(runner.registry.varstore.get("two.value"), "2")
 
     def test_dispatch_load_script(self):
+        """Protect dispatch load script behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             script = Path(tmp, "script.bywaf")
@@ -332,6 +355,7 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
             self.assertEqual(runner.registry.varstore.get("loaded.value"), "yes")
 
     def test_script_load_prefers_existing_relative_path(self):
+        """Protect script load prefers existing relative path behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             script_dir = Path(tmp, "scripts")

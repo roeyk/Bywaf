@@ -175,6 +175,7 @@ class EventSchemaTests(unittest.TestCase):
             schema_object(event, "port.open", OpenPort)
 
     def test_schema_object_base_deserializes_and_serializes_payloads(self):
+        """Protect schema object base deserializes and serializes payloads behavior from regressions."""
         event = Event.new(
             "port.open",
             {
@@ -202,12 +203,14 @@ class EventSchemaTests(unittest.TestCase):
         )
 
     def test_route_hop_schema_object_round_trips(self):
+        """Protect route hop schema object round trips behavior from regressions."""
         hop = NetworkRouteHop("example.test", 2, host="router", ip="192.0.2.1", rtt_ms=1.25, status="responded")
         event = Event.new("network.route.hop", hop.to_payload(), "traceroute")
 
         self.assertEqual(NetworkRouteHop.from_event(event), hop)
 
     def test_schema_objects_deserializes_matching_events_only(self):
+        """Protect schema objects deserializes matching events only behavior from regressions."""
         events = [
             Event.new("port.open", OpenPort("192.0.2.10", 22, "tcp").to_payload(), "test"),
             Event.new("host.found", HostFound("192.0.2.10").to_payload(), "test"),
@@ -220,12 +223,14 @@ class EventSchemaTests(unittest.TestCase):
         self.assertEqual(OpenPort.from_events(events), ports)
 
     def test_schema_object_base_rejects_invalid_serialized_payloads(self):
+        """Protect schema object base rejects invalid serialized payloads behavior from regressions."""
         port = OpenPort("192.0.2.10", 445, "icmp")
 
         with self.assertRaisesRegex(ValueError, "port.open.protocol must be one of"):
             port.to_payload()
 
     def test_framework_schema_objects_round_trip_common_shared_payloads(self):
+        """Protect framework schema objects round trip common shared payloads behavior from regressions."""
         cases = [
             (HostFound("192.0.2.10", status="up", scanner="nmap"), "host.found"),
             (NameResolved("example.test", "192.0.2.10", resolver="system"), "name.resolved"),

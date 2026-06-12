@@ -218,6 +218,7 @@ class RegistryFilesystemPluginTests(unittest.TestCase):
                 PluginRegistry.from_config(root, config, forced=True)
 
     def test_filesystem_plugins_require_manifest(self):
+        """Protect filesystem plugins require manifest behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "plugins")
             plugin_dir = root / "scanners" / "example"
@@ -238,6 +239,7 @@ class RegistryFilesystemPluginTests(unittest.TestCase):
                 PluginRegistry.from_config(root, config, forced=True)
 
     def test_filesystem_manifest_rejects_conflicting_native_trait(self):
+        """Protect filesystem manifest rejects conflicting native trait behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             manifest = Path(tmp, "bywaf.plugin.toml")
             manifest.write_text(
@@ -251,6 +253,7 @@ class RegistryFilesystemPluginTests(unittest.TestCase):
                 parse_plugin_manifest(manifest)
 
     def test_filesystem_manifest_rejects_non_string_capability(self):
+        """Protect filesystem manifest rejects non string capability behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             manifest = Path(tmp, "bywaf.plugin.toml")
             manifest.write_text(
@@ -263,6 +266,7 @@ class RegistryFilesystemPluginTests(unittest.TestCase):
                 parse_plugin_manifest(manifest)
 
     def test_filesystem_manifest_rejects_string_boolean(self):
+        """Protect filesystem manifest rejects string boolean behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             manifest = Path(tmp, "bywaf.plugin.toml")
             manifest.write_text(
@@ -276,6 +280,7 @@ class RegistryFilesystemPluginTests(unittest.TestCase):
                 parse_plugin_manifest(manifest)
 
     def test_filesystem_manifest_rejects_non_string_trigger_metadata(self):
+        """Protect filesystem manifest rejects non string trigger metadata behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             manifest = Path(tmp, "bywaf.plugin.toml")
             manifest.write_text(
@@ -292,6 +297,7 @@ class RegistryFilesystemPluginTests(unittest.TestCase):
                 parse_plugin_manifest(manifest)
 
     def test_filesystem_manifest_rejects_non_string_payload_equals_value(self):
+        """Protect filesystem manifest rejects non string payload equals value behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             manifest = Path(tmp, "bywaf.plugin.toml")
             manifest.write_text(
@@ -308,6 +314,7 @@ class RegistryFilesystemPluginTests(unittest.TestCase):
                 parse_plugin_manifest(manifest)
 
     def test_filesystem_manifest_rejects_capability_mismatch(self):
+        """Protect filesystem manifest rejects capability mismatch behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "plugins")
             plugin_dir = root / "scanners" / "example"
@@ -333,6 +340,7 @@ class RegistryFilesystemPluginTests(unittest.TestCase):
                 PluginRegistry.from_config(root, config, forced=True)
 
     def test_filesystem_manifest_rejects_database_actions_mismatch(self):
+        """Protect filesystem manifest rejects database actions mismatch behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "plugins")
             plugin_dir = root / "scanners" / "example"
@@ -359,6 +367,7 @@ class RegistryFilesystemPluginTests(unittest.TestCase):
                 PluginRegistry.from_config(root, config, forced=True)
 
     def test_filesystem_manifest_rejects_secret_option_mismatch(self):
+        """Protect filesystem manifest rejects secret option mismatch behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "plugins")
             plugin_dir = root / "scanners" / "example"
@@ -385,6 +394,7 @@ class RegistryFilesystemPluginTests(unittest.TestCase):
                 PluginRegistry.from_config(root, config, forced=True)
 
     def test_filesystem_manifest_rejects_provider_variable_mismatch(self):
+        """Protect filesystem manifest rejects provider variable mismatch behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "plugins")
             plugin_dir = root / "scanners" / "example"
@@ -411,6 +421,7 @@ class RegistryFilesystemPluginTests(unittest.TestCase):
                 PluginRegistry.from_config(root, config, forced=True)
 
     def test_bundled_watchdog_manifest_declares_trigger_metadata(self):
+        """Protect bundled watchdog manifest declares trigger metadata behavior from regressions."""
         manifest = load_package_manifest("bywaf.plugins", "runtime.watchdog")
         self.assertIsNotNone(manifest)
         assert manifest is not None
@@ -424,6 +435,7 @@ class RegistryFilesystemPluginTests(unittest.TestCase):
         self.assertEqual(trigger.exclude_commandlets, ("watchdog",))
 
     def test_filesystem_manifest_rejects_trigger_mismatch(self):
+        """Protect filesystem manifest rejects trigger mismatch behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "plugins")
             plugin_dir = root / "scanners" / "example"
@@ -437,6 +449,7 @@ class RegistryFilesystemPluginTests(unittest.TestCase):
                 PluginRegistry.from_config(root, config, forced=True)
 
     def test_filesystem_manifest_rejects_missing_trigger(self):
+        """Protect filesystem manifest rejects missing trigger behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "plugins")
             plugin_dir = root / "scanners" / "example"
@@ -458,6 +471,7 @@ class RegistryFilesystemPluginTests(unittest.TestCase):
                 PluginRegistry.from_config(root, config, forced=True)
 
     def test_filesystem_manifest_rejects_undeclared_trigger(self):
+        """Protect filesystem manifest rejects undeclared trigger behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "plugins")
             plugin_dir = root / "scanners" / "example"

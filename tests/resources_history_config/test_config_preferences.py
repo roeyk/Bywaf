@@ -138,6 +138,7 @@ bold = true
         self.assertEqual(subject_style(values.get, "finding.severity_class.emergency"), "white bg:ansi:52")
 
     def test_config_theme_rejects_non_display_variables(self):
+        """Protect config theme rejects non display variables behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             theme = Path(tmp, "bad-theme.toml")
@@ -148,6 +149,7 @@ bold = true
             self.assertIn("theme variable must start with display.", output.getvalue())
 
     def test_pref_set_saves_and_applies_user_preference(self):
+        """Protect pref set saves and applies user preference behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             prefs = Path(tmp, "preferences.toml")
@@ -157,6 +159,7 @@ bold = true
             self.assertIn('"display.expansion" = "changed"', prefs.read_text())
 
     def test_pref_theme_saves_and_applies_named_theme(self):
+        """Protect pref theme saves and applies named theme behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             prefs = Path(tmp, "preferences.toml")
@@ -171,6 +174,7 @@ bold = true
             self.assertEqual(other.registry.varstore.get("display/style.variable"), "cyan")
 
     def test_pref_theme_lists_available_themes(self):
+        """Protect pref theme lists available themes behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()
@@ -179,6 +183,7 @@ bold = true
             self.assertIn("themes: classic, default, mono", output.getvalue())
 
     def test_startup_preferences_create_default_file(self):
+        """Protect startup preferences create default file behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -189,6 +194,7 @@ bold = true
             self.assertEqual(prefs.read_text(encoding="utf-8"), "[preferences]\n")
 
     def test_pref_prompt_pattern_applies_to_shell_state(self):
+        """Protect pref prompt pattern applies to shell state behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -199,6 +205,7 @@ bold = true
             self.assertIn('"prompt.pattern" = "test> "', prefs.read_text())
 
     def test_pref_prompt_short_form_persists_prompt_pattern(self):
+        """Protect pref prompt short form persists prompt pattern behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()
@@ -209,6 +216,7 @@ bold = true
             self.assertIn('"prompt.pattern" = "$u@$h> "', prefs.read_text())
 
     def test_pref_rejects_scanner_variables_but_allows_credential_names(self):
+        """Protect pref rejects scanner variables but allows credential names behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             prefs = Path(tmp, "preferences.toml")
@@ -220,6 +228,7 @@ bold = true
             self.assertEqual(runner.registry.varstore.get("mail.smtp.password"), "secret")
 
     def test_save_and_load_database(self):
+        """Protect save and load database behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.publish("custom.topic", {"ok": True}, "test")
@@ -233,6 +242,7 @@ bold = true
             self.assertIn("custom.topic", other.db.topics())
 
     def test_save_history_empty_value_uses_default_path(self):
+        """Protect save history empty value uses default path behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             state = ShellState(session_history=["help  # 2026-05-21 12:00:00 EDT"])
             default_history = Path(tmp, "history.bywaf")
@@ -245,6 +255,7 @@ bold = true
             self.assertIn("help", default_history.read_text())
 
     def test_load_history_empty_value_uses_default_path(self):
+        """Protect load history empty value uses default path behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             default_history = Path(tmp, "history.bywaf")
             default_history.write_text("help  # 2026-05-21 12:00:00 EDT\n", encoding="utf-8")

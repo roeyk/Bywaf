@@ -88,18 +88,22 @@ class RenderingTests(unittest.TestCase):
         self.assertIn("a\\|b", render_table(table, "md"))
 
     def test_csv_renderer_outputs_header_and_rows(self):
+        """Protect csv renderer outputs header and rows behavior from regressions."""
         table = Table.from_rows(({"host": "127.0.0.1", "port": 80},), ("host", "port"))
         self.assertEqual(render_table(table, "csv"), "host,port\r\n127.0.0.1,80\r\n")
 
     def test_jsonl_renderer_outputs_rows(self):
+        """Protect jsonl renderer outputs rows behavior from regressions."""
         table = Table.from_rows(({"host": "127.0.0.1", "port": 80},), ("host", "port"))
         self.assertEqual(render_table(table, "jsonl"), '{"host": "127.0.0.1", "port": 80}')
 
     def test_html_renderer_escapes_cells(self):
+        """Protect HTML renderer escapes cells behavior from regressions."""
         table = Table.from_rows(({"value": "<script>"},), ("value",))
         self.assertIn("&lt;script&gt;", render_table(table, "html"))
 
     def test_docx_renderer_returns_bytes_when_dependency_available(self):
+        """Protect docx renderer returns bytes when dependency available behavior from regressions."""
         if importlib.util.find_spec("docx") is None:
             self.skipTest("python-docx is not installed")
         table = Table.from_rows(({"host": "127.0.0.1"},), ("host",))
@@ -108,6 +112,7 @@ class RenderingTests(unittest.TestCase):
         self.assertTrue(cast(bytes, rendered).startswith(b"PK"))
 
     def test_xlsx_renderer_returns_bytes_when_dependency_available(self):
+        """Protect xlsx renderer returns bytes when dependency available behavior from regressions."""
         if importlib.util.find_spec("openpyxl") is None:
             self.skipTest("openpyxl is not installed")
         table = Table.from_rows(({"host": "127.0.0.1"},), ("host",))
@@ -116,6 +121,7 @@ class RenderingTests(unittest.TestCase):
         self.assertTrue(cast(bytes, rendered).startswith(b"PK"))
 
     def test_context_render_table_requests_framework_rendering(self):
+        """Protect context render table requests framework rendering behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             context = CommandContext(
@@ -131,6 +137,7 @@ class RenderingTests(unittest.TestCase):
             self.assertTrue(used.payload["declared"])
 
     def test_framework_render_table_request_prints_and_audits(self):
+        """Protect framework render table request prints and audits behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             context = CommandContext(
@@ -149,6 +156,7 @@ class RenderingTests(unittest.TestCase):
             self.assertEqual(rendered.payload["row_count"], 1)
 
     def test_compatibility_context_table_uses_rendering_request(self):
+        """Protect compatibility context table uses rendering request behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             context = CommandContext(runner.db, source="plugin", metadata={"command_run_id": "run-1"})

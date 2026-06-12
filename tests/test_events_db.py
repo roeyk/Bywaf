@@ -158,6 +158,7 @@ class EventDbTests(unittest.TestCase):
             )
 
     def test_new_serial_uses_crockford_base32(self):
+        """Protect new serial uses crockford base32 behavior from regressions."""
         serial = new_serial("job")
         prefix, body = serial.split("-", 1)
         self.assertEqual(prefix, "job")
@@ -165,6 +166,7 @@ class EventDbTests(unittest.TestCase):
         self.assertTrue(set(body).issubset(set(CROCKFORD_BASE32_ALPHABET)))
 
     def test_runtime_serials_resolve_unique_display_prefixes(self):
+        """Protect runtime serials resolve unique display prefixes behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "events.sqlite3"))
             run_serial = new_serial("run")
@@ -176,6 +178,7 @@ class EventDbTests(unittest.TestCase):
             self.assertEqual(db.resolve_pipeline_serial(pipeline_serial.split("-", 1)[1][:8]), pipeline_serial)
 
     def test_cancellation_records_match_targets(self):
+        """Protect cancellation records match targets behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "events.sqlite3"))
             db.request_cancellation("job", "7")
@@ -183,6 +186,7 @@ class EventDbTests(unittest.TestCase):
             self.assertFalse(db.cancellation_requested(job_id=8))
 
     def test_claim_job_is_atomic_for_queued_jobs(self):
+        """Protect claim job is atomic for queued jobs behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "events.sqlite3"))
             job_id = db.record_job("hostscanner 127.0.0.1", None, "queued")
@@ -195,6 +199,7 @@ class EventDbTests(unittest.TestCase):
             self.assertEqual(job["pid"], 123)
 
     def test_checkpoint_runs_without_losing_events(self):
+        """Protect checkpoint runs without losing events behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "events.sqlite3"))
             db.publish("topic", {"value": 1}, "test")
@@ -202,6 +207,7 @@ class EventDbTests(unittest.TestCase):
             self.assertEqual(db.events_for_topic("topic")[0].payload["value"], 1)
 
     def test_events_matching_filters_run_pipeline_and_topic(self):
+        """Protect events matching filters run pipeline and topic behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "events.sqlite3"))
             db.publish("a", {"n": 1}, "one", pipeline_id="pipe-1", command_run_id="run-1")
@@ -211,6 +217,7 @@ class EventDbTests(unittest.TestCase):
             self.assertEqual([event.payload["n"] for event in events], [1])
 
     def test_recent_events_returns_tail_in_chronological_order(self):
+        """Protect recent events returns tail in chronological order behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "events.sqlite3"))
             for number in range(5):
@@ -218,6 +225,7 @@ class EventDbTests(unittest.TestCase):
             self.assertEqual([event.payload["n"] for event in db.recent_events(3)], [2, 3, 4])
 
     def test_sql_like_filter_values_are_bound_as_data(self):
+        """Protect sql like filter values are bound as data behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "events.sqlite3"))
             topic = "x' OR 1=1 --"
@@ -227,6 +235,7 @@ class EventDbTests(unittest.TestCase):
             self.assertEqual([event.payload["n"] for event in events], [1])
 
     def test_runs_summarizes_command_runs(self):
+        """Protect runs summarizes command runs behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "events.sqlite3"))
             db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", pipeline_id="p", command_run_id="r")
@@ -236,6 +245,7 @@ class EventDbTests(unittest.TestCase):
             self.assertEqual(rows[0]["events"], 2)
 
     def test_runs_collapse_framework_events_into_commandlet_step(self):
+        """Protect runs collapse framework events into commandlet step behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "events.sqlite3"))
             job_id = db.record_job("hostscanner 127.0.0.1", 123, "running")
@@ -254,6 +264,7 @@ class EventDbTests(unittest.TestCase):
             self.assertEqual(rows[0]["events"], 2)
 
     def test_pipelines_can_filter_to_active_jobs(self):
+        """Protect pipelines can filter to active jobs behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "events.sqlite3"))
             active_job = db.record_job("hostscanner active", 123, "running")

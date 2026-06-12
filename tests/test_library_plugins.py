@@ -60,16 +60,20 @@ class LibraryPluginTests(unittest.TestCase):
         # Bywaf payload construction rather than resolver behavior.
         """Protect DNS lookup publishes records behavior from regressions."""
         class FakeRecord:
+            """Test double for `FakeRecord` scenarios in this module."""
             def to_text(self):
+                """Test helper for to text."""
                 return "127.0.0.1"
 
         class FakeResolver:
+            """Test double for `FakeResolver` scenarios in this module."""
             def __init__(self):
                 self.lifetime = 0
                 self.timeout = 0
                 self.nameservers = []
 
             def resolve(self, name, record_type):
+                """Test helper for resolve."""
                 return [FakeRecord()]
 
         fake_dns = SimpleNamespace(Resolver=FakeResolver)
@@ -113,13 +117,17 @@ class LibraryPluginTests(unittest.TestCase):
         # still runs its normal commandlet code path and publishes ssh.service.
         """Protect SSH probe publishes failed auth without real network behavior from regressions."""
         class FakeClient:
+            """Test double for `FakeClient` scenarios in this module."""
             def set_missing_host_key_policy(self, policy):
+                """Test helper for set missing host key policy."""
                 pass
 
             def connect(self, **kwargs):
+                """Test helper for connect."""
                 raise RuntimeError("auth failed")
 
             def close(self):
+                """Test helper for close."""
                 pass
 
         fake_paramiko = SimpleNamespace(SSHClient=Mock(return_value=FakeClient()), AutoAddPolicy=Mock)
@@ -151,9 +159,11 @@ class LibraryPluginTests(unittest.TestCase):
             target_from_text("192.0.2.10", None)
 
     def test_tcp_banner_http_head_probe_bytes(self):
+        """Protect tcp banner HTTP head probe bytes behavior from regressions."""
         self.assertIn(b"HEAD / HTTP/1.0", probe_bytes("http-head", "example.test"))
 
     def test_tcp_banner_grabber_emits_schema_payload(self):
+        """Protect tcp banner grabber emits schema payload behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(db=db, source="tcp_banner", metadata={"capabilities": tcp_banner.spec.capabilities})
@@ -168,6 +178,7 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertEqual(events[0]["banner"], "SSH-2.0-Test")
 
     def test_service_probe_classifies_port_and_banner_events(self):
+        """Protect service probe classifies port and banner events behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(db=db, source="service_probe", metadata={"capabilities": service_probe.spec.capabilities})
@@ -180,6 +191,7 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertEqual(services, ["https", "ssh"])
 
     def test_service_probe_classifies_udp_port_events(self):
+        """Protect service probe classifies udp port events behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(db=db, source="service_probe", metadata={"capabilities": service_probe.spec.capabilities})
@@ -192,6 +204,7 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertEqual(services, ["dns", "snmp"])
 
     def test_tls_probe_publishes_certificate_metadata(self):
+        """Protect TLS probe publishes certificate metadata behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(db=db, source="tls_probe", metadata={"capabilities": tls_probe.spec.capabilities})
@@ -205,6 +218,7 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertEqual(cert["subject"], "commonName=example.test")
 
     def test_tls_probe_requires_tls_1_2_or_newer(self):
+        """Protect TLS probe requires TLS 1 2 or newer behavior from regressions."""
         import importlib
 
         tls_probe_module = importlib.import_module("bywaf.plugins.http.tls_probe")
@@ -212,6 +226,7 @@ class LibraryPluginTests(unittest.TestCase):
         # Fake the SSL socket/context pair so the assertion can focus on the
         # minimum TLS version Bywaf configures before wrapping the connection.
         class FakeSocket:
+            """Test double for `FakeSocket` scenarios in this module."""
             def __enter__(self):
                 return self
 
@@ -219,18 +234,23 @@ class LibraryPluginTests(unittest.TestCase):
                 return False
 
             def getpeercert(self):
+                """Test helper for getpeercert."""
                 return {}
 
             def cipher(self):
+                """Test helper for cipher."""
                 return None
 
             def version(self):
+                """Test helper for version."""
                 return "TLSv1.2"
 
         class FakeContext:
+            """Test double for `FakeContext` scenarios in this module."""
             minimum_version = None
 
             def wrap_socket(self, raw, *, server_hostname):
+                """Test helper for wrap socket."""
                 del raw, server_hostname
                 return FakeSocket()
 
@@ -244,6 +264,7 @@ class LibraryPluginTests(unittest.TestCase):
         self.assertEqual(fake_context.minimum_version, tls_probe_module.ssl.TLSVersion.TLSv1_2)
 
     def test_tls_certificate_findings_label_safe_probe_basis(self):
+        """Protect TLS certificate findings label safe probe basis behavior from regressions."""
         findings = tls_certificate_findings(
             {
                 "host": "expired.example.test",
@@ -257,6 +278,7 @@ class LibraryPluginTests(unittest.TestCase):
         self.assertEqual(findings[0]["confidence_basis"], "safe_probe")
 
     def test_http_paths_publishes_path_and_finding_candidate(self):
+        """Protect HTTP paths publishes path and finding candidate behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(db=db, source="http_paths", metadata={"capabilities": http_paths.spec.capabilities})
@@ -274,6 +296,7 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertEqual(finding["group_key"], "web.exposure.git_config|web_origin:http://127.0.0.1:8080|cwe:CWE-538")
 
     def test_waf_detect_publishes_cloudflare_signal(self):
+        """Protect waf detect publishes cloudflare signal behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(db=db, source="waf_detect", metadata={"capabilities": waf_detect.spec.capabilities})
@@ -283,6 +306,7 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertEqual(waf["vendor"], "Cloudflare")
 
     def test_waf_detect_recognizes_aws_and_f5_signals(self):
+        """Protect waf detect recognizes aws and f5 signals behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(db=db, source="waf_detect", metadata={"capabilities": waf_detect.spec.capabilities})
@@ -296,6 +320,7 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertEqual(vendors, ["AWS", "F5"])
 
     def test_http_paths_promotes_env_exposures(self):
+        """Protect HTTP paths promotes env exposures behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(db=db, source="http_paths", metadata={"capabilities": http_paths.spec.capabilities})
@@ -310,6 +335,7 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertEqual(finding["confidence_basis"], "content_indicator")
 
     def test_http_paths_promotes_management_exposure_paths(self):
+        """Protect HTTP paths promotes management exposure paths behavior from regressions."""
         cases = [
             ("/server-status", "web.server_status.exposed", "Exposed Apache server-status endpoint"),
             ("/actuator/env", "web.spring.actuator_env_exposed", "Exposed Spring Boot environment endpoint"),
@@ -328,6 +354,7 @@ class LibraryPluginTests(unittest.TestCase):
                 self.assertEqual(finding["title"], expected_title)
 
     def test_traceroute_uses_host_found_input_events(self):
+        """Protect traceroute uses host found input events behavior from regressions."""
         targets = trace_targets(
             [],
             [
@@ -338,6 +365,7 @@ class LibraryPluginTests(unittest.TestCase):
         self.assertEqual(targets, ["192.0.2.10"])
 
     def test_traceroute_parser_handles_replies_and_timeouts(self):
+        """Protect traceroute parser handles replies and timeouts behavior from regressions."""
         output = "\n".join(
             [
                 "traceroute to example.test (192.0.2.20), 30 hops max",
@@ -355,6 +383,7 @@ class LibraryPluginTests(unittest.TestCase):
         self.assertEqual(hops[2].ip, "192.0.2.20")
 
     def test_traceroute_emits_route_hop_payloads(self):
+        """Protect traceroute emits route hop payloads behavior from regressions."""
         completed = SimpleNamespace(ok=True, stdout=" 1  router (192.0.2.1)  1.0 ms\n", stderr="", returncode=0)
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
@@ -367,6 +396,7 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertEqual(db.events_for_topic("host.found")[0].payload["host"], "192.0.2.10")
 
     def test_traceroute_falls_back_to_tracepath_when_default_binary_missing(self):
+        """Protect traceroute falls back to tracepath when default binary missing behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(db=db, source="traceroute", metadata={"capabilities": traceroute.spec.capabilities})
@@ -389,6 +419,7 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertEqual(db.events_for_topic("tool.error"), [])
 
     def test_traceroute_reports_explicit_missing_binary_without_fallback(self):
+        """Protect traceroute reports explicit missing binary without fallback behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(db=db, source="traceroute", metadata={"capabilities": traceroute.spec.capabilities})
@@ -404,6 +435,7 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertIn("missing external executable", error["message"])
 
     def test_manifest_config_uses_cli_vars_and_defaults(self):
+        """Protect manifest config uses CLI vars and defaults behavior from regressions."""
         store = VarStore()
         store.set("tcp_banner.timeout", "1.5")
         context = CommandContext(db=None, source="tcp_banner", _varstore=store)
@@ -416,6 +448,7 @@ class LibraryPluginTests(unittest.TestCase):
         self.assertEqual(cfg.read_bytes, 256)
 
     def test_manifest_config_is_per_run_immutable_snapshot(self):
+        """Protect manifest config is per run immutable snapshot behavior from regressions."""
         store = VarStore()
         store.set("tcp_banner.timeout", "1")
         context = CommandContext(db=None, source="tcp_banner", _varstore=store)
@@ -427,6 +460,7 @@ class LibraryPluginTests(unittest.TestCase):
             cfg.timeout = 2.0
 
     def test_smb_helpers_tolerate_metadata_errors(self):
+        """Protect SMB helpers tolerate metadata errors behavior from regressions."""
         bad = Mock()
         bad.getServerName.side_effect = RuntimeError("nope")
         bad.listShares.side_effect = RuntimeError("denied")
@@ -434,6 +468,7 @@ class LibraryPluginTests(unittest.TestCase):
         self.assertEqual(safe_shares(bad), [])
 
     def test_smb_probe_publishes_server_metadata(self):
+        """Protect SMB probe publishes server metadata behavior from regressions."""
         fake_conn = Mock()
         fake_conn.getServerName.return_value = "SERVER"
         fake_conn.getServerDomain.return_value = "DOMAIN"
@@ -450,6 +485,7 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertEqual(payload["shares"], ["IPC$"])
 
     def test_screenshotter_uses_eyewitness_artifact_events(self):
+        """Protect screenshotter uses eyewitness artifact events behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(db=db, source="screenshotter", metadata={"capabilities": Screenshotter().spec.capabilities})
@@ -470,6 +506,7 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertEqual(db.events_for_topic("eyewitness.screenshot")[0].source, "screenshotter")
 
     def test_screenshotter_no_screenshots_links_process_output_artifact(self):
+        """Protect screenshotter no screenshots links process output artifact behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(
@@ -484,6 +521,7 @@ class LibraryPluginTests(unittest.TestCase):
             output_dir = Path(tmp, "eyewitness")
 
             def fake_run(argv, *, cwd=None, env=None, timeout=None):
+                """Test helper for fake run."""
                 del argv, cwd, env, timeout
                 return SimpleNamespace(ok=True, returncode=0, stdout="warning: no reachable targets", stderr="")
 
@@ -499,6 +537,7 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertTrue(artifacts[0].name.endswith("-output.txt"))
 
     def test_yara_scan_publishes_matches(self):
+        """Protect yara scan publishes matches behavior from regressions."""
         fake_rules = Mock()
         fake_rules.match.return_value = [SimpleNamespace(rule="webshell", namespace="default", tags=["php"])]
         fake_yara = SimpleNamespace(compile=Mock(return_value=fake_rules))
