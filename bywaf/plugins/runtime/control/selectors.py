@@ -15,7 +15,11 @@ from bywaf.plugins.runtime.pipeline import pipeline_ids
 
 
 def parse_target(target: str) -> tuple[str, str]:
-    """Parse a `kind=id` target selector."""
+    """Parse a `kind=id` target selector.
+
+    Called by: runtime control commandlets before resolving ids to internal
+    job/run/pipeline targets.
+    """
     if "=" not in target:
         raise ValueError("target must be job=<id>, pipeline=<id>, step=<id>, or serial=<id>")
     kind, target_id = target.split("=", 1)
@@ -31,7 +35,11 @@ def resolve_control_target(
     *,
     allow_pipeline: bool,
 ) -> tuple[str, str]:
-    """Resolve local IDs and durable serials to canonical runtime control targets."""
+    """Resolve local IDs and durable serials to canonical runtime control targets.
+
+    Called by: control action dispatch before applying pause/resume/cancel/stop
+    operations.
+    """
     runtime = context.runtime_store("control")
     if kind == "serial":
         # serial= is durable and can identify several runtime entity kinds. The
@@ -52,13 +60,22 @@ def resolve_control_target(
 
 
 def display_target_kind(kind: str) -> str:
-    """Return the user-facing selector kind for an internal runtime target."""
+    """Return the user-facing selector kind for an internal runtime target.
+
+    Called by: control action output after internal `run` ids are resolved.
+    """
     return "step" if kind == "run" else kind
 
 
 def resolve_runtime_serial_target(context: CommandContext, serial: str) -> tuple[str, str]:
-    """Resolve a durable serial to job, run, or pipeline target coordinates."""
+    """Resolve a durable serial to job, run, or pipeline target coordinates.
+
+    Called by: `resolve_control_target()` for `serial=`.
+    """
     runtime = context.runtime_store("control")
+    # Serial lookup checks the most specific runtime entity first. A job serial
+    # resolves to its local job id; run and pipeline serials are already durable
+    # ids used by downstream control operations.
     job_id = runtime.job_id_for_serial(serial)
     if job_id is not None:
         return "job", job_id
@@ -70,12 +87,18 @@ def resolve_runtime_serial_target(context: CommandContext, serial: str) -> tuple
 
 
 def job_id_for_serial(context: CommandContext, serial: str) -> str | None:
-    """Return local job id for a durable job serial."""
+    """Return local job id for a durable job serial.
+
+    Called by: `resolve_job_selector()`.
+    """
     return context.runtime_store("control").job_id_for_serial(serial)
 
 
 def resolve_job_selector(context: CommandContext, value: str) -> str:
-    """Resolve a local job id or durable job serial for control selectors."""
+    """Resolve a local job id or durable job serial for control selectors.
+
+    Called by: `resolve_control_target()` for `job=`.
+    """
     if value.isdigit():
         return value
     resolved = job_id_for_serial(context, value)
@@ -85,14 +108,22 @@ def resolve_job_selector(context: CommandContext, value: str) -> str:
 
 
 def run_serial_exists(context: CommandContext, serial: str) -> bool:
-    """Return whether a durable step serial is known from events or step snapshots."""
+    """Return whether a durable step serial is known from events or step snapshots.
+
+    Called by: control operations that need to test a run serial directly.
+    """
     return context.runtime_store("control").run_serial_exists(serial)
 
 
 def control_completion(context: CompletionContext, prefix: str, *, allow_pipeline: bool) -> list[str] | None:
-    """Complete common runtime control selectors."""
+    """Complete common runtime control selectors.
+
+    Called by: pause/resume/cancel/stop commandlet completion methods.
+    """
     selectors = ("job=", "pipeline=", "step=", "serial=") if allow_pipeline else ("job=", "step=", "serial=")
     if prefix.startswith("job="):
+        # Value completion stays local to the selector kind already typed by
+        # the user instead of suggesting every possible runtime namespace.
         value_prefix = prefix.split("=", 1)[1]
         return [f"job={job_id}" for job_id in job_ids(context) if job_id.startswith(value_prefix)]
     if allow_pipeline and prefix.startswith("pipeline="):
@@ -114,7 +145,10 @@ def control_completion(context: CompletionContext, prefix: str, *, allow_pipelin
 
 
 def run_ids(context: CompletionContext) -> list[str]:
-    """Return pipeline-step IDs for completion."""
+    """Return pipeline-step IDs for completion.
+
+    Called by: `control_completion()` for `step=`.
+    """
     try:
         runtime = context.runtime_store("control completion")
     except ValueError:
@@ -123,13 +157,18 @@ def run_ids(context: CompletionContext) -> list[str]:
 
 
 def runtime_serial_ids(context: CompletionContext) -> list[str]:
-    """Return durable runtime serials for signal completion."""
+    """Return durable runtime serials for signal completion.
+
+    Called by: `control_completion()` for `serial=`.
+    """
     try:
         events = context.event_store("control completion")
     except ValueError:
         return []
     values = []
     for serial in events.serials():
+        # Runtime control should not complete artifact/plugin/script serials;
+        # those namespaces are durable ids but not controllable runtime targets.
         if serial.startswith(("artifact-", "plugin-", "script-")):
             continue
         values.append(serial)
