@@ -9,11 +9,16 @@ from ...specs import ArgumentSpec, CompletionSpec, OptionSpec
 
 from ..compat import REQUIREMENT_RE
 
+# Plugin sidecar versions are SemVer-like but intentionally not parsed as full
+# packaging.version.Version objects; manifests only need a stable compatibility
+# string for check/load diagnostics.
 SEMVERISH_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
 
 
 def require_known_keys(data: dict[str, Any], allowed: set[str], source: str, context: str) -> None:
     """Reject unsupported manifest keys in one parsed TOML table."""
+    # Fail closed on typos. A misspelled manifest key is usually a security or
+    # capability declaration bug, not harmless extra metadata.
     unknown = sorted(str(key) for key in data.keys() if key not in allowed)
     if unknown:
         allowed_text = ", ".join(sorted(allowed))
@@ -38,6 +43,8 @@ def option_rows_field(data: dict[str, Any], source: str, context: str) -> tuple[
         return ()
     if not isinstance(value, list):
         raise ValueError(f"{source} {context}.options must be a list")
+    # Include the row number in nested context strings so plugin_check can
+    # point authors at the exact malformed option.
     return tuple(option_row_field(row, source, f"{context}.options entry {index}") for index, row in enumerate(value, start=1))
 
 def option_row_field(row: Any, source: str, context: str) -> OptionSpec:
@@ -45,6 +52,8 @@ def option_row_field(row: Any, source: str, context: str) -> OptionSpec:
     if not isinstance(row, dict):
         raise ValueError(f"{source} {context} must be a table")
     require_known_keys(row, {"name", "description", "default", "choices", "completion", "secret", "type"}, source, context)
+    # The manifest type names mirror CommandSpec option metadata. They are not
+    # arbitrary JSON-schema types.
     value_type = optional_string_field(row, "type", source, context, default="str") or "str"
     if value_type not in {"str", "int", "optional-int", "float", "bool"}:
         raise ValueError(f"{source} {context}.type must be one of: str, int, optional-int, float, bool")
@@ -66,6 +75,8 @@ def argument_rows_field(data: dict[str, Any], source: str, context: str) -> tupl
         return ()
     if not isinstance(value, list):
         raise ValueError(f"{source} {context}.arguments must be a list")
+    # Arguments are parsed separately from options because their required-ness
+    # is derived from nargs rather than a boolean manifest field.
     return tuple(argument_row_field(row, source, f"{context}.arguments entry {index}") for index, row in enumerate(value, start=1))
 
 def argument_row_field(row: Any, source: str, context: str) -> ArgumentSpec:
@@ -75,6 +86,8 @@ def argument_row_field(row: Any, source: str, context: str) -> ArgumentSpec:
     require_known_keys(row, {"name", "description", "nargs", "completion"}, source, context)
     nargs = optional_string_field(row, "nargs", source, context, default="") or ""
     completion = optional_string_field(row, "completion", source, context)
+    # nargs follows argparse conventions: optional and variadic args are not
+    # marked required in the commandlet metadata exposed to completion/docs.
     return ArgumentSpec(
         name=string_field(row, "name", source, context),
         description=optional_string_field(row, "description", source, context, default="") or "",
@@ -110,6 +123,8 @@ def manifest_default_to_string(value: Any) -> str | None:
     if value is None:
         return None
     if isinstance(value, bool):
+        # CommandSpec stores defaults as display/completion metadata, so TOML
+        # booleans are normalized to lowercase strings.
         return "true" if value else "false"
     return str(value)
 
@@ -148,6 +163,8 @@ def database_actions_field(data: dict[str, Any], source: str, context: str) -> t
     """Return commandlet database action metadata from list/string/booleans."""
     direct = data.get("database_actions")
     if direct is not None:
+        # Newer manifests may declare database_actions directly as a list or
+        # comma-separated string, matching decorator metadata.
         if isinstance(direct, str):
             items = [item.strip() for item in direct.split(",") if item.strip()]
         elif isinstance(direct, list):
@@ -164,6 +181,9 @@ def database_actions_field(data: dict[str, Any], source: str, context: str) -> t
     if not isinstance(actions, dict):
         raise ValueError(f"{source} {context}.database.actions must be a table")
     selected: list[str] = []
+    # Legacy/author-friendly TOML sidecars can use
+    # database.actions.{view,write,manage}=true booleans. Normalize them to the
+    # same ordered tuple as the direct form above.
     for action in ("view", "write", "manage"):
         enabled = actions.get(action, False)
         if not isinstance(enabled, bool):
@@ -182,4 +202,6 @@ def normalize_database_actions(items: list[Any], source: str, context: str) -> t
         if item not in allowed:
             raise ValueError(f"{source} {context} entry {index} must be one of: {', '.join(allowed)}")
         selected.add(item)
+    # Preserve the framework's privilege ordering instead of caller input order
+    # so manifests and decorators compare deterministically.
     return tuple(action for action in allowed if action in selected)
