@@ -27,7 +27,11 @@ def render_table(
     style_getter: StyleGetter | None = None,
     max_width: int | None = None,
 ) -> str:
-    """Render a small table, optionally styling aligned cells by subject."""
+    """Render a small table, optionally styling aligned cells by subject.
+
+    Called by: `runtime_display` and runtime plugin display paths that need
+    compact terminal tables without depending on Rich or another renderer.
+    """
     if not rows:
         return ""
     # Rendering is a four-phase transformation: normalize values to strings,
@@ -54,12 +58,22 @@ def render_table(
 
 
 def table_text_rows(rows: Sequence[Sequence[object]]) -> TextRows:
-    """Return table row values normalized to display strings."""
+    """Return table row values normalized to display strings.
+
+    Called by: `render_table()` before width calculation so every downstream
+    helper can work with plain text cells instead of mixed Python objects.
+    """
     return [[str(value) if value is not None else "" for value in row] for row in rows]
 
 
 def table_widths(headers: tuple[str, ...], text_rows: TextRows) -> list[int]:
-    """Return the natural display width for each table column."""
+    """Return the natural display width for each table column.
+
+    Called by: `render_table()` before optional terminal-width shrinking.
+    """
+    # Each column width is the larger of the heading and every normalized cell
+    # in that column. Styling is deliberately not applied yet, so escape codes
+    # cannot inflate the measured width.
     return [
         max(len(header), *(len(row[index]) for row in text_rows))
         for index, header in enumerate(headers)
@@ -67,7 +81,11 @@ def table_widths(headers: tuple[str, ...], text_rows: TextRows) -> list[int]:
 
 
 def truncated_rows(text_rows: TextRows, widths: Sequence[int]) -> TextRows:
-    """Return rows with cells truncated to their already-computed widths."""
+    """Return rows with cells truncated to their already-computed widths.
+
+    Called by: `render_table()` only after `shrink_table_widths()` has reduced
+    one or more columns to fit the target terminal width.
+    """
     return [[truncate_cell(value, widths[index]) for index, value in enumerate(row)] for row in text_rows]
 
 
@@ -76,7 +94,10 @@ def table_header_lines(
     widths: Sequence[int],
     style_getter: StyleGetter | None,
 ) -> list[str]:
-    """Return the styled header and ruler lines for a runtime table."""
+    """Return the styled header and ruler lines for a runtime table.
+
+    Called by: `render_table()` before body-line construction.
+    """
     # Header/ruler rows are built before body rows so the styling code can keep
     # column subjects separate from row subjects.
     return [
@@ -99,7 +120,11 @@ def table_body_lines(
     active_column_indexes: Sequence[int],
     style_getter: StyleGetter | None,
 ) -> list[str]:
-    """Return styled body lines for a runtime table."""
+    """Return styled body lines for a runtime table.
+
+    Called by: `render_table()` after row values have been normalized and
+    optional truncation has already happened.
+    """
     return [
         table_body_line(
             row,
@@ -121,7 +146,10 @@ def table_body_line(
     active_column_indexes: Sequence[int],
     style_getter: StyleGetter | None,
 ) -> str:
-    """Return one styled body line for a runtime table."""
+    """Return one styled body line for a runtime table.
+
+    Called by: `table_body_lines()` for each normalized row.
+    """
     # The row subject is resolved once, then each padded cell can combine its
     # column subject with active-row/active-column state.
     return "  ".join(
@@ -138,7 +166,10 @@ def table_body_line(
 
 
 def style_table_header(value: str, style_getter: StyleGetter | None) -> str:
-    """Apply the configured table-heading style to one header/ruler cell."""
+    """Apply the configured table-heading style to one header/ruler cell.
+
+    Called by: `table_header_lines()` after header/ruler cells are padded.
+    """
     if style_getter is None or not value.strip():
         return value
     return styled_subject_text(style_getter, "table.header", value)
@@ -153,7 +184,11 @@ def style_table_cell(
     row_subject: str = "",
     active_column: bool = False,
 ) -> str:
-    """Apply a subject style to a padded table cell when configured."""
+    """Apply a subject style to a padded table cell when configured.
+
+    Called by: `table_body_line()` after cell padding, so ANSI styling wraps the
+    final visible text rather than changing alignment calculations.
+    """
     if style_getter is None or not value.strip():
         return value
     cell_subject = table_cell_subject(
@@ -174,7 +209,11 @@ def table_cell_subject(
     row_subject: str = "",
     active_column: bool = False,
 ) -> str:
-    """Return the most specific configured style subject for a table cell."""
+    """Return the most specific configured style subject for a table cell.
+
+    Called by: `style_table_cell()` to choose between active-column, row,
+    column, first-column index, and generic body styling.
+    """
     if active_column and subject_style(style_getter, "table.active_column"):
         return "table.active_column"
     if row_subject and subject_style(style_getter, row_subject):
