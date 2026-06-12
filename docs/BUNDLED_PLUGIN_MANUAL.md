@@ -1861,7 +1861,7 @@ Plugin metadata:
 | Plugin | `analysis.technology_indicators` |
 | Commandlets | `technology_indicators`, `tech_review` |
 | Last updated | `2026-06-04` from source history |
-| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/analysis/technology_indicators.py bywaf/plugins/analysis/technology_indicators.plugin.toml` |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/analysis/technology_indicators` |
 
 #### Commandlet: `technology_indicators`
 

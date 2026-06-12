@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 
 from bywaf.finding import candidate_payload
 
-from .technology_indicator_rules import VersionIndicatorRule
+from .rules import VersionIndicatorRule
 
 
 def candidate_for_rule(

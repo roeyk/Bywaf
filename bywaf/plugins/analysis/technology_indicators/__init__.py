@@ -18,8 +18,8 @@ from bywaf.plugins.analysis.finding.dedupe import dedupe_findings
 from bywaf.plugins.analysis.finding.dedupe.normalize import normalize_event
 from bywaf.plugins.analysis.finding.dedupe.publish import publish_dedupe_result, summary_line
 
-from .technology_indicator_payloads import candidate_for_rule, evidence_text
-from .technology_indicator_rules import RULES, VersionIndicatorRule, matching_rules
+from .payloads import candidate_for_rule, evidence_text
+from .rules import RULES, VersionIndicatorRule, matching_rules
 
 INDICATOR_INPUT_TOPICS = {"service.detected", "tcp.banner", "http.endpoint", "web.fingerprint"}
 
