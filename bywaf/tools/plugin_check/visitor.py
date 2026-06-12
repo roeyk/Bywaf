@@ -25,6 +25,9 @@ from .state import CapabilityAnalysisState
 class CapabilityVisitor(CapabilityAnalysisState, AuthoringDiagnosticMixin, ast.NodeVisitor):
     """AST visitor for recognizable framework and direct Python API use.
 
+    Constructed by: `bywaf.tools.plugin_check.check_plugin()` for each plugin
+    Python source file.
+
     The visitor has two jobs: infer capabilities from documented framework
     calls, and flag common plugin-authoring mistakes that are hard for generic
     code generators to get right from prose alone.
@@ -42,6 +45,9 @@ class CapabilityVisitor(CapabilityAnalysisState, AuthoringDiagnosticMixin, ast.N
         """Track simple literal payload assignments for later publish checks."""
         for target in node.targets:
             if isinstance(target, ast.Name):
+                # Keep only the latest simple `name = {...}` assignment. If the
+                # name is reassigned to anything else, later publish validation
+                # should no longer treat it as a literal payload.
                 if isinstance(node.value, ast.Dict):
                     self.literal_dict_assignments[target.id] = node.value
                 else:
@@ -51,6 +57,9 @@ class CapabilityVisitor(CapabilityAnalysisState, AuthoringDiagnosticMixin, ast.N
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:  # noqa: N802 - ast API
         """Track annotated literal payload assignments for later publish checks."""
         if isinstance(node.target, ast.Name):
+            # Annotated assignments are common in generated plugins:
+            # `payload: dict[str, object] = {...}`. Track them like normal
+            # assignments for shared-event schema validation.
             if isinstance(node.value, ast.Dict):
                 self.literal_dict_assignments[node.target.id] = node.value
             else:
@@ -116,7 +125,14 @@ class CapabilityVisitor(CapabilityAnalysisState, AuthoringDiagnosticMixin, ast.N
         self.generic_visit(node)
 
     def inspect_call(self, node: ast.Call, path: str) -> None:
-        """Inspect one call path and record capability evidence."""
+        """Inspect one call path and record capability evidence.
+
+        Called by: `visit_Call()` after resolving aliases into a dotted call
+        path such as `context.events.publish`.
+        """
+        # Each inspector owns one capability surface. Keeping this fan-out here
+        # avoids a large if/elif ladder in visit_Call() and makes future
+        # capability families easier to add.
         self.inspect_authoring_call(node, path)
         self.inspect_capability_call(node, path)
         self.inspect_event_store_call(node, path)
@@ -187,6 +203,9 @@ class CapabilityVisitor(CapabilityAnalysisState, AuthoringDiagnosticMixin, ast.N
         previous_aliases: dict[str, str | None] = {}
         for arg in (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs):
             if arg.arg in {"context", "ctx", "command_context", "command_ctx"}:
+                # Treat common parameter names as the framework CommandContext
+                # only within this function body. Restore previous aliases
+                # afterward so nested/neighboring functions stay independent.
                 previous_aliases[arg.arg] = self.aliases.get(arg.arg)
                 self.aliases[arg.arg] = "context"
         try:
@@ -219,12 +238,17 @@ class CapabilityVisitor(CapabilityAnalysisState, AuthoringDiagnosticMixin, ast.N
             return
         payload_node = event_payload_argument(node)
         if isinstance(payload_node, ast.Name):
+            # Support the common two-step pattern:
+            # `payload = {...}; context.events.publish("topic", payload)`.
             payload_node = self.literal_dict_assignments.get(payload_node.id)
         if payload_node is None or not isinstance(payload_node, ast.Dict):
             return
         payload = literal_dict_payload(payload_node)
         if payload is None:
             return
+        # Only literal dicts are validated here. Dynamic payloads still require
+        # runtime validation by the framework because static AST inference
+        # cannot prove their final shape.
         for error in validate_event_payload(topic, payload):
             self.add_diagnostic(
                 "error",
@@ -239,6 +263,8 @@ class CapabilityVisitor(CapabilityAnalysisState, AuthoringDiagnosticMixin, ast.N
         """Add event capability evidence for calls that accept topic sequences."""
         topics = literal_string_sequence(node, "topics", 0)
         if topics:
+            # Literal topic lists let plugin_check emit precise db.read:<topic>
+            # evidence; dynamic topic lists fall back to wildcard evidence.
             for topic in topics:
                 self.add_evidence(f"{prefix}:{topic}", "framework_call", node, self.call_path(node.func) or "")
             return
