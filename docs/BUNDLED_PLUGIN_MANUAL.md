@@ -2674,7 +2674,7 @@ Plugin metadata:
 | Plugin | `storage.db` |
 | Commandlets | `db` |
 | Last updated | `2026-06-03` from source history |
-| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/storage/db.py bywaf/plugins/storage/db.plugin.toml` |
+| Change info | [CHANGELOG.md](../CHANGELOG.md); inspect source history with `git log -- bywaf/plugins/storage/db` |
 
 #### Commandlet: `db`
 

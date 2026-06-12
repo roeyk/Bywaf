@@ -13,7 +13,7 @@ from bywaf.artifacts import ArtifactStore, artifact_db_path
 from bywaf.db import EventStore
 from bywaf.plugin import CommandContext
 
-from .db_paths import database_related_paths
+from .paths import database_related_paths
 
 SQL_IDENTIFIER_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 

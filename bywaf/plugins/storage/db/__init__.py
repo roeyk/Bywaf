@@ -20,15 +20,15 @@ from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionC
 from bywaf.plugin import reject_option_equals
 from bywaf.utils import complete_path
 
-from .db_lifecycle import copy_plain_database
-from .db_lifecycle import decrypt_active_database
-from .db_lifecycle import encrypt_active_database
-from .db_lifecycle import is_same_path
-from .db_lifecycle import new_active_database
-from .db_lifecycle import prompt_new_passphrase
-from .db_lifecycle import rekey_active_database
-from .db_lifecycle import replace_active_store
-from .db_stats import format_database_stats
+from .lifecycle import copy_plain_database
+from .lifecycle import decrypt_active_database
+from .lifecycle import encrypt_active_database
+from .lifecycle import is_same_path
+from .lifecycle import new_active_database
+from .lifecycle import prompt_new_passphrase
+from .lifecycle import rekey_active_database
+from .lifecycle import replace_active_store
+from .stats import format_database_stats
 
 DB_ACTIONS = ("checkpoint", "decrypt", "encrypt", "export", "load", "new", "path", "rekey", "stats", "status", "vacuum")
 DB_VIEW_ACTIONS = {"path", "stats", "status"}

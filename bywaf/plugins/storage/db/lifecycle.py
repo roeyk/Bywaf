@@ -21,7 +21,7 @@ from bywaf.db import EventStore, export_encrypted_database, export_plaintext_dat
 from bywaf.operator_state import save_active_database
 from bywaf.plugin import CommandContext
 
-from .db_paths import database_related_paths
+from .paths import database_related_paths
 
 ENCRYPTION_VAR = "encryption"
 
