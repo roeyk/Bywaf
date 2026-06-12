@@ -117,7 +117,7 @@ Use these suites as starting points for common framework changes:
 - Runtime, DB, jobs, steps, and events:
   `tests/test_events_db.py`, `tests/test_store_protocols.py`,
   `tests/storage_runner/`,
-  `tests/test_resources_history_config.py`.
+  `tests/test_resources_history_config.py`, `tests/sqlite/`.
 - Findings and reports:
   `tests/finding/`, `tests/test_report.py`.
 - Secrets, keys, and bundles:
