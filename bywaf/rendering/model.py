@@ -26,7 +26,11 @@ class Column:
 
     @property
     def heading(self) -> str:
-        """Return the visible table heading."""
+        """Return the visible table heading.
+
+        Used by: terminal, Markdown, HTML, DOCX, and XLSX table renderers when
+        converting stable column metadata into human-facing labels.
+        """
         return self.title or self.key
 
 
@@ -135,21 +139,41 @@ def normalize_columns(
     columns: Sequence[str | Column] | None,
     rows: Sequence[Mapping[str, object] | Sequence[object]],
 ) -> tuple[Column, ...]:
-    """Return normalized column metadata for rows."""
+    """Return normalized column metadata for rows.
+
+    Called by: `Table.from_rows()` before row values are mapped. Explicit
+    columns win; otherwise mapping rows infer keys from the first row and
+    sequence rows infer positional string keys like `0`, `1`, `2`.
+    """
     if columns is not None:
+        # Commandlets can pass either full Column objects or shorthand strings.
+        # Normalize both forms once so renderers never branch on column shape.
         return tuple(column if isinstance(column, Column) else Column(str(column)) for column in columns)
     if not rows:
         return ()
     first = rows[0]
     if isinstance(first, Mapping):
+        # Mapping rows preserve first-row key order, matching the natural
+        # commandlet/report construction order.
         return tuple(Column(str(key)) for key in first.keys())
+    # Positional rows use generated column keys so a table can still render or
+    # serialize even when callers did not name each value.
     return tuple(Column(str(index)) for index in range(len(first)))
 
 
 def map_row(row: Mapping[str, object] | Sequence[object], columns: Sequence[Column]) -> Mapping[str, object]:
-    """Return a mapping row keyed by normalized column names."""
+    """Return a mapping row keyed by normalized column names.
+
+    Called by: `Table.from_rows()` after `normalize_columns()`. Missing mapping
+    values and short positional rows become empty cells instead of failing the
+    whole render request.
+    """
     if isinstance(row, Mapping):
+        # Project only the declared columns and fill absent keys. That keeps the
+        # rendered table shape stable even if raw rows contain extra data.
         return {column.key: row.get(column.key, "") for column in columns}
+    # Sequence rows are positional. Zip by index but pad short rows to preserve
+    # the declared column count.
     return {
         column.key: row[index] if index < len(row) else ""
         for index, column in enumerate(columns)
@@ -157,14 +181,24 @@ def map_row(row: Mapping[str, object] | Sequence[object], columns: Sequence[Colu
 
 
 def json_safe_value(value: object) -> object:
-    """Return a value safe for JSON event payloads."""
+    """Return a value safe for JSON event payloads.
+
+    Called by: `Table.to_payload()` before a plugin render request crosses the
+    framework event boundary. Primitive JSON values are preserved; richer Python
+    objects are stringified rather than leaking unserializable objects.
+    """
     if value is None or isinstance(value, str | int | float | bool):
         return value
     return str(value)
 
 
 def table_values(table: Table) -> list[list[str]]:
-    """Return display values for a table."""
+    """Return display values for a table.
+
+    Called by: text-oriented renderers before width calculation, truncation, and
+    table-cell styling. Values are ordered by `table.columns`, not by row dict
+    iteration.
+    """
     return [
         [value_to_text(row.get(column.key, "")) for column in table.columns]
         for row in table.rows
@@ -172,7 +206,11 @@ def table_values(table: Table) -> list[list[str]]:
 
 
 def value_to_text(value: object) -> str:
-    """Return a compact display string for one table cell."""
+    """Return a compact display string for one table cell.
+
+    Called by: `table_values()` for each row/column intersection. `None` is an
+    empty cell; non-string primitives use their normal string representation.
+    """
     if value is None:
         return ""
     if isinstance(value, str):
