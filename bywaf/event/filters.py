@@ -21,14 +21,22 @@ EVENT_SORT_ALIASES = {"transport": "protocol", "status": "state"}
 
 @dataclass(frozen=True, slots=True)
 class SelectorExpression:
-    """Parsed selector values with positive matches and negated exclusions."""
+    """Parsed selector values with positive matches and negated exclusions.
+
+    Constructed by: `parse_selector_expression()`.
+    Consumed by: `selector_matches_values()` when applying event payload
+    filters to REPL, job, pipeline, and step views.
+    """
 
     include: tuple[str, ...]
     exclude: tuple[str, ...]
 
 
 def parse_event_sort(raw: str) -> str:
-    """Parse event sort keys and friendly aliases."""
+    """Parse event sort keys and friendly aliases.
+
+    Called by: runtime display parsing before event rows are sorted.
+    """
     key = EVENT_SORT_ALIASES.get(raw, raw)
     if key not in {"time", "id", "host", "protocol", "state", "topic", "source"}:
         raise ValueError("event sort= must be one of time, host, protocol, state, topic, source")
@@ -36,7 +44,11 @@ def parse_event_sort(raw: str) -> str:
 
 
 def filter_events_by_payload(events: Sequence[Event], filters: dict[str, str]) -> list[Event]:
-    """Return events whose JSON payload satisfies all requested field filters."""
+    """Return events whose JSON payload satisfies all requested field filters.
+
+    Used by: `select_event_rows()` and callers that already have candidate
+    events in memory.
+    """
     if not filters:
         return list(events)
     return [event for event in events if event_matches_payload_filters(event, filters)]
@@ -84,16 +96,26 @@ def event_matches_payload_filters(event: Event, filters: dict[str, str]) -> bool
 
 
 def any_event_matches_filters(events: Sequence[Event], filters: dict[str, str]) -> bool:
-    """Return whether any event in a runtime scope matches all payload filters."""
+    """Return whether any event in a runtime scope matches all payload filters.
+
+    Used by: job/pipeline/step listing filters when a runtime row should remain
+    visible if any associated event matches the payload selectors.
+    """
     if not filters:
         return True
     return any(event_matches_payload_filters(event, filters) for event in events)
 
 
 def parse_payload_filter_tokens(tokens: Sequence[str]) -> dict[str, str]:
-    """Parse generic `field=value` payload filters."""
+    """Parse generic `field=value` payload filters.
+
+    Called by: REPL event parsing and runtime commandlets that accept arbitrary
+    event-payload filters after their own command-specific selectors.
+    """
     filters: dict[str, str] = {}
     for token in tokens:
+        # Payload filters intentionally use a narrow key=value grammar. More
+        # specialized selectors such as sort= are stripped by callers first.
         key, separator, value = token.partition("=")
         if not separator or not key or not value:
             raise ValueError("filters must be field=value")
@@ -102,7 +124,10 @@ def parse_payload_filter_tokens(tokens: Sequence[str]) -> dict[str, str]:
 
 
 def parse_selector_expression(raw_values: str, key: str = "selector") -> SelectorExpression:
-    """Parse comma-separated selector values with `!` exclusions."""
+    """Parse comma-separated selector values with `!` exclusions.
+
+    Called by: `event_matches_payload_filters()` for every payload filter.
+    """
     # Split the selector into positive and negative terms in one pass. Matching
     # later treats positives as OR choices and negatives as exclusions.
     include: list[str] = []
@@ -124,7 +149,11 @@ def parse_selector_expression(raw_values: str, key: str = "selector") -> Selecto
 
 
 def selector_matches_values(selector: SelectorExpression, values: Sequence[Any]) -> bool:
-    """Return whether candidate values satisfy include-minus-exclude semantics."""
+    """Return whether candidate values satisfy include-minus-exclude semantics.
+
+    Called by: `event_matches_payload_filters()` after payload values have been
+    extracted and flattened.
+    """
     # Normalize payload candidates to strings once, then apply the two selector
     # phases: at least one include must match, and no exclusion may match.
     text_values = [str(value) for value in values if value is not None]
@@ -136,7 +165,10 @@ def selector_matches_values(selector: SelectorExpression, values: Sequence[Any])
 
 
 def selector_value_matches(value: str, pattern: str) -> bool:
-    """Return exact, CIDR, or IPv4 last-octet-range match for one value."""
+    """Return exact, CIDR, or IPv4 last-octet-range match for one value.
+
+    Used by: `selector_matches_values()` for both include and exclude terms.
+    """
     # Preserve cheap exact matching first, then support the two network-friendly
     # selector forms operators commonly use during scan review.
     if value == pattern:
@@ -152,7 +184,10 @@ def selector_value_matches(value: str, pattern: str) -> bool:
 
 
 def ipv4_octet_range_matches(value: str, pattern: str) -> bool:
-    """Match compact IPv4 ranges like `192.168.50.1-128`."""
+    """Match compact IPv4 ranges like `192.168.50.1-128`.
+
+    Used by: `selector_value_matches()` before falling back to CIDR parsing.
+    """
     if "-" not in pattern:
         return False
     prefix, separator, end = pattern.rpartition(".")
@@ -205,9 +240,14 @@ def payload_filter_values(payload: dict[str, Any], key: str) -> list[Any]:
 
 
 def value_at_path(payload: dict[str, Any], key: str) -> list[Any]:
-    """Read one exact payload field path."""
+    """Read one exact payload field path.
+
+    Used by: `payload_filter_values()` for direct and nested payload selectors.
+    """
     current: Any = payload
     for part in key.split("."):
+        # Walk dotted keys one object at a time. If any component is absent or
+        # points at a scalar value, the path simply contributes no candidates.
         if not isinstance(current, dict) or part not in current:
             return []
         current = current[part]
