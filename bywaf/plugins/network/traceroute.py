@@ -40,6 +40,8 @@ IP_RE = re.compile(r"^(?:\d{1,3}\.){3}\d{1,3}$|^[0-9a-fA-F:]+$")
 def traceroute(context: CommandContext, cfg: RunConfig, input_events: Iterable[Event]):
     """Trace routes for explicit targets or upstream `host.found` events."""
     cfg = cast(TracerouteConfig, cfg)
+    # Explicit command-line targets win; otherwise the plugin behaves as a
+    # pipeline stage over upstream host.found events.
     targets = filter_targets_by_host(context, trace_targets(cfg.targets, input_events), lambda target: target)
     if not targets:
         raise ValueError("traceroute requires targets or host.found input")
@@ -49,6 +51,8 @@ def traceroute(context: CommandContext, cfg: RunConfig, input_events: Iterable[E
         if result is None:
             continue
         hops = parse_traceroute_output(target, result.stdout)
+        # Operator feedback is a compact table, while the durable interface is
+        # the schema-backed host.found/network.route.hop event stream below.
         context.output(render_trace_hops(context, target, hops))
         context.events.publish("host.found", HostFound(target, status="reachable", scanner="traceroute").to_payload())
         context.alert(f"traceroute found {len(hops)} hops for {target}", silent=cfg.silent)
@@ -77,6 +81,7 @@ class TraceCommand:
 def trace_targets(targets: list[str], input_events: Iterable[Event]) -> list[str]:
     """Resolve trace targets from explicit args or upstream `host.found` events."""
     if targets:
+        # dict.fromkeys() preserves operator order while removing duplicates.
         return list(dict.fromkeys(targets))
     resolved: list[str] = []
     for event in input_events:
@@ -92,12 +97,17 @@ def run_traceroute(context: CommandContext, cfg: TracerouteConfig, target: str) 
     """Run traceroute through the framework process API and publish tool errors."""
     result = run_trace_command(context, cfg, trace_command(cfg, target), target)
     if result is None and default_trace_binary(cfg.binary):
+        # Default installs vary by distro. If the default `traceroute` binary is
+        # missing, try tracepath before reporting a missing-tool error.
         result = run_trace_command(context, cfg, TraceCommand(("tracepath", "-m", str(cfg.maxhops), target), target), target)
     if result is None:
         tool = "traceroute or tracepath" if default_trace_binary(cfg.binary) else cfg.binary
         publish_trace_error(context, tool, target, f"missing external executable: install {tool}, or set binary=<path>")
         return None
     if not result.ok and not result.stdout:
+        # Some traceroute variants emit partial stdout despite a non-zero exit.
+        # Keep those parseable results; only publish a tool error when there is
+        # no route output to turn into events.
         tool = result.argv[0] if result.argv else cfg.binary
         publish_trace_error(
             context,
@@ -112,6 +122,8 @@ def run_traceroute(context: CommandContext, cfg: TracerouteConfig, target: str) 
 def run_trace_command(context: CommandContext, cfg: TracerouteConfig, command: TraceCommand, target: str) -> ProcessResult | None:
     """Run one trace command and return None when the executable is missing."""
     try:
+        # Timeout scales with hop count because the external tool may wait once
+        # per hop; keep a minimum margin for small maxhops values.
         return context.process.run(command.argv, timeout=max(cfg.timeout * cfg.maxhops, cfg.timeout + 1))
     except OSError as exc:
         if missing_executable_error(exc):
@@ -121,6 +133,8 @@ def run_trace_command(context: CommandContext, cfg: TracerouteConfig, command: T
     except Exception as exc:
         if exc.__class__.__name__ != "TimeoutExpired":
             raise
+        # The process service may surface subprocess.TimeoutExpired without
+        # importing that concrete type here; keep the dependency boundary thin.
         publish_trace_error(context, command.argv[0], target, str(exc))
         return None
 
@@ -160,6 +174,8 @@ def render_trace_hops(context: CommandContext, target: str, hops: list[NetworkRo
     """Render route hops for direct operator feedback."""
     if not hops:
         return f"Traceroute: {target}\nno route hops parsed"
+    # Keep display columns close to the schema fields so users can connect the
+    # table back to emitted network.route.hop facts.
     rows = [
         (
             hop.hop,
@@ -190,6 +206,7 @@ def trace_command(cfg: TracerouteConfig, target: str) -> TraceCommand:
     """Return the external traceroute argv for one target."""
     binary = cfg.binary or "traceroute"
     if binary.endswith("tracepath"):
+        # tracepath does not support traceroute's `-w` timeout flag.
         return TraceCommand((binary, "-m", str(cfg.maxhops), target), target)
     return TraceCommand((binary, "-m", str(cfg.maxhops), "-w", str(cfg.timeout), target), target)
 
@@ -212,15 +229,19 @@ def parse_traceroute_line(target: str, line: str) -> NetworkRouteHop | None:
     hop_number = int(match.group("hop"))
     body = match.group("body").strip()
     if not body or body.startswith("*"):
+        # A hop line made only of stars is still useful: it records route
+        # length and timeout position even without a responding host.
         return NetworkRouteHop(target, hop_number, status="timeout", scanner="traceroute")
 
     host = ""
     ip = ""
     host_ip = HOST_IP_RE.match(body)
     if host_ip:
+        # Common traceroute form: hostname (address) 1.23 ms.
         host = host_ip.group("host")
         ip = host_ip.group("ip")
     else:
+        # Other variants start directly with an IP or a hostname.
         first = body.split()[0]
         if IP_RE.match(first):
             ip = first
