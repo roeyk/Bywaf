@@ -14,8 +14,12 @@ def render_llm_feedback(report: dict[str, Any]) -> str:
     """
 
     if "plugins" in report:
+        # Collection reports summarize many plugins; detailed remediation is
+        # only useful for single-plugin authoring loops.
         return render_collection_feedback(report)
     lines = [f"{'PASSED' if report['ok'] else 'FAILED'}: Bywaf plugin check", f"Plugin: {report['plugin']}"]
+    # Pull report sections into local names so the main renderer reads in the
+    # same order as the final feedback output.
     diagnostics = report.get("diagnostics") or []
     errors = report.get("errors") or []
     warnings = report.get("warnings") or []
@@ -36,6 +40,8 @@ def render_llm_feedback(report: dict[str, Any]) -> str:
     ):
         lines.append("No checker feedback.")
         if relationship_graph:
+            # Even clean plugins may need graph context when the prompt asks an
+            # external LLM to reason about schemas, dependencies, or consumers.
             lines.extend(llm_relationship_feedback(relationship_graph))
         return "\n".join(lines)
     lines.append("")
@@ -70,6 +76,8 @@ def render_collection_feedback(report: dict[str, Any]) -> str:
     if report.get("relationship_graph"):
         lines.extend(format_collection_graph_summary(report["relationship_graph"]))
     for item in report["plugins"]:
+        # Keep collection feedback intentionally terse; the user can rerun the
+        # checker on one failing plugin to get numbered remediation steps.
         status = "ok" if item["ok"] else "failed"
         commandlets = ", ".join(str(commandlet) for commandlet in item.get("commandlets", ()))
         lines.append(f"{status} entry={item['entry']} commandlets={commandlets}")
@@ -105,9 +113,13 @@ def extend_llm_feedback_items(
     """
 
     item_number = 1
+    # Diagnostics come first because they are precise source-authoring issues
+    # with line numbers and tailored guidance.
     for diagnostic in diagnostics:
         lines.extend(llm_diagnostic_feedback(item_number, diagnostic))
         item_number += 1
+    # Capability and topic drift follows diagnostics: these are the most common
+    # fix-and-regenerate failures in external LLM plugin submissions.
     for capability in missing_capabilities:
         lines.extend(llm_missing_capability_feedback(item_number, capability, capability_codes))
         item_number += 1
@@ -124,6 +136,8 @@ def extend_llm_feedback_items(
         lines.extend(llm_unused_capability_feedback(item_number, capability, capability_codes))
         item_number += 1
     for error in errors:
+        # Suppress raw errors that already have clearer diagnostic-specific
+        # guidance above, so the external model gets one instruction per issue.
         if any(str(error).startswith(f"{diagnostic['code']}:") for diagnostic in diagnostics):
             continue
         if "does not define plugin()" in str(error) and any(
@@ -148,6 +162,9 @@ def llm_diagnostic_feedback(item_number: int, diagnostic: dict[str, Any]) -> lis
 def llm_missing_capability_feedback(item_number: int, capability: str, capability_codes: dict[str, Any]) -> list[str]:
     """Return LLM feedback lines for one missing capability."""
     code_suffix = capability_code_suffix(capability, capability_codes)
+    # Mention both manifest and Python metadata because filesystem plugins are
+    # manifest-authoritative, while legacy in-repo examples may still expose
+    # CommandSpec/decorator metadata.
     return [
         f"{item_number}. Missing capability declaration: {capability}{code_suffix}",
         "   Problem: source analysis inferred this capability but it is not declared.",
@@ -203,12 +220,16 @@ def llm_error_feedback(item_number: int, error: object) -> list[str]:
     """Return LLM feedback lines for one remaining checker error."""
     error_text = str(error)
     if error == "manifest [plugin].version is required":
+        # This is common when an LLM copies only commandlet tables from a
+        # skeleton and drops the required [plugin] metadata.
         return [
             f"{item_number}. Missing required manifest field: [plugin].version",
             "   Problem: bywaf.plugin.toml must include a non-empty version string in the [plugin] table.",
             '   Fix: add a line such as version = "0.1.0" under [plugin], or preserve this field when copying a skeleton manifest.',
         ]
     if "does not define plugin()" in error_text:
+        # External models frequently decorate plugin() itself or return a class
+        # instead of an instance; keep the factory guidance explicit.
         return [
             f"{item_number}. Missing required plugin() factory",
             f"   Problem: {error_text}",
