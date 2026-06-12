@@ -1,4 +1,8 @@
-"""Rendering helpers for the `ports` view commandlet."""
+"""Rendering helpers for the `ports` view commandlet.
+
+Used by: `plugins.network.portscanner.ports.render_ports()` to turn selected
+`port.open` events into either raw rows or grouped operator views.
+"""
 
 from __future__ import annotations
 
@@ -16,9 +20,15 @@ from bywaf.runtime_display import (
 
 
 def render_ports_table(context: CommandContext, events: list[Event], sort_key: str) -> str:
-    """Render either grouped scan results or raw event rows."""
+    """Render either grouped scan results or raw event rows.
+
+    Called by: `render_ports()` after selector parsing chooses the sort/group
+    key.
+    """
     display_key = runtime_sort_key(sort_key)
     reverse = runtime_sort_reverse(sort_key)
+    # `sort=host` and `sort=port` are also grouping modes. Other sort keys keep
+    # one event per row so operators can inspect raw observations.
     if display_key == "host":
         return render_ports_by_host(context, events, reverse=reverse)
     if display_key == "port":
@@ -35,13 +45,20 @@ def render_ports_table(context: CommandContext, events: list[Event], sort_key: s
 
 
 def render_ports_by_host(context: CommandContext, events: list[Event], *, reverse: bool = False) -> str:
-    """Render one host row with all ports discovered on that host."""
+    """Render one host row with all ports discovered on that host.
+
+    Called by: `render_ports_table()` for `sort=host` and `sort=-host`.
+    """
     grouped: dict[str, list[Event]] = {}
     for event in events:
+        # Group by the payload host as text so DNS names and IP addresses can
+        # share the same table. Sorting below handles real IPs numerically.
         grouped.setdefault(str(event.payload.get("host", "")), []).append(event)
     rows = [
         (
             host,
+            # dict.fromkeys() preserves sorted order while removing duplicate
+            # observations for the same port/protocol/service tuple.
             ", ".join(dict.fromkeys(port_endpoint_text(event) for event in sort_port_events(grouped[host], "port"))),
         )
         for host in sorted(grouped, key=ip_sort_value, reverse=reverse)
@@ -56,10 +73,16 @@ def render_ports_by_host(context: CommandContext, events: list[Event], *, revers
 
 
 def render_ports_by_port(context: CommandContext, events: list[Event], *, reverse: bool = False) -> str:
-    """Render one port row with all hosts exposing that port."""
+    """Render one port row with all hosts exposing that port.
+
+    Called by: `render_ports_table()` for `sort=port` and `sort=-port`.
+    """
     grouped: dict[tuple[int, str, str], list[Event]] = {}
     for event in events:
         payload = event.payload
+        # Include protocol and service in the grouping key so tcp/53 and udp/53,
+        # or the same numeric port with different detected services, stay
+        # distinct in the grouped table.
         grouped.setdefault(
             (
                 int(payload.get("port") or 0),
@@ -90,7 +113,10 @@ def render_ports_by_port(context: CommandContext, events: list[Event], *, revers
 
 
 def sort_port_events(events: list[Event], sort_key: str) -> list[Event]:
-    """Sort port rows by the requested operator-facing column."""
+    """Sort port rows by the requested operator-facing column.
+
+    Called by: raw rendering and grouped host rendering before row projection.
+    """
     display_key = runtime_sort_key(sort_key)
     reverse = runtime_sort_reverse(sort_key)
     if display_key in {"event", "time"}:
@@ -99,7 +125,10 @@ def sort_port_events(events: list[Event], sort_key: str) -> list[Event]:
 
 
 def port_sort_value(event: Event, sort_key: str) -> tuple[object, ...]:
-    """Return stable sort values for port rows."""
+    """Return stable sort values for port rows.
+
+    Called by: `sort_port_events()` for non-time sort keys.
+    """
     payload = event.payload
     if sort_key == "host":
         return (ip_sort_value(payload.get("host")), int(payload.get("port") or 0), event.id or 0)
@@ -109,7 +138,10 @@ def port_sort_value(event: Event, sort_key: str) -> tuple[object, ...]:
 
 
 def ip_sort_value(value: object) -> tuple[int, bytes | str]:
-    """Sort IP addresses numerically and fall back to text for host names."""
+    """Sort IP addresses numerically and fall back to text for host names.
+
+    Called by: host grouping, port grouping, and host-sort row ordering.
+    """
     text = str(value or "")
     try:
         address = ipaddress.ip_address(text)
@@ -119,7 +151,10 @@ def ip_sort_value(value: object) -> tuple[int, bytes | str]:
 
 
 def raw_port_row(event: Event) -> tuple[object, ...]:
-    """Return a one-event table row."""
+    """Return a one-event table row.
+
+    Called by: `render_ports_table()` when no grouping sort is requested.
+    """
     return (
         event.payload.get("host", ""),
         event.payload.get("port", ""),
@@ -131,7 +166,10 @@ def raw_port_row(event: Event) -> tuple[object, ...]:
 
 
 def port_endpoint_text(event: Event) -> str:
-    """Return compact `port/proto service` text for grouped host rows."""
+    """Return compact `port/proto service` text for grouped host rows.
+
+    Called by: `render_ports_by_host()`.
+    """
     payload = event.payload
     endpoint = f"{payload.get('port', '')}/{payload.get('protocol', '')}".rstrip("/")
     service = str(payload.get("service") or "")
@@ -139,7 +177,10 @@ def port_endpoint_text(event: Event) -> str:
 
 
 def hosts_for_events(events: list[Event]) -> set[str]:
-    """Return unique hosts from a group of port events."""
+    """Return unique hosts from a group of port events.
+
+    Called by: `render_ports_by_port()`.
+    """
     return {str(event.payload.get("host", "")) for event in events if event.payload.get("host") is not None}
 
 
