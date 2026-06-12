@@ -25,6 +25,12 @@ SECURITY_SURFACE_TOKENS = (
     "chmod",
     "artifact",
 )
+"""Token hints used by `security_surface_hits()`.
+
+These are not vulnerability findings. They are cheap review-priority signals
+for modules that touch secrets, subprocesses, sockets, artifacts, or capability
+checks.
+"""
 
 
 def module_name(root: Path, path: Path, package: str) -> str:
@@ -64,6 +70,8 @@ def module_static_stats(tree: ast.AST, source: str) -> ModuleStaticStats:
     function_complexities = [complexity_score(function) for function in functions]
     complexity = complexity_score(tree)
     max_function_complexity = max(function_complexities, default=0)
+    # Comment/docstring counts are measured separately because they are used as
+    # a readability credit against complexity and dense constructs.
     comment_lines = source_comment_lines(source)
     docstring_lines = ast_docstring_lines(tree)
     dense_constructs = dense_construct_score(tree)
@@ -108,8 +116,12 @@ def complexity_score(node: ast.AST) -> int:
     )
     for child in ast.walk(node):
         if isinstance(child, branch_nodes):
+            # Each explicit branch/control construct adds one point; this is a
+            # rough pressure signal, not a full McCabe implementation.
             score += 1
         elif isinstance(child, ast.BoolOp):
+            # `a and b and c` adds pressure proportional to the number of
+            # decisions packed into the expression.
             score += max(1, len(child.values) - 1)
     return score
 
@@ -123,6 +135,8 @@ def dense_construct_score(tree: ast.AST) -> int:
     score = 0
     for node in ast.walk(tree):
         if isinstance(node, ast.ListComp | ast.DictComp | ast.SetComp | ast.GeneratorExp):
+            # Comprehensions often pack filtering/mapping logic into one line,
+            # so they receive a higher orientation-pressure score.
             score += 2
         elif isinstance(node, ast.Dict) and len(node.keys) >= 4:
             score += 1
@@ -131,6 +145,8 @@ def dense_construct_score(tree: ast.AST) -> int:
         elif isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
             end = getattr(node, "end_lineno", node.lineno)
             if end - node.lineno + 1 >= 35:
+                # Long functions are not automatically bad, but they usually
+                # benefit from phase comments or extraction.
                 score += 2
     return score
 
@@ -163,6 +179,8 @@ def ast_docstring_lines(tree: ast.AST) -> int:
             continue
         first = body[0]
         if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant) and isinstance(first.value.value, str):
+            # AST source spans give a stable line count for triple-quoted
+            # docstrings without needing token-level parsing.
             end = getattr(first, "end_lineno", first.lineno)
             total += max(1, end - first.lineno + 1)
     return total
@@ -184,6 +202,8 @@ def documentation_pressure_score(
 
     pressure = loc // 25 + complexity + max_function_complexity + dense_constructs
     credit = comment_lines // 3 + docstring_lines // 4
+    # Comments and docstrings reduce pressure but do not erase it entirely for
+    # complex modules; reviewers still see high-complexity files in the report.
     return max(0, pressure - credit)
 
 

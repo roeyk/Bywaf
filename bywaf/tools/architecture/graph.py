@@ -24,6 +24,8 @@ def internal_imports(
         match node:
             case ast.Import(names=names):
                 for alias in names:
+                    # `import pkg.child.symbol` is collapsed to the nearest
+                    # known internal module/package so graph nodes stay stable.
                     normalized = normalize_absolute_import(alias.name, package, known)
                     if normalized is not None:
                         yield normalized
@@ -35,11 +37,16 @@ def internal_imports(
                 normalized = normalize_absolute_import(imported, package, known)
                 normalized_children = []
                 for alias in names:
+                    # `from pkg.child import symbol` may reference either the
+                    # parent module or an importable child module; prefer the
+                    # child when it exists.
                     child = f"{imported}.{alias.name}" if imported else alias.name
                     normalized_child = normalize_absolute_import(child, package, known)
                     if normalized_child is not None:
                         normalized_children.append(normalized_child)
                 if normalized is not None and not normalized_children:
+                    # If no imported child is known, the `from` module itself is
+                    # still a runtime dependency.
                     yield normalized
                 yield from normalized_children
 
@@ -62,6 +69,8 @@ def runtime_import_nodes(tree: ast.AST) -> Iterable[ast.Import | ast.ImportFrom]
 
         def visit_If(self, node: ast.If) -> None:  # noqa: N802
             if is_type_checking_guard(node.test):
+                # TYPE_CHECKING bodies affect static typing, not runtime import
+                # coupling; still visit `else` because that branch is runtime.
                 for child in node.orelse:
                     self.visit(child)
                 return
@@ -99,6 +108,8 @@ def normalize_absolute_import(imported: str, package: str, known: set[str]) -> s
     while candidate:
         if candidate in known:
             return candidate
+        # Walk `pkg.a.b.c` back toward `pkg.a` until a real module/package node
+        # is found; this handles imports of names inside a module.
         if "." not in candidate:
             break
         candidate = candidate.rsplit(".", 1)[0]
@@ -134,6 +145,8 @@ def strongly_connected_components(adjacency: dict[str, set[str]]) -> list[set[st
 
     def visit(node: str) -> None:
         nonlocal index
+        # Tarjan assigns a discovery index and a lowlink. A node starts a cycle
+        # component when its lowlink points back to itself.
         indices[node] = index
         lowlinks[node] = index
         index += 1
@@ -149,6 +162,7 @@ def strongly_connected_components(adjacency: dict[str, set[str]]) -> list[set[st
             return
         component: set[str] = set()
         while True:
+            # Pop the completed strongly connected component off the DFS stack.
             current = stack.pop()
             on_stack.remove(current)
             component.add(current)
