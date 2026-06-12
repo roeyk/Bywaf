@@ -128,6 +128,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("192.0.2.20", lines[1])
 
     def test_event_filters_support_include_exclude_and_network_values(self):
+        """Protect event filters support include exclude and network values behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.publish("port.open", {"host": "192.168.50.10", "port": 80}, "test")

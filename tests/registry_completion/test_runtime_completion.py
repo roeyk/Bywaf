@@ -100,6 +100,7 @@ class RegistryRuntimeCompletionTests(unittest.TestCase):
         self.assertEqual(completer.candidates("project archive "), ["--encrypt", "file="])
 
     def test_builtin_commands_do_not_fall_back_to_root_completion(self):
+        """Protect builtin commands do not fall back to root completion behavior from regressions."""
         completer = Completer(self.registry)
         self.assertEqual(completer.candidates("plugins "), [])
         self.assertEqual(completer.candidates("info "), [])

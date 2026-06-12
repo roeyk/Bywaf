@@ -133,6 +133,7 @@ class SetupCliTests(unittest.TestCase):
         self.assertIn("encrypted SQLCipher", output.getvalue())
 
     def test_interactive_setup_can_generate_signing_keys(self):
+        """Protect interactive setup can generate signing keys behavior from regressions."""
         generated_names: list[str] = []
 
         def fake_generate_key(name: str, passphrase: str, *, scope: str = "user"):

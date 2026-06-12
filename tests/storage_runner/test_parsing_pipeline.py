@@ -76,6 +76,7 @@ class StorageRunnerParsingPipelineTests(unittest.TestCase):
         self.assertEqual(pipeline.commands[0].args, ["192.168.0.1-2"])
 
     def test_mixed_background_pipeline_preserves_pipe_flow(self):
+        """Protect mixed background pipeline preserves pipe flow behavior from regressions."""
         pipeline = parse_pipeline("hostscanner 192.168.0.1-2 & | portscanner")
         self.assertTrue(pipeline.background)
         self.assertEqual([command.background for command in pipeline.commands], [True, False])

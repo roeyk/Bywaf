@@ -206,6 +206,7 @@ class FindingDedupeTests(unittest.TestCase):
             self.assertEqual(normalized.status, "confirmed")
 
     def test_fuzzy_candidate_does_not_auto_merge(self):
+        """Protect fuzzy candidate does not auto merge behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             first = db.publish(

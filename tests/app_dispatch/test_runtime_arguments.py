@@ -140,6 +140,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("supersecret", text)
 
     def test_commandlet_expansion_preview_honors_display_mode(self):
+        """Protect commandlet expansion preview honors display mode behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             dispatch_repl_line(runner, "set TARGET=192.0.2.20")

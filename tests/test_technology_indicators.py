@@ -61,6 +61,7 @@ class TechnologyIndicatorsTests(unittest.TestCase):
         self.assertEqual(finding["target_scope"], {"kind": "service", "value": "192.0.2.10:80/tcp"})
 
     def test_web_fingerprint_match_uses_fingerprint_basis(self):
+        """Protect web fingerprint match uses fingerprint basis behavior from regressions."""
         event = Event.new(
             "web.fingerprint",
             {

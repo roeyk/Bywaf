@@ -123,6 +123,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("hostscanner", output.getvalue())
 
     def test_dispatch_unknown_command_prints_error(self):
+        """Protect dispatch unknown command prints error behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()

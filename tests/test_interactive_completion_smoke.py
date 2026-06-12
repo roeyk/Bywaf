@@ -80,6 +80,7 @@ class InteractiveCompletionSmokeTests(unittest.TestCase):
                 self.close_repl(child)
 
     def test_double_dash_tab_does_not_duplicate_dash_prefix(self):
+        """Protect double dash tab does not duplicate dash prefix behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             child = self.spawn_bywaf(Path(tmp))
             try:

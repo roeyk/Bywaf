@@ -291,6 +291,7 @@ class ReportScopeTests(unittest.TestCase):
             self.assertEqual([review.payload["finding_id"] for review in reviews], ["apache-advisory", "apache-variant"])
 
     def test_report_last_explicitly_uses_latest_scan_scope(self):
+        """Protect report last explicitly uses latest scan scope behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.publish(

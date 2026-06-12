@@ -73,6 +73,7 @@ class CompletionRegressionTests(unittest.TestCase):
                         self.assertIn(f"{option.name}={choice}", self.completer.candidates(f"{name} {option.name}="))
 
     def test_declared_path_options_complete_key_value_filespec_values(self):
+        """Protect declared path options complete key value filespec values behavior from regressions."""
         path_options = [
             (name, option.name)
             for name, plugin in self.registry.plugins.items()

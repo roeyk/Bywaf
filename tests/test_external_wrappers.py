@@ -140,6 +140,7 @@ class EyeWitnessTests(unittest.TestCase):
             self.assertEqual(db.events_for_topic("eyewitness.screenshot"), [])
 
     def test_eyewitness_value_carrying_output_dir_flag_is_rejected(self):
+        """Protect eyewitness value carrying output dir flag is rejected behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             context = CommandContext(
                 db=EventStore(Path(tmp, "bywaf.sqlite3")),

@@ -108,6 +108,7 @@ class RegistryCompletionOptionTests(unittest.TestCase):
         self.assertTrue(wasd_selection_enabled(completer))
 
     def test_control_completion_includes_run_selector(self):
+        """Protect control completion includes run selector behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))
             db.publish("host.found", {"host": "127.0.0.1"}, "hostscanner", command_run_id="run-1")

@@ -82,6 +82,7 @@ class ResourcesHistoryConfigPreferenceTests(unittest.TestCase):
             self.assertEqual(runner.registry.varstore.get("display/style.string"), "bold yellow")
 
     def test_config_theme_loads_file_without_replacing_config(self):
+        """Protect config theme loads file without replacing config behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             theme = Path(tmp, "theme.toml")

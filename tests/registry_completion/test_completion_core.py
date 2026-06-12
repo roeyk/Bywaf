@@ -91,6 +91,7 @@ class RegistryCompletionCoreTests(unittest.TestCase):
         self.assertEqual(completer.candidates("set global.pro"), ["global.proxy="])
 
     def test_vars_completion_supports_secret_flag(self):
+        """Protect vars completion supports secret flag behavior from regressions."""
         self.registry.varstore.set("network/ssh_probe.password", "")
         completer = Completer(self.registry)
         self.assertEqual(completer.candidates("set --s"), ["--secret"])

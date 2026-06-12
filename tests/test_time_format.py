@@ -31,6 +31,7 @@ class TimeFormatTests(unittest.TestCase):
         self.assertRegex(text, r"20260522 \d{2}:\d{2}:\d{2} [A-Z]+")
 
     def test_format_compact_runtime_timestamp_uses_operator_local_timezone(self):
+        """Protect format compact runtime timestamp uses operator local timezone behavior from regressions."""
         self.assertEqual(
             format_compact_runtime_ts("2026-05-18T12:34:56+00:00"),
             expected_local_runtime_timestamp("2026-05-18T12:34:56+00:00"),

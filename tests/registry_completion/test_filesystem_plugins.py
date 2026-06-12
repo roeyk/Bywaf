@@ -124,6 +124,7 @@ class RegistryFilesystemPluginTests(unittest.TestCase):
             self.assertEqual(registry.commandlet_origin("example"), "filesystem")
 
     def test_loads_legacy_filesystem_plugin_json_defaults(self):
+        """Protect loads legacy filesystem plugin JSON defaults behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "plugins")
             plugin_dir = root / "scanners" / "example"

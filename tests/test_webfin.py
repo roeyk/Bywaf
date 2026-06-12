@@ -49,6 +49,7 @@ class WebFingerprintTests(unittest.TestCase):
         self.assertIn("powered-by", kinds)
 
     def test_infer_technologies_deduplicates(self):
+        """Protect infer technologies deduplicates behavior from regressions."""
         self.assertEqual(infer_technologies("nginx nginx", "", "", {}), ["nginx"])
 
     def test_endpoint_payloads_use_http_endpoint_events(self):

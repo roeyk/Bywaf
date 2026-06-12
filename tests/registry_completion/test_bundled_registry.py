@@ -152,6 +152,7 @@ class RegistryBundledPluginTests(unittest.TestCase):
         self.assertTrue(manifest.native)
 
     def test_bundled_db_raw_capability_is_privileged_allowlist_only(self):
+        """Protect bundled database raw capability is privileged allowlist only behavior from regressions."""
         raw_users = {
             name
             for name in self.registry.names()

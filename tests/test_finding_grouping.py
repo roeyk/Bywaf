@@ -101,6 +101,7 @@ class FindingGroupingTests(unittest.TestCase):
         self.assertEqual(payload["subjects"]["affected[].path"], "path")
 
     def test_confirmed_payload_uses_candidate_shape_with_confirmed_status(self):
+        """Protect confirmed payload uses candidate shape with confirmed status behavior from regressions."""
         payload = confirmed_payload(
             title="Exposed Git repository configuration",
             finding_class="web.exposure.git_config",

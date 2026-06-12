@@ -97,6 +97,7 @@ class ConfigPluginContextCapabilityTests(unittest.TestCase):
             self.assertEqual(used[0].payload["capability"], "network.connect")
 
     def test_command_context_keeps_request_specific_capability_audit(self):
+        """Protect command context keeps request specific capability audit behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(

@@ -315,6 +315,7 @@ class ReportGroupingTests(unittest.TestCase):
             self.assertEqual(rendered.payload["rows"], 1)
 
     def test_report_detail_uses_deduped_canonical_affected_resources(self):
+        """Protect report detail uses deduped canonical affected resources behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.publish(

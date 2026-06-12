@@ -104,6 +104,7 @@ class HttpProbeWrapperMatrixTests(TestCase):
         self.assertEqual(events[0]["host"], "example.test")
 
     def test_waf_detect_ignores_fetch_errors_without_false_positive(self):
+        """Protect waf detect ignores fetch errors without false positive behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(db=db, source="waf_detect", metadata={"capabilities": waf_detect.spec.capabilities})

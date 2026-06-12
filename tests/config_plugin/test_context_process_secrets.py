@@ -170,6 +170,7 @@ class ConfigPluginContextProcessSecretTests(unittest.TestCase):
         self.assertTrue(used[0].payload["declared"])
 
     def test_command_context_process_stream_redacts_secret_output_events(self):
+        """Protect command context process stream redacts secret output events behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             secrets = InMemorySecretStore()

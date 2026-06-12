@@ -146,6 +146,7 @@ class RegistryManifestSchemaTests(unittest.TestCase):
             )
 
     def test_plugin_manifest_rejects_invalid_event_schema_field_type(self):
+        """Protect plugin manifest rejects invalid event schema field type behavior from regressions."""
         with self.assertRaisesRegex(ValueError, "type must be one of"):
             parse_plugin_manifest_data(
                 {

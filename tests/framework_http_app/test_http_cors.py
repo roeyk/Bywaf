@@ -104,6 +104,7 @@ class TestHttpCorsTests(unittest.TestCase):
         self.assertEqual(findings[0]["class"], "web.cors.wildcard_with_credentials")
 
     def test_http_cors_runner_publishes_fact_and_finding(self):
+        """Protect HTTP cors runner publishes fact and finding behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with patch("bywaf.plugins.http.cors.http.client.HTTPSConnection", ReflectedConnection):

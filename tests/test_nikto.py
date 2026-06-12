@@ -154,6 +154,7 @@ class NiktoTests(unittest.TestCase):
             self.assertIn("not found", system_error["message"])
 
     def test_invalid_json_error_references_raw_output_artifact(self):
+        """Protect invalid JSON error references raw output artifact behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(

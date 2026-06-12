@@ -89,6 +89,7 @@ class CliParserTests(unittest.TestCase):
         self.assertEqual(parser.parse_args(["history"]).subcommand, "history")
 
     def test_build_parser_prefers_encrypt_flag(self):
+        """Protect build parser prefers encrypt flag behavior from regressions."""
         parser = build_parser()
         self.assertTrue(parser.parse_args(["--encrypt"]).encrypt)
         self.assertTrue(parser.parse_args(["--encrypted"]).encrypted)

@@ -133,6 +133,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("db.raw", capabilities)
 
     def test_signal_accepts_job_and_run_serials_but_rejects_pipeline_serials(self):
+        """Protect signal accepts job and run serials but rejects pipeline serials behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("portscanner --listen", 123, "running")

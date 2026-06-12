@@ -91,6 +91,7 @@ def test_manifest_graph_records_explicit_dependency_edges():
 
 
 def test_dependency_errors_report_ambiguous_schema_providers():
+    """Protect dependency errors report ambiguous schema providers behavior from regressions."""
     consumer = PluginManifest(
         commandlets=frozenset({"consumer"}),
         version="0.1.0",

@@ -69,6 +69,7 @@ class PluginNewTests(unittest.TestCase):
             self.assertEqual(tests.returncode, 0, tests.stdout + tests.stderr)
 
     def test_plugin_new_rejects_non_empty_output_directory(self):
+        """Protect plugin new rejects non empty output directory behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = Path(tmp) / "existing"
             plugin_dir.mkdir()

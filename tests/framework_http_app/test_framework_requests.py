@@ -104,6 +104,7 @@ class TestFrameworkRequestsTests(unittest.TestCase):
             self.assertEqual(output.getvalue(), "hello")
 
     def test_framework_request_pages_file_without_tty(self):
+        """Protect framework request pages file without tty behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "file.txt")
             path.write_text("hello\n")

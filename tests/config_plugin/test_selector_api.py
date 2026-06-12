@@ -52,6 +52,7 @@ class PluginSelectorApiTests(unittest.TestCase):
                 self.assertTrue(parse_bool(value))
 
     def test_parse_bool_rejects_other_values(self) -> None:
+        """Protect parse bool rejects other values behavior from regressions."""
         for value in (False, "0", "false", "no", "off", ""):
             with self.subTest(value=value):
                 self.assertFalse(parse_bool(value))

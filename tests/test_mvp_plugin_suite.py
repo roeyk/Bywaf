@@ -213,6 +213,7 @@ class MvpPluginSuiteTests(unittest.TestCase):
                 )
 
             def fake_run_process(argv, *, cwd=None, env=None, timeout=None):
+                """Test helper for fake run process."""
                 del cwd, env, timeout
                 if "--web" in argv:
                     screenshot_dir = Path(argv[argv.index("-d") + 1]) / "screens"

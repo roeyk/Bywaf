@@ -87,6 +87,7 @@ class TestHttpMethodsTests(unittest.TestCase):
         self.assertEqual(result["methods"], ["GET", "OPTIONS"])
 
     def test_http_methods_probe_returns_error_payload(self):
+        """Protect HTTP methods probe returns error payload behavior from regressions."""
         target = MethodTarget("http://example.test/", "example.test", 80, "http", "/")
         with patch("bywaf.plugins.http.methods.http.client.HTTPConnection", ErrorConnection):
             result = probe_methods(target, timeout=2)

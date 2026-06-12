@@ -91,6 +91,7 @@ class EventDbTests(unittest.TestCase):
             self.assertEqual(rows[0]["status"], "finished")
 
     def test_runtime_local_ids_are_persisted_and_not_reused(self):
+        """Protect runtime local IDs are persisted and not reused behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "events.sqlite3"))
             db.publish("host.found", {"host": "a"}, "hostscanner", pipeline_id="pipe-a", command_run_id="run-a")

@@ -97,6 +97,7 @@ class ConfigPluginVarsCommandletTests(unittest.TestCase):
         self.assertEqual(parser.parse_args(["--timeout", "2"]).timeout, 2)
 
     def test_commandlet_base_values_or_var(self):
+        """Protect commandlet base values or var behavior from regressions."""
         store = VarStore()
         store.set("example.targets", "127.0.0.1, 127.0.0.2")
         context = CommandContext(None, source="example", _varstore=store)

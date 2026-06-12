@@ -115,6 +115,7 @@ class TestCapabilityInferenceTests(unittest.TestCase):
             self.assertIn("example.event", report["inferred_emits"])
 
     def test_check_plugin_warns_on_direct_network_import(self):
+        """Protect check plugin warns on direct network import behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(
                 Path(tmp),

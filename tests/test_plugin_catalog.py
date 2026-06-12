@@ -55,6 +55,7 @@ class PluginCatalogTests(unittest.TestCase):
         self.assertEqual(watchdog["triggers"][0]["action_mode"], "service")
 
     def test_catalog_reads_triggers_from_manifest_without_importing_plugin(self):
+        """Protect catalog reads triggers from manifest without importing plugin behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             plugin_root = root / "plugins"

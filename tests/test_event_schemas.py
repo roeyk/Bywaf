@@ -135,6 +135,7 @@ class EventSchemaTests(unittest.TestCase):
             register_event_schema(EventSchema("host.found", "override", (FieldSchema("other", "str", True),)))
 
     def test_plugin_private_schema_objects_round_trip_without_framework_registry(self):
+        """Protect plugin private schema objects round trip without framework registry behavior from regressions."""
         session = PluginPrivateSession("dc01.example.test", "alice", "EXAMPLE")
         payload = session.to_payload()
         event = Event.new(PluginPrivateSession.__topic__, payload, "smb_enum")

@@ -117,6 +117,7 @@ class FindingReportTests(unittest.TestCase):
             self.assertNotIn("--source", text)
 
     def test_pipeline_report_uses_preceding_dedupe_output(self):
+        """Protect pipeline report uses preceding dedupe output behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.publish(

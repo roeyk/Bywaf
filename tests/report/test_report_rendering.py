@@ -205,6 +205,7 @@ class ReportRenderingTests(unittest.TestCase):
             self.assertIn("…", output.getvalue())
 
     def test_report_applies_configured_table_and_finding_styles(self):
+        """Protect report applies configured table and finding styles behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.registry.varstore.set("display/style.table.header", "bold yellow")

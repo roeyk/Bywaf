@@ -237,6 +237,7 @@ class ReportReviewTests(unittest.TestCase):
             self.assertLess(output.getvalue().index("Accepted finding"), output.getvalue().index("Open finding"))
 
     def test_report_candidates_first_orders_candidate_findings_first(self):
+        """Protect report candidates first orders candidate findings first behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.publish(

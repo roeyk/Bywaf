@@ -184,6 +184,7 @@ class HttpPathFindingTests(unittest.TestCase):
             self.assertEqual(db.events_for_topic("finding.candidate"), [])
 
     def test_source_map_path_with_map_markers_becomes_candidate(self):
+        """Protect source map path with map markers becomes candidate behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(

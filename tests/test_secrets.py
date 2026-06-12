@@ -52,6 +52,7 @@ class SecretTests(unittest.TestCase):
         self.assertFalse(is_secret_name("timeout"))
 
     def test_redact_command_text_replaces_secret_values_with_fingerprints(self):
+        """Protect redact command text replaces secret values with fingerprints behavior from regressions."""
         result = redact_command_text(
             "ssh_probe username=hello password='top secret' timeout=5",
             key=b"k" * 32,

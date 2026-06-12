@@ -115,6 +115,7 @@ class TestSubmissionsAndOutputTests(unittest.TestCase):
         self.assertIn("error: missing", text)
 
     def test_check_plugin_graph_json_output(self):
+        """Protect check plugin graph JSON output behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(
                 Path(tmp),

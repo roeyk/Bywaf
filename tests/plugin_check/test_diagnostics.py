@@ -146,6 +146,7 @@ class TestDiagnosticsTests(unittest.TestCase):
             self.assertIn("Missing shared event declaration: host.found", feedback)
 
     def test_check_plugin_warns_about_declared_emit_without_registered_schema(self):
+        """Protect check plugin warns about declared emit without registered schema behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(
                 Path(tmp),

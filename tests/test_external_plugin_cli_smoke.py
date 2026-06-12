@@ -232,6 +232,7 @@ def run_module(module: str, *args: str) -> subprocess.CompletedProcess[str]:
 
 
 def smoke_env() -> dict[str, str]:
+    """Test helper for smoke env."""
     env = os.environ.copy()
     env["PYTHONPATH"] = str(ROOT)
     env["BYWAF_TEST_KEY_PASSPHRASE"] = "passphrase"

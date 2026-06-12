@@ -53,6 +53,7 @@ class RepoExposureTests(unittest.TestCase):
         self.assertEqual(payload["port"], 8443)
 
     def test_run_accepts_target_key_value_argument(self):
+        """Protect run accepts target key value argument behavior from regressions."""
         context = CommandContext(db=None, source="git_expose_check", metadata={"command_run_id": "run-1"})
         result = base_result(
             {"url": "http://127.0.0.1:8088/", "host": "127.0.0.1", "port": 8088, "scheme": "http"},

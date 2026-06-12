@@ -66,6 +66,7 @@ class NmapBackendTests(unittest.TestCase):
             )
 
     def test_scan_open_ports_omits_ports_for_default_nmap_scan(self):
+        """Protect scan open ports omits ports for default nmap scan behavior from regressions."""
         scanner = FakeScanner()
 
         class Module:

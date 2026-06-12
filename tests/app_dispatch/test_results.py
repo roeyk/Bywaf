@@ -268,6 +268,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("SSH-2.0-OpenSSH", text)
 
     def test_results_renders_web_assessment_summaries(self):
+        """Protect results renders web assessment summaries behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.record_job("http_probe https://example.test | tls_probe | waf_detect", 123, "finished")

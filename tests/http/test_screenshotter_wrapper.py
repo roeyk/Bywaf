@@ -55,6 +55,7 @@ class ScreenshotterWrapperTests(unittest.TestCase):
             event = Event.new("http.endpoint", {"url": "https://example.test/"}, "http_probe")
 
             def fake_run(argv, *, cwd=None, env=None, timeout=None):
+                """Test helper for fake run."""
                 del argv, cwd, env, timeout
                 return subprocess.CompletedProcess([], 4, stdout="partial stdout", stderr="fatal stderr")
 

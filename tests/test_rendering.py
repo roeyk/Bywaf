@@ -51,6 +51,7 @@ class RenderingTests(unittest.TestCase):
         self.assertIn("Port", rendered)
 
     def test_console_renderer_truncates_to_terminal_width(self):
+        """Protect console renderer truncates to terminal width behavior from regressions."""
         table = Table.from_rows(
             ({"id": "1", "description": "x" * 80},),
             (Column("id", "ID"), Column("description", "Description")),

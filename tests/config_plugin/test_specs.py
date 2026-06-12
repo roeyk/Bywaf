@@ -76,6 +76,7 @@ class ConfigPluginSpecTests(unittest.TestCase):
             normalize_argv("echo hello")
 
     def test_normalize_argv_rejects_empty_argv(self):
+        """Protect normalize argv rejects empty argv behavior from regressions."""
         with self.assertRaisesRegex(ValueError, "cannot be empty"):
             normalize_argv([])
 

@@ -104,6 +104,7 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
             self.assertIn("Usage:   set [--secret] [name[=value]]", output.getvalue())
 
     def test_dispatch_help_for_unknown_command(self):
+        """Protect dispatch help for unknown command behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()

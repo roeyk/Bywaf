@@ -113,6 +113,7 @@ class AppDispatchTests(unittest.TestCase):
                 self.assertEqual(events[-1].payload["jobs"][0]["job_id"], job_id)
 
     def test_project_archive_includes_project_state_and_artifact_db(self):
+        """Protect project archive includes project state and artifact database behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             project_dir = root / ".bywaf" / "projects" / "client-a"

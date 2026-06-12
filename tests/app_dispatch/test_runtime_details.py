@@ -215,6 +215,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertLess(text.index("\n1     completed/finished"), text.index("\n2     completed/finished"))
 
     def test_job_show_accepts_durable_serial_selector(self):
+        """Protect job show accepts durable serial selector behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("hostscanner 127.0.0.1", 123, "running")

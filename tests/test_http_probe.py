@@ -63,6 +63,7 @@ class HttpProbeTests(unittest.TestCase):
         self.assertEqual(extract_title(b"<html><title> Hello\nWorld </title></html>"), "Hello World")
 
     def test_http_probe_emits_payload_and_alert(self):
+        """Protect HTTP probe emits payload and alert behavior from regressions."""
         context = CommandContext(db=None, source="http_probe", metadata={"command_run_id": "run-1"})
         fake_payload = {"ok": True, "status": 200, "final_url": "http://127.0.0.1/"}
         output = io.StringIO()

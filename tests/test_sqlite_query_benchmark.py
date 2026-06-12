@@ -42,6 +42,7 @@ class SQLiteQueryBenchmarkTests(unittest.TestCase):
         self.assertEqual(second.maintenance_measurements, ())
 
     def test_benchmark_can_measure_maintenance_paths(self):
+        """Protect benchmark can measure maintenance paths behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             database = Path(tmp, "query.sqlite3")
             result = run_query_benchmark(database, events=10, repetitions=1, payload_bytes=4, maintenance=True)

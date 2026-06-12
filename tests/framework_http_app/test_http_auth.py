@@ -88,6 +88,7 @@ class TestHttpAuthTests(unittest.TestCase):
         self.assertEqual(result["schemes"], ["NEGOTIATE"])
 
     def test_http_auth_probe_returns_error_payload(self):
+        """Protect HTTP auth probe returns error payload behavior from regressions."""
         target = AuthTarget("http://example.test/", "example.test", 80, "http", "/")
         with patch("bywaf.plugins.http.auth.http.client.HTTPConnection", ErrorConnection):
             result = probe_auth(target, method="HEAD", timeout=2)

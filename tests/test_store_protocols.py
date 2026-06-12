@@ -72,6 +72,7 @@ class StoreProtocolTests(unittest.TestCase):
             self.assertEqual(store.event_by_id(published.id or 0), published)
 
     def test_event_store_backend_opens_fresh_connections(self):
+        """Protect event store backend opens fresh connections behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             store = EventStore(Path(tmp, "events.sqlite3"))
 

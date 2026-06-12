@@ -109,6 +109,7 @@ class TestHttpHeadersTests(unittest.TestCase):
         self.assertIn("web.header.missing_framing_policy", classes)
 
     def test_http_headers_accepts_csp_frame_ancestors_as_framing_policy(self):
+        """Protect HTTP headers accepts csp frame ancestors as framing policy behavior from regressions."""
         result = HeaderProbeResult(
             target=HeaderTarget("example.test", 443, True),
             status=200,

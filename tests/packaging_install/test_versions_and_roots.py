@@ -121,6 +121,7 @@ class PackagingInstallVersionAndRootTests(unittest.TestCase):
             self.assertEqual(events[-1].payload["plugin"], "local/provider")
 
     def test_cli_plugin_graph_shows_filesystem_dependency_closure(self):
+        """Protect CLI plugin graph shows filesystem dependency closure behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "home", "alice", ".bywaf", "plugins")
             write_plugin(root, "local/provider", "provider", "provider")

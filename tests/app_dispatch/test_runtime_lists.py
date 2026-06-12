@@ -222,6 +222,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("192.0.2.20", text)
 
     def test_ports_filters_latest_scan_by_host_and_port(self):
+        """Protect ports filters latest scan by host and port behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("network/portscanner host=192.0.2.0/24 port=80,443", 123, "finished")

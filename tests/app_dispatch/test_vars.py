@@ -128,6 +128,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("password=supersecret", text)
 
     def test_vars_command_name_is_not_supported(self):
+        """Protect vars command name is not supported behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()

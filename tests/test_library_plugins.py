@@ -111,6 +111,7 @@ class LibraryPluginTests(unittest.TestCase):
     def test_ssh_probe_publishes_failed_auth_without_real_network(self):
         # The Paramiko surface is faked at the optional-module seam. The plugin
         # still runs its normal commandlet code path and publishes ssh.service.
+        """Protect SSH probe publishes failed auth without real network behavior from regressions."""
         class FakeClient:
             def set_missing_host_key_policy(self, policy):
                 pass

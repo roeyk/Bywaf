@@ -140,6 +140,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(fired.payload["trigger_event_topic"], "plugin.capability.used")
 
     def test_start_default_services_waits_for_network_capability_event(self):
+        """Protect start default services waits for network capability event behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             event = Event.new("job.requested", {"job_id": 7}, "runner")

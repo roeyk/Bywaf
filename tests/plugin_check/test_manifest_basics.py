@@ -104,6 +104,7 @@ class TestManifestBasicsTests(unittest.TestCase):
             self.assertIn("options entry 1 has unknown key(s): required", report["errors"][0])
 
     def test_check_plugin_rejects_unknown_event_schema_keys(self):
+        """Protect check plugin rejects unknown event schema keys behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(
                 Path(tmp),

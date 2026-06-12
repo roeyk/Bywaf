@@ -33,6 +33,7 @@ class UtilsTests(unittest.TestCase):
         self.assertTrue(background)
 
     def test_parse_ports_supports_ranges_and_dedupes(self):
+        """Protect parse ports supports ranges and dedupes behavior from regressions."""
         self.assertEqual(parse_ports("80,443,80,8000-8002"), (80, 443, 8000, 8001, 8002))
 
     def test_parse_ports_rejects_out_of_range(self):

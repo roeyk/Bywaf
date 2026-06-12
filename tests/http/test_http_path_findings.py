@@ -156,6 +156,7 @@ class HttpPathFindingHelperTests(unittest.TestCase):
         self.assertIn("rotate", cast(str, finding["recommendation"]))
 
     def test_finding_for_path_returns_none_when_observation_is_not_interesting(self):
+        """Protect finding for path returns none when observation is not interesting behavior from regressions."""
         observed = HttpPathObserved(
             url="https://example.test/login",
             host="example.test",

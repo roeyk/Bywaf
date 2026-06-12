@@ -159,6 +159,7 @@ class StorageRunnerPortscannerCoreTests(unittest.TestCase):
             self.assertEqual(candidates[0].payload["confidence_basis"], "service_indicator")
 
     def test_portscanner_promotes_telnet_on_nonstandard_port_from_service_detection(self):
+        """Protect portscanner promotes telnet on nonstandard port from service detection behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with patch(

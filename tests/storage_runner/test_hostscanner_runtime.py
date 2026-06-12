@@ -94,6 +94,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
             discover.assert_called_once_with("192.0.2.1", "-sn")
 
     def test_framework_note_attaches_to_command_run(self):
+        """Protect framework note attaches to command run behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]):
                 runner = make_runner(Path(tmp, "db.sqlite3"))

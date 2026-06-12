@@ -98,6 +98,7 @@ class StorageRunnerBackgroundWatchdogTests(unittest.TestCase):
             self.assertEqual(runner.db.jobs(), [])
 
     def test_job_timestamps_use_operator_local_timezone(self):
+        """Protect job timestamps use operator local timezone behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "db.sqlite3"))
             job_id = db.record_job("hostscanner 127.0.0.1", None, "queued")

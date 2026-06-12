@@ -153,6 +153,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("hostscanner 127.0.0.1", text)
 
     def test_jobs_all_marks_active_state(self):
+        """Protect jobs all marks active state behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.record_job("active", 123, "running")

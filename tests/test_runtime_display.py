@@ -34,6 +34,7 @@ class RuntimeDisplayTests(unittest.TestCase):
         )
 
     def test_format_runtime_timestamp_handles_missing_value(self):
+        """Protect format runtime timestamp handles missing value behavior from regressions."""
         self.assertEqual(format_runtime_timestamp(None), "unknown")
 
     def test_format_runtime_timestamp_leaves_malformed_value_visible(self):

@@ -120,6 +120,7 @@ class ResourcesHistoryPluginLoadingTests(unittest.TestCase):
             self.assertIn("use second", output.getvalue())
 
     def test_plugin_load_use_specific_commandlet_selects_context(self):
+        """Protect plugin load use specific commandlet selects context behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()

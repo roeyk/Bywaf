@@ -87,6 +87,7 @@ class ResourcesHistoryDispatchStateTests(unittest.TestCase):
             self.assertIn("network/portscanner.port=", output.getvalue())
 
     def test_dispatch_vars_assignment_sets_value(self):
+        """Protect dispatch vars assignment sets value behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             dispatch_repl_line(runner, "set custom.value=abc")
