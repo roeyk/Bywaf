@@ -10,6 +10,7 @@ from tests.registry_completion.support import *  # noqa: F403,F405
 class BundledManifestHydrationTests(unittest.TestCase):
     """Groups regression coverage for bundled manifest hydration tests for lean Python commandlet specs."""
     def setUp(self):
+        """Prepare shared fixtures for this test case."""
         self.registry = PluginRegistry.discover()
 
     def test_bundled_sidecar_hydrates_runtime_security_metadata(self):

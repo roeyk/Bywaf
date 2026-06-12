@@ -24,6 +24,7 @@ from bywaf.app import (
 class AppDispatchTests(unittest.TestCase):
     """Groups regression coverage for app runtime details behavior."""
     def test_info_shows_active_runtime_counts(self):
+        """Protect info shows active runtime counts behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("hostscanner 127.0.0.1", 123, "running")

@@ -23,6 +23,7 @@ from bywaf.app import (
 class AppDispatchTests(unittest.TestCase):
     """Groups regression coverage for app result follow behavior."""
     def test_results_passes_sort_to_embedded_ports_view(self):
+        """Protect results passes sort to embedded ports view behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.record_job("network/portscanner host=192.0.2.20 port=443", 123, "finished")

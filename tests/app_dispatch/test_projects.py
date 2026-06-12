@@ -31,6 +31,7 @@ from bywaf.projects import ProjectPaths
 class AppDispatchTests(unittest.TestCase):
     """Groups regression coverage for app projects behavior."""
     def test_dispatch_list_is_unknown(self):
+        """Protect dispatch list is unknown behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()

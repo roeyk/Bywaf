@@ -15,6 +15,7 @@ class ReportScopeTests(unittest.TestCase):
     """
 
     def test_report_pipeline_renders_scoped_findings(self):
+        """Protect report pipeline renders scoped findings behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             finding = runner.db.publish(

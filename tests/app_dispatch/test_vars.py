@@ -26,6 +26,7 @@ class AppDispatchTests(unittest.TestCase):
     """REPL-level tests for variable scopes, aliases, and secret handling."""
 
     def test_use_context_scopes_short_vars_assignments(self):
+        """Protect use context scopes short vars assignments behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()

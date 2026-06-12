@@ -21,6 +21,7 @@ TERMINAL_JOB_STATUSES = {"finished", "failed", "cancelled", "killed", "stale"}
 
 
 def wait_for_session_jobs(session: BywafSession, *, timeout: float = 5.0):
+    """Test helper for wait for session jobs."""
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         session.db.mark_stale_jobs()

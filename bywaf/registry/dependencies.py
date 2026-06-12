@@ -103,6 +103,7 @@ def topological_filesystem_entries(
     visiting: set[str] = set()
 
     def visit(provider: str) -> None:
+        """Visit one node while collecting dependency information."""
         if provider in visited:
             return
         if provider in visiting:

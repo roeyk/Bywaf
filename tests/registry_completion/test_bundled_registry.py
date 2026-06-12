@@ -8,6 +8,7 @@ from tests.registry_completion.support import *  # noqa: F403,F405
 class RegistryBundledPluginTests(unittest.TestCase):
     """Groups regression coverage for registry and completion tests split by responsibility."""
     def setUp(self):
+        """Prepare shared fixtures for this test case."""
         self.registry = PluginRegistry.discover()
 
     def test_discovers_bundled_plugins(self):

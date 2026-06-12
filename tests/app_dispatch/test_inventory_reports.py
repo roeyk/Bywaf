@@ -28,6 +28,7 @@ class AppDispatchTests(unittest.TestCase):
     """
 
     def test_inventory_commands_summarize_project_knowledge(self):
+        """Protect inventory commands summarize project knowledge behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.record_job("hostscanner 192.0.2.0/24 | portscanner | http_probe", 123, "finished")

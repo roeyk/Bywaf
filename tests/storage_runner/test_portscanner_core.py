@@ -9,6 +9,7 @@ from tests.storage_runner.support import *  # noqa: F403,F405
 class StorageRunnerPortscannerCoreTests(unittest.TestCase):
     """Groups regression coverage for storage runner tests split by responsibility."""
     def test_pipeline_scans_open_local_port(self):
+        """Protect pipeline scans open local port behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             with (
                 patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["127.0.0.1"]),

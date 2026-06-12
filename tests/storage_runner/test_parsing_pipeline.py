@@ -9,6 +9,7 @@ from tests.storage_runner.support import *  # noqa: F403,F405
 class StorageRunnerParsingPipelineTests(unittest.TestCase):
     """Groups regression coverage for storage runner tests split by responsibility."""
     def test_parse_invocation_uses_first_token_as_name(self):
+        """Protect parse invocation uses first token as name behavior from regressions."""
         invocation = parse_invocation("hostscanner 127.0.0.1")
         self.assertEqual(invocation.name, "hostscanner")
         self.assertEqual(invocation.args, ["127.0.0.1"])

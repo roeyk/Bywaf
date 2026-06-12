@@ -26,6 +26,7 @@ class TestHttpHeadersTests(unittest.TestCase):
     """
 
     def test_http_headers_targets_from_arg(self):
+        """Protect http headers targets from arg behavior from regressions."""
         targets = HttpHeaders().targets("example.test", None, False, [])
         self.assertEqual(targets, [("example.test", 80, False)])
 

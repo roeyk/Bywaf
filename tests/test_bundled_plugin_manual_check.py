@@ -8,6 +8,7 @@ from bywaf.tools.bundled_plugin_manual_check import check_manual
 
 
 def write(path: Path, text: str) -> None:
+    """Test helper for write."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
 

@@ -10,6 +10,7 @@ from tests.config_plugin.support import *  # noqa: F403,F405
 class ConfigPluginContextCapabilityTests(unittest.TestCase):
     """Groups regression coverage for config/plugin tests split by responsibility."""
     def test_command_context_metadata_default(self):
+        """Protect command context metadata default behavior from regressions."""
         context = CommandContext(db=None, source="test")
         self.assertEqual(context.metadata, {})
 

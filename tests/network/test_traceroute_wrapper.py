@@ -19,6 +19,7 @@ from bywaf.plugins.network.traceroute import traceroute
 class TracerouteWrapperTests(unittest.TestCase):
     """Groups regression coverage for traceroute wrapper failure diagnostics."""
     def test_nonzero_without_stdout_links_process_output_artifact(self):
+        """Protect nonzero without stdout links process output artifact behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(

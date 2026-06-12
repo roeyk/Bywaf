@@ -18,6 +18,7 @@ from bywaf.plugins.http.paths import http_paths
 class HttpPathFindingTests(unittest.TestCase):
     """Groups regression coverage for focused HTTP path finding promotion tests."""
     def test_admin_login_surface_becomes_low_severity_candidate(self):
+        """Protect admin login surface becomes low severity candidate behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(

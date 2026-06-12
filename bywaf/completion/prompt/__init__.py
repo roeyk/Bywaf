@@ -83,6 +83,7 @@ class BywafPromptLexer(Lexer):
         self.secret_lexer = PromptSecretLexer(secret_state)
 
     def lex_document(self, document):
+        """Implement lex document for this module."""
         secret_get_line = self.secret_lexer.lex_document(document)
 
         def get_line(lineno: int):

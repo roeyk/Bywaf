@@ -16,6 +16,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
     """
 
     def test_parse_empty_invocation_fails(self):
+        """Protect parse empty invocation fails behavior from regressions."""
         with self.assertRaises(ValueError):
             parse_invocation("")
 

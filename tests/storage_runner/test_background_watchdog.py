@@ -19,6 +19,7 @@ class ImmediateProcess:
         self.daemon = daemon
 
     def start(self):
+        """Test helper for start."""
         self.target(*self.args)
 
 

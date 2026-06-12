@@ -42,6 +42,7 @@ class StopPipelinePlugin:
     )
 
     def run(self, context, args, input_events):
+        """Test helper for run."""
         del args, input_events
         context.pipeline.stop("nothing useful downstream")
         return ()

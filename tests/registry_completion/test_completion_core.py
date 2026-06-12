@@ -19,6 +19,7 @@ class RegistryCompletionCoreTests(unittest.TestCase):
         self.registry = PluginRegistry.discover()
 
     def test_completes_command_names(self):
+        """Protect completes command names behavior from regressions."""
         completer = Completer(self.registry)
         # Command completion should include public commandlets and aliases, but
         # not internal implementation names such as the REPL provider itself.

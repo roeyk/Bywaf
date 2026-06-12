@@ -37,6 +37,7 @@ class FakeHttpResponse:
         return False
 
     def read(self, size: int = -1) -> bytes:
+        """Test helper for read."""
         del size
         return self.body
 

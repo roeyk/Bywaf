@@ -25,6 +25,7 @@ def write_plugin_fixture(
     run_body: str = "        yield {'ok': True}\n",
     manifest_extra: str = "",
 ) -> Path:
+    """Test helper for write plugin fixture."""
     plugin_dir = root / "example"
     plugin_dir.mkdir(parents=True)
     capability_text = repr(capabilities)

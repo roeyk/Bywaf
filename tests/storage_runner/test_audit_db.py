@@ -17,6 +17,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
     """
 
     def test_db_commandlet_reports_status(self):
+        """Protect db commandlet reports status behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.publish("topic", {"value": 1}, "test")

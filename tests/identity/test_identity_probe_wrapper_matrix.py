@@ -20,6 +20,7 @@ from bywaf.plugins.identity.smb_probe import SmbProbe
 class LdapProbeWrapperMatrixTests(TestCase):
     """Groups regression coverage for fixture-backed identity probe wrapper coverage."""
     def test_ldap_probe_publishes_bound_server_metadata(self):
+        """Protect ldap probe publishes bound server metadata behavior from regressions."""
         fake_server = SimpleNamespace(info=SimpleNamespace(naming_contexts=["dc=example,dc=test"]))
         fake_ldap = SimpleNamespace(
             ALL="ALL",

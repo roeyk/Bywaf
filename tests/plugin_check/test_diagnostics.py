@@ -18,6 +18,7 @@ from tests.plugin_check_fixtures import (
 class TestDiagnosticsTests(unittest.TestCase):
     """Groups regression coverage for plugin checker tests for test diagnostics."""
     def test_check_plugin_reports_invalid_argument_decorator_keyword(self):
+        """Protect check plugin reports invalid argument decorator keyword behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(
                 Path(tmp),

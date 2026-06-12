@@ -63,6 +63,7 @@ def commandlet(
         return FunctionCommandlet(target)
 
     def decorate(cls):
+        """Attach the commandlet specification to the decorated class."""
         if name is None:
             raise ValueError("class commandlet decorators require name=")
         # @option/@argument decorators run before @commandlet and stash metadata

@@ -8,6 +8,7 @@ from tests.resources_history_config.support import *  # noqa: F403,F405
 class ResourcesHistoryConfigPreferenceTests(unittest.TestCase):
     """Groups regression coverage for resources/history/config tests split by responsibility."""
     def test_regression_script_smoke_variables(self):
+        """Protect regression script smoke variables behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             script = Path(__file__).parents[1] / "scripts" / "smoke_variables.bywaf"

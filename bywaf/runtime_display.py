@@ -307,6 +307,7 @@ def command_context_style_getter(context) -> StyleGetter:
     def get(key: str, default: str = "") -> object:
         # Per-run variables win over persisted display variables so one command
         # invocation can override styling without mutating global settings.
+        """Implement get for this module."""
         run_vars = context.metadata.get("run_vars", {})
         if isinstance(run_vars, Mapping) and key in run_vars:
             return str(run_vars[key])

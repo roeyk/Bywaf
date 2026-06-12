@@ -13,6 +13,7 @@ from bywaf.app import friendly_error, make_runner, render_prompt
 class TestAppHelpersTests(unittest.TestCase):
     """Groups regression coverage for framework HTTP app tests for test app helpers."""
     def test_render_prompt_replaces_time_placeholder(self):
+        """Protect render prompt replaces time placeholder behavior from regressions."""
         self.assertNotIn("%T", render_prompt("%T> "))
 
     def test_render_prompt_replaces_dollar_placeholders(self):

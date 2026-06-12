@@ -15,6 +15,7 @@ class ReportReviewTests(unittest.TestCase):
     """
 
     def test_report_confirm_marks_selected_finding_confirmed(self):
+        """Protect report confirm marks selected finding confirmed behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.publish(

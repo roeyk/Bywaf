@@ -33,6 +33,7 @@ def make_context(tmp: str, source: str, capabilities: tuple[str, ...]) -> tuple[
 class NmapWrapperErrorTests(unittest.TestCase):
     """Groups regression coverage for plugin-level diagnostics for nmap-backed wrappers."""
     def test_hostscanner_records_missing_backend_as_tool_error(self):
+        """Protect hostscanner records missing backend as tool error behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             context, db = make_context(
                 tmp,

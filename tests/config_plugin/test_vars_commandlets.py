@@ -8,6 +8,7 @@ from tests.config_plugin.support import *  # noqa: F403,F405
 class ConfigPluginVarsCommandletTests(unittest.TestCase):
     """Groups regression coverage for config/plugin tests split by responsibility."""
     def test_scoped_varstore_reads_only_its_namespace(self):
+        """Protect scoped varstore reads only its namespace behavior from regressions."""
         store = VarStore()
         store.set("one.secret", "a")
         store.set("two.secret", "b")

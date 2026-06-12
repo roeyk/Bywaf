@@ -21,6 +21,7 @@ from bywaf.plugins.analysis.finding.report import FindingReport, infer_export_fo
 
 
 def context_for(db: EventStore) -> CommandContext:
+    """Test helper for constructing a finding-report command context."""
     return CommandContext(
         db=db,
         source="finding_report",

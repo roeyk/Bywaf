@@ -8,6 +8,7 @@ from tests.config_plugin.support import *  # noqa: F403,F405
 class ConfigPluginSpecTests(unittest.TestCase):
     """Groups regression coverage for config/plugin tests split by responsibility."""
     def test_default_settings(self):
+        """Protect default settings behavior from regressions."""
         settings = default_settings()
         self.assertIsInstance(settings, Settings)
         self.assertEqual(settings.database.as_posix(), ".bywaf/bywaf.sqlite3")

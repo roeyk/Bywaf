@@ -15,6 +15,7 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
     """
 
     def test_dispatch_show_run_and_pipeline(self):
+        """Protect dispatch show run and pipeline behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             # Seed a run with captured variables so event display can show both

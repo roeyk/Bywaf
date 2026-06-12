@@ -64,6 +64,7 @@ def runtime_import_nodes(tree: ast.AST) -> Iterable[ast.Import | ast.ImportFrom]
     """
 
     class Visitor(ast.NodeVisitor):
+        """Collect related behavior for `Visitor`."""
         def __init__(self) -> None:
             self.imports: list[ast.Import | ast.ImportFrom] = []
 

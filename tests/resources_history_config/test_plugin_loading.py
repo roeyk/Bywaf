@@ -8,6 +8,7 @@ from tests.resources_history_config.support import *  # noqa: F403,F405
 class ResourcesHistoryPluginLoadingTests(unittest.TestCase):
     """Groups regression coverage for resources/history/config tests split by responsibility."""
     def test_load_script_records_auditable_serial(self):
+        """Protect load script records auditable serial behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             script = Path(tmp, "script.bywaf")

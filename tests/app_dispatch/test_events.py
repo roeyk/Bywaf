@@ -26,6 +26,7 @@ class AppDispatchTests(unittest.TestCase):
     """REPL-level tests for event, step, and shell-exec display behavior."""
 
     def test_events_defaults_to_tail_last_25(self):
+        """Protect events defaults to tail last 25 behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             for number in range(30):

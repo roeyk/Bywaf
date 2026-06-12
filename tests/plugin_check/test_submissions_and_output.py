@@ -17,6 +17,7 @@ from tests.plugin_check_fixtures import capture_stdout, write_manifest_signing_k
 
 
 def cryptography_available() -> bool:
+    """Return whether cryptography-backed signing checks can run."""
     return importlib.util.find_spec("cryptography") is not None
 
 

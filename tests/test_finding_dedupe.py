@@ -20,6 +20,7 @@ from bywaf.plugins.analysis.finding.dedupe import FindingDedupe, normalize_event
 
 
 def context_for(db: EventStore) -> CommandContext:
+    """Test helper for context for."""
     return CommandContext(
         db=db,
         source="finding_dedupe",

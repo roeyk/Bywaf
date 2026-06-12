@@ -30,6 +30,7 @@ class PluginPrivateSession(EventSchemaObject):
 class EventSchemaTests(unittest.TestCase):
     """Groups regression coverage for shared event payload schemas."""
     def test_shared_schemas_define_required_fields(self):
+        """Protect shared schemas define required fields behavior from regressions."""
         self.assertIn("host.found", EVENT_SCHEMAS)
         self.assertEqual(EVENT_SCHEMAS["host.found"].required_fields, ("host",))
         self.assertEqual(EVENT_SCHEMAS["port.open"].required_fields, ("host", "port", "protocol"))

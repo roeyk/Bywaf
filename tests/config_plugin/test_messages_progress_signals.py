@@ -8,6 +8,7 @@ from tests.config_plugin.support import *  # noqa: F403,F405
 class ConfigPluginMessagesProgressSignalTests(unittest.TestCase):
     """Groups regression coverage for config/plugin tests split by responsibility."""
     def test_host_message_json_round_trip(self):
+        """Protect host message json round trip behavior from regressions."""
         host = Host(run_id="1", host="127.0.0.1")
         self.assertEqual(Host.from_json(host.to_json()), host)
 

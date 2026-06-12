@@ -28,6 +28,7 @@ class TestHttpAuthTests(unittest.TestCase):
     """
 
     def test_http_auth_targets_from_arg(self):
+        """Protect http auth targets from arg behavior from regressions."""
         targets = HttpAuth().targets(["example.test:8080"], "auto", "/admin", [])
         self.assertEqual(targets, [("example.test", 8080, "http", "/admin")])
 

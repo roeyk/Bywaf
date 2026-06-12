@@ -136,6 +136,7 @@ def read_tk_askpass_secret(prompt: str) -> str:
     entry.grid(row=1, column=0, columnspan=2, sticky="ew")
 
     def sync_reveal() -> None:
+        """Implement sync reveal for this module."""
         entry.configure(show="" if reveal_var.get() else "*")
 
     ttk.Checkbutton(frame, text="Show input", variable=reveal_var, command=sync_reveal).grid(

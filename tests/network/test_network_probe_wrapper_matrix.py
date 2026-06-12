@@ -66,6 +66,7 @@ class SnmpGetWrapperMatrixTests(TestCase):
 
 
 def fake_snmp_hlapi(result):
+    """Test helper for fake snmp hlapi."""
     class Constructor:
         def __call__(self, *args, **kwargs):
             del kwargs

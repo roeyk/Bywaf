@@ -21,6 +21,7 @@ from bywaf.plugins.http.cors import (
 class TestHttpCorsTests(unittest.TestCase):
     """Groups regression coverage for framework HTTP app tests for HTTP CORS posture inspection."""
     def test_http_cors_targets_from_arg(self):
+        """Protect http cors targets from arg behavior from regressions."""
         targets = HttpCors().targets(["example.test:8080"], "auto", "/api", [])
         self.assertEqual(targets, [("example.test", 8080, "http", "/api")])
 

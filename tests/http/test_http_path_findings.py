@@ -15,6 +15,7 @@ from bywaf.plugins.http.paths.findings import finding_for_path, is_interesting_p
 class HttpPathFindingHelperTests(unittest.TestCase):
     """Groups regression coverage for direct tests for HTTP path finding classification helpers."""
     def test_is_interesting_path_rejects_error_statuses(self):
+        """Protect is interesting path rejects error statuses behavior from regressions."""
         self.assertFalse(
             is_interesting_path(
                 "/.git/config",

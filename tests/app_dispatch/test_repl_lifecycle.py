@@ -32,6 +32,7 @@ from bywaf.repl.shell import install_shell_suspend_handler, restore_shell_suspen
 class AppDispatchTests(unittest.TestCase):
     """Groups regression coverage for app repl lifecycle behavior."""
     def test_main_version_returns_success(self):
+        """Protect main version returns success behavior from regressions."""
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(main(["--version"]), 0)
 

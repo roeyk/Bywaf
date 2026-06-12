@@ -13,6 +13,7 @@ from tests.plugin_check_fixtures import capture_stdout
 class TestBundledReportsTests(unittest.TestCase):
     """Groups regression coverage for plugin checker tests for test bundled reports."""
     def test_check_all_bundled_plugins_json_output(self):
+        """Protect check all bundled plugins json output behavior from regressions."""
         output = capture_stdout(lambda: main(["--all", "--json"]))
 
         data = json.loads(output)

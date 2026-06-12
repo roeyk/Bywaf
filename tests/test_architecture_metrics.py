@@ -24,6 +24,7 @@ def write(path: Path, text: str) -> None:
 
 
 def test_architecture_metrics_counts_internal_imports_and_cycles(tmp_path: Path) -> None:
+    """Protect architecture metrics counts internal imports and cycles behavior from regressions."""
     root = tmp_path / "pkg"
     tests_root = tmp_path / "tests"
     # Build a tiny package with an import cycle, one branch, one external

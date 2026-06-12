@@ -83,6 +83,7 @@ def locate_plugin_dir(root: Path) -> Path:
 def copy_checkout(source: Path, destination: Path) -> None:
     """Copy the Bywaf source tree into a temp checkout for reproducible checks."""
     def ignore(dir_path: str, names: list[str]) -> set[str]:
+        """Return whether a path should be ignored in plugin submissions."""
         del dir_path
         ignored = {name for name in names if name in CHECKOUT_IGNORE}
         ignored.update(name for name in names if name.endswith((".pyc", ".pyo", ".sqlite3", ".sqlite3-shm", ".sqlite3-wal")))

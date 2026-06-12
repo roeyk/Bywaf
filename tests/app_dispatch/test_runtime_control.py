@@ -27,6 +27,7 @@ from bywaf.app import (
 class AppDispatchTests(unittest.TestCase):
     """Groups regression coverage for app runtime control behavior."""
     def test_job_cancel_records_soft_cancellation(self):
+        """Protect job cancel records soft cancellation behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("portscanner --listen", 123, "running")

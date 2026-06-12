@@ -16,6 +16,7 @@ class RegistryFilesystemPluginTests(unittest.TestCase):
     """
 
     def test_load_plugin_requires_factory(self):
+        """Protect load plugin requires factory behavior from regressions."""
         module = ModuleType("empty")
         with self.assertRaisesRegex(AttributeError, "does not define plugin"):
             load_plugin(module)

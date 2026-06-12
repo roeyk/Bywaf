@@ -23,6 +23,7 @@ from bywaf.secret.input import PromptSecretInputState
 class CompletionRegressionTests(unittest.TestCase):
     """Groups regression coverage for completion regression behavior."""
     def setUp(self):
+        """Prepare shared fixtures for this test case."""
         self.registry = PluginRegistry.discover()
         self.completer = Completer(self.registry)
 

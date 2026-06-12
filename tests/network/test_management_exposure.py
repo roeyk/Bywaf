@@ -19,6 +19,7 @@ from bywaf.plugins.network.management_exposure import findings_from_event, manag
 class ManagementExposureTests(unittest.TestCase):
     """Groups regression coverage for passive management exposure classification."""
     def test_redis_open_port_becomes_service_finding(self):
+        """Protect redis open port becomes service finding behavior from regressions."""
         event = Event.new("port.open", {"host": "192.0.2.10", "port": 6379, "protocol": "tcp"}, "test")
 
         findings = findings_from_event(event)

@@ -98,6 +98,7 @@ def build_input_reader(completer: Completer, state: ShellState | None = None) ->
             secret_state = getattr(session, "secret_state", None)
 
             def prompt_with_secret_capture(prompt: str) -> str:
+                """Read one prompt entry while secret-capture mode may intercept text."""
                 text = session.prompt(prompt)
                 if state is not None and secret_state is not None:
                     # Prompt-toolkit can collect masked secret values while

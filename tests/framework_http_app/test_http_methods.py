@@ -30,6 +30,7 @@ class TestHttpMethodsTests(unittest.TestCase):
     """
 
     def test_http_methods_targets_from_arg(self):
+        """Protect http methods targets from arg behavior from regressions."""
         targets = HttpMethods().targets(["example.test:8080"], "auto", "/admin", [])
         self.assertEqual(targets, [("example.test", 8080, "http", "/admin")])
 

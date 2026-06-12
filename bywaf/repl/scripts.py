@@ -40,6 +40,7 @@ def default_script_dispatcher() -> ScriptDispatcher:
     dispatch = importlib.import_module(".dispatch", __package__)
 
     def call_dispatch(runner: Runner, command: str, state: ResourceState) -> str | None:
+        """Call the REPL dispatcher for one script command."""
         return dispatch.dispatch_repl_line(runner, command, cast(Any, state))
 
     return call_dispatch

@@ -12,6 +12,7 @@ from bywaf.event import Event
 class EventFormattingTests(unittest.TestCase):
     """Groups regression coverage for compact REPL event formatting."""
     def test_format_event_falls_back_to_topic_and_payload(self):
+        """Protect format event falls back to topic and payload behavior from regressions."""
         event = Event.new("topic", {"x": 1}, "test")
         self.assertIn("topic", format_event(event))
 

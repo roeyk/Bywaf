@@ -19,6 +19,7 @@ class RegistryCompletionOptionTests(unittest.TestCase):
         self.registry = PluginRegistry.discover()
 
     def test_completes_plugin_options(self):
+        """Protect completes plugin options behavior from regressions."""
         completer = Completer(self.registry)
         self.assertEqual(completer.candidates("hostscanner h"), ["host="])
         self.assertIn("port=", completer.candidates("portscanner por"))

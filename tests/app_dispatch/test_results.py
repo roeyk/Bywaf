@@ -24,6 +24,7 @@ from bywaf.app import (
 class AppDispatchTests(unittest.TestCase):
     """Groups regression coverage for app results behavior."""
     def test_results_defaults_to_latest_operator_job(self):
+        """Protect results defaults to latest operator job behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             old_job = runner.db.record_job("network/portscanner host=192.0.2.10 port=80", 123, "finished")

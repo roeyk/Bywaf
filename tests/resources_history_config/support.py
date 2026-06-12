@@ -36,6 +36,7 @@ from bywaf.style import subject_style
 
 
 def write_simple_external_plugin(root: Path, name: str) -> Path:
+    """Test helper for write simple external plugin."""
     plugin_dir = root / name
     plugin_dir.mkdir()
     (plugin_dir / "plugin.py").write_text(

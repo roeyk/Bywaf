@@ -28,6 +28,7 @@ from bywaf.app import (
 class AppDispatchTests(unittest.TestCase):
     """Groups regression coverage for app os and help behavior."""
     def test_dispatch_ls_lists_local_files(self):
+        """Protect dispatch ls lists local files behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             Path(tmp, "file.txt").write_text("x")
             runner = make_runner(Path(tmp, "db.sqlite3"))

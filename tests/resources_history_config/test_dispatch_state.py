@@ -8,6 +8,7 @@ from tests.resources_history_config.support import *  # noqa: F403,F405
 class ResourcesHistoryDispatchStateTests(unittest.TestCase):
     """Groups regression coverage for resources/history/config tests split by responsibility."""
     def test_dispatch_plugin_help_does_not_exit_repl(self):
+        """Protect dispatch plugin help does not exit repl behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()

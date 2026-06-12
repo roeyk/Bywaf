@@ -42,6 +42,7 @@ class StorageRunnerArtifactTests(unittest.TestCase):
             self.assertEqual(runner.db.events_for_topic("artifact.exported")[0].payload["file"], str(output_path))
 
     def test_artifact_show_renders_detail_and_next_commands(self):
+        """Protect artifact show renders detail and next commands behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db_path = Path(tmp, "db.sqlite3")
             runner = make_runner(db_path)

@@ -90,6 +90,7 @@ class FakePromptApp:
 
 
 def write_trigger_plugin(plugin_dir: Path) -> None:
+    """Test helper for write trigger plugin."""
     (plugin_dir / "plugin.py").write_text(
         "from bywaf.plugin import CommandSpec, TriggerSpec\n"
         "class Example:\n"

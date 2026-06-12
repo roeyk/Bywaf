@@ -25,6 +25,7 @@ from bywaf.plugins.wireless.wifi_scan import WifiScan, extract_networks, kismet_
 class EyeWitnessTests(unittest.TestCase):
     """Groups regression coverage for external wrappers behavior."""
     def test_eyewitness_argv_uses_single_or_target_file(self):
+        """Protect eyewitness argv uses single or target file behavior from regressions."""
         one, target_file = eyewitness_argv(
             "eyewitness",
             [{"url": "https://example.test/"}],

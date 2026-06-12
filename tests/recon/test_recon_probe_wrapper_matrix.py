@@ -22,6 +22,7 @@ from bywaf.plugins.recon.shodan_lookup import ShodanLookup
 class DnsWrapperMatrixTests(TestCase):
     """Groups regression coverage for fixture-backed recon probe wrapper coverage."""
     def test_dns_lookup_preserves_resolver_failure_as_dns_error(self):
+        """Protect dns lookup preserves resolver failure as dns error behavior from regressions."""
         class FakeResolver:
             lifetime = 0
             timeout = 0

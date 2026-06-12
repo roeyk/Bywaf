@@ -16,6 +16,7 @@ from bywaf.registry import (
 
 
 def test_bundled_manifest_graph_indexes_schema_providers_without_importing_plugins():
+    """Protect bundled manifest graph indexes schema providers without importing plugins behavior from regressions."""
     graph = build_package_manifest_graph("bywaf.plugins", "plugins.toml")
 
     self_provider = graph.providers_for_schema("http.auth")

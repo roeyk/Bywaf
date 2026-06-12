@@ -104,6 +104,7 @@ class SecretCursorOutput:
         self.state = state
 
     def show_cursor(self) -> None:
+        """Show cursor during terminal secret input."""
         if not self.state.focused():
             self.wrapped.show_cursor()
 

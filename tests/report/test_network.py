@@ -8,6 +8,7 @@ from tests.report.support import *  # noqa: F403,F405
 class ReportNetworkTests(unittest.TestCase):
     """Groups regression coverage for report command tests split by responsibility."""
     def test_report_shows_network_overview_for_selected_scope(self):
+        """Protect report shows network overview for selected scope behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.publish(

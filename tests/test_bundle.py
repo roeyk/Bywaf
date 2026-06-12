@@ -24,6 +24,7 @@ from bywaf.command.parser import parse_invocation
 
 
 def cryptography_available() -> bool:
+    """Return whether cryptography-backed signing checks can run."""
     return importlib.util.find_spec("cryptography") is not None
 
 
