@@ -22,7 +22,11 @@ SEMVERISH_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
 
 
 def require_known_keys(data: dict[str, Any], allowed: set[str], source: str, context: str) -> None:
-    """Reject unsupported manifest keys in one parsed TOML table."""
+    """Reject unsupported manifest keys in one parsed TOML table.
+
+    Called by: commandlet, option, argument, trigger, and schema parsers before
+    converting TOML rows into framework metadata.
+    """
     # Fail closed on typos. A misspelled manifest key is usually a security or
     # capability declaration bug, not harmless extra metadata.
     unknown = sorted(str(key) for key in data.keys() if key not in allowed)
@@ -33,17 +37,26 @@ def require_known_keys(data: dict[str, Any], allowed: set[str], source: str, con
 
 
 def validate_version_string(value: str, source: str, context: str) -> None:
-    """Validate a SemVer-like plugin version string."""
+    """Validate a SemVer-like plugin version string.
+
+    Called by: plugin-level manifest parsing for `[plugin].version`.
+    """
     if not SEMVERISH_RE.match(value):
         raise ValueError(f"{source} {context} must be SemVer-like, for example 0.1.0")
 
 def validate_requires_bywaf(value: str, source: str, context: str) -> None:
-    """Validate a simple one-clause framework version requirement."""
+    """Validate a simple one-clause framework version requirement.
+
+    Called by: plugin-level manifest parsing for `[plugin].requires_bywaf`.
+    """
     if not REQUIREMENT_RE.match(value.strip()):
         raise ValueError(f"{source} {context} must look like >=0.13.0")
 
 def option_rows_field(data: dict[str, Any], source: str, context: str) -> tuple[OptionSpec, ...]:
-    """Parse optional commandlet option metadata rows."""
+    """Parse optional commandlet option metadata rows.
+
+    Called by: commandlet row parsing while hydrating `CommandSpec.options`.
+    """
     value = data.get("options", ())
     if value in (None, ()):
         return ()
@@ -54,7 +67,10 @@ def option_rows_field(data: dict[str, Any], source: str, context: str) -> tuple[
     return tuple(option_row_field(row, source, f"{context}.options entry {index}") for index, row in enumerate(value, start=1))
 
 def option_row_field(row: Any, source: str, context: str) -> OptionSpec:
-    """Parse one manifest commandlet option row."""
+    """Parse one manifest commandlet option row.
+
+    Called by: `option_rows_field()` for each `[[commandlets.options]]` row.
+    """
     if not isinstance(row, dict):
         raise ValueError(f"{source} {context} must be a table")
     require_known_keys(row, {"name", "description", "default", "choices", "completion", "secret", "type"}, source, context)
@@ -75,7 +91,10 @@ def option_row_field(row: Any, source: str, context: str) -> OptionSpec:
     )
 
 def argument_rows_field(data: dict[str, Any], source: str, context: str) -> tuple[ArgumentSpec, ...]:
-    """Parse optional commandlet argument metadata rows."""
+    """Parse optional commandlet argument metadata rows.
+
+    Called by: commandlet row parsing while hydrating `CommandSpec.arguments`.
+    """
     value = data.get("arguments", ())
     if value in (None, ()):
         return ()
@@ -86,7 +105,11 @@ def argument_rows_field(data: dict[str, Any], source: str, context: str) -> tupl
     return tuple(argument_row_field(row, source, f"{context}.arguments entry {index}") for index, row in enumerate(value, start=1))
 
 def argument_row_field(row: Any, source: str, context: str) -> ArgumentSpec:
-    """Parse one manifest commandlet argument row."""
+    """Parse one manifest commandlet argument row.
+
+    Called by: `argument_rows_field()` for each `[[commandlets.arguments]]`
+    row.
+    """
     if not isinstance(row, dict):
         raise ValueError(f"{source} {context} must be a table")
     require_known_keys(row, {"name", "description", "nargs", "completion"}, source, context)
@@ -102,7 +125,11 @@ def argument_row_field(row: Any, source: str, context: str) -> ArgumentSpec:
     )
 
 def string_field(data: dict[str, Any], key: str, source: str, context: str) -> str:
-    """Return a required string field."""
+    """Return a required string field.
+
+    Called by: manifest parsers for required names, descriptions, topics, and
+    other scalar TOML fields.
+    """
     value = data.get(key)
     if not isinstance(value, str) or not value:
         raise ValueError(f"{source} {context} requires {key}")
@@ -116,7 +143,11 @@ def optional_string_field(
     *,
     default: str | None = None,
 ) -> str | None:
-    """Return an optional string manifest field."""
+    """Return an optional string manifest field.
+
+    Called by: manifest parsers for optional descriptions, completions, module
+    names, version requirements, and similar scalar metadata.
+    """
     value = data.get(key, default)
     if value is None:
         return None
@@ -125,7 +156,11 @@ def optional_string_field(
     return value
 
 def manifest_default_to_string(value: Any) -> str | None:
-    """Normalize manifest defaults into CommandSpec string metadata."""
+    """Normalize manifest defaults into CommandSpec string metadata.
+
+    Called by: `option_row_field()` when TOML option defaults are copied into
+    commandlet metadata for help/completion display.
+    """
     if value is None:
         return None
     if isinstance(value, bool):
@@ -135,28 +170,42 @@ def manifest_default_to_string(value: Any) -> str | None:
     return str(value)
 
 def table_value(data: dict[str, Any], key: str, source: str) -> dict[str, Any]:
-    """Return one TOML table from a manifest."""
+    """Return one TOML table from a manifest.
+
+    Called by: top-level manifest parsing for sections such as `[plugin]`.
+    """
     value = data.get(key, {})
     if not isinstance(value, dict):
         raise ValueError(f"{source} [{key}] must be a table")
     return value
 
 def bool_field(data: dict[str, Any], key: str, source: str, context: str = "plugin") -> bool:
-    """Return a boolean manifest field."""
+    """Return a boolean manifest field.
+
+    Called by: manifest parsers for plugin traits and commandlet flags.
+    """
     value = data.get(key, False)
     if not isinstance(value, bool):
         raise ValueError(f"{source} {context}.{key} must be true or false")
     return value
 
 def list_field(data: dict[str, Any], key: str, source: str) -> list[Any]:
-    """Return a list manifest field."""
+    """Return a list manifest field.
+
+    Called by: plugin-level manifest parsing for list-valued fields whose
+    element types are validated by higher-level parsers.
+    """
     value = data.get(key, [])
     if not isinstance(value, list):
         raise ValueError(f"{source} plugin.{key} must be a list")
     return value
 
 def string_list_field(data: dict[str, Any], key: str, source: str, context: str) -> tuple[str, ...]:
-    """Return an optional list field that must contain only non-empty strings."""
+    """Return an optional list field that must contain only non-empty strings.
+
+    Called by: manifest parsers for capabilities, topics, roles, choices, and
+    dependency lists.
+    """
     value = data.get(key, [])
     if not isinstance(value, list):
         raise ValueError(f"{source} {context}.{key} must be a list")
@@ -166,7 +215,11 @@ def string_list_field(data: dict[str, Any], key: str, source: str, context: str)
     return tuple(value)
 
 def database_actions_field(data: dict[str, Any], source: str, context: str) -> tuple[str, ...]:
-    """Return commandlet database action metadata from list/string/booleans."""
+    """Return commandlet database action metadata from list/string/booleans.
+
+    Called by: commandlet row parsing while hydrating
+    `CommandSpec.database_actions`.
+    """
     direct = data.get("database_actions")
     if direct is not None:
         # Newer manifests may declare database_actions directly as a list or
@@ -183,6 +236,8 @@ def database_actions_field(data: dict[str, Any], source: str, context: str) -> t
         return ()
     if not isinstance(database, dict):
         raise ValueError(f"{source} {context}.database must be a table")
+    # Nested boolean syntax is the current TOML-facing form:
+    # database.actions.view/write/manage = true|false.
     actions = database.get("actions", {})
     if not isinstance(actions, dict):
         raise ValueError(f"{source} {context}.database.actions must be a table")
@@ -199,7 +254,10 @@ def database_actions_field(data: dict[str, Any], source: str, context: str) -> t
     return tuple(selected)
 
 def normalize_database_actions(items: list[Any], source: str, context: str) -> tuple[str, ...]:
-    """Validate and order database action names."""
+    """Validate and order database action names.
+
+    Called by: `database_actions_field()` for direct list/string declarations.
+    """
     allowed = ("view", "write", "manage")
     selected: set[str] = set()
     for index, item in enumerate(items, start=1):
