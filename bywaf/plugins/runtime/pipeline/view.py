@@ -35,6 +35,11 @@ from bywaf.runtime_display import (
     terminal_table_width,
 )
 
+# PIPELINE_SORT_KEYS is consumed by the `pipeline` commandlet parser and
+# completion layer to validate and suggest `pipeline sort=...` values. It is
+# also the public contract that sort_pipeline_rows() implements when it maps
+# operator-facing names such as `events` and `started` to concrete runtime row
+# fields.
 PIPELINE_SORT_KEYS = ("id", "serial", "state", "job", "status", "steps", "events", "started")
 
 __all__ = [

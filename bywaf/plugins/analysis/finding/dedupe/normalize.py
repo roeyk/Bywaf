@@ -27,6 +27,9 @@ STATUS_RANKS = {
     "confirmed": 3,
 }
 
+# CLASS_INFERENCE_RULES is consumed by infer_finding_class() as an ordered
+# dispatch table. The first rule whose required words all appear in the
+# normalized title/payload text becomes the fallback finding class.
 CLASS_INFERENCE_RULES = (
     ("missing_security_header", ("missing", "header")),
     ("directory_listing", ("directory listing",)),
@@ -40,14 +43,23 @@ CLASS_INFERENCE_RULES = (
 
 
 def normalize_event(event: Event) -> NormalizedFinding:
-    """Convert one source event into a tool-neutral finding candidate."""
+    """Convert one source event into a tool-neutral finding candidate.
+
+    Called by: explicit `finding_dedupe`, `technology_indicators`, and report
+    synthesis when raw finding/advisory events need the same dedupe shape.
+    """
     payload = dict(event.payload)
+    # Phase 1: extract stable identity dimensions from tool-specific payloads.
+    # These fields drive dedupe grouping and should not depend on display text.
     title = finding_title(event, payload)
     target = normalize_target(payload)
     identifiers = normalize_identifiers(payload)
     finding_class = finding_class_from_payload(title, payload)
     target_scope = normalize_target_scope(payload)
     source = source_payload(event, payload)
+    # Phase 2: build the normalized record. Keep the original payload in `raw`
+    # so report/detail views can still surface tool-specific evidence that was
+    # not promoted into Bywaf's common finding fields.
     return NormalizedFinding(
         source_event_id=event.id,
         source_topic=event.topic,
@@ -126,7 +138,11 @@ def group_key_from_payload(
 
 
 def normalize_affected(payload: dict[str, Any]) -> list[Any]:
-    """Return normalized affected entries from finding payloads."""
+    """Return normalized affected entries from finding payloads.
+
+    Called by: `normalize_event()` so dedupe/report can preserve each concrete
+    affected URL, port, or resource inside one grouped finding.
+    """
     affected = payload.get("affected")
     if isinstance(affected, list):
         return [item for item in affected if item not in ("", None, {}, [])]
@@ -134,7 +150,11 @@ def normalize_affected(payload: dict[str, Any]) -> list[Any]:
 
 
 def normalize_sources(payload: dict[str, Any], fallback: dict[str, Any]) -> list[dict[str, Any]]:
-    """Return source entries from payload plus event provenance fallback."""
+    """Return source entries from payload plus event provenance fallback.
+
+    Called by: `normalize_event()` to combine plugin-provided source metadata
+    with framework event provenance.
+    """
     values: list[dict[str, Any]] = []
     raw_sources = payload.get("sources")
     if isinstance(raw_sources, list):
@@ -144,7 +164,11 @@ def normalize_sources(payload: dict[str, Any], fallback: dict[str, Any]) -> list
 
 
 def source_payload(event: Event, payload: dict[str, Any]) -> dict[str, Any]:
-    """Return compact source metadata for one normalized event."""
+    """Return compact source metadata for one normalized event.
+
+    Called by: `normalize_event()` as the guaranteed fallback source entry when
+    a plugin did not provide a richer `sources` list.
+    """
     return compact_source(
         {
             "tool": payload.get("tool") or payload.get("scanner") or event.source,
@@ -156,11 +180,17 @@ def source_payload(event: Event, payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def unique_sources(values: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Return source dictionaries without duplicates."""
+    """Return source dictionaries without duplicates.
+
+    Called by: `normalize_sources()` after payload and event-provenance sources
+    have been merged.
+    """
     unique: list[dict[str, Any]] = []
     seen: set[str] = set()
     for value in values:
         source = compact_source(value)
+        # Serialize the compacted source as a stable key so dictionaries with
+        # the same data but different insertion order collapse to one entry.
         key = json.dumps(source, sort_keys=True, default=str, separators=(",", ":"))
         if source and key not in seen:
             seen.add(key)
@@ -169,12 +199,20 @@ def unique_sources(values: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def compact_source(value: dict[str, Any]) -> dict[str, Any]:
-    """Drop empty source metadata fields."""
+    """Drop empty source metadata fields.
+
+    Called by: `source_payload()` and `unique_sources()` before source entries
+    are embedded into normalized finding payloads.
+    """
     return {str(key): item for key, item in value.items() if item not in ("", None, {}, [])}
 
 
 def infer_finding_class(title: str, payload: dict[str, Any]) -> str:
-    """Infer a stable finding class from common vulnerability wording."""
+    """Infer a stable finding class from common vulnerability wording.
+
+    Called by: `finding_class_from_payload()` when a plugin did not provide an
+    explicit `class` or `kind`.
+    """
     text = normalize_text(" ".join([title, json.dumps(payload, default=str)]))
     # This is a compact dispatch table of class-inference rules. It keeps the
     # ordered policy visible while avoiding an if/elif ladder in
@@ -186,12 +224,19 @@ def infer_finding_class(title: str, payload: dict[str, Any]) -> str:
 
 
 def stable_finding_id(key: str) -> str:
-    """Return a stable normalized finding id."""
+    """Return a stable normalized finding id.
+
+    Called by: dedupe publication so equivalent finding groups keep stable
+    `finding-...` identifiers across runs.
+    """
     return f"finding-{hashlib.sha256(key.encode('utf-8')).hexdigest()[:16]}"
 
 
 def matched_on(finding: NormalizedFinding) -> list[str]:
-    """Describe the match evidence for duplicate decisions."""
+    """Describe the match evidence for duplicate decisions.
+
+    Called by: the dedupe engine when it publishes duplicate/update decisions.
+    """
     fields = ["target"]
     fields.append("identifier" if best_identifier(finding.identifiers) else "fingerprint")
     if finding.finding_class:
@@ -200,14 +245,22 @@ def matched_on(finding: NormalizedFinding) -> list[str]:
 
 
 def count_decisions(decisions: list[dict[str, Any]]) -> dict[str, int]:
-    """Count decisions by type."""
+    """Count decisions by type.
+
+    Called by: dedupe summary rendering and artifact export.
+    """
     counts = {key: 0 for key in ("new", "duplicate", "updated", "merge_candidate")}
     for decision in decisions:
         counts[str(decision["decision"])] += 1
     return counts
 
+
 def first_text(payload: dict[str, Any], *keys: str) -> str:
-    """Return the first non-empty string-like payload value."""
+    """Return the first non-empty string-like payload value.
+
+    Called by: `finding_title()` and `normalize_event()` to prefer explicit
+    payload fields while tolerating different scanner vocabularies.
+    """
     for key in keys:
         value = payload.get(key)
         if value:
@@ -216,7 +269,11 @@ def first_text(payload: dict[str, Any], *keys: str) -> str:
 
 
 def status_from_topic(topic: str) -> str:
-    """Infer verification status from the source topic."""
+    """Infer verification status from the source topic.
+
+    Called by: `status_from_payload()` when no explicit status-like payload
+    field is present.
+    """
     if topic.endswith(".confirmed") or topic == "vulnerability.found":
         return "confirmed"
     if topic.endswith(".false_positive"):
@@ -227,12 +284,20 @@ def status_from_topic(topic: str) -> str:
 
 
 def normalize_status(value: str) -> str:
-    """Normalize status words to Bywaf finding lifecycle values."""
+    """Normalize status words to Bywaf finding lifecycle values.
+
+    Called by: `status_from_payload()` and `status_rank()` before status
+    comparison or publication.
+    """
     cleaned = value.strip().lower().replace("-", "_")
     aliases = {"found": "confirmed", "possible": "potential", "unverified": "potential"}
     return aliases.get(cleaned, cleaned if cleaned in STATUS_RANKS else "potential")
 
 
 def status_rank(status: str) -> int:
-    """Return comparable status strength."""
+    """Return comparable status strength.
+
+    Called by: dedupe merge logic to decide when a later event upgrades a
+    finding from potential/speculative to confirmed.
+    """
     return STATUS_RANKS.get(normalize_status(status), STATUS_RANKS["potential"])
