@@ -56,7 +56,11 @@ def policy_candidates(context: object, prefix: str) -> list[str]:
 
 
 def policy_selector_values(db: object, key: str) -> list[str]:
-    """Return value candidates for one policy report selector."""
+    """Return value candidates for one policy report selector.
+
+    Called by: `policy_candidates()` after it has parsed `key=<prefix>` from
+    the partially typed command line.
+    """
     # Each branch maps a selector key to the cheapest available source of
     # observed values: constants, policy events, runtime aliases, or job rows.
     if key == "decision":
@@ -77,7 +81,11 @@ def policy_selector_values(db: object, key: str) -> list[str]:
 
 
 def policy_decision_values(db: object) -> list[str]:
-    """Return observed policy decision labels."""
+    """Return observed policy decision labels.
+
+    Used by: selector completion so custom or future policy decisions observed
+    in the DB appear alongside the built-in decision constants.
+    """
     return sorted(
         {
             str(event.payload.get("decision"))
@@ -88,7 +96,10 @@ def policy_decision_values(db: object) -> list[str]:
 
 
 def policy_plugin_values(db: object) -> list[str]:
-    """Return observed commandlet names from policy decisions."""
+    """Return observed commandlet names from policy decisions.
+
+    Used by: selector completion for `plugin=...`.
+    """
     return sorted(
         {
             policy_commandlet(event)
@@ -99,7 +110,10 @@ def policy_plugin_values(db: object) -> list[str]:
 
 
 def policy_target_completion_values(db: object) -> list[str]:
-    """Return observed before/after targets from policy decisions."""
+    """Return observed before/after targets from policy decisions.
+
+    Used by: selector completion for `target=...`.
+    """
     return sorted(
         {
             target
@@ -110,7 +124,11 @@ def policy_target_completion_values(db: object) -> list[str]:
 
 
 def policy_event_matches(event: Event, selectors: dict[str, str]) -> bool:
-    """Return whether a policy event matches operator report selectors."""
+    """Return whether a policy event matches operator report selectors.
+
+    Called by: `policy_decision_rows()` after broad event selection has already
+    narrowed by job, pipeline, serial, time, or step.
+    """
     # Policy payload matching is intentionally substring-based for targets so
     # operators can search partially normalized URLs/hosts from policy repairs.
     if (decision := selectors.get("decision")) and str(event.payload.get("decision", "")) != decision:
@@ -125,7 +143,11 @@ def policy_event_matches(event: Event, selectors: dict[str, str]) -> bool:
 
 
 def policy_decision_row(event: Event) -> dict[str, str]:
-    """Build one printable policy decision report row."""
+    """Build one printable policy decision report row.
+
+    Called by: `policy_decision_rows()` for every matching `policy.evaluated`
+    event before the table renderer receives fixed string columns.
+    """
     payload = event.payload
     # The policy event stores before/after target sets as nested payloads. The
     # row flattens them for a fixed-width table while preserving notes about
@@ -147,17 +169,29 @@ def policy_decision_row(event: Event) -> dict[str, str]:
 
 
 def policy_commandlet(event: Event) -> str:
-    """Return the commandlet associated with a policy decision."""
+    """Return the commandlet associated with a policy decision.
+
+    Used by: row rendering, selector matching, and selector completion.
+    """
     return str(event.payload.get("commandlet") or event.source or "-")
 
 
 def policy_target_values(event: Event) -> list[str]:
-    """Return target strings from policy before/after payloads."""
+    """Return target strings from policy before/after payloads.
+
+    Used by: target selector matching and completion. Both pre-policy and
+    post-repair targets are searchable because either may be what the operator
+    remembers from the attempted command.
+    """
     return [*target_values(event.payload.get("before")), *target_values(event.payload.get("after"))]
 
 
 def target_values(value: object) -> list[str]:
-    """Extract target values from a policy payload section."""
+    """Extract target values from a policy payload section.
+
+    Called by: `policy_target_values()` and `format_targets()` for the nested
+    `before` and `after` policy payload sections.
+    """
     if not isinstance(value, dict):
         return []
     targets = value.get("targets")
@@ -167,28 +201,48 @@ def target_values(value: object) -> list[str]:
 
 
 def format_targets(value: object) -> str:
-    """Return a compact target list for table display."""
+    """Return a compact target list for table display.
+
+    Used by: `policy_decision_row()` to flatten nested target lists into one
+    fixed-width table cell.
+    """
     targets = target_values(value)
     return ", ".join(targets) if targets else "-"
 
 
 def format_notes(warnings: object, repairs: object) -> str:
-    """Return warnings and repairs in one operator-facing table cell."""
+    """Return warnings and repairs in one operator-facing table cell.
+
+    Used by: `policy_decision_row()` so warning text and automatic repair notes
+    stay attached to the same policy decision row.
+    """
+    # Repairs are prefixed to distinguish policy rewrites from warning text
+    # while preserving the compact one-cell table shape.
     parts = [*string_values(warnings), *(f"repair:{repair}" for repair in string_values(repairs))]
     return "; ".join(parts) if parts else "-"
 
 
 def string_values(value: object) -> Iterable[str]:
-    """Yield string values from a list-like audit payload value."""
+    """Yield string values from a list-like audit payload value.
+
+    Used by: `format_notes()` for warning and repair arrays that may be absent
+    or malformed in older events.
+    """
     if not isinstance(value, list):
         return ()
     return (str(item) for item in value)
 
 
 def format_policy_decisions(rows: list[dict[str, str]]) -> str:
-    """Return a fixed-width policy decision report table."""
+    """Return a fixed-width policy decision report table.
+
+    Called by: the runtime audit commandlet after row selection. This is the
+    final operator-facing rendering step for `audit list policy`.
+    """
     if not rows:
         return "No policy decisions matched."
     columns = ["Time", "Decision", "Commandlet", "Before", "After", "Notes", "Step", "Job"]
+    # Render rows in column order explicitly so callers can build dictionaries
+    # without depending on insertion order or table-renderer internals.
     table_rows = [tuple(row[column] for column in columns) for row in rows]
     return render_table(tuple(columns), table_rows, max_width=max(terminal_table_width(), 160))
