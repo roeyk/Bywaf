@@ -192,7 +192,7 @@ treat them as passed.
 
 - Narrow Python behavior: `PYTHONPATH=. pytest -q <focused tests>`
 - Plugin checker, manifests, capabilities, skeletons:
-  `PYTHONPATH=. pytest -q tests/plugin_check` and relevant
+  `PYTHONPATH=. pytest -q tests/plugin_check tests/plugin` and relevant
   `python3 scripts/plugin_check.py <plugin-dir-or-zip> --strict-inference`
 - Parser, completion, REPL, app dispatch:
   `PYTHONPATH=. pytest -q tests/app_dispatch tests/registry_completion tests/test_completion_regression.py`

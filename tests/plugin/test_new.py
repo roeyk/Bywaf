@@ -18,7 +18,7 @@ from pathlib import Path
 from bywaf.registry import PluginRegistry
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 
 
 class PluginNewTests(unittest.TestCase):

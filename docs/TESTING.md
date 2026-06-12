@@ -28,7 +28,7 @@ PYTHONPATH=. pytest -q
 Use focused checks while editing a specific area:
 
 ```bash
-PYTHONPATH=. pytest -q tests/plugin_check
+PYTHONPATH=. pytest -q tests/plugin_check tests/plugin
 PYTHONPATH=. pytest -q tests/registry_completion tests/test_completion_regression.py
 PYTHONPATH=. pytest -q tests/test_events_db.py tests/storage_runner
 PYTHONPATH=. pytest -q tests/test_report.py tests/finding
@@ -99,6 +99,7 @@ Useful plugin-focused commands:
 
 ```bash
 PYTHONPATH=. pytest -q tests/plugin_check
+PYTHONPATH=. pytest -q tests/plugin
 PYTHONPATH=. pytest -q tests/test_repo_exposure.py
 python scripts/plugin_check.py docs/plugin_skeletons/native_vulnerability
 ```
@@ -123,6 +124,8 @@ Use these suites as starting points for common framework changes:
 - Built-in plugins:
   `tests/test_nmap_backend.py`, `tests/test_repo_exposure.py`,
   `tests/framework_http_app/`.
+- Plugin tooling, catalog, and scaffold generation:
+  `tests/plugin_check/`, `tests/plugin/`.
 - Architecture metrics:
   `tests/test_architecture_metrics.py`.
 
