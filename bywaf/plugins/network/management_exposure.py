@@ -18,11 +18,17 @@ from bywaf.plugins.network.management_rules import ExposureRule, matching_rules
 
 @commandlet
 def management_exposure(context: CommandContext, cfg: RunConfig, input_events: Iterable[Event]):
-    """Emit candidate findings for exposed management services."""
+    """Emit candidate findings for exposed management services.
+
+    Called by: the runner/REPL when a pipeline feeds passive network or web
+    facts into `management_exposure`.
+    """
     cfg = cast(ManagementExposureConfig, cfg)
     seen: set[tuple[str, str, str]] = set()
     for event in input_events:
         for finding in findings_from_event(event):
+            # Suppress duplicates inside one command run before publishing.
+            # Cross-run and fuzzy duplicates are still handled by report/dedupe.
             marker = (str(finding["class"]), str(finding["finding_scope"]), str(finding["target"]))
             if marker in seen:
                 continue
@@ -39,7 +45,13 @@ class ManagementExposureConfig(RunConfig):
 
 
 def findings_from_event(event: Event) -> list[dict[str, object]]:
-    """Return candidate findings derived from one upstream fact event."""
+    """Return candidate findings derived from one upstream fact event.
+
+    Called by: `management_exposure()` and focused plugin tests.
+    """
+    # Dispatch by topic family instead of making every extractor tolerate every
+    # payload shape. Service-like facts carry host/port/banner fields; web-like
+    # facts carry URL, title, server, and technology observations.
     if event.topic in {"port.open", "service.detected", "tcp.banner"}:
         return service_findings(event)
     if event.topic in {"http.endpoint", "web.fingerprint"}:
@@ -48,7 +60,10 @@ def findings_from_event(event: Event) -> list[dict[str, object]]:
 
 
 def service_findings(event: Event) -> list[dict[str, object]]:
-    """Return findings from service, port, or banner facts."""
+    """Return findings from service, port, or banner facts.
+
+    Called by: `findings_from_event()` for service-like topics.
+    """
     payload = dict(event.payload)
     host = str(payload.get("host") or "")
     port = int_value(payload.get("port"))
@@ -57,6 +72,9 @@ def service_findings(event: Event) -> list[dict[str, object]]:
     if not host or port is None:
         return []
     matches = matching_rules(port, evidence)
+    # The management rules decide whether this port/evidence combination is
+    # suspicious; this function only translates matching rules into finding
+    # candidate payloads.
     return [
         exposure_candidate(rule, host=host, port=port, protocol=protocol, evidence=evidence, source_topic=event.topic)
         for rule in matches
@@ -64,7 +82,10 @@ def service_findings(event: Event) -> list[dict[str, object]]:
 
 
 def web_findings(event: Event) -> list[dict[str, object]]:
-    """Return findings from HTTP endpoint and web fingerprint facts."""
+    """Return findings from HTTP endpoint and web fingerprint facts.
+
+    Called by: `findings_from_event()` for web-like topics.
+    """
     payload = dict(event.payload)
     url = str(payload.get("url") or payload.get("final_url") or "")
     host = str(payload.get("host") or urlparse(url).hostname or "")
@@ -80,7 +101,10 @@ def web_findings(event: Event) -> list[dict[str, object]]:
 
 
 def service_evidence(payload: dict[str, Any]) -> str:
-    """Return normalized service evidence text from a fact payload."""
+    """Return normalized service evidence text from a fact payload.
+
+    Called by: `service_findings()` before rule matching.
+    """
     parts = [
         payload.get("service"),
         payload.get("banner"),
@@ -91,9 +115,14 @@ def service_evidence(payload: dict[str, Any]) -> str:
 
 
 def web_evidence(payload: dict[str, Any]) -> str:
-    """Return normalized web evidence text from a fact payload."""
+    """Return normalized web evidence text from a fact payload.
+
+    Called by: `web_findings()` before rule matching.
+    """
     observations = payload.get("observations")
     technologies = payload.get("technologies")
+    # Flatten plugin-produced technology/observation lists into one evidence
+    # string so simple rule matching can inspect the same text as scalar fields.
     parts = [
         payload.get("title"),
         payload.get("server"),
@@ -115,7 +144,10 @@ def exposure_candidate(
     evidence: str,
     source_topic: str,
 ) -> dict[str, object]:
-    """Return a service-scope exposure finding candidate."""
+    """Return a service-scope exposure finding candidate.
+
+    Called by: `service_findings()` for each matching management rule.
+    """
     endpoint = f"{host}:{port}/{protocol}"
     finding_evidence = service_finding_evidence(rule, endpoint=endpoint, source_topic=source_topic, evidence=evidence)
     return candidate_payload(
@@ -143,7 +175,10 @@ def web_exposure_candidate(
     evidence: str,
     source_topic: str,
 ) -> dict[str, object]:
-    """Return a web-origin exposure finding candidate."""
+    """Return a web-origin exposure finding candidate.
+
+    Called by: `web_findings()` for each matching management rule.
+    """
     display_url = url or f"{scheme}://{host}:{port}/"
     finding_evidence = web_finding_evidence(rule, url=display_url, source_topic=source_topic, evidence=evidence)
     return candidate_payload(
@@ -162,7 +197,10 @@ def web_exposure_candidate(
 
 
 def service_finding_evidence(rule: ExposureRule, *, endpoint: str, source_topic: str, evidence: str) -> str:
-    """Return operator-facing evidence for one service exposure finding."""
+    """Return operator-facing evidence for one service exposure finding.
+
+    Called by: `exposure_candidate()`.
+    """
     details = [f"{endpoint} matched {rule.name} management exposure rule", f"source={source_topic}"]
     if evidence:
         details.append(f"observed={evidence}")
@@ -170,7 +208,10 @@ def service_finding_evidence(rule: ExposureRule, *, endpoint: str, source_topic:
 
 
 def web_finding_evidence(rule: ExposureRule, *, url: str, source_topic: str, evidence: str) -> str:
-    """Return operator-facing evidence for one web exposure finding."""
+    """Return operator-facing evidence for one web exposure finding.
+
+    Called by: `web_exposure_candidate()`.
+    """
     details = [f"{url} matched {rule.name} management exposure rule", f"source={source_topic}"]
     if evidence:
         details.append(f"observed={evidence}")
@@ -178,7 +219,10 @@ def web_finding_evidence(rule: ExposureRule, *, url: str, source_topic: str, evi
 
 
 def confidence_for_source_topic(source_topic: str) -> str:
-    """Return why a passive exposure finding received its confidence label."""
+    """Return why a passive exposure finding received its confidence label.
+
+    Called by: service and web candidate builders.
+    """
     return {
         "port.open": "port_indicator",
         "service.detected": "service_indicator",
@@ -189,7 +233,11 @@ def confidence_for_source_topic(source_topic: str) -> str:
 
 
 def int_value(value: object) -> int | None:
-    """Parse an integer field if present."""
+    """Parse an integer field if present.
+
+    Called by: service and web extractors for port values that may arrive as
+    strings from JSON-like payloads.
+    """
     if not isinstance(value, (str, int, float)) or value == "":
         return None
     try:
@@ -199,7 +247,10 @@ def int_value(value: object) -> int | None:
 
 
 def default_url_port(url: str) -> int | None:
-    """Return the URL port or the scheme default."""
+    """Return the URL port or the scheme default.
+
+    Called by: `web_findings()` when a web fact has a URL but no explicit port.
+    """
     parsed = urlparse(url)
     if parsed.port is not None:
         return parsed.port
