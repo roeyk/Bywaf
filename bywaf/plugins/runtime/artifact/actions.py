@@ -28,6 +28,11 @@ from .query import search_artifacts, select_artifacts
 from .render import artifact_event_payload, format_artifact_row
 from .selectors import require_values, resolve_artifact_scope, single_value
 
+# VERIFY_PROVENANCE_TOPICS is consumed by verify_artifacts() when it reconciles
+# artifact-store rows with main event DB provenance. Imported and attached
+# artifacts are the lifecycle states that should have a current artifact row.
+VERIFY_PROVENANCE_TOPICS = ("artifact.attached", "artifact.imported")
+
 __all__ = [
     "artifact_provenance_events",
     "attach_artifacts",
@@ -218,8 +223,9 @@ def verify_artifacts(context: CommandContext, selectors: dict[str, list[str]]) -
     # main event DB. Verification checks both stores so export/report workflows
     # can trust the link between evidence and runtime scope.
     provenance_events = [
-        *events.events_matching(topic="artifact.attached", limit=100000),
-        *events.events_matching(topic="artifact.imported", limit=100000),
+        event
+        for topic in VERIFY_PROVENANCE_TOPICS
+        for event in events.events_matching(topic=topic, limit=100000)
     ]
     provenance_by_id = {str(event.payload.get("artifact_id")): event for event in provenance_events}
     provenance_ids = set(provenance_by_id)
