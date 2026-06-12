@@ -42,7 +42,14 @@ ACTION_OUTPUT_LABELS = {
 
 @dataclass(frozen=True)
 class ReviewDecision:
-    """Latest review state for one finding group."""
+    """Latest operator review marker for one finding group.
+
+    Constructed by: `latest_review_decisions()` while replaying
+    `finding.reviewed` events from the EventStore.
+    Used by: report rendering, report review actions, and the `finding`
+    command facade when deciding whether a row is accepted, rejected,
+    deferred, confirmed, or still unreviewed.
+    """
 
     decision: str
     note: str = ""
@@ -50,7 +57,13 @@ class ReviewDecision:
 
 
 def review_report_groups(context: CommandContext, parsed, events, *, source: str = "report") -> None:
-    """Emit review events for selected report groups."""
+    """Append review-state events for selected report rows.
+
+    Called by: `Report.run()` and `Finding.run()` after argparse normalization.
+    The function deliberately writes append-only `finding.reviewed` events
+    instead of editing original finding payloads, so the review history remains
+    auditable and `latest_review_decisions()` can reconstruct current state.
+    """
     if not parsed.selection:
         raise ValueError(f"report {parsed.action} requires a selection such as 1, 1-3, or all")
     # Review actions operate on the same filtered inbox the operator sees. That
@@ -61,9 +74,16 @@ def review_report_groups(context: CommandContext, parsed, events, *, source: str
     selected = selected_groups(visible_groups, str(parsed.selection))
     if not selected:
         raise ValueError("report selection matched no findings")
+
+    # Translate the operator's verb into the durable status stored on the
+    # review marker. `unconfirm` becomes `unreviewed`, while confirmation is a
+    # distinct explicit operator decision from plugin-produced proof.
     decision = REVIEW_DECISIONS[str(parsed.action)]
     context.audit_capability("finding.review")
     for group in selected:
+        # Persist the grouped finding id, not the display row number. Later
+        # reports can then resolve review state even if the visible ordering or
+        # status filter changes between commands.
         context.events.publish(
             "finding.reviewed",
             {
@@ -78,7 +98,11 @@ def review_report_groups(context: CommandContext, parsed, events, *, source: str
 
 
 def selected_groups(groups: list[FindingGroup], selection: str) -> list[FindingGroup]:
-    """Resolve report row indexes and ranges into finding groups."""
+    """Resolve report row indexes and ranges into finding groups.
+
+    Called by: `review_report_groups()` after status/CVE filtering has already
+    produced the same visible row set the operator reviewed on screen.
+    """
     if selection == "all":
         return groups
     selected_indexes = parse_index_selection(selection, maximum=len(groups))
@@ -86,7 +110,12 @@ def selected_groups(groups: list[FindingGroup], selection: str) -> list[FindingG
 
 
 def parse_index_selection(selection: str, *, maximum: int) -> list[int]:
-    """Parse comma-separated 1-based indexes and inclusive ranges."""
+    """Parse comma-separated 1-based indexes and inclusive ranges.
+
+    Called by: review action selection and detail rendering code that accepts
+    forms such as `1`, `1-3`, and `1-2,4`. Duplicate indexes are collapsed while
+    preserving the operator's requested order.
+    """
     indexes: list[int] = []
     seen: set[int] = set()
     for part in selection.split(","):
@@ -94,6 +123,8 @@ def parse_index_selection(selection: str, *, maximum: int) -> list[int]:
         if not token:
             raise ValueError("empty report selection range")
         if "-" in token:
+            # A hyphen denotes an inclusive report-row range. Both endpoints are
+            # validated through the same positive-index helper as scalar rows.
             start_raw, end_raw = token.split("-", 1)
             start = parse_positive_index(start_raw)
             end = parse_positive_index(end_raw)
@@ -112,7 +143,11 @@ def parse_index_selection(selection: str, *, maximum: int) -> list[int]:
 
 
 def parse_positive_index(value: str) -> int:
-    """Return a positive integer report row index."""
+    """Return a positive integer report row index.
+
+    Called by: `parse_index_selection()` for both scalar selections and range
+    endpoints before converting 1-based display rows to zero-based list indexes.
+    """
     try:
         parsed = int(value)
     except ValueError as exc:
@@ -123,7 +158,13 @@ def parse_positive_index(value: str) -> int:
 
 
 def latest_review_decisions(context: CommandContext) -> dict[str, ReviewDecision]:
-    """Return the latest review decision for each finding group."""
+    """Return the latest review decision for each finding id.
+
+    Called by: report rendering and review mutation paths before calculating
+    effective row status. Because review markers are append-only, this function
+    replays `finding.reviewed` events and keeps the highest event id for each
+    finding id.
+    """
     decisions: dict[str, ReviewDecision] = {}
     for event in context.events.query(topic="finding.reviewed", limit=100000):
         finding_id = str(event.payload.get("finding_id") or "")
@@ -131,6 +172,9 @@ def latest_review_decisions(context: CommandContext) -> dict[str, ReviewDecision
             continue
         decision = str(event.payload.get("decision") or "accepted")
         if decision not in REVIEW_STATUSES:
+            # Old review events predated explicit decision values. Treat those
+            # markers as accepted so historical "reviewed" rows stay hidden by
+            # default rather than reappearing as open findings.
             decision = "accepted"
         if (
             event.id is not None
@@ -150,7 +194,12 @@ def latest_review_decisions(context: CommandContext) -> dict[str, ReviewDecision
 
 
 def review_status(group: FindingGroup, decisions: Mapping[str, ReviewDecision]) -> str:
-    """Return the effective review status for one finding group."""
+    """Return the effective review status for one finding group.
+
+    Called by: report tables, summary lines, status filters, and render-order
+    helpers. Explicit operator review markers take precedence over plugin
+    evidence; otherwise plugin-confirmed proof promotes the row to `confirmed`.
+    """
     decision = review_decision_for_group(group, decisions)
     if decision is not None:
         return decision.decision
@@ -163,7 +212,11 @@ def review_decision_for_group(
     group: FindingGroup,
     decisions: Mapping[str, ReviewDecision],
 ) -> ReviewDecision | None:
-    """Return the latest review decision matching a group key or raw finding id."""
+    """Return the latest review decision matching a group key or raw finding id.
+
+    Called by: `review_status()` to bridge grouped report rows and historical
+    review markers that may have been written before grouping logic changed.
+    """
     # Older review events and external tooling may reference a raw finding_id,
     # while the report inbox may group several raw findings under a derived key.
     # Check both forms so review markers remain valid after grouping improves.
@@ -178,7 +231,12 @@ def review_decision_for_group(
 
 
 def review_lookup_keys(group: FindingGroup) -> tuple[str, ...]:
-    """Return review identifiers that may refer to one finding group."""
+    """Return review identifiers that may refer to one finding group.
+
+    Called by: `review_decision_for_group()`. The first key is the current
+    report group id; later keys are raw `finding_id` values carried by member
+    events inside that group.
+    """
     keys = [group.finding_id]
     seen = {group.finding_id}
     for event in group.events:
@@ -194,7 +252,12 @@ def filter_groups_by_status(
     decisions: Mapping[str, ReviewDecision],
     status: str,
 ) -> list[FindingGroup]:
-    """Return report groups matching the requested review status."""
+    """Return report groups matching the requested review status.
+
+    Called by: report rendering and review actions after grouping and optional
+    CVE filtering. `open` is a convenience view over confirmed and unreviewed
+    rows, because both still require operator attention.
+    """
     if status == "all":
         return groups
     if status == "open":
@@ -206,7 +269,12 @@ def review_counts(
     groups: list[FindingGroup],
     decisions: Mapping[str, ReviewDecision],
 ) -> dict[str, int]:
-    """Count finding groups by current review status."""
+    """Count finding groups by current review status.
+
+    Called by: report summary rendering and `report.rendered` audit payload
+    construction. The returned mapping always includes all known statuses so
+    display code can render stable summary lines.
+    """
     counts = {key: 0 for key in ("total", *REVIEW_STATUSES)}
     counts["total"] = len(groups)
     for group in groups:
@@ -215,7 +283,12 @@ def review_counts(
 
 
 def group_has_confirmed_proof(group: FindingGroup) -> bool:
-    """Return whether a group includes a plugin-produced confirmed finding."""
+    """Return whether a group includes a plugin-produced confirmed finding.
+
+    Called by: `review_status()` when no explicit operator review marker exists.
+    This keeps scanner-produced proof visible as confirmed while still allowing
+    later operator accept/reject/defer markers to override it.
+    """
     return any(
         event.topic == "finding.confirmed"
         or str(effective_finding_payload(event).get("status") or "").casefold() == "confirmed"
