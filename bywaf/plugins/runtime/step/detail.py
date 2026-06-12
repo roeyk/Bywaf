@@ -34,6 +34,9 @@ def show_step(context: CommandContext, step_id: str) -> None:
     sections: list[str] = []
     run_row = next((row for row in runtime.runs(active_only=False) if str(row["command_run_id"]) == run_id), None)
     if run_row is not None:
+        # The first section is a stable summary of the selected command run.
+        # Human-friendly aliases are shown beside serial IDs so users can move
+        # between `step`, `event`, `artifact`, `pipeline`, and `job` commands.
         pipeline_serial = str(run_row["pipeline_id"]) if run_row["pipeline_id"] is not None else ""
         shown_step = styled_subject_text(style_getter, "step", run_aliases.get(run_id, run_id))
         shown_serial = styled_subject_text(style_getter, "serial", run_id)
@@ -64,6 +67,9 @@ def show_step(context: CommandContext, step_id: str) -> None:
     job_id = step_job_id(rows)
     relevant_rows = [row for row in rows if should_show_step_variable(str(row["name"]))]
     if relevant_rows:
+        # Variables are runtime provenance, but display/style preferences are
+        # filtered out below so the detail view emphasizes operator input and
+        # commandlet configuration.
         sections.append(
             step_heading(style_getter, "Variables")
             + "\n"
@@ -80,6 +86,8 @@ def show_step(context: CommandContext, step_id: str) -> None:
         )
     artifacts = artifact_events_for_step(context, run_id)
     if artifacts:
+        # Artifact rendering is delegated to the artifact subsystem so the step
+        # view stays consistent with `artifact list step=...`.
         sections.append(
             render_artifact_summary(
                 context,
@@ -89,6 +97,8 @@ def show_step(context: CommandContext, step_id: str) -> None:
         )
     events = context.event_store("step").events_matching(command_run_id=run_id)
     if events:
+        # Event rows are compact local summaries, not the full `event` command
+        # output. The next-actions section points to richer follow-up commands.
         sections.append(
             step_heading(style_getter, "Events") + "\n" + "\n".join(f"  {format_step_event(event, style_getter=style_getter)}" for event in events)
         )
@@ -127,6 +137,9 @@ def step_next_actions(step_id: str, job_id: str, events: list[Event], *, style_g
         commands.insert(0, f"job {job_id}")
     text = f"{step_label(style_getter, 'inspect further with')}: " + "; ".join(step_command(style_getter, command) for command in commands)
     topics = {event.topic for event in events}
+    # A missing terminal command.run event usually means a job died, was
+    # interrupted, or predated lifecycle recording. Point the user at the job
+    # view because it carries process status and errors.
     if job_id and "command.run.completed" not in topics and "command.run.failed" not in topics:
         text += f"\nNo step completion event was recorded; inspect owning job with `job {job_id}`."
     return text
@@ -134,6 +147,8 @@ def step_next_actions(step_id: str, job_id: str, events: list[Event], *, style_g
 
 def should_show_step_variable(name: str) -> bool:
     """Return whether a captured runtime variable is useful in step detail."""
+    # Display preferences are useful for reproducing a session but distract
+    # from scan inputs in step detail.
     return not (name.startswith("display.") or name.startswith("display/") or name.startswith("display/style."))
 
 
@@ -149,9 +164,13 @@ def format_step_payload(payload: object, *, style_getter=None) -> str:
     if not isinstance(payload, dict):
         return str(payload)
     if "text" in payload:
+        # Console-output events can contain tables or long tool output; show
+        # only a first-line preview here and leave full inspection to `event`.
         source = payload.get("source", "")
         return f"{step_label(style_getter, 'source')}={source} {step_label(style_getter, 'text')}={summarize_step_text(str(payload.get('text', '')))}".strip()
     if "host" in payload:
+        # Host/port facts are high-volume and are easier to scan as endpoint
+        # strings than as generic key=value payloads.
         parts = [str(payload.get("host", ""))]
         if payload.get("port") is not None:
             parts[-1] = f"{parts[-1]}:{payload['port']}"
