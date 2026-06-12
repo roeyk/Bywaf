@@ -28,7 +28,7 @@ PYTHONPATH=. pytest -q
 Use focused checks while editing a specific area:
 
 ```bash
-PYTHONPATH=. pytest -q tests/test_plugin_check.py
+PYTHONPATH=. pytest -q tests/plugin_check
 PYTHONPATH=. pytest -q tests/registry_completion tests/test_completion_regression.py
 PYTHONPATH=. pytest -q tests/test_events_db.py tests/storage_runner
 PYTHONPATH=. pytest -q tests/test_report.py tests/finding
@@ -98,7 +98,7 @@ most plugins, use this progression:
 Useful plugin-focused commands:
 
 ```bash
-PYTHONPATH=. pytest -q tests/test_plugin_check.py
+PYTHONPATH=. pytest -q tests/plugin_check
 PYTHONPATH=. pytest -q tests/test_repo_exposure.py
 python scripts/plugin_check.py docs/plugin_skeletons/native_vulnerability
 ```
