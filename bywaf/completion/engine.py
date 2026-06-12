@@ -120,18 +120,43 @@ class CoreCompleter(
         return consumers or None
 
     def base_candidates(self, tokens: list[str], prefix: str, ended_with_space: bool) -> list[str]:
-        """Return unfiltered candidates for the current token context."""
+        """Return unfiltered candidates for the current token context.
+
+        Called by: `candidates()` after pipeline-aware completion has declined
+        to handle the current cursor position.
+        """
+        # Phase 1: no command has been fully selected yet, so offer built-ins,
+        # commandlets, and commandlet aliases at the root prompt position.
         root_candidates = [*self.builtins, *self.registry.names(), *self.registry.commandlet_aliases()]
         if not tokens or (len(tokens) == 1 and not ended_with_space):
             return root_candidates
+
+        # Phase 2: commandlets own their argument completion through
+        # CommandSpec metadata and optional plugin-defined completers.
         command = tokens[0]
         rest = tokens[1:]
         if self.registry.has_commandlet(command):
             return self.plugin_candidates(command, prefix, rest)
 
+        # Phase 3: shell built-ins do not have CommandSpec metadata, so route
+        # them through the dedicated built-in completion dispatch table.
+        return self.builtin_candidates(command, prefix, rest, root_candidates)
+
+    def builtin_candidates(
+        self,
+        command: str,
+        prefix: str,
+        rest: list[str],
+        root_candidates: list[str],
+    ) -> list[str]:
+        """Return unfiltered candidates for one built-in shell command.
+
+        Called by: `base_candidates()` after commandlet completion has declined
+        to handle the selected root token.
+        """
         # Built-in shell commands are completed here because they are not
-        # commandlets and therefore do not have CommandSpec metadata.
-        # base_candidates() uses this dispatch table to route each built-in to its
+        # commandlets and therefore do not have CommandSpec metadata. This
+        # method uses this dispatch table to route each built-in to its
         # command-specific completion provider.
         dispatch = {
             "?": lambda current_prefix: self.help_candidates(current_prefix),
