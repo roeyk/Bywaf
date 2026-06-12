@@ -8,6 +8,8 @@ Used by:
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.runtime_display import render_table, terminal_table_width
@@ -60,23 +62,75 @@ def topic_policy_selector_values(db: object, key: str) -> list[str]:
 
     Called by: `topic_policy_candidates()` after parsing `key=value_prefix`.
     """
-    if key == "decision":
-        return sorted({*TOPIC_POLICY_DECISIONS, *topic_policy_payload_values(db, "decision")})
-    if key == "reason":
-        return sorted({*TOPIC_POLICY_REASONS, *topic_policy_payload_values(db, "reason")})
-    if key == "plugin":
-        return sorted({topic_policy_commandlet(event) for event in topic_policy_events(db) if topic_policy_commandlet(event) != "-"})
-    if key == "topic":
-        return topic_policy_payload_values(db, "topic")
-    if key == "step":
-        return list(getattr(db, "run_aliases")().values())
-    if key == "pipeline":
-        return list(getattr(db, "pipeline_aliases")().values())
-    if key == "job":
-        return [str(row["id"]) for row in getattr(db, "jobs")()]
-    if key == "serial":
-        return list(getattr(db, "serials")())
-    return []
+    # TOPIC_POLICY_SELECTOR_VALUE_LOADERS is a dispatch table defined below.
+    # It replaces the selector if/elif ladder and makes each completion source
+    # explicit for future topic-contract audit selectors.
+    loader = TOPIC_POLICY_SELECTOR_VALUE_LOADERS.get(key)
+    return loader(db) if loader is not None else []
+
+
+def topic_policy_decision_values(db: object) -> list[str]:
+    """Return built-in and observed topic-policy decisions for completion.
+
+    Called by: `TOPIC_POLICY_SELECTOR_VALUE_LOADERS` for `decision=...`.
+    """
+    return sorted({*TOPIC_POLICY_DECISIONS, *topic_policy_payload_values(db, "decision")})
+
+
+def topic_policy_reason_values(db: object) -> list[str]:
+    """Return built-in and observed topic-policy reasons for completion.
+
+    Called by: `TOPIC_POLICY_SELECTOR_VALUE_LOADERS` for `reason=...`.
+    """
+    return sorted({*TOPIC_POLICY_REASONS, *topic_policy_payload_values(db, "reason")})
+
+
+def topic_policy_plugin_values(db: object) -> list[str]:
+    """Return observed commandlet names for topic-policy completion.
+
+    Called by: `TOPIC_POLICY_SELECTOR_VALUE_LOADERS` for `plugin=...`.
+    """
+    return sorted({topic_policy_commandlet(event) for event in topic_policy_events(db) if topic_policy_commandlet(event) != "-"})
+
+
+def topic_policy_topic_values(db: object) -> list[str]:
+    """Return observed topic names for topic-policy completion.
+
+    Called by: `TOPIC_POLICY_SELECTOR_VALUE_LOADERS` for `topic=...`.
+    """
+    return topic_policy_payload_values(db, "topic")
+
+
+def topic_policy_step_values(db: object) -> list[str]:
+    """Return friendly command-run aliases for topic-policy completion.
+
+    Called by: `TOPIC_POLICY_SELECTOR_VALUE_LOADERS` for `step=...`.
+    """
+    return list(getattr(db, "run_aliases")().values())
+
+
+def topic_policy_pipeline_values(db: object) -> list[str]:
+    """Return friendly pipeline aliases for topic-policy completion.
+
+    Called by: `TOPIC_POLICY_SELECTOR_VALUE_LOADERS` for `pipeline=...`.
+    """
+    return list(getattr(db, "pipeline_aliases")().values())
+
+
+def topic_policy_job_values(db: object) -> list[str]:
+    """Return job ids for topic-policy completion.
+
+    Called by: `TOPIC_POLICY_SELECTOR_VALUE_LOADERS` for `job=...`.
+    """
+    return [str(row["id"]) for row in getattr(db, "jobs")()]
+
+
+def topic_policy_serial_values(db: object) -> list[str]:
+    """Return event serial values for topic-policy completion.
+
+    Called by: `TOPIC_POLICY_SELECTOR_VALUE_LOADERS` for `serial=...`.
+    """
+    return list(getattr(db, "serials")())
 
 
 def topic_policy_payload_values(db: object, key: str) -> list[str]:
@@ -96,6 +150,21 @@ def topic_policy_events(db: object) -> list[Event]:
     with other audit reports.
     """
     return list(getattr(db, "events_for_topic")("plugin.topic.policy", limit=100000))
+
+
+# Dispatch table consumed by topic_policy_selector_values(). Each selector key
+# is mapped to the cheapest source of completion candidates: built-in enums,
+# topic-policy payload values, runtime aliases, job rows, or serial rows.
+TOPIC_POLICY_SELECTOR_VALUE_LOADERS: dict[str, Callable[[object], list[str]]] = {
+    "decision": topic_policy_decision_values,
+    "reason": topic_policy_reason_values,
+    "plugin": topic_policy_plugin_values,
+    "topic": topic_policy_topic_values,
+    "step": topic_policy_step_values,
+    "pipeline": topic_policy_pipeline_values,
+    "job": topic_policy_job_values,
+    "serial": topic_policy_serial_values,
+}
 
 
 def topic_policy_event_matches(event: Event, selectors: dict[str, str]) -> bool:

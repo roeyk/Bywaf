@@ -8,7 +8,7 @@ Used by:
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext
@@ -61,23 +61,51 @@ def policy_selector_values(db: object, key: str) -> list[str]:
     Called by: `policy_candidates()` after it has parsed `key=<prefix>` from
     the partially typed command line.
     """
-    # Each branch maps a selector key to the cheapest available source of
-    # observed values: constants, policy events, runtime aliases, or job rows.
-    if key == "decision":
-        return sorted({*POLICY_DECISIONS, *policy_decision_values(db)})
-    if key == "plugin":
-        return policy_plugin_values(db)
-    if key == "target":
-        return policy_target_completion_values(db)
-    if key == "step":
-        return list(getattr(db, "run_aliases")().values())
-    if key == "pipeline":
-        return list(getattr(db, "pipeline_aliases")().values())
-    if key == "job":
-        return [str(row["id"]) for row in getattr(db, "jobs")()]
-    if key == "serial":
-        return list(getattr(db, "serials")())
-    return []
+    # POLICY_SELECTOR_VALUE_LOADERS is a dispatch table defined below. It
+    # replaces a selector if/elif ladder and keeps each selector's value source
+    # visible in one place for future audit-report extensions.
+    loader = POLICY_SELECTOR_VALUE_LOADERS.get(key)
+    return loader(db) if loader is not None else []
+
+
+def policy_decision_completion_values(db: object) -> list[str]:
+    """Return built-in and observed decision values for completion.
+
+    Called by: `POLICY_SELECTOR_VALUE_LOADERS` for `decision=...`.
+    """
+    return sorted({*POLICY_DECISIONS, *policy_decision_values(db)})
+
+
+def policy_step_values(db: object) -> list[str]:
+    """Return friendly command-run aliases for policy selector completion.
+
+    Called by: `POLICY_SELECTOR_VALUE_LOADERS` for `step=...`.
+    """
+    return list(getattr(db, "run_aliases")().values())
+
+
+def policy_pipeline_values(db: object) -> list[str]:
+    """Return friendly pipeline aliases for policy selector completion.
+
+    Called by: `POLICY_SELECTOR_VALUE_LOADERS` for `pipeline=...`.
+    """
+    return list(getattr(db, "pipeline_aliases")().values())
+
+
+def policy_job_values(db: object) -> list[str]:
+    """Return job ids for policy selector completion.
+
+    Called by: `POLICY_SELECTOR_VALUE_LOADERS` for `job=...`.
+    """
+    return [str(row["id"]) for row in getattr(db, "jobs")()]
+
+
+def policy_serial_values(db: object) -> list[str]:
+    """Return event serial values for policy selector completion.
+
+    Called by: `POLICY_SELECTOR_VALUE_LOADERS` for `serial=...`.
+    """
+    return list(getattr(db, "serials")())
 
 
 def policy_decision_values(db: object) -> list[str]:
@@ -121,6 +149,20 @@ def policy_target_completion_values(db: object) -> list[str]:
             for target in policy_target_values(event)
         }
     )
+
+
+# Dispatch table consumed by policy_selector_values(). Each entry maps one
+# supported selector key to the cheapest source of completion candidates:
+# constants, policy event payloads, runtime aliases, job rows, or serial rows.
+POLICY_SELECTOR_VALUE_LOADERS: dict[str, Callable[[object], list[str]]] = {
+    "decision": policy_decision_completion_values,
+    "plugin": policy_plugin_values,
+    "target": policy_target_completion_values,
+    "step": policy_step_values,
+    "pipeline": policy_pipeline_values,
+    "job": policy_job_values,
+    "serial": policy_serial_values,
+}
 
 
 def policy_event_matches(event: Event, selectors: dict[str, str]) -> bool:
