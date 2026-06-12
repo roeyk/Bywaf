@@ -11,6 +11,10 @@ from dataclasses import dataclass
 # The following rule tables are intentionally conservative. They are consumed
 # by `path_has_content_evidence()` as evidence gates so a 200 response alone
 # does not turn every probed path into a finding.
+#
+# Path-set tables are exact-match gates: the requested path must match before
+# content markers are considered. Suffix tables are weaker filename hints and
+# therefore also require content-type or body markers.
 ADMIN_PATHS = frozenset({"/admin/", "/admin", "/login", "/wp-login.php"})
 ADMIN_KEYWORDS = ("admin", "administrator", "login", "sign in", "wp-login")
 BACKUP_ARCHIVE_SUFFIXES = (".zip", ".tar", ".tar.gz", ".tgz", ".7z", ".rar")
@@ -39,6 +43,10 @@ DEPENDENCY_MANIFEST_PATHS = frozenset(
         "/yarn.lock",
     }
 )
+# Marker maps use tuple groups as an AND-of-ORs rule:
+# all groups must match, and any marker inside each group is enough. That keeps
+# weak metadata files from producing findings unless multiple independent hints
+# agree that the body is the expected file type.
 DEPENDENCY_MANIFEST_MARKERS = {
     "/package-lock.json": (('"lockfileversion"',), ('"packages"', '"dependencies"')),
     "/composer.lock": (('"content-hash"',), ('"packages"',)),
@@ -79,6 +87,9 @@ CLOUD_APP_CONFIG_PATHS = frozenset(
         "/firebase.json",
     }
 )
+# Cloud/app config files use the same grouped-marker contract as dependency
+# manifests, but their markers are tuned for framework and cloud configuration
+# shapes that commonly leak secrets or internal service topology.
 CLOUD_CONFIG_MARKERS = {
     "/.aws/credentials": (("[default]", "[profile "), ("aws_access_key_id",), ("aws_secret_access_key",)),
     "/application.yaml": (("spring:", "server:", "datasource:", "database:"), ("password:", "url:", "username:")),
@@ -105,12 +116,21 @@ class PathResponseSignals:
 
 
 def is_backup_archive_path(path: str) -> bool:
-    """Return whether the path name looks like a backup/archive artifact."""
+    """Return whether the path name looks like a backup/archive artifact.
+
+    Called by: `looks_like_backup_artifact()` before content-type evidence is
+    checked. A suffix match alone is not enough to promote a finding.
+    """
     return path.endswith(BACKUP_ARCHIVE_SUFFIXES)
 
 
 def is_database_dump_path(path: str) -> bool:
-    """Return whether the path name looks like a database dump artifact."""
+    """Return whether the path name looks like a database dump artifact.
+
+    Called by: `looks_like_backup_artifact()` before SQL dump body markers are
+    checked. This keeps ordinary downloadable `.sql` text from being enough on
+    its own without dump-shaped evidence.
+    """
     return path.endswith(DATABASE_DUMP_SUFFIXES)
 
 
@@ -127,7 +147,12 @@ def response_signals(result: dict[str, object]) -> PathResponseSignals:
 
 
 def response_status_is_reviewable(result: dict[str, object]) -> bool:
-    """Return whether a probe status is eligible for finding classification."""
+    """Return whether a probe status is eligible for finding classification.
+
+    Called by: `is_interesting_path()` as the first gate. Redirects and success
+    responses can still carry useful exposure evidence; client/server errors
+    are not promoted by this passive path classifier.
+    """
     status = result.get("status")
     return isinstance(status, int) and status < 400
 
@@ -150,7 +175,12 @@ def is_interesting_path(path: str, result: dict[str, object]) -> bool:
 
 
 def path_has_content_evidence(path: str, signals: PathResponseSignals) -> bool:
-    """Return whether content-specific rules confirm a candidate path hit."""
+    """Return whether content-specific rules confirm a candidate path hit.
+
+    Called by: `is_interesting_path()` after status gating and path
+    normalization. This function is the high-level classifier fan-out for path
+    families whose exact path or suffix needs content evidence.
+    """
     # This is the central content-evidence dispatch. Each helper owns one
     # finding family so the high-level classification flow stays readable.
     return (
@@ -165,25 +195,43 @@ def path_has_content_evidence(path: str, signals: PathResponseSignals) -> bool:
 
 
 def has_global_exposure_marker(sample: str) -> bool:
-    """Return whether generic response text contains high-signal exposure markers."""
+    """Return whether generic response text contains high-signal exposure markers.
+
+    Called by: `is_interesting_path()` as a final generic evidence check for
+    exact response strings that are strong enough regardless of the probed path.
+    """
     return any(marker in sample for marker in GLOBAL_SAMPLE_MARKERS)
 
 
 def looks_like_admin_surface(title: str, sample: str) -> bool:
-    """Return whether response text looks like a login or admin surface."""
+    """Return whether response text looks like a login or admin surface.
+
+    Called by: `path_has_content_evidence()` only for known admin/login paths,
+    so generic login words elsewhere do not become findings without path
+    context.
+    """
     evidence = f"{title} {sample}"
     return any(keyword in evidence for keyword in ADMIN_KEYWORDS)
 
 
 def looks_like_backup_artifact(path: str, content_type: str, sample: str) -> bool:
-    """Return whether response metadata looks like a downloadable backup artifact."""
+    """Return whether response metadata looks like a downloadable backup artifact.
+
+    Called by: `path_has_content_evidence()` for archive and database-dump
+    families. Archive suffixes require archive-ish content types; database dump
+    suffixes require SQL dump markers in the sampled body.
+    """
     return (
         is_backup_archive_path(path) and any(content_type.startswith(item) for item in ARCHIVE_CONTENT_TYPES)
     ) or (is_database_dump_path(path) and any(marker in sample for marker in SQL_DUMP_MARKERS))
 
 
 def looks_like_source_map(path: str, sample: str) -> bool:
-    """Return whether response text looks like an exposed JavaScript source map."""
+    """Return whether response text looks like an exposed JavaScript source map.
+
+    Called by: `path_has_content_evidence()` for `.map` paths. The body must
+    include the core source-map keys rather than merely using a `.map` suffix.
+    """
     return (
         path.endswith(SOURCE_MAP_SUFFIX)
         and '"version"' in sample
@@ -193,7 +241,12 @@ def looks_like_source_map(path: str, sample: str) -> bool:
 
 
 def looks_like_vcs_metadata(path: str, sample: str) -> bool:
-    """Return whether response text looks like legacy source-control metadata."""
+    """Return whether response text looks like legacy source-control metadata.
+
+    Called by: `path_has_content_evidence()` for exact legacy VCS metadata
+    paths. Each branch below encodes file-specific markers for SVN, Mercurial,
+    or Bazaar metadata.
+    """
     if path == "/.svn/entries":
         return "wc-entries" in sample or "\ndir\n" in sample or "committed-rev" in sample
     if path == "/.hg/hgrc":
@@ -204,7 +257,11 @@ def looks_like_vcs_metadata(path: str, sample: str) -> bool:
 
 
 def looks_like_dependency_manifest(path: str, sample: str) -> bool:
-    """Return whether response text looks like exposed dependency metadata."""
+    """Return whether response text looks like exposed dependency metadata.
+
+    Called by: `path_has_content_evidence()` for dependency lockfile paths.
+    The grouped-marker table above supplies the file-specific evidence contract.
+    """
     marker_groups = DEPENDENCY_MANIFEST_MARKERS.get(path)
     # Marker groups are ANDed, while markers inside each group are ORed. That
     # lets rules require multiple weak signals without overfitting exact files.
@@ -212,12 +269,21 @@ def looks_like_dependency_manifest(path: str, sample: str) -> bool:
 
 
 def looks_like_sensitive_config(path: str, sample: str) -> bool:
-    """Return whether response text looks like an exposed sensitive config file."""
+    """Return whether response text looks like an exposed sensitive config file.
+
+    Called by: `path_has_content_evidence()` for exact config paths. It requires
+    at least one secret/config marker in the sampled body.
+    """
     return path in SENSITIVE_CONFIG_PATHS and any(marker in sample for marker in SENSITIVE_CONFIG_MARKERS)
 
 
 def looks_like_cloud_config(path: str, sample: str) -> bool:
-    """Return whether response text looks like exposed cloud or app config."""
+    """Return whether response text looks like exposed cloud or app config.
+
+    Called by: `path_has_content_evidence()` for exact cloud/application config
+    paths. The grouped-marker table above supplies the file-specific evidence
+    contract.
+    """
     marker_groups = CLOUD_CONFIG_MARKERS.get(path)
     # Use the same grouped-marker semantics as dependency manifests: at least
     # one marker from every required group must appear in the response sample.
