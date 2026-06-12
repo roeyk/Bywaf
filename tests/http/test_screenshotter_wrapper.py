@@ -117,6 +117,7 @@ class ScreenshotterWrapperTests(unittest.TestCase):
             self.assertEqual(screenshot_event.payload["relative_path"], "screens/example.png")
 
     def test_value_carrying_output_dir_flag_is_rejected(self):
+        """Protect value carrying output dir flag is rejected behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             context, _db = make_context(tmp)
             with self.assertRaisesRegex(ValueError, "output-dir=path"):

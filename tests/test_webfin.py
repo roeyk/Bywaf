@@ -28,6 +28,7 @@ from bywaf.plugins.http.webfin import (
 class WebFingerprintTests(unittest.TestCase):
     """Groups regression coverage for webfin behavior."""
     def test_fingerprint_endpoint_infers_technology_and_observations(self):
+        """Protect fingerprint endpoint infers technology and observations behavior from regressions."""
         payload = fingerprint_endpoint(
             {
                 "url": "https://example.test/",

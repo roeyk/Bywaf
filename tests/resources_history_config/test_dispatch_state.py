@@ -78,6 +78,7 @@ class ResourcesHistoryDispatchStateTests(unittest.TestCase):
             self.assertIn("error: unexpected", output.getvalue())
 
     def test_dispatch_vars_lists_defaults(self):
+        """Protect dispatch vars lists defaults behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()

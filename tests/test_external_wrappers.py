@@ -122,6 +122,7 @@ class EyeWitnessTests(unittest.TestCase):
             self.assertTrue(db.events_for_topic("artifact.attached"))
 
     def test_eyewitness_timeout_reports_tool_error_without_findings(self):
+        """Protect eyewitness timeout reports tool error without findings behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(

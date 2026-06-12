@@ -113,6 +113,7 @@ class AppDispatchTests(unittest.TestCase):
             )
 
     def test_vars_plain_password_assignment_is_not_implicitly_secret(self):
+        """Protect vars plain password assignment is not implicitly secret behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()

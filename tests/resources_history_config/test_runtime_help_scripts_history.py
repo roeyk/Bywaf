@@ -95,6 +95,7 @@ class ResourcesHistoryRuntimeTests(unittest.TestCase):
             self.assertEqual(help_output.getvalue(), argparse_output.getvalue())
 
     def test_dispatch_help_for_builtin(self):
+        """Protect dispatch help for builtin behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             output = io.StringIO()

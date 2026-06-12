@@ -80,6 +80,7 @@ class RegistryCompletionCoreTests(unittest.TestCase):
         self.assertEqual(completer.candidates("use host"), ["hosts", "hostscanner"])
 
     def test_vars_completion_prefers_active_context_scope(self):
+        """Protect vars completion prefers active context scope behavior from regressions."""
         self.registry.varstore.set("discovery/hostscanner.targets", "127.0.0.1")
         self.registry.varstore.set("global.proxy", "http://127.0.0.1:8080")
         completer = Completer(self.registry, active_context="discovery/hostscanner")

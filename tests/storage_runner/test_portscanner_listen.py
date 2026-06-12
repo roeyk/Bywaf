@@ -154,6 +154,7 @@ class StorageRunnerPortscannerListenTests(unittest.TestCase):
             self.assertEqual(events[0]["host"], "203.0.113.5")
 
     def test_pipeline_attach_starts_scoped_background_job(self):
+        """Protect pipeline attach starts scoped background job behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.publish(

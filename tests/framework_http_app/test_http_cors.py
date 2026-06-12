@@ -83,6 +83,7 @@ class TestHttpCorsTests(unittest.TestCase):
         self.assertEqual(findings[0]["class"], "web.cors.arbitrary_origin_with_credentials")
 
     def test_http_cors_promotes_wildcard_with_credentials(self):
+        """Protect HTTP cors promotes wildcard with credentials behavior from regressions."""
         payload = {
             "url": "https://example.test/api",
             "host": "example.test",

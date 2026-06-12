@@ -27,6 +27,7 @@ class RuntimeDisplayTests(unittest.TestCase):
         )
 
     def test_format_runtime_timestamp_converts_offset_timezone(self):
+        """Protect format runtime timestamp converts offset timezone behavior from regressions."""
         self.assertEqual(
             format_runtime_timestamp("2026-05-18T08:34:56-04:00"),
             expected_local_runtime_timestamp("2026-05-18T08:34:56-04:00"),

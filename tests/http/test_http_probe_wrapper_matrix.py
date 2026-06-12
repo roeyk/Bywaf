@@ -92,6 +92,7 @@ class HttpProbeWrapperMatrixTests(TestCase):
         self.assertEqual(result["title"], "Denied")
 
     def test_http_probe_preserves_url_error_as_endpoint_payload(self):
+        """Protect HTTP probe preserves URL error as endpoint payload behavior from regressions."""
         error = urllib.error.URLError("connection refused")
         context = CommandContext(db=None, source="http_probe")
 

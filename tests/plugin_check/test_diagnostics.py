@@ -128,6 +128,7 @@ class TestDiagnosticsTests(unittest.TestCase):
             self.assertNotIn("invalid-candidate-payload-keyword", diagnostics)
 
     def test_check_plugin_requires_manifest_emits_for_shared_published_topic(self):
+        """Protect check plugin requires manifest emits for shared published topic behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(
                 Path(tmp),

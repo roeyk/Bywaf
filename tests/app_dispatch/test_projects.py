@@ -87,6 +87,7 @@ class AppDispatchTests(unittest.TestCase):
                 self.assertEqual(runner.db.path, Path(tmp, "adhoc.sqlite3"))
 
     def test_project_use_force_stops_active_jobs_and_switches_database(self):
+        """Protect project use force stops active jobs and switches database behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             with patch.dict("os.environ", {"HOME": tmp}):
                 runner = make_runner(Path(tmp, "adhoc.sqlite3"))

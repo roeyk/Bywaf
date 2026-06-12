@@ -138,6 +138,7 @@ class NiktoTests(unittest.TestCase):
             self.assertTrue(db.events_for_topic("framework.console.alert.requested"))
 
     def test_missing_executable_is_reported_as_system_error(self):
+        """Protect missing executable is reported as system error behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(

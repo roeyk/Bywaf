@@ -106,6 +106,7 @@ class ResourcesHistoryPluginLoadingTests(unittest.TestCase):
             self.assertNotIn("hidden=", text)
 
     def test_plugin_load_use_lists_multiple_commandlets_without_guessing(self):
+        """Protect plugin load use lists multiple commandlets without guessing behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()

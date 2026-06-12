@@ -220,6 +220,7 @@ def run_python_script(*args: str) -> subprocess.CompletedProcess[str]:
 
 
 def run_module(module: str, *args: str) -> subprocess.CompletedProcess[str]:
+    """Test helper for run module."""
     return subprocess.run(
         [sys.executable, "-m", module, *args],
         cwd=ROOT,

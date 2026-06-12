@@ -77,6 +77,7 @@ class CliParserTests(unittest.TestCase):
                 os.chdir(cwd)
 
     def test_build_parser_accepts_builtin_commands(self):
+        """Protect build parser accepts builtin commands behavior from regressions."""
         parser = build_parser()
         self.assertEqual(parser.parse_args(["plugins"]).subcommand, "plugins")
         graph_args = parser.parse_args(["plugins", "graph", "--json"])

@@ -378,6 +378,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("Representative events", text)
 
     def test_report_create_update_and_show_saved_scope(self):
+        """Protect report create update and show saved scope behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.record_job("git_expose_check http://example.test", 123, "finished")

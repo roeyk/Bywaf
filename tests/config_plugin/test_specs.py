@@ -71,6 +71,7 @@ class ConfigPluginSpecTests(unittest.TestCase):
         self.assertEqual(spec.capabilities, ("framework.console.output",))
 
     def test_normalize_argv_rejects_shell_string(self):
+        """Protect normalize argv rejects shell string behavior from regressions."""
         with self.assertRaisesRegex(TypeError, "sequence of strings"):
             normalize_argv("echo hello")
 

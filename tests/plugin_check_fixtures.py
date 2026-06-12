@@ -163,6 +163,7 @@ def write_manifest_signing_key(tmp_path: Path) -> tuple[Path, Path]:
 
 
 def capture_stdout(fn):
+    """Test helper for capture stdout."""
     import contextlib
     import io
 

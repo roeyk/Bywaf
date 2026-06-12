@@ -79,6 +79,7 @@ class TestHttpMethodsTests(unittest.TestCase):
         self.assertEqual(result["methods"], ["GET", "OPTIONS", "TRACE"])
 
     def test_http_methods_probe_uses_public_header_fallback(self):
+        """Protect HTTP methods probe uses public header fallback behavior from regressions."""
         target = MethodTarget("http://example.test/", "example.test", 80, "http", "/")
         with patch("bywaf.plugins.http.methods.http.client.HTTPConnection", PublicConnection):
             result = probe_methods(target, timeout=2)

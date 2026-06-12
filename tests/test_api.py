@@ -74,6 +74,7 @@ class ApiTests(unittest.TestCase):
             self.assertIn("[variables]", config.read_text())
 
     def test_encrypted_session_requires_passphrase(self):
+        """Protect encrypted session requires passphrase behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             with self.assertRaisesRegex(ValueError, "passphrase"):
                 BywafSession.open(Path(tmp, "db.sqlite3"), encrypted=True)

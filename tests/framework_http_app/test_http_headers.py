@@ -97,6 +97,7 @@ class TestHttpHeadersTests(unittest.TestCase):
             self.assertIn("web.redirect.https_to_http", classes)
 
     def test_http_headers_promotes_missing_framing_policy(self):
+        """Protect HTTP headers promotes missing framing policy behavior from regressions."""
         result = HeaderProbeResult(
             target=HeaderTarget("example.test", 443, True),
             status=200,

@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class PluginNewTests(unittest.TestCase):
     """Groups regression coverage for the filesystem plugin scaffold command."""
     def test_plugin_new_generates_plugin_that_passes_checker_and_tests(self):
+        """Protect plugin new generates plugin that passes checker and tests behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = Path(tmp) / "generated_probe"
 

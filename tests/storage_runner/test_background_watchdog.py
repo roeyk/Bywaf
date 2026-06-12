@@ -90,6 +90,7 @@ class StorageRunnerBackgroundWatchdogTests(unittest.TestCase):
             self.assertIn("started_at", failure.payload)
 
     def test_runner_rejects_unknown_command_without_recording_job(self):
+        """Protect runner rejects unknown command without recording job behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with self.assertRaisesRegex(KeyError, "unknown commandlet: missing"):

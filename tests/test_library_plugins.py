@@ -105,6 +105,7 @@ class LibraryPluginTests(unittest.TestCase):
             self.assertEqual(db.events_for_topic("shodan.host")[0].payload["ip_str"], "8.8.8.8")
 
     def test_ssh_targets_use_explicit_hosts(self):
+        """Protect SSH targets use explicit hosts behavior from regressions."""
         self.assertEqual(ssh_targets(["host"], 2222, []), [("host", 2222)])
 
     def test_ssh_probe_publishes_failed_auth_without_real_network(self):

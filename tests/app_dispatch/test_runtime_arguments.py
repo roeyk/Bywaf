@@ -124,6 +124,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("expanded: event port.open host=192.0.2.20", output.getvalue())
 
     def test_builtin_expansion_preview_redacts_secret_references(self):
+        """Protect builtin expansion preview redacts secret references behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()

@@ -79,6 +79,7 @@ class ConfigPluginContextCapabilityTests(unittest.TestCase):
             self.assertTrue(used[0].payload["declared"])
 
     def test_command_context_dedupes_repeated_capability_audit(self):
+        """Protect command context dedupes repeated capability audit behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(

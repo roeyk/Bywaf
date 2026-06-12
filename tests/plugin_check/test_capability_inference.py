@@ -96,6 +96,7 @@ class TestCapabilityInferenceTests(unittest.TestCase):
             self.assertIn("legacy code-only plugins", feedback)
 
     def test_check_plugin_infers_context_alias_parameter_calls(self):
+        """Protect check plugin infers context alias parameter calls behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             plugin_dir = write_plugin_fixture(
                 Path(tmp),

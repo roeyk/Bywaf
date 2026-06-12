@@ -59,6 +59,7 @@ class SQLiteContentionBenchmarkTests(unittest.TestCase):
         self.assertEqual(result.read_latency_ms["count"], 3)
 
     def test_tiny_plugin_workload_exercises_context_event_path(self):
+        """Protect tiny plugin workload exercises context event path behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             database = Path(tmp, "bench.sqlite3")
             result = run_benchmark(

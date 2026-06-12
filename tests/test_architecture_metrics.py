@@ -146,6 +146,7 @@ def test_documentation_metrics_can_run_without_python_package(tmp_path: Path) ->
 
 
 def test_documentation_impact_ranks_linked_and_related_docs(tmp_path: Path) -> None:
+    """Protect documentation impact ranks linked and related docs behavior from regressions."""
     docs = tmp_path / "docs"
     # The two finding/reporting pages are bidirectionally linked and share
     # domain terms; plugins.md is a distractor with unrelated vocabulary.

@@ -262,6 +262,7 @@ class ReportGroupingTests(unittest.TestCase):
             self.assertEqual(rendered.payload["rows"], 1)
 
     def test_report_inbox_summarizes_grouped_affected_resources(self):
+        """Protect report inbox summarizes grouped affected resources behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             first = runner.db.publish(

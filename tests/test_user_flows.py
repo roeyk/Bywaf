@@ -21,6 +21,7 @@ from pathlib import Path
 class UserFlowTests(unittest.TestCase):
     """Groups regression coverage for user flows behavior."""
     def test_user_flow_scripts_pass(self):
+        """Protect user flow scripts pass behavior from regressions."""
         root = Path(__file__).resolve().parents[1]
         runner = root / "tests" / "scripts" / "run_user_flow.py"
         flows = sorted((root / "tests" / "user_flows").glob("*.bywaf"))

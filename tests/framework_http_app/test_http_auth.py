@@ -80,6 +80,7 @@ class TestHttpAuthTests(unittest.TestCase):
         self.assertEqual(result["realms"], ["Admin"])
 
     def test_http_auth_probe_reads_proxy_authenticate_header(self):
+        """Protect HTTP auth probe reads proxy authenticate header behavior from regressions."""
         target = AuthTarget("http://example.test/", "example.test", 80, "http", "/")
         with patch("bywaf.plugins.http.auth.http.client.HTTPConnection", ProxyConnection):
             result = probe_auth(target, method="HEAD", timeout=2)

@@ -158,6 +158,7 @@ class HttpPathFindingTests(unittest.TestCase):
             self.assertEqual(finding["severity"], "high")
 
     def test_backup_named_html_page_is_not_a_finding_without_artifact_evidence(self):
+        """Protect backup named HTML page is not a finding without artifact evidence behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(

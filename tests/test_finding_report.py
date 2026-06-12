@@ -102,6 +102,7 @@ class FindingReportTests(unittest.TestCase):
         self.assertEqual(infer_export_format(Path("report.unknown"), "csv"), "csv")
 
     def test_argparse_usage_uses_bywaf_key_value_style(self):
+        """Protect argparse usage uses bywaf key value style behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             stderr = io.StringIO()

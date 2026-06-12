@@ -176,6 +176,7 @@ class ReportRenderingTests(unittest.TestCase):
             self.assertNotIn("[core]\n\t", text)
 
     def test_report_summary_table_fits_terminal_width(self):
+        """Protect report summary table fits terminal width behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.publish(

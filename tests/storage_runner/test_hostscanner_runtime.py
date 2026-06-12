@@ -84,6 +84,7 @@ class StorageRunnerHostscannerRuntimeTests(unittest.TestCase):
             self.assertEqual(expansions[0].command_run_id, events[0].command_run_id)
 
     def test_hostscanner_cli_target_overrides_targets_variable(self):
+        """Protect hostscanner CLI target overrides targets variable behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             with patch("bywaf.plugins.discovery.hostscanner.discover_live_hosts", return_value=["192.0.2.1"]) as discover:
                 runner = make_runner(Path(tmp, "db.sqlite3"))

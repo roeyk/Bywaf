@@ -96,6 +96,7 @@ class RegistryCompletionOptionTests(unittest.TestCase):
         self.assertNotIn("topic=host.found", display_texts)
 
     def test_prompt_toolkit_selection_key_is_configurable(self):
+        """Protect prompt toolkit selection key is configurable behavior from regressions."""
         completer = Completer(self.registry)
         self.assertEqual(completion_select_key(completer), "c-space")
         self.assertEqual(completion_select_key_display(completer), "Ctrl-Space")

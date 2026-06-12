@@ -30,6 +30,7 @@ class DnsWrapperMatrixTests(TestCase):
             nameservers = []
 
             def resolve(self, name, record_type):
+                """Test helper for resolve."""
                 del name, record_type
                 raise RuntimeError("NXDOMAIN")
 

@@ -83,6 +83,7 @@ class RegistryRuntimeCompletionTests(unittest.TestCase):
             self.assertEqual(completer.candidates("cancel pipeline="), ["pipeline=1"])
 
     def test_project_completes_actions_and_selectors(self):
+        """Protect project completes actions and selectors behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             project_root = Path(tmp, ".bywaf", "projects")
             (project_root / "client-a").mkdir(parents=True)

@@ -77,6 +77,7 @@ def fake_snmp_hlapi(result):
             return args[0] if args else object()
 
     def get_cmd(*args, **kwargs):
+        """Test helper for get cmd."""
         del args, kwargs
         if isinstance(result, Exception):
             raise result

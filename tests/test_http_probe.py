@@ -59,6 +59,7 @@ class HttpProbeTests(unittest.TestCase):
         self.assertEqual(targets[0].url, "https://127.0.0.1/")
 
     def test_extract_title(self):
+        """Protect extract title behavior from regressions."""
         self.assertEqual(extract_title(b"<html><title> Hello\nWorld </title></html>"), "Hello World")
 
     def test_http_probe_emits_payload_and_alert(self):

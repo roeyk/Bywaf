@@ -126,6 +126,7 @@ class HttpPathFindingHelperTests(unittest.TestCase):
         self.assertIn("content-type=text/plain", evidence)
 
     def test_finding_for_cloud_app_config_uses_metadata_only_evidence(self):
+        """Protect finding for cloud app config uses metadata only evidence behavior from regressions."""
         observed = HttpPathObserved(
             url="https://example.test/.aws/credentials",
             host="example.test",

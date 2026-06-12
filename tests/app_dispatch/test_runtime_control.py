@@ -118,6 +118,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn(f"soft pause requested for job {job_id}", output.getvalue())
 
     def test_runtime_control_uses_narrow_store_access(self):
+        """Protect runtime control uses narrow store access behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("portscanner --listen", 123, "running")

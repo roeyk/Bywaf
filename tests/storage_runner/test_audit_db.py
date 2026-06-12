@@ -124,6 +124,7 @@ class StorageRunnerAuditDbTests(unittest.TestCase):
             self.assertIn("outside allowed network scope", text)
 
     def test_audit_list_policy_selects_plugin(self):
+        """Protect audit list policy selects plugin behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             # Two policy rows make the selector meaningful: the audit command

@@ -98,6 +98,7 @@ class SetupCliTests(unittest.TestCase):
                 self.assertEqual(events[-1].payload["generated_keys"], [])
 
     def test_interactive_setup_can_request_encrypted_project_database(self):
+        """Protect interactive setup can request encrypted project database behavior from regressions."""
         calls: list[tuple[Path, str | None]] = []
         published: list[dict[str, object]] = []
         outer = self

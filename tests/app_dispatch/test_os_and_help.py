@@ -105,6 +105,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertEqual(run.call_args.kwargs["env"]["LESSSECURE"], "1")
 
     def test_page_prints_inline_when_generated_output_fits_terminal(self):
+        """Protect page prints inline when generated output fits terminal behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.record_job("hostscanner 127.0.0.1", 123, "running")

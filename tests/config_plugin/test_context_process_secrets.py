@@ -138,6 +138,7 @@ class ConfigPluginContextProcessSecretTests(unittest.TestCase):
         self.assertEqual([event.payload["host"] for event in events], ["127.0.0.1"])
 
     def test_command_context_process_stream_records_incremental_output(self):
+        """Protect command context process stream records incremental output behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             context = CommandContext(

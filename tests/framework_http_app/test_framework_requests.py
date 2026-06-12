@@ -86,6 +86,7 @@ class TestFrameworkRequestsTests(unittest.TestCase):
             self.assertEqual(denied.payload["request_event_id"], request.id)
 
     def test_framework_request_emits_console_output(self):
+        """Protect framework request emits console output behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             state = ShellState()

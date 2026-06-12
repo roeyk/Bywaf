@@ -201,6 +201,7 @@ class MvpPluginSuiteTests(unittest.TestCase):
                 return {"status": 404, "content_type": "text/plain", "length": 0, "sample": ""}
 
             def fake_probe_git_config(opener, endpoint, *, timeout, user_agent):
+                """Test helper for fake probe git config."""
                 del opener, timeout, user_agent
                 checked_url = f"{endpoint['url'].rstrip('/')}/.git/config"
                 return base_result(

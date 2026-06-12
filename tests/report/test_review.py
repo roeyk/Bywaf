@@ -200,6 +200,7 @@ class ReportReviewTests(unittest.TestCase):
             self.assertIn("Open finding", text)
 
     def test_report_accepted_first_orders_reviewed_findings_first(self):
+        """Protect report accepted first orders reviewed findings first behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             # The insertion order puts the open finding first. The report flag

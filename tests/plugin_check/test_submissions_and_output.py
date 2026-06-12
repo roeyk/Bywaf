@@ -106,6 +106,7 @@ class TestSubmissionsAndOutputTests(unittest.TestCase):
             self.assertIn("--verify requires --manifest-key", report["errors"])
 
     def test_check_plugin_text_output(self):
+        """Protect check plugin text output behavior from regressions."""
         report = {"ok": False, "plugin": "/tmp/missing", "commandlets": [], "triggers": [], "errors": ["missing"]}
 
         text = render_text(report)

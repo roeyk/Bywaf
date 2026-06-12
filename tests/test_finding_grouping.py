@@ -83,6 +83,7 @@ class FindingGroupingTests(unittest.TestCase):
         self.assertEqual(payload["subjects"]["evidence"], "evidence")
 
     def test_candidate_payload_accepts_subject_overrides_and_typed_values(self):
+        """Protect candidate payload accepts subject overrides and typed values behavior from regressions."""
         payload = candidate_payload(
             title="Weak login",
             finding_class="web.auth.weak_login",

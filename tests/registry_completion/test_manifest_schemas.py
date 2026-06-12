@@ -130,6 +130,7 @@ class RegistryManifestSchemaTests(unittest.TestCase):
         self.assertEqual(manifest.event_schemas[0].required_fields, ("host",))
 
     def test_plugin_manifest_rejects_framework_owned_event_schema(self):
+        """Protect plugin manifest rejects framework owned event schema behavior from regressions."""
         with self.assertRaisesRegex(ValueError, "framework-owned"):
             parse_plugin_manifest_data(
                 {

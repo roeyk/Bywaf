@@ -75,6 +75,7 @@ class EventDbTests(unittest.TestCase):
             self.assertEqual(len(db.poll(Subscription(("a",)), timeout_seconds=0.1)), 1)
 
     def test_jobs_lifecycle(self):
+        """Protect jobs lifecycle behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "events.sqlite3"))
             job_id = db.record_job("list", 123, "running")

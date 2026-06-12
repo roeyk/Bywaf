@@ -45,6 +45,7 @@ class PluginCatalogTests(unittest.TestCase):
             self.assertEqual(check_catalog_tree(catalog_path), [])
 
     def test_built_catalog_includes_trigger_metadata(self):
+        """Protect built catalog includes trigger metadata behavior from regressions."""
         catalog = build_catalog()
         watchdog = next(row for row in catalog["plugins"] if row["entry"] == "runtime.watchdog")
 

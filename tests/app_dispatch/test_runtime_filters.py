@@ -138,6 +138,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("completed/finished", text)
 
     def test_job_listing_filters_by_command_substring(self):
+        """Protect job listing filters by command substring behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.record_job("hostscanner 127.0.0.1", 123, "finished")

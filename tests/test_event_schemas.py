@@ -130,6 +130,7 @@ class EventSchemaTests(unittest.TestCase):
         )
 
     def test_plugin_schema_registration_rejects_framework_override(self):
+        """Protect plugin schema registration rejects framework override behavior from regressions."""
         with self.assertRaisesRegex(ValueError, "cannot override framework event schema"):
             register_event_schema(EventSchema("host.found", "override", (FieldSchema("other", "str", True),)))
 

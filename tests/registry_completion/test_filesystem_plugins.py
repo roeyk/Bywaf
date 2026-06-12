@@ -90,6 +90,7 @@ class RegistryFilesystemPluginTests(unittest.TestCase):
                 PluginRegistry.from_config(root, config)
 
     def test_filesystem_plugin_loads_with_unsigned_developer_bypass(self):
+        """Protect filesystem plugin loads with unsigned developer bypass behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "plugins")
             plugin_dir = root / "scanners" / "example"

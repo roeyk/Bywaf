@@ -95,6 +95,7 @@ class PackagingInstallVersionAndRootTests(unittest.TestCase):
             self.assertIn("provider", runner.registry.names())
 
     def test_filesystem_config_auto_loads_available_declared_plugin_dependencies(self):
+        """Protect filesystem config auto loads available declared plugin dependencies behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp, "home", "alice", ".bywaf", "plugins")
             write_plugin(root, "local/provider", "provider", "provider")

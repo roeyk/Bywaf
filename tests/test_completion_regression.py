@@ -63,6 +63,7 @@ class CompletionRegressionTests(unittest.TestCase):
                 self.assertNotIn("--from", candidates)
 
     def test_declared_choice_options_complete_key_value_values(self):
+        """Protect declared choice options complete key value values behavior from regressions."""
         for name, plugin in self.registry.plugins.items():
             for option in plugin.spec.options:
                 if not option.choices or option_is_binary(option.name):

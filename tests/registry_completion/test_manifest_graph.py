@@ -73,6 +73,7 @@ def test_bundled_manifest_graph_serializes_for_reports():
 
 
 def test_manifest_graph_records_explicit_dependency_edges():
+    """Protect manifest graph records explicit dependency edges behavior from regressions."""
     manifest = PluginManifest(
         commandlets=frozenset({"consumer"}),
         version="0.1.0",

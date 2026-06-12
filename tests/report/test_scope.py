@@ -238,6 +238,7 @@ class ReportScopeTests(unittest.TestCase):
             self.assertEqual(reviews[0].payload["finding_id"], "apache-41773")
 
     def test_finding_review_expands_related_cves_from_scoped_event_metadata(self):
+        """Protect finding review expands related cves from scoped event metadata behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "bywaf.sqlite3"))
             runner.db.publish(

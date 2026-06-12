@@ -66,6 +66,7 @@ class InteractiveCompletionSmokeTests(unittest.TestCase):
                 self.close_repl(child)
 
     def test_tab_completes_filespec_argument(self):
+        """Protect tab completes filespec argument behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "snapshot.html").write_text("<html></html>")

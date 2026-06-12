@@ -94,6 +94,7 @@ class TestContextCapabilityAuditTests(unittest.TestCase):
             self.assertEqual(runner.db.events_for_topic("other.topic"), [])
 
     def test_context_events_publish_can_audit_undeclared_topic(self):
+        """Protect context events publish can audit undeclared topic behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             context = CommandContext(

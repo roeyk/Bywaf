@@ -46,6 +46,7 @@ class RepoExposureTests(unittest.TestCase):
         self.assertFalse(looks_like_git_config("[core]\n\tbare = false\n"))
 
     def test_explicit_targets_are_normalized(self):
+        """Protect explicit targets are normalized behavior from regressions."""
         payload = endpoint_from_target_text("example.test:8443")
         self.assertEqual(payload["url"], "http://example.test:8443/")
         self.assertEqual(payload["host"], "example.test")

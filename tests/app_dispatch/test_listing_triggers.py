@@ -103,6 +103,7 @@ class AppDispatchTests(unittest.TestCase):
                 dispatch_repl_line(runner, "cmds --page")
 
     def test_start_default_services_launches_session_watchdog_once(self):
+        """Protect start default services launches session watchdog once behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             job_id = runner.db.record_job("hostscanner 127.0.0.1", None, "running")

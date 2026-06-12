@@ -73,6 +73,7 @@ class ResourcesHistoryConfigPreferenceTests(unittest.TestCase):
             self.assertEqual(runner.registry.varstore.get("test.value"), "legacy")
 
     def test_config_theme_loads_named_preset(self):
+        """Protect config theme loads named preset behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             with contextlib.redirect_stdout(io.StringIO()):

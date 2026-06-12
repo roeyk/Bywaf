@@ -82,6 +82,7 @@ class ConfigPluginVarsCommandletTests(unittest.TestCase):
         self.assertEqual(store.items(), [("a", "1"), ("b", "2")])
 
     def test_commandlet_base_var_default_uses_cli_variable_default_order(self):
+        """Protect commandlet base var default uses CLI variable default order behavior from regressions."""
         store = VarStore()
         store.set("example.timeout", "7")
         context = CommandContext(None, source="example", _varstore=store)

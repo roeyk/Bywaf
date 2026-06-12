@@ -39,6 +39,7 @@ class RenderingTests(unittest.TestCase):
         self.assertEqual(table.rows[0], {"host": "127.0.0.1", "port": 80})
 
     def test_console_renderer_uses_titles_and_alignment(self):
+        """Protect console renderer uses titles and alignment behavior from regressions."""
         table = Table.from_rows(
             ({"host": "127.0.0.1", "port": 80},),
             (Column("host", "Host"), Column("port", "Port", "right")),

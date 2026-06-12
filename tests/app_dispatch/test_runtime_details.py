@@ -185,6 +185,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertIn("inspect artifacts with: artifact list step=1", text)
 
     def test_runtime_views_default_to_chronological_order(self):
+        """Protect runtime views default to chronological order behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             first_job = runner.db.record_job("first", 123, "finished")

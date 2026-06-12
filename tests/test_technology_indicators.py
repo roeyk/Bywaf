@@ -45,6 +45,7 @@ class TechnologyIndicatorsTests(unittest.TestCase):
         self.assertIn("passive http.endpoint evidence", finding["evidence"])
 
     def test_apache_httpd_250_banner_becomes_service_indicator(self):
+        """Protect apache httpd 250 banner becomes service indicator behavior from regressions."""
         event = Event.new(
             "tcp.banner",
             {"host": "192.0.2.10", "port": 80, "protocol": "tcp", "banner": "Server: Apache/2.4.50"},

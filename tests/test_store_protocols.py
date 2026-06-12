@@ -58,6 +58,7 @@ class StoreProtocolTests(unittest.TestCase):
                     self.assertEqual(job["status"], "completed")
 
     def test_event_store_can_use_explicit_database_backend(self):
+        """Protect event store can use explicit database backend behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             backend = SQLiteBackend(Path(tmp, "events.sqlite3"))
             store = EventStore(backend=backend)

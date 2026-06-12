@@ -186,6 +186,7 @@ class FindingDedupeTests(unittest.TestCase):
             self.assertEqual(updated["new_status"], "confirmed")
 
     def test_confirmed_finding_topic_is_normalized_as_confirmed(self):
+        """Protect confirmed finding topic is normalized as confirmed behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             db = EventStore(Path(tmp, "bywaf.sqlite3"))
             event = db.publish(

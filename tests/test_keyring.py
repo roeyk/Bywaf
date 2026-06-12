@@ -95,6 +95,7 @@ class KeyringTests(unittest.TestCase):
                 self.assertEqual(events[0].payload["name"], "firm-evidence")
 
     def test_key_name_completion_uses_user_keyring(self):
+        """Protect key name completion uses user keyring behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             with patch.dict(os.environ, {"BYWAF_KEY_ROOT": tmp}):
                 generate_key("firm-evidence", "passphrase")

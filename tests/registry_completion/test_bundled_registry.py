@@ -143,6 +143,7 @@ class RegistryBundledPluginTests(unittest.TestCase):
         self.assertFalse(manifest.native)
 
     def test_bundled_watchdog_manifest_is_service(self):
+        """Protect bundled watchdog manifest is service behavior from regressions."""
         manifest = load_package_manifest("bywaf.plugins", "runtime.watchdog")
         self.assertIsNotNone(manifest)
         assert manifest is not None

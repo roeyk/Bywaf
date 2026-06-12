@@ -58,6 +58,7 @@ class NmapBackendTests(unittest.TestCase):
             self.assertEqual(discover_live_hosts("127.0.0.1"), ["127.0.0.1"])
 
     def test_scan_open_ports_uses_portscanner_backend(self):
+        """Protect scan open ports uses portscanner backend behavior from regressions."""
         with patch("bywaf.plugins.network.nmap_backend.load_backend", return_value=("nmaplib", FakeNmapModule)):
             self.assertEqual(
                 scan_open_ports(["127.0.0.1"], "22"),

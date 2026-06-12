@@ -239,6 +239,7 @@ class AppDispatchTests(unittest.TestCase):
             self.assertNotIn("Representative events", text)
 
     def test_results_renders_tcp_banner_summaries(self):
+        """Protect results renders tcp banner summaries behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             runner = make_runner(Path(tmp, "db.sqlite3"))
             runner.db.record_job("network/tcp_banner 192.0.2.20:22", 123, "finished")

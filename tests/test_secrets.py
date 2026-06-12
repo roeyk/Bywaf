@@ -44,6 +44,7 @@ class SecretTests(unittest.TestCase):
             self.assertEqual(path.stat().st_mode & 0o777, 0o600)
 
     def test_is_secret_name_uses_declared_names_only(self):
+        """Protect is secret name uses declared names only behavior from regressions."""
         self.assertFalse(is_secret_name("password"))
         self.assertFalse(is_secret_name("api_key"))
         self.assertTrue(is_secret_name("custom", {"custom"}))

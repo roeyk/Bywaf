@@ -89,6 +89,7 @@ class FakePromptApp:
         self.invalidated = False
 
     def invalidate(self) -> None:
+        """Test helper for invalidate."""
         self.invalidated = True
 
 

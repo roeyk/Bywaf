@@ -30,6 +30,7 @@ class SQLiteQueryBenchmarkTests(unittest.TestCase):
         self.assertEqual({measurement.name for measurement in result.measurements} >= {"recent_25", "audit_jsonl_scan_100000"}, True)
 
     def test_benchmark_reuses_existing_database(self):
+        """Protect benchmark reuses existing database behavior from regressions."""
         with tempfile.TemporaryDirectory() as tmp:
             database = Path(tmp, "query.sqlite3")
             first = run_query_benchmark(database, events=10, repetitions=1, payload_bytes=4)

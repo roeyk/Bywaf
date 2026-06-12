@@ -46,6 +46,7 @@ class PluginSelectorApiTests(unittest.TestCase):
             require_one_selector({"job": "1", "step": "2"}, ("job", "pipeline", "step"), command="example")
 
     def test_parse_bool_accepts_common_truthy_values(self) -> None:
+        """Protect parse bool accepts common truthy values behavior from regressions."""
         for value in (True, "1", "true", "yes", "on", " TRUE "):
             with self.subTest(value=value):
                 self.assertTrue(parse_bool(value))

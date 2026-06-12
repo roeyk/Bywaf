@@ -150,6 +150,7 @@ class FakeHostResult:
         return "up"
 
     def all_protocols(self):
+        """Test helper for all protocols."""
         return ["tcp"]
 
     def __getitem__(self, protocol):
