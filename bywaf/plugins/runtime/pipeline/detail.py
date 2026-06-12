@@ -30,12 +30,18 @@ from bywaf.runtime_display import (
 )
 from bywaf.style import styled_subject_text
 
+# NOISE_TOPIC_PREFIXES and NOISE_TOPICS are consumed by is_noise_topic() when
+# format_step_inserted_topics() summarizes what each pipeline step produced.
+# Lifecycle, capability-audit, progress, and display-only topics are hidden so
+# the detail table emphasizes project facts such as port.open or finding.new.
 NOISE_TOPIC_PREFIXES = ("command.run.", "plugin.capability.", "plugin.progress.")
 NOISE_TOPICS = {"framework.console.output.requested", "console.output", "runtime.name.assigned"}
 
 
 def format_pipeline_artifacts(context: CommandContext, pipeline_id: str, shown_pipeline_id: str) -> str:
     """Render artifacts attached anywhere in one pipeline."""
+    # Use the shown alias/local id in the follow-up command, but query by the
+    # durable stored pipeline id passed by the runtime action.
     return render_artifact_summary(
         context,
         artifact_events_for_pipeline(context, pipeline_id),
@@ -50,6 +56,8 @@ def format_pipeline_hints(context: CommandContext, pipeline_id: str) -> str:
     runs = [row for row in runtime.runs(active_only=False) if str(row["pipeline_id"]) == pipeline_id]
     run_aliases = runtime.run_aliases()
     commands: list[str] = []
+    # Hints are deliberately command strings, not prose. The detail view should
+    # leave the operator with copyable next steps for every attached job/step.
     commands.extend(f"job {row['id']}" for row in jobs)
     for row in sorted(runs, key=lambda run: str(run["first_event"] or "")):
         step_id = run_aliases.get(str(row["command_run_id"]), str(row["command_run_id"]))
@@ -68,6 +76,9 @@ def format_pipeline_jobs(context: CommandContext, pipeline_id: str) -> str:
         return "Jobs: none"
     names = runtime.runtime_names()
     artifact_counts = runtime.artifact_counts_by_job()
+    # Project runtime rows into a stable table shape before rendering. This
+    # keeps command truncation, artifact counts, and user-assigned names at the
+    # pipeline-detail layer instead of leaking those concerns into render_table().
     table_rows = [
         (
             row["id"],
@@ -100,6 +111,9 @@ def format_pipeline_steps(context: CommandContext, pipeline_id: str) -> str:
     names = runtime.runtime_names()
     run_aliases = runtime.run_aliases()
     artifact_counts = runtime.artifact_counts_by_run()
+    # Steps are shown chronologically so `pipeline <id>` reads like the original
+    # command chain. Runtime aliases provide short local step ids for follow-up
+    # commands while preserving the durable command_run_id internally.
     table_rows = [
         (
             run_aliases.get(str(row["command_run_id"]), row["command_run_id"]),
@@ -127,6 +141,8 @@ def format_step_inserted_topics(context: CommandContext, command_run_id: str) ->
     """Summarize non-lifecycle event topics inserted by one step."""
     events = context.event_store("pipeline show inserted").events_matching(command_run_id=command_run_id, limit=100000)
     counts = Counter(event.topic for event in events if not is_noise_topic(event.topic))
+    # If a step only produced lifecycle/noise topics, fall back to all topics so
+    # the INSERTED column still explains that the step has persisted events.
     if not counts:
         counts = Counter(event.topic for event in events)
     return ", ".join(f"{topic}={count}" for topic, count in sorted(counts.items())) or "-"
@@ -151,10 +167,14 @@ def format_pipeline(
     prefix = ""
     detail = ""
     if show_active:
+        # Active markers are optional because list views need compact rows, but
+        # detail views can show the elapsed/finished marker beside the id.
         label = runtime_state_label(statuses)
         timestamp = row["first_seen"] if label in {"active", "in progress"} else row["last_seen"]
         prefix, detail = state_marker(label, timestamp, style=marker_style)
     pipeline_id = alias or row["pipeline_id"]
+    # Apply subject styling only after local alias/serial selection so display
+    # identity and durable identity can be styled independently.
     pipeline_id = styled_subject_text(style_getter, "pipeline", pipeline_id) if style_getter else pipeline_id
     serial = display_runtime_serial(row["pipeline_id"])
     serial = styled_subject_text(style_getter, "serial", serial) if style_getter else serial
