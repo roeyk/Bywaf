@@ -10,6 +10,8 @@ Used by:
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 
 # ansi_color_code() accepts friendly style names in user-configurable display
 # variables. These tables translate those names into SGR numbers before the
@@ -69,6 +71,96 @@ ANSI_STYLE_TOKENS = {
 STRUCTURED_STYLE_FLAGS = frozenset(ANSI_STYLE_TOKENS)
 
 
+def indexed_fg(raw: str) -> str | None:
+    """Return a foreground ANSI-256 SGR code.
+
+    Called by: `FG_COLOR_PARSERS` for `color...` and `ansi:...` tokens.
+    """
+    number = parse_color_int(raw, 0, 255)
+    return f"38;5;{number}" if number is not None else None
+
+
+def indexed_bg(raw: str) -> str | None:
+    """Return a background ANSI-256 SGR code.
+
+    Called by: background parser dispatch tables for `color...`, `ansi:...`,
+    and `bg-ansi:...` tokens.
+    """
+    number = parse_color_int(raw, 0, 255)
+    return f"48;5;{number}" if number is not None else None
+
+
+def hex_fg(raw: str) -> str | None:
+    """Return a truecolor foreground SGR code from CSS-style hex.
+
+    Called by: `FG_COLOR_PARSERS` for `#RGB` and `#RRGGBB` tokens.
+    """
+    rgb = parse_hex_color(raw)
+    return f"38;2;{rgb[0]};{rgb[1]};{rgb[2]}" if rgb is not None else None
+
+
+def hex_bg(raw: str) -> str | None:
+    """Return a truecolor background SGR code from CSS-style hex.
+
+    Called by: background parser dispatch tables for `#RGB` and `#RRGGBB`
+    tokens.
+    """
+    rgb = parse_hex_color(raw)
+    return f"48;2;{rgb[0]};{rgb[1]};{rgb[2]}" if rgb is not None else None
+
+
+def rgb_fg(raw: str) -> str | None:
+    """Return a truecolor foreground SGR code from `R,G,B` values.
+
+    Called by: `FG_COLOR_PARSERS` for `rgb:...` tokens.
+    """
+    rgb = parse_rgb_color(raw)
+    return f"38;2;{rgb[0]};{rgb[1]};{rgb[2]}" if rgb is not None else None
+
+
+def rgb_bg(raw: str) -> str | None:
+    """Return a truecolor background SGR code from `R,G,B` values.
+
+    Called by: background parser dispatch tables for `rgb:...` and
+    `bg-rgb:...` tokens.
+    """
+    rgb = parse_rgb_color(raw)
+    return f"48;2;{rgb[0]};{rgb[1]};{rgb[2]}" if rgb is not None else None
+
+
+def nested_bg(raw: str) -> str | None:
+    """Return a background SGR code from a foreground-parser `bg:` token.
+
+    Called by: `FG_COLOR_PARSERS` so `ansi_color_code("bg:red")` delegates to
+    the background parser instead of duplicating its rules.
+    """
+    return ansi_background_color_code(raw)
+
+
+# Dispatch table consumed by ansi_color_code(). Prefixes are ordered from more
+# specific to less specific where necessary; each parser receives the token
+# text after its prefix has been removed.
+FG_COLOR_PARSERS: tuple[tuple[str, Callable[[str], str | None]], ...] = (
+    ("bg-ansi:", indexed_bg),
+    ("bg-rgb:", rgb_bg),
+    ("color", indexed_fg),
+    ("#", hex_fg),
+    ("bg:", nested_bg),
+    ("ansi:", indexed_fg),
+    ("rgb:", rgb_fg),
+)
+
+# Dispatch table consumed by ansi_background_color_code(). It mirrors the
+# dynamic token forms supported by foreground parsing without accepting nested
+# `bg:` tokens.
+BG_COLOR_PARSERS: tuple[tuple[str, Callable[[str], str | None]], ...] = (
+    ("color", indexed_bg),
+    ("#", hex_bg),
+    ("ansi:", indexed_bg),
+    ("rgb:", rgb_bg),
+)
+
+
 def ansi_color(text: str, style: str) -> str:
     """Wrap text in ANSI SGR escapes when the requested style is known.
 
@@ -111,30 +203,13 @@ def ansi_color_code(color: str) -> str | None:
     normalized = color.strip().casefold().replace("_", "-")
     if not normalized:
         return None
-    # Check named colors first, then progressively parse indexed and truecolor
-    # foreground/background forms such as color123, bg:blue, and rgb:1,2,3.
+    # Named colors remain a simple table lookup; dynamic tokens are handled by
+    # FG_COLOR_PARSERS below to avoid a long prefix if/elif ladder.
     if normalized in ANSI_COLORS:
         return ANSI_COLORS[normalized]
-    if normalized.startswith("color"):
-        number = parse_color_int(normalized.removeprefix("color"), 0, 255)
-        return f"38;5;{number}" if number is not None else None
-    if normalized.startswith("#"):
-        rgb = parse_hex_color(normalized)
-        return f"38;2;{rgb[0]};{rgb[1]};{rgb[2]}" if rgb is not None else None
-    if normalized.startswith("bg:"):
-        return ansi_background_color_code(normalized.removeprefix("bg:"))
-    if normalized.startswith("ansi:"):
-        number = parse_color_int(normalized.removeprefix("ansi:"), 0, 255)
-        return f"38;5;{number}" if number is not None else None
-    if normalized.startswith("bg-ansi:"):
-        number = parse_color_int(normalized.removeprefix("bg-ansi:"), 0, 255)
-        return f"48;5;{number}" if number is not None else None
-    if normalized.startswith("rgb:"):
-        rgb = parse_rgb_color(normalized.removeprefix("rgb:"))
-        return f"38;2;{rgb[0]};{rgb[1]};{rgb[2]}" if rgb is not None else None
-    if normalized.startswith("bg-rgb:"):
-        rgb = parse_rgb_color(normalized.removeprefix("bg-rgb:"))
-        return f"48;2;{rgb[0]};{rgb[1]};{rgb[2]}" if rgb is not None else None
+    for prefix, parser in FG_COLOR_PARSERS:
+        if normalized.startswith(prefix):
+            return parser(normalized.removeprefix(prefix))
     return None
 
 
@@ -147,20 +222,13 @@ def ansi_background_color_code(color: str) -> str | None:
     normalized = color.strip().casefold().replace("_", "-")
     if not normalized:
         return None
+    # Named background colors remain direct lookups; BG_COLOR_PARSERS handles
+    # dynamic indexed/truecolor forms in place of a repeated prefix ladder.
     if normalized in ANSI_BACKGROUND_COLORS:
         return ANSI_BACKGROUND_COLORS[normalized]
-    if normalized.startswith("color"):
-        number = parse_color_int(normalized.removeprefix("color"), 0, 255)
-        return f"48;5;{number}" if number is not None else None
-    if normalized.startswith("#"):
-        rgb = parse_hex_color(normalized)
-        return f"48;2;{rgb[0]};{rgb[1]};{rgb[2]}" if rgb is not None else None
-    if normalized.startswith("ansi:"):
-        number = parse_color_int(normalized.removeprefix("ansi:"), 0, 255)
-        return f"48;5;{number}" if number is not None else None
-    if normalized.startswith("rgb:"):
-        rgb = parse_rgb_color(normalized.removeprefix("rgb:"))
-        return f"48;2;{rgb[0]};{rgb[1]};{rgb[2]}" if rgb is not None else None
+    for prefix, parser in BG_COLOR_PARSERS:
+        if normalized.startswith(prefix):
+            return parser(normalized.removeprefix(prefix))
     return None
 
 
