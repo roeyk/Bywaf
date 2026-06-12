@@ -9,7 +9,9 @@ Used by:
 from __future__ import annotations
 
 import ast
+from collections.abc import Callable
 from pathlib import Path
+from typing import cast
 
 from bywaf.event.schemas import event_schema, validate_event_payload
 from .diagnostics import AuthoringDiagnosticMixin
@@ -26,6 +28,19 @@ from .helpers import (
     literal_string_sequence,
 )
 from .state import CapabilityAnalysisState
+
+
+# Dispatch sequence consumed by CapabilityVisitor.inspect_call(). Each named
+# method owns one plugin-check capability surface, keeping call analysis
+# extensible without growing a long path/classification ladder.
+CALL_INSPECTOR_NAMES = (
+    "inspect_authoring_call",
+    "inspect_capability_call",
+    "inspect_event_store_call",
+    "inspect_artifact_call",
+    "inspect_filesystem_call",
+    "inspect_direct_api_call",
+)
 
 
 class CapabilityVisitor(CapabilityAnalysisState, AuthoringDiagnosticMixin, ast.NodeVisitor):
@@ -136,15 +151,12 @@ class CapabilityVisitor(CapabilityAnalysisState, AuthoringDiagnosticMixin, ast.N
         Called by: `visit_Call()` after resolving aliases into a dotted call
         path such as `context.events.publish`.
         """
-        # Each inspector owns one capability surface. Keeping this fan-out here
-        # avoids a large if/elif ladder in visit_Call() and makes future
-        # capability families easier to add.
-        self.inspect_authoring_call(node, path)
-        self.inspect_capability_call(node, path)
-        self.inspect_event_store_call(node, path)
-        self.inspect_artifact_call(node, path)
-        self.inspect_filesystem_call(node, path)
-        self.inspect_direct_api_call(node, path)
+        # CALL_INSPECTOR_NAMES is the dispatch sequence defined above. It
+        # replaces a call-path if/elif ladder with small inspectors grouped by
+        # capability surface.
+        for inspector_name in CALL_INSPECTOR_NAMES:
+            inspector = cast(Callable[[ast.Call, str], None], getattr(self, inspector_name))
+            inspector(node, path)
 
     def inspect_capability_call(self, node: ast.Call, path: str) -> None:
         """Infer capabilities from documented framework calls."""
