@@ -32,7 +32,12 @@ WORKLOADS = (DIRECT_WORKLOAD, PLUGIN_WORKLOAD)
 
 @dataclass(frozen=True, slots=True)
 class WorkerResult:
-    """Measurements from one writer process."""
+    """Measurements from one writer process.
+
+    Constructed by: `run_writer()` inside each benchmark worker process.
+    Consumed by: `aggregate_results()` for totals and by `format_result()` when
+    showing per-worker sample errors.
+    """
 
     writer: int
     attempted: int
@@ -47,7 +52,12 @@ class WorkerResult:
 
 @dataclass(frozen=True, slots=True)
 class BenchmarkResult:
-    """Aggregated benchmark measurements."""
+    """Aggregated benchmark measurements.
+
+    Constructed by: `aggregate_results()` after all writer processes complete.
+    Consumed by: JSON output, human-readable CLI output, and performance docs
+    when recording baseline measurements.
+    """
 
     database: str
     workload: str
@@ -130,7 +140,10 @@ def run_writer(
     read_every: int,
     workload: str,
 ) -> WorkerResult:
-    """Publish benchmark events from one process."""
+    """Publish benchmark events from one process.
+
+    Called by: `run_benchmark()` through `ProcessPoolExecutor.submit()`.
+    """
     db = EventStore(Path(database))
     emitter = build_emitter(db, writer, payload_bytes, workload)
     payload_data = "x" * payload_bytes
@@ -207,7 +220,11 @@ def build_emitter(db: EventStore, writer: int, payload_bytes: int, workload: str
 
 @dataclass(frozen=True, slots=True)
 class SyntheticPortScannerEmitter:
-    """Commandlet-shaped high-volume event emitter for plugin workload tests."""
+    """Commandlet-shaped high-volume event emitter for plugin workload tests.
+
+    Constructed by: `build_emitter()` for `--workload plugin`. It exercises the
+    same `context.events.publish()` path that native commandlets use.
+    """
 
     context: CommandContext
     writer: int
@@ -231,7 +248,10 @@ class SyntheticPortScannerEmitter:
 
 
 def benchmark_mp_context() -> Any | None:
-    """Return a multiprocessing context suitable for local contention benchmarks."""
+    """Return a multiprocessing context suitable for local contention benchmarks.
+
+    Used by: `run_benchmark()` before spawning writer processes.
+    """
     try:
         return mp.get_context("fork")
     except ValueError:  # pragma: no cover - fork is unavailable on some platforms.
@@ -249,7 +269,10 @@ def aggregate_results(
     elapsed_seconds: float,
     workload: str = DIRECT_WORKLOAD,
 ) -> BenchmarkResult:
-    """Aggregate per-worker benchmark results."""
+    """Aggregate per-worker benchmark results.
+
+    Called by: `run_benchmark()` after all worker futures complete.
+    """
     # Flatten latency samples across workers after preserving each worker's
     # individual result for diagnosis of skew or lock-heavy outliers.
     attempted = sum(result.attempted for result in results)
@@ -279,7 +302,10 @@ def aggregate_results(
 
 
 def latency_summary(values: tuple[float, ...]) -> dict[str, float]:
-    """Return simple latency percentiles in milliseconds."""
+    """Return simple latency percentiles in milliseconds.
+
+    Used by: contention and query benchmark result aggregators.
+    """
     if not values:
         return {"count": 0, "min": 0, "p50": 0, "p95": 0, "max": 0}
     ordered = tuple(sorted(values))
@@ -293,7 +319,10 @@ def latency_summary(values: tuple[float, ...]) -> dict[str, float]:
 
 
 def percentile(ordered_values: tuple[float, ...], percentile_value: float) -> float:
-    """Return the nearest-rank percentile from pre-sorted values."""
+    """Return the nearest-rank percentile from pre-sorted values.
+
+    Used by: `latency_summary()` for p50/p95 output.
+    """
     if not ordered_values:
         return 0
     rank = max(1, round((percentile_value / 100) * len(ordered_values)))
@@ -301,12 +330,18 @@ def percentile(ordered_values: tuple[float, ...], percentile_value: float) -> fl
 
 
 def result_dict(result: BenchmarkResult) -> dict[str, Any]:
-    """Return a JSON-serializable benchmark result."""
+    """Return a JSON-serializable benchmark result.
+
+    Used by: `print_result()` when `--json` is requested.
+    """
     return asdict(result)
 
 
 def format_result(result: BenchmarkResult) -> str:
-    """Return a compact human-readable benchmark report."""
+    """Return a compact human-readable benchmark report.
+
+    Used by: `print_result()` for the default CLI output.
+    """
     lines = [
         "SQLite contention benchmark",
         f"database={result.database}",
@@ -320,12 +355,17 @@ def format_result(result: BenchmarkResult) -> str:
         lines.append(format_latency("read_latency_ms", result.read_latency_ms))
     for worker in result.workers:
         if worker.errors:
+            # Include only bounded sample errors from each worker; the full
+            # failure count is already in the aggregate fields above.
             lines.append(f"worker={worker.writer} sample_errors={list(worker.errors)}")
     return "\n".join(lines)
 
 
 def format_latency(label: str, summary: dict[str, float]) -> str:
-    """Format one latency summary."""
+    """Format one latency summary.
+
+    Used by: `format_result()` for write and optional read latency lines.
+    """
     return (
         f"{label}: count={int(summary['count'])} min={summary['min']:.3f} "
         f"p50={summary['p50']:.3f} p95={summary['p95']:.3f} max={summary['max']:.3f}"
@@ -333,7 +373,10 @@ def format_latency(label: str, summary: dict[str, float]) -> str:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Build the benchmark CLI parser."""
+    """Build the benchmark CLI parser.
+
+    Called by: `main()` and useful in tests that validate CLI argument shape.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--database", type=Path, help="database path; defaults to a temporary file")
     parser.add_argument("--writers", type=int, default=4, help="number of concurrent writer processes")
@@ -351,7 +394,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run the benchmark CLI."""
+    """Run the benchmark CLI.
+
+    Called by: the source-checkout wrapper script and by `python -m` execution.
+    """
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.database is None:
@@ -381,7 +427,10 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def print_result(result: BenchmarkResult, *, as_json: bool) -> None:
-    """Print benchmark output."""
+    """Print benchmark output.
+
+    Called by: `main()` after benchmark execution regardless of database mode.
+    """
     if as_json:
         print(json.dumps(result_dict(result), indent=2, sort_keys=True))
     else:
