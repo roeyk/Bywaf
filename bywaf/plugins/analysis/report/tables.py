@@ -1,4 +1,8 @@
-"""Report table construction and styling helpers."""
+"""Report table construction and styling helpers.
+
+Used by: `analysis.report.render` after finding events have been grouped and
+review decisions have been loaded.
+"""
 
 from __future__ import annotations
 
@@ -33,8 +37,14 @@ def indexed_findings_table(
     decisions: Mapping[str, ReviewDecision],
     show_review_status: bool = False,
 ) -> Table:
-    """Return a report table with stable 1-based row indexes."""
+    """Return a report table with stable 1-based row indexes.
+
+    Called by: `render_finding_report()` for the default finding-grouped view.
+    """
     representatives = [group.representative for group in groups]
+    # `finding_rows()` normalizes payload differences across candidate,
+    # normalized, and confirmed finding topics. Zip the normalized row back to
+    # its group so table-only fields can use group-wide context.
     rows = [
         {
             "index": index,
@@ -57,6 +67,8 @@ def indexed_findings_table(
         columns.append(Column("basis", "Basis"))
     if show_review_status:
         columns.append(Column("review", "Review"))
+    # Return a structured Table here instead of terminal text so export and
+    # rendering layers can decide the final format independently.
     return Table.from_rows(
         rows,
         tuple(columns),
@@ -69,7 +81,11 @@ def indexed_hosts_table(
     *,
     decisions: Mapping[str, ReviewDecision],
 ) -> Table:
-    """Return report rows grouped by affected host."""
+    """Return report rows grouped by affected host.
+
+    Called by: `render_finding_report()` when the operator requests
+    `report sort=host`.
+    """
     rows_by_host: dict[str, list[str]] = {}
     host_order: list[str] = []
     representatives = [group.representative for group in groups]
@@ -79,6 +95,8 @@ def indexed_hosts_table(
         summary = finding_host_summary(row, review)
         hosts = finding_affected_values(group) or affected_hosts_from_row(row)
         for host in hosts:
+            # Preserve first-seen host order from the grouped findings while
+            # still merging repeated finding summaries for the same host below.
             if host not in rows_by_host:
                 rows_by_host[host] = []
                 host_order.append(host)
@@ -103,7 +121,10 @@ def indexed_hosts_table(
 
 
 def finding_host_summary(row: Mapping[str, object], review: str) -> str:
-    """Return one compact finding description for a host-grouped report."""
+    """Return one compact finding description for a host-grouped report.
+
+    Called by: `indexed_hosts_table()` while populating each host bucket.
+    """
     title = str(row.get("finding_name") or "finding")
     severity = str(row.get("severity") or "").strip()
     suffix = ", ".join(value for value in (severity, review) if value)
@@ -111,7 +132,10 @@ def finding_host_summary(row: Mapping[str, object], review: str) -> str:
 
 
 def finding_display_name(row: Mapping[str, object], group: FindingGroup) -> str:
-    """Return finding title annotated with stronger evidence state when useful."""
+    """Return finding title annotated with stronger evidence state when useful.
+
+    Called by: both finding-grouped and host-grouped report table builders.
+    """
     title = str(row.get("finding_name") or "finding")
     if group_has_confirmed_event(group) and "confirmed" not in title.casefold():
         return f"{title} (confirmed)"
@@ -119,7 +143,10 @@ def finding_display_name(row: Mapping[str, object], group: FindingGroup) -> str:
 
 
 def finding_basis_summary(group: FindingGroup) -> str:
-    """Return compact confidence-basis labels represented by one group."""
+    """Return compact confidence-basis labels represented by one group.
+
+    Called by: `indexed_findings_table()` for the optional Basis column.
+    """
     values = []
     for event in group.events:
         value = str(effective_finding_payload(event).get("confidence_basis") or "").strip()
@@ -129,7 +156,11 @@ def finding_basis_summary(group: FindingGroup) -> str:
 
 
 def group_has_confirmed_event(group: FindingGroup) -> bool:
-    """Return whether a report group includes a confirmed finding observation."""
+    """Return whether a report group includes a confirmed finding observation.
+
+    Called by: `finding_display_name()` to annotate a row title when a group
+    contains confirmed evidence.
+    """
     return any(
         event.topic == "finding.confirmed"
         or str(effective_finding_payload(event).get("status") or "").casefold() == "confirmed"
@@ -138,7 +169,10 @@ def group_has_confirmed_event(group: FindingGroup) -> bool:
 
 
 def finding_affected_summary(row: Mapping[str, object], group: FindingGroup) -> str:
-    """Return a compact affected-resource summary for one finding table row."""
+    """Return a compact affected-resource summary for one finding table row.
+
+    Called by: `indexed_findings_table()` for the Affected column.
+    """
     values = finding_affected_values(group)
     if not values:
         return str(row.get("hosts_affected") or "")
@@ -150,7 +184,11 @@ def finding_affected_summary(row: Mapping[str, object], group: FindingGroup) -> 
 
 
 def finding_affected_values(group: FindingGroup) -> list[str]:
-    """Return unique affected resources represented by one finding group."""
+    """Return unique affected resources represented by one finding group.
+
+    Called by: finding and host table builders to prefer structured target
+    values over legacy comma-separated row text.
+    """
     values: list[str] = []
     for event in group.events:
         payload = effective_finding_payload(event)
@@ -159,7 +197,11 @@ def finding_affected_values(group: FindingGroup) -> list[str]:
 
 
 def affected_hosts_from_row(row: Mapping[str, object]) -> list[str]:
-    """Return affected-host display values from one finding row."""
+    """Return affected-host display values from one finding row.
+
+    Called by: `indexed_hosts_table()` as the compatibility fallback for rows
+    that do not expose structured affected values.
+    """
     raw = str(row.get("hosts_affected") or "").strip()
     if not raw:
         return ["(unknown)"]
