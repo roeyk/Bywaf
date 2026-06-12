@@ -5,6 +5,9 @@ variable expansion, and commandlet argument normalization.
 
 Used by:
 - runner: turns REPL/CLI command text into executable commandlet invocations.
+
+Public surface: re-exports the package API so callers can import the
+subsystem without depending on internal module layout.
 - resource script loading: parses commands loaded from script files."""
 
 

@@ -5,6 +5,9 @@ commandlet base types, decorator helpers, capability helpers, and common specs.
 
 Used by:
 - bundled and external plugins: import the public plugin-authoring API.
+
+Public surface: re-exports the package API so callers can import the
+subsystem without depending on internal module layout.
 - registry and runner: type and invoke commandlets through stable names."""
 
 from __future__ import annotations

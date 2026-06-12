@@ -2,6 +2,11 @@
 
 Concrete job, pipeline/run, and queued-action helpers live in focused modules.
 `runtime.control.actions` imports this facade so its call sites remain stable.
+
+Used by:
+- runtime commandlets and REPL display paths that present persisted jobs,
+  events, inventory, or result state.
+- tests and future plugins that need stable runtime helper behavior.
 """
 
 from __future__ import annotations

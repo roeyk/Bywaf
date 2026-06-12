@@ -2,6 +2,10 @@
 
 Called by: `bywaf.repl.display.catalog.print_plugin_graph()` compatibility
 import when an operator asks for plugin/schema dependency graph output.
+
+Used by:
+- interactive REPL commands, app-dispatch helpers, and display tests.
+- operators who inspect runtime state through built-in commands.
 """
 
 from __future__ import annotations

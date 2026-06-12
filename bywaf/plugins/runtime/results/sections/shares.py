@@ -1,4 +1,10 @@
-"""File-share result sections for the results command."""
+"""File-share result sections for the results command.
+
+Used by:
+- runtime commandlets and REPL display paths that present persisted jobs,
+  events, inventory, or result state.
+- tests and future plugins that need stable runtime helper behavior.
+"""
 
 from __future__ import annotations
 

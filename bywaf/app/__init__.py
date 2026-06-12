@@ -6,6 +6,9 @@ plugin trust policy loading, and top-level command routing.
 Used by:
 - bywaf.__main__: calls main() for the installed `bywaf` command.
 - tests and smoke scripts: import make_runner(), main(), and compatibility
+
+Public surface: re-exports the package API so callers can import the
+subsystem without depending on internal module layout.
   exports while exercising CLI and REPL workflows."""
 
 

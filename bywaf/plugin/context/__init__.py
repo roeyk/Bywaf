@@ -5,6 +5,9 @@ state and mediated services during execution.
 
 Used by:
 - runner: builds command contexts before commandlet execution.
+
+Public surface: re-exports the package API so callers can import the
+subsystem without depending on internal module layout.
 - bundled and external plugins: access framework services without raw coupling."""
 
 from __future__ import annotations

@@ -3,6 +3,11 @@
 Provides the stable `bywaf.runner` import surface while implementation moves
 into cohesive runner modules: core, background, context, stages, jobs,
 at_files, plans, and runtime_events.
+
+Used by:
+- pipeline execution, background job startup, and tests that verify
+  command-run lifecycle behavior.
+- runtime plugins that display runner state.
 """
 
 from .at_files import AtFileExpansion

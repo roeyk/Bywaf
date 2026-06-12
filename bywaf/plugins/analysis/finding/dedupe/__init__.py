@@ -5,6 +5,9 @@ Provides a bundled plugin implementation and CommandSpec metadata. Consumes find
 Used by:
 - PluginRegistry discovery: loads this module as a commandlet provider.
 - runner and REPL: execute it through normal commandlet dispatch.
+
+Public surface: re-exports the package API so callers can import the
+subsystem without depending on internal module layout.
 """
 
 from __future__ import annotations

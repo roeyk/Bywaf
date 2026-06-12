@@ -5,6 +5,9 @@ that wrap command-line binaries.
 
 Used by:
 - wrapper plugins such as nikto, eyewitness, and wireless scanners.
+
+Public surface: re-exports the package API so callers can import the
+subsystem without depending on internal module layout.
 - tests: verify external command error and output handling."""
 
 

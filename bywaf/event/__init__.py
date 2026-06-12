@@ -5,6 +5,9 @@ and payload-filter helpers used by stores, plugins, reports, and REPL views.
 
 Used by:
 - EventStore, schema validation, and runtime/report display helpers.
+
+Public surface: re-exports the package API so callers can import the
+subsystem without depending on internal module layout.
 """
 
 from .model import Event

@@ -1,4 +1,10 @@
-"""Shared text section helpers for metrics report renderers."""
+"""Shared text section helpers for metrics report renderers.
+
+Used by:
+- maintainers measuring coupling, complexity, documentation pressure, and
+  release-readiness signals.
+- CI/manual validation runs that track architecture drift.
+"""
 
 from __future__ import annotations
 

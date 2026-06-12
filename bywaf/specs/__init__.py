@@ -1,6 +1,11 @@
 """Specification package exports.
 
 Provides the stable import surface for command, trigger, and plan metadata
+
+Used by:
+- Bywaf runtime, plugin, or validation paths that import this module through
+  the package API.
+- tests that lock down the module contract.
 classes used by plugins and framework components."""
 
 

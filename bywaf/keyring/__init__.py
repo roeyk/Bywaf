@@ -5,6 +5,9 @@ completion while implementation lives in focused keyring modules.
 
 Used by:
 - Bywaf application code and tests that import this public module surface.
+
+Public surface: re-exports the package API so callers can import the
+subsystem without depending on internal module layout.
 """
 
 from __future__ import annotations

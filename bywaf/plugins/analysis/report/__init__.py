@@ -6,6 +6,9 @@ without requiring operators to inspect raw event payloads.
 
 Used by:
 - PluginRegistry discovery: loads this module as a commandlet provider.
+
+Public surface: re-exports the package API so callers can import the
+subsystem without depending on internal module layout.
 - runner and REPL: execute it through normal commandlet dispatch."""
 
 

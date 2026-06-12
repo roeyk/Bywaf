@@ -1,4 +1,9 @@
-"""Plugin submission materialization and temp-checkout validation helpers."""
+"""Plugin submission materialization and temp-checkout validation helpers.
+
+Used by:
+- maintainer tools, documentation/report generation, and validation scripts.
+- tests and release checks that exercise developer-facing tooling.
+"""
 
 from __future__ import annotations
 

@@ -6,6 +6,9 @@ engine and facade.
 
 Used by:
 - bywaf.completion.facade: builds prompt-toolkit sessions.
+
+Public surface: re-exports the package API so callers can import the
+subsystem without depending on internal module layout.
 """
 
 # pyright: reportMissingImports=false, reportGeneralTypeIssues=false

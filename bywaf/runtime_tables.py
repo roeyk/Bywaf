@@ -1,4 +1,10 @@
-"""Shared console table rendering helpers for runtime views."""
+"""Shared console table rendering helpers for runtime views.
+
+Used by:
+- Bywaf runtime, plugin, or validation paths that import this module through
+  the package API.
+- tests that lock down the module contract.
+"""
 
 from __future__ import annotations
 

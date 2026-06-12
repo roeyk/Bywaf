@@ -3,6 +3,10 @@
 Verifies that the operator-facing bundled plugin manual still matches bundled
 plugin manifests for plugin names, family counts, commandlet counts, and
 commandlet headings.
+
+Used by:
+- maintainer tools, documentation/report generation, and validation scripts.
+- tests and release checks that exercise developer-facing tooling.
 """
 
 from __future__ import annotations

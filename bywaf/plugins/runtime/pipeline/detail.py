@@ -3,6 +3,11 @@
 Called by: `bywaf.plugins.runtime.pipeline.show_pipeline_action()` to compose
 the `pipeline <id>` inspection view from summary, job, step, artifact, and
 follow-up-command sections.
+
+Used by:
+- runtime commandlets and REPL display paths that present persisted jobs,
+  events, inventory, or result state.
+- tests and future plugins that need stable runtime helper behavior.
 """
 
 from __future__ import annotations

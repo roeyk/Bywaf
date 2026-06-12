@@ -5,6 +5,9 @@ without making `report` own all finding workflow verbs.
 
 Used by:
 - PluginRegistry discovery: loads this module as a commandlet provider.
+
+Public surface: re-exports the package API so callers can import the
+subsystem without depending on internal module layout.
 - runner and REPL: execute finding confirmation actions through normal commandlet dispatch."""
 
 from __future__ import annotations

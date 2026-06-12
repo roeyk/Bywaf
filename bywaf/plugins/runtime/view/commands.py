@@ -1,4 +1,10 @@
-"""Recorded command metadata lookup helpers for runtime views."""
+"""Recorded command metadata lookup helpers for runtime views.
+
+Used by:
+- runtime commandlets and REPL display paths that present persisted jobs,
+  events, inventory, or result state.
+- tests and future plugins that need stable runtime helper behavior.
+"""
 
 from __future__ import annotations
 

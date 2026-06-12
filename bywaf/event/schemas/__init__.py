@@ -7,6 +7,9 @@ keeping plugin-private topics free-form.
 Used by:
 - plugin authors and tests: validate payloads for shared topics.
 - documentation and future views: describe which fields are safe to depend on.
+
+Public surface: re-exports the package API so callers can import the
+subsystem without depending on internal module layout.
 """
 
 from __future__ import annotations

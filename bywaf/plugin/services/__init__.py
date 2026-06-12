@@ -5,6 +5,9 @@ secrets, events, signals, rendering, and artifacts.
 
 Used by:
 - plugin_context: constructs helpers from CommandContext properties.
+
+Public surface: re-exports the package API so callers can import the
+subsystem without depending on internal module layout.
 - bundled and external plugins: interact with framework services indirectly."""
 
 from __future__ import annotations

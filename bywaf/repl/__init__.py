@@ -1,6 +1,10 @@
 """REPL package compatibility exports.
 
 Provides the stable `bywaf.repl` import surface while implementation lives in
+
+Used by:
+- interactive REPL commands, app-dispatch helpers, and display tests.
+- operators who inspect runtime state through built-in commands.
 cohesive sibling modules such as shell, commands, display, and resources."""
 
 

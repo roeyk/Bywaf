@@ -1,4 +1,10 @@
-"""Import graph helpers for architecture metric collection."""
+"""Import graph helpers for architecture metric collection.
+
+Used by:
+- maintainers measuring coupling, complexity, documentation pressure, and
+  release-readiness signals.
+- CI/manual validation runs that track architecture drift.
+"""
 
 from __future__ import annotations
 

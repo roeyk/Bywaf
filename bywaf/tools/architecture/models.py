@@ -1,4 +1,10 @@
-"""Data models shared by architecture metric collection and rendering."""
+"""Data models shared by architecture metric collection and rendering.
+
+Used by:
+- maintainers measuring coupling, complexity, documentation pressure, and
+  release-readiness signals.
+- CI/manual validation runs that track architecture drift.
+"""
 
 from __future__ import annotations
 

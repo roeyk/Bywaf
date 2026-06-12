@@ -7,6 +7,9 @@ backend, but connection setup is isolated behind a backend interface.
 Used by:
 - runner and plugin contexts: publish/read events and runtime state.
 - REPL, completion, and API layers: inspect topics, jobs, runs, and pipelines.
+
+Public surface: re-exports the package API so callers can import the
+subsystem without depending on internal module layout.
 - resource/export tooling: detect encryption and copy databases safely."""
 
 from __future__ import annotations

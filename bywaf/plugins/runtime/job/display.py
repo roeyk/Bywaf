@@ -1,4 +1,10 @@
-"""Job list/detail rendering helpers for the runtime `job` command."""
+"""Job list/detail rendering helpers for the runtime `job` command.
+
+Used by:
+- runtime commandlets and REPL display paths that present persisted jobs,
+  events, inventory, or result state.
+- tests and future plugins that need stable runtime helper behavior.
+"""
 
 from __future__ import annotations
 

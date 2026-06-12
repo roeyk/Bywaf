@@ -1,4 +1,10 @@
-"""Compatibility facade for manifest graph report helpers."""
+"""Compatibility facade for manifest graph report helpers.
+
+Used by:
+- plugin registry loading, manifest validation, plugin graph display, and
+  plugin-check diagnostics.
+- tests that assert manifest and dependency behavior.
+"""
 
 from __future__ import annotations
 

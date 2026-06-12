@@ -1,4 +1,10 @@
-"""Human-readable formatting for architecture and documentation metrics."""
+"""Human-readable formatting for architecture and documentation metrics.
+
+Used by:
+- maintainers measuring coupling, complexity, documentation pressure, and
+  release-readiness signals.
+- CI/manual validation runs that track architecture drift.
+"""
 
 from __future__ import annotations
 

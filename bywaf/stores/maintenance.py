@@ -1,4 +1,10 @@
-"""Maintenance and variable store protocols."""
+"""Maintenance and variable store protocols.
+
+Used by:
+- command contexts, runners, runtime plugins, and tests that depend on
+  storage protocol boundaries.
+- maintainers keeping persistence interfaces decoupled from concrete stores.
+"""
 
 from __future__ import annotations
 

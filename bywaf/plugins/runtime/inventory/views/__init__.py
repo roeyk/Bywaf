@@ -1,4 +1,10 @@
-"""Inventory aggregation and rendering modules."""
+"""Inventory aggregation and rendering modules.
+
+Used by:
+- runtime commandlets and REPL display paths that present persisted jobs,
+  events, inventory, or result state.
+- tests and future plugins that need stable runtime helper behavior.
+"""
 
 from .facts import (
     banner_event_keys,

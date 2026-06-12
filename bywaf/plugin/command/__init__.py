@@ -7,6 +7,9 @@ Used by:
 - `bywaf.plugin`: re-exports plugin-authoring names from this module.
 - bundled and external plugins: import commandlet authoring helpers directly or
   through `bywaf.plugin`.
+
+Public surface: re-exports the package API so callers can import the
+subsystem without depending on internal module layout.
 """
 
 from __future__ import annotations

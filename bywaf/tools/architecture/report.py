@@ -1,4 +1,10 @@
-"""Source architecture report sections for `architecture.formatting`."""
+"""Source architecture report sections for `architecture.formatting`.
+
+Used by:
+- maintainers measuring coupling, complexity, documentation pressure, and
+  release-readiness signals.
+- CI/manual validation runs that track architecture drift.
+"""
 
 from __future__ import annotations
 

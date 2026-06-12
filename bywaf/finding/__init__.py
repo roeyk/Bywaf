@@ -5,6 +5,9 @@ plugins to create normalized finding candidates.
 
 Used by:
 - vulnerability plugins: build finding.candidate payloads.
+
+Public surface: re-exports the package API so callers can import the
+subsystem without depending on internal module layout.
 - reporting and grouping: normalize classes, target scope, and group keys."""
 
 from .grouping import finding_group_key, normalized_target_scope

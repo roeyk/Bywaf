@@ -2,6 +2,11 @@
 
 Called by: REPL catalog graph display and plugin-check graph rendering when
 they need provider/topic context beyond raw graph nodes and edges.
+
+Used by:
+- plugin registry loading, manifest validation, plugin graph display, and
+  plugin-check diagnostics.
+- tests that assert manifest and dependency behavior.
 """
 
 from __future__ import annotations

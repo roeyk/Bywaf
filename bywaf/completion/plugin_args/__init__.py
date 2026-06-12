@@ -5,6 +5,9 @@ completion for registered commandlets.
 
 Used by:
 - completion.engine: mixes commandlet-aware completion into CoreCompleter.
+
+Public surface: re-exports the package API so callers can import the
+subsystem without depending on internal module layout.
 """
 
 from __future__ import annotations

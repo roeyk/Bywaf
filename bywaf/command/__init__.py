@@ -5,6 +5,9 @@ parsing utilities.
 
 Used by:
 - runner and REPL: parse commandlet pipelines and built-in command names.
+
+Public surface: re-exports the package API so callers can import the
+subsystem without depending on internal module layout.
 - completion and tests: keep command spelling and parser behavior consistent."""
 
 from .names import (

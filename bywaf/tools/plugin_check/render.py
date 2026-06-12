@@ -1,4 +1,10 @@
-"""Rendering helpers for plugin checker reports."""
+"""Rendering helpers for plugin checker reports.
+
+Used by:
+- `plugin_check` diagnostics, LLM feedback output, CI checks, and external
+  plugin author workflows.
+- tests that lock down plugin authoring contracts.
+"""
 
 from __future__ import annotations
 

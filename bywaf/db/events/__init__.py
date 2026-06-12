@@ -5,6 +5,9 @@ lookups, artifact event counts, and runtime naming lookup.
 
 Used by:
 - db.EventStore: inherits the event bus implementation.
+
+Public surface: re-exports the package API so callers can import the
+subsystem without depending on internal module layout.
 - runner, plugins, REPL, API, and reporting code: publish and inspect events."""
 
 from __future__ import annotations

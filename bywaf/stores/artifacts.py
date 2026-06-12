@@ -1,4 +1,10 @@
-"""Artifact store protocol for artifact body and provenance operations."""
+"""Artifact store protocol for artifact body and provenance operations.
+
+Used by:
+- command contexts, runners, runtime plugins, and tests that depend on
+  storage protocol boundaries.
+- maintainers keeping persistence interfaces decoupled from concrete stores.
+"""
 
 from __future__ import annotations
 

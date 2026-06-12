@@ -5,6 +5,9 @@ prompt-toolkit integration, and lower-level candidate generation helpers.
 
 Used by:
 - REPL shell: installs interactive completion.
+
+Public surface: re-exports the package API so callers can import the
+subsystem without depending on internal module layout.
 - completion tests and plugins: import a stable completion API."""
 
 from __future__ import annotations

@@ -1,4 +1,9 @@
-"""Documentation metrics report rendering."""
+"""Documentation metrics report rendering.
+
+Used by:
+- maintainer tools, documentation/report generation, and validation scripts.
+- tests and release checks that exercise developer-facing tooling.
+"""
 
 from __future__ import annotations
 

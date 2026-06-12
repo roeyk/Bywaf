@@ -1,4 +1,9 @@
-"""Database statistics formatting for the storage DB commandlet."""
+"""Database statistics formatting for the storage DB commandlet.
+
+Used by:
+- storage commandlets and operator workflows that create, inspect, or switch runtime databases.
+- tests that verify database lifecycle behavior.
+"""
 
 from __future__ import annotations
 

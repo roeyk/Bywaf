@@ -1,4 +1,9 @@
-"""Compact display renderers for scan and finding events."""
+"""Compact display renderers for scan and finding events.
+
+Used by:
+- interactive REPL commands, app-dispatch helpers, and display tests.
+- operators who inspect runtime state through built-in commands.
+"""
 
 from __future__ import annotations
 

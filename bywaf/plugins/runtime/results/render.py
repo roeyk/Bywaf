@@ -2,6 +2,11 @@
 
 Provides domain-specific sections for the `results` command while keeping
 command parsing and runtime-scope selection in `results.py`.
+
+Used by:
+- runtime commandlets and REPL display paths that present persisted jobs,
+  events, inventory, or result state.
+- tests and future plugins that need stable runtime helper behavior.
 """
 
 from __future__ import annotations

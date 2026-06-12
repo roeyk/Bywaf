@@ -1,4 +1,9 @@
-"""SQLite database path helpers for storage commandlets."""
+"""SQLite database path helpers for storage commandlets.
+
+Used by:
+- storage commandlets and operator workflows that create, inspect, or switch runtime databases.
+- tests that verify database lifecycle behavior.
+"""
 
 from __future__ import annotations
 

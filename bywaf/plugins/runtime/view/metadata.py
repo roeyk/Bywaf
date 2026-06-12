@@ -1,4 +1,10 @@
-"""Facade for runtime read-only command metadata filtering."""
+"""Facade for runtime read-only command metadata filtering.
+
+Used by:
+- runtime commandlets and REPL display paths that present persisted jobs,
+  events, inventory, or result state.
+- tests and future plugins that need stable runtime helper behavior.
+"""
 
 from __future__ import annotations
 

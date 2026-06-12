@@ -1,4 +1,9 @@
-"""Runtime parser contract checks for plugin metadata."""
+"""Runtime parser contract checks for plugin metadata.
+
+Used by:
+- maintainer tools, documentation/report generation, and validation scripts.
+- tests and release checks that exercise developer-facing tooling.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,10 @@
-"""Table data model and payload normalization helpers."""
+"""Table data model and payload normalization helpers.
+
+Used by:
+- framework render services, runtime commandlets, and exporters that turn
+  structured tables into operator output.
+- tests that validate table payload contracts.
+"""
 
 from __future__ import annotations
 

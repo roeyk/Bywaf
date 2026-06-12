@@ -3,6 +3,11 @@
 Provides high-level inventory commandlets so
 operators can ask direct questions about the accumulated project knowledge
 instead of remembering which scanner emitted which event topic.
+
+Used by:
+- runtime commandlets and REPL display paths that present persisted jobs,
+  events, inventory, or result state.
+- tests and future plugins that need stable runtime helper behavior.
 """
 
 from __future__ import annotations
