@@ -16,7 +16,7 @@ from collections.abc import Iterable
 from bywaf.event.filters import filter_events_by_payload
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
-from bywaf.runtime_display import (
+from bywaf.runtime.display import (
     runtime_sort_candidates,
     runtime_sort_key,
     runtime_sort_note,

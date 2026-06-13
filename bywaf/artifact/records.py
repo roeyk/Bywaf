@@ -1,7 +1,7 @@
 """Artifact storage record types and schema.
 
 Used by:
-- bywaf.artifact_store.ArtifactStore: persists and rehydrates artifact rows.
+- bywaf.artifact.store.ArtifactStore: persists and rehydrates artifact rows.
 - runtime artifact commands and plugin services: consume typed `Artifact`
   records through the public `bywaf.artifacts` facade.
 """

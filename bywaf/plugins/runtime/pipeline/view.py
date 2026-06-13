@@ -22,7 +22,7 @@ from bywaf.plugins.runtime.view import (
     filter_runtime_rows_since,
     view_run_ids,
 )
-from bywaf.runtime_display import (
+from bywaf.runtime.display import (
     command_context_style_getter,
     format_runtime_duration,
     format_runtime_timestamp,

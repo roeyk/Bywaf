@@ -6,7 +6,7 @@ Used by: `repl.display.events.print_events()` and app-level helpers that expose
 
 from __future__ import annotations
 
-from ...runtime_display import commandlet_from_command_line, format_runtime_timestamp
+from ...runtime.display import commandlet_from_command_line, format_runtime_timestamp
 from ...runner import Runner
 from .scan_events import (
     format_finding_event,

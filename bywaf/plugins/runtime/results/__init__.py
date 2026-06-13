@@ -18,7 +18,7 @@ from typing import Any
 from bywaf.event import Event
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
 from bywaf.plugins.network.portscanner.ports import PORT_SORT_KEYS
-from bywaf.runtime_display import (
+from bywaf.runtime.display import (
     runtime_sort_candidates,
 )
 

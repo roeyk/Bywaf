@@ -4,7 +4,7 @@ Provides host-side handling for process execution requests emitted by plugin
 contexts.
 
 Used by:
-- `framework_requests.FRAMEWORK_REQUEST_HANDLERS`: dispatches process request
+- `framework.requests.FRAMEWORK_REQUEST_HANDLERS`: dispatches process request
   topics to these handlers.
 - plugin process services: emit durable request events that the shell drains.
 """
@@ -14,10 +14,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import cast
 
-from .db import EventStore
-from .plugin.process import normalize_argv, run_process_argv
-from .plugin.services import attach_generated_artifact
-from .runner import Runner
+from ..db import EventStore
+from ..plugin.process import normalize_argv, run_process_argv
+from ..plugin.services import attach_generated_artifact
+from ..runner import Runner
 
 
 def handle_process_run_request(runner: Runner, state, event) -> None:

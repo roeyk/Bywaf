@@ -18,7 +18,7 @@ from typing import cast
 
 from ..runner import Runner
 from .parsing import line_has_continuation, remove_line_continuation, split_command_sequence, strip_inline_comment
-from .resource_events import publish_resource_loaded
+from .resource.events import publish_resource_loaded
 from .state import ResourceState, default_resource_state
 
 ScriptDispatcher = Callable[[Runner, str, ResourceState], str | None]

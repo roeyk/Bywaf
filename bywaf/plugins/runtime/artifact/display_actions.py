@@ -13,7 +13,7 @@ from pathlib import Path
 
 from bywaf.artifacts import Artifact
 from bywaf.plugin import CommandContext
-from bywaf.runtime_display import command_context_style_getter
+from bywaf.runtime.display import command_context_style_getter
 from bywaf.style import styled_subject_text
 
 from .action_selection import single_selected_artifact

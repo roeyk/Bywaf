@@ -23,7 +23,7 @@ from bywaf.plugins.runtime.view import (
     split_since_selector,
     view_selector_candidates,
 )
-from bywaf.runtime_display import (
+from bywaf.runtime.display import (
     command_context_style_getter,
     format_runtime_duration,
     format_runtime_timestamp,

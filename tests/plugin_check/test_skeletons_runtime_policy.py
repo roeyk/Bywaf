@@ -75,7 +75,7 @@ class TestSkeletonsRuntimePolicyTests(unittest.TestCase):
         """Protect runtime code uses context for artifact store access behavior from regressions."""
         root = Path(__file__).resolve().parents[2]
         allowed = {
-            root / "bywaf" / "artifact_store.py",
+            root / "bywaf" / "artifact" / "store.py",
             root / "bywaf" / "artifacts.py",
             root / "bywaf" / "plugin" / "context.py",
             root / "bywaf" / "plugin" / "context" / "__init__.py",

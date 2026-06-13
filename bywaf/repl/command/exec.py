@@ -14,7 +14,7 @@ import shlex
 import subprocess
 from typing import TYPE_CHECKING, Any
 
-from ...framework_requests import process_framework_requests
+from ...framework.requests import process_framework_requests
 from ...runner import Runner
 from ..display import print_events, print_help
 

@@ -12,7 +12,7 @@ from typing import Any
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext
-from bywaf.runtime_display import command_context_style_getter, render_table, terminal_table_width
+from bywaf.runtime.display import command_context_style_getter, render_table, terminal_table_width
 
 from .shared import add_value, host_sort_value, join_values, sort_note, split_sort
 

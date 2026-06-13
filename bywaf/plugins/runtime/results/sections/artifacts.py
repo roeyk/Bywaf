@@ -13,7 +13,7 @@ from argparse import Namespace
 from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.plugins.runtime.artifact.summary import format_artifact_reference
-from bywaf.runtime_display import command_context_style_getter, render_table, terminal_table_width
+from bywaf.runtime.display import command_context_style_getter, render_table, terminal_table_width
 from bywaf.style import styled_subject_text
 
 

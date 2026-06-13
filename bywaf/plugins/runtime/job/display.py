@@ -16,7 +16,7 @@ from bywaf.plugins.runtime.view import (
     filter_runtime_rows_since,
     filter_view_job_rows,
 )
-from bywaf.runtime_display import (
+from bywaf.runtime.display import (
     args_from_command_line,
     command_context_style_getter,
     commandlet_from_command_line,

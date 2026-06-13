@@ -11,7 +11,7 @@ from collections.abc import Iterable
 from bywaf.event import EVENT_SCHEMAS, Event, plugin_event_schemas
 from bywaf.event.schemas import EventSchema
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, CompletionContext, commandlet
-from bywaf.runtime_display import command_context_style_getter, render_table, terminal_table_width
+from bywaf.runtime.display import command_context_style_getter, render_table, terminal_table_width
 
 from .selectors import parse_schema_args, schema_completions
 

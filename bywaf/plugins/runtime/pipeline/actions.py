@@ -19,7 +19,7 @@ from bywaf.plugins.runtime.pipeline.view import (
     format_pipeline_steps,
     print_pipelines,
 )
-from bywaf.runtime_display import command_context_style_getter
+from bywaf.runtime.display import command_context_style_getter
 
 PipelineActionHandler = Callable[[CommandContext, Namespace], None]
 

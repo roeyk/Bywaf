@@ -9,7 +9,7 @@ from __future__ import annotations
 import shlex
 
 from bywaf.plugin import CommandContext, CompletionContext
-from bywaf.runtime_display import command_context_style_getter
+from bywaf.runtime.display import command_context_style_getter
 from bywaf.style import styled_subject_text
 
 

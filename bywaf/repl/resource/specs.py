@@ -13,7 +13,7 @@ from __future__ import annotations
 import shlex
 from pathlib import Path
 
-from ..config import Settings
+from ...config import Settings
 
 
 DEFAULT_SETTINGS = Settings()

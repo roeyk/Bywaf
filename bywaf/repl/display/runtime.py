@@ -9,7 +9,7 @@ Used by:
 from __future__ import annotations
 
 from ...event.filters import any_event_matches_filters
-from ...runtime_display import (
+from ...runtime.display import (
     ACTIVE_LISTING_FORMAT_VAR,
     args_from_command_line,
     commandlet_from_command_line,

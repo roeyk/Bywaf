@@ -12,7 +12,7 @@ from argparse import Namespace
 
 from bywaf.plugins.runtime.job.filters import split_job_row_selectors
 from bywaf.plugins.runtime.view import split_since_selector, view_selector_candidates
-from bywaf.runtime_display import parse_runtime_list_selectors
+from bywaf.runtime.display import parse_runtime_list_selectors
 
 JOB_ACTIONS = ("cancel", "end", "kill")
 REMOVED_JOB_ACTIONS = {"list", "show"}

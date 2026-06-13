@@ -36,7 +36,7 @@ from bywaf.plugin import (
     argument,
     commandlet,
 )
-from bywaf.runtime_display import render_table, terminal_table_width
+from bywaf.runtime.display import render_table, terminal_table_width
 
 KEY_ACTIONS = ("export", "generate", "import", "list", "remove", "show", "test")
 

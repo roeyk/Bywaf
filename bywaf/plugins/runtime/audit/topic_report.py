@@ -12,7 +12,7 @@ from collections.abc import Callable
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext
-from bywaf.runtime_display import render_table, terminal_table_width
+from bywaf.runtime.display import render_table, terminal_table_width
 from bywaf.time_format import format_operator_timestamp
 
 from .selectors import selected_events

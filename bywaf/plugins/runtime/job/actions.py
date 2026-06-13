@@ -15,7 +15,7 @@ from bywaf.plugin import CommandContext
 from bywaf.plugins.runtime.artifact.summary import artifact_events_for_job, render_artifact_summary
 from bywaf.plugins.runtime.job.control import cancel_job, kill_job, require_job
 from bywaf.plugins.runtime.job.display import format_job, latest_job_args, print_jobs
-from bywaf.runtime_display import command_context_style_getter
+from bywaf.runtime.display import command_context_style_getter
 
 JobActionHandler = Callable[[CommandContext, Namespace], None]
 

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from bywaf.event import Event
 from bywaf.plugin import CommandContext
-from bywaf.runtime_display import command_context_style_getter, render_table, terminal_table_width
+from bywaf.runtime.display import command_context_style_getter, render_table, terminal_table_width
 
 
 def render_screenshots_section(context: CommandContext, events: list[Event]) -> str:

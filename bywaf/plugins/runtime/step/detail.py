@@ -16,7 +16,7 @@ from typing import Any
 from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.plugins.runtime.artifact.summary import artifact_events_for_step, render_artifact_summary
-from bywaf.runtime_display import (
+from bywaf.runtime.display import (
     command_context_style_getter,
     format_runtime_duration,
     format_runtime_timestamp,

@@ -12,21 +12,21 @@ from __future__ import annotations
 
 import shlex
 from collections.abc import Mapping, Sequence
-from .command.parser import parse_pipeline
-from .db.support import SERIAL_DISPLAY_LENGTH, serial_body
-from .event.filters import parse_payload_filter_tokens
-from .runtime_table_widths import (
+from ..command.parser import parse_pipeline
+from ..db.support import SERIAL_DISPLAY_LENGTH, serial_body
+from ..event.filters import parse_payload_filter_tokens
+from ..time_format import format_compact_runtime_ts, format_duration_between
+from .table_widths import (
     shrink_table_widths as shrink_table_widths,
     terminal_table_width as terminal_table_width,
     truncate_cell as truncate_cell,
 )
-from .runtime_tables import (
+from .tables import (
     StyleGetter,
     render_table as render_table,
     style_table_cell as style_table_cell,
     style_table_header as style_table_header,
 )
-from .time_format import format_compact_runtime_ts, format_duration_between
 
 # Public runtime-display surface. The concrete table-width and table-rendering
 # implementations live in narrower modules, but many runtime plugins import the

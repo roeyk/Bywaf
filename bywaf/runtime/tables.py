@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 
-from .runtime_table_widths import shrink_table_widths, truncate_cell
-from .style import styled_subject_text, subject_style
+from ..style import styled_subject_text, subject_style
+from .table_widths import shrink_table_widths, truncate_cell
 
 StyleGetter = Callable[[str, str], object]
 TextRows = list[list[str]]
@@ -29,7 +29,7 @@ def render_table(
 ) -> str:
     """Render a small table, optionally styling aligned cells by subject.
 
-    Called by: `runtime_display` and runtime plugin display paths that need
+    Called by: `runtime.display` and runtime plugin display paths that need
     compact terminal tables without depending on Rich or another renderer.
     """
     if not rows:

@@ -20,7 +20,7 @@ import tty
 from collections.abc import Callable
 
 from ..completion import Completer, build_prompt_session, install_readline
-from ..framework_requests import process_framework_requests
+from ..framework.requests import process_framework_requests
 from .dispatch import dispatch_repl_line
 from .display import (
     friendly_error,

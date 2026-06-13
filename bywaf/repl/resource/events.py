@@ -13,9 +13,9 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
-from ..event import Event
-from ..registry import parse_plugin_manifest
-from ..runner import Runner, new_run_id
+from ...event import Event
+from ...registry import parse_plugin_manifest
+from ...runner import Runner, new_run_id
 
 
 def publish_resource_loaded(

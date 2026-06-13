@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from bywaf.event import Event
 from bywaf.plugin import CommandContext
 from bywaf.plugins.network.portscanner.ports import ip_sort_value, port_endpoint_text, sort_port_events
-from bywaf.runtime_display import command_context_style_getter, render_table, terminal_table_width
+from bywaf.runtime.display import command_context_style_getter, render_table, terminal_table_width
 
 from .style import report_text
 

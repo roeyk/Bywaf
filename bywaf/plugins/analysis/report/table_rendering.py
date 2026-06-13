@@ -14,7 +14,7 @@ from collections.abc import Mapping
 from bywaf.finding import severity_class
 from bywaf.plugin import CommandContext
 from bywaf.rendering import Table, align_text, table_values
-from bywaf.runtime_display import shrink_table_widths, terminal_table_width, truncate_cell
+from bywaf.runtime.display import shrink_table_widths, terminal_table_width, truncate_cell
 
 from .style import finding_text, report_text, table_text
 

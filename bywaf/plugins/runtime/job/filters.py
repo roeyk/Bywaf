@@ -7,7 +7,7 @@ Used by:
 
 from __future__ import annotations
 
-from bywaf.runtime_display import commandlet_from_command_line
+from bywaf.runtime.display import commandlet_from_command_line
 
 JOB_ROW_FILTER_KEYS = {"status", "commandlet", "command"}
 

@@ -24,7 +24,7 @@ from ..db import EventStore
 from ..projects import ProjectPaths
 from ..registry import PluginRegistry
 from ..time_format import OPERATOR_TIMESTAMP_FORMAT
-from .resource_specs import DEFAULT_HISTORY
+from .resource.specs import DEFAULT_HISTORY
 
 if TYPE_CHECKING:
     from ..runner import Runner

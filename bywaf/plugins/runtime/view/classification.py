@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from bywaf.runtime_display import args_from_command_line, commandlet_from_command_line
+from bywaf.runtime.display import args_from_command_line, commandlet_from_command_line
 
 # Runtime view detection affects follow-up commands, cursor handling, and shell
 # completion. is_view_commandlet() uses this base set for commandlets whose

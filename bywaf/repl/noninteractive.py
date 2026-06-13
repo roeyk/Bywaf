@@ -7,7 +7,7 @@ Used by:
 
 from __future__ import annotations
 
-from ..framework_requests import process_framework_requests
+from ..framework.requests import process_framework_requests
 from ..plugins.network.nmap.backend import NmapScanError, NmapUnavailableError
 from ..runner import Runner
 from .commands import execute_shell_command, visible_commandlet_events

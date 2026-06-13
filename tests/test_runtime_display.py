@@ -13,7 +13,7 @@ Coverage focus: runtime display regression behavior.
 from datetime import datetime
 import unittest
 
-from bywaf.runtime_display import display_runtime_serial, format_runtime_timestamp, render_table
+from bywaf.runtime.display import display_runtime_serial, format_runtime_timestamp, render_table
 from bywaf.time_format import COMPACT_RUNTIME_TS_FORMAT
 
 

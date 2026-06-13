@@ -2,7 +2,7 @@
 
 Used by:
 - `plugin.process.ContextProcess`: execute framework-mediated process requests.
-- `framework_requests`: service process execution requests from plugin code.
+- `framework.requests`: service process execution requests from plugin code.
 """
 
 from __future__ import annotations

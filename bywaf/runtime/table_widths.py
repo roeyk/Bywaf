@@ -1,7 +1,7 @@
 """Width and truncation helpers for runtime table rendering.
 
 Used by:
-- `runtime_tables.render_table()`: fit runtime tables to the active terminal.
+- `runtime.tables.render_table()`: fit runtime tables to the active terminal.
 - Console/report renderers: share the same shrink/truncate behavior when they
   render richer table objects outside the simple runtime-table helper.
 """

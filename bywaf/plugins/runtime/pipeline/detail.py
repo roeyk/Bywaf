@@ -17,7 +17,7 @@ from collections import Counter
 from bywaf.plugin import CommandContext
 from bywaf.plugins.runtime.artifact.summary import artifact_events_for_pipeline, render_artifact_summary
 from bywaf.plugins.runtime.job import format_job_command
-from bywaf.runtime_display import (
+from bywaf.runtime.display import (
     command_context_style_getter,
     display_runtime_serial,
     format_runtime_duration,

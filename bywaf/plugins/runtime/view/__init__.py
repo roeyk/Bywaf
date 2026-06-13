@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from bywaf.runtime_display import runtime_sort_candidates, runtime_view_candidates
+from bywaf.runtime.display import runtime_sort_candidates, runtime_view_candidates
 
 from .classification import (
     MUTATING_ACTIONS as MUTATING_ACTIONS,

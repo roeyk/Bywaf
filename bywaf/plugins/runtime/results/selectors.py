@@ -8,7 +8,7 @@ from __future__ import annotations
 from argparse import Namespace
 
 from bywaf.plugins.network.portscanner.ports import PORT_SORT_KEYS
-from bywaf.runtime_display import parse_runtime_sort
+from bywaf.runtime.display import parse_runtime_sort
 
 
 RESULT_SCOPE_KEYS = {"all", "interval", "job", "once", "pipeline", "step", "sort"}

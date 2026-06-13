@@ -13,7 +13,7 @@ def render_console_table(table: Table, style_getter=None) -> str:
     """Render a table for monospaced terminal output."""
     if not table.columns:
         return table.title or ""
-    from ..runtime_display import shrink_table_widths, style_table_cell, style_table_header, terminal_table_width, truncate_cell
+    from ..runtime.display import shrink_table_widths, style_table_cell, style_table_header, terminal_table_width, truncate_cell
 
     # Console rendering first converts every cell to display text, then computes
     # the widest required width for each column before terminal-width shrinking.

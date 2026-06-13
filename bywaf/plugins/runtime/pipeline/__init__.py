@@ -35,7 +35,7 @@ from bywaf.plugins.runtime.pipeline.actions import (
 from bywaf.plugins.runtime.pipeline.attach import attach_candidates, attach_pipeline, pipeline_ids
 from bywaf.plugins.runtime.pipeline.view import PIPELINE_SORT_KEYS
 from bywaf.plugins.runtime.view import split_since_selector, view_selector_candidates
-from bywaf.runtime_display import parse_runtime_list_selectors
+from bywaf.runtime.display import parse_runtime_list_selectors
 
 PIPELINE_ACTIONS = ("attach", "cancel", "end", "kill")
 REMOVED_PIPELINE_ACTIONS = {"list", "show"}

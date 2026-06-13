@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 
 from ..secret.store import load_fingerprint_key, redact_command_text
-from .resource_specs import DEFAULT_HISTORY
+from .resource.specs import DEFAULT_HISTORY
 from .state import DEFAULT_HISTORY_TS_FORMAT
 
 HISTORY_SECRET_NAMES = frozenset(

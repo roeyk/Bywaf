@@ -56,7 +56,7 @@ class RenderingTests(unittest.TestCase):
             ({"id": "1", "description": "x" * 80},),
             (Column("id", "ID"), Column("description", "Description")),
         )
-        with patch("bywaf.runtime_table_widths.shutil.get_terminal_size", return_value=os.terminal_size((24, 24))):
+        with patch("bywaf.runtime.table_widths.shutil.get_terminal_size", return_value=os.terminal_size((24, 24))):
             rendered = render_table(table, "console")
 
         self.assertTrue(all(len(line) <= 24 for line in rendered.splitlines()))
