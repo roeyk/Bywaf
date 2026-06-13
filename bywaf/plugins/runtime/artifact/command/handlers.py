@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from bywaf.plugin import CommandContext
 
-from .actions import (
+from ..actions import (
     attach_artifacts,
     cat_artifact,
     export_artifacts,
@@ -20,8 +20,8 @@ from .actions import (
     show_artifact,
     verify_artifacts,
 )
-from .common import SEARCH_FIELDS, ArtifactActionHandler
-from .selectors import parse_artifact_cat_selectors, parse_artifact_selectors, parse_search_selectors, pop_page_flag
+from ..common import SEARCH_FIELDS, ArtifactActionHandler
+from ..selectors import parse_artifact_cat_selectors, parse_artifact_selectors, parse_search_selectors, pop_page_flag
 
 
 def artifact_action_handlers() -> dict[str, ArtifactActionHandler]:

@@ -11,8 +11,8 @@ from collections.abc import Callable
 from bywaf.plugin import CompletionContext
 from bywaf.utils import complete_path
 
-from .common import ARTIFACT_ACTIONS
-from .completion import artifact_ids, artifact_topics, job_ids, pipeline_ids, run_ids, serial_ids
+from ..common import ARTIFACT_ACTIONS
+from ..completion import artifact_ids, artifact_topics, job_ids, pipeline_ids, run_ids, serial_ids
 
 SelectorCompleter = Callable[[CompletionContext, str], list[str]]
 

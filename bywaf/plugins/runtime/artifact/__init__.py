@@ -24,13 +24,13 @@ from bywaf.plugin import (
     commandlet,
 )
 
-from .command_completion import (
+from .command.completion import (
     action_or_selector_candidates,
     artifact_completion_selectors as artifact_completion_selectors,
     artifact_selector_completion as artifact_selector_completion,
     search_completion_candidates,
 )
-from .command_handlers import artifact_action_handlers as artifact_action_handlers
+from .command.handlers import artifact_action_handlers as artifact_action_handlers
 from .common import ARTIFACT_ACTIONS, SEARCH_FIELDS, SEARCH_FLAGS
 from .query import (
     filter_artifact_time_window as filter_artifact_time_window,
