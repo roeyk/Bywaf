@@ -16,7 +16,7 @@ from urllib.parse import urlparse
 from bywaf.event import Event
 from bywaf.finding import candidate_payload
 from bywaf.plugin import CommandContext, Commandlet, RunConfig, commandlet
-from bywaf.plugins.network.management_rules import ExposureRule, matching_rules
+from .rules import ExposureRule, matching_rules
 
 
 @commandlet
