@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import time
 
-from ...event.filters import select_event_rows
-from ...runner import Runner
-from ..display import print_events
-from .event_parsing import EventFollowQuery
+from ....event.filters import select_event_rows
+from ....runner import Runner
+from ...display import print_events
+from .parsing import EventFollowQuery
 
 
 def follow_events(runner: Runner, query: EventFollowQuery) -> None:

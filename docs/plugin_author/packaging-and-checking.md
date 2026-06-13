@@ -332,8 +332,8 @@ pattern.
 Generate a starter manifest from Python metadata:
 
 ```bash
-python3 -m bywaf.tools.plugin_manifest path/to/plugin-dir/plugin.py
-python3 -m bywaf.tools.plugin_manifest path/to/plugin-dir/plugin.py --infer-capabilities
+python3 -m bywaf.tools.plugin.manifest path/to/plugin-dir/plugin.py
+python3 -m bywaf.tools.plugin.manifest path/to/plugin-dir/plugin.py --infer-capabilities
 ```
 
 The generator emits commandlet rows, declared capabilities, `consumes` and

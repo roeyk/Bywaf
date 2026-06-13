@@ -432,9 +432,9 @@ tool modules.
 | `plugin_check/visitor.py` | `plugin_check/__init__.py` | AST visitor for capability, emit, and diagnostic inference. |
 | `plugin_check/render.py` | `scripts/plugin_check.py` | Human-oriented checker output rendering and compatibility facade. |
 | `plugin_check/graph_render.py` | `plugin_check/render.py` | Manifest relationship graph output rendering. |
-| `plugin_manifest.py` | manifest generation workflows | Manifest generation helpers. |
-| `plugin_parser_contract.py` | `scripts/plugin_check.py` | Parser-vs-metadata diagnostics for commandlet arguments and options. |
-| `plugin_submission.py` | `scripts/plugin_check.py` | Zip/directory submission materialization in temporary checkouts. |
+| `plugin/manifest.py` | manifest generation workflows | Manifest generation helpers. |
+| `plugin/parser_contract.py` | `scripts/plugin_check.py` | Parser-vs-metadata diagnostics for commandlet arguments and options. |
+| `plugin/submission.py` | `scripts/plugin_check.py` | Zip/directory submission materialization in temporary checkouts. |
 | `sqlite/contention_benchmark.py` | `scripts/sqlite_contention_benchmark.py` | SQLite contention benchmark implementation. |
 | `sqlite/query_benchmark.py` | `scripts/sqlite_query_benchmark.py` | SQLite query benchmark implementation. |
 

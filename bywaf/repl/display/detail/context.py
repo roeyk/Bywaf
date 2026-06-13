@@ -8,13 +8,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...runner import Runner
-from .detail_format import (
+from ....runner import Runner
+from .format import (
     format_event_kv,
     format_event_section_header,
     format_payload_value,
 )
-from .detail_runtime import (
+from .runtime import (
     print_event_command_context,
     print_event_job_context,
     print_run_variables,

@@ -11,8 +11,8 @@ import shlex
 from dataclasses import dataclass
 from typing import Any
 
-from ..command.names import VARIABLE_COMMANDS
-from .store import REDACTED_VALUE
+from ...command.names import VARIABLE_COMMANDS
+from ..store import REDACTED_VALUE
 
 SECRET_BLOCK_VALUE = REDACTED_VALUE
 

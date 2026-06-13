@@ -18,8 +18,8 @@ from ...runner import Runner
 from ...secret.input import SECRET_BLOCK_VALUE
 from ...secret.store import load_fingerprint_key
 from ..display import format_var_assignment
-from .var_context import resolve_var_key, set_active_context, warn_pending_catalog_var
-from .var_secrets import configured_secret_input_mode, read_secret_value
+from .var.context import resolve_var_key, set_active_context, warn_pending_catalog_var
+from .var.secrets import configured_secret_input_mode, read_secret_value
 
 if TYPE_CHECKING:
     from ..state import ShellState

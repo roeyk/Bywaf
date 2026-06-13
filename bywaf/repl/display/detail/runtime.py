@@ -10,10 +10,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from ...runtime.display import commandlet_from_command_line, display_runtime_serial
-from ...runner import Runner
-from .detail_format import format_event_kv, format_event_section_header, format_event_timestamp
-from .variables import format_var_assignment, subject_text
+from ....runtime.display import commandlet_from_command_line, display_runtime_serial
+from ....runner import Runner
+from .format import format_event_kv, format_event_section_header, format_event_timestamp
+from ..variables import format_var_assignment, subject_text
 
 
 def print_event_job_context(runner: Runner, payload: dict[str, Any]) -> None:

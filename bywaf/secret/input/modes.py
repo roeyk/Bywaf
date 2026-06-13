@@ -7,7 +7,7 @@ plain-text fallbacks.
 
 from __future__ import annotations
 
-from .askpass import (
+from ..askpass import (
     ASKPASS_MODE,
     AUTO_SECRET_INPUT_MODE,
     BLOCK_SECRET_INPUT_MODE,

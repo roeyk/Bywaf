@@ -51,7 +51,7 @@ from bywaf.registry import (
 )
 from bywaf.secret.input import SECRET_BLOCK_VALUE, PromptSecretInputState, PromptSecretSpan, open_secret_assignment_name
 from bywaf.specs import ArgumentSpec, CommandSpec, CompletionSpec, OptionSpec, TriggerSpec
-from bywaf.tools.plugin_manifest import manifest_from_plugins
+from bywaf.tools.plugin.manifest import manifest_from_plugins
 
 
 class FakePromptBuffer:

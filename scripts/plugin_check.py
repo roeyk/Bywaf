@@ -47,9 +47,9 @@ from bywaf.registry import (  # noqa: E402
 )
 from bywaf.toml_support import load_data_file  # noqa: E402
 from bywaf.tools.plugin_check import analyze_plugin_source  # noqa: E402
-from bywaf.tools.plugin_parser_contract import parser_contract_diagnostics  # noqa: E402
+from bywaf.tools.plugin.parser_contract import parser_contract_diagnostics  # noqa: E402
 from bywaf.tools.plugin_check.render import render_llm_feedback, render_text  # noqa: E402
-from bywaf.tools.plugin_submission import check_plugin_checkout, materialized_plugin_submission  # noqa: E402
+from bywaf.tools.plugin.submission import check_plugin_checkout, materialized_plugin_submission  # noqa: E402
 
 
 def check_plugin(

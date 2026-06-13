@@ -8,8 +8,8 @@ Used by:
 
 from __future__ import annotations
 
-from ...runner import Runner
-from .detail_context import (
+from ....runner import Runner
+from .context import (
     event_actor,
     print_event_causality,
     print_event_command_context,
@@ -18,7 +18,7 @@ from .detail_context import (
     print_event_scope,
     print_run_variables,  # noqa: F401 - re-exported for repl.display facade
 )
-from .detail_format import (
+from .format import (
     event_color_enabled,  # noqa: F401 - preserves older detail-module import path
     format_event_heading,
     format_event_kv,

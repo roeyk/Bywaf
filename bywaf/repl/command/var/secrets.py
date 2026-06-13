@@ -8,8 +8,8 @@ from __future__ import annotations
 import getpass
 import sys
 
-from ...runner import Runner
-from ...secret.askpass import (
+from ....runner import Runner
+from ....secret.askpass import (
     ASKPASS_MODE,
     AskpassCancelled,
     AskpassUnavailable,
@@ -17,7 +17,7 @@ from ...secret.askpass import (
     PLAINTEXT_SECRET_INPUT_MODE,
     read_askpass_secret,
 )
-from ...secret.input import (
+from ....secret.input import (
     DEFAULT_SECRET_INPUT_MODE,
     SECRET_INPUT_MODES,
     SECRET_INPUT_MODE_VAR,

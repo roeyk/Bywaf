@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from .askpass import (
+from ..askpass import (
     ASKPASS_MODE as ASKPASS_MODE,
     AUTO_SECRET_INPUT_MODE as AUTO_SECRET_INPUT_MODE,
     BLOCK_SECRET_INPUT_MODE as BLOCK_SECRET_INPUT_MODE,
@@ -23,14 +23,14 @@ from .askpass import (
     PLAINTEXT_SECRET_INPUT_MODE as PLAINTEXT_SECRET_INPUT_MODE,
     desktop_askpass_available as desktop_askpass_available,
 )
-from .input_modes import DEFAULT_SECRET_INPUT_MODE as DEFAULT_SECRET_INPUT_MODE
-from .input_modes import SECRET_INPUT_MODES as SECRET_INPUT_MODES
-from .input_modes import SECRET_INPUT_MODE_VAR as SECRET_INPUT_MODE_VAR
-from .input_modes import normalize_secret_input_mode as normalize_secret_input_mode
-from .input_state import SECRET_BLOCK_VALUE as SECRET_BLOCK_VALUE
-from .input_state import PromptSecretInputState as PromptSecretInputState
-from .input_state import PromptSecretSpan as PromptSecretSpan
-from .input_state import open_secret_assignment_name as open_secret_assignment_name
+from .modes import DEFAULT_SECRET_INPUT_MODE as DEFAULT_SECRET_INPUT_MODE
+from .modes import SECRET_INPUT_MODES as SECRET_INPUT_MODES
+from .modes import SECRET_INPUT_MODE_VAR as SECRET_INPUT_MODE_VAR
+from .modes import normalize_secret_input_mode as normalize_secret_input_mode
+from .state import SECRET_BLOCK_VALUE as SECRET_BLOCK_VALUE
+from .state import PromptSecretInputState as PromptSecretInputState
+from .state import PromptSecretSpan as PromptSecretSpan
+from .state import open_secret_assignment_name as open_secret_assignment_name
 
 try:
     from prompt_toolkit.document import Document

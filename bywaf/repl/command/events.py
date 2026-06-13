@@ -18,8 +18,8 @@ from ...command.parser import expand_variables_in_text
 from ...event.filters import event_matches_payload_filters, select_event_rows
 from ...runner import Runner
 from ..display import display_expansion_preview, print_event_info, print_events, print_job, print_run_variables
-from .event_follow import follow_events, resolve_job_selector
-from .event_parsing import (
+from .event.follow import follow_events, resolve_job_selector
+from .event.parsing import (
     parse_event_follow_query,
     parse_event_query,
     parse_events_selectors,

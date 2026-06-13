@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from ...event.filters import parse_event_sort
+from ....event.filters import parse_event_sort
 
 
 EVENT_SELECTOR_KEYS = {"job", "step", "pipeline", "serial", "topic"}

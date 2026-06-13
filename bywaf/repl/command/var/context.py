@@ -8,10 +8,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ...runner import Runner
+from ....runner import Runner
 
 if TYPE_CHECKING:
-    from ..state import ShellState
+    from ...state import ShellState
 
 
 def warn_pending_catalog_var(runner: Runner, key: str) -> None:

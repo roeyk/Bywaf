@@ -10,10 +10,10 @@ import sys
 from datetime import datetime
 from typing import Any
 
-from ...runner import Runner
-from ...style import ansi_color
-from ...time_format import format_operator_timestamp
-from .settings import (
+from ....runner import Runner
+from ....style import ansi_color
+from ....time_format import format_operator_timestamp
+from ..settings import (
     DEFAULT_EVENT_COLOR_MODE,
     DEFAULT_EVENT_KEY_COLOR,
     EVENT_COLOR_MODE_VAR,
