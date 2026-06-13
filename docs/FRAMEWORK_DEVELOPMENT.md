@@ -114,7 +114,7 @@ multiprocess behavior and avoid hidden per-process state.
   and subject metadata.
 - `bywaf/plugins/analysis/report.py`: operator reporting commandlet.
 - `bywaf/plugins/analysis/report_render.py`: report table rendering helpers.
-- `bywaf/artifacts.py` and `bywaf/plugins/runtime/artifact*`: artifact storage,
+- `bywaf/artifacts/` and `bywaf/plugins/runtime/artifact*`: artifact storage,
   selectors, verification, and export/import workflows.
 
 Findings are append-only evidence. Review decisions are emitted as events, not

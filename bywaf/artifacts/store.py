@@ -1,7 +1,7 @@
 """Artifact body database implementation.
 
 Used by:
-- bywaf.artifacts: public facade that re-exports `ArtifactStore`.
+- `bywaf.artifacts`: public artifact API package.
 - plugin contexts and runtime artifact commands: store, query, verify, replace,
   and remove evidence files through this store.
 """
