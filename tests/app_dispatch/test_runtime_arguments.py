@@ -21,7 +21,7 @@ from bywaf.app import (
     dispatch_repl_line,
     make_runner,
 )
-from bywaf.plugins.network.nmap_backend import NmapPort
+from bywaf.plugins.network.nmap.backend import NmapPort
 
 
 

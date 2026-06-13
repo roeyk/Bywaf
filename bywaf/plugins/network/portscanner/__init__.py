@@ -23,8 +23,8 @@ from collections.abc import Iterable
 from bywaf.event import Event
 from bywaf.plugins.addressing import filter_by_ip_family, is_ip_scan_target, target_matches_ip_family
 from bywaf.plugins.discovery.hostscanner import publish_name_resolution_events
-from bywaf.plugins.network.nmap_diagnostics import NMAP_FAILURES, publish_nmap_error
-from bywaf.plugins.network.nmap_backend import scan_open_ports
+from bywaf.plugins.network.nmap.diagnostics import NMAP_FAILURES, publish_nmap_error
+from bywaf.plugins.network.nmap.backend import scan_open_ports
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option, parse_bool, split_var_values
 from bywaf.plugin import kv_to_args
 from bywaf.plugins.network.portscanner.findings import telnet_open_candidate

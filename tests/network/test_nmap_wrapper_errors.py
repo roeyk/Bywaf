@@ -13,7 +13,7 @@ from unittest.mock import patch
 from bywaf.db import EventStore
 from bywaf.plugin import CommandContext
 from bywaf.plugins.discovery.hostscanner import HostScanner
-from bywaf.plugins.network.nmap_backend import NmapScanError, NmapUnavailableError
+from bywaf.plugins.network.nmap.backend import NmapScanError, NmapUnavailableError
 from bywaf.plugins.network.portscanner import PortScanner
 
 

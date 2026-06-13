@@ -62,6 +62,8 @@ PortScanBackend = Callable[[Any, list[str], str | None, str], list[NmapPort]]
 
 def host_discovery_backends() -> dict[str, HostDiscoveryBackend]:
     """Return host discovery handlers keyed by backend name."""
+    # Dispatch table used by `discover_live_hosts()` to call the adapter that
+    # matches the optional nmap binding selected by `load_backend()`.
     return {
         "libnmap": discover_live_hosts_libnmap,
         "nmapthon": discover_live_hosts_nmapthon,
@@ -70,6 +72,8 @@ def host_discovery_backends() -> dict[str, HostDiscoveryBackend]:
 
 def port_scan_backends() -> dict[str, PortScanBackend]:
     """Return port scan handlers keyed by backend name."""
+    # Dispatch table used by `scan_open_ports()` so each supported binding can
+    # normalize its native output into the shared `NmapPort` model.
     return {
         "libnmap": scan_open_ports_libnmap,
         "nmapthon": scan_open_ports_nmapthon,

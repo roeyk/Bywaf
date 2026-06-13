@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from bywaf.plugin import CommandContext
 
-from .nmap_backend import NmapScanError, NmapUnavailableError
+from .backend import NmapScanError, NmapUnavailableError
 
 NMAP_FAILURES = (NmapUnavailableError, NmapScanError)
 

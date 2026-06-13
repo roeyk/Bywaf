@@ -123,7 +123,7 @@ Use these suites as starting points for common framework changes:
 - Secrets, keys, and bundles:
   `tests/test_secrets.py`, `tests/test_keyring.py`, `tests/test_bundle.py`.
 - Built-in plugins:
-  `tests/test_nmap_backend.py`, `tests/test_repo_exposure.py`,
+  `tests/network/test_nmap_backend.py`, `tests/test_repo_exposure.py`,
   `tests/framework_http_app/`.
 - Plugin tooling, catalog, and scaffold generation:
   `tests/plugin_check/`, `tests/plugin/`.

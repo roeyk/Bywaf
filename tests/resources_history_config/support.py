@@ -29,7 +29,7 @@ from bywaf.app import (
     split_command_sequence,
     strip_inline_comment,
 )
-from bywaf.plugins.network.nmap_backend import NmapScanError, NmapUnavailableError
+from bywaf.plugins.network.nmap.backend import NmapScanError, NmapUnavailableError
 from bywaf.repl import redact_history_command
 from bywaf.repl.shell import apply_startup_preferences
 from bywaf.style import subject_style

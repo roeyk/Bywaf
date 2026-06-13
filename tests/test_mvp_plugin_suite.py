@@ -22,7 +22,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from bywaf.app import ShellState, make_runner, process_framework_requests
-from bywaf.plugins.network.nmap_backend import NmapPort
+from bywaf.plugins.network.nmap.backend import NmapPort
 from bywaf.plugins.http.repo_exposure import DetectionStatus, base_result
 from bywaf.registry import PluginRegistry
 

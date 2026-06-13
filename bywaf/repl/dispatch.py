@@ -10,7 +10,7 @@ Used by:
 
 from __future__ import annotations
 
-from ..plugins.network.nmap_backend import NmapScanError, NmapUnavailableError
+from ..plugins.network.nmap.backend import NmapScanError, NmapUnavailableError
 from ..registry import PluginTrustError
 from ..runner import Runner
 from .commands import REPL_COMMAND_HANDLERS, execute_repl_commandlet

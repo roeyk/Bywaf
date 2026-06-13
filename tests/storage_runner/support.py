@@ -21,7 +21,7 @@ from bywaf.command.parser import parse_invocation, parse_pipeline
 from bywaf.db import EventStore, Subscription, database_appears_encrypted, sqlcipher_available
 from bywaf.plugin import CommandContext
 from bywaf.plugins.discovery.hostscanner import HostScanner, expand_targets
-from bywaf.plugins.network.nmap_backend import NmapPort
+from bywaf.plugins.network.nmap.backend import NmapPort
 from bywaf.plugins.network.portscanner import PortScanner
 from bywaf.plugins.runtime.artifact import select_artifacts
 from bywaf.plugins.runtime.audit.inventory import capability_inventory_row

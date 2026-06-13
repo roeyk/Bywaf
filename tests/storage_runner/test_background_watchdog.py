@@ -32,7 +32,7 @@ class StorageRunnerBackgroundWatchdogTests(unittest.TestCase):
             runner = make_runner(db_path)
             with (
                 patch("bywaf.runner.core.mp.Process", ImmediateProcess),
-                patch("bywaf.plugins.network.nmap_backend.load_backend", return_value=("fake", FakeNmapModule())),
+                patch("bywaf.plugins.network.nmap.backend.load_backend", return_value=("fake", FakeNmapModule())),
             ):
                 with contextlib.redirect_stdout(io.StringIO()):
                     events = runner.execute("hostscanner 127.0.0.1 &")

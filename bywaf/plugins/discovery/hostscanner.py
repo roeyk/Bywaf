@@ -23,8 +23,8 @@ from dataclasses import dataclass
 from bywaf.event import Event
 from bywaf.policy import resolve_target
 from bywaf.plugin import kv_to_args
-from bywaf.plugins.network.nmap_diagnostics import NMAP_FAILURES, publish_nmap_error
-from bywaf.plugins.network.nmap_backend import discover_live_hosts
+from bywaf.plugins.network.nmap.diagnostics import NMAP_FAILURES, publish_nmap_error
+from bywaf.plugins.network.nmap.backend import discover_live_hosts
 from bywaf.plugin import CommandContext, Commandlet, CommandletBase, PlanItem, PlanRepair, PlanReport, commandlet, option, parse_bool, split_var_values
 from bywaf.utils import host_candidates
 
