@@ -22,7 +22,7 @@ class DocumentMetric:
     """Metrics for one Markdown document.
 
     Constructed by: `collect_documentation_metrics()`.
-    Consumed by: `bywaf.tools.documentation_report` when it ranks oversized,
+    Consumed by: `bywaf.tools.documentation.report` when it ranks oversized,
     over-linked, stale, or audience-mixed documentation.
     """
 

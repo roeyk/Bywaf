@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ..documentation_metrics import DocumentationMetrics
+from ..documentation.metrics import DocumentationMetrics
 
 
 @dataclass(frozen=True, slots=True)

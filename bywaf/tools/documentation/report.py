@@ -9,10 +9,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from .architecture.report_sections import detail_section, section
+from ..architecture.report_sections import detail_section, section
 
 if TYPE_CHECKING:
-    from .documentation_metrics import DocumentMetric, DocumentationImpact, DocumentationMetrics
+    from .metrics import DocumentMetric, DocumentationImpact, DocumentationMetrics
 
 
 def format_documentation_metrics(metrics: DocumentationMetrics, *, top: int = 12) -> str:

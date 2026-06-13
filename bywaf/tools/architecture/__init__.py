@@ -42,7 +42,7 @@ from .source import (
     source_comment_lines as source_comment_lines,
     source_loc,
 )
-from ..documentation_metrics import (
+from ..documentation.metrics import (
     collect_documentation_impact,
     collect_documentation_metrics,
 )

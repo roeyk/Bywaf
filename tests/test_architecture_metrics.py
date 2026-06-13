@@ -14,7 +14,7 @@ from bywaf.tools.architecture import (
     format_documentation_impact,
     format_metrics,
 )
-from bywaf.tools.documentation_metrics import collect_documentation_impact, collect_documentation_metrics
+from bywaf.tools.documentation.metrics import collect_documentation_impact, collect_documentation_metrics
 
 
 def write(path: Path, text: str) -> None:

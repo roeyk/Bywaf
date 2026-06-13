@@ -422,8 +422,8 @@ tool modules.
 | `architecture/report.py` | `architecture/formatting.py` | Source architecture report section assembly. |
 | `architecture/report_sections.py` | architecture and documentation report modules | Shared ranked-section text formatting helpers. |
 | `architecture/source.py` | `architecture/__init__.py` | Source-code LOC, complexity, documentation-pressure, and security-surface metrics. |
-| `documentation_report.py` | `architecture/formatting.py` | Documentation metrics and impact report rendering. |
-| `documentation_metrics.py` | `architecture/__init__.py` | Markdown size, link, stale-term, duplicate-heading, and audience-mixing metrics. |
+| `documentation/report.py` | `architecture/formatting.py` | Documentation metrics and impact report rendering. |
+| `documentation/metrics.py` | `architecture/__init__.py` | Markdown size, link, stale-term, duplicate-heading, and audience-mixing metrics. |
 | `bundled_plugin_manual_check.py` | `scripts/bundled_plugin_manual_check.py`, tests | Bundled plugin manual drift detection. |
 | `plugin_check/` | `scripts/plugin_check.py`, tests | Static plugin source analysis package; `python -m bywaf.tools.plugin_check` delegates to the script wrapper. |
 | `plugin_check/helpers.py` | `plugin_check/visitor.py`, `plugin_check/diagnostics.py` | AST helper functions for capability and risky-API inference. |

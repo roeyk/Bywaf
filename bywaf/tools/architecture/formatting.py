@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 from .report import architecture_report_sections
 from .report_sections import detail_section, section
-from ..documentation_report import format_documentation_impact, format_documentation_metrics
+from ..documentation.report import format_documentation_impact, format_documentation_metrics
 
 if TYPE_CHECKING:
     from . import ArchitectureMetrics
