@@ -64,11 +64,11 @@ PYTHONPATH=%{buildroot}%{python3_sitelib} %{buildroot}%{_bindir}/bywaf --version
 %{python3_sitelib}/bywaf-*.dist-info
 
 %changelog
-* Thu Jun 11 2026 Roey Katz <roey.katz@gmail.com> - 0.13.0-1
+* Sun Jun 14 2026 Roey Katz <roey.katz@gmail.com> - 0.13.0-1
 - Testing release with WafW00f wrapper integration, report-side passive
   analysis improvements, manifest dependency graph diagnostics, expanded
-  plugin-authoring documentation and scaffolding, performance fixes, and
-  plugin package-boundary cleanup.
+  plugin-authoring documentation and scaffolding, performance fixes, broad
+  package-boundary cleanup, and source/test readability documentation.
 
 * Wed May 27 2026 Roey Katz <roey.katz@gmail.com> - 0.12.2-1
 - Patch release with documentation TOCs, documentation impact metrics, and

@@ -10,7 +10,7 @@ impact label and sorted from highest to lowest operator/developer impact:
 ## Contents
 
 - [Unreleased](#unreleased)
-- [0.13.0 - 2026-06-11](#0130---2026-06-11)
+- [0.13.0 - 2026-06-14](#0130---2026-06-14)
 - [0.12.2 - 2026-05-27](#0122---2026-05-27)
 - [0.12.1 - 2026-05-27](#0121---2026-05-27)
 - [0.12.0 - 2026-05-26](#0120---2026-05-26)
@@ -25,9 +25,9 @@ impact label and sorted from highest to lowest operator/developer impact:
 
 No unreleased changes.
 
-## [0.13.0] - 2026-06-11
+## [0.13.0] - 2026-06-14
 
-Last updated: 2026-06-11 17:38:29 EDT
+Last updated: 2026-06-14 17:19:40 EDT
 
 ### Changed
 
@@ -91,6 +91,20 @@ Last updated: 2026-06-11 17:38:29 EDT
   classes, decorators, manifest adapters, and manifest spec parsing live under
   `bywaf.plugin.command`, and removed the redundant top-level context helper
   facades now that their implementations live under `bywaf.plugin.context`.
+- [medium] Completed a broad internal package-organization pass that moved
+  related runtime, registry, parser, completion, database, plugin, HTTP,
+  analysis, architecture-metrics, and SQLite helpers into cohesive packages
+  while preserving the supported command and plugin surfaces.
+- [medium] Removed temporary compatibility facades after the package reshaping
+  pass, keeping pre-1.0 internals consistent before the `0.13.0` release.
+- [medium] Expanded source and test readability documentation with module,
+  class, dataclass, function, dense-block, and dispatch-table comments so
+  maintainers, IDE users, and LLM-assisted sessions can navigate the refactored
+  codebase with less reverse engineering.
+- [medium] Split several maintainer tool and runtime package initializers into
+  focused modules, including architecture metrics collection/CLI, registry
+  graph construction, process context execution, secret-input prompting, and
+  artifact/resource helpers.
 - [medium] Improved compact report inbox rows so grouped findings summarize
   all affected resources represented by the group, instead of only the newest
   representative event.

@@ -9,17 +9,16 @@ if ! command -v dpkg-deb >/dev/null 2>&1; then
   exit 77
 fi
 
-shopt -s nullglob
-artifacts=("$ROOT"/dist/deb/bywaf_*_all.deb)
-if ((${#artifacts[@]} == 0)); then
+# Release directories may retain older packages, so validate the artifact that
+# matches pyproject.toml instead of requiring dist/deb to contain only one .deb.
+artifact="$ROOT/dist/deb/bywaf_${VERSION}-1_all.deb"
+if [[ ! -f "$artifact" ]]; then
   "$ROOT/scripts/build_deb_package.sh"
-  artifacts=("$ROOT"/dist/deb/bywaf_*_all.deb)
 fi
-if ((${#artifacts[@]} != 1)); then
-  printf 'expected exactly one Debian package artifact, found %d\n' "${#artifacts[@]}" >&2
+if [[ ! -f "$artifact" ]]; then
+  printf 'expected Debian package artifact for version %s at %s\n' "$VERSION" "$artifact" >&2
   exit 1
 fi
-artifact=${artifacts[0]}
 
 dpkg-deb --field "$artifact" Package | grep -q '^bywaf$'
 dpkg-deb --field "$artifact" Version | grep -q "^${VERSION}-"

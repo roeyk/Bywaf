@@ -33,6 +33,23 @@ class PackagingInstallVersionAndRootTests(unittest.TestCase):
         self.assertTrue(debian_changelog.startswith(f"bywaf ({version}-1) "))
         self.assertIn(f"dist/bywaf-{version}-py3-none-any.whl", readme)
 
+    def test_nested_bundled_plugin_manifests_are_packaged(self):
+        """Protect nested bundled plugin manifests from being omitted from packages."""
+        pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+        package_data = pyproject["tool"]["setuptools"]["package-data"]
+
+        # Package-local `bywaf.plugin.toml` files are read during import for
+        # manifest-backed commandlets. Debian build-time import discovery will
+        # fail if a nested plugin package forgets to list its manifest here.
+        missing: list[str] = []
+        for manifest in sorted(Path("bywaf/plugins").glob("**/bywaf.plugin.toml")):
+            package = ".".join(manifest.parent.parts)
+            patterns = package_data.get(package, ())
+            if "bywaf.plugin.toml" not in patterns:
+                missing.append(package)
+
+        self.assertEqual(missing, [])
+
     def test_packaged_key_namespace_contains_public_key_policy_docs(self):
         """Protect packaged key namespace contains public key policy docs behavior from regressions."""
         key_docs = importlib.resources.files("bywaf.keys").joinpath("README.md")
