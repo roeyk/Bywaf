@@ -76,7 +76,7 @@ For code changes, check:
 - Do package scripts build from the checked-out source and write artifacts only
   under `dist/`?
 - Are `pyproject.toml`, `bywaf.__version__`, Debian changelog, RPM spec, README
-  package examples, and changelog aligned?
+  and install-guide package examples, and changelog aligned?
 
 ## Known Limits
 

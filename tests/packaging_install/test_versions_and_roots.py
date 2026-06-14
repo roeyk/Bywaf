@@ -27,11 +27,15 @@ class PackagingInstallVersionAndRootTests(unittest.TestCase):
         rpm_spec = Path("packaging/rpm/bywaf.spec").read_text(encoding="utf-8")
         debian_changelog = Path("debian/changelog").read_text(encoding="utf-8")
         readme = Path("README.md").read_text(encoding="utf-8")
+        install = Path("INSTALL.md").read_text(encoding="utf-8")
 
         self.assertEqual(bywaf.__version__, version)
         self.assertRegex(rpm_spec, rf"%global bywaf_version %{{!\?bywaf_version:{re.escape(version)}}}")
         self.assertTrue(debian_changelog.startswith(f"bywaf ({version}-1) "))
         self.assertIn(f"dist/bywaf-{version}-py3-none-any.whl", readme)
+        self.assertIn(f"bywaf-{version}-py3-none-any.whl", install)
+        self.assertIn(f"bywaf_{version}-1_all.deb", install)
+        self.assertIn(f"bywaf-{version}-1.noarch.rpm", install)
 
     def test_nested_bundled_plugin_manifests_are_packaged(self):
         """Protect nested bundled plugin manifests from being omitted from packages."""

@@ -175,9 +175,10 @@ workflow reaches `success` and uploads `bywaf-release-artifacts`. Normal push CI
 does not run the release package workflow, so a green push alone does not prove
 the wheel, Debian, and RPM package matrix.
 
-Version alignment is covered by `tests/test_packaging_install_paths.py`: the
-Python package version, `bywaf.__version__`, Debian changelog, RPM spec, and
-README wheel example must agree before release packaging.
+Version alignment is covered by
+`tests/packaging_install/test_versions_and_roots.py`: the Python package
+version, `bywaf.__version__`, Debian changelog, RPM spec, README wheel example,
+and install-guide package examples must agree before release packaging.
 
 The install guide lists OS dependency blocks and optional plugin dependencies:
 [Install Guide](../INSTALL.md).
