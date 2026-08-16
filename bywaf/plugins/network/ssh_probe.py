@@ -12,8 +12,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from bywaf.event import Event
-from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
-from bywaf.plugin import kv_to_args
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, kv_to_args, option
 from bywaf.plugins.recon.dns_lookup import optional_module
 from bywaf.plugins.target_policy import filter_host_port_targets
 
@@ -25,7 +24,7 @@ OPTION_KEYS = {"password", "port", "timeout", "username"}
     name="ssh_probe",
     description="Probe SSH service metadata with Paramiko.",
     usage="ssh_probe [port=22] [username=USER password=PASS] <host ...>",
-    examples=("ssh_probe 127.0.0.1", "ssh_probe username=test password=test 127.0.0.1"),
+    examples=("ssh_probe 127.0.0.1", "ssh_probe username=test password=<secret-ref> 127.0.0.1"),
 )
 @option("password", "SSH password", secret=True)
 @option("port", "SSH port", "22")

@@ -13,8 +13,7 @@ import os
 from collections.abc import Iterable
 
 from bywaf.event import Event
-from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
-from bywaf.plugin import kv_to_args
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, kv_to_args, option
 from bywaf.plugins.recon.dns_lookup import optional_module
 
 DEFAULTS = {"api-key": "", "limit": "10", "mode": "host"}
@@ -24,7 +23,7 @@ OPTION_KEYS = {"api-key", "limit", "mode"}
 @commandlet(
     name="shodan_lookup",
     description="Query Shodan host or search data.",
-    usage="shodan_lookup [mode=host|search] [api-key=KEY] <ip-or-query>",
+    usage="shodan_lookup [mode=host|search] [api-key=<secret-ref>] <ip-or-query>",
     examples=("shodan_lookup 8.8.8.8", "shodan_lookup mode=search apache country:US"),
 )
 @option("api-key", "Shodan API key; defaults to SHODAN_API_KEY", secret=True)

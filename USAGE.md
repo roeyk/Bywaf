@@ -1489,7 +1489,7 @@ bywaf> set name=value
 Set an explicit secret variable:
 
 ```text
-bywaf> set --secret network/ssh_probe.password=client-password
+bywaf> set --secret network/ssh_probe.password=
 network/ssh_probe.password=[REDACTED#98a9bc10]
 ```
 
@@ -1512,7 +1512,7 @@ bywaf> set secret.input-mode=plain
 stored value is still replaced with `[REDACTED]` and a fingerprint.
 
 Only explicit `--secret` assignments and commandlet options declared as secret
-metadata are stored as secret references. Plain `set password=value` is an
+metadata are stored as secret references. Plain `set password=<value>` is an
 ordinary variable. `set`, command history, and audit-friendly displays show
 `[REDACTED]` plus an HMAC fingerprint for secret references instead of the
 plaintext.
@@ -1674,8 +1674,8 @@ use the secret store for credential material.
 ```text
 bywaf> pref set display.events.key-color=green
 saved pref display.events.key-color=green
-bywaf> pref set mail.smtp.password=secret
-saved pref mail.smtp.password=secret
+bywaf> pref set mail.smtp.password=<redacted>
+saved pref mail.smtp.password=<redacted>
 ```
 
 Command expansion previews are controlled by `display.expansion`:
@@ -1905,7 +1905,7 @@ bywaf> portscanner --listen
 
 ```text
 bywaf> ssh_probe 127.0.0.1
-bywaf> ssh_probe username=test password=test 127.0.0.1
+bywaf> ssh_probe username=test password=<secret-ref> 127.0.0.1
 ```
 
 `snmp_get` uses pysnmp to read one OID and emits `snmp.value`:
@@ -1949,14 +1949,14 @@ bywaf> shodan_lookup mode=search apache country:US
 
 ```text
 bywaf> ldap_probe dc.example.test
-bywaf> ldap_probe username='EXAMPLE\\user' password=secret dc.example.test
+bywaf> ldap_probe username='EXAMPLE\\user' password=<secret-ref> dc.example.test
 ```
 
 `smb_probe` uses Impacket and emits `smb.server`:
 
 ```text
 bywaf> smb_probe 127.0.0.1
-bywaf> smb_probe domain=EXAMPLE username=user password=secret dc.example.test
+bywaf> smb_probe domain=EXAMPLE username=user password=<secret-ref> dc.example.test
 ```
 
 ## http

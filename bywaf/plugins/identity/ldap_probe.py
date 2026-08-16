@@ -12,8 +12,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from bywaf.event import Event
-from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
-from bywaf.plugin import kv_to_args
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, kv_to_args, option
 from bywaf.plugins.recon.dns_lookup import optional_module
 
 DEFAULTS = {"base-dn": "", "password": "", "port": "389", "ssl": "false", "timeout": "5", "username": ""}
@@ -24,7 +23,7 @@ OPTION_KEYS = {"base-dn", "password", "port", "ssl", "timeout", "username"}
     name="ldap_probe",
     description="Probe LDAP bind and naming context metadata with ldap3.",
     usage="ldap_probe [username=USER password=PASS] <host>",
-    examples=("ldap_probe dc.example.test", "ldap_probe username='EXAMPLE\\\\user' password=secret dc.example.test"),
+    examples=("ldap_probe dc.example.test", "ldap_probe username='EXAMPLE\\\\user' password=<secret-ref> dc.example.test"),
 )
 @option("base-dn", "optional LDAP search base")
 @option("password", "LDAP password", secret=True)

@@ -47,7 +47,7 @@ HELP_COMMANDS = (
         "set [--secret] [name[=value]]",
         (
             "set http/http_probe.cookie-file=/tmp/cookies.txt",
-            "set --secret network/ssh_probe.password=client-password",
+            "set --secret network/ssh_probe.password=",
         ),
     ),
     HelpEntry("topics", "list event topics in the active database", "topics"),

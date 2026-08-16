@@ -12,8 +12,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from bywaf.event import Event
-from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, option
-from bywaf.plugin import kv_to_args
+from bywaf.plugin import CommandContext, Commandlet, CommandletBase, commandlet, kv_to_args, option
 from bywaf.plugins.recon.dns_lookup import optional_module
 
 DEFAULTS = {"domain": "", "password": "", "port": "445", "timeout": "5", "username": ""}
@@ -24,7 +23,7 @@ OPTION_KEYS = {"domain", "password", "port", "timeout", "username"}
     name="smb_probe",
     description="Probe SMB server metadata with Impacket.",
     usage="smb_probe [username=USER password=PASS domain=DOMAIN] <host ...>",
-    examples=("smb_probe 127.0.0.1", "smb_probe domain=EXAMPLE username=user password=secret dc.example.test"),
+    examples=("smb_probe 127.0.0.1", "smb_probe domain=EXAMPLE username=user password=<secret-ref> dc.example.test"),
 )
 @option("domain", "SMB domain")
 @option("password", "SMB password", secret=True)

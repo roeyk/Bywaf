@@ -115,14 +115,14 @@ A **provider** is the Python implementation object or module that registers or r
 | Network | `network.service_probe` | `service_probe` | Classify services from passive facts. | `portscanner host=192.0.2.10 \| service_probe` | [network.service_probe](#networkservice_probe) |
 | Network | `network.tcp_banner` | `tcp_banner` | Capture TCP banners or HTTP HEAD responses. | `tcp_banner mode=http-head 192.0.2.10:8080` | [network.tcp_banner](#networktcp_banner) |
 | Network | `network.management_exposure` | `management_exposure` | Promote exposed management surfaces. | `portscanner host=192.0.2.10 \| service_probe \| management_exposure` | [network.management_exposure](#networkmanagement_exposure) |
-| Network | `network.ssh_probe` | `ssh_probe` | Probe SSH service/auth state. | `ssh_probe username=test password=test 192.0.2.10` | [network.ssh_probe](#networkssh_probe) |
+| Network | `network.ssh_probe` | `ssh_probe` | Probe SSH service/auth state. | `ssh_probe username=test password=<secret-ref> 192.0.2.10` | [network.ssh_probe](#networkssh_probe) |
 | Network | `network.snmp_get` | `snmp_get` | Read one SNMP OID. | `snmp_get community=public oid=1.3.6.1.2.1.1.1.0 192.0.2.10` | [network.snmp_get](#networksnmp_get) |
 | Network | `network.traceroute` | `traceroute` | Record route hops. | `traceroute 192.0.2.10` | [network.traceroute](#networktraceroute) |
 | Recon | `recon.dns_lookup` | `dns_lookup` | Resolve DNS records. | `dns_lookup record-type=MX example.com` | [recon.dns_lookup](#recondns_lookup) |
 | Recon | `recon.dns_enum` | `dns_enum` | Run starter DNS enumeration. | `dns_enum domain=example.com words=www,api` | [recon.dns_enum](#recondns_enum) |
 | Recon | `recon.shodan_lookup` | `shodan_lookup` | Query Shodan by IP or search text. | `shodan_lookup mode=search apache country:US` | [recon.shodan_lookup](#reconshodan_lookup) |
-| Identity | `identity.ldap_probe` | `ldap_probe` | Probe LDAP server metadata. | `ldap_probe username=user password=secret dc.example.test` | [identity.ldap_probe](#identityldap_probe) |
-| Identity | `identity.smb_probe` | `smb_probe` | Probe SMB server metadata. | `smb_probe domain=EXAMPLE username=user password=secret dc.example.test` | [identity.smb_probe](#identitysmb_probe) |
+| Identity | `identity.ldap_probe` | `ldap_probe` | Probe LDAP server metadata. | `ldap_probe username=user password=<secret-ref> dc.example.test` | [identity.ldap_probe](#identityldap_probe) |
+| Identity | `identity.smb_probe` | `smb_probe` | Probe SMB server metadata. | `smb_probe domain=EXAMPLE username=user password=<secret-ref> dc.example.test` | [identity.smb_probe](#identitysmb_probe) |
 | HTTP | `http.auth` | `http_auth` | Probe HTTP auth challenges and passive auth posture findings. | `http_auth https://example.com/admin` | [http.auth](#httpauth) |
 | HTTP | `http.headers` | `http_headers` | Collect HTTP headers and header findings. | `http_headers ssl=true example.com` | [http.headers](#httpheaders) |
 | HTTP | `http.methods` | `http_methods` | Probe allowed HTTP methods and risky method findings. | `http_methods https://example.com/` | [http.methods](#httpmethods) |
@@ -576,7 +576,7 @@ Plugin metadata:
 
 #### Commandlet: `ssh_probe`
 
-Example usage: `ssh_probe username=test password=test 192.0.2.10`
+Example usage: `ssh_probe username=test password=<secret-ref> 192.0.2.10`
 
 Use `ssh_probe` to record whether SSH is reachable and what authentication behavior is
 observed from explicitly supplied credentials. Keep `password=` secret-aware, and use
@@ -846,7 +846,7 @@ Plugin metadata:
 
 #### Commandlet: `ldap_probe`
 
-Example usage: `ldap_probe username=user password=secret dc.example.test`
+Example usage: `ldap_probe username=user password=<secret-ref> dc.example.test`
 
 Use `ldap_probe` to capture LDAP server metadata and optional bind results. The
 commandlet is useful for directory-service context, and `password=` is secret-capable
@@ -891,7 +891,7 @@ Plugin metadata:
 
 #### Commandlet: `smb_probe`
 
-Example usage: `smb_probe domain=EXAMPLE username=user password=secret dc.example.test`
+Example usage: `smb_probe domain=EXAMPLE username=user password=<secret-ref> dc.example.test`
 
 Use `smb_probe` to capture SMB metadata and optional authentication behavior. Domain,
 username, and password arguments let you distinguish anonymous, guest, and

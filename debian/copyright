@@ -1,9 +1,9 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: Bywaf
-Source: https://github.com/roeyk/Bywaf
+Source: https://github.com/<owner>/Bywaf
 
 Files: *
-Copyright: 2026 Roey Katz <roey.katz@gmail.com>
+Copyright: 2026 Bywaf Maintainers <maintainers@example.invalid>
 License: GPL-3+
 
 License: GPL-3+

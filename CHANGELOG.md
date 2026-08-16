@@ -511,7 +511,7 @@ Last updated: 2026-05-21 14:27:13 EDT
 - Added commandlet option metadata for `secret=True` and marked bundled
   password/API-key options as secret.
 - Added HMAC-based secret fingerprints and in-memory secret references for
-  manual `var password=...` style assignments.
+  manual `var password=<value>` style assignments.
 - Added `context.secrets` so commandlets can explicitly resolve opaque secret
   references through an audited framework API.
 - Added manifest `secret_options` metadata, enforcement against Python

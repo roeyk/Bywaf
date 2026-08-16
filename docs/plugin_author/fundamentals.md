@@ -229,7 +229,7 @@ The distinction follows what the operator types:
 | Optional positional value | `@argument(..., required=False)` | `hello` or `hello world` |
 | Named setting | `@option(...)` | `portscanner port=22,80,443` |
 | Named flag | `@option(...)` plus `action="store_true"` in `parser.add_argument(...)` | `portscanner --listen` |
-| Secret named setting | `@option(..., secret=True)` | `ssh_probe password=...` |
+| Secret named setting | `@option(..., secret=True)` | `ssh_probe password=<secret-ref>` |
 
 Use `@argument` for values the user supplies by position:
 

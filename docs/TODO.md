@@ -403,8 +403,8 @@ Planning dates are release planning markers, not compatibility commitments.
 - Include selected reports, artifacts, screenshots, scan outputs, delivery
   notes, and provenance summaries.
 - Produce password-protected `.bywaf.zip` files when requested. Accept passwords
-  through an interactive prompt or existing secret variables such as
-  `password=$bundle_password`; reject plaintext literal passwords.
+  through an interactive prompt or existing secret variables; reject plaintext
+  literal passwords.
 - Sign a manifest inside the zip rather than signing the zip container. The
   manifest should list each included file path, SHA-256 digest, size, type, and
   provenance.

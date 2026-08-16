@@ -90,7 +90,7 @@ sudo dnf install python3 python3-build python3-installer python3-setuptools rpm-
 Clone and install Bywaf in editable mode:
 
 ```bash
-git clone https://github.com/roeyk/Bywaf.git
+git clone https://github.com/<owner>/Bywaf
 cd Bywaf
 python3 -m venv .venv
 source .venv/bin/activate

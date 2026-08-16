@@ -183,7 +183,7 @@ Options that carry credentials should be declared with `secret=True`:
 ```
 
 Operators can also set any variable as a secret with `set --secret name=value`.
-Bywaf does not guess based on variable names; plain `set password=value` is an
+Bywaf does not guess based on variable names; plain `set password=<value>` is an
 ordinary variable. Explicit secret assignments are redacted in command history
 and displayed as `[REDACTED]` with an HMAC fingerprint, so audit trails can
 correlate that a secret was supplied without exposing the plaintext in normal
@@ -1031,7 +1031,7 @@ or global variables. If a commandlet needs framework-global configuration, use
 Secret variables are different. If an operator sets:
 
 ```text
-bywaf> set --secret network/ssh_probe.password=client-password
+bywaf> set --secret network/ssh_probe.password=
 ```
 
 ordinary `context.vars.get("password")` returns an opaque secret reference, not
@@ -1090,10 +1090,10 @@ class SecretDemo(CommandletBase):
 With:
 
 ```text
-bywaf> set --secret secret_demo.password=client-password
+bywaf> set --secret secret_demo.password=
 secret_demo.password=[REDACTED#7e3...]
 bywaf> secret_demo
-subprocess saw password=client-password
+subprocess saw password=<redacted-demo-secret>
 ```
 
 the subprocess output is captured exactly because the child process really did
@@ -1102,7 +1102,7 @@ receive the secret:
 ```text
 process.run {
   "argv": ["python3", "-c", "...", "password=[REDACTED]"],
-  "stdout": "subprocess saw password=client-password\n",
+  "stdout": "subprocess saw password=<redacted-demo-secret>\n",
   "stderr": "",
   "ok": true
 }

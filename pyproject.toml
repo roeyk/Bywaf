@@ -4,7 +4,7 @@ version = "0.13.0"
 description = "Highly-auditable Python 3 commandlet framework with SQLite pub/sub for Bywaf-style workflows."
 readme = "README.md"
 license = "GPL-3.0-or-later"
-authors = [{ name = "Roey Katz", email = "roey.katz@gmail.com" }]
+authors = [{ name = "Bywaf Maintainers", email = "maintainers@example.invalid" }]
 requires-python = ">=3.11"
 dependencies = ["prompt_toolkit>=3.0"]
 classifiers = [

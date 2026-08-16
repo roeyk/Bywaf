@@ -331,7 +331,7 @@ past execution.
 ## How do I set a secret such as a password?
 
 ```text
-bywaf> set --secret ssh_check.password=<secret-value>
+bywaf> set --secret ssh_check.password=
 ```
 
 `--secret` stores the value as an opaque reference in the session VarStore and

@@ -5,7 +5,7 @@ Release:        1%{?dist}
 Summary:        Highly-auditable Python 3 commandlet framework
 
 License:        GPL-3.0-or-later
-URL:            https://github.com/roeyk/Bywaf
+URL:            https://github.com/<owner>/Bywaf
 Source0:        %{name}-%{version}.tar.gz
 BuildArch:      noarch
 
@@ -64,40 +64,40 @@ PYTHONPATH=%{buildroot}%{python3_sitelib} %{buildroot}%{_bindir}/bywaf --version
 %{python3_sitelib}/bywaf-*.dist-info
 
 %changelog
-* Sun Jun 14 2026 Roey Katz <roey.katz@gmail.com> - 0.13.0-1
+* Sun Jun 14 2026 Bywaf Maintainers <maintainers@example.invalid> - 0.13.0-1
 - Testing release with WafW00f wrapper integration, report-side passive
   analysis improvements, manifest dependency graph diagnostics, expanded
   plugin-authoring documentation and scaffolding, performance fixes, broad
   package-boundary cleanup, and source/test readability documentation.
 
-* Wed May 27 2026 Roey Katz <roey.katz@gmail.com> - 0.12.2-1
+* Wed May 27 2026 Bywaf Maintainers <maintainers@example.invalid> - 0.12.2-1
 - Patch release with documentation TOCs, documentation impact metrics, and
   refreshed system diagrams.
 
-* Wed May 27 2026 Roey Katz <roey.katz@gmail.com> - 0.12.1-1
+* Wed May 27 2026 Bywaf Maintainers <maintainers@example.invalid> - 0.12.1-1
 - Patch release with REPL/display/report/artifact/audit/control refactors,
   shared pager handling, and documentation/package refresh.
 
-* Fri May 22 2026 Roey Katz <roey.katz@gmail.com> - 0.11.1-1
+* Fri May 22 2026 Bywaf Maintainers <maintainers@example.invalid> - 0.11.1-1
 - Patch release with plugin checker AST inference, capability inventory,
   manifest generation improvements, readable plugin/commandlet listings,
   explicit secret variable assignment, and configurable variable-listing color.
 
-* Fri May 22 2026 Roey Katz <roey.katz@gmail.com> - 0.11.0-1
+* Fri May 22 2026 Bywaf Maintainers <maintainers@example.invalid> - 0.11.0-1
 - Testing release with provider-owned triggers, signed plugin manifests and
   catalogs, explicit trust bypasses for development, key-management policy
   documentation, and major internal package refactors.
 
-* Tue May 19 2026 Roey Katz <roey.katz@gmail.com> - 0.10.0-1
+* Tue May 19 2026 Bywaf Maintainers <maintainers@example.invalid> - 0.10.0-1
 - Feature-complete testing release with project workspaces, signed bundles,
   key management, plugin manifests, catalog signing checks, and expanded
   plugin/reporting support.
 
-* Mon May 18 2026 Roey Katz <roey.katz@gmail.com> - 0.9.2-1
+* Mon May 18 2026 Bywaf Maintainers <maintainers@example.invalid> - 0.9.2-1
 - Testing release with fixed pip, Debian, and RPM release packaging workflow.
 
-* Mon May 18 2026 Roey Katz <roey.katz@gmail.com> - 0.9.1-1
+* Mon May 18 2026 Bywaf Maintainers <maintainers@example.invalid> - 0.9.1-1
 - Testing release with finding workflows, completion regressions, and release packaging.
 
-* Mon May 18 2026 Roey Katz <roey.katz@gmail.com> - 0.9.0-1
+* Mon May 18 2026 Bywaf Maintainers <maintainers@example.invalid> - 0.9.0-1
 - Initial RPM packaging scaffold.
